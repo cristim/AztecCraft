@@ -62,6 +62,14 @@ pub(crate) fn triangle_double_shape() -> (NativeScene, NodeId) {
     (scene, id)
 }
 
+pub(crate) fn offset_triangle_shape() -> (NativeScene, NodeId) {
+    let (mut scene, id) = cube();
+    scene.shapes[0].mesh = NativeMesh::offset_triangle_fixture();
+    scene.nodes[0].channels[0] = Scalar::new(-16777216.0);
+    scene.validate().unwrap();
+    (scene, id)
+}
+
 #[test]
 fn triangle_native_face_target_does_not_require_a_quad_view() {
     let (scene, transform) = triangle_double_shape();

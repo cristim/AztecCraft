@@ -4,8 +4,9 @@ use crate::{
     scene::{Primitive, SceneError},
 };
 use glam::DVec3;
+use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Points {
     Float3(Vec<[f32; 3]>),
     Double3(Vec<[f64; 3]>),
@@ -31,6 +32,18 @@ impl PartialEq for Points {
     }
 }
 impl Points {
+    fn len(&self) -> usize {
+        match self {
+            Self::Float3(p) => p.len(),
+            Self::Double3(p) => p.len(),
+        }
+    }
+    fn get(&self, index: usize) -> Option<[f64; 3]> {
+        match self {
+            Self::Float3(p) => p.get(index).map(|v| v.map(f64::from)),
+            Self::Double3(p) => p.get(index).copied(),
+        }
+    }
     fn values(&self) -> Vec<DVec3> {
         match self {
             Self::Float3(points) => points
@@ -55,6 +68,36 @@ impl Points {
     }
 }
 
+impl fmt::Debug for Points {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct(match self {
+            Self::Float3(_) => "Float3",
+            Self::Double3(_) => "Double3",
+        })
+        .field("count", &self.len())
+        .finish()
+    }
+}
+
+#[derive(Clone)]
+pub(super) struct PointOffset {
+    pub(super) vertex: usize,
+    pub(super) delta_cm: [f32; 3],
+}
+impl PartialEq for PointOffset {
+    fn eq(&self, other: &Self) -> bool {
+        self.vertex == other.vertex
+            && self.delta_cm.map(f32::to_bits) == other.delta_cm.map(f32::to_bits)
+    }
+}
+impl fmt::Debug for PointOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PointOffset")
+            .field("vertex", &self.vertex)
+            .finish()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DirectedEdge {
     pub edge: usize,
@@ -63,22 +106,30 @@ pub struct DirectedEdge {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeEdge {
-    endpoints: [usize; 2],
-    smooth: bool,
+    pub(super) endpoints: [usize; 2],
+    pub(super) smooth: Option<bool>,
 }
 impl NativeEdge {
     pub fn endpoints(&self) -> [usize; 2] {
         self.endpoints
     }
-    pub fn smooth(&self) -> bool {
+    pub fn smooth(&self) -> Option<bool> {
         self.smooth
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct NativeFace {
-    outer: Vec<DirectedEdge>,
-    holes: Vec<Vec<DirectedEdge>>,
+    pub(super) outer: Vec<DirectedEdge>,
+    pub(super) holes: Vec<Vec<DirectedEdge>>,
+}
+impl fmt::Debug for NativeFace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NativeFace")
+            .field("outer_edges", &self.outer.len())
+            .field("hole_count", &self.holes.len())
+            .finish()
+    }
 }
 impl NativeFace {
     pub fn outer(&self) -> &[DirectedEdge] {
@@ -89,17 +140,98 @@ impl NativeFace {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct NativeMesh {
     points: Points,
+    point_offsets: Vec<PointOffset>,
     edges: Vec<NativeEdge>,
     faces: Vec<NativeFace>,
     unsupported_channels: Vec<String>,
 }
+impl fmt::Debug for NativeMesh {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NativeMesh")
+            .field("points", &self.points)
+            .field("offset_count", &self.point_offsets.len())
+            .field("edge_count", &self.edges.len())
+            .field("face_count", &self.faces.len())
+            .field("restricted_channels", &self.unsupported_channels.len())
+            .finish()
+    }
+}
 impl NativeMesh {
+    #[cfg(test)]
+    pub(super) fn offset_triangle_fixture() -> Self {
+        Self::from_binary_parts(
+            vec![
+                [16777216.0, 0.0, 0.0],
+                [16777218.0, 0.0, 0.0],
+                [16777216.0, 1.0, 0.0],
+            ],
+            [[0, 1], [1, 2], [2, 0]]
+                .map(|endpoints| NativeEdge {
+                    endpoints,
+                    smooth: None,
+                })
+                .into(),
+            vec![NativeFace {
+                outer: (0..3)
+                    .map(|edge| DirectedEdge {
+                        edge,
+                        reversed: false,
+                    })
+                    .collect(),
+                holes: Vec::new(),
+            }],
+            vec![PointOffset {
+                vertex: 0,
+                delta_cm: [0.25, -0.0, 0.0],
+            }],
+        )
+        .unwrap()
+    }
+    #[cfg(test)]
+    pub(super) fn from_binary_parts(
+        base: Vec<[f32; 3]>,
+        edges: Vec<NativeEdge>,
+        faces: Vec<NativeFace>,
+        offsets: Vec<PointOffset>,
+    ) -> Result<Self, NativeError> {
+        if edges.iter().any(|e| e.smooth.is_some()) || faces.iter().any(|f| !f.holes.is_empty()) {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        let mesh = Self {
+            points: Points::Float3(base),
+            point_offsets: offsets,
+            edges,
+            faces,
+            unsupported_channels: Vec::new(),
+        };
+        mesh.validate()?;
+        Ok(mesh)
+    }
+    pub fn point_count(&self) -> usize {
+        self.points.len()
+    }
+    pub fn effective_point_cm(&self, index: usize) -> Result<[f64; 3], NativeError> {
+        let mut point = self.points.get(index).ok_or(NativeError::InvalidTopology)?;
+        if let Ok(offset) = self
+            .point_offsets
+            .binary_search_by_key(&index, |v| v.vertex)
+        {
+            for (value, delta) in point.iter_mut().zip(self.point_offsets[offset].delta_cm) {
+                *value += f64::from(delta);
+            }
+        }
+        if point.iter().any(|v| !v.is_finite()) {
+            return Err(NativeError::NonFinite);
+        }
+        Ok(point)
+    }
     #[cfg(test)]
     pub(super) fn triangle_double_fixture() -> Self {
         Self {
+            point_offsets: Vec::new(),
             points: Points::Double3(vec![
                 [16777216.25, 0.0, 0.0],
                 [16777217.25, 0.0, 0.0],
@@ -108,7 +240,7 @@ impl NativeMesh {
             edges: [[0, 1], [1, 2], [2, 0]]
                 .map(|endpoints| NativeEdge {
                     endpoints,
-                    smooth: false,
+                    smooth: Some(false),
                 })
                 .into(),
             faces: vec![NativeFace {
@@ -137,6 +269,7 @@ impl NativeMesh {
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
         let mut native = Self {
+            point_offsets: Vec::new(),
             points: Points::Float3(mesh.vertices().iter().map(|v| v.to_array()).collect()),
             edges: Vec::new(),
             faces: Vec::new(),
@@ -174,7 +307,7 @@ impl NativeMesh {
         let edge = self.edges.len();
         self.edges.push(NativeEdge {
             endpoints,
-            smooth: false,
+            smooth: Some(false),
         });
         DirectedEdge {
             edge,
@@ -193,37 +326,55 @@ impl NativeMesh {
             points
         })
     }
-    fn loop_vertices(&self, edges: &[DirectedEdge]) -> Result<Vec<usize>, NativeError> {
+    fn validate_loop(&self, edges: &[DirectedEdge]) -> Result<(), NativeError> {
         if edges.len() < 3 {
             return Err(NativeError::InvalidTopology);
         }
-        let points = edges
-            .iter()
-            .map(|e| self.endpoints(*e))
-            .collect::<Result<Vec<_>, _>>()?;
-        for i in 0..points.len() {
-            if points[i][1] != points[(i + 1) % points.len()][0] {
+        for i in 0..edges.len() {
+            if self.endpoints(edges[i])?[1] != self.endpoints(edges[(i + 1) % edges.len()])?[0] {
                 return Err(NativeError::InvalidTopology);
             }
         }
-        Ok(points.into_iter().map(|p| p[0]).collect())
+        Ok(())
+    }
+    fn loop_vertices(&self, edges: &[DirectedEdge]) -> Result<Vec<usize>, NativeError> {
+        self.validate_loop(edges)?;
+        edges
+            .iter()
+            .map(|e| self.endpoints(*e).map(|p| p[0]))
+            .collect()
     }
     pub(super) fn validate(&self) -> Result<(), NativeError> {
-        let points = self.points.values();
-        if points.iter().any(|p| !p.is_finite()) {
-            return Err(NativeError::NonFinite);
+        for index in 0..self.point_count() {
+            if self
+                .points
+                .get(index)
+                .is_none_or(|p| p.iter().any(|v| !v.is_finite()))
+            {
+                return Err(NativeError::NonFinite);
+            }
+        }
+        for (index, offset) in self.point_offsets.iter().enumerate() {
+            if offset.vertex >= self.point_count()
+                || (index > 0 && self.point_offsets[index - 1].vertex >= offset.vertex)
+            {
+                return Err(NativeError::InvalidTopology);
+            }
+            if offset.delta_cm.iter().any(|v| !v.is_finite()) {
+                return Err(NativeError::NonFinite);
+            }
         }
         if self
             .edges
             .iter()
-            .any(|e| e.endpoints.iter().any(|i| *i >= points.len()))
+            .any(|e| e.endpoints.iter().any(|i| *i >= self.point_count()))
         {
             return Err(NativeError::InvalidTopology);
         }
         for face in &self.faces {
-            self.loop_vertices(&face.outer)?;
+            self.validate_loop(&face.outer)?;
             for hole in &face.holes {
-                self.loop_vertices(hole)?;
+                self.validate_loop(hole)?;
             }
         }
         Ok(())
@@ -232,11 +383,8 @@ impl NativeMesh {
         if !self.unsupported_channels.is_empty() {
             return Err(NativeError::UnsupportedView("mesh channels"));
         }
-        let vertices = self
-            .points
-            .values()
-            .into_iter()
-            .map(|p| convert(p.to_array(), factor))
+        let vertices = (0..self.point_count())
+            .map(|i| convert(self.effective_point_cm(i)?, factor))
             .collect::<Result<Vec<_>, _>>()?;
         let mut faces = Vec::new();
         for face in &self.faces {
@@ -264,7 +412,11 @@ impl NativeMesh {
             .faces
             .get(face_index)
             .ok_or(SceneError::MissingFace(face_index))?;
-        if !self.unsupported_channels.is_empty() || !face.holes.is_empty() {
+        if !self.unsupported_channels.is_empty()
+            || !face.holes.is_empty()
+            || !self.point_offsets.is_empty()
+            || self.edges.iter().any(|e| e.smooth.is_none())
+        {
             return Err(NativeError::UnsupportedEdit);
         }
         if self.faces.len() == 1 {

@@ -492,6 +492,37 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
+    #[cfg(test)]
+    fn from_binary_candidate(mut candidate: Self) -> Result<Self, NativeError> {
+        if candidate
+            .source
+            .as_ref()
+            .is_none_or(|s| s.format != SourceFormat::Binary)
+            || candidate.nodes.iter().any(|n| n.transform_uuid.is_some())
+            || candidate.shapes.iter().any(|s| s.uuid.is_some())
+        {
+            return Err(NativeError::InvalidRetention);
+        }
+        candidate.next_id = candidate
+            .nodes
+            .iter()
+            .map(|n| n.id.value())
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .ok_or(NativeError::InvalidIdentity)?;
+        candidate.next_native_id = candidate
+            .nodes
+            .iter()
+            .map(|n| n.transform_id.0)
+            .chain(candidate.shapes.iter().map(|s| s.id.0))
+            .max()
+            .unwrap_or(0)
+            .checked_add(1)
+            .ok_or(NativeError::InvalidIdentity)?;
+        candidate.validate()?;
+        Ok(candidate)
+    }
     pub fn from_legacy(scene: Scene) -> Result<Self, NativeError> {
         scene.validate()?;
         let mut native = Self {
@@ -961,6 +992,16 @@ impl NativeScene {
         FULL_VALIDATIONS.with(|count| count.set(count.get() + 1));
         let mut ids = std::collections::HashSet::new();
         let mut native_ids = std::collections::HashSet::new();
+        ids.try_reserve(self.nodes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        native_ids
+            .try_reserve(
+                self.nodes
+                    .len()
+                    .checked_add(self.shapes.len())
+                    .ok_or(NativeError::ResourceLimit)?,
+            )
+            .map_err(|_| NativeError::ResourceLimit)?;
         if self.next_id == 0 || self.next_native_id == 0 {
             return Err(NativeError::InvalidIdentity);
         }
@@ -1039,11 +1080,20 @@ impl NativeScene {
         &self,
         identities: &std::collections::HashSet<NativeId>,
     ) -> Result<(), NativeError> {
-        let transforms: std::collections::HashSet<_> =
-            self.nodes.iter().map(|node| node.transform_id).collect();
+        let mut transforms = std::collections::HashSet::new();
+        transforms
+            .try_reserve(self.nodes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        transforms.extend(self.nodes.iter().map(|node| node.transform_id));
         let mut edges = std::collections::HashSet::new();
-        let mut incoming: std::collections::HashMap<_, usize> =
-            identities.iter().map(|id| (*id, 0)).collect();
+        edges
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        let mut incoming = std::collections::HashMap::new();
+        incoming
+            .try_reserve(identities.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        incoming.extend(identities.iter().map(|id| (*id, 0usize)));
         for edge in &self.dag {
             if !identities.contains(&edge.child)
                 || !edges.insert((edge.parent, edge.child))
@@ -1066,11 +1116,16 @@ impl NativeScene {
         {
             return Err(NativeError::InvalidIdentity);
         }
-        let mut pending: std::collections::VecDeque<_> = incoming
-            .iter()
-            .filter(|(_, count)| **count == 0)
-            .map(|(id, _)| *id)
-            .collect();
+        let mut pending = std::collections::VecDeque::new();
+        pending
+            .try_reserve(identities.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        pending.extend(
+            incoming
+                .iter()
+                .filter(|(_, count)| **count == 0)
+                .map(|(id, _)| *id),
+        );
         let mut visited = 0;
         while let Some(parent) = pending.pop_front() {
             visited += 1;
@@ -1106,6 +1161,7 @@ pub enum NativeError {
     InvalidIdentity,
     InvalidRetention,
     InvalidTopology,
+    ResourceLimit,
     MissingShape(NativeId),
     InvalidInstancePath,
     UnsupportedLinearUnit,
@@ -1127,6 +1183,7 @@ impl fmt::Display for NativeError {
             Self::InvalidIdentity => f.write_str("invalid native identities or DAG references"),
             Self::InvalidRetention => f.write_str("invalid retained source ranges"),
             Self::InvalidTopology => f.write_str("invalid native polygon connectivity"),
+            Self::ResourceLimit => f.write_str("native validation resource limit exceeded"),
             Self::MissingShape(id) => {
                 write!(f, "native mesh shape {} does not exist", id.to_decimal())
             }

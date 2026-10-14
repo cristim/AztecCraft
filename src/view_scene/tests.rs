@@ -557,3 +557,11 @@ fn triangles_keep_three_corners_and_quad_diagonal_has_source_order() {
     };
     assert_eq!(quad.triangles().collect::<Vec<_>>(), [[0, 1, 2], [0, 2, 3]]);
 }
+#[test]
+fn sparse_offsets_are_added_in_f64_before_actual_world_transform() {
+    let (scene, _) = crate::native_scene::test_fixtures::offset_triangle_shape();
+    let view = super::ViewScene::from_native(&scene, 1024 * 1024).unwrap();
+    assert_eq!(view.instances()[0].world_vertices()[0].x, 0.25);
+    assert_eq!(view.instances()[0].faces()[0].source_index(), 0);
+}
+use crate::native_scene::Points;

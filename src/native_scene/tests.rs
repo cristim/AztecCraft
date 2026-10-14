@@ -747,3 +747,69 @@ fn path_roles_are_checked_without_revalidating_unrelated_scene_data() {
     );
     assert_eq!(FULL_VALIDATIONS.with(|count| count.get()), before);
 }
+#[test]
+fn binary_candidate_finishes_once_preserving_source_and_runtime_identity() {
+    let (mut candidate, id) = test_fixtures::cube();
+    candidate.nodes[0].transform_uuid = None;
+    candidate.shapes[0].uuid = None;
+    candidate.nodes[0].name = "native:arbitrary exact name".into();
+    candidate.source = Some(SourceRetention {
+        bytes: std::sync::Arc::from(&b"opaque original identity"[..]),
+        format: SourceFormat::Binary,
+        records: std::iter::once(0..24).collect(),
+        leaves: Vec::new(),
+    });
+    let bytes = candidate.source.as_ref().unwrap().bytes.clone();
+    candidate.next_id = u64::MAX;
+    candidate.next_native_id = 0;
+    FULL_VALIDATIONS.with(|v| v.set(0));
+    let scene = NativeScene::from_binary_candidate(candidate.clone()).unwrap();
+    FULL_VALIDATIONS.with(|v| assert_eq!(v.get(), 1));
+    assert!(std::sync::Arc::ptr_eq(
+        &bytes,
+        &scene.source.as_ref().unwrap().bytes
+    ));
+    assert_eq!(
+        scene.node(id).unwrap().name(),
+        "native:arbitrary exact name"
+    );
+    assert_eq!(scene.next_id, id.value() + 1);
+    assert_eq!(scene.next_native_id, scene.shapes[0].id.0 + 1);
+    assert_eq!(scene, candidate);
+    let empty = NativeScene {
+        source: candidate.source.clone(),
+        next_id: 0,
+        next_native_id: u64::MAX,
+        ..NativeScene::default()
+    };
+    let empty = NativeScene::from_binary_candidate(empty).unwrap();
+    assert_eq!((empty.next_id, empty.next_native_id), (1, 1));
+    for mut nested in [
+        test_fixtures::grouped_shape().0,
+        test_fixtures::shared_shape().0,
+    ] {
+        for node in &mut nested.nodes {
+            node.transform_uuid = None;
+        }
+        for shape in &mut nested.shapes {
+            shape.uuid = None;
+        }
+        nested.source = candidate.source.clone();
+        let before = nested.clone();
+        let finished = NativeScene::from_binary_candidate(nested).unwrap();
+        assert_eq!(finished, before);
+        assert_eq!(finished.shapes[0].mesh, before.shapes[0].mesh);
+    }
+    for change in 0..6 {
+        let mut invalid = candidate.clone();
+        match change {
+            0 => invalid.source = None,
+            1 => invalid.source.as_mut().unwrap().format = SourceFormat::Ascii,
+            2 => invalid.nodes[0].transform_uuid = Some(Uuid::nil()),
+            3 => invalid.dag.clear(),
+            4 => invalid.nodes[0].transform_id = NativeId(u64::MAX),
+            _ => invalid.nodes[0].id = NodeId::from_decimal("18446744073709551615").unwrap(),
+        }
+        assert!(NativeScene::from_binary_candidate(invalid).is_err());
+    }
+}

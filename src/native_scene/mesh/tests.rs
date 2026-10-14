@@ -1,6 +1,144 @@
 use super::*;
 
 #[test]
+fn binary_sparse_offsets_preserve_storage_and_add_before_world_narrowing() {
+    let mut mesh = NativeMesh::offset_triangle_fixture();
+    let original = mesh.clone();
+    assert_eq!(mesh.point_count(), 3);
+    assert_eq!(mesh.effective_point_cm(0).unwrap()[0] - 16777216.0, 0.25);
+    assert_eq!(mesh.effective_point_cm(1).unwrap(), [16777218.0, 0.0, 0.0]);
+    assert_eq!(mesh.edges[0].smooth(), None);
+    mesh.point_offsets.push(PointOffset {
+        vertex: 2,
+        delta_cm: [-0.5, 0.0, -0.0],
+    });
+    mesh.validate().unwrap();
+    assert_eq!(mesh.effective_point_cm(2).unwrap(), [16777215.5, 1.0, 0.0]);
+    assert_eq!(mesh.points, original.points);
+    assert_eq!(mesh.clone(), mesh);
+    assert_ne!(
+        mesh.point_offsets[0].delta_cm[1].to_bits(),
+        0.0f32.to_bits()
+    );
+    let mut positive_zero = mesh.clone();
+    positive_zero.point_offsets[0].delta_cm[1] = 0.0;
+    assert_ne!(mesh, positive_zero);
+    assert_eq!(
+        mesh.extruded_face(0, 1.0),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(
+        mesh.effective_point_cm(3),
+        Err(NativeError::InvalidTopology)
+    );
+    assert_eq!(
+        NativeMesh::primitive(Primitive::Cube).edges[0].smooth(),
+        Some(false)
+    );
+    let summary = format!("{mesh:?} {:?}", mesh.points);
+    assert!(!summary.contains("16777216"));
+    assert!(summary.len() < 256);
+    assert!(format!("{:?}", mesh.faces[0]).len() < 128);
+}
+
+#[test]
+fn binary_factory_rejects_invalid_offsets_topology_and_guessed_smoothing() {
+    let baseline = NativeMesh::offset_triangle_fixture();
+    for offsets in [
+        vec![PointOffset {
+            vertex: 3,
+            delta_cm: [0.0; 3],
+        }],
+        vec![PointOffset {
+            vertex: 0,
+            delta_cm: [f32::NAN; 3],
+        }],
+        vec![PointOffset {
+            vertex: 0,
+            delta_cm: [f32::INFINITY; 3],
+        }],
+        vec![
+            PointOffset {
+                vertex: 0,
+                delta_cm: [0.0; 3]
+            };
+            2
+        ],
+        vec![
+            PointOffset {
+                vertex: 2,
+                delta_cm: [0.0; 3],
+            },
+            PointOffset {
+                vertex: 0,
+                delta_cm: [0.0; 3],
+            },
+        ],
+    ] {
+        let Points::Float3(base) = baseline.points.clone() else {
+            panic!()
+        };
+        assert!(
+            NativeMesh::from_binary_parts(
+                base,
+                baseline.edges.clone(),
+                baseline.faces.clone(),
+                offsets
+            )
+            .is_err()
+        );
+    }
+    let Points::Float3(base) = baseline.points.clone() else {
+        panic!()
+    };
+    let mut edges = baseline.edges.clone();
+    edges[0].smooth = Some(false);
+    assert_eq!(
+        NativeMesh::from_binary_parts(base.clone(), edges, baseline.faces.clone(), Vec::new()),
+        Err(NativeError::UnsupportedEdit)
+    );
+    let mut faces = baseline.faces.clone();
+    faces[0].outer[0].reversed = true;
+    assert_eq!(
+        NativeMesh::from_binary_parts(base.clone(), baseline.edges.clone(), faces, Vec::new()),
+        Err(NativeError::InvalidTopology)
+    );
+    let mut extra = base;
+    extra.push([99.0, -0.0, 1.0]);
+    let mesh = NativeMesh::from_binary_parts(
+        extra.clone(),
+        baseline.edges.clone(),
+        baseline.faces.clone(),
+        Vec::new(),
+    )
+    .unwrap();
+    assert_eq!(mesh.points, Points::Float3(extra));
+    assert_eq!(mesh.faces, baseline.faces);
+    assert_eq!(mesh.edges, baseline.edges);
+}
+
+#[test]
+fn each_unproved_topology_update_refuses_independently() {
+    let mut unknown = NativeMesh::primitive(Primitive::Cube);
+    unknown.edges[0].smooth = None;
+    assert!(unknown.point_offsets.is_empty());
+    assert_eq!(
+        unknown.extruded_face(1, 1.0),
+        Err(NativeError::UnsupportedEdit)
+    );
+    let mut offsets = NativeMesh::primitive(Primitive::Cube);
+    offsets.point_offsets.push(PointOffset {
+        vertex: 0,
+        delta_cm: [0.0; 3],
+    });
+    assert!(offsets.edges.iter().all(|e| e.smooth.is_some()));
+    assert_eq!(
+        offsets.extruded_face(1, 1.0),
+        Err(NativeError::UnsupportedEdit)
+    );
+}
+
+#[test]
 fn double_and_float_extrusion_preserve_original_bits_and_edge_metadata() {
     for doubles in [false, true] {
         for distance in [0.0, 0.123456789012] {
@@ -19,8 +157,8 @@ fn double_and_float_extrusion_preserve_original_bits_and_edge_metadata() {
             } else if let Points::Float3(points) = &mut mesh.points {
                 points[0][1] = -0.0;
             }
-            mesh.edges[0].smooth = true;
-            mesh.edges[5].smooth = true;
+            mesh.edges[0].smooth = Some(true);
+            mesh.edges[5].smooth = Some(true);
             let before = mesh.clone();
             let after = mesh.extruded_face(1, distance).unwrap();
             let old_len = before.points.values().len();
@@ -77,6 +215,7 @@ fn arbitrary_loops_holes_and_reversed_zero_edge_are_retained_without_projection(
         [0.0, 1.0, 0.0],
     ];
     let mut ngon = NativeMesh {
+        point_offsets: Vec::new(),
         points: Points::Double3(points),
         edges: Vec::new(),
         faces: Vec::new(),

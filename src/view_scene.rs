@@ -1,6 +1,6 @@
 use crate::native_scene::{
     AngularUnit, NativeError, NativeId, NativeMesh, NativeMeshShape, NativeScene, NativeTransform,
-    NativeTransformNode, Points, Units,
+    NativeTransformNode, Units,
 };
 use crate::scene::NodeId;
 use glam::{DMat4, DVec3, Vec3};
@@ -92,25 +92,15 @@ impl ViewScene {
                         return Err(ViewError::InvalidGeometry);
                     };
                     let mesh = shape.mesh();
-                    let count = match mesh.points() {
-                        Points::Float3(points) => points.len(),
-                        Points::Double3(points) => points.len(),
-                    };
+                    let count = mesh.point_count();
                     let mut vertices = reserve(count)?;
-                    match mesh.points() {
-                        Points::Float3(points) => {
-                            for point in points {
-                                vertices.push(world_point(
-                                    world,
-                                    DVec3::from_array(point.map(f64::from)),
-                                )?);
-                            }
-                        }
-                        Points::Double3(points) => {
-                            for point in points {
-                                vertices.push(world_point(world, DVec3::from_array(*point))?);
-                            }
-                        }
+                    for index in 0..count {
+                        vertices.push(world_point(
+                            world,
+                            DVec3::from_array(
+                                mesh.effective_point_cm(index).map_err(ViewError::Native)?,
+                            ),
+                        )?);
                     }
                     instances.push(ViewInstance {
                         path,
@@ -229,10 +219,7 @@ fn world_point(world: DMat4, point: DVec3) -> Result<Vec3, ViewError> {
 
 fn view_faces(mesh: &NativeMesh) -> Result<Vec<ViewFace>, ViewError> {
     let mut result = reserve(mesh.faces().len())?;
-    let count = match mesh.points() {
-        Points::Float3(points) => points.len(),
-        Points::Double3(points) => points.len(),
-    };
+    let count = mesh.point_count();
     for (source_index, face) in mesh.faces().iter().enumerate() {
         if !face.holes().is_empty() || !matches!(face.outer().len(), 3 | 4) {
             return Err(ViewError::UnsupportedPolygon);
@@ -461,10 +448,7 @@ impl<'a> Graph<'a> {
         for (record, count) in self.records.iter().zip(counts) {
             requirements.paths = checked_add(requirements.paths, count.paths)?;
             if let Record::Shape(shape) = record {
-                let points = match shape.mesh().points() {
-                    Points::Float3(points) => points.len(),
-                    Points::Double3(points) => points.len(),
-                };
+                let points = shape.mesh().point_count();
                 for face in shape.mesh().faces() {
                     if !face.holes().is_empty() || !matches!(face.outer().len(), 3 | 4) {
                         return Err(ViewError::UnsupportedPolygon);
