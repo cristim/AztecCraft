@@ -1,6 +1,78 @@
 use super::*;
 use crate::mcp;
 
+fn camera_operations() -> [Operation; 3] {
+    [
+        Operation::Orbit {
+            radians: [0.2, -0.1],
+        },
+        Operation::Pan {
+            world_units: [1.0, -2.0],
+        },
+        Operation::Dolly { factor: 0.5 },
+    ]
+}
+
+#[test]
+fn camera_requests_keep_human_and_closed_bridge_guards() {
+    for condition in 0..7 {
+        for operation in camera_operations() {
+            let context = egui::Context::default();
+            let (bridge, ingress) = mcp::test_bridge(context.clone());
+            let mut editor = Editor::default();
+            editor.create(Primitive::Cube);
+            match condition {
+                0 => editor.name = "human_draft".into(),
+                1 => editor.channels[0] = "nan".into(),
+                2 => context.memory_mut(|memory| memory.request_focus(name_edit_id())),
+                3 => editor.request_close(),
+                4 => editor.native_input_pending = true,
+                _ => (),
+            }
+            let before = editor.history.scene().clone();
+            let camera = editor.camera.clone();
+            let name = editor.name.clone();
+            let channels = editor.channels.clone();
+            let token = editor.scene_token;
+            let mut reply = ingress
+                .queue(RemoteRequest {
+                    expected_scene_token: Some(if condition == 5 {
+                        Uuid::new_v4()
+                    } else {
+                        token
+                    }),
+                    operation,
+                })
+                .unwrap();
+            if condition == 6 {
+                ingress.close();
+            }
+            let mut bridge = bridge;
+            bridge.dispatch(&mut editor, &context);
+            if condition == 6 {
+                assert!(reply.try_recv().is_err());
+            } else if condition == 5 {
+                assert!(matches!(
+                    reply.try_recv().unwrap(),
+                    Err(OperationError::StaleScene)
+                ));
+            } else {
+                assert!(matches!(
+                    reply.try_recv().unwrap(),
+                    Err(OperationError::BusyEditing)
+                ));
+            }
+            assert_eq!(editor.camera, camera);
+            assert_eq!(editor.history.scene(), &before);
+            assert_eq!(editor.name, name);
+            assert_eq!(editor.channels, channels);
+            assert_eq!(editor.scene_token, token);
+            assert!(editor.history.can_undo());
+            assert!(!editor.history.can_redo());
+        }
+    }
+}
+
 fn frame(editor: &mut Editor, context: &egui::Context, events: Vec<egui::Event>) {
     let mut input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
@@ -631,6 +703,146 @@ mod official_client {
     use serde_json::{Value, json};
     use std::time::Duration;
 
+    #[tokio::test]
+    async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        editor.create(Primitive::Cube);
+        editor.history_step(false);
+        let before = editor.history.scene().clone();
+        let token = editor.scene_token;
+        let selected = editor.selected;
+        let dirty = editor.is_dirty();
+        let mut eye = editor.camera.eye();
+        let mut target = editor.camera.target();
+        let mut distance = editor.camera.distance();
+        for (tool, fields) in [
+            ("orbit_camera", json!({"radians":[0.2,-0.1]})),
+            ("pan_camera", json!({"world_units":[1.0,-2.0]})),
+            ("dolly_camera", json!({"factor":0.5})),
+            ("orbit_camera", json!({"radians":[0.0,0.0]})),
+            ("pan_camera", json!({"world_units":[0.0,0.0]})),
+            ("dolly_camera", json!({"factor":1.0})),
+        ] {
+            let noop = fields["radians"] == json!([0.0, 0.0])
+                || fields["world_units"] == json!([0.0, 0.0])
+                || fields["factor"] == json!(1.0);
+            if !noop {
+                match tool {
+                    "orbit_camera" => {
+                        let yaw = 0.8_f32;
+                        let pitch = 0.3_f32;
+                        eye = target
+                            + distance
+                                * Vec3::new(
+                                    yaw.sin() * pitch.cos(),
+                                    pitch.sin(),
+                                    yaw.cos() * pitch.cos(),
+                                );
+                    }
+                    "pan_camera" => {
+                        let back = (eye - target).normalize();
+                        let right = Vec3::Y.cross(back).normalize();
+                        let up = back.cross(right);
+                        let translation = right - 2.0 * up;
+                        target += translation;
+                        eye += translation;
+                    }
+                    _ => {
+                        distance *= 0.5;
+                        eye = target + (eye - target) * 0.5;
+                    }
+                }
+            }
+            let mut arguments = fields;
+            arguments["scene_token"] = json!(token.to_string());
+            let result = call(&mut editor, &context, client.peer(), tool, arguments).await;
+            assert_eq!(
+                result.structured_content.unwrap()["outcome"],
+                if noop { "unchanged" } else { "changed" }
+            );
+            assert!((editor.camera.eye() - eye).length() < 0.00001);
+            assert!((editor.camera.target() - target).length() < 0.00001);
+            assert_eq!(editor.camera.distance(), distance);
+            let inspected = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "inspect_scene",
+                json!({}),
+            )
+            .await;
+            let camera = &inspected.structured_content.unwrap()["inspection"]["camera"];
+            for (field, expected) in [
+                ("target", editor.camera.target()),
+                ("eye", editor.camera.eye()),
+            ] {
+                let actual: [f32; 3] = serde_json::from_value(camera[field].clone()).unwrap();
+                assert_eq!(actual, expected.to_array());
+            }
+            assert_eq!(camera["distance"].as_f64().unwrap() as f32, distance);
+            assert_eq!(editor.history.scene(), &before);
+            assert!(!editor.history.can_undo());
+            assert!(editor.history.can_redo());
+            assert_eq!(editor.selected, selected);
+            assert_eq!(editor.scene_token, token);
+            assert_eq!(editor.is_dirty(), dirty);
+        }
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn sdk_camera_rejects_bad_parameters_and_invalid_ranges_without_mutation() {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        let camera = editor.camera.clone();
+        let token = editor.scene_token.to_string();
+        for (tool, fields) in [
+            ("orbit_camera", json!({"radians":[1e100,0]})),
+            ("pan_camera", json!({"world_units":[1e100,0]})),
+            ("pan_camera", json!({"world_units":[3e38,3e38]})),
+            ("dolly_camera", json!({"factor":0})),
+            ("dolly_camera", json!({"factor":-1})),
+            ("dolly_camera", json!({"factor":1e100})),
+            ("dolly_camera", json!({"factor":3e38})),
+            ("dolly_camera", json!({"factor":1e-45})),
+        ] {
+            let mut args = fields;
+            args["scene_token"] = json!(token);
+            let result = call(&mut editor, &context, client.peer(), tool, args).await;
+            assert_eq!(
+                result.structured_content.unwrap()["error"]["code"],
+                "camera_error"
+            );
+            assert_eq!(editor.camera, camera);
+            assert!(!editor.history.can_undo());
+            assert!(!editor.is_dirty());
+        }
+        for (tool, fields) in [
+            ("orbit_camera", json!({"radians":[0]})),
+            ("orbit_camera", json!({"radians":[0,0,0]})),
+            ("orbit_camera", json!({"radians":["0",0]})),
+            ("pan_camera", json!({"world_units":null})),
+            ("pan_camera", json!({"world_units":[0,0],"extra":true})),
+            ("dolly_camera", json!({"factor":"1"})),
+            ("dolly_camera", json!({})),
+        ] {
+            let mut args = fields;
+            args["scene_token"] = json!(token);
+            assert!(
+                call_response(&mut editor, &context, client.peer(), tool, args)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(editor.camera, camera);
+        }
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+
     async fn call_response(
         editor: &mut Editor,
         context: &egui::Context,
@@ -932,7 +1144,10 @@ mod official_client {
             client.peer_info().unwrap().protocol_version,
             rmcp::model::ProtocolVersion::V_2026_07_28
         );
-        assert_eq!(client.peer().list_tools(None).await.unwrap().tools.len(), 9);
+        assert_eq!(
+            client.peer().list_tools(None).await.unwrap().tools.len(),
+            crate::editor_operations::TOOL_NAMES.len()
+        );
         let inspected = call(
             &mut editor,
             &context,

@@ -19,7 +19,7 @@ The current prototype has a native desktop window for cube/plane creation, selec
 | Desktop shell and viewport | Create/select cube or plane, edit name/transform channels, undo/redo, delete and frame selected, with projected mesh drawing | [Native shell](src/app.rs) and [viewport UI](src/viewport_ui.rs) |
 | File actions in the window | New/Open/Save As, unsaved-change confirmation and error presentation | [File integration tests](src/file_ui.rs) and [scoped macOS native verification](.project-docs/native-verification.md); full panel navigation and other platforms remain pending |
 | OBJ export | Library API writes world-space polygon geometry to a new file | [OBJ workflow tests](tests/obj_workflows.rs), with GUI Export still disabled |
-| MCP | Optional stdio server controls nine operations in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md), with real Editor/official SDK tests; native protocol/window verification remains separate |
+| MCP | Optional stdio server controls twelve tools in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md), with real Editor/official SDK tests; native protocol/window verification remains separate |
 | Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native face UI and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
 | UVs, animation and rigging | Full workflows pending | [Implementation plan](.project-docs/plan.md) |
 | Materials, simulation and rendering | Pending | Reference scenes and output comparisons required |

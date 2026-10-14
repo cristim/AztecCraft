@@ -142,6 +142,8 @@ impl Editor {
     fn native_operation(&mut self, operation: Operation) {
         let status = match operation {
             Operation::Select(_) | Operation::FrameSelected => None,
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => None,
             Operation::Undo => Some("Undo"),
             Operation::Redo => Some("Redo"),
             _ => Some("Scene edited"),
@@ -286,6 +288,22 @@ impl Editor {
                     OperationReply::Changed
                 } else {
                     OperationReply::Unchanged
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
+                let before = self.camera.clone();
+                match operation {
+                    Operation::Orbit { radians } => self.camera.orbit(radians.into()),
+                    Operation::Pan { world_units } => self.camera.pan(world_units.into()),
+                    Operation::Dolly { factor } => self.camera.dolly(factor),
+                    _ => unreachable!(),
+                }
+                .map_err(OperationError::Camera)?;
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
                 });
             }
             Operation::FrameSelected => {
@@ -812,6 +830,59 @@ mod tests {
     use super::*;
 
     #[test]
+    fn camera_nonfinite_operations_and_native_draft_failure_preserve_their_baselines() {
+        let context = egui::Context::default();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let camera = editor.camera.clone();
+        let before = editor.history.scene().clone();
+        for value in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            for operation in [
+                Operation::Orbit {
+                    radians: [value, 0.0],
+                },
+                Operation::Orbit {
+                    radians: [0.0, value],
+                },
+                Operation::Pan {
+                    world_units: [value, 0.0],
+                },
+                Operation::Pan {
+                    world_units: [0.0, value],
+                },
+                Operation::Dolly { factor: value },
+            ] {
+                assert!(matches!(
+                    editor.remote_operation(
+                        RemoteRequest {
+                            expected_scene_token: Some(editor.scene_token),
+                            operation,
+                        },
+                        &context
+                    ),
+                    Err(OperationError::Camera(_))
+                ));
+                assert_eq!(editor.camera, camera);
+                assert_eq!(editor.history.scene(), &before);
+            }
+        }
+        editor.name = "committed_before_navigation".into();
+        editor.native_operation(Operation::Dolly { factor: -1.0 });
+        assert_eq!(editor.camera, camera);
+        assert_eq!(
+            editor.history.scene().nodes()[0].name(),
+            "committed_before_navigation"
+        );
+        assert!(!editor.has_draft());
+        assert!(editor.error);
+        editor.history_step(false);
+        assert_eq!(editor.history.scene(), &before);
+        editor.native_operation(Operation::Dolly { factor: 0.5 });
+        assert_ne!(editor.status, "Scene edited");
+        assert!(editor.history.can_redo());
+    }
+
+    #[test]
     fn native_hidden_close_checks_pending_input_without_mcp() {
         for pending in [false, true] {
             let context = egui::Context::default();
@@ -856,7 +927,7 @@ mod tests {
     #[test]
     fn remote_operations_share_native_scene_selection_history_and_camera() {
         let mut editor = Editor::default();
-        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 9);
+        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 12);
         let OperationReply::Created { node_id } = remote(
             &mut editor,
             Operation::Create {

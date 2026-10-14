@@ -15,7 +15,7 @@ pub const MAX_NAME_BYTES: usize = 4096;
 pub const MAX_RESULT_BYTES: usize = 512 * 1024;
 
 #[cfg(any(test, feature = "mcp"))]
-pub const TOOL_NAMES: [&str; 9] = [
+pub const TOOL_NAMES: [&str; 12] = [
     "inspect_scene",
     "create_primitive",
     "select_node",
@@ -25,6 +25,9 @@ pub const TOOL_NAMES: [&str; 9] = [
     "undo",
     "redo",
     "frame_selected",
+    "orbit_camera",
+    "pan_camera",
+    "dolly_camera",
 ];
 
 pub enum Operation {
@@ -52,6 +55,18 @@ pub enum Operation {
     Undo,
     Redo,
     FrameSelected,
+    #[cfg(any(test, feature = "mcp"))]
+    Orbit {
+        radians: [f32; 2],
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Pan {
+        world_units: [f32; 2],
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Dolly {
+        factor: f32,
+    },
 }
 
 #[derive(Debug, Serialize)]

@@ -80,6 +80,27 @@ struct TransformArgs {
     scale: [f32; 3],
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct OrbitArgs {
+    scene_token: String,
+    radians: [f32; 2],
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct PanArgs {
+    scene_token: String,
+    world_units: [f32; 2],
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct DollyArgs {
+    scene_token: String,
+    factor: f32,
+}
+
 fn decode<T: DeserializeOwned>(arguments: JsonObject) -> Result<T, ErrorData> {
     serde_json::from_value(Value::Object(arguments))
         .map_err(|error| ErrorData::invalid_params(error.to_string(), None))
@@ -172,6 +193,33 @@ fn parse_request(name: &str, arguments: JsonObject) -> Result<RemoteRequest, Err
                 Operation::Delete(node_id(&args.node_id)?),
             )
         }
+        "orbit_camera" => {
+            let args: OrbitArgs = decode(arguments)?;
+            (
+                token(&args.scene_token)?,
+                Operation::Orbit {
+                    radians: args.radians,
+                },
+            )
+        }
+        "pan_camera" => {
+            let args: PanArgs = decode(arguments)?;
+            (
+                token(&args.scene_token)?,
+                Operation::Pan {
+                    world_units: args.world_units,
+                },
+            )
+        }
+        "dolly_camera" => {
+            let args: DollyArgs = decode(arguments)?;
+            (
+                token(&args.scene_token)?,
+                Operation::Dolly {
+                    factor: args.factor,
+                },
+            )
+        }
         "undo" | "redo" | "frame_selected" => {
             let args: MutationArgs = decode(arguments)?;
             let operation = match name {
@@ -239,6 +287,18 @@ fn catalog() -> Vec<Tool> {
                 "frame_selected" => (
                     "Frame the selected object using the live camera",
                     schema::<MutationArgs>(),
+                ),
+                "orbit_camera" => (
+                    "Orbit the live camera by [yaw, pitch] radians; pitch clamps near the poles",
+                    schema::<OrbitArgs>(),
+                ),
+                "pan_camera" => (
+                    "Translate the live camera target by [right, up] camera-plane world units",
+                    schema::<PanArgs>(),
+                ),
+                "dolly_camera" => (
+                    "Multiply live camera distance by a positive finite factor; below one moves closer",
+                    schema::<DollyArgs>(),
                 ),
                 _ => unreachable!("catalogue names must have schemas"),
             };
@@ -408,6 +468,9 @@ mod tests {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
                 "delete_node" => json!({"scene_token":token,"node_id":"1"}),
+                "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
+                "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
+                "dolly_camera" => json!({"scene_token":token,"factor":1}),
                 _ => json!({"scene_token":token}),
             };
             assert!(parse_request(&tool.name, args.as_object().unwrap().clone()).is_ok());

@@ -1,6 +1,6 @@
 # Native editor MCP
 
-The optional MCP server controls the new native Editor window launched by its client. Tools use that window's scene, history, selection and camera. It cannot attach to an already running instance. This prototype exposes nine operations; it does not establish Maya scripting, plug-in or full-functionality compatibility.
+The optional MCP server controls the new native Editor window launched by its client. Tools use that window's scene, history, selection and camera. It cannot attach to an already running instance. This prototype exposes twelve tools; it does not establish Maya scripting, plug-in or full-functionality compatibility.
 
 ## Build and launch
 
@@ -44,10 +44,13 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `undo` | None | Changed or unchanged history state |
 | `redo` | None | Changed or unchanged history state |
 | `frame_selected` | None | Changed or unchanged camera; requires selection |
+| `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
+| `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
+| `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
 
 Transforms use the [existing coordinate conventions](development.md): scale, fixed-axis XYZ Euler degrees, then translation. Core validation rejects invalid names, nonfinite values and coordinate overflow. Node inspection includes its name, transform and mesh vertices/faces.
 
-Successful tool results provide `structuredContent` and equivalent text content. The structured result has `outcome`: `scene`, `created`, `changed` or `unchanged`. A scene result nests fields under `inspection`; a created result includes `node_id`. Mutations share native undo history. Selection and camera framing do not create authoring undo entries.
+Successful tool results provide `structuredContent` and equivalent text content. The structured result has `outcome`: `scene`, `created`, `changed` or `unchanged`. A scene result nests fields under `inspection`; a created result includes `node_id`. Authoring mutations share native undo history. Selection and camera operations do not create authoring undo entries or mark the document dirty. Navigation arguments use camera units, not pointer pixels. Invalid resulting camera ranges return `camera_error` without changing the camera; finite JSON numbers outside the camera's f32 range are also rejected by camera validation.
 
 Example tool arguments after inspection:
 
@@ -98,19 +101,19 @@ No-default core builds remain independent of desktop and MCP dependencies. See [
 
 ## Capability synchronization
 
-After initial MCP catch-up is verified, each applicable feature slice includes its typed operation, MCP schema/handler and inspection changes, real Editor protocol tests and documentation before the completed feature gate. The feature owner coordinates protected editor boundaries and adapter review with the MCP owner. Do not advertise a tool before the operation exists or leave MCP support as a permanent later backlog.
+Every existing and new user-facing capability and its relevant state must be accessible through MCP, including while catch-up is in progress. Each applicable feature slice includes its typed operation, MCP schema/handler and inspection changes, real Editor protocol tests and documentation before the completed feature gate. The feature owner coordinates protected editor boundaries and adapter review with the MCP owner. Do not advertise a tool before the operation exists or leave MCP support as a permanent later backlog.
 
-The initial catalog omits component selection/extrusion, file actions, GUI Export, navigation gestures, materials, animation, simulation and scripting. Native face selection/extrusion support must include its MCP capability updates in that same completed feature slice. Core-only APIs and unsupported controls do not imply an advertised MCP tool.
+The current catalog omits component selection/extrusion, file actions, GUI Export, materials, animation, simulation and scripting. Native face selection/extrusion support must include its MCP capability updates in that same completed feature slice. Core-only APIs and unsupported controls do not imply an advertised MCP tool.
 
 Nine verified tools establish the initial server foundation, not catch-up with every existing operation. Existing capabilities without tools need reviewed follow-up slices; their absence does not defer MCP support for new applicable features, including the native face slice.
 
-| Existing capability | Initial MCP exposure |
+| Existing capability | Current MCP exposure |
 | --- | --- |
 | Object create/select/rename/transform/delete, history and framing | Nine tools listed above, including inspection |
 | Native New/Open/Save As | No tool; document lifecycle, human-edit guards and file bounds need a dedicated slice |
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |
 | Core mesh extrusion | No tool; native face selection/extrusion, component inspection and protocol support belong in the completed native face slice |
-| Interactive camera orbit/pan/dolly | Camera state is inspectable and framing is exposed; gesture/navigation tools are absent |
+| Interactive camera orbit/pan/dolly | Three navigation tools use typed editor operations in MCP builds; live camera state is inspectable. Native pointer gestures still call the camera directly until the shared native producer integration is verified |
 
 Initial catch-up remains incomplete while these implemented capabilities lack their reviewed MCP support. Full Maya parity remains a separate unmet objective.
 
