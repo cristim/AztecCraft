@@ -7,6 +7,9 @@ use glam::{DMat4, DVec3, Vec3};
 use std::fmt;
 use std::mem::size_of;
 
+pub const FACE_CENTER_MARKER_PIXELS: f32 = 4.0;
+pub const FACE_CENTER_CLICK_PIXELS: f32 = 8.0;
+
 #[derive(Debug)]
 /// Readonly geometry for one prepared authoring state; rebuild after any scene edit.
 pub struct ViewScene {
@@ -132,6 +135,13 @@ impl ViewScene {
 }
 
 impl ViewInstance {
+    pub fn is_direct_shape_of(&self, transform: NodeId, path: &[NativeId]) -> bool {
+        self.transform == transform
+            && self.path.len().checked_sub(1) == Some(path.len())
+            && self.path.starts_with(path)
+            && self.path.last() == Some(&self.shape)
+    }
+
     pub fn path(&self) -> &[NativeId] {
         &self.path
     }
@@ -153,6 +163,22 @@ impl ViewInstance {
 }
 
 impl ViewFace {
+    pub fn center(&self, vertices: &[Vec3]) -> Result<Vec3, ViewError> {
+        let mut sum = DVec3::ZERO;
+        for &index in self.corners() {
+            let vertex = vertices.get(index).ok_or(ViewError::InvalidGeometry)?;
+            if !vertex.is_finite() {
+                return Err(ViewError::NonFiniteWorld);
+            }
+            sum += vertex.as_dvec3();
+        }
+        let center = (sum / self.corners().len() as f64).as_vec3();
+        center
+            .is_finite()
+            .then_some(center)
+            .ok_or(ViewError::NonFiniteWorld)
+    }
+
     pub fn source_index(&self) -> usize {
         self.source_index
     }
@@ -190,7 +216,9 @@ impl fmt::Display for ViewError {
             Self::Camera(error) => {
                 return write!(f, "native view camera input is invalid: {error}");
             }
-            Self::ResourceLimit => "derived view exceeds its byte budget or allocation capacity",
+            Self::ResourceLimit => {
+                "derived view exceeds its resource budget or allocation capacity"
+            }
             Self::InvalidGeometry => "native geometry or instance path is invalid",
             Self::UnsupportedPolygon => "view requires triangle or quad faces without holes",
             Self::UnsupportedTransform => "native transform or declared units are unsupported",

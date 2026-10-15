@@ -1,10 +1,12 @@
 use crate::scene::{Node, NodeId, Scene};
 use crate::{
-    native_scene::FaceTarget,
-    view_scene::{ViewError, ViewScene},
+    native_scene::{FaceTarget, NativeId},
+    view_scene::{FACE_CENTER_CLICK_PIXELS, ViewError, ViewFace, ViewInstance, ViewScene},
 };
 use glam::{Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
+
+const MAX_FACE_CENTER_INTERSECTIONS: usize = 1_000_000;
 
 // Right-handed, Y-up; yaw zero looks from +Z. NDC uses X/Y [-1, 1], Y up, Z [0, 1].
 // UI pixels map to NDC as (2*x/width - 1, 1 - 2*y/height).
@@ -206,6 +208,41 @@ impl Camera {
         )
     }
 
+    pub fn frame_face(
+        &mut self,
+        scene: &ViewScene,
+        target: &FaceTarget,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        let instance = scene
+            .instances()
+            .iter()
+            .find(|instance| {
+                instance.transform() == target.transform
+                    && instance.shape() == target.shape
+                    && instance.path() == target.path
+            })
+            .ok_or(InvalidCameraInput)?;
+        let face = instance
+            .faces()
+            .iter()
+            .find(|face| face.source_index() == target.face_index)
+            .ok_or(InvalidCameraInput)?;
+        let mut corners = [Vec3::ZERO; 4];
+        for (slot, &index) in face.corners().iter().enumerate() {
+            *corners.get_mut(slot).ok_or(InvalidCameraInput)? = *instance
+                .world_vertices()
+                .get(index)
+                .ok_or(InvalidCameraInput)?;
+        }
+        self.frame_points(
+            corners
+                .get(..face.corners().len())
+                .ok_or(InvalidCameraInput)?,
+            aspect,
+        )
+    }
+
     fn frame_iter(
         &mut self,
         vertices: impl Iterator<Item = Vec3> + Clone,
@@ -324,16 +361,121 @@ impl Camera {
         let Some((_, (instance, face_index))) = closest else {
             return Ok(None);
         };
-        let mut path = Vec::new();
-        path.try_reserve_exact(instance.path().len())
-            .map_err(|_| ViewError::ResourceLimit)?;
-        path.extend_from_slice(instance.path());
-        Ok(Some(FaceTarget {
-            transform: instance.transform(),
-            shape: instance.shape(),
-            path,
-            face_index,
-        }))
+        face_target(instance, face_index).map(Some)
+    }
+
+    pub fn pick_face_center(
+        &self,
+        scene: &ViewScene,
+        active: Option<(NodeId, &[NativeId])>,
+        pointer_points: Vec2,
+        viewport_pixels: [u32; 2],
+        pixels_per_point: f32,
+    ) -> Result<Option<FaceTarget>, ViewError> {
+        let [width, height] = viewport_pixels;
+        if width == 0 || height == 0 || !pixels_per_point.is_finite() || pixels_per_point <= 0.0 {
+            return Err(ViewError::Camera(InvalidCameraInput));
+        }
+        let size = Vec2::new(width as f32, height as f32);
+        let pointer = pointer_points * pixels_per_point;
+        if !pointer.is_finite() || pointer.min_element() < 0.0 || pointer.cmpgt(size).any() {
+            return Err(ViewError::Camera(InvalidCameraInput));
+        }
+        let aspect = size.x / size.y;
+        let matrix =
+            self.projection_matrix(aspect).map_err(ViewError::Camera)? * self.view_matrix();
+        let Some((owner, path)) = active else {
+            return Ok(None);
+        };
+        let candidate = |instance: &ViewInstance, face: &ViewFace| {
+            if !instance.is_direct_shape_of(owner, path) {
+                return Ok(None);
+            }
+            let center = face.center(instance.world_vertices())?;
+            let clip = matrix * center.extend(1.0);
+            if !clip.is_finite() {
+                return Err(ViewError::NonFiniteWorld);
+            }
+            if clip.w <= 0.0
+                || clip.z < 0.0
+                || clip.z > clip.w
+                || clip.x.abs() > clip.w
+                || clip.y.abs() > clip.w
+            {
+                return Ok(None);
+            }
+            let ndc = clip.truncate() / clip.w;
+            if !ndc.is_finite() {
+                return Err(ViewError::NonFiniteWorld);
+            }
+            let pixel = Vec2::new(ndc.x + 1.0, 1.0 - ndc.y) * 0.5 * size;
+            Ok(
+                ((pixel - pointer).abs().max_element() <= FACE_CENTER_CLICK_PIXELS * 0.5)
+                    .then_some((center, ndc)),
+            )
+        };
+        let mut eligible = 0usize;
+        let mut triangles = 0usize;
+        for instance in scene.instances() {
+            for face in instance.faces() {
+                triangles = triangles
+                    .checked_add(face.triangles().count())
+                    .ok_or(ViewError::ResourceLimit)?;
+                if candidate(instance, face)?.is_some() {
+                    eligible = eligible.checked_add(1).ok_or(ViewError::ResourceLimit)?;
+                }
+            }
+        }
+        face_center_work(eligible, triangles)?;
+        let mut selected: Option<(f32, &ViewInstance, usize)> = None;
+        for instance in scene.instances() {
+            for face in instance.faces() {
+                let Some((center, ndc)) = candidate(instance, face)? else {
+                    continue;
+                };
+                let ray = self
+                    .ray(ndc.truncate(), aspect)
+                    .map_err(ViewError::Camera)?;
+                let mut closest = None;
+                for occluder in scene.instances() {
+                    let triangles = occluder.faces().iter().flat_map(|surface| {
+                        surface.triangles().map(|triangle| {
+                            ((), triangle.map(|index| occluder.world_vertices()[index]))
+                        })
+                    });
+                    self.closest_triangle(ray, triangles, &mut closest);
+                }
+                if let Some((distance, ())) = closest {
+                    let hit = matrix * (ray.origin + distance * ray.direction).extend(1.0);
+                    if hit.z / hit.w < ndc.z {
+                        continue;
+                    }
+                }
+                let depth = -self.view_matrix().transform_point3(center).z;
+                let key = (
+                    instance.path(),
+                    instance.transform().value(),
+                    instance.shape(),
+                    face.source_index(),
+                );
+                if selected.as_ref().is_none_or(|(previous, other, index)| {
+                    depth < *previous
+                        || (depth == *previous
+                            && key
+                                < (
+                                    other.path(),
+                                    other.transform().value(),
+                                    other.shape(),
+                                    *index,
+                                ))
+                }) {
+                    selected = Some((depth, instance, face.source_index()));
+                }
+            }
+        }
+        selected
+            .map(|(_, instance, index)| face_target(instance, index))
+            .transpose()
     }
 
     fn closest_triangle<T>(
@@ -359,6 +501,26 @@ impl Camera {
             }
         }
     }
+}
+
+pub(crate) fn face_center_work(eligible: usize, triangles: usize) -> Result<(), ViewError> {
+    match eligible.checked_mul(triangles) {
+        Some(checks) if checks <= MAX_FACE_CENTER_INTERSECTIONS => Ok(()),
+        _ => Err(ViewError::ResourceLimit),
+    }
+}
+
+fn face_target(instance: &ViewInstance, face_index: usize) -> Result<FaceTarget, ViewError> {
+    let mut path = Vec::new();
+    path.try_reserve_exact(instance.path().len())
+        .map_err(|_| ViewError::ResourceLimit)?;
+    path.extend_from_slice(instance.path());
+    Ok(FaceTarget {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path,
+        face_index,
+    })
 }
 
 fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {

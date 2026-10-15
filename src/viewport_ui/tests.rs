@@ -1,7 +1,7 @@
 use super::*;
 use crate::viewport_renderer::tests::{RecordedSubmission, recorded_submission, renderer_handle};
 use azteccraft::{
-    native_scene::{NativeScene, NativeTransform},
+    native_scene::{NativeId, NativeScene, NativeTransform},
     scene::Primitive,
 };
 use egui::{Event, Modifiers, MouseWheelUnit, Pos2, Shape};
@@ -97,6 +97,139 @@ fn narrower_scissor_crops_without_reframing_click_or_mutating_camera() {
 }
 
 #[test]
+fn face_click_uses_release_event_modifiers_even_when_they_change_later() {
+    for (released, later, click, unsupported) in [
+        (Modifiers::SHIFT, Modifiers::NONE, true, true),
+        (Modifiers::NONE, Modifiers::SHIFT, true, false),
+        (Modifiers::ALT, Modifiers::NONE, false, false),
+        (Modifiers::NONE, Modifiers::ALT, true, false),
+    ] {
+        let context = egui::Context::default();
+        let camera = camera();
+        let point = egui::pos2(64.0, 48.0);
+        let clip = Rect::EVERYTHING;
+        capture_frame(
+            &context,
+            &camera,
+            raw(0.0, Modifiers::NONE, vec![Event::PointerMoved(point)]),
+            clip,
+        );
+        capture_frame(
+            &context,
+            &camera,
+            raw(
+                0.1,
+                released,
+                vec![Event::PointerButton {
+                    pos: point,
+                    button: PointerButton::Primary,
+                    pressed: true,
+                    modifiers: released,
+                }],
+            ),
+            clip,
+        );
+        let (input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(
+                0.2,
+                released,
+                vec![
+                    Event::PointerButton {
+                        pos: point,
+                        button: PointerButton::Primary,
+                        pressed: false,
+                        modifiers: released,
+                    },
+                    Event::ModifiersChanged(later),
+                ],
+            ),
+            clip,
+        );
+        assert_eq!(input.click_ndc().is_some(), click);
+        if click {
+            assert_eq!(input.unsupported_selection().is_some(), unsupported);
+        }
+    }
+}
+
+#[test]
+fn face_click_does_not_borrow_a_later_drag_release_modifiers() {
+    for (later_drag, only_alt) in [(false, false), (true, false), (false, true), (true, true)] {
+        let context = egui::Context::default();
+        let camera = camera();
+        let point = egui::pos2(64.0, 48.0);
+        capture_frame(
+            &context,
+            &camera,
+            raw(0.0, Modifiers::NONE, vec![Event::PointerMoved(point)]),
+            Rect::EVERYTHING,
+        );
+        let first = if only_alt {
+            Modifiers::ALT
+        } else {
+            Modifiers::SHIFT
+        };
+        let last = if only_alt {
+            Modifiers::ALT
+        } else {
+            Modifiers::NONE
+        };
+        let mut events = vec![
+            Event::ModifiersChanged(first),
+            Event::PointerButton {
+                pos: point,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers: first,
+            },
+            Event::PointerButton {
+                pos: point,
+                button: PointerButton::Primary,
+                pressed: false,
+                modifiers: first,
+            },
+            Event::ModifiersChanged(last),
+        ];
+        if later_drag {
+            let end = point + egui::vec2(36.0, 0.0);
+            events.extend([
+                Event::PointerButton {
+                    pos: point,
+                    button: PointerButton::Primary,
+                    pressed: true,
+                    modifiers: last,
+                },
+                Event::PointerMoved(end),
+                Event::PointerButton {
+                    pos: end,
+                    button: PointerButton::Primary,
+                    pressed: false,
+                    modifiers: last,
+                },
+            ]);
+        }
+        let (input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(0.1, Modifiers::NONE, events),
+            Rect::EVERYTHING,
+        );
+        let expected = if only_alt {
+            None
+        } else if later_drag {
+            Some(SelectionRefusal::AmbiguousPrimaryInput)
+        } else {
+            Some(SelectionRefusal::ModifiedClick)
+        };
+        assert_eq!(input.unsupported_selection(), expected);
+        assert_eq!(input.click_ndc().is_some(), !only_alt && !later_drag);
+        assert_eq!(input.click_points.is_some(), !only_alt && !later_drag);
+    }
+}
+
+#[test]
 fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once() {
     let context = egui::Context::default();
     let mut camera = camera();
@@ -181,7 +314,12 @@ fn painted_submission(
         capture(ui, camera)
             .unwrap()
             .unwrap()
-            .paint(Some(&producer), camera, view, prefix)
+            .paint(
+                Some(&producer),
+                camera,
+                view,
+                SelectionFeedback::Object(prefix),
+            )
             .unwrap();
     });
     assert_eq!(
@@ -431,10 +569,12 @@ fn missing_startup_state_fails_and_uninitialized_ui_never_paints_fake_geometry()
     let view = ViewScene::from_native(&scene, 1024 * 1024).unwrap();
     let mut output = context.run_ui(raw(0.0, Modifiers::NONE, Vec::new()), |ui| {
         assert!(matches!(
-            capture(ui, &camera())
-                .unwrap()
-                .unwrap()
-                .paint(None, &camera(), &view, None),
+            capture(ui, &camera()).unwrap().unwrap().paint(
+                None,
+                &camera(),
+                &view,
+                SelectionFeedback::Object(None)
+            ),
             Err(RenderError::Uninitialized)
         ));
     });
@@ -482,4 +622,95 @@ fn capture_uses_rounded_screen_clamped_physical_rect_at_one_and_two_x() {
         });
         output.textures_delta.clear();
     }
+}
+
+#[test]
+fn fractional_offset_viewport_uses_one_physical_projection_for_clicks_and_paint() {
+    let mut native = NativeScene::default();
+    let owner = native.create(Primitive::Cube, "offset").unwrap();
+    let before = native.clone();
+    let view = ViewScene::from_native(&native, 1024 * 1024).unwrap();
+    let camera = camera();
+    for scale in [1.3, 1.5, 2.25] {
+        let world = if scale == 1.3 {
+            Vec3::new(0.3, 0.2, 0.5)
+        } else {
+            Vec3::new(0.0, 0.0, 0.5)
+        };
+        let context = egui::Context::default();
+        let producer = renderer_handle();
+        let mut point = egui::pos2(64.0, 46.0);
+        for phase in 0..3 {
+            let events = if phase == 0 {
+                vec![Event::PointerMoved(point)]
+            } else {
+                vec![
+                    Event::PointerMoved(point),
+                    Event::PointerButton {
+                        pos: point,
+                        button: PointerButton::Primary,
+                        pressed: phase == 1,
+                        modifiers: Modifiers::NONE,
+                    },
+                ]
+            };
+            let mut input = raw(phase as f64 * 0.1, Modifiers::NONE, events);
+            input
+                .viewports
+                .get_mut(&egui::ViewportId::ROOT)
+                .unwrap()
+                .native_pixels_per_point = Some(scale);
+            let mut output = context.run_ui(input, |ui| {
+                let rect = Rect::from_min_max(egui::pos2(16.3, 8.3), egui::pos2(112.3, 84.3));
+                let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect));
+                let captured = capture(&mut child, &camera).unwrap().unwrap();
+                assert!(captured.rect.min.x > 0.0 && captured.rect.min.y > 0.0);
+                assert_ne!(captured.physical_size[0], captured.physical_size[1]);
+                let aspect = captured.physical_size[0] as f32 / captured.physical_size[1] as f32;
+                assert_eq!(captured.aspect(), aspect);
+                let ndc = camera.project(world, aspect).unwrap().unwrap();
+                point = captured.rect.min
+                    + egui::vec2((ndc.x + 1.0) * 0.5, (1.0 - ndc.y) * 0.5) * captured.rect.size();
+                if phase == 2 {
+                    let hit = camera
+                        .pick_view(&view, captured.click_ndc().unwrap(), captured.aspect())
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(hit.transform, owner);
+                    assert_eq!(hit.face_index, 1);
+                    native.resolve_face_target(&hit).unwrap();
+                    let face = captured
+                        .pick_face_center(
+                            &camera,
+                            &view,
+                            Some((owner, &hit.path[..hit.path.len() - 1])),
+                        )
+                        .unwrap();
+                    assert_eq!(face.is_some(), world.x == 0.0);
+                    if let Some(face) = face {
+                        assert_eq!(face, hit);
+                        native.resolve_face_target(&face).unwrap();
+                    }
+                }
+                captured
+                    .paint(
+                        Some(&producer),
+                        &camera,
+                        &view,
+                        SelectionFeedback::Object(None),
+                    )
+                    .unwrap();
+                let recorded = recorded_submission(&producer);
+                let matrix = camera.projection_matrix(aspect).unwrap() * camera.view_matrix();
+                let instance = &view.instances()[0];
+                let corner = instance.faces().last().unwrap().triangles().next().unwrap()[0];
+                assert_eq!(
+                    recorded.vertices[0][..4],
+                    (matrix * instance.world_vertices()[corner].extend(1.0)).to_array()
+                );
+            });
+            output.textures_delta.clear();
+        }
+    }
+    assert_eq!(native, before);
 }

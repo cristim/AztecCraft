@@ -80,6 +80,7 @@ pub(crate) fn renderer_handle() -> ViewportRenderer {
 pub(crate) struct RecordedSubmission {
     pub surfaces: Range<u32>,
     pub lines: Range<u32>,
+    pub centers: Range<u32>,
     pub vertices: Vec<[f32; 8]>,
 }
 
@@ -91,6 +92,7 @@ pub(crate) fn recorded_submission(renderer: &ViewportRenderer) -> RecordedSubmis
     RecordedSubmission {
         surfaces: submission.surfaces.clone(),
         lines: submission.lines.clone(),
+        centers: submission.centers.clone(),
         vertices: submission
             .bytes
             .as_chunks::<VERTEX_BYTES>()
@@ -110,7 +112,15 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
     let scene = cube();
     let before = scene.clone();
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
-    let submission = Submission::new(&view, &camera(4.75), 1.0, None, FORMAT, 1024 * 1024).unwrap();
+    let submission = Submission::new(
+        &view,
+        &camera(4.75),
+        [SIZE; 2],
+        SelectionFeedback::Object(None),
+        FORMAT,
+        1024 * 1024,
+    )
+    .unwrap();
     assert_eq!(submission.surfaces, 0..36);
     assert_eq!(submission.lines, 36..168);
     assert_eq!(submission.bytes.len(), 168 * VERTEX_BYTES);
@@ -125,8 +135,8 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
         Submission::new(
             &view,
             &camera(4.75),
-            1.0,
-            None,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
             FORMAT,
             submission.bytes.len() as u64
         )
@@ -136,14 +146,333 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
         Submission::new(
             &view,
             &camera(4.75),
-            1.0,
-            None,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
             FORMAT,
             submission.bytes.len() as u64 - 1
         ),
         Err(RenderError::ResourceLimit)
     ));
     assert_eq!(scene, before);
+}
+
+#[test]
+fn face_submission_highlights_only_exact_identity_and_charges_physical_markers() {
+    let scene = cube();
+    let before = scene.clone();
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let instance = &view.instances()[0];
+    let path = &instance.path()[..instance.path().len() - 1];
+    let mut target = FaceTarget {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path: instance.path().to_vec(),
+        face_index: 1,
+    };
+    for size in [128, 256] {
+        let selection = SelectionFeedback::Face {
+            active: Some((instance.transform(), path)),
+            selected: Some(&target),
+        };
+        let submission = Submission::new(
+            &view,
+            &camera(0.01),
+            [size; 2],
+            selection,
+            FORMAT,
+            1024 * 1024,
+        )
+        .unwrap();
+        assert_eq!(submission.surfaces, 0..36);
+        assert_eq!(submission.centers.end - submission.centers.start, 36);
+        assert_eq!(submission.bytes.len(), 204 * VERTEX_BYTES);
+        let selected_vertices = submission.bytes[..36 * VERTEX_BYTES]
+            .as_chunks::<VERTEX_BYTES>()
+            .0
+            .iter()
+            .filter(|vertex| f32::from_ne_bytes(vertex[16..20].try_into().unwrap()) > 0.35)
+            .count();
+        assert_eq!(selected_vertices, 6);
+        let start = submission.centers.start as usize * VERTEX_BYTES;
+        let coordinates: Vec<_> = submission.bytes[start..start + 6 * VERTEX_BYTES]
+            .as_chunks::<VERTEX_BYTES>()
+            .0
+            .iter()
+            .map(|vertex| {
+                let value = |index: usize| {
+                    f32::from_ne_bytes(vertex[index * 4..index * 4 + 4].try_into().unwrap())
+                };
+                Vec2::new(value(0), value(1)) / value(3) * (size as f32 * 0.5)
+            })
+            .collect();
+        let min = coordinates
+            .iter()
+            .copied()
+            .fold(Vec2::splat(f32::INFINITY), Vec2::min);
+        let max = coordinates
+            .iter()
+            .copied()
+            .fold(Vec2::splat(f32::NEG_INFINITY), Vec2::max);
+        assert!(
+            (max - min - Vec2::splat(FACE_CENTER_MARKER_PIXELS))
+                .abs()
+                .max_element()
+                < 0.0001
+        );
+        let bytes = submission.bytes.len() as u64;
+        assert!(Submission::new(&view, &camera(0.01), [size; 2], selection, FORMAT, bytes).is_ok());
+        assert!(matches!(
+            Submission::new(
+                &view,
+                &camera(0.01),
+                [size; 2],
+                selection,
+                FORMAT,
+                bytes - 1
+            ),
+            Err(RenderError::ResourceLimit)
+        ));
+    }
+    target.path[0] = instance.shape();
+    let wrong = Submission::new(
+        &view,
+        &camera(0.01),
+        [SIZE; 2],
+        SelectionFeedback::Face {
+            active: None,
+            selected: Some(&target),
+        },
+        FORMAT,
+        1024 * 1024,
+    )
+    .unwrap();
+    assert!(wrong.centers.is_empty());
+    assert!(
+        wrong.bytes[..36 * VERTEX_BYTES]
+            .as_chunks::<VERTEX_BYTES>()
+            .0
+            .iter()
+            .all(|vertex| f32::from_ne_bytes(vertex[16..20].try_into().unwrap()) < 0.35)
+    );
+    assert_eq!(scene, before);
+}
+
+fn center_quad_scene(points: [[f32; 3]; 4]) -> NativeScene {
+    let mut legacy = azteccraft::scene::Scene::default();
+    legacy.create(Primitive::Plane, "center").unwrap();
+    let mut value = serde_json::to_value(legacy).unwrap();
+    value["nodes"][0]["mesh"]["vertices"] = serde_json::json!(points);
+    value["nodes"][0]["mesh"]["faces"] = serde_json::json!([[0, 1, 2, 3]]);
+    NativeScene::from_legacy(serde_json::from_value(value).unwrap()).unwrap()
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_face_centers_match_picker_for_planar_nonplanar_and_degenerate_faces() {
+    let mut gpu = Offscreen::new();
+    for (points, visible) in [
+        (
+            [
+                [-1.0, -1.0, 0.0],
+                [1.0, -1.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [-1.0, 1.0, 0.0],
+            ],
+            true,
+        ),
+        (
+            [
+                [-1.0, -1.0, 1.0],
+                [1.0, -1.0, 0.0],
+                [1.0, 1.0, 1.0],
+                [-1.0, 1.0, 0.0],
+            ],
+            false,
+        ),
+        ([[0.0; 3]; 4], true),
+    ] {
+        let native = center_quad_scene(points);
+        let before = native.clone();
+        let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+        let instance = &view.instances()[0];
+        let path = &instance.path()[..instance.path().len() - 1];
+        let camera = camera(0.01);
+        assert_eq!(
+            camera
+                .pick_face_center(
+                    &view,
+                    Some((instance.transform(), path)),
+                    Vec2::splat(64.0),
+                    [SIZE; 2],
+                    1.0
+                )
+                .unwrap()
+                .is_some(),
+            visible
+        );
+        for scale in [1.0, 2.0] {
+            let frame = ui_frame(scale, |ui| {
+                let rect =
+                    Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::splat(SIZE as f32 / scale));
+                ui.painter().add(
+                    renderer_handle()
+                        .callback(
+                            &view,
+                            &camera,
+                            rect,
+                            [SIZE; 2],
+                            SelectionFeedback::Face {
+                                active: Some((instance.transform(), path)),
+                                selected: None,
+                            },
+                        )
+                        .unwrap(),
+                );
+            });
+            let image = gpu.render(frame);
+            let orange = (60..68)
+                .flat_map(|y| (60..68).map(move |x| (x, y)))
+                .filter(|&(x, y)| pixel(&image, x, y) == [242, 163, 70, 255])
+                .count();
+            assert_eq!(
+                orange,
+                if visible { 16 } else { 0 },
+                "scale={scale} points={points:?}"
+            );
+        }
+        assert_eq!(native, before);
+    }
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_face_feedback_matches_exact_face_and_instance_and_hides_occluded_centers() {
+    let mut native = cube();
+    let first = native.nodes()[0].id();
+    let second = native.create(Primitive::Cube, "other").unwrap();
+    let before = native.clone();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let camera = camera(0.01);
+    let mut gpu = Offscreen::new();
+    for (owner, index, expected) in [
+        (first, 1, [95, 110, 120, 255]),
+        (first, 0, [83, 83, 83, 255]),
+        (second, 1, [83, 83, 83, 255]),
+    ] {
+        let instance = view
+            .instances()
+            .iter()
+            .find(|instance| instance.transform() == owner)
+            .unwrap();
+        let path = &instance.path()[..instance.path().len() - 1];
+        let target = FaceTarget {
+            transform: owner,
+            shape: instance.shape(),
+            path: instance.path().to_vec(),
+            face_index: index,
+        };
+        native.resolve_face_target(&target).unwrap();
+        let submission = Submission::new(
+            &view,
+            &camera,
+            [SIZE; 2],
+            SelectionFeedback::Face {
+                active: Some((owner, path)),
+                selected: Some(&target),
+            },
+            FORMAT,
+            1024 * 1024,
+        )
+        .unwrap();
+        assert_eq!(
+            pixel(&gpu.render(TestFrame::Geometry(submission)), 64, 58),
+            expected
+        );
+    }
+    assert_eq!(native, before);
+    native
+        .set_transform(
+            second,
+            NativeTransform {
+                translation: [0.0, 0.0, 1.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let instance = view
+        .instances()
+        .iter()
+        .find(|instance| instance.transform() == first)
+        .unwrap();
+    let path = &instance.path()[..instance.path().len() - 1];
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((first, path)),
+                Vec2::splat(64.0),
+                [SIZE; 2],
+                1.0
+            )
+            .unwrap()
+            .is_none()
+    );
+    let submission = Submission::new(
+        &view,
+        &camera,
+        [SIZE; 2],
+        SelectionFeedback::Face {
+            active: Some((first, path)),
+            selected: None,
+        },
+        FORMAT,
+        1024 * 1024,
+    )
+    .unwrap();
+    let image = gpu.render(TestFrame::Geometry(submission));
+    assert!(!image.as_chunks::<4>().0.contains(&[242, 163, 70, 255]));
+    native
+        .set_transform(
+            first,
+            NativeTransform {
+                translation: [0.0, 0.0, 6.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let instance = view
+        .instances()
+        .iter()
+        .find(|instance| instance.transform() == first)
+        .unwrap();
+    let path = &instance.path()[..instance.path().len() - 1];
+    let submission = Submission::new(
+        &view,
+        &camera,
+        [SIZE; 2],
+        SelectionFeedback::Face {
+            active: Some((first, path)),
+            selected: None,
+        },
+        FORMAT,
+        1024 * 1024,
+    )
+    .unwrap();
+    assert!(submission.centers.is_empty());
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((first, path)),
+                Vec2::splat(64.0),
+                [SIZE; 2],
+                1.0
+            )
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -180,7 +509,14 @@ fn finite_native_world_that_overflows_clip_reports_a_render_limit() {
         .unwrap();
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
     assert!(matches!(
-        Submission::new(&view, &camera(0.01), 1.0, None, FORMAT, 1024 * 1024),
+        Submission::new(
+            &view,
+            &camera(0.01),
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
+            FORMAT,
+            1024 * 1024
+        ),
         Err(RenderError::NonFiniteClip)
     ));
 }
@@ -195,7 +531,13 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
     let renderer = renderer_handle();
     let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
     assert!(matches!(
-        renderer.callback(&view, &camera(0.01), Rect::NOTHING, None),
+        renderer.callback(
+            &view,
+            &camera(0.01),
+            Rect::NOTHING,
+            [SIZE; 2],
+            SelectionFeedback::Object(None)
+        ),
         Err(RenderError::Camera(_))
     ));
     renderer.errors.record("first backend failure".into());
@@ -209,7 +551,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             &view,
             &camera(0.01),
             Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(128.0, 128.0)),
-            None
+            [SIZE; 2],
+            SelectionFeedback::Object(None)
         ),
         Err(RenderError::Backend(_))
     ));
@@ -274,8 +617,8 @@ impl Offscreen {
         let submission = Submission::new(
             view,
             camera,
-            1.0,
-            selected,
+            [SIZE; 2],
+            SelectionFeedback::Object(selected),
             self.format,
             self.device.limits().max_buffer_size,
         )
@@ -529,7 +872,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
                 Some(&producer),
                 &camera(4.75),
                 &view,
-                Some(&path[..path.len() - 1]),
+                SelectionFeedback::Object(Some(&path[..path.len() - 1])),
             )
             .unwrap();
     });
@@ -558,7 +901,13 @@ fn headless_gpu_actual_callback_scissor_and_following_egui_restore_at_one_and_tw
             let renderer = renderer_handle();
             ui.painter().with_clip_rect(clip).add(
                 renderer
-                    .callback(&view, &camera(0.01), rect, Some(&path[..path.len() - 1]))
+                    .callback(
+                        &view,
+                        &camera(0.01),
+                        rect,
+                        [96; 2],
+                        SelectionFeedback::Object(Some(&path[..path.len() - 1])),
+                    )
                     .unwrap(),
             );
             ui.painter().rect_filled(
@@ -603,7 +952,8 @@ fn headless_gpu_actual_validation_callback_latches_and_blocks_submission() {
             &view,
             &camera(0.01),
             Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::splat(128.0)),
-            None,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
         ),
         Err(RenderError::Backend(_))
     ));

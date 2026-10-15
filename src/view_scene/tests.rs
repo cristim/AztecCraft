@@ -567,3 +567,607 @@ fn sparse_offsets_are_added_in_f64_before_actual_world_transform() {
     assert_eq!(view.instances()[0].faces()[0].source_index(), 0);
 }
 use crate::native_scene::Points;
+
+fn center_fixture(vertices: Vec<Vec3>, corners: ViewCorners) -> (ViewScene, NodeId, Vec<NativeId>) {
+    let (native, owner) = test_fixtures::triangle_double_shape();
+    let mut view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let instance = &mut view.instances[0];
+    instance.world_vertices = vertices;
+    instance.faces = vec![ViewFace {
+        source_index: 0,
+        corners,
+    }];
+    let path = instance.path[..instance.path.len() - 1].to_vec();
+    (view, owner, path)
+}
+
+fn center_quad(z: f32) -> Vec<Vec3> {
+    vec![
+        Vec3::new(-1.0, -1.0, z),
+        Vec3::new(1.0, -1.0, z),
+        Vec3::new(1.0, 1.0, z),
+        Vec3::new(-1.0, 1.0, z),
+    ]
+}
+
+fn center_pointer(camera: &Camera, point: Vec3, size: [u32; 2], scale: f32) -> Vec2 {
+    let ndc = camera
+        .project(point, size[0] as f32 / size[1] as f32)
+        .unwrap()
+        .unwrap();
+    Vec2::new(ndc.x + 1.0, 1.0 - ndc.y) * 0.5 * Vec2::new(size[0] as f32, size[1] as f32) / scale
+}
+
+#[test]
+fn center_mean_uses_all_ordered_corners_without_f32_accumulation_overflow() {
+    let face = ViewFace {
+        source_index: 0,
+        corners: ViewCorners::Triangle([0, 1, 2]),
+    };
+    assert_eq!(
+        face.center(&[Vec3::splat(f32::MAX); 3]).unwrap(),
+        Vec3::splat(f32::MAX)
+    );
+    assert_eq!(
+        face.center(&[Vec3::ZERO, Vec3::X * 3.0, Vec3::Y * 6.0])
+            .unwrap(),
+        Vec3::new(1.0, 2.0, 0.0)
+    );
+    assert_eq!(face.center(&[Vec3::ZERO]), Err(ViewError::InvalidGeometry));
+    assert_eq!(
+        face.center(&[Vec3::splat(f32::NAN); 3]),
+        Err(ViewError::NonFiniteWorld)
+    );
+}
+
+#[test]
+fn center_click_hits_triangle_and_quad_centers_but_not_the_face_body() {
+    for (vertices, corners) in [
+        (
+            vec![
+                Vec3::new(-1.0, -1.0, 0.0),
+                Vec3::new(1.0, -1.0, 0.0),
+                Vec3::Y,
+            ],
+            ViewCorners::Triangle([0, 1, 2]),
+        ),
+        (center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3])),
+    ] {
+        let (view, owner, path) = center_fixture(vertices, corners);
+        let center = view.instances[0].faces[0]
+            .center(&view.instances[0].world_vertices)
+            .unwrap();
+        let camera = front_camera();
+        for scale in [1.0, 2.0] {
+            let size = [800, 600];
+            let pointer = center_pointer(&camera, center, size, scale);
+            let hit = camera
+                .pick_face_center(&view, Some((owner, &path)), pointer, size, scale)
+                .unwrap()
+                .unwrap();
+            assert_eq!(hit.transform, owner);
+            assert_eq!(hit.path, view.instances[0].path);
+            assert_eq!(hit.face_index, 0);
+            for (offset, expected) in [(3.9, true), (4.1, false)] {
+                assert_eq!(
+                    camera
+                        .pick_face_center(
+                            &view,
+                            Some((owner, &path)),
+                            pointer + Vec2::X * offset / scale,
+                            size,
+                            scale
+                        )
+                        .unwrap()
+                        .is_some(),
+                    expected
+                );
+            }
+        }
+        let body = center_pointer(&camera, Vec3::new(0.25, -0.5, 0.0), [800, 600], 1.0);
+        assert!(
+            camera
+                .pick_view(
+                    &view,
+                    camera
+                        .project(Vec3::new(0.25, -0.5, 0.0), 800.0 / 600.0)
+                        .unwrap()
+                        .unwrap()
+                        .truncate(),
+                    800.0 / 600.0
+                )
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            camera
+                .pick_face_center(&view, Some((owner, &path)), body, [800, 600], 1.0)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
+#[test]
+fn center_pick_preserves_real_shared_instance_and_selected_group_scope() {
+    let (native, first, second, shape) = test_fixtures::shared_shape();
+    let before = native.clone();
+    let mut view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let camera = front_camera();
+    for owner in [first, second] {
+        let path = vec![native.node(owner).unwrap().transform_id()];
+        let hit = camera
+            .pick_face_center(
+                &view,
+                Some((owner, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!(hit.transform, owner);
+        assert_eq!(hit.shape, shape);
+        assert_eq!(&hit.path[..hit.path.len() - 1], path);
+        native.resolve_face_target(&hit).unwrap();
+    }
+    view.instances.reverse();
+    let path = vec![native.node(second).unwrap().transform_id()];
+    assert_eq!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((second, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .unwrap()
+            .transform,
+        second
+    );
+    assert_eq!(native, before);
+    let (native, root, child, _) = test_fixtures::grouped_shape();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let root_path = vec![native.node(root).unwrap().transform_id()];
+    let child_path = vec![root_path[0], native.node(child).unwrap().transform_id()];
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((root, &root_path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((child, &child_path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        camera
+            .pick_face_center(&view, None, Vec2::splat(300.0), [600, 600], 1.0)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn center_visibility_uses_center_ray_even_for_offset_clicks_and_all_faces_occlude() {
+    let (mut view, owner, path) = center_fixture(center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3]));
+    let instance = &mut view.instances[0];
+    instance.world_vertices.extend([
+        Vec3::new(-0.01, -0.01, 1.0),
+        Vec3::new(0.01, -0.01, 1.0),
+        Vec3::new(0.01, 0.01, 1.0),
+        Vec3::new(-0.01, 0.01, 1.0),
+    ]);
+    instance.faces.push(ViewFace {
+        source_index: 1,
+        corners: ViewCorners::Quad([4, 5, 6, 7]),
+    });
+    let camera = front_camera();
+    let hit = camera
+        .pick_face_center(
+            &view,
+            Some((owner, &path)),
+            Vec2::new(303.0, 300.0),
+            [600, 600],
+            1.0,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(hit.face_index, 1);
+    // The offset mouse ray misses the small blocker, but the center ray must not.
+    assert_eq!(
+        camera
+            .pick_view(&view, Vec2::new(0.01, 0.0), 1.0)
+            .unwrap()
+            .unwrap()
+            .face_index,
+        0
+    );
+    view.instances[0].faces[1].source_index = 7;
+    assert_eq!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((owner, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .unwrap()
+            .face_index,
+        7
+    );
+}
+
+#[test]
+fn center_planar_equality_is_visible_but_nonplanar_quad_can_occlude_its_own_center() {
+    let (mut view, owner, path) = center_fixture(center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3]));
+    let camera = front_camera();
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((owner, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .is_some()
+    );
+    view.instances[0].world_vertices[0].z = 1.0;
+    view.instances[0].world_vertices[2].z = 1.0;
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((owner, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn center_pick_rejects_invalid_viewports_and_clips_before_dividing() {
+    let (mut view, owner, path) = center_fixture(center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3]));
+    let camera = front_camera();
+    for (size, pointer, scale) in [
+        ([0, 600], Vec2::ZERO, 1.0),
+        ([600, 0], Vec2::ZERO, 1.0),
+        ([600, 600], Vec2::splat(f32::NAN), 1.0),
+        ([600, 600], Vec2::ZERO, 0.0),
+        ([600, 600], Vec2::ZERO, f32::INFINITY),
+    ] {
+        assert!(matches!(
+            camera.pick_face_center(&view, Some((owner, &path)), pointer, size, scale),
+            Err(ViewError::Camera(_))
+        ));
+    }
+    for displacement in [
+        Vec3::new(100.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 6.0),
+        Vec3::new(0.0, 0.0, -110.0),
+    ] {
+        view.instances[0].world_vertices = center_quad(0.0)
+            .into_iter()
+            .map(|v| v + displacement)
+            .collect();
+        assert!(
+            camera
+                .pick_face_center(
+                    &view,
+                    Some((owner, &path)),
+                    Vec2::splat(300.0),
+                    [600, 600],
+                    1.0
+                )
+                .unwrap()
+                .is_none()
+        );
+    }
+    view.instances[0].world_vertices = vec![Vec3::splat(f32::MAX); 4];
+    assert!(matches!(
+        camera.pick_face_center(
+            &view,
+            Some((owner, &path)),
+            Vec2::splat(300.0),
+            [600, 600],
+            1.0
+        ),
+        Err(ViewError::NonFiniteWorld)
+    ));
+}
+
+#[test]
+fn center_work_admission_counts_only_click_eligible_faces_and_checks_exact_product() {
+    let (mut view, owner, path) = center_fixture(center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3]));
+    for index in 1..3000 {
+        let start = view.instances[0].world_vertices.len();
+        view.instances[0].world_vertices.extend(
+            center_quad(0.0)
+                .into_iter()
+                .map(|v| v + Vec3::X * index as f32 * 3.0),
+        );
+        view.instances[0].faces.push(ViewFace {
+            source_index: index,
+            corners: ViewCorners::Quad([start, start + 1, start + 2, start + 3]),
+        });
+    }
+    assert_eq!(
+        front_camera()
+            .pick_face_center(
+                &view,
+                Some((owner, &path)),
+                Vec2::splat(300.0),
+                [600, 600],
+                1.0
+            )
+            .unwrap()
+            .unwrap()
+            .face_index,
+        0
+    );
+    assert!(crate::viewport::face_center_work(1, 1_000_000).is_ok());
+    assert!(crate::viewport::face_center_work(1000, 1000).is_ok());
+    assert_eq!(
+        crate::viewport::face_center_work(1, 1_000_001),
+        Err(ViewError::ResourceLimit)
+    );
+    assert_eq!(
+        crate::viewport::face_center_work(usize::MAX, 2),
+        Err(ViewError::ResourceLimit)
+    );
+    assert!(crate::viewport::face_center_work(0, usize::MAX).is_ok());
+    let face = view.instances[0].faces[0];
+    view.instances[0].faces = vec![face; 1000];
+    assert_eq!(
+        front_camera().pick_face_center(
+            &view,
+            Some((owner, &path)),
+            Vec2::splat(300.0),
+            [600, 600],
+            1.0
+        ),
+        Err(ViewError::ResourceLimit)
+    );
+}
+
+#[test]
+fn center_visibility_uses_rendered_near_far_clipping_for_positive_occluder_hits() {
+    let camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 4.0, 6.0).unwrap();
+    for (occluder_z, expected) in [(2.0, true), (1.0, false), (-2.0, true)] {
+        let (mut view, owner, path) =
+            center_fixture(center_quad(0.0), ViewCorners::Quad([0, 1, 2, 3]));
+        let (mut blocker, _, _) =
+            center_fixture(center_quad(occluder_z), ViewCorners::Quad([0, 1, 2, 3]));
+        blocker.instances[0].transform = NodeId::new(999);
+        view.instances.append(&mut blocker.instances);
+        assert_eq!(
+            camera
+                .pick_face_center(
+                    &view,
+                    Some((owner, &path)),
+                    Vec2::splat(300.0),
+                    [600, 600],
+                    1.0
+                )
+                .unwrap()
+                .is_some(),
+            expected,
+            "occluder z={occluder_z}"
+        );
+    }
+}
+
+#[test]
+fn center_work_boundary_is_enforced_on_the_actual_picker() {
+    let (mut view, owner, path) = center_fixture(
+        vec![
+            Vec3::new(-1.0, -1.0, 0.0),
+            Vec3::new(1.0, -1.0, 0.0),
+            Vec3::Y,
+        ],
+        ViewCorners::Triangle([0, 1, 2]),
+    );
+    let face = view.instances[0].faces[0];
+    view.instances[0].faces = (0..1000)
+        .map(|index| ViewFace {
+            source_index: index,
+            ..face
+        })
+        .collect();
+    let camera = front_camera();
+    let pointer = center_pointer(&camera, Vec3::new(0.0, -1.0 / 3.0, 0.0), [600, 600], 1.0);
+    assert_eq!(
+        camera
+            .pick_face_center(&view, Some((owner, &path)), pointer, [600, 600], 1.0)
+            .unwrap()
+            .unwrap()
+            .face_index,
+        0
+    );
+    view.instances[0].faces.push(face);
+    assert_eq!(
+        camera.pick_face_center(&view, Some((owner, &path)), pointer, [600, 600], 1.0),
+        Err(ViewError::ResourceLimit)
+    );
+}
+
+#[test]
+fn center_pick_handles_perspective_and_reflected_world_geometry_without_scene_edits() {
+    let (mut native, owner) = test_fixtures::cube();
+    native
+        .set_transform(
+            owner,
+            NativeTransform {
+                translation: [0.7, -0.4, 0.5],
+                rotation: [17.0, 31.0, 12.0],
+                scale: [-2.0, 1.5, 0.75],
+            },
+        )
+        .unwrap();
+    let before = native.clone();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let path = [native.node(owner).unwrap().transform_id()];
+    let camera = Camera::default();
+    let mut hits = 0;
+    for face in view.instances[0].faces() {
+        let center = face.center(view.instances[0].world_vertices()).unwrap();
+        let pointer = center_pointer(&camera, center, [1200, 800], 2.0);
+        if let Some(target) = camera
+            .pick_face_center(&view, Some((owner, &path)), pointer, [1200, 800], 2.0)
+            .unwrap()
+        {
+            assert_eq!(target.face_index, face.source_index());
+            native.resolve_face_target(&target).unwrap();
+            hits += 1;
+        }
+    }
+    assert!(hits > 0 && hits < 6);
+    assert_eq!(native, before);
+}
+
+mod center_wire {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+#[test]
+fn center_degenerate_geometry_needs_no_own_surface_hit_but_obeys_occlusion() {
+    let (mut view, owner, path) =
+        center_fixture(vec![Vec3::ZERO; 3], ViewCorners::Triangle([0, 1, 2]));
+    let camera = front_camera();
+    let pointer = Vec2::splat(300.0);
+    assert!(
+        camera
+            .pick_face_center(&view, Some((owner, &path)), pointer, [600, 600], 1.0)
+            .unwrap()
+            .is_some()
+    );
+    let (mut blocker, _, _) = center_fixture(center_quad(1.0), ViewCorners::Quad([0, 1, 2, 3]));
+    blocker.instances[0].transform = NodeId::new(999);
+    view.instances.append(&mut blocker.instances);
+    assert!(
+        camera
+            .pick_face_center(&view, Some((owner, &path)), pointer, [600, 600], 1.0)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn center_pick_keeps_two_direct_imported_shapes_and_excludes_descendant_shapes() {
+    use center_wire::{chunk, creation, group, mesh_payload, scene, triple};
+    let mesh = |name: &[u8], parent: &[u8]| {
+        group(
+            b"DMSH",
+            &[
+                creation(name, Some(parent)),
+                chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        )
+    };
+    let bytes = scene(
+        &[
+            group(b"XFRM", &creation(b"root", None), 4),
+            mesh(b"first", b"root"),
+            mesh(b"second", b"root"),
+            group(
+                b"XFRM",
+                &[
+                    creation(b"child", Some(b"root")),
+                    triple(b"t", [1.25, 0.0, 0.0]),
+                ]
+                .concat(),
+                4,
+            ),
+            mesh(b"descendant", b"child"),
+        ]
+        .concat(),
+    );
+    let native = crate::native_scene::binary::decode(bytes.clone()).unwrap();
+    let before = native.clone();
+    let mut view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let root = native
+        .nodes()
+        .iter()
+        .find(|node| node.name() == "root")
+        .unwrap();
+    let path = [root.transform_id()];
+    let camera = front_camera();
+    let pointer = center_pointer(
+        &camera,
+        Vec3::new(1.0 / 3.0, 1.0 / 3.0, 0.0),
+        [800, 800],
+        1.0,
+    );
+    let expected = view
+        .instances()
+        .iter()
+        .filter(|instance| instance.transform() == root.id())
+        .min_by_key(|instance| instance.path())
+        .unwrap()
+        .shape();
+    for _ in 0..2 {
+        let target = camera
+            .pick_face_center(&view, Some((root.id(), &path)), pointer, [800, 800], 1.0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(target.shape, expected);
+        native.resolve_face_target(&target).unwrap();
+        view.instances.reverse();
+    }
+    let descendant_pointer = center_pointer(
+        &camera,
+        Vec3::new(1.25 + 1.0 / 3.0, 1.0 / 3.0, 0.0),
+        [800, 800],
+        1.0,
+    );
+    assert!(
+        camera
+            .pick_face_center(
+                &view,
+                Some((root.id(), &path)),
+                descendant_pointer,
+                [800, 800],
+                1.0
+            )
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(native, before);
+    // Exercise the shared distributed specimen through the same checked decoder.
+    let imported = crate::native_scene::binary::decode(center_wire::specimen().into()).unwrap();
+    assert_eq!(
+        ViewScene::from_native(&imported, VIEW_BUDGET)
+            .unwrap()
+            .instances()
+            .len(),
+        1
+    );
+}
