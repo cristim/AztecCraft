@@ -51,6 +51,28 @@ impl Default for Camera {
 }
 
 impl Camera {
+    pub fn same_capture(&self, other: &Self) -> bool {
+        self.target.to_array().map(f32::to_bits) == other.target.to_array().map(f32::to_bits)
+            && [
+                self.yaw,
+                self.pitch,
+                self.distance,
+                self.fov_y,
+                self.near,
+                self.far,
+            ]
+            .map(f32::to_bits)
+                == [
+                    other.yaw,
+                    other.pitch,
+                    other.distance,
+                    other.fov_y,
+                    other.near,
+                    other.far,
+                ]
+                .map(f32::to_bits)
+    }
+
     pub fn new(
         target: Vec3,
         yaw: f32,
@@ -262,17 +284,43 @@ impl Camera {
         if !ndc.is_finite() || ndc.abs().max_element() > 1.0 {
             return Err(InvalidCameraInput);
         }
+        self.ray_from_projection(ndc, projection)
+    }
+
+    pub fn captured_ray(&self, ndc: Vec2, aspect: f32) -> Result<Ray, InvalidCameraInput> {
+        let projection = self.projection_matrix(aspect)?;
+        if !ndc.is_finite() {
+            return Err(InvalidCameraInput);
+        }
+        self.ray_from_projection(ndc, projection)
+    }
+
+    fn ray_from_projection(&self, ndc: Vec2, projection: Mat4) -> Result<Ray, InvalidCameraInput> {
         let view_direction = Vec3::new(
             ndc.x / projection.x_axis.x,
             ndc.y / projection.y_axis.y,
             -1.0,
-        )
-        .normalize();
+        );
+        let view_length_squared = view_direction.length_squared();
+        if !view_direction.is_finite()
+            || !view_length_squared.is_finite()
+            || view_length_squared <= 0.0
+        {
+            return Err(InvalidCameraInput);
+        }
+        let view_direction = view_direction.normalize();
         let direction = self
             .view_matrix()
             .inverse()
-            .transform_vector3(view_direction)
-            .normalize();
+            .transform_vector3(view_direction);
+        let direction_length_squared = direction.length_squared();
+        if !direction.is_finite()
+            || !direction_length_squared.is_finite()
+            || direction_length_squared <= 0.0
+        {
+            return Err(InvalidCameraInput);
+        }
+        let direction = direction.normalize();
         if !direction.is_finite() {
             return Err(InvalidCameraInput);
         }
