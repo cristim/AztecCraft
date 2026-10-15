@@ -70,7 +70,7 @@ runtime services.
 
 The prototype provides menus/shelf, Outliner, Channel Box, projected mesh drawing,
 selection, name/numeric edits, undo/redo, delete and framing. Alt-left drag orbits,
-middle drag pans, right drag/wheel dollies, and F frames the selected object when
+middle drag pans, right drag/wheel dollies, and F frames the active object or face when
 a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes.
 New/Open use the shared native document lifecycle. This candidate enables
 eligible Unix Maya binary Save/Save As through that same lifecycle and ordinary
@@ -122,7 +122,7 @@ topology. A mesh with only one face, including the primitive plane, returns an
 explicit unsupported-all-faces error; its Maya default behavior needs a pinned
 fixture. Undefined normals, invalid indices/distances and coordinate overflow
 leave the scene/history unchanged. World/region extrusion, divisions, taper,
-offset, UVs/normals, construction-history nodes and native face controls remain
+offset, UVs/normals, construction-history nodes and native Extrude controls remain
 pending. Tests establish this subset's geometry, not Maya parity.
 
 `examples/extruded-cube.aztec` was generated through cube creation and two
@@ -131,6 +131,57 @@ History extrusion commands: front face 1 by +0.5, then its right side face 7 by
 verify undo/redo, save/reload, reflected OBJ cap/side geometry and picking outside
 the original cube. File → Open provides a native inspection path; it does not
 add native face-editing controls or prove Maya equivalence.
+
+## Face Center selection
+
+F11 or Select > Components > Face enters Face mode; F8 or Object/Component
+toggles Object/Face. The active transform contributes only directly attached
+triangle/quad shapes in its exact instance path, not descendant meshes under a
+selected group. A plain primary click replaces the face or clears it when no
+eligible center is hit. The shared typed operations and inspection are available
+through [MCP selection tools](mcp.md#tools-and-state).
+
+Each marker is a 4x4 physical-pixel box at the arithmetic mean of the ordered
+face corners, accumulated in f64 before conversion to view space. The click box
+is 8x8 physical pixels. Homogeneous clipping, viewport dimensions and scale use
+the same snapped physical capture as rendering. A ray through each eligible
+center, rather than the offset click, checks all rendered triangles, including
+the face itself, within the rendered near/far range. A closer surface blocks the
+center; planar depth equality is admitted. A nonplanar face can hide its own
+center, while an unobstructed finite degenerate center can remain selectable.
+The GPU markers use the existing depth attachment and comparison path.
+
+Picking preflights eligible centers times all occluder triangles with checked
+arithmetic and refuses work above 1,000,000 intersections. Nearest surviving
+camera depth wins; exact ties use full instance path, transform/shape IDs and
+original source face index. These fixed application policies have not been
+verified against Maya's Center/CBS behavior or numerical boundaries.
+
+Object mode suppresses component feedback but remembers a still-valid face on
+the same object/path. Switching object/path or successfully replacing a document
+clears it; New/Open retain the current mask. Edits and Undo/Redo revalidate the
+target and clear dangling identities without restoring them on Redo. Selection
+does not modify authoring history, source bytes or dirty state. F/frame_selected
+in Face mode frames the selected face corners even if its center is occluded or
+clipped; no face returns an error instead of framing the object. Existing native
+valid-draft commitment and remote draft-refusal rules remain in force.
+
+Shift/Ctrl selection, marquee, multiple faces, other component masks, preselection
+hover and marking menus are unsupported. Ambiguous coalesced primary-release
+frames refuse selection with a single-click retry message; they do not guess an
+event owner or commit a draft solely for that refusal. Alt camera navigation
+remains on its established route. Native Delete cannot delete the whole object
+under Face mode; explicit MCP delete_node retains its object-target meaning.
+Native Extrude stays disabled pending real history/manipulator behavior.
+
+Focused actual framebuffer proofs can be selected with `cargo test --locked
+--bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,
+protocol and framebuffer tests establish their exercised callers, not an OS
+window journey or Maya parity. The attempted genuine combined menu
+activation/key/viewport-click sequence was blocked by pinned egui's popup
+routing. The retained proofs cover menu+F8 and F11+F8+viewport click separately, plus blocked-popup
+nonmutation. Full coalesced-event support and platform/reference comparison
+remain follow-up work.
 
 ## History
 

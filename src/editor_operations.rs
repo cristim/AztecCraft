@@ -1,11 +1,13 @@
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{FaceTarget, NativeTransform};
+use azteccraft::native_scene::NativeTransform;
 use azteccraft::{
-    native_scene::{NativeError, NativeId},
+    native_scene::{FaceTarget, NativeError, NativeId},
     scene::{NodeId, Primitive},
     viewport::InvalidCameraInput,
 };
-use serde::Serialize;
+#[cfg(feature = "mcp")]
+use rmcp::schemars;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -48,6 +50,15 @@ pub enum DocumentOrigin {
     MayaBinary,
     LegacyAztec,
 }
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum SelectionMode {
+    #[default]
+    Object,
+    Face,
+}
 #[cfg(any(test, feature = "mcp"))]
 use uuid::Uuid;
 
@@ -57,10 +68,12 @@ pub const MAX_NAME_BYTES: usize = 4096;
 pub const MAX_RESULT_BYTES: usize = 512 * 1024;
 
 #[cfg(any(test, feature = "mcp"))]
-pub const TOOL_NAMES: [&str; 22] = [
+pub const TOOL_NAMES: [&str; 24] = [
     "inspect_scene",
     "create_primitive",
     "select_node",
+    "set_selection_mode",
+    "select_face",
     "rename_node",
     "set_transform",
     "edit_node",
@@ -97,6 +110,10 @@ pub enum Operation {
     Select {
         node: Option<NodeId>,
         instance_path: Option<Vec<NativeId>>,
+    },
+    SetSelectionMode(SelectionMode),
+    SelectFace {
+        target: Option<FaceTarget>,
     },
     NewScene,
     RequestClose,
@@ -219,6 +236,9 @@ pub struct SceneInspection {
     pub pending_action: Option<PendingInspection>,
     pub selected_node: Option<String>,
     pub selected_instance_path: Vec<String>,
+    pub selection_mode: SelectionMode,
+    pub remembered_face: Option<FaceSelectionTarget>,
+    pub face_selection_policy: FaceSelectionPolicy,
     pub can_undo: bool,
     pub can_redo: bool,
     pub dirty: bool,
@@ -227,6 +247,25 @@ pub struct SceneInspection {
     pub text_focused: bool,
     pub modal: bool,
     pub camera: CameraInspection,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct FaceSelectionTarget {
+    pub node_id: String,
+    pub shape_id: String,
+    #[cfg_attr(feature = "mcp", schemars(length(min = 2, max = 257)))]
+    pub instance_path: Vec<String>,
+    pub face_index: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg(any(test, feature = "mcp"))]
+pub enum FaceSelectionPolicy {
+    VisibleCentersOnly,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,7 +368,7 @@ impl fmt::Display for OperationError {
             Self::StaleScene => f.write_str("Scene token is stale; inspect the current document"),
             #[cfg(any(test, feature = "mcp"))]
             Self::TooLarge => f.write_str("Scene inspection exceeds the prototype response limit"),
-            Self::NoSelection => f.write_str("Select an object before framing"),
+            Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),
             Self::File(error) => f.write_str(error),

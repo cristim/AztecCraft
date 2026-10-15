@@ -1,6 +1,6 @@
 # Native editor MCP
 
-The optional MCP server controls the new native Editor window launched by its client. Tools use that window's canonical native scene, history, selection, camera and viewport grid setting. It cannot attach to an already running instance. This candidate exposes twenty-two tools; it does not establish Maya scripting, plug-in or full-functionality compatibility.
+The optional MCP server controls the new native Editor window launched by its client. Tools use that window's canonical native scene, history, selection, camera and viewport grid setting. It cannot attach to an already running instance. This candidate exposes twenty-four tools; it does not establish Maya scripting, plug-in or full-functionality compatibility.
 
 The Save integration in this working branch is provisional. Its ordinary vendored
 atomic engine and document adapter have separate consumer checks. Current
@@ -58,6 +58,8 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `inspect_scene` | No arguments; no token required | Committed node/shape metadata, units, instance paths, selected identity, history, pending action, dirty/draft/focus/modal/closing flags and camera |
 | `create_primitive` | `primitive`: `cube` or `plane`; optional `name` | Created `node_id`; selects the new node |
 | `select_node` | Optional `node_id` and `instance_path`, at most 256 decimal NativeId strings | Full root-to-transform prefix; ambiguous objects require a path. Null or omitted node clears selection and cannot include a path |
+| `set_selection_mode` | Required `mode`: `object` or `face` | Changes the transient selection mask; a valid remembered face remains inactive in Object mode |
+| `select_face` | Required `target`: complete target object or null | In Face mode, selects that exact owning instance and canonical face; null clears only the face |
 | `rename_node` | `node_id`, `name` | Changed or unchanged authoring state |
 | `set_transform` | `node_id`, `translation`, `rotation_degrees`, `scale`, each an array of three finite f64 numbers | Translation in declared scene units, rotation in degrees, dimensionless scale |
 | `edit_node` | `node_id`; optional `name`, `translation`, `rotation_degrees`, `scale` | One undo entry for the supplied name and individual channels; selection stays unchanged |
@@ -66,7 +68,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `delete_node` | `node_id` | Changed authoring state |
 | `undo` | None | Changed or unchanged history state |
 | `redo` | None | Changed or unchanged history state |
-| `frame_selected` | None | Changed or unchanged camera; requires selection |
+| `frame_selected` | None | Frames the selected object in Object mode or selected face corners in Face mode; no active face returns `no_selection` |
 | `set_grid_visibility` | `visible`: required boolean | Changed or unchanged grid visibility in this window's viewport |
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
 | `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
@@ -79,6 +81,31 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `request_close` | None | Native close guard; dirty documents require confirmation, and approved remote closure waits for its own successful response flush |
 
 Transforms use the [existing coordinate conventions](development.md). The `rotation_degrees` input and normalized transform inspection always use degrees; `authoring_transform.rotation` retains the document's declared angular units, reported in `units`. Translation retains declared linear units. Camera navigation uses centimeter view space. Inspection exposes shape counts and smoothing capability, without mesh arrays, source bytes or private file paths. This is bounded metadata inspection, not a geometry dump.
+
+`select_face.target` contains required `node_id`, `shape_id`, `instance_path` and
+`face_index`. IDs are decimal strings; the full path has 2 to 257 IDs, ending in the
+shape beneath the requested transform, and the face index is the current source
+face ordinal before triangulation. A valid explicit target may name another
+object or a currently occluded/clipped face. It does not invoke viewport picking
+or silently change the selection mask. Invalid targets preserve selection;
+Object mode rejects even a null face request. An omitted target is invalid.
+
+Inspection reports `selection_mode`, the complete `remembered_face` target or
+null, and fixed `face_selection_policy: "visible_centers_only"`. A remembered
+face is inactive in Object mode and is revalidated after edits and Undo/Redo.
+Changing object/path or replacing the document clears it; successful New/Open
+retains the current mask. This transient state does not edit the native scene,
+file binding, history or dirty status. Native actions retain the existing valid
+human-draft commitment policy; remote requests refuse differing drafts.
+
+Native Face selection uses 4x4 physical-pixel center markers and an 8x8 click box,
+with center-ray visibility and a bounded intersection budget. Plain primary
+click replaces or clears the face; modified selection and ambiguous coalesced
+primary releases are unsupported. Alt camera navigation remains available.
+F11 and Select > Components > Face enter Face mode; F8 toggles Object/Face.
+Exact Maya CBS, numeric, visual and event-order parity remain unverified. Native
+Extrude remains disabled pending a real history/manipulator workflow; the
+existing explicit `extrude_face` tool keeps its checked authoring semantics.
 
 `edit_node` uses the Channel Box's sparse native History command. Each supplied
 channel array has exactly three finite numbers or nulls. An omitted array or a
@@ -243,7 +270,7 @@ No-default core builds remain independent of desktop and MCP dependencies. See [
 
 Every existing and new user-facing capability and its relevant state must be accessible through MCP, including while catch-up is in progress. Each applicable feature slice includes its typed operation, MCP schema/handler and inspection changes, real Editor protocol tests and documentation before the completed feature gate. The feature owner coordinates protected editor boundaries and adapter review with the MCP owner. Do not advertise a tool before the operation exists or leave MCP support as a permanent later backlog.
 
-The current catalog omits component selection, GUI Export, material assignment/rendering, animation, simulation and scripting. Its single material-data edit is the bounded existing Phong diffuse scalar described above. `extrude_face` exposes the existing bounded single-quad operation through an explicit current target; native component selection and face-extrusion UI remain pending. Native face UI support must include its MCP capability updates in that same completed feature slice. Core-only APIs and unsupported controls do not imply an advertised MCP tool. The current binary decoder refuses shared-instance MB input, and the native UI cannot create instances; SDK ambiguity behavior has no reachable producer in this slice. Canonical path/ambiguity checks and reachable explicit-path protocol tests do not establish full instanced-file support.
+The current catalog omits vertices/edges/UVs, multiple-face gestures, GUI Export, material assignment/rendering, animation, simulation and scripting. Face mode and one full canonical face target are exposed through the same operations as native Center selection. Its single material-data edit is the bounded existing Phong diffuse scalar described above. `extrude_face` exposes the existing bounded single-quad operation through an explicit current target; native face-extrusion UI remains unsupported. Core-only APIs and unsupported controls do not imply an advertised MCP tool. The current binary decoder refuses shared-instance MB input, and the native UI cannot create instances; SDK ambiguity behavior has no reachable producer in this slice. Canonical path/ambiguity checks and reachable explicit-path protocol tests do not establish full instanced-file support.
 
 Nine verified tools establish the initial server foundation, not catch-up with every existing operation. Existing capabilities without tools need reviewed follow-up slices; their absence does not defer MCP support for new applicable features, including the native face slice.
 
@@ -254,7 +281,8 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | Native Close | `request_close` and matching pending resolution use the native close guard and response-delivery barrier |
 | Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix binary only, current integration/native Save QA remains pending |
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |
-| Core mesh extrusion | `extrude_face` exposes the checked single-quad History command with an explicit current face target; component selection and native face-extrusion UI remain pending |
+| Native Face/Center selection | `set_selection_mode`, `select_face` and selection inspection share authoritative typed state; other component masks and multi-face gestures are unsupported |
+| Core mesh extrusion | `extrude_face` exposes the checked single-quad History command with an explicit current face target; native face-extrusion UI remains unsupported |
 | Interactive camera orbit/pan/dolly | Three navigation tools use the same typed operations as native captured gestures; live camera state is inspectable |
 | Viewport Grid visibility | `set_grid_visibility` shares the checkable native Grid button's typed setter; `grid_visible` exposes the authoritative session state. Fixed grid only; options, global/additional panels and persistence are unsupported |
 | GPU geometry viewport | `inspect_scene` exposes live backend/error/depth/clipping/appearance state; camera and object selection share the native frame consumer. Materials and complete appearance remain unsupported |

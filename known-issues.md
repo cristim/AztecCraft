@@ -84,7 +84,7 @@ The extrusion API supports one quad with signed object-space normal displacement
 including zero-distance topology. All-face extrusion, including a one-quad plane,
 is explicitly unsupported until a pinned Maya fixture establishes default behavior.
 Region/world extrusion, divisions, offset/taper, UVs/normals, construction-history
-nodes and native face selection/extrusion controls remain pending.
+nodes and native Extrude controls remain pending.
 
 The synthetic extruded-cube example and core journey tests exercise geometry,
 history, document persistence, OBJ export and camera picking. They don't replace
@@ -101,6 +101,29 @@ silently omitting curve geometry. The next unsupported form in two retained
 vendor streams is JOIN; other unseen layouts and curve semantics remain pending.
 This framing coverage does not establish complete container parsing, scene Open,
 NURBS rendering, native writing or Euler behavior.
+
+## Face Center selection is a provisional subset
+
+**Severity:** medium
+**Area:** component input and viewport
+
+Face mode supports one exact canonical face target, visible depth-tested center
+markers and plain primary-click replacement/clearing. The fixed 4x4 marker,
+8x8 click box, corner-mean center, center-ray visibility and 1,000,000-intersection
+budget are application policies, not verified Maya defaults. Nonplanar faces can
+hide their own centers; unobstructed finite degenerate centers can be selected.
+Other component masks, multiple-face gestures, marquee, hover and marking menus
+are unsupported. Native Extrude remains disabled until a real history and
+manipulator workflow exists.
+
+Ambiguous coalesced primary releases are refused with an actionable single-click
+retry rather than guessed coordinates/modifiers. This limitation was reproduced
+with an actual Shift click followed by an unmodified drag release in one frame.
+Single-release event-time modifiers and pure Alt navigation are preserved. The
+attempted combined menu activation/key/viewport-click sequence is blocked by the
+pinned popup routing; separate menu+F8 and F11+F8+viewport-click tests do not prove
+that combined journey. Native window, other-platform input and Maya comparison
+remain separate verification requirements. See [selection policy](.project-docs/development.md#face-center-selection).
 
 ## Existing Maya plug-in compatibility unverified
 

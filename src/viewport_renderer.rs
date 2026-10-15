@@ -1,6 +1,7 @@
 use azteccraft::{
-    native_scene::NativeId,
-    view_scene::ViewScene,
+    native_scene::{FaceTarget, NativeId},
+    scene::NodeId,
+    view_scene::{FACE_CENTER_MARKER_PIXELS, ViewFace, ViewInstance, ViewScene},
     viewport::{Camera, InvalidCameraInput},
 };
 use eframe::{
@@ -8,12 +9,40 @@ use eframe::{
     egui_wgpu::{self, CallbackResources, CallbackTrait},
     wgpu,
 };
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec3, Vec4};
 use std::{fmt, ops::Range, sync::Arc};
 
 const VERTEX_BYTES: usize = 8 * size_of::<f32>();
 // Charge snapshot, upload staging, retained vertices and a growth replacement per upload.
 const MAX_UPLOAD_WORKING_BYTES: u64 = 256 * 1024 * 1024;
+
+#[derive(Clone, Copy)]
+pub enum SelectionFeedback<'a> {
+    Object(Option<&'a [NativeId]>),
+    Face {
+        active: Option<(NodeId, &'a [NativeId])>,
+        selected: Option<&'a FaceTarget>,
+    },
+}
+
+impl SelectionFeedback<'_> {
+    fn selected(self, instance: &ViewInstance, face: &ViewFace) -> bool {
+        match self {
+            Self::Object(path) => path.is_some_and(|path| instance.path().starts_with(path)),
+            Self::Face { selected, .. } => selected.is_some_and(|target| {
+                target.transform == instance.transform()
+                    && target.shape == instance.shape()
+                    && target.path == instance.path()
+                    && target.face_index == face.source_index()
+            }),
+        }
+    }
+
+    fn centers(self, instance: &ViewInstance) -> bool {
+        matches!(self, Self::Face { active: Some((owner, path)), .. }
+            if instance.is_direct_shape_of(owner, path))
+    }
+}
 
 fn check_buffer_bytes(bytes: u64, device_limit: u64) -> Result<(), RenderError> {
     if bytes > device_limit
@@ -158,7 +187,8 @@ impl ViewportRenderer {
         scene: &ViewScene,
         camera: &Camera,
         rect: Rect,
-        selected_path: Option<&[NativeId]>,
+        physical_size: [u32; 2],
+        selection: SelectionFeedback<'_>,
         grid_visible: bool,
     ) -> Result<egui::epaint::PaintCallback, RenderError> {
         if let Some(error) = self.terminal_error() {
@@ -170,8 +200,8 @@ impl ViewportRenderer {
         let submission = Submission::new(
             scene,
             camera,
-            rect.width() / rect.height(),
-            selected_path,
+            physical_size,
+            selection,
             grid_visible,
             self.format,
             self.max_buffer_size,
@@ -195,20 +225,24 @@ struct Submission {
     bytes: Vec<u8>,
     surfaces: Range<u32>,
     lines: Range<u32>,
+    centers: Range<u32>,
 }
 
 impl Submission {
     fn new(
         scene: &ViewScene,
         camera: &Camera,
-        aspect: f32,
-        selected_path: Option<&[NativeId]>,
+        physical_size: [u32; 2],
+        selection: SelectionFeedback<'_>,
         grid_visible: bool,
         format: wgpu::TextureFormat,
         max_buffer_size: u64,
     ) -> Result<Self, RenderError> {
+        if physical_size.contains(&0) {
+            return Err(RenderError::Camera(InvalidCameraInput));
+        }
         let matrix = camera
-            .projection_matrix(aspect)
+            .projection_matrix(physical_size[0] as f32 / physical_size[1] as f32)
             .map_err(RenderError::Camera)?
             * camera.view_matrix();
         let mut vertices = if grid_visible { 84_usize } else { 0 };
@@ -218,6 +252,9 @@ impl Submission {
                 vertices = vertices
                     .checked_add(surface_count)
                     .and_then(|count| count.checked_add(face.corners().len() * 2))
+                    .and_then(|count| {
+                        count.checked_add(if selection.centers(instance) { 6 } else { 0 })
+                    })
                     .ok_or(RenderError::ResourceLimit)?;
             }
         }
@@ -235,6 +272,7 @@ impl Submission {
             bytes: Vec::new(),
             surfaces: 0..0,
             lines: 0..0,
+            centers: 0..0,
         };
         submission
             .bytes
@@ -245,13 +283,12 @@ impl Submission {
             u64::MAX,
         )?;
         for instance in scene.instances().iter().rev() {
-            let selected = selected_path.is_some_and(|path| instance.path().starts_with(path));
-            let fill = if selected {
-                Color32::from_rgb(95, 110, 120)
-            } else {
-                Color32::from_gray(83)
-            };
             for face in instance.faces().iter().rev() {
+                let fill = if selection.selected(instance, face) {
+                    Color32::from_rgb(95, 110, 120)
+                } else {
+                    Color32::from_gray(83)
+                };
                 for triangle in face.triangles() {
                     for index in triangle {
                         submission.vertex(
@@ -281,16 +318,16 @@ impl Submission {
         }
         for selected_pass in [false, true] {
             for instance in scene.instances() {
-                let selected = selected_path.is_some_and(|path| instance.path().starts_with(path));
-                if selected != selected_pass {
-                    continue;
-                }
-                let color = if selected {
-                    Color32::from_rgb(242, 163, 70)
-                } else {
-                    Color32::from_gray(145)
-                };
                 for face in instance.faces() {
+                    let selected = selection.selected(instance, face);
+                    if selected != selected_pass {
+                        continue;
+                    }
+                    let color = if selected {
+                        Color32::from_rgb(242, 163, 70)
+                    } else {
+                        Color32::from_gray(145)
+                    };
                     let corners = face.corners();
                     for index in 0..corners.len() {
                         for vertex in [corners[index], corners[(index + 1) % corners.len()]] {
@@ -307,6 +344,47 @@ impl Submission {
         }
         submission.surfaces = 0..surface_end;
         submission.lines = surface_end..submission.vertex_count();
+        let center_start = submission.vertex_count();
+        for instance in scene
+            .instances()
+            .iter()
+            .filter(|instance| selection.centers(instance))
+        {
+            for face in instance.faces() {
+                let center = face
+                    .center(instance.world_vertices())
+                    .map_err(|_| RenderError::NonFiniteClip)?;
+                let clip = matrix * center.extend(1.0);
+                if !clip.is_finite() {
+                    return Err(RenderError::NonFiniteClip);
+                }
+                if clip.w <= 0.0
+                    || clip.z < 0.0
+                    || clip.z > clip.w
+                    || clip.x.abs() > clip.w
+                    || clip.y.abs() > clip.w
+                {
+                    continue;
+                }
+                let dx = FACE_CENTER_MARKER_PIXELS / physical_size[0] as f32 * clip.w;
+                let dy = FACE_CENTER_MARKER_PIXELS / physical_size[1] as f32 * clip.w;
+                for [x, y] in [
+                    [-dx, -dy],
+                    [dx, -dy],
+                    [dx, dy],
+                    [-dx, -dy],
+                    [dx, dy],
+                    [-dx, dy],
+                ] {
+                    submission.clip_vertex(
+                        clip + Vec4::new(x, y, 0.0, 0.0),
+                        Color32::from_rgb(242, 163, 70),
+                        format,
+                    )?;
+                }
+            }
+        }
+        submission.centers = center_start..submission.vertex_count();
         Ok(submission)
     }
 
@@ -321,7 +399,15 @@ impl Submission {
         color: Color32,
         format: wgpu::TextureFormat,
     ) -> Result<(), RenderError> {
-        let clip = matrix * point.extend(1.0);
+        self.clip_vertex(matrix * point.extend(1.0), color, format)
+    }
+
+    fn clip_vertex(
+        &mut self,
+        clip: Vec4,
+        color: Color32,
+        format: wgpu::TextureFormat,
+    ) -> Result<(), RenderError> {
         if !clip.is_finite() {
             return Err(RenderError::NonFiniteClip);
         }
@@ -340,6 +426,7 @@ impl Submission {
 struct GpuResources {
     surfaces: wgpu::RenderPipeline,
     lines: wgpu::RenderPipeline,
+    centers: wgpu::RenderPipeline,
     vertices: Option<wgpu::Buffer>,
 }
 
@@ -393,6 +480,7 @@ impl GpuResources {
         Self {
             surfaces: pipeline(wgpu::PrimitiveTopology::TriangleList, true),
             lines: pipeline(wgpu::PrimitiveTopology::LineList, false),
+            centers: pipeline(wgpu::PrimitiveTopology::TriangleList, false),
             vertices: None,
         }
     }
@@ -453,6 +541,8 @@ impl GpuResources {
         pass.draw(submission.surfaces.clone(), 0..1);
         pass.set_pipeline(&self.lines);
         pass.draw(submission.lines.clone(), 0..1);
+        pass.set_pipeline(&self.centers);
+        pass.draw(submission.centers.clone(), 0..1);
         Ok(())
     }
 }

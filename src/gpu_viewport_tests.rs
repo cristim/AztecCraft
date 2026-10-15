@@ -35,6 +35,67 @@ fn default_editor_reports_uninitialized_without_claiming_depth_or_clipping() {
 
 #[test]
 #[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_face_editor_typed_selection_reaches_actual_marker_callback() {
+    let context = egui::Context::default();
+    let creation = creation_context(context.clone());
+    let mut editor = Editor::new(&creation).unwrap();
+    editor.create(Primitive::Cube);
+    editor.camera = Camera::new(
+        glam::Vec3::ZERO,
+        0.0,
+        0.0,
+        5.0,
+        45_f32.to_radians(),
+        0.01,
+        100.0,
+    )
+    .unwrap();
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    let target = editor
+        .camera
+        .pick_view(&view, glam::Vec2::ZERO, 1.0)
+        .unwrap()
+        .unwrap();
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+        .unwrap();
+    editor
+        .apply_operation(Operation::SelectFace {
+            target: Some(target),
+        })
+        .unwrap();
+    let before = editor.history.scene().clone();
+    let token = editor.scene_token;
+    let output = context.run_ui(input(Vec::new(), egui::Vec2::splat(128.0)), |ui| {
+        editor.viewport(ui, token, None, false, true)
+    });
+    let recorded = recorded_submission(editor.renderer.as_ref().unwrap());
+    assert_eq!(recorded.centers.end - recorded.centers.start, 36);
+    assert_eq!(
+        recorded.vertices[..36]
+            .iter()
+            .filter(|vertex| vertex[4] > 0.35)
+            .count(),
+        6
+    );
+    let rect = output
+        .shapes
+        .iter()
+        .find_map(|shape| match &shape.shape {
+            egui::Shape::Callback(callback) => Some(callback.rect),
+            _ => None,
+        })
+        .unwrap();
+    let center = rect.center() * output.pixels_per_point;
+    let offset = (center.y.floor() as usize * 128 + center.x.floor() as usize) * 4;
+    let image = Offscreen::from_context(&creation).render_egui(context, output);
+    assert_eq!(&image[offset..offset + 4], &[242, 163, 70, 255]);
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.scene_token, token);
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_actual_editor_startup_installs_resources_used_by_its_own_callback() {
     let context = egui::Context::default();
     let creation = creation_context(context.clone());
@@ -52,7 +113,7 @@ fn headless_gpu_actual_editor_startup_installs_resources_used_by_its_own_callbac
     .unwrap();
     let token = editor.scene_token;
     let output = context.run_ui(input(Vec::new(), egui::Vec2::splat(128.0)), |ui| {
-        editor.viewport(ui, token)
+        editor.viewport(ui, token, None, false, true)
     });
     assert_eq!(
         output
@@ -132,7 +193,7 @@ fn replacement_frame_token_discards_navigation_and_click_for_old_document() {
             vec![egui::Event::PointerMoved(egui::pos2(64.0, 64.0))],
             egui::Vec2::splat(128.0),
         ),
-        |ui| editor.viewport(ui, old),
+        |ui| editor.viewport(ui, old, None, false, true),
     );
     warmup.textures_delta.clear();
     editor.new_document().unwrap();
@@ -151,7 +212,7 @@ fn replacement_frame_token_discards_navigation_and_click_for_old_document() {
             ],
             egui::Vec2::splat(128.0),
         ),
-        |ui| editor.viewport(ui, old),
+        |ui| editor.viewport(ui, old, None, false, true),
     );
     output.textures_delta.clear();
     assert_eq!(editor.camera, camera);

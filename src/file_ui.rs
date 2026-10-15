@@ -325,6 +325,7 @@ impl Editor {
         self.history = History::new(scene);
         self.selected = None;
         self.selected_path.clear();
+        self.remembered_face = None;
         self.name.clear();
         self.channels = Default::default();
         self.channel_intents = [false; 9];
@@ -555,6 +556,8 @@ fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, Operatio
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::editor_operations::SelectionMode;
+    use azteccraft::native_scene::FaceTarget;
     use azteccraft::scene::Primitive;
 
     #[cfg(unix)]
@@ -1341,6 +1344,203 @@ mod tests {
             assert_ne!(editor.scene_token, token);
             assert!(!editor.is_dirty());
             assert_eq!(std::fs::read(&source).unwrap(), expected);
+        }
+    }
+
+    mod maya_binary {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_binary.rs"
+        ));
+    }
+
+    #[test]
+    fn face_lifecycle_preserves_imported_source_and_cancelled_files_but_clears_replacement_ids() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("readonly.mb");
+        let bytes = maya_binary::specimen();
+        std::fs::write(&path, &bytes).unwrap();
+        let other = directory.path().join("other.aztec");
+        write_legacy_cube(&other, 0.0);
+        let bad = directory.path().join("malformed.mb");
+        std::fs::write(&bad, b"malformed").unwrap();
+        let mut editor = Editor::default();
+        editor.open_path(&path);
+        assert!(!editor.error);
+        let source = editor.files.origin.source_bytes().unwrap().clone();
+        let scene = editor.history.scene().clone();
+        let saved = editor.files.saved.clone();
+        let token = editor.scene_token;
+        let camera = editor.camera.clone();
+        let view = ViewScene::from_native(&scene, 1024 * 1024).unwrap();
+        let instance = &view.instances()[0];
+        let target = FaceTarget {
+            transform: instance.transform(),
+            shape: instance.shape(),
+            path: instance.path().to_vec(),
+            face_index: instance.faces()[0].source_index(),
+        };
+        for mode in [
+            SelectionMode::Face,
+            SelectionMode::Object,
+            SelectionMode::Face,
+        ] {
+            editor.native_operation(Operation::SetSelectionMode(mode));
+            assert!(!editor.error);
+            if mode == SelectionMode::Face {
+                editor.native_operation(Operation::SelectFace {
+                    target: Some(target.clone()),
+                });
+                assert!(!editor.error);
+            }
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.files.saved, saved);
+            assert!(std::sync::Arc::ptr_eq(
+                editor.files.origin.source_bytes().unwrap(),
+                &source
+            ));
+            assert_eq!(source.as_ref(), bytes);
+            assert_eq!(editor.scene_token, token);
+            assert_eq!(editor.camera, camera);
+            assert!(!editor.is_dirty());
+            assert!(!editor.history.can_undo());
+            assert!(!editor.history.can_redo());
+        }
+        let selection = (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+        );
+        editor.open_path(&bad);
+        assert!(editor.error);
+        assert_eq!(
+            (
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone()
+            ),
+            selection
+        );
+        let name = editor.name.clone();
+        editor.name = "pending_human_name".into();
+        for candidate in [None, Some(&other)] {
+            let reply = match candidate {
+                None => editor.new_document(),
+                Some(candidate) => editor.open_candidate(candidate),
+            };
+            assert!(matches!(reply, Err(OperationError::InvalidInput(_))));
+            assert!(!editor.files.is_modal());
+            assert_eq!(editor.selection_mode, SelectionMode::Face);
+            assert_eq!(
+                (
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone()
+                ),
+                selection
+            );
+            assert_eq!(editor.name, "pending_human_name");
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.files.saved, saved);
+            assert_eq!(editor.files.path.as_ref(), Some(&path));
+            assert!(std::sync::Arc::ptr_eq(
+                editor.files.origin.source_bytes().unwrap(),
+                &source
+            ));
+            assert_eq!(editor.scene_token, token);
+            assert_eq!(editor.camera, camera);
+            assert!(editor.is_dirty());
+            assert!(!editor.history.can_undo());
+            assert!(!editor.history.can_redo());
+        }
+        editor.name = name;
+        editor.new_document().unwrap();
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        assert_eq!(editor.selected, None);
+        assert!(editor.selected_path.is_empty());
+        assert_eq!(editor.remembered_face, None);
+        assert_ne!(editor.scene_token, token);
+        editor.open_path(&path);
+        assert!(!editor.error);
+        assert_eq!(editor.remembered_face, None);
+        let reopened = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+        let instance = &reopened.instances()[0];
+        let target = FaceTarget {
+            transform: instance.transform(),
+            shape: instance.shape(),
+            path: instance.path().to_vec(),
+            face_index: instance.faces()[0].source_index(),
+        };
+        editor.native_operation(Operation::SelectFace {
+            target: Some(target),
+        });
+        assert!(!editor.error);
+        editor.open_path(&other);
+        assert!(!editor.error);
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        assert_eq!(editor.selected, None);
+        assert!(editor.selected_path.is_empty());
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+
+        let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+        let instance = &view.instances()[0];
+        editor.native_operation(Operation::SelectFace {
+            target: Some(FaceTarget {
+                transform: instance.transform(),
+                shape: instance.shape(),
+                path: instance.path().to_vec(),
+                face_index: instance.faces()[0].source_index(),
+            }),
+        });
+        assert!(!editor.error);
+        let legacy_source = editor.files.origin.source_bytes().unwrap().clone();
+        let legacy_saved = editor.files.saved.clone();
+        let legacy_token = editor.scene_token;
+        let legacy_camera = editor.camera.clone();
+        let legacy_selection = (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+        );
+        editor.name = "committed_before_cancel".into();
+        for candidate in [None, Some(&path)] {
+            let reply = match candidate {
+                None => editor.new_document(),
+                Some(candidate) => editor.open_candidate(candidate),
+            }
+            .unwrap();
+            assert!(matches!(reply, OperationReply::PendingConfirmation { .. }));
+            let post_commit = editor.history.scene().clone();
+            assert_eq!(
+                post_commit.node(instance.transform()).unwrap().name(),
+                "committed_before_cancel"
+            );
+            let pending = editor.files.pending.as_ref().unwrap().id;
+            editor
+                .resolve_file_action(pending, FileDecision::Cancel)
+                .unwrap();
+            assert_eq!(editor.history.scene(), &post_commit);
+            assert_eq!(editor.selection_mode, SelectionMode::Face);
+            assert_eq!(
+                (
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone()
+                ),
+                legacy_selection
+            );
+            assert_eq!(editor.files.saved, legacy_saved);
+            assert_eq!(editor.files.path.as_ref(), Some(&other));
+            assert!(std::sync::Arc::ptr_eq(
+                editor.files.origin.source_bytes().unwrap(),
+                &legacy_source
+            ));
+            assert_eq!(editor.scene_token, legacy_token);
+            assert_eq!(editor.camera, legacy_camera);
+            assert!(editor.history.can_undo());
+            assert!(!editor.history.can_redo());
+            assert!(editor.is_dirty());
         }
     }
 

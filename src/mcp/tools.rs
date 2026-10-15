@@ -3,8 +3,8 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{
-    FileDecision, MAX_NAME_BYTES, MAX_RESULT_BYTES, Operation, OperationError, OperationReply,
-    RemoteRequest, TOOL_NAMES, TransformInput,
+    FaceSelectionTarget, FileDecision, MAX_NAME_BYTES, MAX_RESULT_BYTES, Operation, OperationError,
+    OperationReply, RemoteRequest, SelectionMode, TOOL_NAMES, TransformInput,
 };
 use azteccraft::{
     native_scene::{FaceTarget, NativeId},
@@ -65,6 +65,20 @@ struct SelectArgs {
 struct NodeArgs {
     scene_token: String,
     node_id: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SelectionModeArgs {
+    scene_token: String,
+    mode: SelectionMode,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SelectFaceArgs {
+    scene_token: String,
+    target: Option<FaceSelectionTarget>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -266,6 +280,44 @@ fn parse_request(name: &str, arguments: JsonObject) -> Result<RemoteRequest, Err
                     instance_path,
                 },
             )
+        }
+        "set_selection_mode" => {
+            let args: SelectionModeArgs = decode(arguments)?;
+            (
+                token(&args.scene_token)?,
+                Operation::SetSelectionMode(args.mode),
+            )
+        }
+        "select_face" => {
+            if !arguments.contains_key("target") {
+                return Err(ErrorData::invalid_params(
+                    "target must be a complete face target or null",
+                    None,
+                ));
+            }
+            let args: SelectFaceArgs = decode(arguments)?;
+            let target = args
+                .target
+                .map(|target| {
+                    if !(2..=257).contains(&target.instance_path.len()) {
+                        return Err(ErrorData::invalid_params(
+                            "Face selection requires 2 to 257 path IDs",
+                            None,
+                        ));
+                    }
+                    Ok(FaceTarget {
+                        transform: node_id(&target.node_id)?,
+                        shape: native_id(&target.shape_id)?,
+                        path: target
+                            .instance_path
+                            .iter()
+                            .map(|value| native_id(value))
+                            .collect::<Result<_, _>>()?,
+                        face_index: target.face_index,
+                    })
+                })
+                .transpose()?;
+            (token(&args.scene_token)?, Operation::SelectFace { target })
         }
         "rename_node" => {
             let args: RenameArgs = decode(arguments)?;
@@ -497,6 +549,18 @@ fn catalog() -> Vec<Tool> {
                 "select_node" => (
                     "Select an object using an optional full transform instance_path; ambiguous objects require a path. Null node_id clears selection without a path",
                     schema::<SelectArgs>(),
+                ),
+                "set_selection_mode" => (
+                    "Set Object or Face selection mode without editing the scene; a valid remembered face stays inactive in Object mode",
+                    schema::<SelectionModeArgs>(),
+                ),
+                "select_face" => (
+                    "Select a complete canonical face target in Face mode, or clear it with null; explicit targets need not be visible and select their owning instance",
+                    {
+                        let mut input = schema::<SelectFaceArgs>();
+                        input.insert("required".into(), json!(["scene_token", "target"]));
+                        input
+                    },
                 ),
                 "rename_node" => ("Rename an existing object", schema::<RenameArgs>()),
                 "set_transform" => (
@@ -800,6 +864,8 @@ mod tests {
                 "inspect_scene" => json!({}),
                 "create_primitive" => json!({"scene_token":token,"primitive":"cube"}),
                 "select_node" => json!({"scene_token":token,"node_id":null}),
+                "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
+                "select_face" => json!({"scene_token":token,"target":null}),
                 "rename_node" => json!({"scene_token":token,"node_id":"1","name":"cube"}),
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
@@ -822,6 +888,119 @@ mod tests {
             };
             assert!(parse_request(&tool.name, args.as_object().unwrap().clone()).is_ok());
         }
+    }
+
+    #[test]
+    fn face_selection_schemas_and_parser_require_explicit_mode_and_complete_target_or_null() {
+        let token = Uuid::new_v4().to_string();
+        let tools = catalog();
+        let face = tools
+            .iter()
+            .find(|tool| tool.name == "select_face")
+            .unwrap();
+        assert_eq!(
+            face.input_schema["required"],
+            json!(["scene_token", "target"])
+        );
+        let target_schema = &face.input_schema["$defs"]["FaceSelectionTarget"];
+        assert_eq!(target_schema["additionalProperties"], false);
+        assert_eq!(target_schema["properties"]["instance_path"]["minItems"], 2);
+        assert_eq!(
+            target_schema["properties"]["instance_path"]["maxItems"],
+            257
+        );
+        assert!(
+            face.input_schema["properties"]["target"]
+                .to_string()
+                .contains("null")
+        );
+        for mode in ["object", "face"] {
+            let args = json!({"scene_token":token,"mode":mode});
+            assert!(matches!(
+                parse_request("set_selection_mode", args.as_object().unwrap().clone())
+                    .unwrap()
+                    .operation,
+                Operation::SetSelectionMode(_)
+            ));
+        }
+        for mode in [json!(null), json!(false), json!("vertex"), json!("Face")] {
+            let args = json!({"scene_token":token,"mode":mode});
+            assert!(
+                parse_request("set_selection_mode", args.as_object().unwrap().clone()).is_err()
+            );
+        }
+        let clear = json!({"scene_token":token,"target":null});
+        assert!(matches!(
+            parse_request("select_face", clear.as_object().unwrap().clone())
+                .unwrap()
+                .operation,
+            Operation::SelectFace { target: None }
+        ));
+        let valid = json!({"scene_token":token,"target":{"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0}});
+        let Operation::SelectFace {
+            target: Some(target),
+        } = parse_request("select_face", valid.as_object().unwrap().clone())
+            .unwrap()
+            .operation
+        else {
+            panic!("expected face target")
+        };
+        assert_eq!(target.transform.to_decimal(), "1");
+        assert_eq!(target.shape.to_decimal(), "2");
+        assert_eq!(
+            target
+                .path
+                .iter()
+                .map(|id| id.to_decimal())
+                .collect::<Vec<_>>(),
+            ["1", "2"]
+        );
+        assert_eq!(target.face_index, 0);
+        for (field, values) in [
+            (
+                "node_id",
+                vec![json!(1), json!("+1"), json!("18446744073709551616")],
+            ),
+            ("shape_id", vec![json!(null), json!(""), json!("-1")]),
+            (
+                "instance_path",
+                vec![
+                    json!([]),
+                    json!(["1"]),
+                    json!(vec!["1"; 258]),
+                    json!(["1", 2]),
+                    json!(["1", "+2"]),
+                ],
+            ),
+            (
+                "face_index",
+                vec![json!(-1), json!(0.5), json!("0"), json!(null)],
+            ),
+        ] {
+            for value in values {
+                let mut args = valid.clone();
+                args["target"][field] = value;
+                assert!(
+                    parse_request("select_face", args.as_object().unwrap().clone()).is_err(),
+                    "{field}"
+                );
+            }
+        }
+        for field in ["node_id", "shape_id", "instance_path", "face_index"] {
+            let mut args = valid.clone();
+            args["target"].as_object_mut().unwrap().remove(field);
+            assert!(parse_request("select_face", args.as_object().unwrap().clone()).is_err());
+        }
+        for args in [
+            json!({"scene_token":token}),
+            json!({"scene_token":token,"target":null,"extra":true}),
+            json!({"scene_token":token,"target":{"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"extra":true}}),
+        ] {
+            assert!(parse_request("select_face", args.as_object().unwrap().clone()).is_err());
+        }
+        let mut boundary = valid;
+        boundary["target"]["instance_path"] = json!(vec!["1"; 257]);
+        assert!(parse_request("select_face", boundary.as_object().unwrap().clone()).is_ok());
     }
 
     #[test]

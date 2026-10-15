@@ -1,6 +1,123 @@
 use super::*;
 use crate::mcp;
 
+#[test]
+fn face_remote_operations_and_hidden_callbacks_preserve_guarded_selection_baselines() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("cube.aztec");
+    let mut legacy = azteccraft::scene::Scene::default();
+    legacy.create(Primitive::Cube, "cube").unwrap();
+    azteccraft::document::save_new(&path, &legacy).unwrap();
+    for select_face in [false, true] {
+        for condition in 0..7 {
+            let context = egui::Context::default();
+            let (bridge, ingress) = mcp::test_bridge(context.clone());
+            let mut editor = Editor::default();
+            editor
+                .apply_operation(Operation::OpenScene { path: path.clone() })
+                .unwrap();
+            let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+            let instance = &view.instances()[0];
+            let target = FaceTarget {
+                transform: instance.transform(),
+                shape: instance.shape(),
+                path: instance.path().to_vec(),
+                face_index: 0,
+            };
+            editor
+                .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+                .unwrap();
+            editor
+                .apply_operation(Operation::SelectFace {
+                    target: Some(target.clone()),
+                })
+                .unwrap();
+            frame(&mut editor, &context, vec![]);
+            match condition {
+                1 => editor.name = "differing_human_draft".into(),
+                2 => editor.channels[0] = "nan".into(),
+                3 => context.memory_mut(|memory| memory.request_focus(name_edit_id())),
+                4 => {
+                    editor.name = "committed_before_modal".into();
+                    editor.request_new();
+                    assert!(editor.files.is_modal());
+                }
+                5 => {
+                    editor.request_close();
+                    assert!(editor.files.is_closing());
+                }
+                6 => editor.native_input_pending = true,
+                _ => (),
+            }
+            let baseline = (
+                editor.history.scene().clone(),
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+                editor.camera.clone(),
+                editor.scene_token,
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+                editor.is_dirty(),
+            );
+            let operation = || {
+                if select_face {
+                    Operation::SelectFace {
+                        target: Some(FaceTarget {
+                            face_index: 1,
+                            ..target.clone()
+                        }),
+                    }
+                } else {
+                    Operation::SetSelectionMode(SelectionMode::Object)
+                }
+            };
+            let request = || RemoteRequest {
+                expected_scene_token: Some(if condition == 0 {
+                    Uuid::nil()
+                } else {
+                    baseline.6
+                }),
+                operation: operation(),
+            };
+            let result = editor.remote_operation(request(), &context);
+            assert!(matches!(
+                result,
+                Err(OperationError::StaleScene | OperationError::BusyEditing)
+            ));
+            if condition != 6 {
+                editor.mcp = Some(bridge);
+                let mut reply = ingress.queue(request()).unwrap();
+                hidden_frame(&mut editor, &context, vec![]);
+                assert!(matches!(
+                    reply.try_recv().unwrap(),
+                    Err(OperationError::StaleScene | OperationError::BusyEditing)
+                ));
+            }
+            assert_eq!(
+                (
+                    editor.history.scene().clone(),
+                    editor.selection_mode,
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone(),
+                    editor.camera.clone(),
+                    editor.scene_token,
+                    editor.name.clone(),
+                    editor.channels.clone(),
+                    editor.history.can_undo(),
+                    editor.history.can_redo(),
+                    editor.is_dirty(),
+                ),
+                baseline
+            );
+        }
+    }
+}
+
 fn camera_operations() -> [Operation; 3] {
     [
         Operation::Orbit {
@@ -1199,6 +1316,208 @@ mod official_client {
         assert!(refused.is_error.unwrap_or(false));
         assert_eq!(editor.history.scene(), &baseline);
         assert_eq!(std::fs::read(&source).unwrap(), original);
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_state() {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        let token = editor.scene_token.to_string();
+        let mut ids = Vec::new();
+        for primitive in ["cube", "plane"] {
+            let created = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "create_primitive",
+                json!({"scene_token":token,"primitive":primitive}),
+            )
+            .await;
+            ids.push(
+                created.structured_content.unwrap()["node_id"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned(),
+            );
+        }
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_node",
+            json!({"scene_token":token,"node_id":ids[0]}),
+        )
+        .await;
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "rename_node",
+            json!({"scene_token":token,"node_id":ids[0],"name":"redo_payload"}),
+        )
+        .await;
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "undo",
+            json!({"scene_token":token}),
+        )
+        .await;
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        assert_eq!(inspected["inspection"]["selection_mode"], "object");
+        assert!(inspected["inspection"]["remembered_face"].is_null());
+        assert_eq!(
+            inspected["inspection"]["face_selection_policy"],
+            "visible_centers_only"
+        );
+        let plane = inspected["inspection"]["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| node["id"] == ids[1])
+            .unwrap();
+        let mut path = plane["instance_paths"][0].as_array().unwrap().clone();
+        path.push(plane["shape_ids"][0].clone());
+        let target = json!({"node_id":ids[1],"shape_id":plane["shape_ids"][0],"instance_path":path,"face_index":0});
+        let scene = editor.history.scene().clone();
+        let camera = editor.camera.clone();
+        let dirty = editor.is_dirty();
+        assert!(editor.history.can_redo());
+        for (tool, args) in [
+            (
+                "set_selection_mode",
+                json!({"scene_token":token,"mode":"face"}),
+            ),
+            ("select_face", json!({"scene_token":token,"target":target})),
+        ] {
+            let result = call(&mut editor, &context, client.peer(), tool, args).await;
+            assert_ne!(result.is_error, Some(true));
+        }
+        assert_eq!(editor.selected.unwrap().to_decimal(), ids[1]);
+        assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 0);
+        let selection = (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+        );
+        for mode in ["face", "object", "face"] {
+            call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "set_selection_mode",
+                json!({"scene_token":token,"mode":mode}),
+            )
+            .await;
+            let inspected = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "inspect_scene",
+                json!({}),
+            )
+            .await
+            .structured_content
+            .unwrap();
+            assert_eq!(inspected["inspection"]["selection_mode"], mode);
+            assert_eq!(inspected["inspection"]["remembered_face"], target);
+            assert_eq!(inspected["inspection"]["selected_node"], ids[1]);
+            assert_eq!(
+                inspected["inspection"]["selected_instance_path"],
+                plane["instance_paths"][0]
+            );
+        }
+        for field in ["node_id", "shape_id", "instance_path", "face_index"] {
+            let mut invalid = target.clone();
+            invalid[field] = match field {
+                "node_id" => json!(ids[0]),
+                "shape_id" => json!("18446744073709551615"),
+                "instance_path" => json!(["18446744073709551615", target["shape_id"]]),
+                _ => json!(usize::MAX),
+            };
+            let result = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "select_face",
+                json!({"scene_token":token,"target":invalid}),
+            )
+            .await;
+            assert_eq!(result.is_error, Some(true), "{field}");
+            assert_eq!(
+                (
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone()
+                ),
+                selection
+            );
+        }
+        for (tool, args) in [
+            (
+                "set_selection_mode",
+                json!({"scene_token":Uuid::nil().to_string(),"mode":"object"}),
+            ),
+            (
+                "select_face",
+                json!({"scene_token":Uuid::nil().to_string(),"target":null}),
+            ),
+        ] {
+            let result = call(&mut editor, &context, client.peer(), tool, args).await;
+            assert_eq!(
+                result.structured_content.unwrap()["error"]["code"],
+                "stale_scene"
+            );
+        }
+        let cleared = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_face",
+            json!({"scene_token":token,"target":null}),
+        )
+        .await;
+        assert_ne!(cleared.is_error, Some(true));
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.selected, selection.0);
+        assert_eq!(editor.selected_path, selection.1);
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_selection_mode",
+            json!({"scene_token":token,"mode":"object"}),
+        )
+        .await;
+        let wrong_mode = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_face",
+            json!({"scene_token":token,"target":target}),
+        )
+        .await;
+        assert_eq!(wrong_mode.is_error, Some(true));
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.scene_token.to_string(), token);
+        assert_eq!(editor.is_dirty(), dirty);
+        assert!(editor.history.can_redo());
         client.cancel().await.unwrap();
         drop(editor);
         server.await.unwrap();
@@ -3657,6 +3976,8 @@ mod official_client {
             "edit_node",
             "extrude_face",
             "set_grid_visibility",
+            "set_selection_mode",
+            "select_face",
         ] {
             let context = egui::Context::default();
             let (mut editor, client, server) = start(&context).await;
@@ -3665,7 +3986,18 @@ mod official_client {
             } else {
                 Primitive::Plane
             });
+            if tool == "select_face" {
+                editor
+                    .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+                    .unwrap();
+            }
             let before = editor.history.scene().clone();
+            let selection = (
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+            );
             let args = if tool == "set_grid_visibility" {
                 json!({"scene_token":editor.scene_token.to_string(),"visible":false})
             } else if tool == "edit_node" {
@@ -3674,6 +4006,12 @@ mod official_client {
                 let id = editor.selected.unwrap();
                 let shape = editor.history.scene().shapes()[0].id();
                 json!({"scene_token":editor.scene_token.to_string(),"node_id":id.to_decimal(),"shape_id":shape.to_decimal(),"instance_path":[editor.history.scene().node(id).unwrap().transform_id().to_decimal(),shape.to_decimal()],"face_index":0,"distance":1})
+            } else if tool == "set_selection_mode" {
+                json!({"scene_token":editor.scene_token.to_string(),"mode":"face"})
+            } else if tool == "select_face" {
+                let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+                let instance = &view.instances()[0];
+                json!({"scene_token":editor.scene_token.to_string(),"target":{"node_id":instance.transform().to_decimal(),"shape_id":instance.shape().to_decimal(),"instance_path":instance.path().iter().map(|id|id.to_decimal()).collect::<Vec<_>>(),"face_index":0}})
             } else {
                 json!({"scene_token":editor.scene_token.to_string(),"primitive":"cube"})
             };
@@ -3696,6 +4034,15 @@ mod official_client {
             hidden_frame(&mut editor, &context, vec![]);
             assert_eq!(editor.history.scene(), &before);
             assert!(editor.grid_visible);
+            assert_eq!(
+                (
+                    editor.selection_mode,
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone()
+                ),
+                selection
+            );
             let _handle = client
                 .peer()
                 .send_cancellable_request(request, Default::default())
@@ -3713,6 +4060,15 @@ mod official_client {
             hidden_frame(&mut editor, &context, vec![]);
             assert_eq!(editor.history.scene(), &before);
             assert!(editor.grid_visible);
+            assert_eq!(
+                (
+                    editor.selection_mode,
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone()
+                ),
+                selection
+            );
             assert!(editor.files.is_modal());
             drop(editor);
             server.await.unwrap();

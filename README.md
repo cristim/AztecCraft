@@ -17,10 +17,11 @@ The current prototype has a native desktop window for cube/plane creation, selec
 | Native scene files | Bounded Maya binary decoding with retained source bytes; legacy JSON reads retained; provisional Unix existing-record binary writing | [Document adapter](src/document.rs) and [binary codec](src/native_scene/binary.rs); document-layer repeat-save checks are separate from pending native Save QA |
 | Camera math | Orbit/pan/dolly, perspective projection, rays, nearest-geometry picking and framing | [Viewport workflow tests](tests/viewport_workflows.rs) |
 | Desktop shell and viewport | Create/select cube or plane, edit name/transform channels, undo/redo, delete and frame selected, with depth-tested opaque geometry | [Native shell](src/app.rs) and [viewport UI](src/viewport_ui.rs) |
+| Face selection | F11/Face menu and F8 Object/Face toggle, visible center markers, exact-face feedback and face framing | Shared typed operations and [Center selection policy](.project-docs/development.md#face-center-selection); native/Maya comparison remains separate |
 | File actions in the window | New/Open and provisional eligible Save/Save As, unsaved-change Save/Discard/Cancel, source-change guards and uncertain-write reconciliation | [File integration tests](src/file_ui.rs); current integration and native Save verification pending |
 | OBJ export | Library API writes world-space polygon geometry to a new file | [OBJ workflow tests](tests/obj_workflows.rs), with GUI Export still disabled |
-| MCP | Optional stdio server controls twenty-two tools, including Save/Save As, checked material Diffuse data and viewport Grid visibility, in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md); isolated application/SDK checks and bounded macOS material/Grid QA pass, with current-parent verification pending |
-| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native face UI and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
+| MCP | Optional stdio server controls twenty-four tools, including Save/Save As, checked material Diffuse data, Face selection and viewport Grid visibility, in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md); isolated application/SDK checks and bounded macOS material/Grid QA pass, with current-parent verification pending |
+| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
 | UVs, animation and rigging | Full workflows pending | [Implementation plan](.project-docs/plan.md) |
 | Materials | Candidate Common Material Attributes/Diffuse control and MCP editing of an existing checked Phong scalar; shared users use one History value | Core, real-widget, SDK protocol reopen and bounded macOS edit/Undo/Save/reopen checks pass; committed cold and combined-parent publication checks pending. Material rendering, assignment, textures and color processing remain unavailable |
 | Simulation and rendering | Pending | Reference scenes and output comparisons required |
@@ -35,7 +36,8 @@ Unsupported transform tools remain disabled, and Select remains a mode indicator
 scene generated through two real extrusion commands. Open it with File → Open to
 inspect the resulting L-shaped quad mesh. Tests reconstruct it, exercise
 undo/redo, save/reload, reflected OBJ export and camera picking. It is not a Maya
-reference scene; native face selection/extrusion controls remain pending.
+reference scene; native Extrude remains unsupported until a real history and
+manipulator workflow is implemented.
 
 ## Build and test
 

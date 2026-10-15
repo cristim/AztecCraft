@@ -1,16 +1,14 @@
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
-    CameraInspection, NodeInspection, RemoteRequest, SceneInspection, ShapeInspection,
-    TransformInput, UnitsInspection,
+    CameraInspection, FaceSelectionPolicy, FaceSelectionTarget, NodeInspection, RemoteRequest,
+    SceneInspection, ShapeInspection, TransformInput, UnitsInspection,
 };
-use crate::editor_operations::{Operation, OperationError, OperationReply};
-#[cfg(test)]
-use azteccraft::native_scene::FaceTarget;
+use crate::editor_operations::{Operation, OperationError, OperationReply, SelectionMode};
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{LinearUnit, NativeTransform};
 use azteccraft::{
     history::{Command, EditOutcome, History},
-    native_scene::{AngularUnit, NativeId},
+    native_scene::{AngularUnit, FaceTarget, NativeId},
     scene::{NodeId, Primitive},
     view_scene::ViewScene,
     viewport::Camera,
@@ -38,6 +36,12 @@ impl MaterialDraft {
     }
 }
 
+#[derive(Clone, Copy)]
+enum SelectionModeIntent {
+    Toggle,
+    Face,
+}
+
 pub struct Editor {
     #[cfg(feature = "mcp")]
     mcp: Option<crate::mcp::UiBridge>,
@@ -45,6 +49,8 @@ pub struct Editor {
     history: History,
     selected: Option<NodeId>,
     selected_path: Vec<NativeId>,
+    selection_mode: SelectionMode,
+    remembered_face: Option<FaceTarget>,
     camera: Camera,
     grid_visible: bool,
     renderer: Option<crate::viewport_renderer::ViewportRenderer>,
@@ -71,6 +77,8 @@ impl Default for Editor {
             history: History::default(),
             selected: None,
             selected_path: Vec::new(),
+            selection_mode: SelectionMode::default(),
+            remembered_face: None,
             camera: Camera::default(),
             grid_visible: true,
             renderer: None,
@@ -138,11 +146,22 @@ impl Editor {
         else {
             self.selected = None;
             self.selected_path.clear();
+            self.remembered_face = None;
             self.name.clear();
             self.channels = Default::default();
             self.material_shape = None;
             return;
         };
+        if self.remembered_face.as_ref().is_some_and(|target| {
+            Some(target.transform) != self.selected
+                || target
+                    .path
+                    .split_last()
+                    .is_none_or(|(_, path)| path != self.selected_path)
+                || self.history.scene().resolve_face_target(target).is_err()
+        }) {
+            self.remembered_face = None;
+        }
         self.name = node.name().into();
         let values = node.transform().values();
         self.channels = values.map(|value| value.to_string());
@@ -207,8 +226,15 @@ impl Editor {
     }
 
     fn native_operation(&mut self, operation: Operation) {
+        if self.selection_mode == SelectionMode::Face && matches!(operation, Operation::Delete(_)) {
+            self.status = "Face deletion is unsupported; switch to Object selection".into();
+            self.error = true;
+            return;
+        }
         let status = match operation {
             Operation::Select { .. }
+            | Operation::SelectFace { .. }
+            | Operation::SetSelectionMode(_)
             | Operation::FrameSelected
             | Operation::SetGridVisible { .. } => None,
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => None,
@@ -260,13 +286,7 @@ impl Editor {
         ctx: &egui::Context,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
-        let focused = ctx.memory(|memory| {
-            memory.focused().is_some_and(|id| {
-                id == name_edit_id()
-                    || id == material_edit_id()
-                    || (0..9).any(|index| id == channel_edit_id(index))
-            })
-        });
+        let focused = text_edit_focused(ctx);
         if matches!(request.operation, Operation::Inspect) {
             return Ok(OperationReply::Scene {
                 inspection: Box::new(self.inspect(focused)?),
@@ -328,7 +348,20 @@ impl Editor {
                     .and_then(|sum| sum.checked_add(64))
             })
             .ok_or(OperationError::TooLarge)?;
-        if path_bytes > crate::editor_operations::MAX_RESULT_BYTES / 2 {
+        let face_bytes = self
+            .remembered_face
+            .as_ref()
+            .map_or(Some(0), |target| {
+                if target.path.len() > azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1 {
+                    return None;
+                }
+                target.path.len().checked_mul(24)?.checked_add(128)
+            })
+            .ok_or(OperationError::TooLarge)?;
+        if path_bytes
+            .checked_add(face_bytes)
+            .is_none_or(|bytes| bytes > crate::editor_operations::MAX_RESULT_BYTES / 2)
+        {
             return Err(OperationError::TooLarge);
         }
         let units = self.history.scene().units();
@@ -460,6 +493,17 @@ impl Editor {
                 .iter()
                 .map(|id| id.to_decimal())
                 .collect(),
+            selection_mode: self.selection_mode,
+            remembered_face: self
+                .remembered_face
+                .as_ref()
+                .map(|target| FaceSelectionTarget {
+                    node_id: target.transform.to_decimal(),
+                    shape_id: target.shape.to_decimal(),
+                    instance_path: target.path.iter().map(|id| id.to_decimal()).collect(),
+                    face_index: target.face_index,
+                }),
+            face_selection_policy: FaceSelectionPolicy::VisibleCentersOnly,
             can_undo: self.history.can_undo(),
             can_redo: self.history.can_redo(),
             dirty: self.is_dirty(),
@@ -576,6 +620,26 @@ impl Editor {
             }
             _ => None,
         };
+        if let Operation::SelectFace { target } = &operation {
+            if self.selection_mode != SelectionMode::Face {
+                return Err(OperationError::InvalidInput(
+                    "Face selection requires Face mode".into(),
+                ));
+            }
+            if let Some(target) = target {
+                if !(2..=azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1)
+                    .contains(&target.path.len())
+                {
+                    return Err(OperationError::InvalidInput(
+                        "Face selection requires a bounded full shape path".into(),
+                    ));
+                }
+                self.history
+                    .scene()
+                    .resolve_face_target(target)
+                    .map_err(OperationError::Scene)?;
+            }
+        }
         if !self.commit_pending() {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
@@ -701,9 +765,40 @@ impl Editor {
                 }
             }
             Operation::Delete(id) => Command::Remove(id),
+            Operation::SetSelectionMode(mode) => {
+                let changed = self.selection_mode != mode;
+                self.selection_mode = mode;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SelectFace { target } => {
+                let changed = self.remembered_face != target;
+                if let Some(target) = &target {
+                    let mut path = Vec::new();
+                    path.try_reserve_exact(target.path.len() - 1).map_err(|_| {
+                        OperationError::Scene(azteccraft::native_scene::NativeError::ResourceLimit)
+                    })?;
+                    path.extend_from_slice(&target.path[..target.path.len() - 1]);
+                    self.selected = Some(target.transform);
+                    self.selected_path = path;
+                    self.sync_fields();
+                }
+                self.remembered_face = target;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
             Operation::Select { node, .. } => {
                 let path = selected_path.unwrap_or_default();
                 let changed = self.selected != node || self.selected_path != path;
+                if changed {
+                    self.remembered_face = None;
+                }
                 self.selected = node;
                 self.selected_path = path;
                 self.sync_fields();
@@ -738,17 +833,38 @@ impl Editor {
                 });
             }
             Operation::FrameSelected => {
-                let id = self.selected.ok_or(OperationError::NoSelection)?;
-                let path = self.selection_path(
-                    id,
-                    (!self.selected_path.is_empty()).then(|| self.selected_path.clone()),
-                )?;
+                let path = if self.selection_mode == SelectionMode::Object {
+                    let id = self.selected.ok_or(OperationError::NoSelection)?;
+                    Some(self.selection_path(
+                        id,
+                        (!self.selected_path.is_empty()).then(|| self.selected_path.clone()),
+                    )?)
+                } else {
+                    let target = self
+                        .remembered_face
+                        .as_ref()
+                        .ok_or(OperationError::NoSelection)?;
+                    self.history
+                        .scene()
+                        .resolve_face_target(target)
+                        .map_err(OperationError::Scene)?;
+                    None
+                };
                 let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
                     .map_err(|error| OperationError::File(error.to_string()))?;
                 let before = self.camera.clone();
-                self.camera
-                    .frame_view(&view, Some(&path), self.aspect)
-                    .map_err(OperationError::Camera)?;
+                if let Some(path) = path {
+                    self.camera.frame_view(&view, Some(&path), self.aspect)
+                } else {
+                    self.camera.frame_face(
+                        &view,
+                        self.remembered_face
+                            .as_ref()
+                            .ok_or(OperationError::NoSelection)?,
+                        self.aspect,
+                    )
+                }
+                .map_err(OperationError::Camera)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
                 } else {
@@ -792,6 +908,7 @@ impl Editor {
             .execute(command)
             .map_err(OperationError::Scene)?;
         if let EditOutcome::Created(id) = outcome {
+            self.remembered_face = None;
             self.selected = Some(id);
             self.selected_path = vec![
                 self.history
@@ -838,11 +955,10 @@ impl Editor {
         {
             return;
         }
-        let (undo, redo, delete, frame, save, save_as) = ctx.input(|i| {
+        let (undo, redo, frame, save, save_as) = ctx.input(|i| {
             (
                 i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::Z),
                 i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::Z),
-                i.modifiers.is_none() && i.key_pressed(Key::Delete),
                 i.modifiers.is_none() && i.key_pressed(Key::F),
                 i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::S),
                 i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::S),
@@ -853,9 +969,6 @@ impl Editor {
         }
         if redo {
             self.history_step(true);
-        }
-        if delete && let Some(id) = self.selected {
-            self.native_operation(Operation::Delete(id));
         }
         if frame {
             self.frame_selected();
@@ -979,7 +1092,12 @@ impl Editor {
         }
     }
 
-    fn menus(&mut self, ui: &mut egui::Ui) {
+    fn menus(
+        &mut self,
+        ui: &mut egui::Ui,
+        selection_intent: &mut Option<SelectionModeIntent>,
+        delete_intent: &mut bool,
+    ) {
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New scene").clicked() {
@@ -1036,12 +1154,16 @@ impl Editor {
                     ui.close();
                 }
                 if ui
-                    .add_enabled(self.selected.is_some(), egui::Button::new("Delete"))
+                    .add_enabled(
+                        self.selected.is_some() && self.selection_mode == SelectionMode::Object,
+                        egui::Button::new("Delete"),
+                    )
+                    .on_disabled_hover_text(
+                        "Object selection required; face deletion is unsupported",
+                    )
                     .clicked()
                 {
-                    if let Some(id) = self.selected {
-                        self.native_operation(Operation::Delete(id));
-                    }
+                    *delete_intent = true;
                     ui.close();
                 }
             });
@@ -1056,7 +1178,23 @@ impl Editor {
                 }
                 unsupported(ui, "Other primitives");
             });
-            for label in ["Select", "Modify", "Mesh", "UV", "Windows", "Render"] {
+            ui.menu_button("Select", |ui| {
+                if ui.button("Object / Component   F8").clicked() {
+                    selection_intent.get_or_insert(SelectionModeIntent::Toggle);
+                    ui.close();
+                }
+                ui.menu_button("Components", |ui| {
+                    if ui
+                        .selectable_label(self.selection_mode == SelectionMode::Face, "Face   F11")
+                        .clicked()
+                    {
+                        *selection_intent = Some(SelectionModeIntent::Face);
+                        ui.close();
+                    }
+                    unsupported(ui, "Vertices / edges / UVs");
+                });
+            });
+            for label in ["Modify", "Mesh", "UV", "Windows", "Render"] {
                 ui.menu_button(label, |ui| {
                     unsupported(ui, "Not implemented yet");
                 });
@@ -1111,7 +1249,10 @@ impl Editor {
                 self.frame_selected();
             }
             ui.separator();
-            unsupported(ui, "Extrude");
+            ui.add_enabled(false, egui::Button::new("Extrude"))
+                .on_disabled_hover_text(
+                    "Extrude construction history and manipulator workflow are unsupported",
+                );
             unsupported(ui, "Bevel");
             unsupported(ui, "Materials");
         });
@@ -1219,14 +1360,14 @@ impl Editor {
         );
     }
 
-    fn channels(&mut self, ui: &mut egui::Ui) {
+    fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
         ui.label(RichText::new("Channel Box").strong());
         self.appearance_summary(ui);
         ui.separator();
-        let Some(id) = self.selected else {
+        if self.selected.is_none() {
             ui.weak("Select an object to edit its channels.");
             return;
-        };
+        }
         ui.label("Object name");
         let response = ui.add(egui::TextEdit::singleline(&mut self.name).id(name_edit_id()));
         self.name_intent |= response.changed();
@@ -1273,8 +1414,15 @@ impl Editor {
         }
         self.material_controls(ui);
         ui.separator();
-        if ui.button("Delete selected").clicked() {
-            self.native_operation(Operation::Delete(id));
+        if ui
+            .add_enabled(
+                self.selection_mode == SelectionMode::Object,
+                egui::Button::new("Delete selected"),
+            )
+            .on_disabled_hover_text("Face deletion is unsupported; switch to Object selection")
+            .clicked()
+        {
+            *delete_intent = true;
         }
         ui.separator();
         ui.weak("Inputs / construction history");
@@ -1416,12 +1564,36 @@ impl eframe::App for Editor {
 impl Editor {
     fn render(&mut self, ui: &mut egui::Ui) {
         let frame_token = self.scene_token;
+        let frame_admitted = !self.files.is_modal() && !self.files.is_closing();
+        let keyboard_admitted = frame_admitted && !egui::Popup::is_any_open(ui.ctx());
+        let (face, toggle, delete) = ui.input(|input| {
+            let pressed = |key| {
+                input.events.iter().any(|event| {
+                    matches!(event,
+                egui::Event::Key { key: event_key, pressed: true, modifiers, .. }
+                if *event_key == key && modifiers.is_none())
+                })
+            };
+            (pressed(Key::F11), pressed(Key::F8), pressed(Key::Delete))
+        });
+        let mut selection_intent = if !keyboard_admitted {
+            None
+        } else if face {
+            Some(SelectionModeIntent::Face)
+        } else if toggle {
+            Some(SelectionModeIntent::Toggle)
+        } else {
+            None
+        };
+        let mut delete_intent = keyboard_admitted && delete;
         self.handle_close(ui.ctx());
         if !self.files.is_modal() {
             self.cancel_on_escape(ui.ctx());
         }
         self.shortcuts(ui.ctx());
-        egui::Panel::top("menu_shelf").show(ui, |ui| self.menus(ui));
+        egui::Panel::top("menu_shelf").show(ui, |ui| {
+            self.menus(ui, &mut selection_intent, &mut delete_intent)
+        });
         egui::Panel::bottom("timeline_status").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Time slider");
@@ -1466,10 +1638,18 @@ impl Editor {
             .size_range(230.0..=400.0)
             .show(ui, |ui| {
                 ui.add_enabled_ui(!self.files.is_closing() && !self.files.is_modal(), |ui| {
-                    self.channels(ui)
+                    self.channels(ui, &mut delete_intent)
                 });
             });
-        egui::CentralPanel::default().show(ui, |ui| self.viewport(ui, frame_token));
+        egui::CentralPanel::default().show(ui, |ui| {
+            self.viewport(
+                ui,
+                frame_token,
+                selection_intent,
+                delete_intent,
+                frame_admitted,
+            )
+        });
         ui.ctx()
             .send_viewport_cmd(egui::ViewportCommand::Title(self.document_title()));
         self.native_input_pending = false;
@@ -1477,10 +1657,21 @@ impl Editor {
         self.process_mcp(ui.ctx());
     }
 
-    fn viewport(&mut self, ui: &mut egui::Ui, frame_token: Uuid) {
+    fn viewport(
+        &mut self,
+        ui: &mut egui::Ui,
+        frame_token: Uuid,
+        selection_intent: Option<SelectionModeIntent>,
+        delete_intent: bool,
+        frame_admitted: bool,
+    ) {
         let mut grid_requested = false;
         ui.horizontal(|ui| {
             ui.label("persp");
+            ui.label(match self.selection_mode {
+                SelectionMode::Object => "Object selection",
+                SelectionMode::Face => "Face selection | visible centers only",
+            });
             ui.separator();
             grid_requested = ui
                 .add_enabled(
@@ -1495,6 +1686,7 @@ impl Editor {
         if let Ok(Some(input)) = &captured {
             self.aspect = input.aspect();
         }
+        let admitted = frame_admitted && !self.files.is_modal() && !self.files.is_closing();
         self.file_modal(ui.ctx());
         if grid_requested && self.scene_token == frame_token {
             self.native_operation(Operation::SetGridVisible {
@@ -1511,19 +1703,49 @@ impl Editor {
             };
             let navigation = input.take_navigation();
             let current_document = self.scene_token == frame_token;
-            let clickable = input.click_ndc().filter(|_| current_document);
+            let can_select = admitted
+                && current_document
+                && !self.files.is_modal()
+                && !self.files.is_closing()
+                && !text_edit_focused(ui.ctx())
+                && !egui::Popup::is_any_open(ui.ctx());
+            let clickable = input.click_ndc().filter(|_| can_select);
+            let selection_intent = selection_intent.filter(|_| can_select);
+            let delete_intent = delete_intent && can_select;
+            let selection_refusal = input.unsupported_selection().filter(|_| can_select);
             let navigation = if current_document {
                 navigation
             } else {
                 Vec::new()
             };
-            if !self.files.is_modal() && (!navigation.is_empty() || clickable.is_some()) {
+            if !self.files.is_modal()
+                && (!navigation.is_empty()
+                    || clickable.is_some()
+                    || selection_intent.is_some()
+                    || delete_intent)
+            {
                 if !self.commit_pending() {
                     return Err(OperationError::InvalidInput(self.status.clone()));
                 }
                 for operation in navigation {
                     self.apply_operation(operation)?;
                 }
+            }
+            if let Some(intent) = selection_intent {
+                let mode = match intent {
+                    SelectionModeIntent::Face => SelectionMode::Face,
+                    SelectionModeIntent::Toggle => match self.selection_mode {
+                        SelectionMode::Object => SelectionMode::Face,
+                        SelectionMode::Face => SelectionMode::Object,
+                    },
+                };
+                self.apply_operation(Operation::SetSelectionMode(mode))?;
+            }
+            if delete_intent && let Some(id) = self.selected {
+                self.native_operation(Operation::Delete(id));
+            }
+            if let Some(refusal) = selection_refusal {
+                return Err(OperationError::InvalidInput(refusal.message().into()));
             }
             let view =
                 ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024).map_err(|e| {
@@ -1536,27 +1758,52 @@ impl Editor {
             if !self.files.is_modal()
                 && let Some(ndc) = clickable
             {
-                let hit = self
-                    .camera
-                    .pick_view(&view, ndc, self.aspect)
-                    .map_err(|e| OperationError::File(e.to_string()))?;
-                let (node, instance_path) = if let Some(hit) = hit {
-                    let mut prefix = hit.path;
-                    prefix.pop();
-                    (Some(hit.transform), Some(prefix))
-                } else {
-                    (None, None)
-                };
-                self.apply_operation(Operation::Select {
-                    node,
-                    instance_path,
-                })?;
+                match self.selection_mode {
+                    SelectionMode::Object => {
+                        let hit = self
+                            .camera
+                            .pick_view(&view, ndc, self.aspect)
+                            .map_err(|e| OperationError::File(e.to_string()))?;
+                        let (node, instance_path) = if let Some(hit) = hit {
+                            let mut prefix = hit.path;
+                            prefix.pop();
+                            (Some(hit.transform), Some(prefix))
+                        } else {
+                            (None, None)
+                        };
+                        self.apply_operation(Operation::Select {
+                            node,
+                            instance_path,
+                        })?;
+                    }
+                    SelectionMode::Face => {
+                        let target = input
+                            .pick_face_center(
+                                &self.camera,
+                                &view,
+                                self.selected
+                                    .map(|owner| (owner, self.selected_path.as_slice())),
+                            )
+                            .map_err(|e| OperationError::File(e.to_string()))?;
+                        self.apply_operation(Operation::SelectFace { target })?;
+                    }
+                }
             }
             let painted = input.paint(
                 self.renderer.as_ref(),
                 &self.camera,
                 &view,
-                self.selected.map(|_| self.selected_path.as_slice()),
+                match self.selection_mode {
+                    SelectionMode::Object => crate::viewport_renderer::SelectionFeedback::Object(
+                        self.selected.map(|_| self.selected_path.as_slice()),
+                    ),
+                    SelectionMode::Face => crate::viewport_renderer::SelectionFeedback::Face {
+                        active: self
+                            .selected
+                            .map(|owner| (owner, self.selected_path.as_slice())),
+                        selected: self.remembered_face.as_ref(),
+                    },
+                },
                 self.grid_visible,
             );
             self.viewport_error = painted.as_ref().err().map(|error| error.category());
@@ -1603,6 +1850,16 @@ impl Editor {
 fn unsupported(ui: &mut egui::Ui, label: &str) {
     ui.add_enabled(false, egui::Button::new(label))
         .on_disabled_hover_text("Not implemented in this build");
+}
+
+fn text_edit_focused(ctx: &egui::Context) -> bool {
+    ctx.memory(|memory| {
+        memory.focused().is_some_and(|id| {
+            id == name_edit_id()
+                || id == material_edit_id()
+                || (0..9).any(|index| id == channel_edit_id(index))
+        })
+    })
 }
 
 fn name_edit_id() -> egui::Id {
@@ -2159,6 +2416,446 @@ mod tests {
         assert!(editor.material_draft.is_some());
     }
 
+    fn selected_face(editor: &Editor, face_index: usize) -> FaceTarget {
+        let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+        let instance = view
+            .instances()
+            .iter()
+            .find(|instance| Some(instance.transform()) == editor.selected)
+            .unwrap();
+        FaceTarget {
+            transform: instance.transform(),
+            shape: instance.shape(),
+            path: instance.path().to_vec(),
+            face_index,
+        }
+    }
+
+    #[test]
+    fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let id = editor.selected.unwrap();
+        let cap = selected_face(&editor, 0);
+        remote(
+            &mut editor,
+            Operation::SetSelectionMode(SelectionMode::Face),
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(cap.clone()),
+            },
+        )
+        .unwrap();
+        editor.channels[0] = "2".into();
+        editor.native_operation(Operation::FrameSelected);
+        assert!(!editor.error);
+        assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .node(id)
+                .unwrap()
+                .transform()
+                .translation[0],
+            2.0
+        );
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+        remote(&mut editor, Operation::Redo).unwrap();
+        assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+        remote(
+            &mut editor,
+            Operation::ExtrudeFace {
+                target: cap.clone(),
+                distance: 0.25,
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+        let side = FaceTarget {
+            face_index: 6,
+            ..cap
+        };
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(side.clone()),
+            },
+        )
+        .unwrap();
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert_eq!(editor.remembered_face, None);
+        assert!(editor.history.can_redo());
+        remote(&mut editor, Operation::Redo).unwrap();
+        assert_eq!(editor.remembered_face, None);
+        remote(&mut editor, Operation::SelectFace { target: Some(side) }).unwrap();
+        remote(&mut editor, Operation::Delete(id)).unwrap();
+        assert_eq!(editor.selected, None);
+        assert!(editor.selected_path.is_empty());
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert!(editor.history.scene().node(id).is_ok());
+        assert_eq!(editor.remembered_face, None);
+    }
+
+    #[test]
+    fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.aspect = 4.0 / 3.0;
+        let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+        let instance = &view.instances()[0];
+        let (face, target) = instance
+            .faces()
+            .iter()
+            .find_map(|face| {
+                let center = face.center(instance.world_vertices()).unwrap();
+                let ndc = editor.camera.project(center, editor.aspect).unwrap()?;
+                let pointer = egui::vec2((ndc.x + 1.0) * 400.0, (1.0 - ndc.y) * 300.0);
+                let target = FaceTarget {
+                    transform: instance.transform(),
+                    shape: instance.shape(),
+                    path: instance.path().to_vec(),
+                    face_index: face.source_index(),
+                };
+                let hit = editor
+                    .camera
+                    .pick_face_center(
+                        &view,
+                        Some((instance.transform(), &editor.selected_path)),
+                        glam::Vec2::new(pointer.x, pointer.y),
+                        [800, 600],
+                        1.0,
+                    )
+                    .unwrap();
+                (hit.as_ref() != Some(&target)).then_some((face, target))
+            })
+            .expect("cube has an occluded center");
+        let corners: Vec<_> = face
+            .corners()
+            .iter()
+            .map(|&index| instance.world_vertices()[index])
+            .collect();
+        let mut expected = editor.camera.clone();
+        expected.frame_points(&corners, editor.aspect).unwrap();
+        let scene = editor.history.scene().clone();
+        let token = editor.scene_token;
+        remote(
+            &mut editor,
+            Operation::SetSelectionMode(SelectionMode::Face),
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(target.clone()),
+            },
+        )
+        .unwrap();
+        remote(&mut editor, Operation::FrameSelected).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.scene_token, token);
+        remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
+        let camera = editor.camera.clone();
+        assert!(matches!(
+            remote(&mut editor, Operation::FrameSelected),
+            Err(OperationError::NoSelection)
+        ));
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.history.scene(), &scene);
+        editor.name = "valid_human_rename".into();
+        assert!(matches!(
+            remote(&mut editor, Operation::FrameSelected),
+            Err(OperationError::BusyEditing)
+        ));
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.name, "valid_human_rename");
+        editor.native_operation(Operation::FrameSelected);
+        assert!(editor.error);
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .node(target.transform)
+                .unwrap()
+                .name(),
+            "valid_human_rename"
+        );
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert_eq!(editor.history.scene(), &scene);
+    }
+
+    #[test]
+    fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let id = editor.selected.unwrap();
+        let target = selected_face(&editor, 4);
+        remote(
+            &mut editor,
+            Operation::Rename {
+                id,
+                name: "temporary".into(),
+            },
+        )
+        .unwrap();
+        remote(&mut editor, Operation::Undo).unwrap();
+        let scene = editor.history.scene().clone();
+        let token = editor.scene_token;
+        let camera = editor.camera.clone();
+        let dirty = editor.inspect(false).unwrap().dirty;
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        remote(
+            &mut editor,
+            Operation::SetSelectionMode(SelectionMode::Face),
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(target.clone()),
+            },
+        )
+        .unwrap();
+        for mode in [SelectionMode::Object, SelectionMode::Face] {
+            remote(&mut editor, Operation::SetSelectionMode(mode)).unwrap();
+            assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+            assert_eq!(editor.selected, Some(id));
+            assert_eq!(editor.selected_path, target.path[..target.path.len() - 1]);
+        }
+        remote(
+            &mut editor,
+            Operation::Select {
+                node: Some(id),
+                instance_path: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+        remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
+        assert_eq!(editor.selected, Some(id));
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.history.scene(), &scene);
+        assert!(editor.history.can_redo());
+        assert_eq!(editor.scene_token, token);
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.inspect(false).unwrap().dirty, dirty);
+    }
+
+    #[test]
+    fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let target = selected_face(&editor, 5);
+        editor.create(Primitive::Plane);
+        let other = editor.selected.unwrap();
+        let second_shape = selected_face(&editor, 0);
+        remote(
+            &mut editor,
+            Operation::Rename {
+                id: other,
+                name: "temporary".into(),
+            },
+        )
+        .unwrap();
+        remote(&mut editor, Operation::Undo).unwrap();
+        remote(
+            &mut editor,
+            Operation::SetSelectionMode(SelectionMode::Face),
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(target.clone()),
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.selected, Some(target.transform));
+        assert_eq!(editor.selected_path, target.path[..target.path.len() - 1]);
+        assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(second_shape.clone()),
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.selected, Some(other));
+        assert_eq!(editor.remembered_face.as_ref(), Some(&second_shape));
+        assert_eq!(
+            editor.selected_path,
+            second_shape.path[..second_shape.path.len() - 1]
+        );
+        let baseline = (
+            editor.history.scene().clone(),
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.selection_mode,
+            editor.remembered_face.clone(),
+            editor.camera.clone(),
+            editor.scene_token,
+            editor.name.clone(),
+            editor.channels.clone(),
+            editor.inspect(false).unwrap().dirty,
+        );
+        assert!(editor.history.can_redo());
+        assert!(matches!(
+            remote(
+                &mut editor,
+                Operation::SelectFace {
+                    target: Some(second_shape)
+                }
+            )
+            .unwrap(),
+            OperationReply::Unchanged
+        ));
+        assert_eq!(
+            (
+                editor.history.scene().clone(),
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.selection_mode,
+                editor.remembered_face.clone(),
+                editor.camera.clone(),
+                editor.scene_token,
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.inspect(false).unwrap().dirty,
+            ),
+            baseline
+        );
+        assert!(editor.history.can_redo());
+        remote(
+            &mut editor,
+            Operation::Select {
+                node: Some(target.transform),
+                instance_path: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.remembered_face, None);
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(target),
+            },
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::Select {
+                node: None,
+                instance_path: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.selected, None);
+    }
+
+    #[test]
+    fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let target = selected_face(&editor, 1);
+        editor.name = "valid_human_draft".into();
+        assert!(
+            editor
+                .apply_operation(Operation::SelectFace {
+                    target: Some(target.clone())
+                })
+                .is_err()
+        );
+        assert!(editor.has_draft());
+        assert_eq!(editor.remembered_face, None);
+        editor.sync_fields();
+        editor.create(Primitive::Plane);
+        let other = selected_face(&editor, 0);
+        remote(
+            &mut editor,
+            Operation::SetSelectionMode(SelectionMode::Face),
+        )
+        .unwrap();
+        remote(
+            &mut editor,
+            Operation::SelectFace {
+                target: Some(target.clone()),
+            },
+        )
+        .unwrap();
+        let scene = editor.history.scene().clone();
+        let before = (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.selection_mode,
+            editor.remembered_face.clone(),
+            editor.name.clone(),
+            editor.channels.clone(),
+            editor.scene_token,
+            editor.camera.clone(),
+        );
+        let mut invalid = Vec::new();
+        let mut bad = target.clone();
+        bad.path = other.path;
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.transform = other.transform;
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.shape = other.shape;
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.face_index = usize::MAX;
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.path.clear();
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.path = vec![target.shape; azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 2];
+        invalid.push(bad);
+        let mut bad = target.clone();
+        bad.transform = NodeId::from_decimal("18446744073709551615").unwrap();
+        invalid.push(bad);
+        let mut bad = target;
+        bad.shape = NativeId::from_decimal("18446744073709551615").unwrap();
+        invalid.push(bad);
+        for target in invalid {
+            assert!(
+                remote(
+                    &mut editor,
+                    Operation::SelectFace {
+                        target: Some(target)
+                    }
+                )
+                .is_err()
+            );
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(
+                (
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.selection_mode,
+                    editor.remembered_face.clone(),
+                    editor.name.clone(),
+                    editor.channels.clone(),
+                    editor.scene_token,
+                    editor.camera.clone(),
+                ),
+                before
+            );
+        }
+    }
+
     #[test]
     fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() {
         for width in [240.0, 420.0] {
@@ -2180,7 +2877,8 @@ mod tests {
                     )),
                     ..Default::default()
                 };
-                let mut frame = context.run_ui(input, |ui| editor.channels(ui));
+                let mut delete_intent = false;
+                let mut frame = context.run_ui(input, |ui| editor.channels(ui, &mut delete_intent));
                 frame.textures_delta.clear();
                 output = Some(frame);
             }
@@ -2495,7 +3193,7 @@ mod tests {
     #[test]
     fn remote_operations_share_native_scene_selection_history_and_camera() {
         let mut editor = Editor::default();
-        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 22);
+        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 24);
         let OperationReply::Created { node_id } = remote(
             &mut editor,
             Operation::Create {
@@ -2880,7 +3578,11 @@ mod tests {
         }
     }
 
-    fn frame(editor: &mut Editor, ctx: &egui::Context, events: Vec<egui::Event>) {
+    fn frame(
+        editor: &mut Editor,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> egui::FullOutput {
         let mut output = ctx.run_ui(
             egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
@@ -2893,6 +3595,676 @@ mod tests {
             |ui| editor.render(ui),
         );
         output.textures_delta.clear();
+        output
+    }
+
+    fn face_viewport_rect(output: &egui::FullOutput) -> egui::Rect {
+        output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Rect(rect) if rect.fill == Color32::from_gray(31) => Some(rect.rect),
+                _ => None,
+            })
+            .max_by(|a, b| a.area().total_cmp(&b.area()))
+            .unwrap()
+    }
+
+    fn face_text_position(output: &egui::FullOutput, text: &str) -> egui::Pos2 {
+        output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text_shape) if text_shape.galley.job.text == text => {
+                    Some(text_shape.pos + text_shape.galley.size() * 0.5)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "missing actual text: {text}; rendered labels: {:?}",
+                    output
+                        .shapes
+                        .iter()
+                        .filter_map(|shape| match &shape.shape {
+                            egui::Shape::Text(text) => Some(text.galley.job.text.as_str()),
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>()
+                )
+            })
+    }
+
+    fn face_pointer_click(
+        editor: &mut Editor,
+        ctx: &egui::Context,
+        position: egui::Pos2,
+        modifiers: egui::Modifiers,
+        release_keys: Vec<egui::Event>,
+    ) -> egui::FullOutput {
+        frame(
+            editor,
+            ctx,
+            vec![
+                egui::Event::ModifiersChanged(modifiers),
+                egui::Event::PointerMoved(position),
+            ],
+        );
+        for pressed in [true, false] {
+            let mut events = vec![
+                egui::Event::ModifiersChanged(modifiers),
+                egui::Event::PointerMoved(position),
+                egui::Event::PointerButton {
+                    pos: position,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers,
+                },
+            ];
+            if !pressed {
+                events.extend(release_keys.iter().cloned());
+            }
+            frame(editor, ctx, events);
+        }
+        frame(editor, ctx, vec![])
+    }
+
+    #[test]
+    fn face_native_keys_coalesce_before_same_frame_click_and_preserve_authoring_state() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.camera =
+            Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+        let before = editor.history.scene().clone();
+        let token = editor.scene_token;
+        let ctx = egui::Context::default();
+        let output = frame(&mut editor, &ctx, vec![]);
+        let center = face_viewport_rect(&output).center();
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            center,
+            egui::Modifiers::NONE,
+            vec![key(Key::F8), key(Key::F11), key(Key::F11)],
+        );
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+        let target = editor.remembered_face.clone();
+        frame(&mut editor, &ctx, vec![key(Key::F8)]);
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert_eq!(editor.remembered_face, target);
+        frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        assert_eq!(editor.remembered_face, target);
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.scene_token, token);
+        assert!(editor.is_dirty());
+        editor.history_step(false);
+        assert!(editor.history.scene().nodes().is_empty());
+    }
+
+    #[test]
+    fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.camera =
+            Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+        let ctx = egui::Context::default();
+        let output = frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        let rect = face_viewport_rect(&output);
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            rect.center(),
+            egui::Modifiers::NONE,
+            vec![],
+        );
+        let baseline = (
+            editor.history.scene().clone(),
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+            editor.camera.clone(),
+            editor.scene_token,
+        );
+        for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL] {
+            face_pointer_click(
+                &mut editor,
+                &ctx,
+                rect.left_top() + egui::vec2(20.0, 20.0),
+                modifiers,
+                vec![],
+            );
+            assert!(editor.error && editor.status.contains("unsupported"));
+            assert_eq!(
+                (
+                    editor.history.scene().clone(),
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone(),
+                    editor.camera.clone(),
+                    editor.scene_token
+                ),
+                baseline
+            );
+        }
+        frame(
+            &mut editor,
+            &ctx,
+            vec![
+                egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+                key(Key::Delete),
+            ],
+        );
+        assert!(editor.error && editor.status.contains("Face deletion is unsupported"));
+        assert_eq!(editor.history.scene(), &baseline.0);
+        assert_eq!(editor.remembered_face, baseline.3);
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            rect.left_top() + egui::vec2(20.0, 20.0),
+            egui::Modifiers::NONE,
+            vec![],
+        );
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.selected, baseline.1);
+        assert_eq!(editor.selected_path, baseline.2);
+        editor
+            .remote_operation(
+                RemoteRequest {
+                    expected_scene_token: Some(editor.scene_token),
+                    operation: Operation::Delete(baseline.1.unwrap()),
+                },
+                &ctx,
+            )
+            .unwrap();
+        assert!(editor.history.scene().nodes().is_empty());
+    }
+
+    #[test]
+    fn face_native_mode_waits_for_current_text_and_rejects_invalid_drafts() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let before = editor.history.scene().clone();
+        let ctx = egui::Context::default();
+        frame(&mut editor, &ctx, vec![]);
+        ctx.memory_mut(|memory| memory.request_focus(name_edit_id()));
+        frame(&mut editor, &ctx, vec![]);
+        frame(
+            &mut editor,
+            &ctx,
+            vec![egui::Event::Text("draft".into()), key(Key::F11)],
+        );
+        assert!(editor.has_draft());
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert_eq!(editor.history.scene(), &before);
+        frame(&mut editor, &ctx, vec![key(Key::Escape)]);
+        editor.channels[0] = "nan".into();
+        editor.channel_intents[0] = true;
+        frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert_eq!(editor.channels[0], "nan");
+        assert_eq!(editor.history.scene(), &before);
+        assert!(editor.error);
+    }
+
+    #[test]
+    fn face_native_closing_editor_refuses_mode_intents_without_selection_changes() {
+        let mut editor = Editor::default();
+        let before = editor.history.scene().clone();
+        let token = editor.scene_token;
+        editor.close_document().unwrap();
+        assert!(editor.files.is_closing());
+        let ctx = egui::Context::default();
+        frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert_eq!(editor.selected, None);
+        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.scene_token, token);
+    }
+
+    #[test]
+    fn face_native_pending_mode_prevents_keyboard_and_channel_object_delete() {
+        for button in [false, true] {
+            let mut editor = Editor::default();
+            editor.create(Primitive::Cube);
+            let before = editor.history.scene().clone();
+            let token = editor.scene_token;
+            let ctx = egui::Context::default();
+            let output = frame(&mut editor, &ctx, vec![]);
+            if button {
+                let position = face_text_position(&output, "Delete selected");
+                face_pointer_click(
+                    &mut editor,
+                    &ctx,
+                    position,
+                    egui::Modifiers::NONE,
+                    vec![key(Key::F11)],
+                );
+            } else {
+                frame(&mut editor, &ctx, vec![key(Key::F11), key(Key::Delete)]);
+            }
+            assert_eq!(editor.selection_mode, SelectionMode::Face);
+            assert_eq!(editor.history.scene(), &before, "button={button}");
+            assert_eq!(editor.scene_token, token);
+            assert!(editor.error && editor.status.contains("Face deletion is unsupported"));
+        }
+    }
+
+    #[test]
+    fn face_native_edit_menu_delete_keeps_face_mode_unsupported_and_object_mode_working() {
+        for face_mode in [false, true] {
+            let mut editor = Editor::default();
+            editor.create(Primitive::Cube);
+            let before = editor.history.scene().clone();
+            let ctx = egui::Context::default();
+            let output = frame(
+                &mut editor,
+                &ctx,
+                if face_mode {
+                    vec![key(Key::F11)]
+                } else {
+                    vec![]
+                },
+            );
+            let edit = face_text_position(&output, "Edit");
+            let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+            let delete = face_text_position(&output, "Delete");
+            let selection = (
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+                editor.camera.clone(),
+                editor.scene_token,
+            );
+            face_pointer_click(&mut editor, &ctx, delete, egui::Modifiers::NONE, vec![]);
+            if face_mode {
+                assert_eq!(editor.history.scene(), &before);
+                assert_eq!(
+                    (
+                        editor.selection_mode,
+                        editor.selected,
+                        editor.selected_path.clone(),
+                        editor.remembered_face.clone(),
+                        editor.camera.clone(),
+                        editor.scene_token
+                    ),
+                    selection
+                );
+            } else {
+                assert!(editor.history.scene().nodes().is_empty());
+                editor.history_step(false);
+                assert_eq!(editor.history.scene(), &before);
+            }
+        }
+    }
+
+    #[test]
+    fn face_native_event_modifiers_survive_later_modifier_changes() {
+        for (event_modifiers, final_modifiers, expected) in [
+            (
+                egui::Modifiers::SHIFT,
+                egui::Modifiers::NONE,
+                SelectionMode::Object,
+            ),
+            (
+                egui::Modifiers::NONE,
+                egui::Modifiers::SHIFT,
+                SelectionMode::Face,
+            ),
+        ] {
+            let mut editor = Editor::default();
+            editor.create(Primitive::Cube);
+            let before = editor.history.scene().clone();
+            let ctx = egui::Context::default();
+            frame(&mut editor, &ctx, vec![]);
+            frame(
+                &mut editor,
+                &ctx,
+                vec![
+                    egui::Event::Key {
+                        key: Key::F11,
+                        physical_key: None,
+                        pressed: true,
+                        repeat: false,
+                        modifiers: event_modifiers,
+                    },
+                    egui::Event::ModifiersChanged(final_modifiers),
+                ],
+            );
+            assert_eq!(editor.selection_mode, expected);
+            assert_eq!(editor.history.scene(), &before);
+        }
+    }
+
+    #[test]
+    fn face_native_modal_cancel_does_not_replay_blocked_mode_intent() {
+        for (button, open) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut editor = Editor::default();
+            editor.create(Primitive::Cube);
+            let ctx = egui::Context::default();
+            frame(&mut editor, &ctx, vec![]);
+            let directory = tempfile::tempdir().unwrap();
+            if open {
+                let path = directory.path().join("replacement.aztec");
+                let mut candidate = azteccraft::scene::Scene::default();
+                candidate.create(Primitive::Plane, "replacement").unwrap();
+                azteccraft::document::save_new(&path, &candidate).unwrap();
+                editor
+                    .apply_operation(Operation::OpenScene { path })
+                    .unwrap();
+            } else {
+                editor.new_document().unwrap();
+            }
+            frame(&mut editor, &ctx, vec![]);
+            let output = frame(&mut editor, &ctx, vec![]);
+            assert!(editor.files.is_modal());
+            let baseline = (
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+                editor.history.scene().clone(),
+                editor.camera.clone(),
+                editor.scene_token,
+                editor.is_dirty(),
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+            );
+            let draft = (
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.name_intent,
+                editor.channel_intents,
+            );
+            if button {
+                let cancel = face_text_position(&output, "Cancel");
+                face_pointer_click(
+                    &mut editor,
+                    &ctx,
+                    cancel,
+                    egui::Modifiers::NONE,
+                    vec![key(Key::F11)],
+                );
+            } else {
+                frame(&mut editor, &ctx, vec![key(Key::Escape), key(Key::F11)]);
+            }
+            assert!(!editor.files.is_modal());
+            assert_eq!(
+                (
+                    editor.selection_mode,
+                    editor.selected,
+                    editor.selected_path.clone(),
+                    editor.remembered_face.clone(),
+                    editor.history.scene().clone(),
+                    editor.camera.clone(),
+                    editor.scene_token,
+                    editor.is_dirty(),
+                    editor.history.can_undo(),
+                    editor.history.can_redo()
+                ),
+                baseline
+            );
+            assert_eq!(
+                (
+                    editor.name.clone(),
+                    editor.channels.clone(),
+                    editor.name_intent,
+                    editor.channel_intents
+                ),
+                draft
+            );
+        }
+    }
+
+    #[test]
+    fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.camera =
+            Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+        let ctx = egui::Context::default();
+        let output = frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        let point = face_viewport_rect(&output).center();
+        face_pointer_click(&mut editor, &ctx, point, egui::Modifiers::NONE, vec![]);
+        assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+        editor.native_operation(Operation::Rename {
+            id: editor.selected.unwrap(),
+            name: "redo-payload".into(),
+        });
+        editor.history_step(false);
+        assert!(editor.history.can_redo());
+        editor.name = "pending-human-name".into();
+        editor.name_intent = true;
+        let baseline = (
+            editor.selection_mode,
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+            editor.history.scene().clone(),
+            editor.camera.clone(),
+            editor.scene_token,
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.is_dirty(),
+        );
+        let draft = (
+            editor.name.clone(),
+            editor.channels.clone(),
+            editor.name_intent,
+            editor.channel_intents,
+        );
+        let end = point + egui::vec2(36.0, 0.0);
+        frame(
+            &mut editor,
+            &ctx,
+            vec![
+                egui::Event::ModifiersChanged(egui::Modifiers::SHIFT),
+                egui::Event::PointerButton {
+                    pos: point,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::SHIFT,
+                },
+                egui::Event::PointerButton {
+                    pos: point,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: egui::Modifiers::SHIFT,
+                },
+                egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+                egui::Event::PointerButton {
+                    pos: point,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+                egui::Event::PointerMoved(end),
+                egui::Event::PointerButton {
+                    pos: end,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        assert!(editor.error && editor.status.contains("Ambiguous coalesced primary input"));
+        assert_eq!(
+            (
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+                editor.history.scene().clone(),
+                editor.camera.clone(),
+                editor.scene_token,
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+                editor.is_dirty()
+            ),
+            baseline
+        );
+        assert_eq!(
+            (
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.name_intent,
+                editor.channel_intents
+            ),
+            draft
+        );
+    }
+
+    #[test]
+    fn face_native_menu_explicit_face_beats_toggle_and_modal_replacement_drops_intent() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let before = editor.history.scene().clone();
+        let ctx = egui::Context::default();
+        let output = frame(&mut editor, &ctx, vec![]);
+        let select = face_text_position(&output, "Select");
+        let output = face_pointer_click(&mut editor, &ctx, select, egui::Modifiers::NONE, vec![]);
+        let components = face_text_position(&output, "Components");
+        let output =
+            face_pointer_click(&mut editor, &ctx, components, egui::Modifiers::NONE, vec![]);
+        let face = face_text_position(&output, "Face   F11");
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            face,
+            egui::Modifiers::NONE,
+            vec![key(Key::F8)],
+        );
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+        assert_eq!(editor.history.scene(), &before);
+        editor
+            .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
+            .unwrap();
+        editor.new_document().unwrap();
+        let token = editor.scene_token;
+        frame(&mut editor, &ctx, vec![key(Key::F11)]);
+        assert!(editor.files.is_modal());
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        let output = frame(&mut editor, &ctx, vec![]);
+        let discard = face_text_position(&output, "Discard");
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            discard,
+            egui::Modifiers::NONE,
+            vec![key(Key::F11)],
+        );
+        assert_ne!(editor.scene_token, token);
+        assert!(!editor.files.is_modal());
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert!(editor.history.scene().nodes().is_empty());
+    }
+
+    #[test]
+    fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.camera =
+            Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+        let before = editor.history.scene().clone();
+        let ctx = egui::Context::default();
+        let output = frame(&mut editor, &ctx, vec![]);
+        let center = face_viewport_rect(&output).center();
+        let select = face_text_position(&output, "Select");
+        let output = face_pointer_click(&mut editor, &ctx, select, egui::Modifiers::NONE, vec![]);
+        let components = face_text_position(&output, "Components");
+        let output =
+            face_pointer_click(&mut editor, &ctx, components, egui::Modifiers::NONE, vec![]);
+        let face = face_text_position(&output, "Face   F11");
+        let mut focused = false;
+        for _ in 0..32 {
+            frame(&mut editor, &ctx, vec![key(Key::Tab)]);
+            focused = ctx
+                .memory(|memory| memory.focused())
+                .and_then(|id| ctx.read_response(id))
+                .is_some_and(|response| response.rect.contains(face));
+            if focused {
+                break;
+            }
+        }
+        assert!(
+            focused,
+            "actual menu Face item must receive keyboard focus before activation"
+        );
+        assert_eq!(editor.selection_mode, SelectionMode::Object);
+        assert!(egui::Popup::is_any_open(&ctx));
+        let selection = (
+            editor.selection_mode,
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.remembered_face.clone(),
+            editor.camera.clone(),
+            editor.scene_token,
+        );
+        let history = (
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.is_dirty(),
+        );
+        let draft = (
+            editor.name.clone(),
+            editor.channels.clone(),
+            editor.name_intent,
+            editor.channel_intents,
+        );
+        frame(
+            &mut editor,
+            &ctx,
+            vec![
+                egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+                key(Key::Enter),
+                key(Key::F8),
+                egui::Event::PointerMoved(center),
+                egui::Event::PointerButton {
+                    pos: center,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+                egui::Event::PointerButton {
+                    pos: center,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        assert_eq!(
+            (
+                editor.selection_mode,
+                editor.selected,
+                editor.selected_path.clone(),
+                editor.remembered_face.clone(),
+                editor.camera.clone(),
+                editor.scene_token
+            ),
+            selection
+        );
+        assert_eq!(
+            (
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+                editor.is_dirty()
+            ),
+            history
+        );
+        assert_eq!(
+            (
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.name_intent,
+                editor.channel_intents
+            ),
+            draft
+        );
+        assert_eq!(editor.history.scene(), &before);
     }
 
     #[test]
@@ -2945,7 +4317,7 @@ mod tests {
                         events,
                         ..Default::default()
                     },
-                    |ui| editor.viewport(ui, token),
+                    |ui| editor.viewport(ui, token, None, false, true),
                 );
                 for shape in &output.shapes {
                     if let egui::Shape::Text(text) = &shape.shape
@@ -3049,7 +4421,7 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
-                    editor.viewport(ui, editor.scene_token);
+                    editor.viewport(ui, editor.scene_token, None, false, true);
                     *rect = ui.min_rect();
                 },
             );
