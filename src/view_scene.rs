@@ -492,23 +492,7 @@ impl<'a> Graph<'a> {
 }
 
 fn local_matrix(transform: InternalTransform) -> Result<DMat4, ViewError> {
-    let translate = DVec3::from_array(transform.translation_cm);
-    let rp = DVec3::from_array(transform.rotate_pivot_cm);
-    let sp = DVec3::from_array(transform.scale_pivot_cm);
-    let rotation = DVec3::from_array(transform.rotation_radians);
-    let matrix = DMat4::from_translation(translate)
-        * DMat4::from_translation(rp)
-        * DMat4::from_rotation_z(rotation.z)
-        * DMat4::from_rotation_y(rotation.y)
-        * DMat4::from_rotation_x(rotation.x)
-        * DMat4::from_translation(-rp)
-        * DMat4::from_translation(sp)
-        * DMat4::from_scale(DVec3::from_array(transform.scale))
-        * DMat4::from_translation(-sp);
-    matrix
-        .is_finite()
-        .then_some(matrix)
-        .ok_or(ViewError::NonFiniteWorld)
+    transform.matrix().ok_or(ViewError::NonFiniteWorld)
 }
 
 #[cfg(test)]

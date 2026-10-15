@@ -1,13 +1,16 @@
 mod appearance;
 pub mod binary;
 mod mesh;
+mod move_translation;
 mod source;
 pub use appearance::{AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
+pub(crate) use move_translation::MoveTranslationBaseline;
+pub use move_translation::{WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};
-use glam::Vec3;
+use glam::{DMat4, DVec3, Vec3};
 use std::fmt;
 #[cfg(test)]
 use std::ops::Range;
@@ -478,6 +481,25 @@ pub struct InternalTransform {
     pub scale: [f64; 3],
     pub rotate_pivot_cm: [f64; 3],
     pub scale_pivot_cm: [f64; 3],
+}
+
+impl InternalTransform {
+    pub(crate) fn matrix(self) -> Option<DMat4> {
+        let translate = DVec3::from_array(self.translation_cm);
+        let rp = DVec3::from_array(self.rotate_pivot_cm);
+        let sp = DVec3::from_array(self.scale_pivot_cm);
+        let rotation = DVec3::from_array(self.rotation_radians);
+        let matrix = DMat4::from_translation(translate)
+            * DMat4::from_translation(rp)
+            * DMat4::from_rotation_z(rotation.z)
+            * DMat4::from_rotation_y(rotation.y)
+            * DMat4::from_rotation_x(rotation.x)
+            * DMat4::from_translation(-rp)
+            * DMat4::from_translation(sp)
+            * DMat4::from_scale(DVec3::from_array(self.scale))
+            * DMat4::from_translation(-sp);
+        matrix.is_finite().then_some(matrix)
+    }
 }
 
 impl PartialEq for NativeScene {
@@ -1281,6 +1303,8 @@ pub enum NativeError {
     InvalidName,
     NameCollision,
     UnsupportedEdit,
+    UnsupportedMove(WorldMoveUnsupported),
+    BusyManipulation,
     UnsupportedView(&'static str),
 }
 impl From<SceneError> for NativeError {
@@ -1313,6 +1337,8 @@ impl fmt::Display for NativeError {
             Self::UnsupportedEdit => {
                 f.write_str("native ownership or edit effects are unsupported")
             }
+            Self::UnsupportedMove(reason) => write!(f, "World-axis move unsupported: {reason}"),
+            Self::BusyManipulation => f.write_str("finish or cancel the active Move manipulation"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }
