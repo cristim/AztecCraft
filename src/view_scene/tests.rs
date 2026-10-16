@@ -1971,3 +1971,109 @@ fn degenerate_faces_get_a_zero_normal_not_nan() {
         ViewError::NonFiniteWorld
     );
 }
+
+fn world_newell(instance: &ViewInstance, face: &ViewFace) -> Vec3 {
+    let vertices = instance.world_vertices();
+    let corners = face.corners();
+    let origin = vertices[corners[0]];
+    let mut normal = Vec3::ZERO;
+    let mut previous = Vec3::ZERO;
+    for &index in corners {
+        let current = vertices[index] - origin;
+        normal += previous.cross(current);
+        previous = current;
+    }
+    normal.normalize()
+}
+
+#[test]
+fn world_normals_stay_outward_and_perpendicular_under_shear_and_mirroring() {
+    let cases = [
+        ([0.0, 0.0, 45.0], [1.0; 3], [4.0, 1.0, 1.0], [1.0; 3]),
+        (
+            [0.0, 0.0, 30.0],
+            [1.0, 2.0, 3.0],
+            [-1.0, 1.0, 1.0],
+            [1.0; 3],
+        ),
+        (
+            [20.0, 0.0, 30.0],
+            [1.0; 3],
+            [2.0, 1.0, 0.5],
+            [1.0, -1.0, 1.0],
+        ),
+        (
+            [0.0, 40.0, 0.0],
+            [1.0; 3],
+            [-1.0, -1.0, -1.0],
+            [3.0, 1.0, 1.0],
+        ),
+    ];
+    for (rotation, child_scale, root_scale, root_child_scale) in cases {
+        let (mut native, root, child, _) = test_fixtures::grouped_shape();
+        native
+            .set_transform(
+                root,
+                NativeTransform {
+                    scale: root_scale,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        native
+            .set_transform(
+                child,
+                NativeTransform {
+                    rotation,
+                    scale: [
+                        child_scale[0] * root_child_scale[0],
+                        child_scale[1] * root_child_scale[1],
+                        child_scale[2] * root_child_scale[2],
+                    ],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+        let instance = &view.instances()[0];
+        let vertices = instance.world_vertices();
+        let centroid = vertices.iter().sum::<Vec3>() / vertices.len() as f32;
+        for face in instance.faces() {
+            let normal = instance.world_normal(face);
+            let center = face.center(vertices).unwrap();
+            assert!(
+                (normal.length() - 1.0).abs() < 1e-5,
+                "{rotation:?} {normal}"
+            );
+            assert!(normal.dot(center - centroid) > 0.0, "{rotation:?} {normal}");
+            let surface = world_newell(instance, face);
+            assert!(
+                normal.cross(surface).length() < 1e-4,
+                "{rotation:?} {normal} {surface}"
+            );
+        }
+    }
+}
+
+#[test]
+fn singular_transform_gives_zero_world_normals() {
+    let mut native = NativeScene::default();
+    let node = native.create(Primitive::Cube, "flat").unwrap();
+    native
+        .set_transform(
+            node,
+            NativeTransform {
+                scale: [1.0, 0.0, 1.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let instance = &view.instances()[0];
+    assert!(
+        instance
+            .faces()
+            .iter()
+            .all(|f| instance.world_normal(f) == Vec3::ZERO)
+    );
+}

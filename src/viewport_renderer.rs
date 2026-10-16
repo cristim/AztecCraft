@@ -1,7 +1,7 @@
 use azteccraft::{
     native_scene::{FaceTarget, NativeId},
     scene::NodeId,
-    shading::SURFACE_BASE_RGB,
+    shading::{SURFACE_BASE_RGB, shade},
     view_scene::{FACE_CENTER_MARKER_PIXELS, ViewFace, ViewInstance, ViewScene},
     viewport::{Camera, InvalidCameraInput},
 };
@@ -13,6 +13,8 @@ use eframe::{
 use glam::{Mat4, Vec3, Vec4};
 use std::{fmt, ops::Range, sync::Arc};
 
+/// Selection tint; shaded like the base fill.
+const SELECTED_FILL_RGB: [u8; 3] = [95, 110, 120];
 const VERTEX_BYTES: usize = 8 * size_of::<f32>();
 // Charge snapshot, upload staging, retained vertices and a growth replacement per upload.
 const MAX_UPLOAD_WORKING_BYTES: u64 = 256 * 1024 * 1024;
@@ -306,14 +308,24 @@ impl Submission {
             u64::try_from(submission.bytes.capacity()).map_err(|_| RenderError::ResourceLimit)?,
             u64::MAX,
         )?;
+        let eye = camera.eye();
         for instance in scene.instances().iter().rev() {
             for face in instance.faces().iter().rev() {
-                let fill = if selection.selected(instance, face) {
-                    Color32::from_rgb(95, 110, 120)
+                let base = if selection.selected(instance, face) {
+                    SELECTED_FILL_RGB
                 } else {
-                    let [red, green, blue] = SURFACE_BASE_RGB;
-                    Color32::from_rgb(red, green, blue)
+                    SURFACE_BASE_RGB
                 };
+                let center = face
+                    .center(instance.world_vertices())
+                    .map_err(|_| RenderError::NonFiniteClip)?;
+                let view_dir = (eye - center).normalize_or_zero();
+                let [red, green, blue] = shade(
+                    instance.world_normal(face).to_array(),
+                    view_dir.to_array(),
+                    base,
+                );
+                let fill = Color32::from_rgb(red, green, blue);
                 for triangle in face.triangles() {
                     for index in triangle {
                         submission.vertex(

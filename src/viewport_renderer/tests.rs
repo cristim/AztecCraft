@@ -1376,7 +1376,7 @@ fn headless_gpu_actual_parent_painter_loses_the_crossing_side() {
     let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
     let path = view.instances()[0].path();
     let image = gpu.image(&view, &camera(4.75), Some(&path[..path.len() - 1]));
-    assert_eq!(pixel(&image, 79, 57), &[95, 110, 120, 255]);
+    assert_eq!(pixel(&image, 79, 57), &[38, 44, 48, 255]);
     let parent_camera = camera(4.75);
     let parent = ui_frame(1.0, |ui| {
         let mut captured = parent_cpu_reference::capture(ui, &parent_camera)
@@ -1413,7 +1413,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
             )
             .unwrap();
     });
-    assert_eq!(pixel(&gpu.render(frame), 79, 57), &[95, 110, 120, 255]);
+    assert_eq!(pixel(&gpu.render(frame), 79, 57), &[38, 44, 48, 255]);
 }
 
 #[test]
@@ -1542,8 +1542,8 @@ fn headless_gpu_intersecting_native_planes_change_front_surface_across_the_image
             );
         }
         let image = gpu.image(&view, &camera, Some(&path[..path.len() - 1]));
-        assert_eq!(pixel(&image, 58, 58), &[95, 110, 120, 255]);
-        assert_eq!(pixel(&image, 70, 58), &[83, 83, 83, 255]);
+        assert_eq!(pixel(&image, 58, 58), &[78, 91, 99, 255]);
+        assert_eq!(pixel(&image, 70, 58), &[68, 68, 68, 255]);
         if !selected_first {
             let parent = ui_frame(1.0, |ui| {
                 parent_cpu_reference::capture(ui, &camera)
@@ -1563,10 +1563,11 @@ fn headless_gpu_intersecting_native_planes_change_front_surface_across_the_image
 #[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_far_clip() {
     let mut gpu = Offscreen::new();
-    for (rotation, scale) in [
-        ([90.0, 0.0, 0.0], [1.0; 3]),
-        ([90.0, 180.0, 0.0], [1.0; 3]),
-        ([90.0, 0.0, 0.0], [-1.0, 1.0, 1.0]),
+    // Back faces get only the ambient floor (no two-sided lighting), so the side shows in the tint.
+    for (rotation, scale, expected) in [
+        ([90.0, 0.0, 0.0], [1.0; 3], [95, 110, 120, 255]),
+        ([90.0, 180.0, 0.0], [1.0; 3], [38, 44, 48, 255]),
+        ([90.0, 0.0, 0.0], [-1.0, 1.0, 1.0], [95, 110, 120, 255]),
     ] {
         let mut scene = NativeScene::default();
         let node = scene.create(Primitive::Plane, "plane").unwrap();
@@ -1583,7 +1584,7 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
         let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
         let path = view.instances()[0].path();
         let image = gpu.image(&view, &camera(0.01), Some(&path[..path.len() - 1]));
-        assert_eq!(pixel(&image, 64, 58), &[95, 110, 120, 255]);
+        assert_eq!(pixel(&image, 64, 58), &expected);
     }
     let mut scene = NativeScene::default();
     let node = scene.create(Primitive::Plane, "far_crossing").unwrap();
@@ -1607,7 +1608,7 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
         );
     }
     let image = gpu.image(&view, &camera, Some(&path[..path.len() - 1]));
-    assert_eq!(pixel(&image, 58, 58), &[95, 110, 120, 255]);
+    assert_eq!(pixel(&image, 58, 58), &[78, 91, 99, 255]);
     assert_eq!(pixel(&image, 70, 58), &[31, 31, 31, 255]);
 }
 
@@ -1667,7 +1668,7 @@ fn headless_gpu_near_crossing_geometry_survives_and_occlusion_is_order_independe
     );
     assert!(clip_camera.pick_view(&view, ndc, 1.0).unwrap().is_some());
     let image = gpu.image(&view, &clip_camera, Some(&path[..path.len() - 1]));
-    assert_eq!(pixel(&image, 79, 57), &[95, 110, 120, 255]);
+    assert_eq!(pixel(&image, 79, 57), &[38, 44, 48, 255]);
     for front_first in [false, true] {
         let mut scene = NativeScene::default();
         let first = scene.create(Primitive::Cube, "first").unwrap();
@@ -1720,8 +1721,23 @@ fn headless_gpu_near_crossing_geometry_survives_and_occlusion_is_order_independe
     }
 }
 
+fn surface_colors(submission: &Submission) -> Vec<[f32; 4]> {
+    submission
+        .surfaces
+        .clone()
+        .map(|vertex| {
+            let start = vertex as usize * VERTEX_BYTES + 4 * size_of::<f32>();
+            std::array::from_fn(|channel| {
+                let at = start + channel * size_of::<f32>();
+                f32::from_ne_bytes(submission.bytes[at..at + 4].try_into().unwrap())
+            })
+        })
+        .collect()
+}
+
 #[test]
-fn surface_fill_is_the_named_base_until_shading_is_wired() {
+fn base_fill_is_83_and_a_face_looking_at_the_eye_keeps_it() {
+    assert_eq!(SURFACE_BASE_RGB, [83, 83, 83]);
     let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
     let submission = Submission::new(
         &view,
@@ -1733,15 +1749,110 @@ fn surface_fill_is_the_named_base_until_shading_is_wired() {
         u64::MAX,
     )
     .unwrap();
-    let [red, green, blue] = SURFACE_BASE_RGB;
-    let expected = Color32::from_rgb(red, green, blue).to_normalized_gamma_f32();
-    assert!(!submission.surfaces.is_empty());
-    for vertex in submission.surfaces.clone() {
-        let start = vertex as usize * VERTEX_BYTES + 4 * size_of::<f32>();
-        let color: [f32; 4] = std::array::from_fn(|channel| {
-            let at = start + channel * size_of::<f32>();
-            f32::from_ne_bytes(submission.bytes[at..at + 4].try_into().unwrap())
-        });
-        assert_eq!(color, expected, "vertex {vertex}");
+    let base = Color32::from_gray(83).to_normalized_gamma_f32();
+    let floor = Color32::from_gray(33).to_normalized_gamma_f32();
+    let colors = surface_colors(&submission);
+    assert_eq!(colors.len(), 36);
+    // The +Z face looks straight at the eye; each other face is lit less or at the floor.
+    assert_eq!(colors.iter().filter(|color| **color == base).count(), 6);
+    assert!(
+        colors
+            .iter()
+            .all(|color| color[0] >= floor[0] && color[0] <= base[0])
+    );
+    assert!(colors.contains(&floor));
+}
+
+#[test]
+fn selection_tint_is_lit_by_the_same_factor() {
+    let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
+    let path = view.instances()[0].path();
+    let submission = Submission::new(
+        &view,
+        &camera(0.01),
+        [SIZE; 2],
+        SelectionFeedback::Object(Some(&path[..path.len() - 1])),
+        true,
+        FORMAT,
+        u64::MAX,
+    )
+    .unwrap();
+    let tint = Color32::from_rgb(95, 110, 120).to_normalized_gamma_f32();
+    let colors = surface_colors(&submission);
+    assert_eq!(colors.iter().filter(|color| **color == tint).count(), 6);
+    assert!(
+        colors
+            .iter()
+            .all(|color| color[1] > color[0] && color[2] > color[1])
+    );
+}
+
+fn rotated_cube(degrees_y: f64) -> NativeScene {
+    let mut scene = NativeScene::default();
+    let node = scene.create(Primitive::Cube, "cube").unwrap();
+    scene
+        .set_transform(
+            node,
+            NativeTransform {
+                rotation: [0.0, degrees_y, 0.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    scene
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_a_face_is_lit_differently_from_the_same_face_rotated() {
+    let mut gpu = Offscreen::new();
+    let straight = gpu.image(
+        &ViewScene::from_native(&rotated_cube(0.0), VIEW_BUDGET).unwrap(),
+        &camera(0.01),
+        None,
+    );
+    let turned = gpu.image(
+        &ViewScene::from_native(&rotated_cube(30.0), VIEW_BUDGET).unwrap(),
+        &camera(0.01),
+        None,
+    );
+    // Flat per-face colours may differ by one level between Metal and the software adapter.
+    let near = |actual: &[u8], expected: u8| actual[..3].iter().all(|v| v.abs_diff(expected) <= 2);
+    assert!(near(pixel(&straight, 64, 50), 83));
+    let (left, right) = (pixel(&turned, 52, 50), pixel(&turned, 76, 50));
+    assert!(left[0].abs_diff(83) > 4 || right[0].abs_diff(83) > 4);
+    assert!(left[0].abs_diff(right[0]) > 8, "{left:?} {right:?}");
+    assert!(left[0] >= 33 && right[0] >= 33 && left[0] <= 83 && right[0] <= 83);
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_grid_behind_a_face_is_hidden_today_issue_111_oracle() {
+    let mut gpu = Offscreen::new();
+    let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
+    let camera = Camera::new(Vec3::ZERO, 0.4, 0.6, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let render = |gpu: &mut Offscreen, grid: bool| {
+        let submission = Submission::new(
+            &view,
+            &camera,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
+            grid,
+            FORMAT,
+            u64::MAX,
+        )
+        .unwrap();
+        gpu.render(TestFrame::Geometry(submission))
+    };
+    let with_grid = render(&mut gpu, true);
+    let without_grid = render(&mut gpu, false);
+    let mut differing = 0;
+    for y in 58..70 {
+        for x in 58..70 {
+            differing += usize::from(pixel(&with_grid, x, y) != pixel(&without_grid, x, y));
+        }
     }
+    // Records current behaviour for #111: the centre of the cube, where grid lines pass
+    // through the body, shows no grid pixel today (12x12 window well inside the silhouette).
+    assert_eq!(differing, 0);
 }

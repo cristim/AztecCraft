@@ -3,7 +3,7 @@ use crate::native_scene::{
     NativeMeshShape, NativeScene, NativeTransformNode,
 };
 use crate::scene::NodeId;
-use glam::{DMat4, DVec3, Vec3};
+use glam::{DMat3, DMat4, DVec3, Mat3, Vec3};
 use std::fmt;
 use std::mem::size_of;
 
@@ -68,6 +68,8 @@ pub struct ViewInstance {
     transform: NodeId,
     shape: NativeId,
     world_vertices: Vec<Vec3>,
+    /// Inverse transpose of the world matrix's linear part; zero if it is singular.
+    normal_matrix: Mat3,
     faces: Vec<ViewFace>,
     appearance_incomplete: bool,
 }
@@ -173,6 +175,7 @@ impl ViewScene {
                                 transform: transform.id(),
                                 shape: shape.id(),
                                 world_vertices: vertices,
+                                normal_matrix: normal_matrix(&world),
                                 faces: view_faces(mesh)?,
                                 appearance_incomplete: admission.appearance_incomplete(),
                             });
@@ -241,6 +244,17 @@ impl ViewInstance {
     }
     pub fn shape(&self) -> NativeId {
         self.shape
+    }
+    /// Unit world-space normal of `face`: its local normal through the inverse transpose of the
+    /// world matrix, so non-uniform scale and mirrored (negative-determinant) parents keep the
+    /// normal outward. Zero when the face or transform has no usable normal.
+    pub fn world_normal(&self, face: &ViewFace) -> Vec3 {
+        let normal = (self.normal_matrix * face.normal()).normalize_or_zero();
+        if normal.is_finite() {
+            normal
+        } else {
+            Vec3::ZERO
+        }
     }
     pub fn world_vertices(&self) -> &[Vec3] {
         &self.world_vertices
@@ -331,6 +345,20 @@ impl std::error::Error for ViewError {
             Self::Camera(error) => Some(error),
             _ => None,
         }
+    }
+}
+
+fn normal_matrix(world: &DMat4) -> Mat3 {
+    let linear = DMat3::from_mat4(*world);
+    let determinant = linear.determinant();
+    if !determinant.is_finite() || determinant == 0.0 {
+        return Mat3::ZERO;
+    }
+    let matrix = linear.inverse().transpose().as_mat3();
+    if matrix.is_finite() {
+        matrix
+    } else {
+        Mat3::ZERO
     }
 }
 

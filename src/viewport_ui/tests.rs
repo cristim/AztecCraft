@@ -357,16 +357,19 @@ fn painted_submission(
     recorded_submission(&producer)
 }
 
-fn surface_color_count(submission: &RecordedSubmission, rgb: [u8; 3]) -> usize {
-    let rgba = [
-        f32::from(rgb[0]) / 255.0,
-        f32::from(rgb[1]) / 255.0,
-        f32::from(rgb[2]) / 255.0,
-        1.0,
-    ];
+/// Counts surface vertices of the selection tint (blue-leaning) or of the grey fill; shading
+/// scales both by a per-face factor, so exact colours depend on the view.
+fn surface_color_count(submission: &RecordedSubmission, tinted: bool) -> usize {
     submission.vertices[submission.surfaces.start as usize..submission.surfaces.end as usize]
         .iter()
-        .filter(|vertex| vertex[4..] == rgba)
+        .filter(|vertex| {
+            let [red, green, blue] = [vertex[4], vertex[5], vertex[6]];
+            if tinted {
+                blue > red && green > red
+            } else {
+                red == green && green == blue
+            }
+        })
         .count()
 }
 
@@ -391,8 +394,8 @@ fn canonical_quad_instances_paint_only_selected_prefix_and_persistent_limitation
     let submission = painted_submission(&view, &camera(), Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..72);
     assert_eq!(submission.lines, 72..252);
-    assert_eq!(surface_color_count(&submission, [95, 110, 120]), 36);
-    assert_eq!(surface_color_count(&submission, [83, 83, 83]), 36);
+    assert_eq!(surface_color_count(&submission, true), 36);
+    assert_eq!(surface_color_count(&submission, false), 36);
     assert_eq!(scene, before);
 }
 
@@ -414,7 +417,7 @@ fn actual_binary_triangle_paints_source_corners_and_persistent_appearance_limit(
     let submission = painted_submission(&view, &camera, Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..3);
     assert_eq!(submission.lines, 3..93);
-    assert_eq!(surface_color_count(&submission, [95, 110, 120]), 3);
+    assert_eq!(surface_color_count(&submission, true), 3);
     let matrix = camera.projection_matrix(4.0 / 3.0).unwrap() * camera.view_matrix();
     for (vertex, index) in submission.vertices[..3]
         .iter()
@@ -482,8 +485,8 @@ fn actual_binary_group_prefix_highlights_child_geometry_and_excludes_outside_geo
     let submission = painted_submission(&view, &camera, Some(&prefix));
     assert_eq!(submission.surfaces, 0..6);
     assert_eq!(submission.lines, 6..102);
-    assert_eq!(surface_color_count(&submission, [95, 110, 120]), 3);
-    assert_eq!(surface_color_count(&submission, [83, 83, 83]), 3);
+    assert_eq!(surface_color_count(&submission, true), 3);
+    assert_eq!(surface_color_count(&submission, false), 3);
     assert_eq!(scene, before);
 }
 
@@ -517,7 +520,7 @@ fn acute_native_face_tessellation_stays_near_its_bounded_projected_geometry() {
             "acute source generated distant geometry"
         );
     }
-    assert_eq!(surface_color_count(&submission, [95, 110, 120]), 6);
+    assert_eq!(surface_color_count(&submission, true), 6);
 }
 
 #[test]

@@ -343,10 +343,12 @@ and its centre marker is the corner average. New nodes are named `pCylinder1` an
 `pCylinderShape1` and `pConeShape1`. The legacy quad-only JSON/OBJ scene refuses both
 with a typed error. No shelf icons exist for them.
 
+## DefaultLightingApprox is not Maya default lighting
+
 `DefaultLightingApprox` (`src/shading.rs`) is a headlight Lambert plus ambient floor, not Maya's
 default lighting. The 2026 Lighting page was unreachable, so the light direction and whether it
-follows the camera are unverified. It is not yet wired into the viewport (A1b), and
-`ViewFace::normal` is in local space; non-uniform parent scale needs a world-space transform. The
+follows the camera are unverified. It is wired into `Submission::new` as one flat colour per
+face, with the normal taken to world space by the inverse transpose of the world matrix. The
 ambient floor (0.4) is chosen for legibility, not measured from Maya (provisional). Back faces
 receive only the ambient floor (no two-sided lighting, culling off), so an open plane looks dark
 from behind; Maya's two-sided default is unverified.
