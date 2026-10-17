@@ -163,7 +163,7 @@ fn e_and_r_select_the_tools_and_the_tool_box_icons_are_live() {
     );
     assert_eq!(editor.active_tool, ActiveTool::Scale);
     assert!(
-        editor.status.starts_with("Scale tool (Object)"),
+        editor.status.starts_with("Scale tool (World)"),
         "{}",
         editor.status
     );
@@ -230,7 +230,7 @@ fn a_ring_drag_turns_about_the_picked_axis_and_is_one_rotate_history_entry() {
 #[test]
 fn world_space_rings_turn_the_selected_object_about_the_world_axis() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
-    editor.manipulation.space = ManipulationSpace::World;
+    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
     let x = Vec3::X;
     press(&mut editor, &context, 1.0, view.ring(x, 0.0));
     assert_eq!(editor.status, "World X Rotate");
@@ -246,7 +246,7 @@ fn an_axis_box_drag_scales_by_the_parameter_ratio_in_one_scale_history_entry() {
     let radius = view.radius();
     let begin = view.screen(Vec3::X * radius);
     press(&mut editor, &context, 1.0, begin);
-    assert_eq!(editor.status, "Object X Scale");
+    assert_eq!(editor.status, "World X Scale");
     for factor in [1.5_f32, 2.0, 0.5] {
         moved(
             &mut editor,
@@ -353,7 +353,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     let (mut editor, context, view) = setup(Key::R, 1.0);
     let origin = view.screen(Vec3::ZERO);
     press(&mut editor, &context, 1.0, origin);
-    assert_eq!(editor.status, "Object Uniform Scale");
+    assert_eq!(editor.status, "World Uniform Scale");
     moved(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
     let values = channels(&editor);
     near(values[6], 2.0, 1e-6);
@@ -742,7 +742,7 @@ fn a_negative_scale_parent_refuses_object_space_handles_with_a_visible_reason() 
     assert!(editor.error);
     // World space has no mirrored axes, so the handles return (the core then refuses the edit
     // because the scene is read-only).
-    editor.manipulation.space = ManipulationSpace::World;
+    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
     let frame_ok = editor.manipulation_frame(ActiveTool::Rotate).is_ok();
     assert!(frame_ok);
 }
@@ -1017,4 +1017,38 @@ fn scale_handles_sit_at_the_scale_fixed_point_and_rotate_handles_at_the_pivot() 
     let (_, scale) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     assert_eq!(rotate.origin(), core.origin_cm);
     assert_eq!(scale.origin(), core.scale_origin_cm);
+}
+
+// Maya 2026 Scale Tool settings: Axis Orientation "World (default)". Rotate Tool settings:
+// "Object (default)". Maya keeps these per tool.
+#[test]
+fn fresh_tools_start_in_their_documented_spaces() {
+    let editor = Editor::default();
+    assert_eq!(
+        editor.manipulation.space(ActiveTool::Scale),
+        ManipulationSpace::World
+    );
+    assert_eq!(
+        editor.manipulation.space(ActiveTool::Rotate),
+        ManipulationSpace::Object
+    );
+}
+
+#[test]
+fn changing_one_tools_space_does_not_leak_into_the_other() {
+    let mut editor = Editor::default();
+    *editor.manipulation.space_mut(ActiveTool::Scale) = ManipulationSpace::Object;
+    assert_eq!(
+        editor.manipulation.space(ActiveTool::Rotate),
+        ManipulationSpace::Object
+    );
+    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
+    assert_eq!(
+        editor.manipulation.space(ActiveTool::Scale),
+        ManipulationSpace::Object
+    );
+    assert_eq!(
+        editor.manipulation.space(ActiveTool::Rotate),
+        ManipulationSpace::World
+    );
 }

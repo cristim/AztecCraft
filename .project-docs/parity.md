@@ -28,6 +28,8 @@ The original first-push restriction required 80–90% of the complete Maya 2026 
 
 Object-space transform editing of a Maya binary scene needs the target channel's leaf to exist in the file. Maya omits default leaves (translate 0, rotate 0, scale 1) and leaf insertion is not implemented, so Move refuses such objects with the typed `AbsentChannelLeaf` error. The refusal rate on real Maya files is unmeasured and expected to be high, so Move on `.mb` is currently narrow (see [known issues](../known-issues.md)).
 
+Rotate and Scale keep their Axis Orientation per tool, as Maya does. Fresh defaults follow the Maya 2026 tool settings pages: Rotate Object ([page](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-C2D0F80C-812B-465D-A634-DB6ECFABFCB3.htm)) and Scale World ([page](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-487B6A23-E135-45E2-94F1-B0D59D6B6F33.htm)). Whether Maya persists a changed setting across sessions is unverified.
+
 Core suites cover scene edits, command history, document validation, OBJ export
 and camera mathematics, while UI tests cover editing/file-action events. They
 don't replace native file-dialog checks or Maya comparison. History is unbounded
