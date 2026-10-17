@@ -61,12 +61,13 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `src/native_scene.rs "fn authoring_read_only_reason"`) and surfaces as `ReadOnlyFormat`; Move, Rotate and Scale map it in
   `begin_error` (`src/app/features/manipulation_tool.rs "fn begin_error"`).
 - `EditNode` with no fields returns `Unchanged` after only checking the node (`src/app/dispatch.rs "Operation::EditNode {"`).
-- Delete in Face mode is refused only in `native_operation` (`src/app/dispatch.rs "fn native_operation"`), above the
-  pipeline. The matrix calls the pipeline directly, so its `delete(face_mode)` cells show the
-  operation succeeding in both columns; `native_operation_refuses_face_mode_delete_before_the_pipeline`
-  covers the UI refusal. The remote pipeline has no such refusal today, which is a bug
-  (cristim/AztecCraft#83, listed in `known-issues.md`); the snapshot records current behavior and
-  must change with the fix. The Move, Rotate and Scale Face-mode refusal is in the shared target check
+- Delete in Face, Vertex or Edge mode is refused by the first guard of `apply_operation_guarded`
+  (`src/app/dispatch.rs "fn apply_operation_guarded"`), so native and remote callers refuse alike;
+  `native_operation` no longer carries a separate pre-check and
+  `native_operation_reports_face_mode_delete_refusal` covers the UI status line. The remote
+  pipeline's outer state guards (stale token, busy editing, busy manipulation) still take priority,
+  so a remote `delete(face_mode)` in those states reports the state error. The Move, Rotate and
+  Scale Face-mode refusal is in the shared target check
   (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells).
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
   `apply_operation`, not `native_operation`, so a pick takes the shared guards like any other native operation.

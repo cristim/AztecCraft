@@ -37,7 +37,7 @@ fn parse_redo(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "delete_node",
-        description: "Delete an object through editor undo history",
+        description: "Delete an object through editor undo history; refused in Face, Vertex or Edge selection mode",
         schema: schema::<NodeArgs>,
         parse: parse_delete_node,
         idempotent: false,

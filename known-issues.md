@@ -30,17 +30,6 @@ read-only with no edit control. Maya's default modifier is Ctrl on every platfor
 uses an explicit Ctrl modifier rather than its `modifiers.command` convention, and the macOS
 Cmd-versus-Ctrl behavior is unverified. Native visual verification is pending.
 
-## Remote Delete is not refused in Face selection
-
-**Severity:** medium
-**Area:** editor operations
-**Issue:** cristim/AztecCraft#83
-
-The native UI refuses Delete in Face selection ("Face deletion is unsupported") in
-`native_operation`, above the shared pipeline. `remote_operation_guarded` has no such check, so
-the MCP `delete_node` tool deletes the object in Face mode. The guard matrix records the current
-behavior (`delete(face_mode)` cells); fix it in the shared pipeline and update the snapshot.
-
 ## Reference baseline unavailable
 
 **Severity:** high

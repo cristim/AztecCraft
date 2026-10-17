@@ -179,8 +179,9 @@ Shift/Ctrl selection, marquee, multiple faces, other component masks, preselecti
 hover and marking menus are unsupported. Ambiguous coalesced primary-release
 frames refuse selection with a single-click retry message; they do not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
-remains on its established route. Native Delete cannot delete the whole object
-under Face mode; explicit MCP delete_node retains its object-target meaning.
+remains on its established route. Delete refuses the whole object under any
+component mode (Face, Vertex or Edge), natively and over MCP, with the same
+shared guard; return to Object or Hierarchy selection to delete the object.
 Native Extrude stays disabled pending real history/manipulator behavior.
 
 Focused actual framebuffer proofs can be selected with `cargo test --locked

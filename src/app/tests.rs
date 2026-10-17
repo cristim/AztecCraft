@@ -612,12 +612,29 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     assert!(editor.history.can_redo());
     remote(&mut editor, Operation::Redo).unwrap();
     assert_eq!(editor.remembered_face, None);
-    remote(&mut editor, Operation::SelectFace { target: Some(side) }).unwrap();
+    remote(
+        &mut editor,
+        Operation::SelectFace {
+            target: Some(side.clone()),
+        },
+    )
+    .unwrap();
+    assert!(matches!(
+        remote(&mut editor, Operation::Delete(id)),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.remembered_face.as_ref(), Some(&side));
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Object),
+    )
+    .unwrap();
     remote(&mut editor, Operation::Delete(id)).unwrap();
     assert_eq!(editor.selected, None);
     assert!(editor.selected_path.is_empty());
     assert_eq!(editor.remembered_face, None);
-    assert_eq!(editor.selection_mode, SelectionMode::Face);
+    assert_eq!(editor.selection_mode, SelectionMode::Object);
     remote(&mut editor, Operation::Undo).unwrap();
     assert!(editor.history.scene().node(id).is_ok());
     assert_eq!(editor.remembered_face, None);
@@ -2177,6 +2194,39 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
 }
 
 #[test]
+fn remote_delete_refuses_component_selection_modes() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.selected.unwrap();
+    for (mode, noun) in [
+        (SelectionMode::Face, "Face"),
+        (SelectionMode::Vertex, "Vertex"),
+        (SelectionMode::Edge, "Edge"),
+    ] {
+        remote(&mut editor, Operation::SetSelectionMode(mode)).unwrap();
+        assert_eq!(editor.selection_mode, mode);
+        let before = editor.history.scene().clone();
+        let can_undo = editor.history.can_undo();
+        assert!(matches!(
+            remote(&mut editor, Operation::Delete(id)),
+            Err(OperationError::InvalidInput(message))
+                if message
+                    == format!("{noun} deletion is unsupported; switch to Object or Hierarchy selection")
+        ));
+        assert_eq!(editor.history.scene(), &before);
+        assert!(editor.history.scene().node(id).is_ok());
+        assert_eq!(editor.history.can_undo(), can_undo);
+    }
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Object),
+    )
+    .unwrap();
+    remote(&mut editor, Operation::Delete(id)).unwrap();
+    assert!(editor.history.scene().nodes().is_empty());
+}
+
+#[test]
 fn remote_errors_and_noop_do_not_change_selection_or_history() {
     let mut editor = Editor::default();
     assert!(matches!(
@@ -2595,16 +2645,17 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
     assert_eq!(editor.remembered_face, None);
     assert_eq!(editor.selected, baseline.1);
     assert_eq!(editor.selected_path, baseline.2);
-    editor
-        .remote_operation(
+    assert!(matches!(
+        editor.remote_operation(
             RemoteRequest {
                 expected_scene_token: Some(editor.scene_token),
-                operation: Operation::Delete(baseline.1.unwrap()),
+                operation: Operation::Delete(editor.selected.unwrap()),
             },
             &ctx,
-        )
-        .unwrap();
-    assert!(editor.history.scene().nodes().is_empty());
+        ),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.history.scene(), &baseline.0);
 }
 
 #[test]

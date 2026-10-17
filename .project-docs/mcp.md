@@ -74,7 +74,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `create_session_material` | `color`: three finite linear RGB channels, each 0 through 1 | Creates a session-only lambert as its own undo step and replies `{outcome:"session_material", material_id}` |
 | `assign_session_material` | `shape_id`: decimal NativeId; exactly one of `material_id` (existing) or `color` (creates one in the same undo step) | Assigns the whole shape, so every instance changes; replies `session_material` with the id, or `unchanged` |
 | `set_session_material_color` | `material_id`; `color` as above | Recolours a created material; material 0, the initial shading group, is locked |
-| `delete_node` | `node_id` | Changed authoring state |
+| `delete_node` | `node_id` | Changed authoring state; refused outside Object or Hierarchy selection mode |
 | `undo` | None | Changed or unchanged history state |
 | `redo` | None | Changed or unchanged history state |
 | `frame_selected` | None | Frames the selected object in Object mode, selected face corners in Face mode, the remembered point in Vertex mode or both endpoints of the remembered edge in Edge mode; no active face, vertex or edge returns `no_selection` |
