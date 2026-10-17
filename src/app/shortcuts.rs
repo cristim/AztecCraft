@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) const SHADED_TEXTURED_NAME: &str = "Shaded + Textured (6)";
+pub(super) const SHADED_TEXTURED_NAME: &str = "Hardware Texturing (6)";
 const USE_ALL_LIGHTS_NAME: &str = "Use All Lights (7)";
 
 /// One reason string for the hotkey status and the disabled menu row.

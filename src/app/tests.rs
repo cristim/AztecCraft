@@ -1496,7 +1496,10 @@ fn num4_and_num5_select_shading_and_num6_num7_only_set_status() {
     frame(&mut editor, &ctx, vec![shifted, released]);
     assert_eq!(editor.shading, ShadingMode::Wireframe);
     for (pressed, name) in [
-        (Key::Num6, "Shaded + Textured"),
+        (
+            Key::Num6,
+            "Hardware Texturing (6) is not implemented in this build",
+        ),
         (Key::Num7, "Use All Lights"),
     ] {
         frame(&mut editor, &ctx, vec![key(pressed)]);
@@ -1547,7 +1550,7 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
     }
     face_text_position(
         &hovered,
-        "Shaded + Textured (6) is not implemented in this build",
+        "Hardware Texturing (6) is not implemented in this build",
     );
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
     assert_eq!(
@@ -1558,6 +1561,32 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
             editor.scene_token,
             editor.history.can_undo()
         )
+    );
+}
+
+#[test]
+fn shading_menu_rows_follow_the_maya_2026_panel_menu_order() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "Shading");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let rows = [
+        "Wireframe (4)",
+        "Smooth Shade All (5)",
+        "Use default material",
+        "Wireframe on Shaded",
+        "Hardware Texturing (6)",
+    ];
+    let ys: Vec<f32> = rows
+        .iter()
+        .map(|label| face_text_position(&output, label).y)
+        .collect();
+    assert!(
+        ys.windows(2).all(|pair| pair[0] < pair[1]),
+        "rows out of order: {ys:?}"
     );
 }
 

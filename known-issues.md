@@ -466,8 +466,8 @@ Wireframe skips the surface fill but picking stays the CPU triangle ray test and
 filter, so a click inside a face still selects it. Face-mode center markers are drawn only for
 centers that filter accepts. The selected-face fill disappears in Wireframe, leaving only the
 orange edges (current behaviour, not changed). Maya's Wireframe picks by edge or marquee.
-Edges are always drawn in Smooth Shade All (Maya's default is off). The 4 and 5 hotkeys and the
-Shading menu contents come from 2025 pages and are provisional for 2026.
+Edges are always drawn in Smooth Shade All (Maya's default is off). The 4 and 5 hotkeys are confirmed by
+the 2026 hotkey page; the Shading menu rows follow the 2026 panel-menu page.
 
 Wireframe Face-mode centre markers cost O(active-shape faces x scene triangles) per frame, uncached.
 Over the 1_000_000 work budget (about 710 faces in a single mesh) the frame hides the centre markers

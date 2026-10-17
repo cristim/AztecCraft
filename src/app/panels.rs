@@ -213,13 +213,13 @@ impl Editor {
                         }
                     }
                     ui.separator();
-                    for label in ["Wireframe on Shaded", "Use Default Material"] {
+                    for label in ["Use default material", "Wireframe on Shaded"] {
                         ui.add_enabled(false, egui::Button::new(label))
                             .on_disabled_hover_text(
                                 "Not implemented: edges are always drawn and materials do not affect display",
                             );
                     }
-                    // Order follows the Panel Toolbar 2026 page (Textured after Wireframe on Shaded); provisional.
+                    // Labels and order follow the Maya 2026 Panel menu: Shading page (GUID-C6188583).
                     ui.add_enabled(false, egui::Button::new("Hardware Texturing (6)"))
                         .on_disabled_hover_text(super::shortcuts::unsupported_shading_reason(
                             super::shortcuts::SHADED_TEXTURED_NAME,
