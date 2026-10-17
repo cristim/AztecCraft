@@ -21,7 +21,8 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
 provenance Native and no token or draft checks. In order:
 
-1. `guard_move_dispatch` first, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
+1. A Delete in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
+   handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
    `SetActiveTool`, `Select`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene` and
    `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
    pointer sequence only on a real tool change that cancelled nothing
@@ -66,7 +67,12 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `native_operation` no longer carries a separate pre-check and
   `native_operation_reports_face_mode_delete_refusal` covers the UI status line. The remote
   pipeline's outer state guards (stale token, busy editing, busy manipulation) still take priority,
-  so a remote `delete(face_mode)` in those states reports the state error. The Move, Rotate and
+  so a remote `delete(face_mode)` in those states reports the state error. Because the refusal is
+  first inside the pipeline, it also runs before `guard_move_dispatch`, the closing and modal
+  checks, and `commit_pending`: native delete in a component mode reports this refusal even in the
+  closing, move, modal, draft and text-focus states, and remote cells without an outer state guard
+  (`read_only_ascii`, `binary_dirty`, `no_install`) report it instead of the read-only or ownership
+  error. The Move, Rotate and
   Scale Face-mode refusal is in the shared target check
   (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells).
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
