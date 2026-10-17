@@ -516,3 +516,72 @@ async fn sdk_hierarchy_mode_is_busy_during_an_active_move() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_delete_node_is_refused_in_component_selection_modes() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let created = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "create_primitive",
+        json!({"scene_token":token,"primitive":"cube"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let node_id = created["node_id"].clone();
+    let id = editor.selected.unwrap();
+    for (mode, selection, noun) in [
+        ("face", SelectionMode::Face, "Face"),
+        ("vertex", SelectionMode::Vertex, "Vertex"),
+        ("edge", SelectionMode::Edge, "Edge"),
+    ] {
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_selection_mode",
+            json!({"scene_token":token,"mode":mode}),
+        )
+        .await;
+        let refused = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "delete_node",
+            json!({"scene_token":token,"node_id":node_id}),
+        )
+        .await;
+        assert_eq!(refused.is_error, Some(true), "{mode}");
+        assert_eq!(
+            refused.structured_content.unwrap()["error"]["message"],
+            format!("{noun} deletion is unsupported; switch to Object or Hierarchy selection"),
+            "{mode}"
+        );
+        assert_eq!(editor.selection_mode, selection);
+        assert!(editor.history.scene().node(id).is_ok());
+    }
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_selection_mode",
+        json!({"scene_token":token,"mode":"object"}),
+    )
+    .await;
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "delete_node",
+        json!({"scene_token":token,"node_id":node_id}),
+    )
+    .await;
+    assert!(editor.history.scene().nodes().is_empty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

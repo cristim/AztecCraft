@@ -44,14 +44,6 @@ impl Editor {
         Ok(())
     }
     pub(super) fn native_operation(&mut self, operation: Operation) {
-        if let Some(noun) = self.selection_mode.component_noun()
-            && matches!(operation, Operation::Delete(_))
-        {
-            self.status =
-                format!("{noun} deletion is unsupported; switch to Object or Hierarchy selection");
-            self.error = true;
-            return;
-        }
         let activated = matches!(
             operation,
             Operation::SetActiveTool(ActiveTool::Rotate | ActiveTool::Scale)
@@ -199,6 +191,13 @@ impl Editor {
         operation: Operation,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(operation, Operation::Delete(_))
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "{noun} deletion is unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
