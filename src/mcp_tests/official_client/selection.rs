@@ -570,6 +570,25 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
         assert!(editor.history.scene().node(id).is_ok());
         assert_eq!(editor.history.can_undo(), can_undo, "{mode}");
         assert_eq!(editor.scene_token.to_string(), token, "{mode}");
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        assert_eq!(inspected["inspection"]["scene_token"], token, "{mode}");
+        assert!(
+            inspected["inspection"]["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["id"] == node_id),
+            "{mode}"
+        );
     }
     call(
         &mut editor,
