@@ -1026,7 +1026,7 @@
   },
   {
     "name": "delete_node",
-    "description": "Delete an object through editor undo history",
+    "description": "Delete an object through editor undo history; refused in Face, Vertex or Edge selection mode",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

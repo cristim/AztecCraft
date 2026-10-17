@@ -25,7 +25,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `create_session_material` | mutating | no | Create a session-only lambert material (not saved; Untitled scenes only, sourced and Maya ASCII scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `assign_session_material` | mutating | no | Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `set_session_material_color` | mutating | yes | Set the linear RGB colour of a session material created in this session; the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
-| `delete_node` | mutating | no | Delete an object through editor undo history |
+| `delete_node` | mutating | no | Delete an object through editor undo history; refused in Face, Vertex or Edge selection mode |
 | `undo` | mutating | no | Undo the last editor authoring operation |
 | `redo` | mutating | no | Redo the last undone authoring operation |
 | `frame_selected` | mutating | no | Frame the selected object using the live camera |

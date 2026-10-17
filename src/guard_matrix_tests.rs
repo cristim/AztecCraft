@@ -1488,10 +1488,10 @@ fn guard_matrix_is_deterministic() {
     }
 }
 
-/// Native UI actions go through `native_operation`, which refuses Face-mode Delete above the
-/// pipeline; the matrix cannot show that because it calls the pipeline directly.
+/// Native UI actions go through `native_operation`, which maps the shared pipeline's Face-mode
+/// Delete refusal to the status line.
 #[test]
-fn native_operation_refuses_face_mode_delete_before_the_pipeline() {
+fn native_operation_reports_face_mode_delete_refusal() {
     let mut editor = cube_editor();
     let id = editor.selected.unwrap();
     editor.selection_mode = SelectionMode::Face;
