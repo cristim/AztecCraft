@@ -159,7 +159,9 @@ impl Editor {
                 }
                 if ui
                     .add_enabled(
-                        authoring && self.selected.is_some() && !self.selection_mode.is_component(),
+                        authoring
+                            && self.single_target().is_ok()
+                            && !self.selection_mode.is_component(),
                         egui::Button::new("Delete"),
                     )
                     .on_disabled_hover_text(self.delete_disabled_hover(read_only_reason, true))
@@ -304,7 +306,7 @@ impl Editor {
                 ui,
                 "Frame selected  F",
                 UiIcon::FrameSelected,
-                self.selected.is_some(),
+                self.single_target().is_ok(),
             )
             .clicked()
             {

@@ -4164,6 +4164,140 @@ fn cylinder_and_cone_names_count_up_and_skip_collisions() {
     }
 }
 
+#[test]
+fn borrowed_selection_readers_preserve_exact_paths_and_operation_baselines() {
+    let mut editor = deep_group_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let leaf = paths.last().unwrap().clone();
+    assert_eq!(leaf.path.len(), 3);
+    assert!(!editor.history.can_undo() && !editor.history.can_redo());
+    let state = |editor: &Editor| {
+        (
+            click_baseline(editor),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.name.clone(),
+            editor.channels.clone(),
+        )
+    };
+    for target in [
+        None,
+        Some(leaf.clone()),
+        Some(paths[0].clone()),
+        Some(leaf),
+        None,
+    ] {
+        remote(
+            &mut editor,
+            Operation::Select {
+                node: target.as_ref().map(|target| target.node),
+                instance_path: target.as_ref().map(|target| target.path.clone()),
+            },
+        )
+        .unwrap();
+        let before_inspection = state(&editor);
+        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        else {
+            panic!("expected inspection")
+        };
+        assert_eq!(state(&editor), before_inspection);
+        assert_eq!(
+            inspection.selected_node,
+            target.as_ref().map(|target| target.node.to_decimal())
+        );
+        assert_eq!(
+            inspection.selected_instance_path,
+            target
+                .as_ref()
+                .map(|target| target
+                    .path
+                    .iter()
+                    .map(|id| id.to_decimal())
+                    .collect::<Vec<_>>())
+                .unwrap_or_default()
+        );
+        if let Some(target) = target {
+            assert_eq!(
+                editor.single_target().unwrap(),
+                (target.node, target.path.as_slice())
+            );
+            let before = state(&editor);
+            assert!(matches!(
+                remote(
+                    &mut editor,
+                    Operation::Select {
+                        node: Some(target.node),
+                        instance_path: Some(target.path[1..].to_vec()),
+                    }
+                ),
+                Err(OperationError::Scene(
+                    azteccraft::native_scene::NativeError::InvalidInstancePath
+                ))
+            ));
+            assert_eq!(state(&editor), before);
+        } else {
+            assert!(matches!(
+                editor.single_target(),
+                Err(OperationError::NoSelection)
+            ));
+        }
+    }
+}
+
+#[test]
+fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
+    let mut editor = deep_group_editor();
+    let leaf = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .pop()
+        .unwrap();
+    editor.selected = None;
+    editor.selected_path = leaf.path.clone();
+    let before = (
+        click_baseline(&editor),
+        editor.history.can_undo(),
+        editor.history.can_redo(),
+        editor.history.undo_label(),
+        editor.history.redo_label(),
+        editor.name.clone(),
+        editor.channels.clone(),
+    );
+    let inspection = editor.inspect(false).unwrap();
+    assert_eq!(inspection.selected_node, None);
+    assert_eq!(
+        inspection.selected_instance_path,
+        leaf.path
+            .iter()
+            .map(|id| id.to_decimal())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        editor.selection_presentation(),
+        (None, leaf.path.as_slice())
+    );
+    assert!(matches!(
+        editor.single_target(),
+        Err(OperationError::NoSelection)
+    ));
+    assert_eq!(
+        (
+            click_baseline(&editor),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.name.clone(),
+            editor.channels.clone()
+        ),
+        before
+    );
+}
+
 /// A group (translate x = 2) holding a child transform that owns one triangle mesh.
 /// Mirrored by `grouped_scene_bytes()` in src/mcp_tests/official_client/selection.rs; this module builds without the mcp feature, so the builder cannot be shared.
 fn group_editor() -> Editor {

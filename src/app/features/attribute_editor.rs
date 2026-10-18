@@ -31,7 +31,8 @@ impl Editor {
     /// Whether `tab` names the selected transform or one of its direct shapes or their materials.
     fn attribute_editor_tab_resolves(&self, tab: AttributeEditorTab) -> bool {
         let Some(node) = self
-            .selected
+            .selection_presentation()
+            .0
             .and_then(|id| self.history.scene().node(id).ok())
         else {
             return false;
@@ -53,7 +54,8 @@ impl Editor {
     /// `None` without a selected node.
     pub(in crate::app) fn effective_attribute_editor_tab(&self) -> Option<AttributeEditorTab> {
         let selected = self
-            .selected
+            .selection_presentation()
+            .0
             .filter(|id| self.history.scene().node(*id).is_ok())?;
         Some(
             self.attribute_editor_tab
@@ -97,7 +99,8 @@ impl Editor {
         }
         if let (AttributeEditorTab::Shape(shape) | AttributeEditorTab::Material(shape), Some(node)) = (
             tab,
-            self.selected
+            self.selection_presentation()
+                .0
                 .and_then(|id| self.history.scene().node(id).ok()),
         ) && self
             .direct_shape_rank(node.transform_id(), shape)
@@ -177,7 +180,11 @@ impl Editor {
     /// does not state what the Channel Box shows). No row has an edit control.
     fn transform_attributes_section(&self, ui: &mut egui::Ui) {
         let scene = self.history.scene();
-        let Some(node) = self.selected.and_then(|id| scene.node(id).ok()) else {
+        let Some(node) = self
+            .selection_presentation()
+            .0
+            .and_then(|id| scene.node(id).ok())
+        else {
             return;
         };
         ui.separator();
@@ -236,7 +243,11 @@ impl Editor {
 
     fn attribute_editor_tabs(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
         let scene = self.history.scene();
-        let Some(node) = self.selected.and_then(|id| scene.node(id).ok()) else {
+        let Some(node) = self
+            .selection_presentation()
+            .0
+            .and_then(|id| scene.node(id).ok())
+        else {
             return;
         };
         let shapes: Vec<_> = scene

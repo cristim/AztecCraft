@@ -340,7 +340,7 @@ impl Editor {
                 };
                 self.apply_operation(Operation::SetSelectionMode(mode))?;
             }
-            if delete_intent && let Some(id) = self.selected {
+            if delete_intent && let Some((id, _)) = self.single_target().ok() {
                 self.native_operation(Operation::Delete(id));
             }
             if let Some(refusal) = selection_refusal {
@@ -388,34 +388,19 @@ impl Editor {
                     }
                     SelectionMode::Face => {
                         let target = input
-                            .pick_face_center(
-                                &self.camera,
-                                &view,
-                                self.selected
-                                    .map(|owner| (owner, self.selected_path.as_slice())),
-                            )
+                            .pick_face_center(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::File(e.to_string()))?;
                         self.apply_operation(Operation::SelectFace { target })?;
                     }
                     SelectionMode::Vertex => {
                         let target = input
-                            .pick_vertex(
-                                &self.camera,
-                                &view,
-                                self.selected
-                                    .map(|owner| (owner, self.selected_path.as_slice())),
-                            )
+                            .pick_vertex(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::File(e.to_string()))?;
                         self.apply_operation(Operation::SelectVertex { target })?;
                     }
                     SelectionMode::Edge => {
                         let target = input
-                            .pick_edge(
-                                &self.camera,
-                                &view,
-                                self.selected
-                                    .map(|owner| (owner, self.selected_path.as_slice())),
-                            )
+                            .pick_edge(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::File(e.to_string()))?;
                         self.apply_operation(Operation::SelectEdge { target })?;
                     }
@@ -427,26 +412,19 @@ impl Editor {
                 &view,
                 match self.selection_mode {
                     SelectionMode::Object | SelectionMode::Hierarchy => {
-                        crate::viewport_renderer::SelectionFeedback::Object(
-                            self.selected.map(|_| self.selected_path.as_slice()),
-                        )
+                        let (selected, path) = self.selection_presentation();
+                        crate::viewport_renderer::SelectionFeedback::Object(selected.map(|_| path))
                     }
                     SelectionMode::Vertex => crate::viewport_renderer::SelectionFeedback::Vertex {
-                        active: self
-                            .selected
-                            .map(|owner| (owner, self.selected_path.as_slice())),
+                        active: self.single_target().ok(),
                         selected: self.remembered_vertex.as_ref(),
                     },
                     SelectionMode::Edge => crate::viewport_renderer::SelectionFeedback::Edge {
-                        active: self
-                            .selected
-                            .map(|owner| (owner, self.selected_path.as_slice())),
+                        active: self.single_target().ok(),
                         selected: self.remembered_edge.as_ref(),
                     },
                     SelectionMode::Face => crate::viewport_renderer::SelectionFeedback::Face {
-                        active: self
-                            .selected
-                            .map(|owner| (owner, self.selected_path.as_slice())),
+                        active: self.single_target().ok(),
                         selected: self.remembered_face.as_ref(),
                     },
                 },

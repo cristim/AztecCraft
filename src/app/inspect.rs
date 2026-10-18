@@ -145,6 +145,7 @@ impl Editor {
             .then(|| ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024));
         let gpu_healthy = self.renderer.is_some()
             && viewport_error != Some(crate::viewport_renderer::ViewportError::BackendFailed);
+        let (selected, selected_path) = self.selection_presentation();
         Ok(SceneInspection {
             scene_token: self.scene_token.to_string(),
             manipulation: self.inspect_manipulation()?,
@@ -273,12 +274,8 @@ impl Editor {
             appearance_incomplete: self.history.scene().appearance_incomplete(),
             source_appearance: self.history.scene().appearance_readiness(),
             pending_action: self.files.pending_inspection(),
-            selected_node: self.selected.map(NodeId::to_decimal),
-            selected_instance_path: self
-                .selected_path
-                .iter()
-                .map(|id| id.to_decimal())
-                .collect(),
+            selected_node: selected.map(NodeId::to_decimal),
+            selected_instance_path: selected_path.iter().map(|id| id.to_decimal()).collect(),
             selection_mode: self.selection_mode,
             remembered_face: self
                 .remembered_face

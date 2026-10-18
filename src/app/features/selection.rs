@@ -1,6 +1,15 @@
 use crate::app::*;
 
 impl Editor {
+    pub(in crate::app) fn selection_presentation(&self) -> (Option<NodeId>, &[NativeId]) {
+        (self.selected, self.selected_path.as_slice())
+    }
+
+    pub(in crate::app) fn single_target(&self) -> Result<(NodeId, &[NativeId]), OperationError> {
+        let (selected, path) = self.selection_presentation();
+        Ok((selected.ok_or(OperationError::NoSelection)?, path))
+    }
+
     #[cfg(test)]
     pub(in crate::app) fn select(&mut self, selected: Option<NodeId>) {
         self.native_operation(Operation::Select {
