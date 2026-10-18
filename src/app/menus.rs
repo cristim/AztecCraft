@@ -13,6 +13,35 @@ pub(super) struct FileAction {
     pub(super) run: fn(&mut Editor),
 }
 
+/// Maya 2026 always shows these seven menus, in this order (Menus and menu sets page).
+pub(super) const ALWAYS_ON_MENUS: [&str; 7] = [
+    "File", "Edit", "Create", "Select", "Modify", "Display", "Windows",
+];
+
+const CONTENT_MENUS: usize = 4;
+
+/// Maya lists these Modeling topics after the default menus; their order is PROVISIONAL.
+pub(super) const MODELING_SET_MENUS: [&str; 9] = [
+    "Mesh",
+    "Edit Mesh",
+    "Mesh Tools",
+    "Mesh Display",
+    "Curves",
+    "Surfaces",
+    "Deform",
+    "UV",
+    "Generate",
+];
+
+/// Help follows the Modeling set; its Maya position is UNCONFIRMED (the pages do not place it).
+pub(super) const HELP_MENU: &str = "Help";
+
+fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
+    ui.menu_button(label, |ui| {
+        unsupported(ui, "Not implemented yet");
+    });
+}
+
 /// "Undo Rotate" or "Redo Scale"; the bare verb when there is no entry to name.
 fn history_hover(verb: &str, label: Option<&str>) -> String {
     match label {
@@ -66,17 +95,13 @@ impl Editor {
         ]
     }
 
-    pub(super) fn menus(
+    fn menu_bar(
         &mut self,
         ui: &mut egui::Ui,
         selection_intent: &mut Option<SelectionModeIntent>,
         delete_intent: &mut bool,
+        read_only_reason: Option<&str>,
     ) {
-        let read_only_reason = self
-            .history
-            .scene()
-            .authoring_read_only_reason()
-            .map(|reason| reason.to_string());
         let authoring = read_only_reason.is_none();
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
@@ -95,7 +120,7 @@ impl Editor {
                     self.files.save_as_available(),
                     egui::Button::new("Save As..."),
                 );
-                if let Some(reason) = read_only_reason.as_deref() {
+                if let Some(reason) = read_only_reason {
                     save_as = save_as.on_disabled_hover_text(reason);
                 }
                 if save_as.clicked() {
@@ -137,9 +162,7 @@ impl Editor {
                         authoring && self.selected.is_some() && !self.selection_mode.is_component(),
                         egui::Button::new("Delete"),
                     )
-                    .on_disabled_hover_text(
-                        self.delete_disabled_hover(read_only_reason.as_deref(), true),
-                    )
+                    .on_disabled_hover_text(self.delete_disabled_hover(read_only_reason, true))
                     .clicked()
                 {
                     *delete_intent = true;
@@ -217,16 +240,43 @@ impl Editor {
                     unsupported(ui, "UVs");
                 });
             });
-            for label in ["Modify", "Mesh", "UV", "Windows", "Render"] {
-                ui.menu_button(label, |ui| {
-                    unsupported(ui, "Not implemented yet");
-                });
+            for label in &ALWAYS_ON_MENUS[CONTENT_MENUS..] {
+                placeholder_menu(ui, label);
             }
-            ui.menu_button("Help", |ui| {
+            for label in MODELING_SET_MENUS {
+                placeholder_menu(ui, label);
+            }
+            ui.menu_button(HELP_MENU, |ui| {
                 ui.label("Local editor prototype");
                 ui.label("Maya parity has not been verified.");
             });
         });
+    }
+
+    pub(super) fn menus(
+        &mut self,
+        ui: &mut egui::Ui,
+        selection_intent: &mut Option<SelectionModeIntent>,
+        delete_intent: &mut bool,
+    ) {
+        let read_only_reason = self
+            .history
+            .scene()
+            .authoring_read_only_reason()
+            .map(|reason| reason.to_string());
+        let authoring = read_only_reason.is_none();
+        // Seventeen menus overflow the 960 point minimum window at enlarged text or padding;
+        // scroll instead of wrapping so the strips below keep their rows.
+        egui::ScrollArea::horizontal()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                self.menu_bar(
+                    ui,
+                    selection_intent,
+                    delete_intent,
+                    read_only_reason.as_deref(),
+                );
+            });
         ui.separator();
         self.status_line(ui, selection_intent);
         ui.separator();

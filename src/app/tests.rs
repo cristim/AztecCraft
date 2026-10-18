@@ -3548,6 +3548,204 @@ fn channel_box_visibility_row_is_read_only_and_never_defaults_to_on() {
     }
 }
 
+mod menu_bar_wire {
+    use super::toolbox_wire::{Control, click, controls, setup};
+    use super::*;
+    use crate::app::menus::{ALWAYS_ON_MENUS, HELP_MENU, MODELING_SET_MENUS};
+
+    fn expected_bar() -> Vec<&'static str> {
+        ALWAYS_ON_MENUS
+            .iter()
+            .chain(MODELING_SET_MENUS.iter())
+            .copied()
+            .chain([HELP_MENU])
+            .collect()
+    }
+
+    /// The menu-bar buttons: the first row of controls, left to right.
+    fn bar(output: &egui::FullOutput) -> Vec<Control> {
+        let mut found: Vec<Control> = controls(output)
+            .into_iter()
+            .filter(|c| c.rect.top() < 30.0)
+            .collect();
+        found.sort_by(|a, b| a.rect.left().total_cmp(&b.rect.left()));
+        found
+    }
+
+    #[test]
+    fn menu_bar_lists_the_maya_defaults_then_the_modeling_set_then_help() {
+        let (mut editor, context) = setup();
+        let output = frame(&mut editor, &context, vec![]);
+        let labels: Vec<String> = bar(&output).into_iter().map(|c| c.label).collect();
+        assert_eq!(labels, expected_bar());
+        assert_eq!(
+            expected_bar(),
+            [
+                "File",
+                "Edit",
+                "Create",
+                "Select",
+                "Modify",
+                "Display",
+                "Windows",
+                "Mesh",
+                "Edit Mesh",
+                "Mesh Tools",
+                "Mesh Display",
+                "Curves",
+                "Surfaces",
+                "Deform",
+                "UV",
+                "Generate",
+                "Help",
+            ]
+        );
+        assert!(!labels.iter().any(|label| label == "Render"));
+    }
+
+    #[test]
+    fn overflowing_menu_bar_scrolls_both_ways_and_keeps_menus_usable_at_minimum_width() {
+        let (mut editor, context) = setup();
+        let size = egui::vec2(960.0, 640.0);
+        context.all_styles_mut(|style| {
+            style.override_font_id = Some(egui::FontId::proportional(24.0));
+        });
+        let mut render = |events| frame_with(&mut editor, &context, size, 1.0, events);
+        render(vec![]);
+        let output = render(vec![]);
+        let found = bar(&output);
+        let first = found.iter().find(|c| c.label == "File").unwrap();
+        let last = found.iter().find(|c| c.label == HELP_MENU).unwrap();
+        assert!(first.rect.left() >= 0.0);
+        assert!(last.rect.right() > size.x, "must exercise actual overflow");
+        assert!(found.iter().all(|c| c.rect.top() == found[0].rect.top()));
+        let row_bottom = found.iter().map(|c| c.rect.bottom()).fold(0.0, f32::max);
+        let status = controls(&output)
+            .into_iter()
+            .find(|c| c.label == "New scene")
+            .expect("Status Line New scene button");
+        assert!(status.rect.top() > row_bottom, "menu overlaps Status Line");
+        let wheel_at = egui::pos2(size.x / 2.0, first.rect.center().y);
+        let scroll = |delta| {
+            vec![
+                egui::Event::PointerMoved(wheel_at),
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::Vec2::ZERO,
+                    phase: egui::TouchPhase::Start,
+                    modifiers: egui::Modifiers::NONE,
+                },
+                egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(delta, 0.0),
+                    phase: egui::TouchPhase::Move,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ]
+        };
+        render(scroll(-2000.0));
+        let output = render(vec![]);
+        let scrolled = bar(&output);
+        let help = scrolled.iter().find(|c| c.label == HELP_MENU).unwrap();
+        assert!(help.rect.right() <= size.x);
+        assert!(
+            scrolled
+                .iter()
+                .any(|c| c.label == "File" && c.rect.left() < 0.0)
+        );
+        assert!(scrolled.iter().all(|c| c.rect.top() == first.rect.top()));
+        let click_events = |at| {
+            [true, false].map(|pressed| egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            })
+        };
+        for (label, contents) in [
+            ("Generate", "Not implemented yet"),
+            (HELP_MENU, "Local editor prototype"),
+        ] {
+            let menu = scrolled.iter().find(|c| c.label == label).unwrap();
+            assert!(menu.rect.left() >= 0.0 && menu.rect.right() <= size.x);
+            let at = menu.rect.center();
+            render(vec![egui::Event::PointerMoved(at)]);
+            for event in click_events(at) {
+                render(vec![event]);
+            }
+            let opened = render(vec![]);
+            assert!(opened.shapes.iter().any(|shape| {
+                matches!(&shape.shape, egui::Shape::Text(text)
+                    if text.galley.job.text == contents
+                        && shape.clip_rect.intersects(text.galley.rect.translate(text.pos.to_vec2())))
+            }), "{label} popup must show {contents}");
+            egui::Popup::close_all(&context);
+            render(vec![]);
+        }
+        render(scroll(2000.0));
+        let output = render(vec![]);
+        let returned = bar(&output);
+        for label in ["File", "Create"] {
+            let menu = returned.iter().find(|c| c.label == label).unwrap();
+            assert!(menu.rect.left() >= 0.0 && menu.rect.right() <= size.x);
+        }
+        let at = returned
+            .iter()
+            .find(|c| c.label == "Create")
+            .unwrap()
+            .rect
+            .center();
+        render(vec![egui::Event::PointerMoved(at)]);
+        for event in click_events(at) {
+            render(vec![event]);
+        }
+        let opened = render(vec![]);
+        let cube = controls(&opened)
+            .into_iter()
+            .find(|c| c.label == "Polygon cube")
+            .unwrap();
+        assert!(!cube.disabled);
+        render(vec![egui::Event::PointerMoved(cube.rect.center())]);
+        for event in click_events(cube.rect.center()) {
+            render(vec![event]);
+        }
+        assert_eq!(editor.history.scene().nodes().len(), 2);
+        let created = editor.selected.expect("Create menu selects the cube");
+        assert_eq!(
+            editor.history.scene().node(created).unwrap().name(),
+            "pCube2"
+        );
+    }
+
+    #[test]
+    fn placeholder_menus_open_to_one_visibly_unsupported_row() {
+        let placeholders: Vec<&str> = ALWAYS_ON_MENUS[4..]
+            .iter()
+            .chain(MODELING_SET_MENUS.iter())
+            .copied()
+            .collect();
+        assert_eq!(placeholders.len(), 12);
+        for label in placeholders {
+            let (mut editor, context) = setup();
+            let output = frame(&mut editor, &context, vec![]);
+            let at = bar(&output)
+                .into_iter()
+                .find(|c| c.label == label)
+                .unwrap_or_else(|| panic!("menu {label}"))
+                .rect
+                .center();
+            click(&mut editor, &context, at);
+            let opened = frame(&mut editor, &context, vec![]);
+            let rows: Vec<Control> = controls(&opened)
+                .into_iter()
+                .filter(|c| c.rect.top() > 30.0 && c.label == "Not implemented yet")
+                .collect();
+            assert_eq!(rows.len(), 1, "{label}");
+            assert!(rows[0].disabled, "{label} row must be disabled");
+        }
+    }
+}
+
 mod toolbox_wire {
     use super::*;
     use eframe::egui::accesskit::Role;
@@ -3562,14 +3760,14 @@ mod toolbox_wire {
         "Last Used",
     ];
 
-    struct Control {
-        label: String,
-        rect: egui::Rect,
-        disabled: bool,
-        selected: Option<bool>,
+    pub(super) struct Control {
+        pub(super) label: String,
+        pub(super) rect: egui::Rect,
+        pub(super) disabled: bool,
+        pub(super) selected: Option<bool>,
     }
 
-    fn controls(output: &egui::FullOutput) -> Vec<Control> {
+    pub(super) fn controls(output: &egui::FullOutput) -> Vec<Control> {
         let update = output
             .platform_output
             .accesskit_update
@@ -3596,7 +3794,7 @@ mod toolbox_wire {
             .collect()
     }
 
-    fn setup() -> (Editor, egui::Context) {
+    pub(super) fn setup() -> (Editor, egui::Context) {
         let context = egui::Context::default();
         context.enable_accesskit();
         let mut editor = Editor {
@@ -3616,7 +3814,7 @@ mod toolbox_wire {
         found
     }
 
-    fn click(editor: &mut Editor, context: &egui::Context, at: egui::Pos2) {
+    pub(super) fn click(editor: &mut Editor, context: &egui::Context, at: egui::Pos2) {
         frame(editor, context, vec![egui::Event::PointerMoved(at)]);
         for pressed in [true, false] {
             frame(

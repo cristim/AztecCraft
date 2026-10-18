@@ -20,26 +20,27 @@ Precedence: [inventory-seed.md](inventory-seed.md) and [parity.md](parity.md) ow
 
 ## 1. Main menus and menu sets
 
-Menu bar draws File, Edit, Create, Select, Modify, Mesh, UV, Windows, Render and Help. The Modeling set label at the shelf is static text.
+Menu bar draws File, Edit, Create, Select, Modify, Display, Windows, then the nine Modeling menu set menus (Mesh, Edit Mesh, Mesh Tools, Mesh Display, Curves, Surfaces, Deform, UV, Generate), then Help. [menus] gives the first seven in that order and says the Modeling set is added after them; [modeling-menus] lists the nine topics but states no ordering rule, so their order is PROVISIONAL. Help is not among the seven and its position is UNCONFIRMED, so it stays last. The bar is `src/app/menus.rs "pub(super) const ALWAYS_ON_MENUS"` plus `src/app/menus.rs "pub(super) const MODELING_SET_MENUS"` plus `src/app/menus.rs "pub(super) const HELP_MENU"`. The Modeling set label at the shelf is static text; only the Modeling set is active, so its menus are always drawn.
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
 | File menu | [menus] | Supported | `src/app/menus.rs "ui.menu_button(\"File\""` (New scene, Open, Save, Save As, Close); Export at `src/app/menus.rs "Export..."` is Visible-unsupported (source-verified); Save: current main also disables these for read-only curve scenes (after ef86b64) | `new_scene`, `open_scene`, `save_scene`, `save_scene_as`, `resolve_file_action`, `request_close` | P1 | S6 Menu content (#66) |
 | Edit menu | [menus] | Supported | `src/app/menus.rs "ui.menu_button(\"Edit\""` (Undo, Redo, Delete only) | `undo`, `redo`, `delete_node` | P1 | S6 Menu content (#66) |
-| Create menu | [menus] | Supported | `src/app/menus.rs "Create"` (Polygon cube, plane and provisional sphere, cylinder and cone; other primitives at `src/app/menus.rs "Other primitives"` are Visible-unsupported, source-verified; current main also disables these for read-only curve scenes (after ef86b64)) | `create_primitive` | P1 | S6 Menu content (#66) |
+| Create menu | [menus] | Supported | `src/app/menus.rs "ui.menu_button(\"Create\""` (Polygon cube, plane and provisional sphere, cylinder and cone; other primitives at `src/app/menus.rs "Other primitives"` are Visible-unsupported, source-verified; current main also disables these for read-only curve scenes (after ef86b64)) | `create_primitive` | P1 | S6 Menu content (#66) |
 | Select menu | [menus] | Supported | src/app/menus.rs `menu_button("Select"` (Object/Component F8, Vertex F9, Edge F10, Face F11) | `set_selection_mode`, `select_node`, `select_face`, `select_vertex`, `select_edge` | P1 | S3 Component modes (#29) |
 | Select > Components: Vertex, Edge, UV | [select] | Partial (Vertex F9, Edge F10 and Face F11 entries; UV visible-unsupported) | src/app/menus.rs "Vertex   F9", "Edge   F10", "Face   F11", "UVs" | `set_selection_mode` `vertex`/`edge`, `select_vertex` and `select_edge` | P1 | S3 Component modes (#29) |
 | Shift/Ctrl click add/toggle components | [select] | Missing (modified click refused; the refusal message is returned as an error) | src/viewport_ui.rs ModifiedClick refusal (`panels.rs` dispatches via `unsupported_selection()`) in Vertex, Edge and Face modes; selection unchanged | none (`select_vertex`/`select_edge` select one component) | P1 | S3 Component modes (#29) |
 | Modify menu | [menus] | Visible-unsupported | `src/app/menus.rs "Modify"` (disabled placeholder entry; source-verified) | none | P1 | S6 Menu content (#66) |
-| Display menu | [menus] | Missing | absent from the menu label list at `src/app/menus.rs "\"UV\", \"Windows\", \"Render\""` | none | P2 | S6 Menu content (#66) |
-| Display menu items (Heads-up display, UI Elements and others) | source not yet researched | Missing | absent; no Display menu is drawn | none | P2 | S6 Menu content (#66) |
-| Windows menu | [menus] | Visible-unsupported | `src/app/menus.rs "Windows"` (disabled placeholder entry; source-verified) | none | P2 | S6 Menu content (#66) |
+| Display menu | [menus] | Visible-unsupported | `src/app/menus.rs "fn placeholder_menu"` draws it as a disabled placeholder (one disabled "Not implemented yet" row; source-verified) between Modify and Windows | none | P2 | S6 Menu content (#66) |
+| Display menu items (Heads-up display, UI Elements and others) | source not yet researched | Missing | absent; the Display placeholder holds no items | none | P2 | S6 Menu content (#66) |
+| Windows menu | [menus] | Visible-unsupported | `src/app/menus.rs "fn placeholder_menu"` (disabled placeholder row; source-verified) | none | P2 | S6 Menu content (#66) |
 | Modeling menu set (default, UNCONFIRMED as default) | [menus] UNCONFIRMED | Partial | `src/app/features/status_line.rs:169 "ComboBox::from_id_salt(\"menu_set\")"` selector with Modeling active; see the Status Line 'Menu set drop-down' row | none | P2 | S1 Status Line strip (#59) |
 | Rigging menu set | [menus] | Missing | no set switching; the Status Line selector disables the other sets (`src/app/features/status_line.rs "for set in MENU_SETS"`) | none | P3 | S6 Menu content (#66) |
 | Animation menu set | [menus] | Missing | no set switching; the Status Line selector disables the other sets (`src/app/features/status_line.rs "for set in MENU_SETS"`) | none | P3 | S6 Menu content (#66) |
 | FX menu set (page also says Dynamics) | [menus] | Missing | no set switching; the Status Line selector disables the other sets (`src/app/features/status_line.rs "for set in MENU_SETS"`) | none | P3 | S6 Menu content (#66) |
-| Rendering menu set | [menus] | Missing | `src/app/menus.rs "\"UV\", \"Windows\", \"Render\""` has a disabled Render placeholder menu, not a set | none | P3 | S6 Menu content (#66) |
-| Per-set menu lists (Mesh, UV and similar) | [menus] UNCONFIRMED | Visible-unsupported | `src/app/menus.rs "Mesh"` (Mesh, UV, Render placeholders; contents UNCONFIRMED in the report; source-verified) | none | P2 | S6 Menu content (#66) |
+| Rendering menu set | [menus] | Missing | Rendering is a menu set, not a menu; the Render placeholder menu was removed and the Status Line selector disables the set (`src/app/features/status_line.rs "for set in MENU_SETS"`) | none | P3 | S6 Menu content (#66) |
+| Per-set menu lists: the nine Modeling set menus Mesh, Edit Mesh, Mesh Tools, Mesh Display, Curves, Surfaces, Deform, UV, Generate | [modeling-menus]; order PROVISIONAL | Visible-unsupported | `src/app/menus.rs "pub(super) const MODELING_SET_MENUS"` drawn by `src/app/menus.rs "fn placeholder_menu"`: each opens to one disabled "Not implemented yet" row, no invented items; menu contents UNCONFIRMED; source-verified | none | P2 | S6 Menu content (#66) |
+| Help menu position | [menus] lists no Help menu; position UNCONFIRMED | Supported (content is prototype text only) | `src/app/menus.rs "pub(super) const HELP_MENU"` is drawn last, after the Modeling set menus | none | P3 | S6 Menu content (#66) |
 | Menu set switching by F2 to F6 | [menus]; [hotkeys-2025] FALLBACK 2025 lists F2, F3, F4, F6 only | Missing | no handler in Editor::shortcuts (`src/app/shortcuts.rs "fn shortcuts"`); deferred | none | P3 | S5 Hotkeys (#32) |
 | Custom sets through Menu Set Editor | [menuset-editor] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Menu bar toggle Ctrl+M | [hotkeys-2025] FALLBACK 2025 | Missing | absent | none | P3 | S5 Hotkeys (#32) |
@@ -68,7 +69,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Render buttons: Render View, render, IPR, render settings | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Hypershade button | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Input box (Absolute, Relative, Rename, Select by name) | [statusline] | Missing | absent; the Channel Box has per-field edits instead | `edit_node`, `rename_node` | P2 | S1 Status Line strip (#59) |
-| Workspace selector | [overview] | Missing | absent from the window; no entry in the menu bar (`src/app/menus.rs "\"Modify\", \"Mesh\""`) or the shelf (`src/app/menus.rs "UiIcon::PolyCube"`) | none | P2 | S14 Docking and workspaces (#67) |
+| Workspace selector | [overview] | Missing | absent from the window; no entry in the menu bar (`src/app/menus.rs "pub(super) const ALWAYS_ON_MENUS"`) or the shelf (`src/app/menus.rs "UiIcon::PolyCube"`) | none | P2 | S14 Docking and workspaces (#67) |
 | Sidebar toggle: Modeling Toolkit | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:55 "Modeling Toolkit: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
 | Sidebar toggle: HumanIK | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:61 "HumanIK: not implemented yet"` | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Attribute Editor | [statusline] | Supported | `src/app/features/status_line.rs:67 "Show or hide the Attribute Editor"`; shows the Attribute Editor and hides the Channel Box; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
@@ -338,6 +339,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 
 [overview]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-F4FCE554-1FA5-447A-8835-63EB43D2690B.htm
 [menus]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-D90A2BDB-FD05-4528-8A95-C33A02D15129.htm
+[modeling-menus]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm
 [menuset-editor]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Customizing/files/GUID-C14313A4-D814-4C2A-987E-F54B46FC7707.htm
 [statusline]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-86E5CEDA-4100-40AE-8F95-346206CF8456.htm
 [shelf]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-4A21F741-C9AC-4AE5-897E-B6F8C68ADF90.htm

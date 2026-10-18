@@ -291,7 +291,7 @@ fn every_strip_control_has_its_label_and_disabled_state() {
 
 /// Tabs until the menu set combo has keyboard focus, failing if a disabled button takes it.
 fn tab_to_combo(editor: &mut Editor, context: &egui::Context) {
-    for _ in 0..40 {
+    for _ in 0..60 {
         let output = frame_with(editor, context, SIZE, 1.0, vec![key(Key::Tab)]);
         let focus = output
             .platform_output
