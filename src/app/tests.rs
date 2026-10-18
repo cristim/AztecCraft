@@ -291,7 +291,7 @@ fn material_draft_old_target_shared_history_and_escape_use_authoritative_state()
     editor.material_draft.as_mut().unwrap().intent = true;
     let other = editor.history.scene().nodes()[1].id();
     editor.select(Some(other));
-    assert_eq!(editor.selected, Some(other));
+    assert_eq!(editor.selection_presentation().0, Some(other));
     let value = editor.history.scene().material_for_shape(shape).unwrap();
     assert_eq!(value.diffuse.to_bits(), 1.2345678901234567f64.to_bits());
     assert_eq!(value.shared_users, 2);
@@ -541,7 +541,7 @@ fn selected_face(editor: &Editor, face_index: usize) -> FaceTarget {
     let instance = view
         .instances()
         .iter()
-        .find(|instance| Some(instance.transform()) == editor.selected)
+        .find(|instance| Some(instance.transform()) == editor.selection_presentation().0)
         .unwrap();
     FaceTarget {
         transform: instance.transform(),
@@ -555,7 +555,7 @@ fn selected_face(editor: &Editor, face_index: usize) -> FaceTarget {
 fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let cap = selected_face(&editor, 0);
     remote(
         &mut editor,
@@ -623,7 +623,7 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
         remote(&mut editor, Operation::Delete(id)),
         Err(OperationError::InvalidInput(_))
     ));
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selection_presentation().0, Some(id));
     assert_eq!(editor.remembered_face.as_ref(), Some(&side));
     remote(
         &mut editor,
@@ -631,8 +631,8 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     )
     .unwrap();
     remote(&mut editor, Operation::Delete(id)).unwrap();
-    assert_eq!(editor.selected, None);
-    assert!(editor.selected_path.is_empty());
+    assert_eq!(editor.selection_presentation().0, None);
+    assert!(editor.selection_presentation().1.is_empty());
     assert_eq!(editor.remembered_face, None);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     remote(&mut editor, Operation::Undo).unwrap();
@@ -664,7 +664,7 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
                 .camera
                 .pick_face_center(
                     &view,
-                    Some((instance.transform(), &editor.selected_path)),
+                    Some((instance.transform(), editor.selection_presentation().1)),
                     glam::Vec2::new(pointer.x, pointer.y),
                     [800, 600],
                     1.0,
@@ -735,7 +735,7 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
 fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let target = selected_face(&editor, 4);
     remote(
         &mut editor,
@@ -770,8 +770,11 @@ fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
     ] {
         remote(&mut editor, Operation::SetSelectionMode(mode)).unwrap();
         assert_eq!(editor.remembered_face.as_ref(), Some(&target));
-        assert_eq!(editor.selected, Some(id));
-        assert_eq!(editor.selected_path, target.path[..target.path.len() - 1]);
+        assert_eq!(editor.selection_presentation().0, Some(id));
+        assert_eq!(
+            editor.selection_presentation().1,
+            &target.path[..target.path.len() - 1]
+        );
     }
     remote(
         &mut editor,
@@ -783,7 +786,7 @@ fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
     .unwrap();
     assert_eq!(editor.remembered_face.as_ref(), Some(&target));
     remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selection_presentation().0, Some(id));
     assert_eq!(editor.remembered_face, None);
     assert_eq!(editor.history.scene(), &scene);
     assert!(editor.history.can_redo());
@@ -798,7 +801,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
     editor.create(Primitive::Cube);
     let target = selected_face(&editor, 5);
     editor.create(Primitive::Plane);
-    let other = editor.selected.unwrap();
+    let other = editor.single_target().unwrap().0;
     let second_shape = selected_face(&editor, 0);
     remote(
         &mut editor,
@@ -821,8 +824,11 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         },
     )
     .unwrap();
-    assert_eq!(editor.selected, Some(target.transform));
-    assert_eq!(editor.selected_path, target.path[..target.path.len() - 1]);
+    assert_eq!(editor.selection_presentation().0, Some(target.transform));
+    assert_eq!(
+        editor.selection_presentation().1,
+        &target.path[..target.path.len() - 1]
+    );
     assert_eq!(editor.remembered_face.as_ref(), Some(&target));
     remote(
         &mut editor,
@@ -831,16 +837,16 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         },
     )
     .unwrap();
-    assert_eq!(editor.selected, Some(other));
+    assert_eq!(editor.selection_presentation().0, Some(other));
     assert_eq!(editor.remembered_face.as_ref(), Some(&second_shape));
     assert_eq!(
-        editor.selected_path,
-        second_shape.path[..second_shape.path.len() - 1]
+        editor.selection_presentation().1,
+        &second_shape.path[..second_shape.path.len() - 1]
     );
     let baseline = (
         editor.history.scene().clone(),
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
         editor.remembered_face.clone(),
         editor.camera.clone(),
@@ -863,8 +869,8 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
     assert_eq!(
         (
             editor.history.scene().clone(),
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
             editor.remembered_face.clone(),
             editor.camera.clone(),
@@ -901,7 +907,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
     )
     .unwrap();
     assert_eq!(editor.remembered_face, None);
-    assert_eq!(editor.selected, None);
+    assert_eq!(editor.selection_presentation().0, None);
 }
 
 #[test]
@@ -936,8 +942,8 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
     .unwrap();
     let scene = editor.history.scene().clone();
     let before = (
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
         editor.remembered_face.clone(),
         editor.name.clone(),
@@ -983,8 +989,8 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(
             (
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selection_presentation().0,
+                editor.selection_presentation().1.to_vec(),
                 editor.selection_mode,
                 editor.remembered_face.clone(),
                 editor.name.clone(),
@@ -1001,8 +1007,8 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
     )
     .unwrap();
     let before = (
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
         editor.remembered_face.clone(),
         editor.name.clone(),
@@ -1014,8 +1020,8 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(
         (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
             editor.remembered_face.clone(),
             editor.name.clone(),
@@ -1223,7 +1229,7 @@ fn ascii_outliner_selection_and_frame_use_actual_curve_owner_without_authoring()
         output.textures_delta.clear();
     }
     assert_eq!(
-        editor.selected,
+        editor.selection_presentation().0,
         Some(editor.history.scene().nodes()[0].id())
     );
     editor
@@ -1247,8 +1253,8 @@ fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() 
         editor.name = "pending human draft".into();
         context.memory_mut(|memory| memory.request_focus(name_edit_id()));
         let scene = editor.history.scene().clone();
-        let selected = editor.selected;
-        let path = editor.selected_path.clone();
+        let selected = editor.selection_presentation().0;
+        let path = editor.selection_presentation().1.to_vec();
         let token = editor.scene_token;
         let mut output = None;
         for _ in 0..2 {
@@ -1288,8 +1294,8 @@ fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() 
                 .any(|(text, _)| text.contains("Evaluation unavailable"))
         );
         assert_eq!(editor.history.scene(), &scene);
-        assert_eq!(editor.selected, selected);
-        assert_eq!(editor.selected_path, path);
+        assert_eq!(editor.selection_presentation().0, selected);
+        assert_eq!(editor.selection_presentation().1, path);
         assert_eq!(editor.scene_token, token);
         assert_eq!(editor.name, "pending human draft");
         assert!(context.memory(|memory| memory.has_focus(name_edit_id())));
@@ -1399,7 +1405,7 @@ fn grid_setter_is_idempotent_and_preserves_scene_history_and_editor_baseline() {
     let mut editor = Editor::default();
     assert!(editor.grid_visible);
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     remote(
         &mut editor,
         Operation::Rename {
@@ -1748,7 +1754,7 @@ fn grid_session_setting_survives_successful_and_canceled_new_and_open() {
 fn sparse_nonfinite_intents_preserve_scene_fields_and_redo() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let before = editor.history.scene().clone();
     remote(
         &mut editor,
@@ -1794,7 +1800,7 @@ fn sidebar_setter_is_idempotent_and_preserves_scene_history_and_editor_baseline(
     let mut editor = Editor::default();
     assert!(editor.sidebar_panel_visible(SidebarPanel::ChannelBox));
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     remote(
         &mut editor,
         Operation::Rename {
@@ -2043,7 +2049,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
         panic!("expected created object")
     };
     let id = NodeId::from_decimal(&node_id).unwrap();
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selection_presentation().0, Some(id));
     remote(
         &mut editor,
         Operation::Rename {
@@ -2089,7 +2095,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
         },
     )
     .unwrap();
-    assert_eq!(editor.selected, None);
+    assert_eq!(editor.selection_presentation().0, None);
     remote(
         &mut editor,
         Operation::Select {
@@ -2139,7 +2145,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
 fn remote_busy_and_stale_denials_preserve_human_state() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let before = editor.history.scene().clone();
     let camera = editor.camera.eye();
     for draft in ["2", "nan"] {
@@ -2150,7 +2156,7 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
         ));
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.channels[0], draft);
-        assert_eq!(editor.selected, Some(id));
+        assert_eq!(editor.selection_presentation().0, Some(id));
         assert_eq!(editor.camera.eye(), camera);
         assert!(editor.history.can_undo());
         assert!(!editor.history.can_redo());
@@ -2197,7 +2203,7 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
 fn remote_delete_refuses_component_selection_modes() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     for (mode, noun) in [
         (SelectionMode::Face, "Face"),
         (SelectionMode::Vertex, "Vertex"),
@@ -2238,7 +2244,7 @@ fn remote_errors_and_noop_do_not_change_selection_or_history() {
         Err(OperationError::NoSelection)
     ));
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let before = editor.history.scene().clone();
     let missing = NodeId::from_decimal("999").unwrap();
     assert!(matches!(
@@ -2271,7 +2277,7 @@ fn remote_errors_and_noop_do_not_change_selection_or_history() {
         Err(OperationError::Scene(_))
     ));
     assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selection_presentation().0, Some(id));
     editor.history_step(false);
     assert!(editor.history.scene().nodes().is_empty());
 }
@@ -2280,7 +2286,7 @@ fn remote_errors_and_noop_do_not_change_selection_or_history() {
 fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let ctx = egui::Context::default();
     let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
         editor.render(ui);
@@ -2350,7 +2356,7 @@ fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus(
 fn typed_extrusion_uses_native_history_and_preserves_pending_edits_on_error() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let shape = editor.history.scene().shapes()[0].id();
     editor.channels[0] = "2".into();
     let target = FaceTarget {
@@ -2597,8 +2603,8 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
     );
     let baseline = (
         editor.history.scene().clone(),
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.remembered_face.clone(),
         editor.camera.clone(),
         editor.scene_token,
@@ -2615,8 +2621,8 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
         assert_eq!(
             (
                 editor.history.scene().clone(),
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selection_presentation().0,
+                editor.selection_presentation().1.to_vec(),
                 editor.remembered_face.clone(),
                 editor.camera.clone(),
                 editor.scene_token
@@ -2643,13 +2649,13 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
         vec![],
     );
     assert_eq!(editor.remembered_face, None);
-    assert_eq!(editor.selected, baseline.1);
-    assert_eq!(editor.selected_path, baseline.2);
+    assert_eq!(editor.selection_presentation().0, baseline.1);
+    assert_eq!(editor.selection_presentation().1, baseline.2);
     assert!(matches!(
         editor.remote_operation(
             RemoteRequest {
                 expected_scene_token: Some(editor.scene_token),
-                operation: Operation::Delete(editor.selected.unwrap()),
+                operation: Operation::Delete(editor.single_target().unwrap().0),
             },
             &ctx,
         ),
@@ -2695,7 +2701,7 @@ fn face_native_closing_editor_refuses_mode_intents_without_selection_changes() {
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![key(Key::F11)]);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
-    assert_eq!(editor.selected, None);
+    assert_eq!(editor.selection_presentation().0, None);
     assert_eq!(editor.remembered_face, None);
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.scene_token, token);
@@ -2711,7 +2717,7 @@ fn vertex_and_edge_modes_refuse_native_delete_and_frame_without_a_component() {
         editor.create(Primitive::Cube);
         editor.selection_mode = mode;
         let (before, token) = (editor.history.scene().clone(), editor.scene_token);
-        editor.native_operation(Operation::Delete(editor.selected.unwrap()));
+        editor.native_operation(Operation::Delete(editor.single_target().unwrap().0));
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.scene_token, token);
         assert!(editor.error);
@@ -2777,8 +2783,8 @@ fn face_native_edit_menu_delete_keeps_face_mode_unsupported_and_object_mode_work
         let delete = face_text_position(&output, "Delete");
         let selection = (
             editor.selection_mode,
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.remembered_face.clone(),
             editor.camera.clone(),
             editor.scene_token,
@@ -2789,8 +2795,8 @@ fn face_native_edit_menu_delete_keeps_face_mode_unsupported_and_object_mode_work
             assert_eq!(
                 (
                     editor.selection_mode,
-                    editor.selected,
-                    editor.selected_path.clone(),
+                    editor.selection_presentation().0,
+                    editor.selection_presentation().1.to_vec(),
                     editor.remembered_face.clone(),
                     editor.camera.clone(),
                     editor.scene_token
@@ -2867,8 +2873,8 @@ fn face_native_modal_cancel_does_not_replay_blocked_mode_intent() {
         assert!(editor.files.is_modal());
         let baseline = (
             editor.selection_mode,
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.remembered_face.clone(),
             editor.history.scene().clone(),
             editor.camera.clone(),
@@ -2899,8 +2905,8 @@ fn face_native_modal_cancel_does_not_replay_blocked_mode_intent() {
         assert_eq!(
             (
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selection_presentation().0,
+                editor.selection_presentation().1.to_vec(),
                 editor.remembered_face.clone(),
                 editor.history.scene().clone(),
                 editor.camera.clone(),
@@ -2935,7 +2941,7 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
     face_pointer_click(&mut editor, &ctx, point, egui::Modifiers::NONE, vec![]);
     assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
     editor.native_operation(Operation::Rename {
-        id: editor.selected.unwrap(),
+        id: editor.single_target().unwrap().0,
         name: "redo-payload".into(),
     });
     editor.history_step(false);
@@ -2944,8 +2950,8 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
     editor.name_intent = true;
     let baseline = (
         editor.selection_mode,
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.remembered_face.clone(),
         editor.history.scene().clone(),
         editor.camera.clone(),
@@ -2998,8 +3004,8 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
     assert_eq!(
         (
             editor.selection_mode,
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.remembered_face.clone(),
             editor.history.scene().clone(),
             editor.camera.clone(),
@@ -3099,8 +3105,8 @@ fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
     assert!(egui::Popup::is_any_open(&ctx));
     let selection = (
         editor.selection_mode,
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.remembered_face.clone(),
         editor.camera.clone(),
         editor.scene_token,
@@ -3141,8 +3147,8 @@ fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
     assert_eq!(
         (
             editor.selection_mode,
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.remembered_face.clone(),
             editor.camera.clone(),
             editor.scene_token
@@ -3173,7 +3179,7 @@ fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
 fn real_escape_event_cancels_channel_and_name_after_egui_clears_focus() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let before = editor.history.scene().clone();
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
@@ -3257,7 +3263,7 @@ fn real_grid_button_dispatches_current_state_and_disables_for_modal_and_close() 
 fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     editor
         .history
         .execute(Command::SetTransform {
@@ -3308,7 +3314,7 @@ fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
 fn viewport_click_commits_draft_before_picking_its_new_geometry() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     editor.camera = Camera::default();
     let ctx = egui::Context::default();
     let mut viewport_rect = egui::Rect::NOTHING;
@@ -3372,7 +3378,7 @@ fn viewport_click_commits_draft_before_picking_its_new_geometry() {
         2.0
     );
     assert_eq!(
-        editor.selected,
+        editor.selection_presentation().0,
         Some(id),
         "fresh geometry must be hit at the new location"
     );
@@ -3383,9 +3389,9 @@ fn viewport_click_commits_draft_before_picking_its_new_geometry() {
 fn enter_commits_once_and_selection_commits_draft_to_previous_object() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let old = editor.selected.unwrap();
+    let old = editor.single_target().unwrap().0;
     editor.create(Primitive::Plane);
-    let next = editor.selected.unwrap();
+    let next = editor.single_target().unwrap().0;
     editor.select(Some(old));
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
@@ -3437,10 +3443,10 @@ fn enter_commits_once_and_selection_commits_draft_to_previous_object() {
 fn creation_commits_old_draft_and_invalid_draft_blocks_selection_and_actions() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let old = editor.selected.unwrap();
+    let old = editor.single_target().unwrap().0;
     editor.channels[1] = "5".into();
     editor.create(Primitive::Plane);
-    let next = editor.selected.unwrap();
+    let next = editor.single_target().unwrap().0;
     assert_eq!(
         editor
             .history
@@ -3458,7 +3464,7 @@ fn creation_commits_old_draft_and_invalid_draft_blocks_selection_and_actions() {
     editor.channels[0] = "nan".into();
     let before = editor.history.scene().clone();
     editor.select(Some(old));
-    assert_eq!(editor.selected, Some(next));
+    assert_eq!(editor.selection_presentation().0, Some(next));
     editor.create(Primitive::Cube);
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.channels[0], "nan");
@@ -3469,10 +3475,10 @@ fn creation_commits_old_draft_and_invalid_draft_blocks_selection_and_actions() {
 fn create_allocates_name_after_committing_pending_rename() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let old = editor.selected.unwrap();
+    let old = editor.single_target().unwrap().0;
     editor.name = "pCube2".into();
     editor.create(Primitive::Cube);
-    let created = editor.selected.unwrap();
+    let created = editor.single_target().unwrap().0;
     assert_ne!(old, created);
     assert_eq!(editor.history.scene().node(old).unwrap().name(), "pCube2");
     assert_eq!(
@@ -3710,7 +3716,10 @@ mod menu_bar_wire {
             render(vec![event]);
         }
         assert_eq!(editor.history.scene().nodes().len(), 2);
-        let created = editor.selected.expect("Create menu selects the cube");
+        let created = editor
+            .single_target()
+            .expect("Create menu selects the cube")
+            .0;
         assert_eq!(
             editor.history.scene().node(created).unwrap().name(),
             "pCube2"
@@ -3966,7 +3975,7 @@ mod toolbox_wire {
         editor
             .history
             .scene()
-            .node(editor.selected.expect("selection"))
+            .node(editor.single_target().expect("selection").0)
             .unwrap()
             .name()
             .to_owned()
@@ -4076,7 +4085,10 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
     face_text_position(&output, "Other primitives");
     let sphere = face_text_position(&output, "Polygon sphere");
     face_pointer_click(&mut editor, &ctx, sphere, egui::Modifiers::NONE, vec![]);
-    let id = editor.selected.expect("menu item selects the new sphere");
+    let id = editor
+        .single_target()
+        .expect("menu item selects the new sphere")
+        .0;
     assert_eq!(editor.history.scene().node(id).unwrap().name(), "pSphere1");
     assert_eq!(editor.history.scene().shapes()[0].mesh().faces().len(), 400);
     assert!(editor.history.can_undo());
@@ -4158,7 +4170,7 @@ fn cylinder_and_cone_names_count_up_and_skip_collisions() {
                     .unwrap();
             }
             editor.create(primitive);
-            let id = editor.selected.unwrap();
+            let id = editor.single_target().unwrap().0;
             assert_eq!(editor.history.scene().node(id).unwrap().name(), *expected);
         }
     }
@@ -4378,8 +4390,8 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
             (
                 editor.history.scene().clone(),
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selection_presentation().0,
+                editor.selection_presentation().1.to_vec(),
                 editor.remembered_face.clone(),
                 editor.remembered_vertex.clone(),
                 editor.remembered_edge.clone(),
@@ -4399,6 +4411,7 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
             ),
         )
     };
+    let full_path_baseline = click_baseline(&editor);
     for defensive_empty_path in [false, true] {
         editor.camera = unframed.clone();
         editor.selected_path = if defensive_empty_path {
@@ -4406,10 +4419,18 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
         } else {
             target.path.clone()
         };
+        assert_eq!(
+            click_baseline(&editor) == full_path_baseline,
+            !defensive_empty_path
+        );
         let before = state(&editor);
         assert_eq!(
             editor.selected_move_target().unwrap().path,
-            editor.selected_path
+            if defensive_empty_path {
+                &[][..]
+            } else {
+                target.path.as_slice()
+            }
         );
         remote(&mut editor, Operation::FrameSelected).unwrap();
         assert_eq!(editor.camera, expected);
@@ -4541,20 +4562,20 @@ fn hierarchy_click_on_a_descendant_selects_the_root_and_object_click_the_leaf() 
     assert_eq!((root.path.len(), child.path.len()), (1, 2));
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     click_first_instance(&mut editor);
-    assert_eq!(editor.selected, Some(root.node));
-    assert_eq!(editor.selected_path, root.path);
+    assert_eq!(editor.selection_presentation().0, Some(root.node));
+    assert_eq!(editor.selection_presentation().1, root.path);
     // Path containment only; painting is asserted in viewport_renderer::tests.
     let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
     assert!(
         view.instances()[0]
             .path()
-            .starts_with(&editor.selected_path)
+            .starts_with(editor.selection_presentation().1)
     );
 
     let mut editor = group_editor();
     click_first_instance(&mut editor);
-    assert_eq!(editor.selected, Some(child.node));
-    assert_eq!(editor.selected_path, child.path);
+    assert_eq!(editor.selection_presentation().0, Some(child.node));
+    assert_eq!(editor.selection_presentation().1, child.path);
 }
 
 #[test]
@@ -4568,13 +4589,13 @@ fn hierarchy_click_in_a_three_level_chain_selects_the_root_not_the_parent() {
     );
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     click_first_instance(&mut editor);
-    assert_eq!(editor.selected, Some(root.node));
-    assert_eq!(editor.selected_path, root.path);
+    assert_eq!(editor.selection_presentation().0, Some(root.node));
+    assert_eq!(editor.selection_presentation().1, root.path);
 
     let mut editor = deep_group_editor();
     click_first_instance(&mut editor);
-    assert_eq!(editor.selected, Some(child.node));
-    assert_eq!(editor.selected_path, child.path);
+    assert_eq!(editor.selection_presentation().0, Some(child.node));
+    assert_eq!(editor.selection_presentation().1, child.path);
 }
 
 #[test]
@@ -4595,7 +4616,7 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
 fn hierarchy_delete_works_on_a_flat_scene_and_select_face_is_refused() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     assert!(remote(&mut editor, Operation::SelectFace { target: None }).is_err());
     editor.native_operation(Operation::Delete(id));
@@ -4650,7 +4671,7 @@ fn delete_controls_are_enabled_in_hierarchy_mode_and_disabled_in_component_modes
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
         editor.native_operation(Operation::SetSelectionMode(mode));
-        assert!(editor.selected.is_some());
+        assert!(editor.selection_presentation().0.is_some());
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let output = frame(&mut editor, &ctx, vec![]);
@@ -4687,7 +4708,10 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
         face_text_position(&output, "Other primitives");
         let item = face_text_position(&output, label);
         face_pointer_click(&mut editor, &ctx, item, egui::Modifiers::NONE, vec![]);
-        let id = editor.selected.expect("menu item selects the new solid");
+        let id = editor
+            .single_target()
+            .expect("menu item selects the new solid")
+            .0;
         assert_eq!(editor.history.scene().node(id).unwrap().name(), name);
         assert_eq!(
             editor.history.scene().shapes()[0].mesh().faces().len(),
@@ -4757,7 +4781,7 @@ fn frame_selected_in_hierarchy_mode_frames_the_selected_root() {
     let mut editor = group_editor();
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     click_first_instance(&mut editor);
-    assert!(editor.selected.is_some());
+    assert!(editor.selection_presentation().0.is_some());
     let before = editor.camera.clone();
     remote(&mut editor, Operation::FrameSelected).unwrap();
     assert_ne!(editor.camera, before);
@@ -4769,17 +4793,20 @@ fn hierarchy_click_on_a_flat_scene_selects_what_an_object_click_selects() {
     for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
-        let id = editor.selected.unwrap();
+        let id = editor.single_target().unwrap().0;
         editor.native_operation(Operation::SetSelectionMode(mode));
         editor.native_operation(Operation::Select {
             node: None,
             instance_path: None,
         });
-        assert_eq!(editor.selected, None);
+        assert_eq!(editor.selection_presentation().0, None);
         editor.camera = Camera::default();
         click_world_point(&mut editor, glam::Vec3::ZERO);
-        assert_eq!(editor.selected, Some(id), "{mode:?}");
-        picked.push((editor.selected, editor.selected_path.clone()));
+        assert_eq!(editor.selection_presentation().0, Some(id), "{mode:?}");
+        picked.push((
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
+        ));
     }
     assert_eq!(picked[0], picked[1]);
 }
@@ -4789,23 +4816,23 @@ fn hierarchy_click_on_empty_space_clears_the_selection() {
     let mut editor = group_editor();
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     click_first_instance(&mut editor);
-    assert!(editor.selected.is_some());
+    assert!(editor.selection_presentation().0.is_some());
     click_world_point(&mut editor, glam::Vec3::new(-3.0, 0.0, 0.0));
-    assert_eq!(editor.selected, None);
-    assert!(editor.selected_path.is_empty());
+    assert_eq!(editor.selection_presentation().0, None);
+    assert!(editor.selection_presentation().1.is_empty());
 }
 
 /// Two cubes: A at the origin (selected) and B translated to x = 2.
 fn two_cubes() -> (Editor, NodeId, NodeId) {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let a = editor.selected.unwrap();
+    let a = editor.single_target().unwrap().0;
     editor.create(Primitive::Cube);
-    let b = editor.selected.unwrap();
+    let b = editor.single_target().unwrap().0;
     editor.channels[0] = "2".into();
     editor.channel_intents[0] = true;
     editor.select(Some(a));
-    assert_eq!(editor.selected, Some(a));
+    assert_eq!(editor.selection_presentation().0, Some(a));
     assert!(!editor.has_draft());
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     editor.camera = Camera::default();
@@ -4818,7 +4845,7 @@ fn hierarchy_click_commits_a_valid_draft_to_the_old_target_first() {
     editor.channels[1] = "5".into();
     editor.channel_intents[1] = true;
     click_world_point(&mut editor, glam::Vec3::new(2.0, 0.0, 0.0));
-    assert_eq!(editor.selected, Some(b));
+    assert_eq!(editor.selection_presentation().0, Some(b));
     let translation = |id| {
         editor
             .history
@@ -4840,7 +4867,7 @@ fn hierarchy_click_with_an_invalid_draft_refuses_and_keeps_the_selection() {
     editor.channel_intents[0] = true;
     let before = editor.history.scene().clone();
     click_world_point(&mut editor, glam::Vec3::new(2.0, 0.0, 0.0));
-    assert_eq!(editor.selected, Some(a));
+    assert_eq!(editor.selection_presentation().0, Some(a));
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.channels[0], "nan");
     assert!(editor.error);
@@ -4949,7 +4976,7 @@ fn vertex_and_edge_picks_are_kept_per_type_and_cleared_by_selection_changes() {
     assert_eq!(editor.remembered_vertex.as_ref(), Some(&vertex));
     assert_eq!(editor.remembered_edge.as_ref(), Some(&edge));
     assert_eq!(editor.remembered_face.as_ref(), Some(&face));
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     // Re-selecting the same object is unchanged and keeps the picks; another object clears all.
     remote(
         &mut editor,
@@ -5005,14 +5032,14 @@ fn vertex_and_edge_picks_are_kept_per_type_and_cleared_by_selection_changes() {
 fn invalid_vertex_and_edge_requests_preserve_the_baseline() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let first = editor.selected.unwrap();
+    let first = editor.single_target().unwrap().0;
     editor.create(Primitive::Plane);
     let (points, edges) = counts(&editor);
     let state = |editor: &Editor| {
         (
             editor.history.scene().clone(),
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
             editor.remembered_vertex.clone(),
             editor.remembered_edge.clone(),
@@ -5215,9 +5242,9 @@ fn new_scene_keeps_the_mode_and_clears_vertex_and_edge_picks() {
 fn selecting_another_object_clears_vertex_and_edge_picks() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let first = editor.selected.unwrap();
+    let first = editor.single_target().unwrap().0;
     editor.create(Primitive::Plane);
-    let second = editor.selected.unwrap();
+    let second = editor.single_target().unwrap().0;
     for node in [first, second] {
         remote(
             &mut editor,
@@ -5330,7 +5357,10 @@ fn inspection_charges_the_remembered_edge_and_refuses_an_overlong_path() {
 fn overlong_vertex_and_edge_paths_are_rejected_without_mutation() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let before = (editor.selected, editor.selected_path.clone());
+    let before = (
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
+    );
     let mut vertex = selected_vertex(&editor, 0);
     let mut edge = selected_edge(&editor, 0);
     set_mode(&mut editor, SelectionMode::Vertex);
@@ -5374,7 +5404,13 @@ fn overlong_vertex_and_edge_paths_are_rejected_without_mutation() {
         remote(&mut editor, Operation::SelectEdge { target: Some(edge) }),
         Err(OperationError::InvalidInput(_))
     ));
-    assert_eq!((editor.selected, editor.selected_path.clone()), before);
+    assert_eq!(
+        (
+            editor.selection_presentation().0,
+            editor.selection_presentation().1.to_vec()
+        ),
+        before
+    );
     assert_eq!(
         (&editor.remembered_vertex, &editor.remembered_edge),
         (&None, &None)
@@ -5636,8 +5672,8 @@ fn click_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
     (
         editor.history.scene().clone(),
         editor.selection_mode,
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selection_presentation().0,
+        editor.selection_presentation().1.to_vec(),
         editor.remembered_face.clone(),
         editor.remembered_vertex.clone(),
         editor.remembered_edge.clone(),
@@ -5762,7 +5798,7 @@ fn vertex_click_ignores_an_occluded_vertex_and_picks_a_visible_one() {
 fn vertex_click_commits_a_valid_draft_before_picking_the_moved_geometry() {
     let (mut editor, ctx, rect) = component_click_editor();
     frame(&mut editor, &ctx, vec![key(Key::F9)]);
-    let id = editor.selected.unwrap();
+    let id = editor.single_target().unwrap().0;
     let (front, points) = front_vertices(&editor);
     let index = front[0];
     let at = screen_point(&editor, rect, points[index] + Vec3::new(2.0, 0.0, 0.0));
@@ -5981,7 +6017,7 @@ fn viewport_click_in_vertex_mode_replaces_then_clears_the_pick() {
         face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
         let target = editor.remembered_vertex.as_ref().unwrap();
         assert_eq!(target.vertex_index, index);
-        assert_eq!(Some(target.transform), editor.selected);
+        assert_eq!(Some(target.transform), editor.selection_presentation().0);
     }
     face_pointer_click(
         &mut editor,
@@ -5991,7 +6027,7 @@ fn viewport_click_in_vertex_mode_replaces_then_clears_the_pick() {
         vec![],
     );
     assert_eq!(editor.remembered_vertex, None);
-    assert!(editor.selected.is_some());
+    assert!(editor.selection_presentation().0.is_some());
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -6141,7 +6177,7 @@ fn delete_in_the_frame_of_a_vertex_or_edge_intent_sees_the_new_mode() {
                     .contains(&format!("{noun} deletion is unsupported"))
         );
         assert_eq!(editor.history.scene(), &before);
-        assert!(editor.selected.is_some());
+        assert!(editor.selection_presentation().0.is_some());
     }
 }
 
@@ -6208,8 +6244,8 @@ fn vertex_edge_and_mode_operations_refuse_modal_and_closing_without_changes() {
             let state = |editor: &Editor| {
                 (
                     editor.history.scene().clone(),
-                    editor.selected,
-                    editor.selected_path.clone(),
+                    editor.selection_presentation().0,
+                    editor.selection_presentation().1.to_vec(),
                     editor.selection_mode,
                     editor.remembered_vertex.clone(),
                     editor.remembered_edge.clone(),
@@ -6283,8 +6319,8 @@ fn native_selection_changes_refuse_modal_before_committing_drafts() {
         let state = |editor: &Editor| {
             (
                 editor.history.scene().clone(),
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selection_presentation().0,
+                editor.selection_presentation().1.to_vec(),
                 editor.selection_mode,
                 editor.remembered_vertex.clone(),
                 editor.remembered_edge.clone(),
