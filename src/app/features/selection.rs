@@ -72,9 +72,10 @@ impl Editor {
                 };
                 ui.horizontal(|ui| {
                     ui.add_space((target.path.len() - 1) as f32 * 12.0);
+                    let (selected, path) = self.selection_presentation();
                     if ui
                         .selectable_label(
-                            self.selected == Some(target.node) && self.selected_path == target.path,
+                            selected == Some(target.node) && path == target.path,
                             format!("◇  {}", node.name()),
                         )
                         .clicked()

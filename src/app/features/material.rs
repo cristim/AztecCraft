@@ -6,7 +6,8 @@ impl Editor {
         ui.label(RichText::new("Materials").strong());
         ui.label("Common Material Attributes");
         let Some(transform) = self
-            .selected
+            .selection_presentation()
+            .0
             .and_then(|id| self.history.scene().node(id).ok())
             .map(|node| node.transform_id())
         else {

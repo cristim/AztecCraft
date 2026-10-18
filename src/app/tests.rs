@@ -484,17 +484,111 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
     editor.sync_fields();
     let before = editor.history.scene().clone();
     let context = egui::Context::default();
-    for _ in 0..2 {
-        let mut frame =
-            context.run_ui(egui::RawInput::default(), |ui| editor.material_controls(ui));
-        frame.textures_delta.clear();
-    }
-    assert_eq!(editor.history.scene(), &before);
-    assert_eq!(
-        editor.material_draft.as_ref().unwrap().text,
-        value.to_string()
+    context.enable_accesskit();
+    let state = |editor: &Editor| {
+        (
+            click_baseline(editor),
+            (
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.name_intent,
+                editor.channel_intents,
+            ),
+            (
+                editor.material_shape,
+                editor.material_draft.as_ref().map(|draft| {
+                    (
+                        draft.text.clone(),
+                        draft.original.to_bits(),
+                        draft.intent,
+                        draft.shape,
+                        draft.scene_token,
+                        draft.focus,
+                    )
+                }),
+            ),
+            context.memory(|memory| memory.focused()),
+            (
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+                editor.history.undo_label(),
+                editor.history.redo_label(),
+                editor.history.active_manipulation().is_some(),
+            ),
+        )
+    };
+    let owner = editor.history.scene().nodes()[0].id();
+    let root = editor.history.scene().nodes()[0].transform_id();
+    let stale = NodeId::from_decimal("999").unwrap();
+    assert!(editor.history.scene().node(stale).is_err());
+    assert!(
+        editor
+            .history
+            .scene()
+            .resolve_transform_path(owner, &[root])
+            .is_ok()
     );
-    assert!(!editor.has_draft());
+    assert!(
+        editor
+            .history
+            .scene()
+            .resolve_transform_path(owner, &[root, root])
+            .is_err()
+    );
+    for (phase, selected, path, body) in [
+        ("material/full", Some(owner), vec![root], true),
+        ("material/empty", Some(owner), Vec::new(), true),
+        ("material/stale-path", Some(owner), vec![root, root], true),
+        ("material/no-owner", None, Vec::new(), false),
+        ("material/stale-owner", Some(stale), Vec::new(), false),
+    ] {
+        editor.selected = selected;
+        editor.selected_path = path.clone();
+        let baseline = state(&editor);
+        assert_eq!(baseline.4, (false, false, None, None, false), "{phase}");
+        for _ in 0..2 {
+            let mut frame =
+                context.run_ui(egui::RawInput::default(), |ui| editor.material_controls(ui));
+            frame.textures_delta.clear();
+            let update = frame.platform_output.accesskit_update.as_ref().unwrap();
+            assert!(
+                update.nodes.iter().any(|(_, node)| {
+                    node.role() == egui::accesskit::Role::Label && node.value() == Some("Materials")
+                }),
+                "{phase}"
+            );
+            let controls = toolbox_wire::controls(&frame);
+            let mut colors = controls
+                .iter()
+                .filter(|control| control.label == "Color (connected)");
+            if body {
+                assert!(colors.next().unwrap().disabled, "{phase}");
+            }
+            assert!(colors.next().is_none(), "{phase}");
+        }
+        assert_eq!(state(&editor), baseline, "{phase}: paint");
+        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        else {
+            panic!("expected inspection");
+        };
+        assert_eq!(
+            inspection.selected_node,
+            selected.map(NodeId::to_decimal),
+            "{phase}"
+        );
+        assert_eq!(
+            inspection.selected_instance_path,
+            path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>(),
+            "{phase}"
+        );
+        assert_eq!(state(&editor), baseline, "{phase}: inspection");
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(
+            editor.material_draft.as_ref().unwrap().text,
+            value.to_string()
+        );
+        assert!(!editor.has_draft());
+    }
 }
 
 #[test]
@@ -6203,7 +6297,89 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
     pick_edge(&mut editor, 0);
     editor.sync_fields();
     assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
-    editor.selected_path = leaf.path[1..].to_vec();
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let state = |editor: &Editor| {
+        (
+            click_baseline(editor),
+            (
+                editor.name.clone(),
+                editor.channels.clone(),
+                editor.name_intent,
+                editor.channel_intents,
+            ),
+            (
+                editor.material_shape,
+                editor.material_draft.as_ref().map(|draft| {
+                    (
+                        draft.text.clone(),
+                        draft.original.to_bits(),
+                        draft.intent,
+                        draft.shape,
+                        draft.scene_token,
+                        draft.focus,
+                    )
+                }),
+            ),
+            context.memory(|memory| memory.focused()),
+            (
+                editor.history.can_undo(),
+                editor.history.can_redo(),
+                editor.history.undo_label(),
+                editor.history.redo_label(),
+                editor.history.active_manipulation().is_some(),
+            ),
+        )
+    };
+    for (phase, stale_path, child_selected) in [
+        ("outliner/full", false, Some(true)),
+        ("outliner/stale-path", true, Some(false)),
+    ] {
+        if stale_path {
+            editor.selected_path = leaf.path[1..].to_vec();
+        }
+        let expected_path = if stale_path {
+            &leaf.path[1..]
+        } else {
+            leaf.path.as_slice()
+        };
+        let baseline = state(&editor);
+        assert_eq!(baseline.4, (false, false, None, None, false), "{phase}");
+        for _ in 0..2 {
+            let mut frame = context.run_ui(egui::RawInput::default(), |ui| editor.outliner(ui));
+            frame.textures_delta.clear();
+            let controls = toolbox_wire::controls(&frame);
+            assert_eq!(controls.len(), 3, "{phase}");
+            for (label, selected) in [
+                ("◇  group", Some(false)),
+                ("◇  mid", Some(false)),
+                ("◇  child", child_selected),
+            ] {
+                let mut rows = controls.iter().filter(|control| control.label == label);
+                assert_eq!(rows.next().unwrap().selected, selected, "{phase}: {label}");
+                assert!(rows.next().is_none(), "{phase}: {label}");
+            }
+        }
+        assert_eq!(state(&editor), baseline, "{phase}: paint");
+        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        else {
+            panic!("expected inspection");
+        };
+        assert_eq!(
+            inspection.selected_node,
+            Some(leaf.node.to_decimal()),
+            "{phase}"
+        );
+        assert_eq!(
+            inspection.selected_instance_path,
+            expected_path
+                .iter()
+                .map(|id| id.to_decimal())
+                .collect::<Vec<_>>(),
+            "{phase}"
+        );
+        assert_eq!(state(&editor), baseline, "{phase}: inspection");
+    }
     editor.sync_fields();
     assert_eq!(editor.remembered_vertex, None);
     assert_eq!(editor.remembered_edge, None);
