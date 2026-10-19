@@ -202,7 +202,8 @@ impl Editor {
             ui.separator();
             let shading_enabled = !self.files.is_modal() && !self.files.is_closing();
             ui.add_enabled_ui(shading_enabled, |ui| {
-                // Maya 2026 panel menu: View > Frame All (hotkey A).
+                // Frame All hotkey A is from the Maya 2026 docs; the panel View > Frame All
+                // menu path is from the Maya 2014 page (PROVISIONAL for 2026).
                 ui.menu_button("View", |ui| {
                     if ui.button("Frame All (A)").clicked() {
                         frame_all_requested = true;

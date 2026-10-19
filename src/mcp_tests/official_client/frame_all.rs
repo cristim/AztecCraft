@@ -23,6 +23,19 @@ async fn sdk_frame_all_frames_the_whole_scene_and_refuses_an_empty_one() {
 
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
+    let id = editor.selected.unwrap();
+    let node = editor
+        .history
+        .scene()
+        .nodes()
+        .iter()
+        .find(|node| node.id() == id)
+        .unwrap();
+    let mut transform = editor.transform_input(node.transform()).unwrap();
+    transform.translation[0] = 20.0;
+    editor
+        .apply_operation(Operation::SetTransform { id, transform })
+        .unwrap();
     frame(&mut editor, &context, vec![]);
     let token = editor.scene_token.to_string();
     let scene = editor.history.scene().clone();
@@ -30,6 +43,14 @@ async fn sdk_frame_all_frames_the_whole_scene_and_refuses_an_empty_one() {
     let view = azteccraft::view_scene::ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
     let mut expected = editor.camera.clone();
     expected.frame_view(&view, None, editor.aspect).unwrap();
+    assert_eq!(view.instances().len(), 2);
+    for instance in view.instances() {
+        let mut single = editor.camera.clone();
+        single
+            .frame_view(&view, Some(instance.path()), editor.aspect)
+            .unwrap();
+        assert_ne!(expected, single);
+    }
     for outcome in ["changed", "unchanged"] {
         let result = call(
             &mut editor,

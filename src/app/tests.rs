@@ -6354,15 +6354,60 @@ fn frame_all_frames_every_object_regardless_of_selection() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
+    let id = editor.selected.unwrap();
+    let transform = NativeTransform {
+        translation: [20.0, 0.0, 0.0],
+        ..Default::default()
+    };
+    let input = editor.transform_input(transform).unwrap();
+    remote(
+        &mut editor,
+        Operation::SetTransform {
+            id,
+            transform: input,
+        },
+    )
+    .unwrap();
     editor.native_operation(Operation::SetGridVisible { visible: true });
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    assert_eq!(view.instances().len(), 2);
     let expected = camera_after_frame_all(&editor);
+    for instance in view.instances() {
+        let mut single = editor.camera.clone();
+        single
+            .frame_view(&view, Some(instance.path()), editor.aspect)
+            .unwrap();
+        assert_ne!(expected, single);
+    }
     remote(&mut editor, Operation::FrameAll).unwrap();
     assert_eq!(editor.camera, expected);
-    assert!(editor.selected.is_some());
+    assert_eq!(editor.selected, Some(id));
     assert!(matches!(
         remote(&mut editor, Operation::FrameAll),
         Ok(OperationReply::Unchanged)
     ));
+}
+
+#[test]
+fn frame_all_frames_a_curve_only_scene() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    assert!(view.instances().is_empty());
+    assert_eq!(view.curve_instances().len(), 1);
+    let expected = camera_after_frame_all(&editor);
+    editor.camera.dolly(3.0).unwrap();
+    assert_ne!(expected, editor.camera);
+    assert!(matches!(
+        remote(&mut editor, Operation::FrameAll),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.camera, expected);
 }
 
 #[test]
