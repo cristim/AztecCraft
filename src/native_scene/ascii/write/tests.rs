@@ -29,6 +29,8 @@ const CUBE_FACES: &[u8] = b"\tsetAttr -s 6 \".fc[0:5]\" -type \"polyFaces\"\n\
 ;\n";
 #[path = "../../../../tests/support/maya_ascii.rs"]
 mod ascii_fixture;
+#[path = "../../../../tests/support/maya_ascii_structure/topology.rs"]
+mod topology;
 mod binary_fixture {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -402,6 +404,84 @@ createNode mesh -n \"storedFirst\" -p \"first\";\n\
 }
 
 #[test]
+fn emitted_representative_owners_have_independent_local_topology() {
+    let mut scenes = Vec::new();
+    let mut legacy = crate::scene::Scene::default();
+    legacy.create(Primitive::Cube, "legacy").unwrap();
+    scenes.push((
+        NativeScene::from_legacy(legacy).unwrap(),
+        "legacyShape",
+        (8, 12, 6),
+        true,
+        Some(1.0),
+    ));
+    for (primitive, counts, closed, volume) in [
+        (Primitive::Cube, (8, 12, 6), true, Some(1.0)),
+        (Primitive::Plane, (4, 4, 1), false, Some(0.0)),
+        (Primitive::Sphere, (382, 780, 400), true, None),
+        (Primitive::Cylinder, (40, 60, 22), true, None),
+        (Primitive::Cone, (21, 40, 21), true, None),
+    ] {
+        let mut scene = NativeScene::default();
+        scene.create(primitive, "primitive").unwrap();
+        scenes.push((scene, "primitiveShape", counts, closed, volume));
+    }
+    let mut extruded = NativeScene::default();
+    extruded.create(Primitive::Cube, "extruded").unwrap();
+    extruded
+        .extrude_face(extruded.shapes[0].id, 1, 0.5)
+        .unwrap();
+    scenes.push((extruded, "extrudedShape", (12, 20, 10), true, Some(1.5)));
+
+    for (mut scene, owner, counts, closed, volume) in scenes {
+        scene.create(Primitive::Cube, "neighbor").unwrap();
+        scene.shapes.swap(0, 1);
+        scene.validate().unwrap();
+        let bytes = prefix(&scene).unwrap();
+        let blocks = parsed_prefix(&bytes).blocks;
+        assert_eq!(blocks.len(), 6);
+        for (owner_blocks, (expected_owner, expected_counts, is_closed, exact_volume)) in
+            blocks.as_chunks::<3>().0.iter().zip([
+                (owner, counts, closed, volume),
+                ("neighborShape", (8, 12, 6), true, Some(1.0)),
+            ])
+        {
+            assert!(owner_blocks.iter().all(|block| block.0 == expected_owner));
+            let mesh = output_mesh(owner_blocks);
+            assert_eq!(
+                (mesh.points.len(), mesh.edges.len(), mesh.faces.len()),
+                expected_counts
+            );
+            mesh.check(is_closed).unwrap();
+            let actual_volume = mesh.signed_volume().unwrap();
+            if is_closed {
+                assert!(actual_volume > 0.0, "{expected_owner}: {actual_volume}");
+            } else {
+                assert!(mesh.check(true).is_err());
+                assert_eq!(actual_volume, 0.0);
+            }
+            if let Some(expected_volume) = exact_volume {
+                assert!((actual_volume - expected_volume).abs() < 1e-6);
+            }
+            if expected_owner == "legacyShape" {
+                let mut reversed = output_mesh(owner_blocks);
+                for face in &mut reversed.faces {
+                    face.reverse();
+                    for token in face {
+                        *token = !*token;
+                    }
+                }
+                reversed.check(true).unwrap();
+                assert!(reversed.signed_volume().unwrap() < 0.0);
+                let mut broken = output_mesh(owner_blocks);
+                broken.faces[0].swap(1, 2);
+                assert!(broken.loops().is_err());
+            }
+        }
+    }
+}
+
+#[test]
 fn child_work_counts_are_checked_before_traversal() {
     use crate::maya_ascii::ErrorKind;
     assert_eq!(mesh_declaration_work(0, 0, 0).unwrap(), 0);
@@ -555,6 +635,47 @@ fn parsed_prefix(bytes: &[u8]) -> ParsedPrefix<'_> {
     }
     assert!(transform.is_none() || next_array == 3);
     parsed
+}
+
+fn output_mesh(blocks: &[(&str, &str, Vec<Vec<&str>>)]) -> topology::Mesh {
+    assert_eq!(blocks.len(), 3);
+    assert_eq!(
+        (blocks[0].1, blocks[1].1, blocks[2].1),
+        (".vt", ".ed", ".fc")
+    );
+    let points = blocks[0]
+        .2
+        .iter()
+        .map(|row| {
+            let [x, y, z] = row.as_slice() else { panic!() };
+            [x.parse().unwrap(), y.parse().unwrap(), z.parse().unwrap()]
+        })
+        .collect();
+    let edges = blocks[1]
+        .2
+        .iter()
+        .map(|row| {
+            let [start, end, _flag] = row.as_slice() else {
+                panic!()
+            };
+            [start.parse().unwrap(), end.parse().unwrap()]
+        })
+        .collect();
+    let faces = blocks[2]
+        .2
+        .iter()
+        .map(|row| {
+            row[2..]
+                .iter()
+                .map(|token| token.parse().unwrap())
+                .collect()
+        })
+        .collect();
+    topology::Mesh {
+        points,
+        edges,
+        faces,
+    }
 }
 
 #[test]
