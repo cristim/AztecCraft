@@ -481,9 +481,9 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Modeling Toolkit, HumanIK, Tool Settings panels, menu sets, selection presets | unsupported | | | |
 | Settings | Preferences and Working Units | unsupported | | | |
 | Panels | Time Slider and animation controls, Layer Editor, Outliner filters | unsupported | | | |
-| Panels | Status line message text | missing | | | unfiled |
+| Panels | Status line message text | missing | | | #214 |
 
-The Status line message row is marked `unfiled` because no open issue tracks it. Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the two missing rows with issues and the status message row; the catch-up stays open until those close. Issue #161 asks for camera pose, which `inspect_scene` `camera` already reports as target, eye and distance; a field of view or orientation would need a native control first.
+Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the three missing rows, each linked to its issue; the catch-up stays open until those close. Issue #161 asks for camera pose, which `inspect_scene` `camera` already reports as target, eye and distance; a field of view or orientation would need a native control first.
 
 ## Protocol references
 
