@@ -74,8 +74,18 @@ verification must distinguish this observation from a confirmed diagnosis.
 **Severity:** medium
 **Area:** history, documents and viewport
 
-Undo/redo stores unbounded NativeScene snapshots, so memory grows with scene size
-and edit count. The native model retains separate transform/shape identities,
+Undo keeps the newest 50 NativeScene snapshots and silently drops older ones
+(Maya's documented default Finite queue size, Preferences > Undo; the limit is
+fixed, not configurable, pending #178; Maya 2017 Help is the newest page found
+stating the default, so 2026/2027 are unconfirmed: PROVISIONAL). Redo is
+unchanged. The dirty state compares the live scene with the saved scene by value,
+so dropping old entries cannot make an edited scene read clean. Memory still
+scales with scene size times 50. Measured on macOS (Darwin 25.1, arm64 release
+build) with `cargo test --release --test history_memory -- --ignored --nocapture`:
+1000 cubes (8000 vertices), 300 renames, process RSS growth 667,760 KiB on
+a072221 (unbounded) versus 125,712 KiB with the limit. Single run, this
+synthetic scene and rename edit only; not a general claim. Autosave and
+persisting history remain pending. The native model retains separate transform/shape identities,
 instance hierarchy, f64 authoring channels and original source bytes. Triangle
 and quad derived views are supported; arbitrary loops/holes remain retained but
 unsupported for projection. Imported editing is limited to proved source-bound
