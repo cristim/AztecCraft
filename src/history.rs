@@ -10,6 +10,7 @@ pub use move_transaction::{
     ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
     ManipulationProvenance, ManipulationState,
 };
+use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
 pub enum Command {
@@ -86,10 +87,14 @@ pub enum EditOutcome {
     Unchanged,
 }
 
+/// Most undo steps kept; matches Maya's documented default Finite queue size
+/// (Preferences > Undo > Queue size = 50). Older steps are dropped silently.
+pub const UNDO_LIMIT: usize = 50;
+
 #[derive(Default)]
 pub struct History {
     scene: NativeScene,
-    undo: Vec<Entry>,
+    undo: VecDeque<Entry>,
     redo: Vec<Entry>,
     active_manipulation: Option<MoveTransaction>,
     next_manipulation_id: u64,
@@ -99,7 +104,7 @@ impl History {
     pub fn new(scene: NativeScene) -> Self {
         Self {
             scene,
-            undo: Vec::new(),
+            undo: VecDeque::new(),
             redo: Vec::new(),
             active_manipulation: None,
             next_manipulation_id: 0,
@@ -117,7 +122,7 @@ impl History {
     }
     /// The name of the edit Undo would revert.
     pub fn undo_label(&self) -> Option<&'static str> {
-        self.undo.last().map(|entry| entry.label)
+        self.undo.back().map(|entry| entry.label)
     }
     /// The name of the edit Redo would reapply.
     pub fn redo_label(&self) -> Option<&'static str> {
@@ -184,7 +189,10 @@ impl History {
         if self.scene == candidate {
             return Ok(EditOutcome::Unchanged);
         }
-        self.undo.push(Entry {
+        if self.undo.len() == UNDO_LIMIT {
+            self.undo.pop_front();
+        }
+        self.undo.push_back(Entry {
             scene: std::mem::replace(&mut self.scene, candidate),
             label,
         });
@@ -196,7 +204,7 @@ impl History {
         if self.active_manipulation.is_some() {
             return false;
         }
-        let Some(previous) = self.undo.pop() else {
+        let Some(previous) = self.undo.pop_back() else {
             return false;
         };
         self.redo.push(Entry {
@@ -214,7 +222,7 @@ impl History {
         let Some(next) = self.redo.pop() else {
             return false;
         };
-        self.undo.push(Entry {
+        self.undo.push_back(Entry {
             scene: self.scene.clone(),
             label: next.label,
         });
