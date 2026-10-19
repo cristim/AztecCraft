@@ -674,6 +674,21 @@ fn scale_shafts_and_boxes_foreshorten_with_the_view() {
 }
 
 #[test]
+fn a_scale_shaft_shorter_than_its_box_never_reaches_back_past_the_origin() {
+    // Z is seen at about 1.4 px, below BOX_HALF, so the unclamped shaft end would sit 3.6 px
+    // behind the origin and draw a stub pointing away from the box.
+    let handles = world_scale(&camera_at(0.02, 0.0, 10.0));
+    let z = handles.axes()[2].geometry().unwrap();
+    assert!(
+        (z.tip_box.iter().flatten().map(|s| s.start).sum::<DVec2>() / 4.0
+            - DVec2::new(400.0, 300.0))
+        .length()
+            < BOX_HALF
+    );
+    near(scale_shaft_length(&handles, 2), 0.0, 1e-9);
+}
+
+#[test]
 fn an_end_on_scale_axis_collapses_into_the_center_box_and_steals_nothing() {
     let handles = world_scale(&camera_at(0.02, 0.0, 10.0));
     let z = handles.axes()[2].geometry().unwrap();

@@ -488,9 +488,12 @@ Move arrows and Scale shafts and boxes draw at 72 px times the sine of the angle
 the axis and the view ray, so an end-on axis is short and picks exactly where it is drawn
 (#155). Plain perspective foreshortening was chosen because a search of the Maya 2026
 manipulator help found no documented minimum length, fading or hiding of end-on axes; the
-rule is unverified against Maya itself. It is a first-order approximation: exact end-on and
-perpendicular, but up to roughly 10-25% off the true projected length for off-centre
-handles at wide field of view. Scale plane squares stay at full length while the shafts
+rule is unverified against Maya itself. It is a first-order approximation: exact end-on, and
+the length is the derivative of the projection, so it is 3-9% short on-centre from the
+finite 72 px length. Off-centre it is short by up to 1 - cos(a), where a is the angle
+between the handle's view ray and the camera forward axis (a 90 degree field of view
+reaches about 29% at the edge midpoints and 42% in the corners); the error grows
+without bound as a nears 90 degrees. Scale plane squares stay at full length while the shafts
 shorten, so they can stick out past the tips; they are disabled and unpickable, so this is
 cosmetic.
 

@@ -230,9 +230,8 @@ impl ViewportCapture {
 
     /// Fraction of a world axis that shows on screen: the sine of its angle to the view ray
     /// through `origin_cm`. One when perpendicular to the view, zero when seen end-on.
-    /// A first-order approximation: exact at those two extremes, but for off-centre handles at
-    /// a wide field of view it can differ from the true projected segment length by roughly
-    /// 10-25%.
+    /// A first-order approximation: exact end-on, short by up to `1 - cos(a)` for a handle
+    /// whose view ray is `a` off the camera axis (about 42% in the corners at 90 degrees).
     pub(crate) fn projected_fraction(
         &self,
         origin_cm: DVec3,
