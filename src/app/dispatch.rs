@@ -638,7 +638,7 @@ impl Editor {
                     )?)
                 };
                 let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::File(error.to_string()))?;
+                    .map_err(|error| OperationError::View(error.to_string()))?;
                 let before = self.camera.clone();
                 if let Some(path) = path {
                     self.camera.frame_view(&view, Some(&path), self.aspect)

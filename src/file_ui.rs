@@ -564,7 +564,7 @@ impl Editor {
 
 fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, OperationError> {
     let view = ViewScene::from_native(scene, 256 * 1024 * 1024)
-        .map_err(|error| OperationError::File(error.to_string()))?;
+        .map_err(|error| OperationError::View(error.to_string()))?;
     let mut camera = Camera::default();
     if view
         .instances()

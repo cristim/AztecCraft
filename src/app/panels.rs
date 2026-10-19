@@ -352,7 +352,7 @@ impl Editor {
                         self.viewport_error =
                             Some(crate::viewport_renderer::ViewportError::ResourceLimit);
                     }
-                    OperationError::File(e.to_string())
+                    OperationError::View(e.to_string())
                 })?;
             // Picks dispatch through `apply_operation`, not `native_operation`.
             if !self.files.is_modal()
@@ -363,7 +363,7 @@ impl Editor {
                         let hit = self
                             .camera
                             .pick_view(&view, ndc, self.aspect)
-                            .map_err(|e| OperationError::File(e.to_string()))?;
+                            .map_err(|e| OperationError::View(e.to_string()))?;
                         let (node, instance_path) = if let Some(hit) = hit {
                             let mut prefix = hit.path;
                             prefix.pop();
@@ -394,7 +394,7 @@ impl Editor {
                                 self.selected
                                     .map(|owner| (owner, self.selected_path.as_slice())),
                             )
-                            .map_err(|e| OperationError::File(e.to_string()))?;
+                            .map_err(|e| OperationError::View(e.to_string()))?;
                         self.apply_operation(Operation::SelectFace { target })?;
                     }
                     SelectionMode::Vertex => {
@@ -405,7 +405,7 @@ impl Editor {
                                 self.selected
                                     .map(|owner| (owner, self.selected_path.as_slice())),
                             )
-                            .map_err(|e| OperationError::File(e.to_string()))?;
+                            .map_err(|e| OperationError::View(e.to_string()))?;
                         self.apply_operation(Operation::SelectVertex { target })?;
                     }
                     SelectionMode::Edge => {
@@ -416,7 +416,7 @@ impl Editor {
                                 self.selected
                                     .map(|owner| (owner, self.selected_path.as_slice())),
                             )
-                            .map_err(|e| OperationError::File(e.to_string()))?;
+                            .map_err(|e| OperationError::View(e.to_string()))?;
                         self.apply_operation(Operation::SelectEdge { target })?;
                     }
                 }
@@ -461,7 +461,7 @@ impl Editor {
             self.paint_manipulation(&input);
             match painted {
                 Ok(_) | Err(crate::viewport_renderer::RenderError::Uninitialized) => Ok(()),
-                Err(error) => Err(OperationError::File(error.to_string())),
+                Err(error) => Err(OperationError::View(error.to_string())),
             }
         })();
         if let Err(error) = result {

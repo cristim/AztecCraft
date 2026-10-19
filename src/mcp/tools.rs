@@ -94,6 +94,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) => "camera_error",
                 OperationError::File(_) => "file_error",
+                OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
                     azteccraft::document::NativeSaveError::Unsupported => "save_unsupported",
                     azteccraft::document::NativeSaveError::InvalidDestination => {
@@ -241,6 +242,16 @@ mod tests {
         let error = &value["structuredContent"]["error"];
         assert_eq!(error["code"], "file_error");
         assert_eq!(error["message"], FILE_ERROR_WITHHELD);
+    }
+
+    #[test]
+    fn view_errors_keep_their_actionable_text_under_their_own_code() {
+        let text = "derived view exceeds its resource budget or allocation capacity";
+        let result = tool_reply(Err(OperationError::View(text.into())));
+        let value = serde_json::to_value(&result).unwrap();
+        let error = &value["structuredContent"]["error"];
+        assert_eq!(error["code"], "view_error");
+        assert_eq!(error["message"], text);
     }
 
     #[test]

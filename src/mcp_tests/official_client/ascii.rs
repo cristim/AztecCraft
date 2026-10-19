@@ -259,10 +259,15 @@ async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_sele
             json!({"scene_token":token,"path":path.to_str().unwrap()}),
         )
         .await;
-        assert_eq!(
-            result.structured_content.unwrap()["error"]["code"],
-            "file_error"
-        );
+        let error = result.structured_content.unwrap()["error"].clone();
+        if index == 2 {
+            assert_eq!(error["code"], "view_error");
+            let message = error["message"].as_str().unwrap();
+            assert!(!message.contains("withheld") && !message.contains(".ma"));
+            assert!(message.contains("world geometry") || message.contains("view"));
+        } else {
+            assert_eq!(error["code"], "file_error");
+        }
         let after = call(
             &mut editor,
             &context,

@@ -639,6 +639,9 @@ pub enum OperationError {
     NoSelection,
     InvalidInput(String),
     Scene(NativeError),
+    /// Path-free display or render failure (`ViewError`, `RenderError`).
+    View(String),
+    /// Text may carry a filesystem path (`DocumentError`, `ObjError`); never expose it remotely.
     File(String),
     NativeSave(azteccraft::document::NativeSaveError),
     AmbiguousSelection,
@@ -675,7 +678,7 @@ impl fmt::Display for OperationError {
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),
-            Self::File(error) => f.write_str(error),
+            Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
