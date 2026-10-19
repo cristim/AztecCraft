@@ -50,6 +50,22 @@ enum SpaceInput {
     World,
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum SpaceToolInput {
+    Rotate,
+    Scale,
+}
+
+/// Sets the Axis Orientation the Rotate or Scale tool settings use for the next manipulation.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ToolSpaceArgs {
+    scene_token: String,
+    tool: SpaceToolInput,
+    space: SpaceInput,
+}
+
 /// `kind` selects the manipulation; each kind takes its own handle fields and nothing else. Move
 /// works along World axes only and takes no `space`.
 #[derive(Deserialize, JsonSchema)]
@@ -111,6 +127,20 @@ fn parse_set_active_tool(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::SetActiveTool(args.tool),
+    ))
+}
+
+fn parse_set_tool_space(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ToolSpaceArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetToolSpace {
+            tool: match args.tool {
+                SpaceToolInput::Rotate => ActiveTool::Rotate,
+                SpaceToolInput::Scale => ActiveTool::Scale,
+            },
+            space: space(args.space),
+        },
     ))
 }
 
@@ -304,6 +334,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Select the native Select, Move, Rotate or Scale tool; unsupported tools are not exposed",
         schema: schema::<ActiveToolArgs>,
         parse: parse_set_active_tool,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_tool_space",
+        description: "Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool",
+        schema: schema::<ToolSpaceArgs>,
+        parse: parse_set_tool_space,
         idempotent: true,
         read_only: false,
     },

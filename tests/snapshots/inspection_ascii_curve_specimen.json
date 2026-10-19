@@ -64,6 +64,8 @@
         }
       ],
       "refusal": null,
+      "rotate_space": "object",
+      "scale_space": "world",
       "units": {
         "angle": "deg",
         "distance": "cm",

@@ -311,6 +311,18 @@ mod tests {
                 "set_active_tool",
                 json!({"scene_token":token,"tool":"move","owner":"native"}),
             ),
+            (
+                "set_tool_space",
+                json!({"scene_token":token,"tool":"move","space":"world"}),
+            ),
+            (
+                "set_tool_space",
+                json!({"scene_token":token,"tool":"rotate","space":"gimbal"}),
+            ),
+            (
+                "set_tool_space",
+                json!({"scene_token":token,"tool":"rotate"}),
+            ),
             ("begin_manipulation", move_args(json!({"instance_path":[]}))),
             ("begin_manipulation", move_args(json!({"axis":"xy"}))),
             (
@@ -514,6 +526,9 @@ mod tests {
             let args = match tool.name.as_ref() {
                 "inspect_scene" => json!({}),
                 "set_active_tool" => json!({"scene_token":token,"tool":"move"}),
+                "set_tool_space" => {
+                    json!({"scene_token":token,"tool":"scale","space":"object"})
+                }
                 "begin_manipulation" => {
                     json!({"scene_token":token,"kind":"move","node_id":"1","instance_path":["1"],"axis":"x"})
                 }
@@ -643,6 +658,7 @@ mod tests {
                     | "set_sidebar_panel_visibility"
                     | "select_attribute_editor_tab"
                     | "set_active_tool"
+                    | "set_tool_space"
                     | "select_node"
                     | "set_selection_mode"
                     | "select_face"

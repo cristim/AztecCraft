@@ -563,6 +563,8 @@ impl Editor {
             });
         Ok(ManipulationInspection {
             active_tool: self.active_tool,
+            rotate_space: self.manipulation.space(ActiveTool::Rotate),
+            scale_space: self.manipulation.space(ActiveTool::Scale),
             units: ManipulationUnits {
                 distance: linear_unit_name(&units.linear).to_owned(),
                 angle: angular_unit_name(&units.angular).to_owned(),

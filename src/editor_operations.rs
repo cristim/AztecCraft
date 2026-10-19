@@ -128,7 +128,8 @@ pub enum ActiveTool {
 
 /// The space a Rotate or Scale handle works in. Gimbal, Parent, Normal, Custom and Component
 /// are unsupported and have no variant.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ManipulationSpace {
     Object,
     World,
@@ -453,6 +454,9 @@ pub enum FaceSelectionPolicy {
 #[cfg(any(test, feature = "mcp"))]
 pub struct ManipulationInspection {
     pub active_tool: ActiveTool,
+    /// The Axis Orientation each tool uses for its next manipulation.
+    pub rotate_space: ManipulationSpace,
+    pub scale_space: ManipulationSpace,
     /// What each parameter of `update_manipulation` is measured in.
     pub units: ManipulationUnits,
     /// Whether a numeric manipulation of each kind could begin on the selection now.

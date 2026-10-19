@@ -53,6 +53,55 @@
     }
   },
   {
+    "name": "set_tool_space",
+    "description": "Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool",
+    "inputSchema": {
+      "$defs": {
+        "SpaceInput": {
+          "description": "Rotate and Scale work in the node's own axes (`object`) or the world axes (`world`).",
+          "enum": [
+            "object",
+            "world"
+          ],
+          "type": "string"
+        },
+        "SpaceToolInput": {
+          "enum": [
+            "rotate",
+            "scale"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Sets the Axis Orientation the Rotate or Scale tool settings use for the next manipulation.",
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "space": {
+          "$ref": "#/$defs/SpaceInput"
+        },
+        "tool": {
+          "$ref": "#/$defs/SpaceToolInput"
+        }
+      },
+      "required": [
+        "scene_token",
+        "tool",
+        "space"
+      ],
+      "title": "ToolSpaceArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "begin_manipulation",
     "description": "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools",
     "inputSchema": {
