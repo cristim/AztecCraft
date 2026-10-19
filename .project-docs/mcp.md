@@ -430,6 +430,61 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 
 Initial catch-up remains incomplete while these implemented capabilities lack their reviewed MCP support. Full Maya parity remains a separate unmet objective.
 
+## Coverage inventory
+
+Static source audit of commit `b8d3dd7f985527881ecae186b76d794564708f79` (origin/main), read on macOS. No native run, no MCP session and no Maya comparison were performed, so this table says where a control or tool exists in the source and nothing about behaviour or parity. It covers the registered catalogue (`src/mcp/registry.rs` and `src/mcp/features/`) against the native UI (`src/app/menus.rs`, `panels.rs`, `shortcuts.rs`, `features/`, `src/viewport_ui.rs`) and the `inspect_scene` projection (`src/app/inspect.rs`). It is not a Maya feature inventory (#6) and says nothing about features the native UI does not draw. Pull request #212 (`set_tool_space`) is not merged and is not counted.
+
+Status values: `supported` means a registered tool or an `inspect_scene` field exposes it. `unsupported` means the native UI shows the control visibly unsupported or disabled, or the capability has no native control, so MCP needs nothing. `missing` means the native UI or editor state implements it and MCP lacks it; each missing row names the open issue that closes it. The Tools column holds only registered tool names; the test `inventory_tools_match_registry` fails when a name there is not registered or a registered tool appears in no row. Keep that column to tool names and put state fields in the State column.
+
+| Area | Capability | Status | Tools | State | Issue |
+| --- | --- | --- | --- | --- | --- |
+| Inspection | Read committed editor state, outliner hierarchy, drafts and modal state | supported | `inspect_scene` | `nodes`, `has_draft`, `modal` | |
+| Files | New scene (File, Status Line) | supported | `new_scene`, `resolve_file_action` | `pending_action` | |
+| Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
+| Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |
+| Files | Save As | supported | `save_scene_as` | `save_as_available` | |
+| Files | Close and quit guard | supported | `request_close` | `closing` | |
+| Files | Export and OBJ export | unsupported | | | |
+| Files | Maya ASCII and new-scene Save, ASCII writing | unsupported | | | |
+| Create | Polygon cube, plane, sphere, cylinder, cone (Create menu, shelf) | supported | `create_primitive` | `nodes` | |
+| Create | Other primitives, Bevel, shelf Materials, Mesh and other placeholder menus | unsupported | | | |
+| Modeling | Extrude face (shelf button disabled; operation exposed) | supported | `extrude_face` | `shapes` | |
+| Modeling | Construction history and Inputs | unsupported | | | |
+| Nodes | Rename (Channel Box name) | supported | `rename_node` | `nodes` | |
+| Nodes | Translate, rotate and scale channels | supported | `set_transform`, `edit_node` | `nodes`, `units` | |
+| Nodes | Delete | supported | `delete_node` | `nodes` | |
+| Nodes | Visibility edit | unsupported | | `nodes` | |
+| Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |
+| Selection | Select object, clear selection, Outliner click, viewport pick | supported | `select_node` | `selected_node`, `selected_instance_path` | |
+| Selection | Selection mode (Object, Face, Vertex, Edge, Hierarchy), F8 to F11 | supported | `set_selection_mode` | `selection_mode` | |
+| Selection | Face, vertex and edge component targets | supported | `select_face`, `select_vertex`, `select_edge` | `remembered_face`, `remembered_vertex`, `remembered_edge` | |
+| Selection | Multi-select, marquee, Lasso, Paint Selection, UV mask | unsupported | | | |
+| Camera | Orbit, pan, dolly | supported | `orbit_camera`, `pan_camera`, `dolly_camera` | `camera` | |
+| Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
+| Camera | Camera pose read (target, eye, distance) | supported | | `camera` | |
+| Camera | Frame All, orthographic views, field of view | unsupported | | | |
+| Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
+| Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
+| Tools | Rotate and Scale tool-settings space and axis orientation selector | missing | | | #183 |
+| Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes | unsupported | | | |
+| Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
+| History | Undo and Redo | supported | `undo`, `redo` | `can_undo`, `can_redo` | |
+| History | Undo and Redo command names (Edit menu hover) | missing | | | #188 |
+| Materials | Phong diffuse edit (Channel Box, Attribute Editor) | supported | `set_material_diffuse` | `shapes` | |
+| Materials | Session materials (create, assign, colour) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
+| Materials | Material rendering, shading networks, textures | unsupported | | | |
+| Viewport | Grid visibility | supported | `set_grid_visibility` | `grid_visible` | |
+| Viewport | Shading mode (Wireframe, Smooth Shade All) | supported | `set_shading_mode` | `shading` | |
+| Viewport | Hardware Texturing, Use All Lights, Wireframe on Shaded, Use default material | unsupported | | | |
+| Settings | Sidebar panel visibility (Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
+| Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
+| Settings | Modeling Toolkit, HumanIK, Tool Settings panels, menu sets, selection presets | unsupported | | | |
+| Settings | Preferences and Working Units | unsupported | | | |
+| Panels | Time Slider and animation controls, Layer Editor, Outliner filters | unsupported | | | |
+| Panels | Status line message text | missing | | | unfiled |
+
+The Status line message row is marked `unfiled` because no open issue tracks it. Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the two missing rows with issues and the status message row; the catch-up stays open until those close. Issue #161 asks for camera pose, which `inspect_scene` `camera` already reports as target, eye and distance; a field of view or orientation would need a native control first.
+
 ## Protocol references
 
 - [MCP stdio transport](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio)
