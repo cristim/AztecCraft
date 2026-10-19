@@ -570,7 +570,7 @@ is shown as sRGB bytes, so no parity is claimed. No MCP test creates two instanc
 Right-drag dolly direction is PROVISIONAL (#154): dragging up moves the camera back and
 dragging down moves it in, following a user report. The Maya help pages for tumble, track
 and dolly (help.autodesk.com/cloudhelp/2023/ENU/Maya-Basics/files/GUID-941480C1-9BDA-4DB3-8EA8-113A0D6FAF1F.htm;
-no 2026 page was found) give no direction for the Alt + right-drag, so it is unverified against
+and the 2026 keyboard shortcuts page, which lists only the Alt bindings) give no direction for the Alt + right-drag, so it is unverified against
 Maya. Horizontal drag does not dolly. AztecCraft now requires Alt for
 right-drag dolly and middle-drag track (#158), as Maya does; plain middle/right drags are unbound.
 The mouse wheel dolly without Alt is PROVISIONAL: the Maya 2026 shortcut page lists no wheel
