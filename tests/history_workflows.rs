@@ -1,4 +1,4 @@
-use azteccraft::history::{Command, EditOutcome, History};
+use azteccraft::history::{Command, EditOutcome, History, UNDO_LIMIT};
 use azteccraft::native_scene::{NativeError, NativeScene, NativeTransform};
 use azteccraft::scene::{NodeId, Primitive, SceneError};
 
@@ -324,4 +324,96 @@ fn native_corner_extrusion_restores_exact_shared_mesh_snapshots() {
     assert_eq!(history.scene(), &first);
     assert!(history.redo());
     assert_eq!(history.scene(), &corner);
+}
+
+fn rename(history: &mut History, id: NodeId, n: usize) {
+    history
+        .execute(Command::Rename {
+            id,
+            name: format!("n{n}"),
+        })
+        .unwrap();
+}
+
+/// Mirrors the editor's dirty test (`history.scene() != saved`, src/file_ui.rs).
+fn is_dirty(history: &History, saved: &NativeScene) -> bool {
+    history.scene() != saved
+}
+
+#[test]
+fn undo_keeps_only_the_newest_limit_entries_and_redo_is_intact() {
+    let mut history = History::default();
+    let id = create(&mut history, "cube");
+    let mut states = vec![history.scene().nodes().to_vec()];
+    for n in 0..UNDO_LIMIT + 9 {
+        rename(&mut history, id, n);
+        states.push(history.scene().nodes().to_vec());
+    }
+    let mut undone = 0;
+    while history.undo() {
+        undone += 1;
+        let expected = &states[states.len() - 1 - undone];
+        assert_eq!(history.scene().nodes(), expected);
+    }
+    assert_eq!(undone, UNDO_LIMIT);
+    assert!(!history.can_undo());
+    assert_ne!(history.scene().nodes(), states[0].as_slice());
+    let mut redone = 0;
+    while history.redo() {
+        redone += 1;
+    }
+    assert_eq!(redone, UNDO_LIMIT);
+    assert_eq!(history.scene().nodes(), states.last().unwrap().as_slice());
+}
+
+#[test]
+fn new_edit_at_the_limit_clears_redo_and_still_drops_only_the_oldest() {
+    let mut history = History::default();
+    let id = create(&mut history, "cube");
+    for n in 0..UNDO_LIMIT {
+        rename(&mut history, id, n);
+    }
+    assert!(history.undo());
+    assert!(history.can_redo());
+    rename(&mut history, id, 1000);
+    assert!(!history.can_redo());
+    let mut undone = 0;
+    while history.undo() {
+        undone += 1;
+    }
+    assert_eq!(undone, UNDO_LIMIT);
+}
+
+#[test]
+fn scene_stays_dirty_after_the_saved_entry_is_dropped() {
+    let mut history = History::default();
+    let id = create(&mut history, "cube");
+    let saved = history.scene().clone();
+    assert!(!is_dirty(&history, &saved));
+    for n in 0..UNDO_LIMIT + 5 {
+        rename(&mut history, id, n);
+    }
+    assert!(is_dirty(&history, &saved));
+    while history.undo() {
+        assert!(
+            is_dirty(&history, &saved),
+            "oldest kept entry must not read as the saved scene"
+        );
+    }
+    assert!(!history.can_undo() && is_dirty(&history, &saved));
+}
+
+#[test]
+fn dirty_flag_clears_when_undoing_back_to_a_retained_saved_state() {
+    let mut history = History::default();
+    let id = create(&mut history, "cube");
+    rename(&mut history, id, 0);
+    let saved = history.scene().clone();
+    for n in 1..=UNDO_LIMIT {
+        rename(&mut history, id, n);
+    }
+    for _ in 0..UNDO_LIMIT {
+        assert!(history.undo());
+    }
+    assert!(!is_dirty(&history, &saved));
 }
