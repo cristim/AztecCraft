@@ -670,7 +670,7 @@ impl Editor {
             }
             Operation::FrameAll => {
                 let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::File(error.to_string()))?;
+                    .map_err(|error| OperationError::View(error.to_string()))?;
                 if view.instances().is_empty() && view.curve_instances().is_empty() {
                     return Err(OperationError::NothingToFrame);
                 }
