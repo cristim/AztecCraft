@@ -377,11 +377,14 @@ fn new_edit_at_the_limit_clears_redo_and_still_drops_only_the_oldest() {
     assert!(history.can_redo());
     rename(&mut history, id, 1000);
     assert!(!history.can_redo());
+    // The stack is full again; this edit must drop the oldest entry ("cube").
+    rename(&mut history, id, 1001);
     let mut undone = 0;
     while history.undo() {
         undone += 1;
     }
     assert_eq!(undone, UNDO_LIMIT);
+    assert_eq!(history.scene().node(id).unwrap().name(), "n0");
 }
 
 #[test]

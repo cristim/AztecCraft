@@ -1,9 +1,12 @@
 //! Reproducible history memory measurement (issue #25).
 //! Run: cargo test --release --test history_memory -- --ignored --nocapture
+//! Baseline: copy this file onto main a0722217 (unbounded history) and run the
+//! same command. Unix only: it reads RSS with `ps -o rss=`.
 use azteccraft::history::{Command, History};
 use azteccraft::native_scene::NativeScene;
 use azteccraft::scene::Primitive;
 
+#[cfg(unix)]
 fn rss_kib() -> u64 {
     let out = std::process::Command::new("ps")
         .args(["-o", "rss=", "-p", &std::process::id().to_string()])
@@ -12,6 +15,7 @@ fn rss_kib() -> u64 {
     String::from_utf8_lossy(&out.stdout).trim().parse().unwrap()
 }
 
+#[cfg(unix)]
 #[test]
 #[ignore = "measurement, not a regression test"]
 fn rss_growth_over_many_edits_on_a_large_scene() {

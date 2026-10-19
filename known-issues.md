@@ -80,13 +80,23 @@ fixed, not configurable, pending #178; Maya 2017 Help is the newest page found
 stating the default, so 2026/2027 are unconfirmed: PROVISIONAL). Redo is
 unchanged. The dirty state compares the live scene with the saved scene by value,
 so dropping old entries cannot make an edited scene read clean. Memory still
-scales with scene size times 50. Measured on macOS (Darwin 25.1, arm64 release
-build) with `cargo test --release --test history_memory -- --ignored --nocapture`:
-1000 cubes (8000 vertices), 300 renames, process RSS growth 667,760 KiB on
-a072221 (unbounded) versus 125,712 KiB with the limit. Single run, this
-synthetic scene and rename edit only; not a general claim. Autosave and
-persisting history remain pending. The native model retains separate transform/shape identities,
-instance hierarchy, f64 authoring channels and original source bytes. Triangle
+scales with scene size times 50. Autosave and persisting history remain pending.
+
+Selection, camera, tool and panel changes do not create undo entries in
+AztecCraft (`.project-docs/mcp.md` already says selection does not). Whether Maya
+puts selection changes on its undo queue is unverified and deferred to #33
+(reconcile provisional application policies with Maya defaults).
+
+Measurement: on macOS (Darwin 25.1, arm64 release build),
+`cargo test --release --test history_memory -- --ignored --nocapture` with 1000
+cubes (8000 vertices) and 300 renames grew process RSS by 667,760 KiB on a072221
+(unbounded) versus 125,712 KiB with the limit. Single run, this synthetic scene
+and rename edit only; not a general claim. To reproduce the baseline, copy
+`tests/history_memory.rs` onto main a0722217 and run the same command. The test
+reads RSS with `ps -o rss=`, so it is Unix-only (`#[cfg(unix)]`).
+
+The native model retains separate transform/shape identities, instance
+hierarchy, f64 authoring channels and original source bytes. Triangle
 and quad derived views are supported; arbitrary loops/holes remain retained but
 unsupported for projection. Imported editing is limited to proved source-bound
 numeric changes; missing-record insertion and structural rewrites refuse safely.
