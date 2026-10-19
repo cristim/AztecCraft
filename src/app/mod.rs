@@ -292,14 +292,21 @@ fn unsupported(ui: &mut egui::Ui, label: &str) {
         .on_disabled_hover_text("Not implemented in this build");
 }
 
+fn text_field_ids() -> impl Iterator<Item = egui::Id> {
+    [
+        name_edit_id(),
+        material_edit_id(),
+        features::manipulation_tool::manipulation_value_id(),
+    ]
+    .into_iter()
+    .chain((0..9).map(channel_edit_id))
+}
+
 fn text_edit_focused(ctx: &egui::Context) -> bool {
     ctx.memory(|memory| {
-        memory.focused().is_some_and(|id| {
-            id == name_edit_id()
-                || id == material_edit_id()
-                || id == features::manipulation_tool::manipulation_value_id()
-                || (0..9).any(|index| id == channel_edit_id(index))
-        })
+        memory
+            .focused()
+            .is_some_and(|id| text_field_ids().any(|field| field == id))
     })
 }
 
