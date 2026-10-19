@@ -29,6 +29,8 @@ const CUBE_FACES: &[u8] = b"\tsetAttr -s 6 \".fc[0:5]\" -type \"polyFaces\"\n\
 ;\n";
 #[path = "../../../../tests/support/maya_ascii.rs"]
 mod ascii_fixture;
+#[path = "../../../../tests/support/maya_ascii_structure/roster.rs"]
+mod roster;
 #[path = "../../../../tests/support/maya_ascii_structure/topology.rs"]
 mod topology;
 mod binary_fixture {
@@ -54,6 +56,19 @@ fn prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
         (original.next_id, original.next_native_id)
     );
     result
+}
+
+#[test]
+fn emitted_multi_node_prefix_is_accepted_by_the_framing_and_roster_oracles() {
+    let mut scene = scene(&["first", "second"]);
+    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    let bytes = prefix(&scene).unwrap();
+    let report = roster::inspect(&bytes).unwrap();
+    assert_eq!(report.boundary, bytes.len());
+    assert!(report.tail.is_empty());
+    assert_eq!(report.shapes, ["firstShape", "secondShape"]);
+    let declared: Vec<_> = report.declared.iter().map(String::as_str).collect();
+    assert_eq!(declared, ["first", "firstShape", "second", "secondShape"]);
 }
 
 #[test]
