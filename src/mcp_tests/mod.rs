@@ -106,6 +106,7 @@ mod official_client {
     mod cylinder_cone;
     mod extrude;
     mod files;
+    mod frame_all;
     mod grid;
     mod manipulation_mcp_tests;
     mod material;

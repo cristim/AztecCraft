@@ -50,6 +50,10 @@ fn parse_frame_selected(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
     mutation(arguments, Operation::FrameSelected)
 }
 
+fn parse_frame_all(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    mutation(arguments, Operation::FrameAll)
+}
+
 fn parse_set_grid_visibility(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: GridArgs = decode(arguments)?;
     Ok(scoped(
@@ -104,6 +108,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Frame the selected object using the live camera",
         schema: schema::<MutationArgs>,
         parse: parse_frame_selected,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "frame_all",
+        description: "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
+        schema: schema::<MutationArgs>,
+        parse: parse_frame_all,
         idempotent: false,
         read_only: false,
     },

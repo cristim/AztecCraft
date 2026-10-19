@@ -1170,6 +1170,29 @@
     }
   },
   {
+    "name": "frame_all",
+    "description": "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_grid_visibility",
     "description": "Set the current viewport's grid visibility explicitly. Session-only and idempotent; does not edit the scene or report GPU health",
     "inputSchema": {
