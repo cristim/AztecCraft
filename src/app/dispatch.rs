@@ -60,6 +60,7 @@ impl Editor {
             | Operation::SelectEdge { .. }
             | Operation::SetSelectionMode(_)
             | Operation::FrameSelected
+            | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
             | Operation::SetGridVisible { .. }
@@ -661,6 +662,22 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                 }
                 .map_err(OperationError::Camera)?;
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
+                });
+            }
+            Operation::FrameAll => {
+                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
+                    .map_err(|error| OperationError::File(error.to_string()))?;
+                if view.instances().is_empty() && view.curve_instances().is_empty() {
+                    return Err(OperationError::NothingToFrame);
+                }
+                let before = self.camera.clone();
+                self.camera
+                    .frame_view(&view, None, self.aspect)
+                    .map_err(OperationError::Camera)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
                 } else {

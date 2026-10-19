@@ -592,6 +592,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::Undo,
         Operation::Redo,
         Operation::FrameSelected,
+        Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
@@ -1093,6 +1094,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
         Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],
+        Operation::FrameAll => vec![sample("frame_all", Operation::FrameAll)],
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },

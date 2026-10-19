@@ -77,6 +77,7 @@
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -161,6 +162,7 @@
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -243,6 +245,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -325,6 +328,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -408,6 +412,7 @@
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -491,6 +496,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -574,6 +580,7 @@
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -657,6 +664,7 @@
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -740,6 +748,7 @@
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -823,6 +832,7 @@
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -906,6 +916,7 @@
   undo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   redo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_selected => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  frame_all => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_grid_visible(false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_shading_mode(wireframe) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(channel_box,false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -989,6 +1000,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1072,6 +1084,7 @@
   undo => Ok(changed) | status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> text=0.8 intent=false; can_redo: false -> true
   redo => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_selected => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  frame_all => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -1155,6 +1168,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1238,6 +1252,7 @@
   undo => Ok(changed) | has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1
   redo => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_selected => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  frame_all => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -1321,6 +1336,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1404,6 +1420,7 @@
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -1487,6 +1504,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1570,6 +1588,7 @@
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -1653,6 +1672,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1736,6 +1756,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1819,6 +1840,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1902,6 +1924,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1984,6 +2007,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2067,6 +2091,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2150,6 +2175,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2233,6 +2259,7 @@
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2316,6 +2343,7 @@
   undo => Ok(unchanged) | no state change
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(unchanged) | no state change
+  frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2399,6 +2427,7 @@
   undo => Ok(unchanged) | no state change
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(unchanged) | no state change
+  frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2482,6 +2511,7 @@
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2565,6 +2595,7 @@
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2648,6 +2679,7 @@
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2731,6 +2763,7 @@
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2814,6 +2847,7 @@
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
   frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2897,6 +2931,7 @@
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2907,4 +2942,4 @@
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 2522
+cells: 2557

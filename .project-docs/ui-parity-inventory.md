@@ -274,7 +274,8 @@ Editor::shortcuts (`src/app/shortcuts.rs "fn shortcuts"`) handles Cmd/Ctrl+Z, Cm
 | F7 multi-component | [select-2025] FALLBACK 2025; UNCONFIRMED for 2026 | Missing | no key handler | none | P3 | S3 Component modes (#29) |
 | F Frame Selected | [hotkeys-2025] FALLBACK 2025 | Supported | `src/app/shortcuts.rs "Key::F"` | `frame_selected` | P1 | S5 Hotkeys (#32) |
 | Shift+F Frame Selected in all views | [hotkeys-2025] FALLBACK 2025 | Missing | single view only | none | P3 | S5 Hotkeys (#32) |
-| A Frame All | [hotkeys-2025] FALLBACK 2025 | Missing | no key handler | none | P2 | S5 Hotkeys (#32) |
+| A Frame All in active panel | [hotkeys-2026] | Supported | `src/app/shortcuts.rs "Key::A"`; fires only with no modifiers and no focused text field or open popup. Frames every mesh and curve instance (selection ignored). PROVISIONAL: the pages do not state whether hidden objects, lights or cameras count, the empty-scene result or undo behaviour; here an empty scene returns `nothing_to_frame` and the camera is not on the undo queue. Maya adds a 95% default fill preference that is not reproduced (fit factor 1.05 as Frame Selected) | `frame_all` | P2 | S5 Hotkeys (#32) |
+| Panel menu: View > Frame All | [viewmenu] MAYA 2014 page, menu path only | Supported | `src/app/panels.rs "Frame All (A)"`; the other View menu rows are not drawn | `frame_all` | P2 | S8 Panels and quick layouts (#48 / #69) |
 | Shift+A Frame All in all views | [hotkeys-2025] FALLBACK 2025 | Missing | single view only | none | P3 | S5 Hotkeys (#32) |
 | Shift+M panel menus; Ctrl+Shift+M Panel Toolbar | [panelvis] | Missing | no key handler | none | P3 | S5 Hotkeys (#32) |
 | Tap Space single/multi-pane; Ctrl+Space full-screen | [hotkeys-2025] FALLBACK 2025 | Missing | no key handler | none | P3 | S8 Panels and quick layouts (#48 / #69) |
@@ -350,6 +351,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 [panelmenus]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-BD5D066A-4876-4B56-8A9F-96E2243E22A3.htm
 [paneltoolbar]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-42224988-F140-4BFF-849B-F89CCB554E13.htm
 [shadingmenu]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-C6188583-EA9E-4880-AAE7-8D895FD94DD6.htm
+[viewmenu]: https://download.autodesk.com/global/docs/maya2014/en_us/files/Viewing_the_scene_Center_the_view_on_selected_or_all_objects.htm
 [hotkeys-2026]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-KeyboardShortcuts/files/GUID-30CACC9D-8FBE-4B85-8A8F-C5ADF32DDD4E.htm
 [panelvis]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-455539A6-3506-458C-92DA-14F171C14553.htm
 [channelbox]: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-4C954FB2-8B6A-4BBD-9695-DF432616D0D2.htm

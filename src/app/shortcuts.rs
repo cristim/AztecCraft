@@ -44,11 +44,20 @@ impl Editor {
                 _ => None,
             })
         });
-        let (undo, redo, frame, save, save_as) = ctx.input(|i| {
+        let (undo, redo, frame, frame_all, save, save_as) = ctx.input(|i| {
             (
                 i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::Z),
                 i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::Z),
                 i.modifiers.is_none() && i.key_pressed(Key::F),
+                i.events.iter().any(|event| {
+                    matches!(event, egui::Event::Key {
+                        key: Key::A,
+                        pressed: true,
+                        repeat: false,
+                        modifiers,
+                        ..
+                    } if modifiers.is_none())
+                }),
                 i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::S),
                 i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::S),
             )
@@ -90,6 +99,9 @@ impl Editor {
         }
         if frame {
             self.frame_selected();
+        }
+        if frame_all {
+            self.frame_all();
         }
         if save && self.files.save_available() {
             self.native_operation(Operation::SaveScene);
