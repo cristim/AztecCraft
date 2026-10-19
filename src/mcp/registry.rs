@@ -158,8 +158,76 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
             .collect()
     }
 
+    /// Dotted paths of every object key in the committed `inspect_scene` snapshots, so State
+    /// names are checked against the serialized projection instead of a second hand-kept list.
+    fn inspection_paths() -> std::collections::BTreeSet<String> {
+        fn walk(prefix: &str, value: &Value, out: &mut std::collections::BTreeSet<String>) {
+            if let Value::Object(map) = value {
+                for (key, child) in map {
+                    let path = if prefix.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{prefix}.{key}")
+                    };
+                    walk(&path, child, out);
+                    out.insert(path);
+                }
+            }
+        }
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots");
+        let mut paths = std::collections::BTreeSet::new();
+        let mut files = 0;
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            if name.starts_with("inspection_") && name.ends_with(".json") {
+                let snapshot: Value = serde_json::from_slice(&std::fs::read(&path).unwrap())
+                    .unwrap_or_else(|error| panic!("{name} is not JSON: {error}"));
+                walk("", &snapshot["inspection"], &mut paths);
+                files += 1;
+            }
+        }
+        assert!(files > 0, "no inspection snapshots found");
+        // Snapshots omit optional fields, so add the keys of a fully populated node, both as
+        // `nodes.<key>` and bare (the inventory names node fields without the prefix).
+        let node = crate::editor_operations::NodeInspection {
+            id: String::new(),
+            name: String::new(),
+            transform_id: String::new(),
+            visible: None,
+            transform: crate::editor_operations::TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0; 3],
+                scale: [1.0; 3],
+            },
+            authoring_transform: crate::editor_operations::AuthoringTransformInspection {
+                translation: [0.0; 3],
+                rotation: [0.0; 3],
+                scale: [1.0; 3],
+            },
+            transform_attributes: Some(azteccraft::native_scene::TransformAttributes {
+                rotate_order: "xyz",
+                rotate_axis_degrees: [0.0; 3],
+                shear: [0.0; 3],
+                rotate_pivot_translate: [0.0; 3],
+                scale_pivot_translate: [0.0; 3],
+                non_default: vec!["shear"],
+            }),
+            instance_paths: Vec::new(),
+            shape_ids: Vec::new(),
+        };
+        let mut node_paths = std::collections::BTreeSet::new();
+        walk("", &serde_json::to_value(&node).unwrap(), &mut node_paths);
+        for path in node_paths {
+            paths.insert(format!("nodes.{path}"));
+            paths.insert(path);
+        }
+        paths
+    }
+
     #[test]
     fn inventory_tools_match_registry() {
+        let inspection = inspection_paths();
         let doc = std::fs::read_to_string(INVENTORY_DOC_PATH).unwrap();
         let rows = inventory_rows(&doc);
         assert!(!rows.is_empty());
@@ -172,6 +240,13 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
                 (&row[1], row[2].as_str(), &row[3], &row[4], &row[5]);
             let tools = backticked(tools);
             let state = backticked(state);
+            for field in &state {
+                assert!(
+                    inspection.contains(field),
+                    "inventory row `{capability}` names State `{field}`, which no committed \
+                     inspection snapshot serializes"
+                );
+            }
             for tool in &tools {
                 assert!(
                     registered.contains(tool),

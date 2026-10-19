@@ -438,7 +438,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 
 | Area | Capability | Status | Tools | State | Issue |
 | --- | --- | --- | --- | --- | --- |
-| Inspection | Read committed editor state, outliner hierarchy, drafts and modal state | supported | `inspect_scene` | `nodes`, `has_draft`, `modal` | |
+| Inspection | Read committed editor state, outliner hierarchy, drafts and modal state | supported | `inspect_scene` | `nodes`, `dirty`, `has_draft`, `native_input_pending`, `text_focused`, `modal` | |
 | Files | New scene (File, Status Line) | supported | `new_scene`, `resolve_file_action` | `pending_action` | |
 | Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
 | Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |
@@ -459,31 +459,35 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Selection mode (Object, Face, Vertex, Edge, Hierarchy), F8 to F11 | supported | `set_selection_mode` | `selection_mode` | |
 | Selection | Face, vertex and edge component targets | supported | `select_face`, `select_vertex`, `select_edge` | `remembered_face`, `remembered_vertex`, `remembered_edge` | |
 | Selection | Multi-select, marquee, Lasso, Paint Selection, UV mask | unsupported | | | |
+| Selection | Select > Components > UVs (menu item) | unsupported | | | |
+| Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
 | Camera | Orbit, pan, dolly | supported | `orbit_camera`, `pan_camera`, `dolly_camera` | `camera` | |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
 | Camera | Camera pose read (target, eye, distance) | supported | | `camera` | |
 | Camera | Frame All, orthographic views, field of view | unsupported | | | |
 | Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
-| Tools | Rotate and Scale tool-settings space and axis orientation selector | missing | | | #183 |
+| Tools | Rotate and Scale tool-settings space selector | missing | | | #183 |
+| Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | missing | | | #216 |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
 | History | Undo and Redo | supported | `undo`, `redo` | `can_undo`, `can_redo` | |
 | History | Undo and Redo command names (Edit menu hover) | missing | | | #188 |
 | Materials | Phong diffuse edit (Channel Box, Attribute Editor) | supported | `set_material_diffuse` | `shapes` | |
-| Materials | Session materials (create, assign, colour) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
+| Materials | Session materials (create, assign, colour; MCP and `inspect_scene` only, no native UI) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
 | Materials | Material rendering, shading networks, textures | unsupported | | | |
 | Viewport | Grid visibility | supported | `set_grid_visibility` | `grid_visible` | |
 | Viewport | Shading mode (Wireframe, Smooth Shade All) | supported | `set_shading_mode` | `shading` | |
 | Viewport | Hardware Texturing, Use All Lights, Wireframe on Shaded, Use default material | unsupported | | | |
 | Settings | Sidebar panel visibility (Channel Box, Attribute Editor, Ctrl+A) | supported | `set_sidebar_panel_visibility` | `sidebar_panels` | |
 | Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
+| Settings | Attribute Editor Pin Tab (disabled button) and read-only shape attributes | unsupported | | | |
 | Settings | Modeling Toolkit, HumanIK, Tool Settings panels, menu sets, selection presets | unsupported | | | |
 | Settings | Preferences and Working Units | unsupported | | | |
 | Panels | Time Slider and animation controls, Layer Editor, Outliner filters | unsupported | | | |
 | Panels | Status line message text | missing | | | #214 |
 
-Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the three missing rows, each linked to its issue; the catch-up stays open until those close. Issue #161 asks for camera pose, which `inspect_scene` `camera` already reports as target, eye and distance; a field of view or orientation would need a native control first.
+Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the four missing rows (#183, #188, #214, #216), each linked to its issue; the catch-up stays open until those close. Issue #161 asks for camera pose, and `inspect_scene` `camera` reports only target, eye and distance. Orientation, field of view and restoring a saved view (there is no absolute camera-set tool) remain open in #161, which stays open.
 
 ## Protocol references
 
