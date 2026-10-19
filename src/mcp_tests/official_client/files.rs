@@ -953,3 +953,36 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn open_scene_failure_withholds_directory_and_file_names() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::Builder::new()
+        .prefix("zzprivatedir")
+        .tempdir()
+        .unwrap();
+    let path = directory.path().join("zzsecretscene.ma");
+    let token = editor.scene_token.to_string();
+    let failed = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token":token,"path":path.to_str().unwrap()}),
+    )
+    .await;
+    assert_eq!(failed.is_error, Some(true));
+    let reply = serde_json::to_string(&failed).unwrap();
+    assert_eq!(
+        failed.structured_content.unwrap()["error"]["code"],
+        "file_error"
+    );
+    assert!(reply.contains("File operation failed (details withheld)"));
+    for leaked in ["zzprivatedir", "zzsecretscene"] {
+        assert!(!reply.contains(leaked), "{leaked} leaked in {reply}");
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

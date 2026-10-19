@@ -6055,3 +6055,22 @@ fn native_selection_changes_refuse_modal_before_committing_drafts() {
         }
     }
 }
+
+#[test]
+fn invalid_input_echo_after_failed_open_never_carries_the_path() {
+    let directory = tempfile::Builder::new()
+        .prefix("zzprivatedir")
+        .tempdir()
+        .unwrap();
+    let path = directory.path().join("zzsecret.ma");
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.status = format!("open failed for {}", path.display());
+    assert!(editor.status.contains("zzprivatedir"), "fixture must leak");
+    editor.channels[0] = "invalid".into();
+    let Err(OperationError::InvalidInput(message)) = editor.apply_operation(sidebar_op(false))
+    else {
+        panic!("expected invalid_input");
+    };
+    assert!(!message.contains("zzprivatedir") && !message.contains("zzsecret"));
+}

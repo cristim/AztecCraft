@@ -36,8 +36,7 @@ impl EditorServer {
 
 /// `OperationError::File` carries text built from `DocumentError`/`ObjError` Display, which
 /// embeds the filesystem path; the typed variant is the only reliable signal, so withhold it.
-const FILE_ERROR_WITHHELD: &str =
-    "file operation failed; details are withheld to protect private paths";
+const FILE_ERROR_WITHHELD: &str = "File operation failed (details withheld)";
 
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
