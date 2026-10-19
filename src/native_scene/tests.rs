@@ -1,4 +1,4 @@
-use super::test_fixtures::{cube, grouped_shape, shared_shape};
+use super::test_fixtures::{chain_of_three, cube, grouped_shape, shared_shape};
 use super::*;
 
 #[test]
@@ -390,6 +390,19 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
     assert_eq!(scene, before);
     assert_eq!(scene.next_id, before.next_id);
     assert_eq!(scene.next_native_id, before.next_native_id);
+}
+
+#[test]
+fn middle_node_with_parent_and_children_is_refused_as_has_children() {
+    let (mut scene, _, mid, _) = chain_of_three();
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove(mid),
+        Err(NativeError::UnsupportedDelete(
+            DeleteUnsupported::HasChildren
+        ))
+    );
+    assert_eq!(scene, before);
 }
 
 #[test]

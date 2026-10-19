@@ -675,3 +675,13 @@ will carry no shading assignment. The invented items are the I rows of
 
 Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
 profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
+
+## Hierarchy delete is unsupported and its Maya semantics are provisional
+
+**Severity:** low
+**Area:** editor core
+**Issue:** cristim/AztecCraft#187
+
+Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
+Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
+found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
