@@ -584,3 +584,13 @@ for track); AztecCraft still dollies on a plain right-drag and pans on a plain m
 text includes the path. No remote operation takes a path today, so remote calls cannot
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
+
+## Hierarchy delete is unsupported and its Maya semantics are provisional
+
+**Severity:** low
+**Area:** editor core
+**Issue:** cristim/AztecCraft#187
+
+Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
+Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
+found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.

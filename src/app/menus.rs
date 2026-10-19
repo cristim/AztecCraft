@@ -36,6 +36,10 @@ pub(super) const MODELING_SET_MENUS: [&str; 9] = [
 /// Help follows the Modeling set; its Maya position is UNCONFIRMED (the pages do not place it).
 pub(super) const HELP_MENU: &str = "Help";
 
+/// Maya's Edit > Delete by Type and Delete All by Type rows; the type list is not implemented.
+const DELETE_BY_TYPE_REASON: &str =
+    "Deleting by node type is not supported yet; select the object and use Delete";
+
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
     ui.menu_button(label, |ui| {
         unsupported(ui, "Not implemented yet");
@@ -167,6 +171,10 @@ impl Editor {
                 {
                     *delete_intent = true;
                     ui.close();
+                }
+                for label in ["Delete by Type", "Delete All by Type"] {
+                    ui.add_enabled(false, egui::Button::new(label))
+                        .on_disabled_hover_text(DELETE_BY_TYPE_REASON);
                 }
             });
             ui.menu_button("Create", |ui| {

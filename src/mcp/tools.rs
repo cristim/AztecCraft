@@ -86,6 +86,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {
                     "absent_channel_leaf"
                 }
+                OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) => "camera_error",
                 OperationError::File(_) => "file_error",
