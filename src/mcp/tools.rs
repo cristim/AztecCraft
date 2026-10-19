@@ -34,6 +34,11 @@ impl EditorServer {
     }
 }
 
+/// `OperationError::File` carries text built from `DocumentError`/`ObjError` Display, which
+/// embeds the filesystem path; the typed variant is the only reliable signal, so withhold it.
+const FILE_ERROR_WITHHELD: &str =
+    "file operation failed; details are withheld to protect private paths";
+
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
         json!({ "error": { "code": code, "message": message.to_string() } }),
@@ -106,7 +111,10 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
             };
-            tool_error(code, error)
+            match error {
+                OperationError::File(_) => tool_error(code, FILE_ERROR_WITHHELD),
+                error => tool_error(code, error),
+            }
         }
     }
 }
@@ -212,6 +220,28 @@ mod tests {
     use azteccraft::native_scene::{RotateAxis, ScaleHandle};
     use rmcp::model::{ErrorCode, JsonObject};
     use uuid::Uuid;
+
+    #[test]
+    fn file_errors_withhold_private_paths_and_keep_the_code() {
+        let io = azteccraft::document::DocumentError::Io {
+            operation: "read",
+            path: "/tmp/secret-dir/scene.ma".into(),
+            source: std::io::Error::from(std::io::ErrorKind::NotFound),
+        };
+        let text = io.to_string();
+        assert!(
+            text.contains("/tmp/secret-dir"),
+            "fixture must carry the path"
+        );
+        let result = tool_reply(Err(OperationError::File(text)));
+        assert_eq!(result.is_error, Some(true));
+        let value = serde_json::to_value(&result).unwrap();
+        let rendered = value.to_string();
+        assert!(!rendered.contains("secret-dir") && !rendered.contains("scene.ma"));
+        let error = &value["structuredContent"]["error"];
+        assert_eq!(error["code"], "file_error");
+        assert_eq!(error["message"], FILE_ERROR_WITHHELD);
+    }
 
     #[test]
     fn material_arguments_are_strict_f64_and_exact_native_identity() {
