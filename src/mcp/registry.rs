@@ -114,6 +114,100 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
         );
     }
 
+    const INVENTORY_DOC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/.project-docs/mcp.md");
+
+    /// Rows of the `## Coverage inventory` table as six trimmed cells.
+    fn inventory_rows(doc: &str) -> Vec<Vec<String>> {
+        let doc = doc.replace("\r\n", "\n");
+        let section = doc
+            .split("\n## Coverage inventory\n")
+            .nth(1)
+            .expect("mcp.md has a Coverage inventory section");
+        let section = section.split("\n## ").next().unwrap();
+        let mut table = section.lines().filter(|line| line.starts_with('|'));
+        let header = table.next().expect("inventory table header");
+        assert_eq!(
+            header,
+            "| Area | Capability | Status | Tools | State | Issue |"
+        );
+        assert!(table.next().expect("separator").contains("---"));
+        table
+            .map(|line| {
+                let cells = line
+                    .trim_matches('|')
+                    .split('|')
+                    .map(|cell| cell.trim().to_owned())
+                    .collect::<Vec<_>>();
+                assert_eq!(cells.len(), 6, "inventory row has six cells: {line}");
+                cells
+            })
+            .collect()
+    }
+
+    /// Backticked names in a cell; anything else in the cell is a malformed row.
+    fn backticked(cell: &str) -> Vec<String> {
+        cell.split(',')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(|part| {
+                part.strip_prefix('`')
+                    .and_then(|part| part.strip_suffix('`'))
+                    .unwrap_or_else(|| panic!("`{part}` is not a backticked name"))
+                    .to_owned()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn inventory_tools_match_registry() {
+        let doc = std::fs::read_to_string(INVENTORY_DOC_PATH).unwrap();
+        let rows = inventory_rows(&doc);
+        assert!(!rows.is_empty());
+        let registered = tool_names()
+            .map(str::to_owned)
+            .collect::<std::collections::BTreeSet<_>>();
+        let mut documented = std::collections::BTreeSet::new();
+        for row in &rows {
+            let (capability, status, tools, state, issue) =
+                (&row[1], row[2].as_str(), &row[3], &row[4], &row[5]);
+            let tools = backticked(tools);
+            let state = backticked(state);
+            for tool in &tools {
+                assert!(
+                    registered.contains(tool),
+                    "inventory row `{capability}` names unregistered tool `{tool}`"
+                );
+                documented.insert(tool.clone());
+            }
+            match status {
+                "supported" => assert!(
+                    !tools.is_empty() || !state.is_empty(),
+                    "supported row `{capability}` names no tool or state field"
+                ),
+                "unsupported" => assert!(
+                    tools.is_empty() && issue.is_empty(),
+                    "unsupported row `{capability}` must name no tool and no issue"
+                ),
+                "missing" => {
+                    assert!(tools.is_empty(), "missing row `{capability}` names a tool");
+                    let numbered = issue
+                        .strip_prefix('#')
+                        .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+                    assert!(
+                        numbered || issue == "unfiled",
+                        "missing row `{capability}` needs an issue like #123 or `unfiled`"
+                    );
+                }
+                other => panic!("row `{capability}` has unknown status `{other}`"),
+            }
+        }
+        let absent = registered.difference(&documented).collect::<Vec<_>>();
+        assert!(
+            absent.is_empty(),
+            "registered tools missing from the mcp.md coverage inventory: {absent:?}"
+        );
+    }
+
     #[test]
     fn tool_names_are_unique() {
         let mut names = tool_names().collect::<Vec<_>>();
