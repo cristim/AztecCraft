@@ -80,6 +80,52 @@ fn framing_and_unknown_executable_mutations_fail() {
 }
 
 #[test]
+fn lone_cr_inside_an_array_row_is_refused_on_its_own() {
+    let document = golden().replace("\t-0.5 0 -0.5\n", "\t-0.5 0 -0.5\r\n");
+    assert_eq!(document.matches('\r').count(), 1);
+    assert_eq!(
+        frame(document.as_bytes()).err().as_deref(),
+        Some("canonical LF framing")
+    );
+}
+
+#[test]
+fn uuid_and_transform_channel_lines_are_classified_in_their_positions() {
+    let uuid = "\trename -uid \"id\";\n";
+    let channel = "\tsetAttr \".t\" -type \"double3\" 0 0 0;\n";
+    let geometry = GEOMETRY
+        .replace(
+            "createNode mesh",
+            &format!("{uuid}{channel}createNode mesh"),
+        )
+        .replace(
+            "\tsetAttr -s 4 \".vt",
+            &format!("{uuid}\tsetAttr -s 4 \".vt"),
+        );
+    let document = format!("{HEADER}{geometry}");
+    let (kinds, boundary) = frame(document.as_bytes()).unwrap();
+    assert_eq!(boundary, document.len());
+    assert_eq!(
+        kinds,
+        [
+            Kind::Header,
+            Kind::Header,
+            Kind::Header,
+            Kind::Transform,
+            Kind::Uuid,
+            Kind::Channel,
+            Kind::Mesh,
+            Kind::Uuid,
+            Kind::Array,
+            Kind::Array,
+            Kind::Array,
+        ]
+    );
+    rejects(&format!("{}{uuid}", golden()));
+    rejects(&format!("{}{channel}", golden()));
+}
+
+#[test]
 fn input_bound_is_checked_before_line_collection() {
     let oversized = vec![b'x'; 16 * 1024 * 1024 + 1];
     assert_eq!(frame(&oversized).err().as_deref(), Some("input byte limit"));
