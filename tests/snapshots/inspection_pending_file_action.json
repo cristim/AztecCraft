@@ -219,6 +219,7 @@
       "unavailable": 0,
       "unbound": 1
     },
+    "status_message": "Scene edited",
     "text_focused": false,
     "units": {
       "angular": "deg",

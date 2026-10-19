@@ -314,6 +314,7 @@ impl Editor {
             native_input_pending: self.native_input_pending,
             text_focused,
             modal: self.files.is_modal(),
+            status_message: self.status_message(),
             camera: CameraInspection {
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),

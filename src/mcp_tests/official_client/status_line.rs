@@ -178,3 +178,94 @@ async fn sdk_sidebar_panel_visibility_is_busy_during_an_active_move() {
     drop(editor);
     server.await.unwrap();
 }
+
+async fn status_message(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::RunningService<RoleClient, ()>,
+) -> serde_json::Value {
+    call(editor, context, client.peer(), "inspect_scene", json!({}))
+        .await
+        .structured_content
+        .unwrap()["inspection"]["status_message"]
+        .clone()
+}
+
+#[tokio::test]
+async fn sdk_inspection_mirrors_native_and_remote_status_text() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    assert_eq!(
+        status_message(&mut editor, &context, &client).await,
+        json!(editor.status)
+    );
+    editor.create(Primitive::Cube);
+    let native = status_message(&mut editor, &context, &client).await;
+    assert_eq!(native, json!(editor.status));
+    assert!(
+        editor.status.starts_with("Scene edited"),
+        "{}",
+        editor.status
+    );
+
+    let token = editor.scene_token.to_string();
+    editor.status = "sentinel".into();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "create_primitive",
+        json!({"scene_token": token, "primitive": "sphere"}),
+    )
+    .await;
+    assert_eq!(result.structured_content.unwrap()["outcome"], "created");
+    let remote = status_message(&mut editor, &context, &client).await;
+    assert_eq!(remote, json!(editor.status));
+    // Remote operations do not set status text (#27); the field reports whatever the Editor holds.
+
+    editor.status.clear();
+    assert!(
+        status_message(&mut editor, &context, &client)
+            .await
+            .is_null()
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_inspection_withholds_file_error_status_and_bounds_length() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let private = "open /private/scene.mb: permission denied";
+    editor.set_error_status(&OperationError::File(private.into()));
+    assert_eq!(
+        editor.status, private,
+        "the native line keeps the full text"
+    );
+    let withheld = status_message(&mut editor, &context, &client).await;
+    assert_eq!(
+        withheld,
+        json!(crate::editor_operations::STATUS_MESSAGE_WITHHELD)
+    );
+    assert!(!withheld.to_string().contains("private"));
+
+    editor.status = private.into();
+    editor.status_withholds_path = None;
+    editor.set_error_status(&OperationError::NoSelection);
+    assert_eq!(
+        status_message(&mut editor, &context, &client).await,
+        json!(OperationError::NoSelection.to_string())
+    );
+
+    editor.status = "x".repeat(10_000);
+    let long = status_message(&mut editor, &context, &client).await;
+    assert_eq!(
+        long.as_str().unwrap().chars().count(),
+        crate::editor_operations::STATUS_MESSAGE_MAX_CHARS
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

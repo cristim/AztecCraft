@@ -546,3 +546,15 @@ and dolly (help.autodesk.com/cloudhelp/2023/ENU/Maya-Basics/files/GUID-941480C1-
 no 2026 page was found) give no direction for the Alt + right-drag, so it is unverified against
 Maya. Horizontal drag does not dolly. Maya requires Alt for right-drag dolly (and Alt + middle
 for track); AztecCraft still dollies on a plain right-drag and pans on a plain middle-drag.
+
+## MCP file-error text is not redacted in code
+
+**Severity:** low
+**Area:** MCP
+**Issue:** cristim/AztecCraft#221
+
+`.project-docs/mcp.md` says file errors redact private paths, but `tool_error` in
+`src/mcp/tools.rs` returns `OperationError::File` text unchanged, and `DocumentError::Io`
+text includes the path. No remote operation takes a path today, so remote calls cannot
+currently reach such text. `inspect_scene.status_message` withholds file-error status text
+(`Editor::set_error_status`); the tool-error channel does not.

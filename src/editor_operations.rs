@@ -395,6 +395,8 @@ pub struct SceneInspection {
     pub native_input_pending: bool,
     pub text_focused: bool,
     pub modal: bool,
+    /// The native status line text, or a fixed notice when the text would carry a local path.
+    pub status_message: Option<String>,
     pub camera: CameraInspection,
 }
 
@@ -713,6 +715,13 @@ const NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES: usize = 640;
 #[cfg(any(test, feature = "mcp"))]
 const NODE_VISIBLE_FIELD_MAX_BYTES: usize = "\"visible\":false,".len();
 #[cfg(any(test, feature = "mcp"))]
+pub const STATUS_MESSAGE_MAX_CHARS: usize = 512;
+#[cfg(any(test, feature = "mcp"))]
+pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withheld)";
+/// Six bytes per character covers JSON escaping of control characters.
+#[cfg(any(test, feature = "mcp"))]
+const STATUS_MESSAGE_MAX_BYTES: usize = STATUS_MESSAGE_MAX_CHARS * 6 + 32;
+#[cfg(any(test, feature = "mcp"))]
 const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
 
 #[cfg(any(test, feature = "mcp"))]
@@ -723,7 +732,8 @@ pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
     let limit = MAX_RESULT_BYTES / 2;
-    let mut estimated_bytes = APPEARANCE_SUMMARY_MAX_BYTES + MOVE_INSPECTION_MAX_BYTES;
+    let mut estimated_bytes =
+        APPEARANCE_SUMMARY_MAX_BYTES + MOVE_INSPECTION_MAX_BYTES + STATUS_MESSAGE_MAX_BYTES;
     for node in scene.nodes() {
         estimated_bytes = estimated_bytes
             .saturating_add(1024)
@@ -869,7 +879,7 @@ mod tests {
                 break;
             }
         }
-        assert_eq!(first_too_large, Some(66));
+        assert_eq!(first_too_large, Some(65));
     }
 
     #[test]

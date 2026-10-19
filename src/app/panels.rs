@@ -231,7 +231,7 @@ impl Editor {
         if !matches!(&captured, Ok(Some(_)))
             && let Err(error) = self.missing_move_viewport()
         {
-            self.status = error.to_string();
+            self.set_error_status(&error);
             self.error = true;
         }
         if let Ok(Some(input)) = &captured {
@@ -468,7 +468,7 @@ impl Editor {
             if matches!(error, OperationError::Camera(_)) {
                 self.viewport_error = Some(crate::viewport_renderer::ViewportError::CameraInput);
             }
-            self.status = error.to_string();
+            self.set_error_status(&error);
             self.error = true;
             if self
                 .renderer

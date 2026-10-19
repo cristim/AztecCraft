@@ -96,6 +96,10 @@ pub struct Editor {
     material_draft: Option<MaterialDraft>,
     native_input_pending: bool,
     status: String,
+    /// Exact `status` text produced from an error whose text can carry a local path. The native
+    /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
+    /// stale when a later message replaces the status.
+    status_withholds_path: Option<String>,
     error: bool,
     aspect: f32,
     files: files::FileState,
@@ -139,6 +143,7 @@ impl Default for Editor {
             material_draft: None,
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
+            status_withholds_path: None,
             error: false,
             aspect: 1.0,
             files: files::FileState::default(),
@@ -147,6 +152,26 @@ impl Default for Editor {
 }
 
 impl Editor {
+    /// The single place an `OperationError` becomes status text.
+    fn set_error_status(&mut self, error: &OperationError) {
+        self.status = error.to_string();
+        self.status_withholds_path =
+            matches!(error, OperationError::File(_)).then(|| self.status.clone());
+    }
+    /// Status text for inspection: the native line verbatim, except path-bearing errors.
+    #[cfg(any(test, feature = "mcp"))]
+    fn status_message(&self) -> Option<String> {
+        let text = if self.status_withholds_path.as_deref() == Some(self.status.as_str()) {
+            crate::editor_operations::STATUS_MESSAGE_WITHHELD
+        } else {
+            self.status.as_str()
+        };
+        (!text.is_empty()).then(|| {
+            text.chars()
+                .take(crate::editor_operations::STATUS_MESSAGE_MAX_CHARS)
+                .collect()
+        })
+    }
     /// Hover text for a disabled Delete control: the component refusal in a component mode,
     /// otherwise the read-only reason, otherwise the missing selection.
     fn delete_disabled_hover(&self, read_only: Option<&str>, menu: bool) -> String {
@@ -234,7 +259,7 @@ impl eframe::App for Editor {
                 .is_some_and(|active| active.provenance == ManipulationProvenance::Native)
                 && let Err(error) = self.cancel_move()
             {
-                self.status = error.to_string();
+                self.set_error_status(&error);
                 self.error = true;
             }
             self.handle_close(ctx);

@@ -109,7 +109,7 @@ impl Editor {
             let cancelled = self.cancel_move();
             self.consume_pointer_sequence();
             if let Err(error) = cancelled {
-                self.status = error.to_string();
+                self.set_error_status(&error);
                 self.error = true;
                 return;
             }

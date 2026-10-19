@@ -164,6 +164,7 @@
       "unavailable": 0,
       "unbound": 0
     },
+    "status_message": "Scene ready",
     "text_focused": false,
     "units": {
       "angular": "deg",

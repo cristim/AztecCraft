@@ -240,7 +240,7 @@ impl Editor {
     }
     pub(super) fn open_dialog(&mut self) {
         if let Err(error) = self.cancel_move() {
-            self.status = error.to_string();
+            self.set_error_status(&error);
             self.error = true;
             return;
         }
@@ -554,7 +554,7 @@ impl Editor {
                 pending_id: id,
                 decision,
             }) {
-                self.status = error.to_string();
+                self.set_error_status(&error);
                 self.error = true;
             }
             self.send_close_when_ready(ctx);

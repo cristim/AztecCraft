@@ -99,7 +99,7 @@ impl Editor {
                 }
             }
             Err(error) => {
-                self.status = error.to_string();
+                self.set_error_status(&error);
                 self.error = true;
             }
         }
