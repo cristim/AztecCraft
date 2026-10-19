@@ -871,7 +871,7 @@ fn upward_right_drag_dollies_the_camera_back_and_downward_dollies_in() {
             .unwrap();
         let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
         let point = egui::pos2(40.0, 50.0);
-        let none = Modifiers::NONE;
+        let none = Modifiers::ALT;
         let _ = capture_frame(
             &context,
             &camera,
@@ -902,5 +902,60 @@ fn upward_right_drag_dollies_the_camera_back_and_downward_dollies_in() {
         let before = camera.distance();
         camera.dolly(*factor).unwrap();
         assert_eq!(camera.distance() > before, farther, "dy {dy}");
+    }
+}
+
+#[test]
+fn plain_middle_and_right_drags_leave_the_camera_unbound_and_alt_still_navigates() {
+    for (button, alt) in [
+        (PointerButton::Middle, false),
+        (PointerButton::Secondary, false),
+        (PointerButton::Middle, true),
+        (PointerButton::Secondary, true),
+    ] {
+        let context = egui::Context::default();
+        let mut camera = camera();
+        camera
+            .frame_points(&[Vec3::splat(-4.0), Vec3::splat(4.0)], 1.0)
+            .unwrap();
+        let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
+        let point = egui::pos2(40.0, 50.0);
+        let modifiers = if alt { Modifiers::ALT } else { Modifiers::NONE };
+        let _ = capture_frame(
+            &context,
+            &camera,
+            raw(0.0, modifiers, vec![Event::PointerMoved(point)]),
+            clip,
+        );
+        let press = Event::PointerButton {
+            pos: point,
+            button,
+            pressed: true,
+            modifiers,
+        };
+        let _ = capture_frame(
+            &context,
+            &camera,
+            raw(1.0 / 60.0, modifiers, vec![press]),
+            clip,
+        );
+        let (mut input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(
+                2.0 / 60.0,
+                modifiers,
+                vec![Event::PointerMoved(egui::pos2(50.0, 70.0))],
+            ),
+            clip,
+        );
+        let operations = input.take_navigation();
+        match (alt, button) {
+            (false, _) => assert!(operations.is_empty(), "{button:?} without Alt"),
+            (true, PointerButton::Middle) => {
+                assert!(matches!(operations.as_slice(), [Operation::Pan { .. }]))
+            }
+            (true, _) => assert!(matches!(operations.as_slice(), [Operation::Dolly { .. }])),
+        }
     }
 }

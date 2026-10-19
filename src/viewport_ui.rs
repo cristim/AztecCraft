@@ -95,12 +95,12 @@ pub fn capture(
             radians: (Vec2::new(-delta.x, delta.y) * 0.007).to_array(),
         });
     }
-    if response.dragged_by(PointerButton::Middle) {
+    if response.dragged_by(PointerButton::Middle) && alt {
         navigation.push(Operation::Pan {
             world_units: (Vec2::new(-delta.x, delta.y) * camera.distance() * 0.002).to_array(),
         });
     }
-    if response.dragged_by(PointerButton::Secondary) {
+    if response.dragged_by(PointerButton::Secondary) && alt {
         navigation.push(Operation::Dolly {
             factor: (-delta.y * 0.01).exp(),
         });

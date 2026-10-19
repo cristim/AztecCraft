@@ -76,7 +76,8 @@ runtime services.
 
 The prototype provides menus/shelf, Outliner, Channel Box, projected mesh drawing,
 selection, name/numeric edits, undo/redo, delete and framing. Alt-left drag orbits,
-middle drag pans, right drag/wheel dollies, and F frames the active object or face when
+Alt-middle drag tracks (pans), Alt-right drag dollies, the wheel dollies without Alt,
+and plain middle/right drags are unbound (reserved for #37 and #32), and F frames the active object or face when
 a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes.
 New/Open use the shared native document lifecycle. This candidate enables
 eligible Unix Maya binary Save/Save As through that same lifecycle and ordinary
