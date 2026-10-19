@@ -488,14 +488,18 @@ Move arrows and Scale shafts and boxes draw at 72 px times the sine of the angle
 the axis and the view ray, so an end-on axis is short and picks exactly where it is drawn
 (#155). Plain perspective foreshortening was chosen because a search of the Maya 2026
 manipulator help found no documented minimum length, fading or hiding of end-on axes; the
-rule is unverified against Maya itself. It is a first-order approximation: exact end-on, and
-the length is the derivative of the projection, so it is 3-9% short on-centre from the
-finite 72 px length. Off-centre it is short by up to 1 - cos(a), where a is the angle
-between the handle's view ray and the camera forward axis (a 90 degree field of view
-reaches about 29% at the edge midpoints and 42% in the corners); the error grows
-without bound as a nears 90 degrees. Scale plane squares stay at full length while the shafts
-shorten, so they can stick out past the tips; they are disabled and unpickable, so this is
-cosmetic.
+rule is unverified against Maya itself. It is a first-order approximation: exact end-on.
+Off-centre it draws short. For a pinhole camera, a small displacement perpendicular to a view ray `a` off
+the camera axis, at distance D, shows on screen scaled by 1/(D cos a) out of the ray/axis
+plane and 1/(D cos^2 a) in it (checked with a finite-difference projection), against 1/D
+for the same displacement at the same distance on-axis. The constant 72 px times the sine
+is therefore short by between 1 - cos(a) and 1 - cos^2(a), depending on the axis
+direction: 29-50% at the edge midpoints and 42-67% in the corners of a square viewport at
+a 90 degree field of view, approaching 100% as a nears 90 degrees. The finite length of the
+handle adds a separate, signed, field-of-view-dependent error this rule does not model.
+Scale plane squares stay at
+full length while the shafts shorten, so they can stick out past the tips; they are disabled
+and unpickable, so this is cosmetic.
 
 A Rotate drag whose samples are refused for a stretch (edge-on ring, pointer behind the
 camera) can lose whole turns. Each accepted sample adds the shortest signed step from the
