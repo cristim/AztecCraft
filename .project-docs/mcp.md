@@ -433,7 +433,7 @@ Initial catch-up remains incomplete while these implemented capabilities lack th
 
 ## Coverage inventory
 
-Static source audit of commit `b8d3dd7f985527881ecae186b76d794564708f79` (origin/main), read on macOS. No native run, no MCP session and no Maya comparison were performed, so this table says where a control or tool exists in the source and nothing about behaviour or parity. It covers the registered catalogue (`src/mcp/registry.rs` and `src/mcp/features/`) against the native UI (`src/app/menus.rs`, `panels.rs`, `shortcuts.rs`, `features/`, `src/viewport_ui.rs`) and the `inspect_scene` projection (`src/app/inspect.rs`). It is not a Maya feature inventory (#6) and says nothing about features the native UI does not draw. Pull request #212 (`set_tool_space`) is not merged and is not counted.
+Static source audit of commit `b8d3dd7f985527881ecae186b76d794564708f79` (origin/main), read on macOS. No native run, no MCP session and no Maya comparison were performed, so this table says where a control or tool exists in the source and nothing about behaviour or parity. It covers the registered catalogue (`src/mcp/registry.rs` and `src/mcp/features/`) against the native UI (`src/app/menus.rs`, `panels.rs`, `shortcuts.rs`, `features/`, `src/viewport_ui.rs`) and the `inspect_scene` projection (`src/app/inspect.rs`). It is not a Maya feature inventory (#6) and says nothing about features the native UI does not draw.
 
 Status values: `supported` means a registered tool or an `inspect_scene` field exposes it. `unsupported` means the native UI shows the control visibly unsupported or disabled, or the capability has no native control, so MCP needs nothing. `missing` means the native UI or editor state implements it and MCP lacks it; each missing row names the open issue that closes it. The Tools column holds only registered tool names; the test `inventory_tools_match_registry` fails when a name there is not registered or a registered tool appears in no row. Keep that column to tool names and put state fields in the State column.
 
@@ -468,7 +468,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Camera | Frame All, orthographic views, field of view | unsupported | | | |
 | Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
-| Tools | Rotate and Scale tool-settings space selector | missing | | | #183 |
+| Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | missing | | | #216 |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -488,7 +488,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Panels | Time Slider and animation controls, Layer Editor, Outliner filters | unsupported | | | |
 | Panels | Status line message text | missing | | | #214 |
 
-Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the four missing rows (#183, #188, #214, #216), each linked to its issue; the catch-up stays open until those close. Issue #161 asks for camera pose, and `inspect_scene` `camera` reports only target, eye and distance. Orientation, field of view and restoring a saved view (there is no absolute camera-set tool) remain open in #161, which stays open.
+Outcome: the registered catalogue covers every implemented file, creation, selection, camera, tool, history, material, viewport and panel operation except the three missing rows (#188, #214, #216), each linked to its issue; the catch-up stays open until those close. Issue #161 asks for camera pose, and `inspect_scene` `camera` reports only target, eye and distance. Orientation, field of view and restoring a saved view (there is no absolute camera-set tool) remain open in #161, which stays open.
 
 ## Protocol references
 
