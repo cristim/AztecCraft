@@ -34,10 +34,6 @@ impl EditorServer {
     }
 }
 
-/// `OperationError::File` carries text built from `DocumentError`/`ObjError` Display, which
-/// embeds the filesystem path; the typed variant is the only reliable signal, so withhold it.
-const FILE_ERROR_WITHHELD: &str = "File operation failed (details withheld)";
-
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
         json!({ "error": { "code": code, "message": message.to_string() } }),
@@ -112,7 +108,11 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::StalePendingAction => "stale_pending_action",
             };
             match error {
-                OperationError::File(_) => tool_error(code, FILE_ERROR_WITHHELD),
+                // File text comes from DocumentError/ObjError Display, which embeds the path; the
+                // typed variant is the only reliable signal, so withhold it.
+                OperationError::File(_) => {
+                    tool_error(code, crate::editor_operations::STATUS_MESSAGE_WITHHELD)
+                }
                 error => tool_error(code, error),
             }
         }
@@ -240,7 +240,10 @@ mod tests {
         assert!(!rendered.contains("secret-dir") && !rendered.contains("scene.ma"));
         let error = &value["structuredContent"]["error"];
         assert_eq!(error["code"], "file_error");
-        assert_eq!(error["message"], FILE_ERROR_WITHHELD);
+        assert_eq!(
+            error["message"],
+            crate::editor_operations::STATUS_MESSAGE_WITHHELD
+        );
     }
 
     #[test]

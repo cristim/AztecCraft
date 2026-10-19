@@ -978,7 +978,7 @@ async fn open_scene_failure_withholds_directory_and_file_names() {
         failed.structured_content.unwrap()["error"]["code"],
         "file_error"
     );
-    assert!(reply.contains("File operation failed (details withheld)"));
+    assert!(reply.contains(crate::editor_operations::STATUS_MESSAGE_WITHHELD));
     for leaked in ["zzprivatedir", "zzsecretscene"] {
         assert!(!reply.contains(leaked), "{leaked} leaked in {reply}");
     }
