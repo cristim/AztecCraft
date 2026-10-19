@@ -174,10 +174,13 @@ impl ManipulationKind {
         &self,
         scene: &mut NativeScene,
         parameter: f64,
+        declared: Option<f64>,
     ) -> Result<(ChannelBaseline, bool), NativeError> {
         let values = match self {
             Self::Move { axis, frame, .. } => frame.translation(*axis, parameter)?,
-            Self::Rotate { axis, frame, .. } => frame.rotation(*axis, parameter)?,
+            Self::Rotate { axis, frame, .. } => {
+                frame.rotation_declared(*axis, parameter, declared)?
+            }
             Self::Scale { handle, frame, .. } => frame.scale(*handle, parameter)?,
         };
         scene.preview_channels(self.baseline(), values)
@@ -351,12 +354,39 @@ impl History {
         provenance: ManipulationProvenance,
         distance_cm: f64,
     ) -> Result<EditOutcome, ManipulationError> {
+        self.update_active(scene_token, id, provenance, distance_cm, None)
+    }
+
+    /// Like `update_move`, for a Rotate whose angle was requested in the scene's angular unit.
+    /// `degrees` drives the preview parameter; `declared` is the exact requested value that a
+    /// single-channel result is stored from (see `RotateFrame::rotation`).
+    pub fn update_move_declared(
+        &mut self,
+        scene_token: Uuid,
+        id: ManipulationId,
+        provenance: ManipulationProvenance,
+        degrees: f64,
+        declared: Option<f64>,
+    ) -> Result<EditOutcome, ManipulationError> {
+        self.update_active(scene_token, id, provenance, degrees, declared)
+    }
+
+    fn update_active(
+        &mut self,
+        scene_token: Uuid,
+        id: ManipulationId,
+        provenance: ManipulationProvenance,
+        distance_cm: f64,
+        declared: Option<f64>,
+    ) -> Result<EditOutcome, ManipulationError> {
         let active = self
             .active_manipulation
             .as_mut()
             .ok_or(ManipulationError::StaleManipulation)?;
         active.matches(scene_token, id, provenance)?;
-        let (previous, changed) = active.kind.preview(&mut self.scene, distance_cm)?;
+        let (previous, changed) = active
+            .kind
+            .preview(&mut self.scene, distance_cm, declared)?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
             self.scene.restore_channels(&previous)?;
             return Err(error.into());

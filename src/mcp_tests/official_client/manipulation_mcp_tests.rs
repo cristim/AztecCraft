@@ -1260,6 +1260,11 @@ async fn rotate_and_scale_sdk_use_angular_and_unitless_values_in_a_non_cm_radian
 #[cfg(unix)]
 #[tokio::test]
 async fn rotate_commit_in_a_radian_scene_saves_the_expected_radians() {
+    // An angle whose degree round trip is not exact, so only a typed radian path stores 0.25 + it.
+    let angle = (1..100_000)
+        .map(|i| f64::from(i) / 1000.0)
+        .find(|angle| 0.25 + (angle * (180.0 / std::f64::consts::PI)).to_radians() != 0.25 + angle)
+        .unwrap();
     let original = unit_scene(b"in", b"rad", [0.25, 0.0, 0.0], [1.5, 1.0, 1.0]);
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("rotate-original.mb");
@@ -1303,13 +1308,13 @@ async fn rotate_commit_in_a_radian_scene_saves_the_expected_radians() {
         &context,
         client.peer(),
         "update_manipulation",
-        json!({"scene_token":token,"manipulation_id":id,"angle":4.5}),
+        json!({"scene_token":token,"manipulation_id":id,"angle":angle}),
     )
     .await;
     let inspected = inspect_manipulation(&mut editor, &context, &client).await;
     assert_eq!(
         inspected["active"]["value"].as_f64().unwrap().to_bits(),
-        4.5_f64.to_bits()
+        angle.to_bits()
     );
     call(
         &mut editor,
@@ -1335,11 +1340,7 @@ async fn rotate_commit_in_a_radian_scene_saves_the_expected_radians() {
         .position(|word| word == 0.25f64.to_be_bytes())
         .unwrap();
     let mut expected = original.to_vec();
-    // The save converts through degrees, so the radian word may differ from 4.75 by an ulp; every
-    // other byte is untouched.
-    let saved_word = f64::from_be_bytes(written[offset..offset + 8].try_into().unwrap());
-    assert!((saved_word - 4.75).abs() < 1e-12, "{saved_word}");
-    expected[offset..offset + 8].copy_from_slice(&written[offset..offset + 8]);
+    expected[offset..offset + 8].copy_from_slice(&(0.25 + angle).to_be_bytes());
     assert_eq!(written, expected);
     assert_eq!(
         std::fs::read(&source).unwrap().as_slice(),

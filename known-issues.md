@@ -487,9 +487,8 @@ would lift the limit.
 
 ## Rotate exactness is partial (#128)
 
-A Rotate that changes exactly one channel by the requested delta stores `baseline + delta` in the scene's declared unit, bit for bit (object-space X ring, single-channel numeric entry, and Y/Z or world rotations whose decomposition changes one channel within the snap tolerance of that value). Two cases are computed rather than exact, and may differ from `baseline + requested` by about 1 ulp:
+A Rotate that changes exactly one channel by the requested delta stores `baseline + delta` in the scene's declared unit, bit for bit (object-space X ring, single-channel numeric entry and MCP `update_manipulation`, in degree and radian scenes, and Y/Z or world rotations whose decomposition changes one channel within the snap tolerance of that value). A numeric or MCP angle is carried in the scene's angular unit alongside its degree preview value, so a radian scene does not round trip it through degrees. A ring drag has no declared angle: its degree angle is the request. One case is computed rather than exact, and may differ from `baseline + requested` by about 1 ulp:
 
-- A radian scene: Rotate works internally in degrees, so a requested radian angle is converted to degrees and back.
 - A Y/Z ring or world rotation that genuinely changes several channels (Euler decomposition).
 
 Untouched channels are preserved bit for bit. Inspection echoes the requested value as given after a remote update, so it does not reveal these differences.

@@ -251,10 +251,11 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     expect("move begin", ".begin_move(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);
     expect("scale begin", ".begin_scale(", &["begin_editor_scale"]);
+    expect("move update", ".update_move(", &["update_editor_move"]);
     expect(
-        "move update",
-        ".update_move(",
-        &["update_editor_move", "update_editor_manipulation"],
+        "rotate update",
+        ".update_move_declared(",
+        &["update_editor_manipulation"],
     );
     expect("move finish", ".finish_move(", &["finish_editor_move"]);
     expect("move cancel", ".cancel_active_move(", &["cancel_move"]);

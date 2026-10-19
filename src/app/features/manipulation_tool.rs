@@ -262,9 +262,9 @@ impl Editor {
             ManipulationValue::Angle(angle) => Some(angle),
             _ => None,
         };
-        let updated = self
-            .history
-            .update_move(self.scene_token, id, provenance, number);
+        let updated =
+            self.history
+                .update_move_declared(self.scene_token, id, provenance, number, declared);
         let outcome = self.record_update(updated)?;
         self.manipulation.declared = declared.map(|angle| (id, angle));
         self.sync_fields();

@@ -134,13 +134,28 @@ impl RotateFrame {
     /// Declared rotate channel values after turning by `degrees` about `axis`, the node's own
     /// axis in object space or the world axis in world space.
     pub fn rotation(&self, axis: RotateAxis, degrees: f64) -> Result<[f64; 3], NativeError> {
+        self.rotation_declared(axis, degrees, None)
+    }
+
+    /// `rotation` for an angle also known in the scene's angular unit (`declared`). A radian
+    /// scene then uses it as the delta, so a single-channel result is the exact
+    /// `baseline + declared` instead of a degree round trip.
+    pub fn rotation_declared(
+        &self,
+        axis: RotateAxis,
+        degrees: f64,
+        declared: Option<f64>,
+    ) -> Result<[f64; 3], NativeError> {
         if !degrees.is_finite() {
             return Err(NativeError::NonFinite);
         }
         if degrees == 0.0 {
             return Ok(self.declared);
         }
-        let delta = degrees.to_radians();
+        let delta = match (&self.units.angular, declared) {
+            (AngularUnit::Radian, Some(angle)) if angle.is_finite() => angle,
+            _ => degrees.to_radians(),
+        };
         let refused = NativeError::UnsupportedRotate(RotateUnsupported::NumericalAngle);
         if !delta.is_finite() || delta.abs() > MAX_ANGLE_RADIANS {
             return Err(refused);

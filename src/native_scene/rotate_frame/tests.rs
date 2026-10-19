@@ -414,3 +414,56 @@ fn near_gimbal_decomposition_drift_is_refused() {
     // The same baseline turns fine by a step that keeps the decomposition accurate.
     assert!(frame.rotation(RotateAxis::Y, 0.3).is_ok());
 }
+
+// An angle whose radian -> degree -> radian round trip is not the identity, so the old path
+// stores a value one ulp off `base + angle`.
+fn inexact_radian_angle(base: f64) -> (f64, f64) {
+    let factor = 180.0 / PI;
+    (1..100_000)
+        .map(|i| f64::from(i) / 1000.0)
+        .find_map(|angle| {
+            let degrees = angle * factor;
+            (base + degrees.to_radians() != base + angle).then_some((angle, degrees))
+        })
+        .expect("some radian angle fails the degree round trip")
+}
+
+#[test]
+fn radian_scene_single_channel_rotate_stores_baseline_plus_requested_exactly() {
+    // Y and Z rings change one channel only when the channels they mix with are zero.
+    for (axis, index, baseline) in [
+        (RotateAxis::X, 0, [0.25, 0.5, 0.75]),
+        (RotateAxis::Y, 1, [0.0, 0.5, 0.0]),
+        (RotateAxis::Z, 2, [0.0, 0.0, 0.75]),
+    ] {
+        let (mut scene, node) = test_fixtures::cube();
+        scene.units.angular = AngularUnit::Radian;
+        scene
+            .set_transform(
+                node,
+                NativeTransform {
+                    rotation: baseline,
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        let frame = frame(&scene, node, axis);
+        let (angle, degrees) = inexact_radian_angle(baseline[index]);
+        for requested in [angle, -angle] {
+            let out = frame
+                .rotation_declared(axis, requested * (180.0 / PI), Some(requested))
+                .unwrap();
+            assert_eq!(
+                out[index].to_bits(),
+                (baseline[index] + requested).to_bits(),
+                "{axis:?} {requested}"
+            );
+            for other in (0..3).filter(|i| *i != index) {
+                assert_eq!(out[other].to_bits(), baseline[other].to_bits());
+            }
+        }
+        // Degrees alone (the old path) cannot reproduce it.
+        let old = frame.rotation(axis, degrees).unwrap();
+        assert_ne!(old[index].to_bits(), (baseline[index] + angle).to_bits());
+    }
+}
