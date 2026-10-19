@@ -360,8 +360,16 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
     scene.validate().unwrap();
     let (mut scene, root, child, _) = grouped_shape();
     let before = scene.clone();
-    assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
-    assert_eq!(scene.remove(child), Err(NativeError::UnsupportedEdit));
+    assert_eq!(
+        scene.remove(root),
+        Err(NativeError::UnsupportedDelete(
+            DeleteUnsupported::HasChildren
+        ))
+    );
+    assert_eq!(
+        scene.remove(child),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
+    );
     assert_eq!(scene, before);
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());

@@ -1251,24 +1251,29 @@ impl NativeScene {
         }
     }
     pub fn remove(&mut self, id: NodeId) -> Result<(), NativeError> {
-        self.structural_edit()?;
         let index = self.editable(id)?;
         let transform = self.nodes[index].transform_id;
+        let has_children = self.dag.iter().any(|edge| {
+            edge.parent == Some(transform)
+                && self
+                    .nodes
+                    .iter()
+                    .any(|node| node.transform_id == edge.child)
+        });
+        if has_children {
+            return Err(NativeError::UnsupportedDelete(
+                DeleteUnsupported::HasChildren,
+            ));
+        }
         let incoming: Vec<_> = self
             .dag
             .iter()
             .filter(|edge| edge.child == transform)
             .collect();
-        if incoming.len() != 1
-            || incoming[0].parent.is_some()
-            || self.dag.iter().any(|edge| {
-                edge.parent == Some(transform)
-                    && self
-                        .nodes
-                        .iter()
-                        .any(|node| node.transform_id == edge.child)
-            })
-        {
+        if incoming.iter().any(|edge| edge.parent.is_some()) {
+            return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
+        }
+        if self.source.is_some() || incoming.len() != 1 {
             return Err(NativeError::UnsupportedEdit);
         }
         let exclusive: Vec<_> = self
@@ -1604,6 +1609,21 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
     Ok(value)
 }
 
+/// Why Delete refuses a node whose hierarchy it cannot yet remove.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeleteUnsupported {
+    HasChildren,
+    IsChild,
+}
+impl fmt::Display for DeleteUnsupported {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::HasChildren => "Deleting a node with children is not supported yet",
+            Self::IsChild => "Deleting a node that has a parent is not supported yet",
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeError {
     Legacy(SceneError),
@@ -1620,6 +1640,7 @@ pub enum NativeError {
     InvalidName,
     NameCollision,
     UnsupportedEdit,
+    UnsupportedDelete(DeleteUnsupported),
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
@@ -1669,6 +1690,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedEdit => {
                 f.write_str("native ownership or edit effects are unsupported")
             }
+            Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::ReadOnlyFormat => f.write_str("Maya ASCII scenes are read-only in this version"),
             Self::UnknownSessionMaterial(id) => {
                 write!(f, "session material {} does not exist", id.index())

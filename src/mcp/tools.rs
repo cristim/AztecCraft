@@ -90,6 +90,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::Legacy(
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
+                OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) => "camera_error",
                 OperationError::File(_) => "file_error",

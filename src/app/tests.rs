@@ -5219,9 +5219,42 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         node: Some(root),
         instance_path: None,
     });
+    let child = editor.history.scene().transform_paths().unwrap()[1].node;
     let scene = editor.history.scene().clone();
-    assert!(remote(&mut editor, Operation::Delete(root)).is_err());
-    assert_eq!(editor.history.scene(), &scene);
+    for (node, message) in [
+        (root, "Deleting a node with children is not supported yet"),
+        (
+            child,
+            "Deleting a node that has a parent is not supported yet",
+        ),
+    ] {
+        let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
+        assert!(matches!(
+            error,
+            OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
+        ));
+        assert_eq!(error.to_string(), message);
+        editor.native_operation(Operation::Delete(node));
+        assert_eq!(editor.status, message);
+        assert!(editor.error);
+        assert_eq!(editor.history.scene(), &scene);
+    }
+}
+
+#[test]
+fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let before = editor.history.scene().clone();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let edit = face_text_position(&output, "Edit");
+    let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+    for label in ["Delete by Type", "Delete All by Type"] {
+        let row = face_text_position(&output, label);
+        face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+        assert_eq!(editor.history.scene(), &before, "{label}");
+    }
 }
 
 #[test]
