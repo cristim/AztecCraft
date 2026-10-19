@@ -465,8 +465,9 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
 | Camera | Orbit, pan, dolly | supported | `orbit_camera`, `pan_camera`, `dolly_camera` | `camera` | |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
+| Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |
 | Camera | Camera pose read (target, eye, distance) | supported | | `camera` | |
-| Camera | Frame All, orthographic views, field of view | unsupported | | | |
+| Camera | Orthographic views, field of view | unsupported | | | |
 | Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
