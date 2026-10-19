@@ -61,6 +61,7 @@ impl Editor {
             | Operation::SetSelectionMode(_)
             | Operation::FrameSelected
             | Operation::SetActiveTool(_)
+            | Operation::SetToolSpace { .. }
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
@@ -250,6 +251,7 @@ impl Editor {
             && matches!(
                 operation,
                 Operation::SetActiveTool(_)
+                    | Operation::SetToolSpace { .. }
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
@@ -330,6 +332,7 @@ impl Editor {
         }
         let command = match operation {
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
+            Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::BeginMove { target, axis } => {
                 return self.begin_editor_move(&target, axis, provenance);
             }

@@ -225,6 +225,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "file_actions",
             "frame_selected",
             "history_step",
+            "manipulation_options",
             "outliner",
             "render",
             "select",

@@ -486,6 +486,10 @@ fn build(state: State) -> Rig {
 fn seeds(t: &Targets) -> Vec<Operation> {
     vec![
         Operation::SetActiveTool(ActiveTool::Move),
+        Operation::SetToolSpace {
+            tool: ActiveTool::Scale,
+            space: ManipulationSpace::Object,
+        },
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -626,6 +630,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "set_active_tool(select)",
                 Operation::SetActiveTool(ActiveTool::Select),
+            ),
+        ],
+        Operation::SetToolSpace { .. } => vec![
+            sample(
+                "set_tool_space(rotate,world)",
+                Operation::SetToolSpace {
+                    tool: ActiveTool::Rotate,
+                    space: ManipulationSpace::World,
+                },
+            ),
+            sample(
+                "set_tool_space(scale,object)",
+                Operation::SetToolSpace {
+                    tool: ActiveTool::Scale,
+                    space: ManipulationSpace::Object,
+                },
+            ),
+            sample(
+                "set_tool_space(move,world)",
+                Operation::SetToolSpace {
+                    tool: ActiveTool::Move,
+                    space: ManipulationSpace::World,
+                },
             ),
         ],
         Operation::BeginMove { .. } => vec![

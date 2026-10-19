@@ -167,6 +167,12 @@ pub enum MoveDistance {
 
 pub enum Operation {
     SetActiveTool(ActiveTool),
+    /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
+    /// `InvalidInput` error.
+    SetToolSpace {
+        tool: ActiveTool,
+        space: ManipulationSpace,
+    },
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,

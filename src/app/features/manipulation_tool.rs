@@ -67,12 +67,31 @@ impl ManipulationOptions {
             _ => self.rotate_space,
         }
     }
+}
 
-    pub(in crate::app) fn space_mut(&mut self, tool: ActiveTool) -> &mut ManipulationSpace {
-        match tool {
-            ActiveTool::Scale => &mut self.scale_space,
-            _ => &mut self.rotate_space,
-        }
+impl Editor {
+    pub(in crate::app) fn set_tool_space(
+        &mut self,
+        tool: ActiveTool,
+        space: ManipulationSpace,
+    ) -> Result<OperationReply, OperationError> {
+        let slot = match tool {
+            ActiveTool::Rotate => &mut self.manipulation.rotate_space,
+            ActiveTool::Scale => &mut self.manipulation.scale_space,
+            ActiveTool::Select | ActiveTool::Move => {
+                return Err(OperationError::InvalidInput(format!(
+                    "{} has no Axis Orientation; use rotate or scale",
+                    tool_name(tool)
+                )));
+            }
+        };
+        let changed = *slot != space;
+        *slot = space;
+        Ok(if changed {
+            OperationReply::Changed
+        } else {
+            OperationReply::Unchanged
+        })
     }
 }
 
@@ -650,6 +669,7 @@ impl Editor {
             && !self.files.is_closing()
             && self.history.active_manipulation().is_none();
         let mut apply = false;
+        let mut chosen = None;
         ui.horizontal(|ui| {
             ui.label(format!("{} tool", tool_name(tool)));
             ui.add_enabled_ui(enabled, |ui| {
@@ -657,11 +677,13 @@ impl Editor {
                     .selected_text(space_name(self.manipulation.space(tool)))
                     .show_ui(ui, |ui| {
                         for space in [ManipulationSpace::Object, ManipulationSpace::World] {
-                            ui.selectable_value(
-                                self.manipulation.space_mut(tool),
-                                space,
-                                space_name(space),
-                            );
+                            let current = self.manipulation.space(tool);
+                            if ui
+                                .selectable_label(current == space, space_name(space))
+                                .clicked()
+                            {
+                                chosen = Some(space);
+                            }
                         }
                         for name in UNSUPPORTED_SPACES {
                             ui.add_enabled(false, egui::Button::selectable(false, name))
@@ -715,6 +737,9 @@ impl Editor {
                 apply = ui.button("Apply").clicked() || entered;
             });
         });
+        if let Some(space) = chosen {
+            self.native_operation(Operation::SetToolSpace { tool, space });
+        }
         if apply {
             self.apply_numeric_manipulation();
         }

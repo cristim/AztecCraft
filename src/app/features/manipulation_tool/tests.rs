@@ -230,7 +230,9 @@ fn a_ring_drag_turns_about_the_picked_axis_and_is_one_rotate_history_entry() {
 #[test]
 fn world_space_rings_turn_the_selected_object_about_the_world_axis() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
-    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
+    editor
+        .set_tool_space(ActiveTool::Rotate, ManipulationSpace::World)
+        .unwrap();
     let x = Vec3::X;
     press(&mut editor, &context, 1.0, view.ring(x, 0.0));
     assert_eq!(editor.status, "World X Rotate");
@@ -742,7 +744,9 @@ fn a_negative_scale_parent_refuses_object_space_handles_with_a_visible_reason() 
     assert!(editor.error);
     // World space has no mirrored axes, so the handles return (the core then refuses the edit
     // because the scene is read-only).
-    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
+    editor
+        .set_tool_space(ActiveTool::Rotate, ManipulationSpace::World)
+        .unwrap();
     let frame_ok = editor.manipulation_frame(ActiveTool::Rotate).is_ok();
     assert!(frame_ok);
 }
@@ -1037,12 +1041,16 @@ fn fresh_tools_start_in_their_documented_spaces() {
 #[test]
 fn changing_one_tools_space_does_not_leak_into_the_other() {
     let mut editor = Editor::default();
-    *editor.manipulation.space_mut(ActiveTool::Scale) = ManipulationSpace::Object;
+    editor
+        .set_tool_space(ActiveTool::Scale, ManipulationSpace::Object)
+        .unwrap();
     assert_eq!(
         editor.manipulation.space(ActiveTool::Rotate),
         ManipulationSpace::Object
     );
-    *editor.manipulation.space_mut(ActiveTool::Rotate) = ManipulationSpace::World;
+    editor
+        .set_tool_space(ActiveTool::Rotate, ManipulationSpace::World)
+        .unwrap();
     assert_eq!(
         editor.manipulation.space(ActiveTool::Scale),
         ManipulationSpace::Object
