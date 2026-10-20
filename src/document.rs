@@ -29,8 +29,8 @@ enum Retention {
         parse_bytes: Arc<[u8]>,
     },
     #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the authored save path constructs it next")
+        not(unix),
+        expect(dead_code, reason = "only the Unix save path creates it")
     )]
     Authored,
 }
@@ -82,7 +82,7 @@ impl NativeOrigin {
         false
     }
     pub fn save_as_available(&self) -> bool {
-        cfg!(unix) && matches!(self, Self::Binary(_))
+        cfg!(unix) && matches!(self, Self::Untitled | Self::Binary(_))
     }
     pub fn kind(&self) -> &'static str {
         match self {
