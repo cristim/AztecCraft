@@ -10,6 +10,7 @@ fn candidate() -> (NativeScene, crate::scene::NodeId) {
     let bytes: Arc<[u8]> = Arc::from(&b"setAttr geometry;"[..]);
     let end = bytes.len();
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         records: std::iter::once(0..bytes.len()).collect(),
         bytes,
         format: SourceFormat::Ascii,
