@@ -342,6 +342,25 @@ fn an_empty_uv_set_is_admitted_only_when_both_points_and_ids_are_empty() {
 }
 
 #[test]
+fn a_mesh_without_the_uv_block_is_rejected() {
+    let corners = [0, 1, 0x6000_0002];
+    let bytes = wire_fixture::mesh_payload_with_uv(&corners, &[], &[]);
+    let record = payload(&bytes, mesh::decode_mesh).unwrap();
+    // Cutting the header, name, both counts and the 20-byte trailer leaves a mesh that ends
+    // after the normals; no observed file has that shape, so the grammar has no such branch.
+    let omitted = &bytes[..record.uv_header.start];
+    assert!(payload(omitted, mesh::decode_mesh).is_err());
+    // A header that declares zero sets (0, 0, 0) is not the observed (0, 1, 0).
+    let mut zero_sets = bytes.clone();
+    let middle = record.uv_header.start + 4;
+    zero_sets[middle..middle + 4].copy_from_slice(&0u32.to_be_bytes());
+    assert_eq!(
+        payload(&zero_sets, mesh::decode_mesh).unwrap_err().kind,
+        ErrorKind::Unsupported
+    );
+}
+
+#[test]
 fn metadata_reservations_are_bounded_and_debug_never_expands_source() {
     let count = MAX_FACT_METADATA_BYTES / size_of::<Record>();
     assert!(metadata_bytes(count, 0).unwrap() <= MAX_FACT_METADATA_BYTES);
