@@ -110,8 +110,9 @@ impl WorldMoveFrame {
         self.origin_cm
     }
 
-    // Maya binary files omit default (zero) translate leaves and the encoder cannot insert them,
-    // so an edit of an absent leaf could never be saved.
+    // Maya binary files omit default (zero) translate leaves. An absent leaf can be edited only
+    // where the file recorded an insertion site (`absent_leaf` is false there); elsewhere the
+    // edit could never be saved.
     pub fn require_leaves(&self, axis: WorldAxis) -> Result<(), NativeError> {
         let local = self.inverse_parent * axis.direction();
         for (component, delta) in local.to_array().into_iter().enumerate() {
@@ -376,7 +377,8 @@ impl NativeScene {
                 let origin = match &scalar.origin {
                     Some(origin @ ScalarOrigin::Binary { .. }) => origin,
                     None => {
-                        absent_leaf[component] = true;
+                        absent_leaf[component] =
+                            !source.can_insert(selected.transform_id, TransformField::Translation);
                         continue;
                     }
                     #[cfg(test)]
