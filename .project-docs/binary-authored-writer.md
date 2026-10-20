@@ -33,8 +33,8 @@ Observed grammar therefore comes from these sources:
   pin it. Offsets: `VERS` 0x28 (`2025ff03`); root `Maya` aux `0x47020000` at 0; `HEAD` group aux 0 at
   0x14; `HEAD` children aux 0 for `VERS` `UVER` `MADE` `ICON` `INFO` `OBJN` `INCL` and `0xa8000000` for
   `LUNI` 0x100, `TUNI` 0x118, `AUNI` 0x130, `TDUR` 0x148; `XFRM` group aux 0 at 0x380, its `CREA` aux 0
-  at 0x394, `DBL3` aux `0x4d020000` at 0x3dc; `CREA` flag `0x8c` on the one mesh-owning transform
-  `Dummy_Mesh` at 0xca4; `MESH` aux `0xa8000000` at 0x11324.
+  at 0x394, `DBL3` aux `0x4d020000` at 0x3dc; `CREA` flag `0x8c` on the one user node
+  `Dummy_Mesh` at 0xca4, and `0x8d` on the four default cameras (0x394, 0x5bc, 0x814, 0xa4c); `MESH` aux `0xa8000000` at 0x11324.
 - The public Maya 2026 file in `tests/fixtures/mayascenekit/` is kept for read tests only. It stores
   different values for the same kinds (root aux 0, `DBL3` aux `0xb8010000`), and the writer takes
   nothing from it.
@@ -67,7 +67,7 @@ bodies and `known-issues.md`.
 | `VERS` | `2025ff03`, the exact string in the Maya 2025 file. Not tied to the ASCII header, which keeps its own `2026` text. The decoder never reads it | O1 |
 | Internal units cm / radians through `Scalar::internal` | | D |
 | Transform key set `t`, `r`, `s`, `DBL3` kind 0x20 | always all three | O |
-| Transform `CREA` flag `0x8c` | root-level transform owning a mesh; the Maya 2025 file stores it on `Dummy_Mesh`, but a bare transform with no mesh also gets it here | O1, pinned by test; use on a bare transform INVENTED |
+| Transform `CREA` flag `0x8c` | the value the Maya 2025 file stores on its one user node `Dummy_Mesh`, while its four default cameras carry `0x8d`. The likely meaning is user-created (`0x8c`) versus default/startup (`0x8d`); that is an inference from one file, not "owns a mesh" | O1, pinned by test; the meaning is INFERRED |
 | `XFRM` content | `CREA` then `t`, `r`, `s` `DBL3` always; Maya 2025 omits default channels and adds `DBLE v`, `ATTR`, `FLGS`, so this group is shorter than any Maya wrote | I |
 | Shape `CREA` flag `0x04`, `MESH` key `o`, corner flag set, 20-byte zero trailer | as observed | O |
 | Normals count 0 | `n` is user-specified normals only | D |

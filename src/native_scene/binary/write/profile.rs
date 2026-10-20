@@ -32,8 +32,11 @@ pub(super) const TUNI_AUX: u32 = 0xa800_0000;
 pub(super) const AUNI_AUX: u32 = 0xa800_0000;
 pub(super) const TDUR_AUX: u32 = 0xa800_0000;
 
-/// `CREA` flag byte of a root-level transform owning a mesh. The Maya 2025 file stores it
-/// on its one mesh-owning transform (`Dummy_Mesh`), so it is observed once.
+/// `CREA` flag byte of a root-level transform the user created. In the Maya 2025 file
+/// the one user node `Dummy_Mesh` carries 0x8c, while its four default cameras (persp,
+/// top, front, side; `CREA` at 0x394, 0x5bc, 0x814, 0xa4c) carry 0x8d. That the two values
+/// separate user-created from default/startup nodes is an INFERENCE from one file, not
+/// something it states, and "owns a mesh" is not the distinction.
 pub(super) const XFRM_CREA_FLAGS: u8 = 0x8c;
 
 #[cfg(test)]

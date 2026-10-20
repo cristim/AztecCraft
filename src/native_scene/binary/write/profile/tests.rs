@@ -95,17 +95,28 @@ fn xfrm_children_use_the_fixture_aux_for_crea_and_dbl3() {
 }
 
 #[test]
-fn the_transform_create_flag_is_what_the_fixture_stores_on_its_mesh_transform() {
+fn the_user_node_is_0x8c_and_the_four_default_cameras_are_0x8d() {
     let entries = walk(MAYA_2025);
-    let owned: Vec<_> = leaves(&entries, b"CREA", b"XFRM")
+    let flags: Vec<_> = leaves(&entries, b"CREA", b"XFRM")
         .iter()
         .map(|c| {
             let bytes = c.bytes(MAYA_2025);
-            (bytes[0], bytes[1..].starts_with(b"Dummy_Mesh\0"))
+            let name = bytes[1..].split(|b| *b == 0).next().unwrap().to_vec();
+            (c.start, name, bytes[0])
         })
         .collect();
-    assert_eq!(owned.iter().filter(|(_, mesh)| *mesh).count(), 1);
-    assert!(owned.contains(&(XFRM_CREA_FLAGS, true)));
+    let camera = |at, name: &[u8]| (at, name.to_vec(), 0x8d);
+    assert_eq!(
+        flags[..4],
+        [
+            camera(0x394, b"persp"),
+            camera(0x5bc, b"top"),
+            camera(0x814, b"front"),
+            camera(0xa4c, b"side"),
+        ]
+    );
+    assert_eq!(flags[4], (0xca4, b"Dummy_Mesh".to_vec(), XFRM_CREA_FLAGS));
+    assert_eq!(flags.len(), 5);
     assert_eq!(XFRM_CREA_FLAGS, 0x8c);
 }
 
