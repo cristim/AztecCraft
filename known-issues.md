@@ -336,21 +336,31 @@ The prior changed-parent full MCP-client run observed an unchanged transport
 notification-flood outer-timeout failure; its single isolated reproduction
 passed. The full run remains failed and the timing cause unproved.
 
-## Absent default transform leaves refuse Move on Maya binary scenes
+## Absent default transform leaves on Maya binary scenes
 
-**Area:** Move tool, Maya binary save
+**Area:** Move tool, Channel Box, `edit_node`, Maya binary save
 
-Maya `.mb` files omit default transform leaves (translate 0, rotate 0, scale 1),
-and the binary encoder has no reviewed path to insert a missing leaf
-(`src/native_scene/binary/encode.rs` refuses an absent origin). Move therefore
-refuses a Binary-source object whose translate leaf is absent with the typed
-`AbsentChannelLeaf` error (MCP code `absent_channel_leaf`; per axis, in the UI
-status and in the Move inspection reason) instead of accepting an edit that could
-never be saved. The refusal rate on real Maya files is unmeasured but is expected
-to be high, because default leaves are routinely omitted; the Move tool is
-effectively limited to objects that already carry a translate leaf. Source-free
-scenes (new, OBJ) are not refused but cannot be saved as Maya binary. Leaf
-insertion is a separate follow-up (#19).
+Maya `.mb` files omit default transform leaves (translate 0, rotate 0, scale 1).
+Saving an opened `.mb` now inserts an absent translate `t` leaf (`DBL3`) at a
+recorded site, copying the file's own header word and padding and refusing
+anything else (grammar and sources: `.project-docs/binary-leaf-insertion.md`).
+The insertion is reached by the encoder, `edit_node`, the Channel Box, native
+Move, MCP and document save. Maya has never read files it did not write; acceptance of inserted records is unproven (#5).
+Only AztecCraft's own decoder reopening the output is checked.
+
+Still refused with the typed `AbsentChannelLeaf` error (MCP code
+`absent_channel_leaf`):
+
+- Rotate and scale leaves, which are not part of this slice.
+- A translate on a node with no recorded site: the file has no `DBL3` at all,
+  its `DBL3` header words differ, one has non-zero padding, or the transform's
+  children do not match the grammar. A siteless translate shows "leaf
+  insertion is unsupported" in the error text. The refusal rate on real Maya
+  files outside the five-file private corpus is unmeasured.
+
+Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
+binary. Setting every inserted word to +0.0 inserts nothing, because that is the
+default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
 
