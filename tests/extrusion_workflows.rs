@@ -1,6 +1,7 @@
 use azteccraft::{
     history::{Command, History},
     native_scene::{NativeError, NativeScene},
+    primitive_options::SINGLE_QUAD_PLANE,
     scene::{NodeId, Primitive, Scene, SceneError, Transform},
 };
 use glam::Vec3;
@@ -142,7 +143,9 @@ fn failed_extrusions_preserve_scene_and_pending_redo() {
     let mut scene = NativeScene::default();
     let id = scene.create(Primitive::Cube, "cube").unwrap();
     let cube_shape = scene.shapes()[0].id();
-    scene.create(Primitive::Plane, "plane").unwrap();
+    scene
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane")
+        .unwrap();
     let plane_shape = scene.shapes()[1].id();
     let removed = scene.create(Primitive::Cube, "removed").unwrap();
     let removed_shape = scene.shapes()[2].id();
@@ -208,6 +211,32 @@ fn failed_extrusions_preserve_scene_and_pending_redo() {
     }
     assert!(history.redo());
     assert_eq!(history.scene().node(id).unwrap().name(), "redo_name");
+}
+
+#[test]
+fn default_plane_face_extrudes_and_undo_restores_the_grid() {
+    // The default plane is 10x10 since #176, so one face is no longer every face.
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Plane, "plane").unwrap();
+    let shape = scene.shapes()[0].id();
+    let counts = |scene: &NativeScene| {
+        let mesh = scene.shapes()[0].mesh();
+        (mesh.point_count(), mesh.edges().len(), mesh.faces().len())
+    };
+    assert_eq!(counts(&scene), (121, 220, 100));
+    let before = scene.clone();
+    let mut history = History::new(scene);
+    history
+        .execute(Command::ExtrudeFace {
+            shape,
+            face_index: 0,
+            distance: 1.0,
+        })
+        .unwrap();
+    assert_eq!(counts(history.scene()), (125, 228, 104));
+    history.scene().validate().unwrap();
+    assert!(history.undo());
+    assert_eq!(history.scene(), &before);
 }
 
 #[test]

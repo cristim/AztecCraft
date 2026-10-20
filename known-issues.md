@@ -556,8 +556,10 @@ limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are s
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
 interactive creation, Free and Camera axis, and editing the options after creation (no
-construction history). The plane default stays 1x1 pending #176, where the polyPlane page
-conflicts with itself (5 and 10).
+construction history). The plane default is 1x1 with 10x10 subdivisions (#176), PROVISIONAL:
+the polyPlane node page lists sw/sh 10 (the command page lists sw 10 and sx/sy 5), and
+Maya 2025.1 creates 10x10 through both `polyPlane` and Create > Polygon Primitives > Plane.
+Only counts were compared; Maya 2026 is unverified.
 
 ## Grid lines over primitive faces are expected (#111, closed)
 

@@ -544,14 +544,14 @@
               "type": "number"
             },
             "subdivisions_height": {
-              "default": 1,
+              "default": 10,
               "format": "uint32",
               "maximum": 128,
               "minimum": 1,
               "type": "integer"
             },
             "subdivisions_width": {
-              "default": 1,
+              "default": 10,
               "format": "uint32",
               "maximum": 128,
               "minimum": 1,

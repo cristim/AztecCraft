@@ -57,8 +57,8 @@ fn defaults_match_the_documented_table() {
         PrimitiveOptions::Plane {
             width: 1.0,
             height: 1.0,
-            sub_width: 1,
-            sub_height: 1,
+            sub_width: 10,
+            sub_height: 10,
             axis: Axis::Y
         }
     );
@@ -187,7 +187,7 @@ fn face_counts_cover_caps_and_saturate() {
     );
     assert_eq!(
         PrimitiveOptions::default_for(Primitive::Plane).face_count(),
-        1
+        100
     );
     assert_eq!(sphere(1.0, 8, 6).face_count(), 48);
     assert_eq!(

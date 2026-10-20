@@ -1,5 +1,6 @@
 use azteccraft::{
     native_scene::{Channel, NativeError, NativeScene, NativeTransform, Points},
+    primitive_options::SINGLE_QUAD_PLANE,
     scene::{Primitive, Scene, SceneError, Transform},
 };
 use glam::Vec3;
@@ -173,7 +174,9 @@ fn failures_preserve_contents_and_allocator_before_next_real_create() {
         native.create(Primitive::Cube, "bad name"),
         Err(NativeError::InvalidName)
     );
-    let id = native.create(Primitive::Plane, "pPlane1").unwrap();
+    let id = native
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "pPlane1")
+        .unwrap();
     let shape_id = shape(&native, id).id();
     assert_eq!(id.to_decimal(), "1");
     let before = native.clone();

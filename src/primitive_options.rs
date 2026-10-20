@@ -24,7 +24,16 @@ pub const DEFAULT_AXIS: Axis = Axis::Y;
 pub const DEFAULT_CUBE_SIZE_CM: f64 = 1.0;
 pub const DEFAULT_CUBE_DIVISIONS: u32 = 1;
 pub const DEFAULT_PLANE_SIZE_CM: f64 = 1.0;
-pub const DEFAULT_PLANE_DIVISIONS: u32 = 1;
+pub const DEFAULT_PLANE_DIVISIONS: u32 = 10;
+/// A 1x1 plane with a single quad, the default plane before #176. Tests use it as the smallest
+/// open mesh, where the only face is also every face.
+pub const SINGLE_QUAD_PLANE: PrimitiveOptions = PrimitiveOptions::Plane {
+    width: DEFAULT_PLANE_SIZE_CM,
+    height: DEFAULT_PLANE_SIZE_CM,
+    sub_width: 1,
+    sub_height: 1,
+    axis: DEFAULT_AXIS,
+};
 pub const DEFAULT_RADIUS_CM: f64 = 1.0;
 /// Cylinder and cone height.
 pub const DEFAULT_HEIGHT_CM: f64 = 2.0;
@@ -124,8 +133,13 @@ impl std::error::Error for PrimitiveOptionsError {}
 impl PrimitiveOptions {
     // PROVISIONAL (#5): sphere radius 1 and 20x20 are the polySphere node defaults; cylinder and cone
     // radius 1, height 2 and 20x1 follow the polyCylinder (sc=0 variant) and polyCone node pages
-    // (the command page lists sz 1); Maya 2026 is unverified.
-    /// Options equal to the meshes created before options existed.
+    // (the command page lists sz 1); Maya 2026 is unverified. The plane's 1x1 size and 10x10
+    // subdivisions follow the polyPlane node page (sw/sh 10; the command page lists sw 10, no sh
+    // default and sx/sy 5) and Maya 2025.1, where `polyPlane` and the Create > Polygon Primitives >
+    // Plane factory options both give 10x10 with 121/220/100 points/edges/faces; Maya 2026 is
+    // unverified (#176).
+    /// Default creation options. All but the plane (#176) equal the meshes created before options
+    /// existed.
     pub fn default_for(primitive: Primitive) -> Self {
         let axis = DEFAULT_AXIS;
         match primitive {

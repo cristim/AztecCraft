@@ -59,7 +59,7 @@ fn defensive_private_mesh_states_refuse_the_actual_authored_prefix() {
 fn authored_faces_keep_admitted_repeated_loop_and_unused_edges() {
     use crate::native_scene::ascii::emit_geometry_prefix;
     let (mut scene, _) = crate::native_scene::test_fixtures::cube();
-    let mut mesh = NativeMesh::primitive(crate::scene::Primitive::Plane).unwrap();
+    let mut mesh = NativeMesh::with_options(&crate::primitive_options::SINGLE_QUAD_PLANE).unwrap();
     let repeated = mesh.faces[0].outer.clone();
     mesh.faces[0].outer.extend(repeated);
     mesh.add_loose_edge_fixture(mesh.edges[0].endpoints());

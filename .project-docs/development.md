@@ -126,9 +126,10 @@ the native editor's authoring model.
 object-space displacement along its oriented Newell normal, with one segment.
 The cap replaces the selected face at the same index and four side quads are
 appended. Zero or rounded-to-coincident displacement still creates undoable
-topology. A mesh with only one face, including the primitive plane, returns an
-explicit unsupported-all-faces error; its Maya default behavior needs a pinned
-fixture. Undefined normals, invalid indices/distances and coordinate overflow
+topology. A mesh with only one face, such as the legacy Scene plane or a
+1x1-subdivision native plane, returns an explicit unsupported-all-faces error;
+its Maya default behavior needs a pinned fixture. Undefined normals, invalid
+indices/distances and coordinate overflow
 leave the scene/history unchanged. World/region extrusion, divisions, taper,
 offset, UVs/normals, construction-history nodes and native Extrude controls remain
 pending. Tests establish this subset's geometry, not Maya parity.

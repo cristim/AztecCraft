@@ -93,7 +93,7 @@ async fn calls_without_options_keep_the_default_meshes() {
     let token = editor.scene_token.to_string();
     for (primitive, expected) in [
         ("cube", [8, 12, 6]),
-        ("plane", [4, 4, 1]),
+        ("plane", [121, 220, 100]),
         ("sphere", [382, 780, 400]),
         ("cylinder", [40, 60, 22]),
         ("cone", [21, 40, 21]),

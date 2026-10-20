@@ -1,6 +1,7 @@
 use super::*;
 use crate::{
     native_scene::{AngularUnit, LinearUnit, NativeId, NativeMesh, test_fixtures as fixtures},
+    primitive_options::SINGLE_QUAD_PLANE,
     scene::Primitive,
 };
 use std::sync::Arc;
@@ -74,7 +75,7 @@ fn emitted_multi_node_prefix_is_accepted_by_the_framing_and_roster_oracles() {
 #[test]
 fn plane_face_output_preserves_stored_order() {
     let mut scene = scene(&["plane"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     let bytes = prefix(&scene).unwrap();
     assert!(
         bytes.ends_with(b"\tsetAttr -s 1 \".fc[0:0]\" -type \"polyFaces\"\n\tf 4 0 1 2 3\n;\n")
@@ -254,7 +255,7 @@ fn sourced_formats_and_source_free_curves_refuse_without_touching_retention() {
 fn transform_prefix_keeps_uuid_values_and_relative_statements_with_their_owner() {
     let mut scene = scene(&["second", "first"]);
     for shape in &mut scene.shapes {
-        shape.mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+        shape.mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     }
     scene.nodes[0].transform_uuid = Some(uuid::Uuid::from_u128(0x6c1b2d4e0a3f4b5c8d7e9f0a1b2c3d4e));
     scene.nodes[1].transform_uuid = Some(uuid::Uuid::from_u128(0x11111111222233334444555555555555));
@@ -432,7 +433,7 @@ fn emitted_representative_owners_have_independent_local_topology() {
     ));
     for (primitive, counts, closed, volume) in [
         (Primitive::Cube, (8, 12, 6), true, Some(1.0)),
-        (Primitive::Plane, (4, 4, 1), false, Some(0.0)),
+        (Primitive::Plane, (121, 220, 100), false, Some(0.0)),
         (Primitive::Sphere, (382, 780, 400), true, None),
         (Primitive::Cylinder, (40, 60, 22), true, None),
         (Primitive::Cone, (21, 40, 21), true, None),
@@ -696,7 +697,7 @@ fn output_mesh(blocks: &[(&str, &str, Vec<Vec<&str>>)]) -> topology::Mesh {
 #[test]
 fn strict_prefix_rejects_crlf_in_emitted_body() {
     let mut scene = scene(&["plane"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     let bytes = prefix(&scene).unwrap();
     parsed_prefix(&bytes);
     for line in [
@@ -728,7 +729,7 @@ fn rejects_replacement(bytes: &[u8], old: &str, new: &str) {
 #[test]
 fn strict_prefix_rejects_malformed_statements_and_arrays() {
     let mut scene = scene(&["first"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     scene.nodes[0].transform_uuid = Some(uuid::Uuid::nil());
     scene.shapes[0].uuid = Some(uuid::Uuid::from_u128(1));
     scene.nodes[0].channels[0].value = 0.1;
@@ -878,7 +879,7 @@ fn strict_prefix_rejects_invalid_declaration_names() {
 #[test]
 fn strict_prefix_accepts_admitted_unused_duplicate_and_self_loop_edges() {
     let mut scene = scene(&["odd"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     fixtures::add_loose_edge_unvalidated(&mut scene, [0, 1]);
     fixtures::add_loose_edge_unvalidated(&mut scene, [0, 0]);
     scene.validate().unwrap();
@@ -973,7 +974,7 @@ fn raw_float_arrays_keep_owner_bits_unused_points_and_duplicate_edges() {
 fn actual_mesh_producer_propagates_both_consumers_at_each_chunk_boundary() {
     use AsciiWriteRefusal as R;
     let mut scene = scene(&["plane"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     scene.validate().unwrap();
     prefix(&scene).unwrap();
     let mesh = scene.shapes[0].mesh();
@@ -1149,7 +1150,7 @@ fn every_slot_round_trips_defaults_signed_zero_and_finite_extremes() {
 #[test]
 fn uuid_and_channel_bytes_are_in_the_admitted_size() {
     let mut scene = scene(&["plain"]);
-    scene.shapes[0].mesh = NativeMesh::primitive(Primitive::Plane).unwrap();
+    scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     scene.nodes[0].transform_uuid = None;
     scene.shapes[0].uuid = None;
     assert_eq!(prefix_bytes(&scene).unwrap(), 383);

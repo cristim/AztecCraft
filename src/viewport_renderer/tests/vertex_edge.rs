@@ -804,7 +804,11 @@ fn budget_scene(extrusions: usize, planes: usize) -> Scene {
     }
     for index in 0..planes {
         native
-            .create(Primitive::Plane, &format!("plane{index}"))
+            .create_with_options(
+                Primitive::Plane,
+                &SINGLE_QUAD_PLANE,
+                &format!("plane{index}"),
+            )
             .unwrap();
     }
     Scene::new(native)

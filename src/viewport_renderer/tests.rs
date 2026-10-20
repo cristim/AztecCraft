@@ -2,6 +2,7 @@ use super::*;
 use azteccraft::{
     history::{Command, History},
     native_scene::{MaterialChoice, NativeScene, NativeTransform},
+    primitive_options::SINGLE_QUAD_PLANE,
     scene::Primitive,
     shading::SURFACE_BASE_RGB,
 };
@@ -1548,8 +1549,12 @@ fn headless_gpu_intersecting_native_planes_change_front_surface_across_the_image
     let mut gpu = Offscreen::new();
     for selected_first in [false, true] {
         let mut scene = NativeScene::default();
-        let first = scene.create(Primitive::Plane, "first").unwrap();
-        let second = scene.create(Primitive::Plane, "second").unwrap();
+        let first = scene
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "first")
+            .unwrap();
+        let second = scene
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "second")
+            .unwrap();
         let (selected, other) = if selected_first {
             (first, second)
         } else {
@@ -1614,7 +1619,9 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
         ([90.0, 0.0, 0.0], [-1.0, 1.0, 1.0], [95, 110, 120, 255]),
     ] {
         let mut scene = NativeScene::default();
-        let node = scene.create(Primitive::Plane, "plane").unwrap();
+        let node = scene
+            .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "plane")
+            .unwrap();
         scene
             .set_transform(
                 node,
@@ -1631,7 +1638,9 @@ fn headless_gpu_single_planes_remain_visible_from_back_and_reflected_and_across_
         assert_eq!(pixel(&image, 64, 58), &expected);
     }
     let mut scene = NativeScene::default();
-    let node = scene.create(Primitive::Plane, "far_crossing").unwrap();
+    let node = scene
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "far_crossing")
+        .unwrap();
     scene
         .set_transform(
             node,

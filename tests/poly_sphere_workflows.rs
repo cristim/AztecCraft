@@ -1,6 +1,7 @@
 use azteccraft::{
     history::{Command, EditOutcome, History},
     native_scene::{NativeError, NativeMesh, NativeScene, NativeTransform, ascii, binary},
+    primitive_options::SINGLE_QUAD_PLANE,
     scene::{NodeId, Primitive, Scene, SceneError},
     view_scene::ViewScene,
     viewport::Camera,
@@ -290,7 +291,10 @@ fn id_exhaustion_is_unchanged_for_spheres() {
 fn sphere_is_independent_of_cube_and_plane_builders() {
     let mut scene = NativeScene::default();
     let cube = scene.create(Primitive::Cube, "c").unwrap();
-    let plane = scene.create(Primitive::Plane, "p").unwrap();
+    // The single-quad plane: the default plane is 10x10 since #176.
+    let plane = scene
+        .create_with_options(Primitive::Plane, &SINGLE_QUAD_PLANE, "p")
+        .unwrap();
     let cube_mesh = mesh_of(&scene, cube);
     assert_eq!(
         (
