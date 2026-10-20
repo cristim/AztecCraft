@@ -605,6 +605,8 @@ mod cylinder;
 #[cfg(test)]
 mod edge_index_tests;
 mod grid;
+#[cfg(test)]
+mod grid_tests;
 mod sphere;
 #[cfg(test)]
 mod tests;
