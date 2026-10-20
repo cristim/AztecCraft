@@ -3,7 +3,9 @@ use super::{
 };
 use crate::maya_binary::container;
 use crate::native_scene::{
-    NativeScene, NativeTransformNode, appearance::SourceAppearance, source::SourceFormat,
+    NativeId, NativeScene, NativeTransformNode,
+    appearance::SourceAppearance,
+    source::{SourceFormat, TransformField},
 };
 use insert::{Insertion, check_inverse, splice};
 use std::sync::Arc;
@@ -122,7 +124,7 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
 }
 
 /// `plan` lists default leaves to splice in after the word patches. Production plans come from
-/// `plan::plan`, whose `INSERTABLE` gate is empty, so production passes none; tests hand-build plans.
+/// `plan::plan` over the `INSERTABLE` gate; tests hand-build plans.
 fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, BinaryError> {
     if !scene.curves.is_empty() {
         return Err(unsupported());
@@ -156,6 +158,11 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
             .checked_add(retained_material_metadata(scene)?)
             .ok_or_else(resource)?,
     )?;
+    // Edited leaves the file does not have yet: inserted by `plan`, or elided because every word is
+    // +0.0. The patched copy and the word patches cannot see them.
+    let absent = plan::edited_absent(scene, plan::INSERTABLE);
+    let planned: Vec<_> = plan.iter().map(|i| (i.owner, i.field)).collect();
+    let skipped = [absent.as_slice(), planned.as_slice()].concat();
     let mut output = budget.vector::<u8>(source.bytes.len())?;
     output.extend_from_slice(&source.bytes);
     for node in &scene.nodes {
@@ -164,11 +171,7 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
                 if !scalar.replaced {
                     continue;
                 }
-                if scalar.origin.is_none()
-                    && plan
-                        .iter()
-                        .any(|i| i.owner == node.transform_id && i.field == field)
-                {
+                if scalar.origin.is_none() && skipped.contains(&(node.transform_id, field)) {
                     continue;
                 }
                 let origin = scalar.origin.as_ref().ok_or_else(unsupported)?;
@@ -227,7 +230,7 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     let retained_appearance = retained_material_metadata(scene)?;
     let parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
-    verify(scene, source, &parsed, plan, Appearance::Exact)?;
+    verify(scene, source, &parsed, &skipped, Appearance::Exact)?;
     // Its Arc copy of `output` is not counted in `retained` below, so release it first.
     drop(parsed);
     if plan.is_empty() {
@@ -242,7 +245,12 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     budget.charge(spliced.len())?;
     let reparsed =
         decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
-    verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
+    // Elided fields are still absent from the file; inserted ones must now match.
+    let elided: Vec<_> = absent
+        .into_iter()
+        .filter(|a| !planned.contains(a))
+        .collect();
+    verify(scene, source, &reparsed, &elided, Appearance::Relocated)?;
     drop(reparsed);
     budget.charge(output.len())?;
     budget.charge(spliced.len())?;
@@ -270,7 +278,7 @@ fn verify(
     scene: &NativeScene,
     source: &crate::native_scene::source::SourceRetention,
     parsed: &NativeScene,
-    skip: &[Insertion],
+    skip: &[(NativeId, TransformField)],
     appearance: Appearance,
 ) -> Result<(), BinaryError> {
     if !same_structure(scene, parsed) {
@@ -304,10 +312,7 @@ fn verify(
     }
     for (node, decoded) in scene.nodes.iter().zip(&parsed.nodes) {
         for field in FIELDS {
-            if skip
-                .iter()
-                .any(|i| i.owner == node.transform_id && i.field == field)
-            {
+            if skip.contains(&(node.transform_id, field)) {
                 continue;
             }
             for (component, (value, after)) in node
