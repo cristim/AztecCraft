@@ -47,8 +47,11 @@ fn zero_pad_scene_decodes_with_translation_and_unrelated_node_triple() {
 
 mod grammar {
     use super::super::{
-        site_fixture::{SITE_AUX, double_aux, sited_transform, triple_aux},
-        wire_fixture::{chunk, creation, group, mesh_payload, scene},
+        site_fixture::{
+            SITE_AUX, chunk_zero_pad, double_aux, other_node_with_triple, sited_transform,
+            triple_aux,
+        },
+        wire_fixture::{chunk, creation, group, mesh_payload, scene, triple},
     };
     use crate::{maya_binary::container, native_scene::binary::decode};
 
@@ -89,12 +92,21 @@ mod grammar {
             .collect())
     }
 
+    /// The transform under test, then a node whose only job is to carry a canonical `DBL3`.
+    fn file(parts: &[Vec<u8>]) -> Vec<u8> {
+        [
+            sited_transform(b"object", parts),
+            other_node_with_triple(b"anchor", SITE_AUX),
+        ]
+        .concat()
+    }
+
     fn one(parts: &[Vec<u8>]) -> Result<Vec<(usize, Vec<usize>)>, ()> {
-        sites(&sited_transform(b"object", parts))
+        sites(&file(parts))
     }
 
     fn bytes_of(parts: &[Vec<u8>]) -> Vec<u8> {
-        scene(&sited_transform(b"object", parts)).to_vec()
+        scene(&file(parts)).to_vec()
     }
 
     fn header_of(parts: &[Vec<u8>], tag: &[u8; 4], key: &[u8]) -> usize {
@@ -265,5 +277,79 @@ mod grammar {
             sibling.validate(),
             Err(crate::native_scene::NativeError::InvalidRetention)
         );
+    }
+
+    fn no_site_with(parts: &[Vec<u8>], extra: &[u8]) -> Result<Vec<(usize, Vec<usize>)>, ()> {
+        sites(&[sited_transform(b"object", parts), extra.to_vec()].concat())
+    }
+
+    #[test]
+    fn a_file_without_any_triple_has_no_site() {
+        for parts in [vec![], vec![v()]] {
+            assert_eq!(no_site_with(&parts, &[]), Ok(Vec::new()), "{parts:?}");
+        }
+    }
+
+    #[test]
+    fn triples_with_differing_aux_anywhere_leave_the_file_siteless() {
+        let other = |aux| other_node_with_triple(b"light", aux);
+        assert_eq!(no_site_with(&[r()], &other(SITE_AUX ^ 1)), Ok(Vec::new()));
+        assert_eq!(no_site_with(&[], &other(SITE_AUX)).unwrap().len(), 1);
+        let odd = triple_aux(b"s", SITE_AUX ^ 1, [0.0; 3]);
+        assert_eq!(no_site_with(&[r(), odd], &[]), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn visibility_with_another_aux_has_no_site() {
+        let odd = double_aux(b"v", 0x24, SITE_AUX ^ 1, 1.0);
+        assert_eq!(one(&[odd, r()]), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn non_zero_padding_anywhere_leaves_the_file_siteless() {
+        let mut padded = r();
+        *padded.last_mut().unwrap() = 0xa5;
+        assert_eq!(one(&[padded]), Ok(Vec::new()));
+        let mut elsewhere = other_node_with_triple(b"light", SITE_AUX);
+        let at = elsewhere.windows(4).position(|w| w == b"DBL3").unwrap();
+        elsewhere[at + 43] = 1;
+        assert_eq!(no_site_with(&[], &elsewhere), Ok(Vec::new()));
+        let mut payload = b"r\0\x20".to_vec();
+        payload.extend([0; 24]);
+        payload.push(7);
+        let long = chunk_zero_pad(b"DBL3", SITE_AUX, &payload, 8);
+        assert_eq!(
+            one(&[long]),
+            Err(()),
+            "the decoder enforces the exact payload size"
+        );
+    }
+
+    #[test]
+    fn existing_test_builders_are_siteless() {
+        let old = [
+            group(b"XFRM", &creation(b"object", None), 4),
+            group(
+                b"XFRM",
+                &[creation(b"other", None), triple(b"r", [0.0; 3])].concat(),
+                4,
+            ),
+        ]
+        .concat();
+        assert_eq!(sites(&old), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn the_site_copies_the_files_own_aux_word() {
+        let other = 0x5201_0000;
+        let children = [
+            sited_transform(b"object", &[triple_aux(b"r", other, [0.0; 3])]),
+            other_node_with_triple(b"light", other),
+        ]
+        .concat();
+        let decoded = decode(scene(&children)).unwrap();
+        let sites = &decoded.source.as_ref().unwrap().sites;
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].aux, other);
     }
 }

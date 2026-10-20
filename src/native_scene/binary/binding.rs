@@ -418,6 +418,8 @@ pub(super) fn construct(
         .sum();
     counts.dag = bindings.len();
     let sites = sites::collect(container, &bindings, &mut budget)?;
+    counts.sites = sites.len();
+    counts.site_ancestors = sites.iter().map(|site| site.ancestors.len()).sum();
     counts.atoms = container
         .chunks()
         .iter()
