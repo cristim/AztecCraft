@@ -228,4 +228,6 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
 }
 
 #[cfg(test)]
+mod insert;
+#[cfg(test)]
 mod tests;
