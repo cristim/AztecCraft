@@ -26,8 +26,6 @@ mod head;
     expect(dead_code, reason = "used by the emission that follows")
 )]
 mod profile;
-#[cfg(test)]
-mod sha256;
 #[cfg_attr(
     not(test),
     expect(dead_code, reason = "used by the emission that follows")

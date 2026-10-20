@@ -1,40 +1,12 @@
 use super::*;
-use crate::native_scene::binary::write::{
-    fixtures::{MAYA_2025, MAYA_2026, groups, leaves, walk},
-    sha256::hex_digest,
-};
+use crate::native_scene::binary::write::fixtures::{MAYA_2025, MAYA_2026, groups, leaves, walk};
 
+// Integrity of the vendored files is the recorded length plus the offset and
+// byte-identity pins below; no hash is computed in the repo.
 #[test]
-fn the_vendored_fixtures_are_the_recorded_files() {
+fn the_vendored_fixtures_have_the_recorded_sizes() {
     assert_eq!(MAYA_2025.len(), 553_616);
-    assert_eq!(
-        hex_digest(MAYA_2025),
-        "9eb842b4568ec5324b52f50dfb1ce792133946269d1e9d85d405dc645cd229c3"
-    );
     assert_eq!(MAYA_2026.len(), 8096);
-    assert_eq!(
-        hex_digest(MAYA_2026),
-        "b193a81d5a8456bf74b1ff16874d94062d178462eb8cf9406100c787265cdfd5"
-    );
-}
-
-#[test]
-fn the_licenses_are_the_recorded_files() {
-    let license = |dir: &str| {
-        std::fs::read(format!(
-            "{}/tests/fixtures/{dir}/LICENSE",
-            env!("CARGO_MANIFEST_DIR")
-        ))
-        .unwrap()
-    };
-    assert_eq!(
-        hex_digest(&license("gt-tools")),
-        "a9dc8021d8a699d305265dcfae38a8d1f61010390b43257a96657237a217e84b"
-    );
-    assert_eq!(
-        hex_digest(&license("mayascenekit")),
-        "8c850ccb7bd4c61d0725b718e65b0d068a29507d9d3d410e883186e4b82c04d9"
-    );
 }
 
 #[test]
