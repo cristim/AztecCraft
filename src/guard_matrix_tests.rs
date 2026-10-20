@@ -19,6 +19,7 @@ use azteccraft::native_scene::{
     MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
     WorldAxis,
 };
+use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
 
 #[allow(dead_code)]
@@ -845,6 +846,43 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::Create {
                     primitive: Primitive::Cone,
                     options: None,
+                    name: None,
+                },
+            ),
+            sample(
+                "create(cube,options)",
+                Operation::Create {
+                    primitive: Primitive::Cube,
+                    options: Some(PrimitiveOptions::Cube {
+                        width: 2.0,
+                        height: 3.0,
+                        depth: 4.0,
+                        sub_width: 2,
+                        sub_height: 2,
+                        sub_depth: 2,
+                        axis: Axis::Z,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
+                "create(sphere,invalid options)",
+                Operation::Create {
+                    primitive: Primitive::Sphere,
+                    options: Some(PrimitiveOptions::Sphere {
+                        radius: -1.0,
+                        sub_axis: 20,
+                        sub_height: 20,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
+                "create(cone,mismatched options)",
+                Operation::Create {
+                    primitive: Primitive::Cone,
+                    options: Some(PrimitiveOptions::default_for(Primitive::Cube)),
                     name: None,
                 },
             ),
