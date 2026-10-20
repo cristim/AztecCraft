@@ -1,16 +1,13 @@
 use super::{NativeMesh, axis::orient, grid::RevolveGrid};
 use std::f64::consts::PI;
 
-// PROVISIONAL (#5): radius 1, height 2 and 20x1x0 follow the polyCone node page; Maya 2026 is
-// unverified.
 impl NativeMesh {
     /// Cone along `axis`: the apex (vertex 0) on top, `height_divisions` rings of
     /// `axis_divisions` vertices below it (the last is the base), an outward triangle fan, quad
     /// bands between rings and one true n-gon base cap, with no cap centre vertex.
-    pub(super) fn polygon_cone(grid: &RevolveGrid) -> Self {
+    pub(super) fn polygon_cone(grid: &RevolveGrid, height: f64) -> Self {
         let RevolveGrid {
             radius,
-            height,
             axis_divisions: columns,
             height_divisions: bands,
             axis,

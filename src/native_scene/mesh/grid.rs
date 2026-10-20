@@ -143,10 +143,9 @@ impl NativeMesh {
     }
 }
 
-/// Shared arguments of the cylinder and cone builders.
+/// Shared arguments of the sphere, cylinder and cone builders.
 pub(super) struct RevolveGrid {
     pub radius: f64,
-    pub height: f64,
     pub axis_divisions: usize,
     pub height_divisions: usize,
     pub axis: Axis,
