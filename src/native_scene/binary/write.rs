@@ -121,4 +121,6 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
 }
 
 #[cfg(test)]
+mod msk_crosscheck;
+#[cfg(test)]
 mod tests;
