@@ -47,6 +47,7 @@ fn place(container: &Container, binding: &Binding, aux: u32) -> Option<usize> {
     let mut first_triple = None;
     for chunk in kids {
         match &chunk.tag() {
+            // A non-`v` DBLE needs an ATTR sibling, which the `_` arm refuses first.
             b"DBLE" if !seen_visibility && last_rank.is_none() && chunk.auxiliary() == aux => {
                 seen_visibility = true;
             }

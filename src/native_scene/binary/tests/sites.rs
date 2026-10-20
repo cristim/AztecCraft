@@ -53,7 +53,10 @@ mod grammar {
         },
         wire_fixture::{chunk, creation, group, mesh_payload, scene, triple},
     };
-    use crate::{maya_binary::container, native_scene::binary::decode};
+    use crate::{
+        maya_binary::container,
+        native_scene::binary::{ErrorKind, decode},
+    };
 
     fn t() -> Vec<u8> {
         triple_aux(b"t", SITE_AUX, [1.0; 3])
@@ -211,8 +214,14 @@ mod grammar {
             assert_eq!(one(&[triple_aux(key, SITE_AUX, [0.0; 3])]), Err(()));
         }
         assert_eq!(one(&[chunk(b"ZZZZ", b"k\0abc", 8)]), Err(()));
-        let nested = group(b"NCRV", &creation(b"inner", None), 8);
-        assert_eq!(one(&[nested]), Err(()));
+        let nested = group(b"SHAD", &[], 8);
+        assert_eq!(one(std::slice::from_ref(&nested)), Err(()));
+        let error = decode(scene(&file(&[nested]))).unwrap_err();
+        assert_eq!(
+            error.kind(),
+            ErrorKind::Malformed,
+            "inspect rejects it, not construct"
+        );
     }
 
     #[test]

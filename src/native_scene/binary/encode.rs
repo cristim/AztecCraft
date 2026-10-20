@@ -218,6 +218,8 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     let parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
     verify(scene, source, &parsed, plan, Appearance::Exact)?;
+    // Its Arc copy of `output` is not counted in `retained` below, so release it first.
+    drop(parsed);
     if plan.is_empty() {
         return Ok(output);
     }
