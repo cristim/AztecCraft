@@ -332,6 +332,8 @@ fn verify(
 }
 
 mod insert;
+#[cfg(test)]
+mod place;
 mod plan;
 #[cfg(test)]
 mod tests;
