@@ -212,3 +212,46 @@ fn a_shape_without_a_stored_uuid_is_refused() {
     scene.shapes[0].uuid = None;
     assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::MissingUuid));
 }
+
+fn with_material(assign: bool) -> NativeScene {
+    use crate::native_scene::MaterialChoice;
+    let mut scene = meshed(&[Primitive::Cube]);
+    let color = [0.25, 0.5, 0.75];
+    if assign {
+        let shape = scene.shapes()[0].id();
+        scene
+            .assign_session_material(shape, MaterialChoice::New { color })
+            .unwrap();
+    } else {
+        scene.create_session_material(color).unwrap();
+    }
+    scene
+}
+
+#[test]
+fn a_shape_assigned_a_non_initial_shading_group_is_refused() {
+    assert_eq!(
+        encode_authored(&with_material(true)),
+        Err(AuthoredBinaryRefusal::MaterialAssigned)
+    );
+}
+
+#[test]
+fn a_created_but_unassigned_material_does_not_refuse() {
+    encode_authored(&with_material(false)).unwrap();
+}
+
+#[test]
+fn reassigning_back_to_the_initial_group_does_not_refuse() {
+    use crate::native_scene::MaterialChoice;
+    let mut scene = with_material(true);
+    let shape = scene.shapes()[0].id();
+    let initial = scene.session_material_id(&scene.shapes()[0]).unwrap();
+    assert_eq!(scene.session_shading_groups().len(), 2);
+    let default = crate::native_scene::SessionMaterialId::from_index(0);
+    assert_ne!(initial, default);
+    scene
+        .assign_session_material(shape, MaterialChoice::Existing(default))
+        .unwrap();
+    encode_authored(&scene).unwrap();
+}

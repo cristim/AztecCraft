@@ -113,8 +113,9 @@ than cm/deg/film, a hierarchy that is not flat transform-over-one-mesh, invalid,
 names (the default Maya node names: `RESERVED` plus the ASCII decoder's `BUILTINS`, for every writer, since
 a file omitting the default scene still collides with them on load), empty meshes, non-zero pivots, extras,
 restrictions, effects, non-authored visibility, double-precision points, point offsets, non-hard edges,
-face holes and unsupported channels. The Binary writer adds (later commits) `MaterialAssigned` (some
-shape assigned a non-initial shading group, tested on values), `MissingUuid`, edge count over 2^24, counts
+face holes and unsupported channels. The Binary writer adds `MaterialAssigned` (some shape assigned a non-initial shading group, tested on the
+assignment values, so a created but unassigned lambert or a shape reassigned to the initial group is
+accepted; the ASCII emitter ignores materials and is unchanged), `MissingUuid` (later commit), edge count over 2^24, counts
 over u32, output over 16 MiB and resource overruns.
 
 ## Self-check and tests

@@ -46,6 +46,8 @@ pub(crate) enum AuthoredBinaryRefusal {
     TooLarge,
     /// A node has no stored UUID, and the file's creation chunks need one.
     MissingUuid,
+    /// Some shape is assigned a non-initial shading group, which this file cannot carry.
+    MaterialAssigned,
     /// The decoder did not read back what was written; no bytes are returned.
     SelfCheckMismatch,
 }
@@ -100,6 +102,14 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         authored::check_transforms_only(scene)?;
     } else {
         authored::check_scene(scene)?;
+    }
+    if scene
+        .session_materials
+        .assignments
+        .values()
+        .any(|group| *group != 0)
+    {
+        return Err(AuthoredBinaryRefusal::MaterialAssigned);
     }
     scene_file(scene)
 }
