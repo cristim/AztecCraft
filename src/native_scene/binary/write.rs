@@ -62,8 +62,9 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
     }
 }
 
-/// The file for a scene of bare transforms, whose eligibility the caller has checked.
-/// The bytes are decoded and compared with the scene before they are returned.
+/// The file for a scene of bare transforms or of transforms over one mesh each, whose
+/// eligibility the caller has checked. The bytes are decoded and compared with the scene
+/// before they are returned.
 #[cfg_attr(
     not(test),
     expect(
@@ -71,10 +72,10 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
         reason = "used by the entry point once emission is complete"
     )
 )]
-fn transforms_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
+fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     let mut children = Vec::new();
     children
-        .try_reserve_exact(scene.nodes().len() + 1)
+        .try_reserve_exact(scene.nodes().len() + scene.shapes().len() + 1)
         .map_err(|_| TooLarge)?;
     children.push(head::head()?);
     for node in scene.nodes() {
@@ -90,6 +91,11 @@ fn transforms_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal
             scale: internal.scale,
         };
         children.push(transform::xfrm(node.name(), uuid, channels)?);
+        if !scene.shapes().is_empty() {
+            let shape = authored::shape_of(scene, node)?;
+            let uuid = shape.uuid().ok_or(AuthoredBinaryRefusal::MissingUuid)?;
+            children.push(mesh::dmsh(shape.name(), node.name(), uuid, shape.mesh())?);
+        }
     }
     let bytes = chunk::group(*b"Maya", profile::ROOT_AUX, &children, chunk::Align::One)?;
     check::verify(scene, &bytes)?;

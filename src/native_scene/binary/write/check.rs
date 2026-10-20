@@ -7,12 +7,33 @@
 //! them), edge smoothness and the retained source.
 
 use super::AuthoredBinaryRefusal;
-use crate::native_scene::{NativeScene, binary};
+use crate::native_scene::{NativeMeshShape, NativeScene, Points, authored, binary};
 use std::sync::Arc;
 
 /// Why the decoded scene differs from the one that was written.
 fn mismatch<T>() -> Result<T, AuthoredBinaryRefusal> {
     Err(AuthoredBinaryRefusal::SelfCheckMismatch)
+}
+
+/// Name, point bit patterns, edge endpoint pairs and face loops, all in order. Edge
+/// smoothness is not compared: the decoder leaves it unknown.
+fn same_shape(before: &NativeMeshShape, after: &NativeMeshShape) -> bool {
+    let (a, b) = (before.mesh(), after.mesh());
+    let single = |points: &Points| matches!(points, Points::Float3(_));
+    before.name() == after.name()
+        && single(a.points())
+        && a.points() == b.points()
+        && !b.has_point_offsets()
+        && a.edges().len() == b.edges().len()
+        && a.edges()
+            .iter()
+            .zip(b.edges())
+            .all(|(x, y)| x.endpoints() == y.endpoints())
+        && a.faces().len() == b.faces().len()
+        && a.faces()
+            .iter()
+            .zip(b.faces())
+            .all(|(x, y)| x.outer() == y.outer() && x.holes().is_empty() && y.holes().is_empty())
 }
 
 pub(super) fn verify(scene: &NativeScene, bytes: &[u8]) -> Result<(), AuthoredBinaryRefusal> {
@@ -40,8 +61,19 @@ pub(super) fn verify(scene: &NativeScene, bytes: &[u8]) -> Result<(), AuthoredBi
             .iter()
             .filter(|e| e.parent() == Some(after.transform_id()))
             .count();
-        if roots != 1 || children != 0 {
+        if roots != 1 || children != usize::from(!scene.shapes().is_empty()) {
             return mismatch();
+        }
+        if !scene.shapes().is_empty() {
+            let (Ok(a), Ok(b)) = (
+                authored::shape_of(scene, before),
+                authored::shape_of(&decoded, after),
+            ) else {
+                return mismatch();
+            };
+            if !same_shape(a, b) {
+                return mismatch();
+            }
         }
         let (Ok(a), Ok(b)) = (
             scene.internal_transform(before.id()),

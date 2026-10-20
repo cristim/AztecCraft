@@ -11,6 +11,14 @@ pub(super) fn bare(names: &[&str]) -> NativeScene {
     scene
 }
 
+pub(super) fn meshed(primitives: &[Primitive]) -> NativeScene {
+    let mut scene = NativeScene::default();
+    for (index, primitive) in primitives.iter().enumerate() {
+        scene.create(*primitive, &format!("mesh{index}")).unwrap();
+    }
+    scene
+}
+
 #[test]
 fn nothing_is_returned_while_emission_is_incomplete() {
     let mut cube = NativeScene::default();
@@ -54,7 +62,7 @@ pub(super) fn bare_numbered(count: usize) -> NativeScene {
 #[test]
 fn a_bare_transform_file_reopens_in_the_decoder_with_the_same_nodes() {
     let scene = bare_numbered(3);
-    let bytes = transforms_file(&scene).unwrap();
+    let bytes = scene_file(&scene).unwrap();
     let reopened = crate::native_scene::binary::decode(std::sync::Arc::from(bytes)).unwrap();
     assert_eq!(reopened.nodes().len(), 3);
     assert!(reopened.shapes().is_empty());
@@ -79,10 +87,7 @@ fn a_bare_transform_file_reopens_in_the_decoder_with_the_same_nodes() {
 fn a_node_without_a_stored_uuid_is_refused() {
     let mut scene = bare_numbered(2);
     scene.nodes[1].transform_uuid = None;
-    assert_eq!(
-        transforms_file(&scene),
-        Err(AuthoredBinaryRefusal::MissingUuid)
-    );
+    assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::MissingUuid));
 }
 
 #[test]
@@ -92,7 +97,34 @@ fn the_self_check_runs_on_the_built_bytes() {
     let mut scene = bare_numbered(2);
     scene.nodes[1].name = "a|b".to_owned();
     assert_eq!(
-        transforms_file(&scene),
+        scene_file(&scene),
         Err(AuthoredBinaryRefusal::SelfCheckMismatch)
     );
+}
+
+#[test]
+fn a_meshed_scene_file_reopens_with_every_node_and_shape_in_order() {
+    let primitives = [
+        Primitive::Cube,
+        Primitive::Plane,
+        Primitive::Sphere,
+        Primitive::Cylinder,
+        Primitive::Cone,
+    ];
+    let scene = meshed(&primitives);
+    let bytes = scene_file(&scene).unwrap();
+    let reopened = crate::native_scene::binary::decode(std::sync::Arc::from(bytes)).unwrap();
+    assert_eq!(reopened.nodes().len(), 5);
+    assert_eq!(reopened.shapes().len(), 5);
+    for (before, after) in scene.shapes().iter().zip(reopened.shapes()) {
+        assert_eq!(before.name(), after.name());
+        assert_eq!(before.mesh().points(), after.mesh().points());
+    }
+}
+
+#[test]
+fn a_shape_without_a_stored_uuid_is_refused() {
+    let mut scene = meshed(&[Primitive::Cube]);
+    scene.shapes[0].uuid = None;
+    assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::MissingUuid));
 }
