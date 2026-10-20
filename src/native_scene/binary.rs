@@ -4,6 +4,7 @@ mod binding;
 mod encode;
 mod write;
 pub use encode::encode;
+pub use write::AuthoredRefusalCode;
 #[cfg(test)]
 mod tests;
 
