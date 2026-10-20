@@ -1,0 +1,418 @@
+//! Save As for a new (Untitled) scene over the official MCP client. Test A is the maintainer's
+//! acceptance flow and stays one uninterrupted sequence; the extras are separate tests.
+use super::*;
+
+type Client = rmcp::service::RunningService<RoleClient, ()>;
+
+/// Calls `name` with the live scene token and returns the structured result.
+async fn tool(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &Client,
+    name: &'static str,
+    mut arguments: Value,
+) -> Value {
+    arguments["scene_token"] = json!(editor.scene_token.to_string());
+    call(editor, context, client.peer(), name, arguments)
+        .await
+        .structured_content
+        .unwrap()
+}
+
+async fn inspect_json(editor: &mut Editor, context: &egui::Context, client: &Client) -> Value {
+    call(editor, context, client.peer(), "inspect_scene", json!({}))
+        .await
+        .structured_content
+        .unwrap()["inspection"]
+        .clone()
+}
+
+fn vec3(value: &Value) -> [f64; 3] {
+    let items = value.as_array().unwrap();
+    [0, 1, 2].map(|i| items[i].as_f64().unwrap())
+}
+
+/// Names, transforms and mesh counts in node order: what a reopen must reproduce.
+#[derive(Debug)]
+struct NodeSummary {
+    name: String,
+    /// Translation, rotation in degrees and scale.
+    channels: [[f64; 3]; 3],
+    shape: String,
+    /// Points, edges and faces.
+    counts: [u64; 3],
+}
+
+fn summary(inspection: &Value) -> Vec<NodeSummary> {
+    let shapes = inspection["shapes"].as_array().unwrap();
+    inspection["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(shapes)
+        .map(|(node, shape)| {
+            let transform = &node["transform"];
+            NodeSummary {
+                name: node["name"].as_str().unwrap().to_owned(),
+                channels: [
+                    vec3(&transform["translation"]),
+                    vec3(&transform["rotation_degrees"]),
+                    vec3(&transform["scale"]),
+                ],
+                shape: shape["name"].as_str().unwrap().to_owned(),
+                counts: ["points", "edges", "faces"].map(|k| shape[k].as_u64().unwrap()),
+            }
+        })
+        .collect()
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_new_scene_save_as_reopen_inspect_and_move_succeeds() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("authored.mb");
+    for primitive in ["cube", "sphere", "cylinder", "cone"] {
+        let created = tool(
+            &mut editor,
+            &context,
+            &client,
+            "create_primitive",
+            json!({"primitive": primitive}),
+        )
+        .await;
+        assert_eq!(created["outcome"], "created");
+    }
+    let before = inspect_json(&mut editor, &context, &client).await;
+    let second = before["nodes"][1]["id"].as_str().unwrap().to_owned();
+    let edited = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_transform",
+        json!({"node_id": second, "translation": [1.5, -2.0, 3.25],
+               "rotation_degrees": [10.0, 20.0, 30.0], "scale": [1.0, 2.0, 0.5]}),
+    )
+    .await;
+    assert_eq!(edited["outcome"], "changed");
+    let before = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(before["document_origin"], "untitled");
+    assert_eq!(before["dirty"], true);
+
+    // The acceptance flow: save_scene_as, open it again, inspect, move. Nothing in between.
+    let token_before_save = editor.scene_token.to_string();
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    assert_eq!(saved["dirty"], false);
+    assert_eq!(saved["scene_token"], token_before_save);
+    let opened = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(opened["outcome"], "document_applied");
+    let after = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(after["document_origin"], "maya_binary");
+    assert_eq!(after["dirty"], false);
+    assert_eq!(after["has_file"], true);
+    let (names_before, names_after) = (summary(&before), summary(&after));
+    assert_eq!(names_before.len(), 4);
+    assert_eq!(names_after.len(), 4);
+    for (expected, actual) in names_before.iter().zip(&names_after) {
+        assert_eq!(
+            (&expected.name, &expected.shape, &expected.counts),
+            (&actual.name, &actual.shape, &actual.counts)
+        );
+        let [translation, rotation, scale] =
+            [0, 1, 2].map(|i| (&expected.channels[i], &actual.channels[i]));
+        for (e, a) in [translation, scale]
+            .into_iter()
+            .flat_map(|(e, a)| e.iter().zip(a))
+        {
+            assert_eq!(e.to_bits(), a.to_bits(), "{expected:?} != {actual:?}");
+        }
+        for (e, a) in rotation.0.iter().zip(rotation.1) {
+            // Rotations go degrees -> radians -> degrees, which is not bit-exact.
+            assert!((e - a).abs() < 1e-9, "{expected:?} != {actual:?}");
+        }
+    }
+    let node = &after["nodes"][0];
+    let selected = tool(
+        &mut editor,
+        &context,
+        &client,
+        "select_node",
+        json!({"node_id": node["id"], "instance_path": node["instance_paths"][0]}),
+    )
+    .await;
+    assert!(selected.get("error").is_none(), "{selected}");
+    let moved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "begin_manipulation",
+        json!({"node_id": node["id"], "instance_path": node["instance_paths"][0],
+               "kind": "move", "axis": "x"}),
+    )
+    .await;
+    assert_eq!(moved["outcome"], "manipulation_started", "{moved}");
+    let id = moved["manipulation_id"].as_str().unwrap().to_owned();
+    let previewed = tool(
+        &mut editor,
+        &context,
+        &client,
+        "update_manipulation",
+        json!({"manipulation_id": id, "distance": 2.5}),
+    )
+    .await;
+    assert!(previewed.get("error").is_none(), "{previewed}");
+    let finished = tool(
+        &mut editor,
+        &context,
+        &client,
+        "finish_manipulation",
+        json!({"manipulation_id": id, "finish": "commit"}),
+    )
+    .await;
+    assert!(finished.get("error").is_none(), "{finished}");
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation[0],
+        2.5
+    );
+    assert!(editor.is_dirty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+/// Strict container parse plus the root header, independent of the scene decoder.
+fn assert_well_formed_mb(bytes: &[u8]) {
+    assert_eq!(&bytes[0..4], b"FOR8");
+    assert_eq!(
+        u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
+        bytes.len() as u64 - 16
+    );
+    assert_eq!(&bytes[16..20], b"Maya");
+    azteccraft::maya_binary::container::inspect(bytes.to_vec().into()).unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_new_scene_save_extras_needs_path_resave_occupied_and_guards() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("extras.mb");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_primitive",
+        json!({"primitive": "cube"}),
+    )
+    .await;
+    let inspection = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(inspection["document_origin"], "untitled");
+    assert_eq!(inspection["dirty"], true);
+    assert_eq!(inspection["has_file"], false);
+    assert_eq!(inspection["save_available"], false);
+    assert_eq!(inspection["save_as_available"], true);
+
+    let scene = editor.history.scene().clone();
+    let refused = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(refused["error"]["code"], "save_needs_path");
+    assert_eq!(editor.history.scene(), &scene);
+    assert!(editor.is_dirty());
+    let wrong = destination.with_extension("txt");
+    let result = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": wrong}),
+    )
+    .await;
+    assert_eq!(result["error"]["code"], "invalid_destination");
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "save_scene_as",
+        json!({"scene_token": uuid::Uuid::new_v4().to_string(), "path": destination}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(stale["error"]["code"], "stale_scene");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    assert!(editor.is_dirty());
+
+    let token_before_save = editor.scene_token.to_string();
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    assert_eq!(saved["dirty"], false);
+    assert_eq!(saved["scene_token"], token_before_save);
+    let first = std::fs::read(&destination).unwrap();
+    assert_well_formed_mb(&first);
+    let inspection = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(inspection["document_origin"], "maya_binary");
+    assert_eq!(inspection["has_file"], true);
+    assert_eq!(inspection["save_available"], true);
+    assert_eq!(inspection["scene_token"], token_before_save);
+
+    // Save re-encodes the live scene and verifies the file it wrote; the writer is deterministic.
+    let token_before_resave = editor.scene_token.to_string();
+    let again = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(again["outcome"], "saved");
+    assert_eq!(again["scene_token"], token_before_resave);
+    assert_eq!(std::fs::read(&destination).unwrap(), first);
+
+    let node = inspection["nodes"][0]["id"].as_str().unwrap().to_owned();
+    let edited = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_transform",
+        json!({"node_id": node, "translation": [4.0, 5.0, 6.0],
+               "rotation_degrees": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0]}),
+    )
+    .await;
+    assert_eq!(edited["outcome"], "changed");
+    assert!(editor.is_dirty());
+    let saved = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(saved["outcome"], "saved");
+    assert_eq!(saved["dirty"], false);
+    let second = std::fs::read(&destination).unwrap();
+    assert_ne!(second, first);
+    assert_well_formed_mb(&second);
+    let decoded = azteccraft::native_scene::binary::decode(second.clone().into()).unwrap();
+    assert_eq!(decoded.nodes()[0].transform().translation, [4.0, 5.0, 6.0]);
+
+    // An occupied destination is refused and the occupant is untouched.
+    let occupied = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(occupied["error"]["code"], "destination_exists");
+    assert_eq!(std::fs::read(&destination).unwrap(), second);
+    assert!(!editor.is_dirty());
+
+    // An external change to the file is detected instead of overwritten.
+    let mut foreign = second.clone();
+    foreign.push(0);
+    std::fs::write(&destination, &foreign).unwrap();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_transform",
+        json!({"node_id": node, "translation": [7.0, 5.0, 6.0],
+               "rotation_degrees": [0.0, 0.0, 0.0], "scale": [1.0, 1.0, 1.0]}),
+    )
+    .await;
+    let changed = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(changed["error"]["code"], "source_changed");
+    assert_eq!(std::fs::read(&destination).unwrap(), foreign);
+    assert!(editor.is_dirty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothing() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let refused_path = directory.path().join("refused.mb");
+    let saved_path = directory.path().join("saved.mb");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_primitive",
+        json!({"primitive": "sphere"}),
+    )
+    .await;
+    let inspection = inspect_json(&mut editor, &context, &client).await;
+    let shape = inspection["shapes"][0]["id"].as_str().unwrap().to_owned();
+    let assigned = tool(
+        &mut editor,
+        &context,
+        &client,
+        "assign_session_material",
+        json!({"shape_id": shape, "color": [0.0, 0.0, 1.0]}),
+    )
+    .await;
+    assert_eq!(assigned["material_id"], "1");
+    let (scene, token) = (editor.history.scene().clone(), editor.scene_token);
+    let refused = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": refused_path}),
+    )
+    .await;
+    assert_eq!(refused["error"]["code"], "save_unwritable");
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("shading group")
+    );
+    assert!(!refused_path.exists());
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    assert_eq!(
+        (editor.history.scene(), editor.scene_token),
+        (&scene, token)
+    );
+    assert!(editor.is_dirty());
+
+    // Back on the initial group the created material is unassigned session state: saving works.
+    let reassigned = tool(
+        &mut editor,
+        &context,
+        &client,
+        "assign_session_material",
+        json!({"shape_id": shape, "material_id": "0"}),
+    )
+    .await;
+    assert_eq!(reassigned["material_id"], "0");
+    assert_eq!(editor.history.scene().session_materials().len(), 2);
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": saved_path}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    assert_well_formed_mb(&std::fs::read(&saved_path).unwrap());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

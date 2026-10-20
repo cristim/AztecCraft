@@ -5,40 +5,43 @@
 //! found the scene again. Maya acceptance of the output is unproven.
 
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod check;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod chunk;
 #[cfg(test)]
 mod fixtures;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod head;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod mesh;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod profile;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod transform;
 
 use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
 use chunk::TooLarge;
+
+mod refusal;
+pub use refusal::AuthoredRefusalCode;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum AuthoredBinaryRefusal {
@@ -95,7 +98,10 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     Ok(bytes)
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
+#[cfg_attr(
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
+)]
 pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     authored::check_content_kind(scene)?;
     if scene.shapes().is_empty() {
@@ -114,5 +120,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
     scene_file(scene)
 }
 
+#[cfg(test)]
+mod msk_crosscheck;
 #[cfg(test)]
 mod tests;
