@@ -112,6 +112,7 @@ mod official_client {
     mod manipulation_mcp_tests;
     mod material;
     mod node_edit;
+    mod primitive_options;
     mod selection;
     mod session;
     mod session_material;
