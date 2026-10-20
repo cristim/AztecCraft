@@ -129,6 +129,16 @@ fn inserted_leaf_save_as_repeat_save_and_reopen_are_bit_equal() {
         &|| true,
     ));
     assert_eq!(std::fs::read(&destination).unwrap().len(), second.len());
+    let last = load_native(&destination).unwrap();
+    assert_eq!(
+        last.scene
+            .node(id)
+            .unwrap()
+            .transform()
+            .translation
+            .map(f64::to_bits),
+        [1.0f64.to_bits(), (-0.0f64).to_bits(), 2.5f64.to_bits()]
+    );
 }
 
 #[test]
