@@ -208,3 +208,74 @@ fn the_first_refusal_follows_the_documented_check_order() {
     scene.nodes[1].rotate_pivot[0].value = 0.0;
     assert_eq!(check(&scene), Err(R::ReservedName));
 }
+
+fn transforms_only(names: &[&str]) -> NativeScene {
+    let mut scene = scene(names);
+    scene.shapes.clear();
+    scene.dag.retain(|edge| edge.parent.is_none());
+    scene
+}
+fn check_bare(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+    check_content_kind(scene)?;
+    check_transforms_only(scene)
+}
+
+#[test]
+fn bare_transforms_and_the_empty_scene_are_eligible_without_shapes() {
+    check_bare(&transforms_only(&["a", "b"])).unwrap();
+    check_bare(&NativeScene::default()).unwrap();
+}
+
+#[test]
+fn a_scene_with_a_mesh_shape_is_not_a_transforms_only_scene() {
+    assert_eq!(
+        check_bare(&scene(&["cube"])),
+        Err(AuthoredIneligible::NonAuthoredHierarchy)
+    );
+}
+
+#[test]
+fn bare_transforms_keep_the_node_and_name_refusals() {
+    use AuthoredIneligible as R;
+    type Case = (fn(&mut NativeScene), R);
+    let cases: [Case; 8] = [
+        (
+            |s| s.nodes[0].rotate_pivot[0].value = 1.0,
+            R::NonDefaultPivot,
+        ),
+        (
+            |s| s.nodes[0].extras.shear = Some([0.0; 3]),
+            R::TransformExtras,
+        ),
+        (
+            |s| s.nodes[0].restrictions.push("locked".into()),
+            R::TransformRestriction,
+        ),
+        (
+            |s| s.nodes[0].view.local_visibility = Some(false),
+            R::TransformVisibility,
+        ),
+        (|s| s.nodes[0].name = "persp".into(), R::ReservedName),
+        (|s| s.nodes[0].name = "3bad".into(), R::InvalidName),
+        (
+            |s| s.nodes[0].name = s.nodes[1].name.clone(),
+            R::NameCollision,
+        ),
+        (|s| s.units.linear = LinearUnit::Meter, R::UnsupportedUnits),
+    ];
+    for (index, (mutate, expected)) in cases.into_iter().enumerate() {
+        let mut bare = transforms_only(&["a", "b"]);
+        mutate(&mut bare);
+        assert_eq!(check_bare(&bare), Err(expected), "case {index}");
+    }
+}
+
+#[test]
+fn a_parented_transform_is_not_flat() {
+    let mut nested = transforms_only(&["a", "b"]);
+    nested.dag[1].parent = Some(nested.nodes[0].transform_id);
+    assert_eq!(
+        check_bare(&nested),
+        Err(AuthoredIneligible::NonAuthoredHierarchy)
+    );
+}

@@ -81,10 +81,7 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
 /// transform-over-one-mesh hierarchy, per-node eligibility and names.
 pub(super) fn check_scene(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
-    scene.validate().map_err(R::InvalidScene)?;
-    if scene.units != Units::default() {
-        return Err(R::UnsupportedUnits);
-    }
+    check_valid_units(scene)?;
     if scene.shapes.len() != scene.nodes.len()
         || scene.nodes.len().checked_mul(2) != Some(scene.dag.len())
     {
@@ -109,6 +106,45 @@ pub(super) fn check_scene(scene: &NativeScene) -> Result<(), AuthoredIneligible>
         }
         eligibility(node, shape)?;
     }
+    check_names(scene)
+}
+
+fn check_valid_units(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+    scene.validate().map_err(AuthoredIneligible::InvalidScene)?;
+    if scene.units != Units::default() {
+        return Err(AuthoredIneligible::UnsupportedUnits);
+    }
+    Ok(())
+}
+
+/// A scene of bare transforms: every node is a root with no child, and there is no
+/// shape. Binary emission starts here, since mesh content is not yet writable.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "first used by the Binary transform emission")
+)]
+pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+    use AuthoredIneligible as R;
+    check_valid_units(scene)?;
+    if !scene.shapes.is_empty() || scene.dag.len() != scene.nodes.len() {
+        return Err(R::NonAuthoredHierarchy);
+    }
+    for node in &scene.nodes {
+        let roots = scene
+            .dag
+            .iter()
+            .filter(|edge| edge.parent.is_none() && edge.child == node.transform_id)
+            .count();
+        if roots != 1 {
+            return Err(R::NonAuthoredHierarchy);
+        }
+        node_eligibility(node)?;
+    }
+    check_names(scene)
+}
+
+fn check_names(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+    use AuthoredIneligible as R;
     for (index, (id, name)) in names(scene).enumerate() {
         scene.validate_new_name(id, name).map_err(|e| match e {
             NativeError::InvalidName => R::InvalidName,
@@ -144,6 +180,11 @@ fn eligibility(
     node: &NativeTransformNode,
     shape: &NativeMeshShape,
 ) -> Result<(), AuthoredIneligible> {
+    node_eligibility(node)?;
+    shape_eligibility(shape)
+}
+
+fn node_eligibility(node: &NativeTransformNode) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
     if node
         .rotate_pivot
@@ -165,6 +206,11 @@ fn eligibility(
     if node.view != GeometryViewFacts::authored() {
         return Err(R::TransformVisibility);
     }
+    Ok(())
+}
+
+fn shape_eligibility(shape: &NativeMeshShape) -> Result<(), AuthoredIneligible> {
+    use AuthoredIneligible as R;
     if !shape.restrictions.is_empty() {
         return Err(R::ShapeRestriction);
     }
