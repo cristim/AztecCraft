@@ -107,6 +107,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
                 },
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
