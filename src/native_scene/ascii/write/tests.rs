@@ -1201,6 +1201,24 @@ fn formatting_workspace_and_admitted_output_refuse_one_extra_byte() {
 }
 
 #[test]
+fn resource_admission_comes_before_validation() {
+    let mut scene = NativeScene::default();
+    for index in 0..100 {
+        scene
+            .create(Primitive::Cube, &format!("{}{index}", "a".repeat(1225)))
+            .unwrap();
+    }
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::ResourceLimit));
+    scene.nodes[0].channels[0].value = f64::NAN;
+    assert_eq!(
+        scene.validate(),
+        Err(NativeError::NonFinite),
+        "the scene is also invalid"
+    );
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::ResourceLimit));
+}
+
+#[test]
 fn added_formatting_work_refuses_a_previously_admissible_small_scene() {
     let mut scene = NativeScene::default();
     for index in 0..100 {
