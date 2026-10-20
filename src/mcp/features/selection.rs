@@ -98,6 +98,7 @@ fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
         token(&args.scene_token)?,
         Operation::Create {
             primitive,
+            options: None,
             name: args.name,
         },
     ))

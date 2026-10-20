@@ -6,6 +6,7 @@ fn create(history: &mut History, name: &str) -> NodeId {
     match history
         .execute(Command::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: name.into(),
         })
         .unwrap()
@@ -24,6 +25,7 @@ fn undo_and_redo_restore_every_authoring_state_in_order() {
     let plane = match history
         .execute(Command::Create {
             primitive: Primitive::Plane,
+            options: None,
             name: "ground".into(),
         })
         .unwrap()
@@ -82,6 +84,7 @@ fn failed_commands_preserve_scene_and_both_history_stacks() {
     for command in [
         Command::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: "".into(),
         },
         Command::Rename {

@@ -224,6 +224,7 @@ pub enum Operation {
     Inspect,
     Create {
         primitive: Primitive,
+        options: Option<azteccraft::primitive_options::PrimitiveOptions>,
         name: Option<String>,
     },
     Select {

@@ -1,9 +1,7 @@
 use super::{NativeError, convert};
-use crate::{
-    mesh::Mesh,
-    primitive_options::PrimitiveOptions,
-    scene::{Primitive, SceneError},
-};
+#[cfg(test)]
+use crate::scene::Primitive;
+use crate::{mesh::Mesh, primitive_options::PrimitiveOptions, scene::SceneError};
 use glam::DVec3;
 use std::collections::HashMap;
 use std::fmt;
@@ -318,6 +316,7 @@ impl NativeMesh {
     pub fn faces(&self) -> &[NativeFace] {
         &self.faces
     }
+    #[cfg(test)]
     pub(super) fn primitive(primitive: Primitive) -> Result<Self, NativeError> {
         Self::with_options(&PrimitiveOptions::default_for(primitive))
     }

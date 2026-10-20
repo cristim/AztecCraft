@@ -2,6 +2,7 @@ use crate::{
     native_scene::{
         MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform, SessionMaterialId,
     },
+    primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
 };
 mod move_transaction;
@@ -16,6 +17,7 @@ use std::collections::VecDeque;
 pub enum Command {
     Create {
         primitive: Primitive,
+        options: Option<PrimitiveOptions>,
         name: String,
     },
     Remove(NodeId),
@@ -144,9 +146,14 @@ impl History {
         }
         let mut candidate = self.scene.clone();
         let outcome = match command {
-            Command::Create { primitive, name } => {
-                EditOutcome::Created(candidate.create(primitive, &name)?)
-            }
+            Command::Create {
+                primitive,
+                options,
+                name,
+            } => EditOutcome::Created(match options {
+                Some(options) => candidate.create_with_options(primitive, &options, &name)?,
+                None => candidate.create(primitive, &name)?,
+            }),
             Command::Remove(id) => {
                 candidate.remove(id)?;
                 EditOutcome::Changed

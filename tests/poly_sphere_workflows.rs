@@ -224,6 +224,7 @@ fn undo_redo_restores_the_exact_mesh_and_move_edit_stays_valid() {
     let outcome = history
         .execute(Command::Create {
             primitive: Primitive::Sphere,
+            options: None,
             name: "pSphere1".into(),
         })
         .unwrap();

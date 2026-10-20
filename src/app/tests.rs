@@ -2136,6 +2136,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
         &mut editor,
         Operation::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: Some("remote_cube".into()),
         },
     )
@@ -4567,6 +4568,7 @@ fn cylinder_and_cone_names_count_up_and_skip_collisions() {
                 editor
                     .apply_operation(Operation::Create {
                         primitive: Primitive::Cube,
+                        options: None,
                         name: Some(taken),
                     })
                     .unwrap();

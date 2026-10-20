@@ -4,7 +4,7 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{MAX_RESULT_BYTES, OperationError, OperationReply};
-use azteccraft::{history::ManipulationError, native_scene::NativeError};
+use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
 use rmcp::{
     RoleServer, ServerHandler,
     model::{
@@ -87,6 +87,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {
                     "absent_channel_leaf"
                 }
+                OperationError::Scene(NativeError::Legacy(
+                    SceneError::InvalidPrimitiveOptions(_),
+                )) => "invalid_primitive_options",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) => "camera_error",
                 OperationError::File(_) => "file_error",

@@ -166,6 +166,7 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
     let EditOutcome::Created(node) = history
         .execute(Command::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: "cube".into(),
         })
         .unwrap()
@@ -191,6 +192,7 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
     for command in [
         Command::Create {
             primitive: Primitive::Plane,
+            options: None,
             name: "blocked".into(),
         },
         Command::Remove(node),
