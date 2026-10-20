@@ -2,18 +2,18 @@ use super::axis::orient;
 use super::*;
 use crate::primitive_options::Axis;
 
-fn points(mesh: &NativeMesh) -> Vec<[f32; 3]> {
+pub(super) fn points(mesh: &NativeMesh) -> Vec<[f32; 3]> {
     match &mesh.points {
         Points::Float3(p) => p.clone(),
         Points::Double3(_) => panic!("primitives are f32"),
     }
 }
 
-fn bits(mesh: &NativeMesh) -> Vec<[u32; 3]> {
+pub(super) fn bits(mesh: &NativeMesh) -> Vec<[u32; 3]> {
     points(mesh).iter().map(|p| p.map(f32::to_bits)).collect()
 }
 
-fn loops(mesh: &NativeMesh) -> Vec<Vec<usize>> {
+pub(super) fn loops(mesh: &NativeMesh) -> Vec<Vec<usize>> {
     mesh.faces
         .iter()
         .map(|f| {
@@ -49,7 +49,7 @@ fn plane(size: [f64; 2], n: [u32; 2], axis: Axis) -> NativeMesh {
     .unwrap()
 }
 
-fn euler(mesh: &NativeMesh) -> i64 {
+pub(super) fn euler(mesh: &NativeMesh) -> i64 {
     mesh.point_count() as i64 - mesh.edges.len() as i64 + mesh.faces.len() as i64
 }
 
@@ -101,7 +101,7 @@ fn plane_counts_follow_the_closed_forms_and_euler_is_one() {
     }
 }
 
-fn face_area_vector(mesh: &NativeMesh, face: &[usize]) -> [f64; 3] {
+pub(super) fn face_area_vector(mesh: &NativeMesh, face: &[usize]) -> [f64; 3] {
     let p = points(mesh);
     let at = |i: usize| p[face[i]].map(f64::from);
     let mut sum = [0.0; 3];
@@ -145,7 +145,7 @@ fn plane_faces_point_along_the_axis() {
     }
 }
 
-fn extent(mesh: &NativeMesh, component: usize) -> (f32, f32) {
+pub(super) fn extent(mesh: &NativeMesh, component: usize) -> (f32, f32) {
     let values = points(mesh).into_iter().map(|p| p[component]);
     (
         values.clone().fold(f32::MAX, f32::min),
