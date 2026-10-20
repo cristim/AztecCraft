@@ -9,26 +9,12 @@ use std::process::Command;
 
 const ENV: &str = "AZTECCRAFT_MSK_BIN";
 
-/// An issue or message points at the mesh chunks (`DMSH` group, `MESH` leaf).
-fn names_the_mesh(text: &str) -> bool {
-    text.contains("MESH") || text.contains("DMSH")
-}
-
-fn mesh_issues(issues: &Value) -> Vec<&Value> {
-    issues
-        .get("issues")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|issue| {
-            ["trace_tag", "trace_form"].iter().any(|key| {
-                issue
-                    .get(key)
-                    .and_then(Value::as_str)
-                    .is_some_and(names_the_mesh)
-            })
-        })
-        .collect()
+/// The one issue the writer's cube produces at the pinned commit: no decoder for the `MESH` leaf.
+fn is_undecoded_mesh(issue: &Value) -> bool {
+    let field = |key: &str| issue.get(key).and_then(Value::as_str);
+    field("trace_tag") == Some("MESH")
+        && field("trace_form") == Some("DMSH")
+        && field("kind") == Some("unsupported")
 }
 
 #[test]
@@ -53,21 +39,26 @@ fn msk_refuses_the_writers_empty_uv_mesh() {
         .arg(&output)
         .arg("--issues-json")
         .arg(&report)
+        .args(["--mode", "forensic"])
         .output()
         .unwrap();
-    if !run.status.success() {
-        // A hard refusal: it must still name the mesh chunk, or the reason has changed.
-        let text = String::from_utf8_lossy(&run.stderr) + String::from_utf8_lossy(&run.stdout);
-        assert!(
-            names_the_mesh(&text),
-            "MayaSceneKit failed for another reason: {text}"
-        );
-        return;
-    }
-    let issues: Value = serde_json::from_slice(&std::fs::read(&report).unwrap()).unwrap();
+    let text = String::from_utf8_lossy(&run.stderr) + String::from_utf8_lossy(&run.stdout);
     assert!(
-        !mesh_issues(&issues).is_empty(),
-        "MayaSceneKit reports no issue on the DMSH/MESH chunk any more: it may now decode these \
-         meshes. Revisit known-issues.md (Mesh Save is PROVISIONAL) and this test. Report: {issues}"
+        run.status.success(),
+        "MayaSceneKit failed in forensic mode: {text}"
+    );
+    let bytes = std::fs::read(&report)
+        .unwrap_or_else(|error| panic!("MayaSceneKit wrote no issues JSON ({error}): {text}"));
+    let issues: Value = serde_json::from_slice(&bytes)
+        .unwrap_or_else(|error| panic!("MayaSceneKit issues JSON is malformed ({error})"));
+    let list = issues
+        .get("issues")
+        .and_then(Value::as_array)
+        .unwrap_or_else(|| panic!("MayaSceneKit issues JSON has no `issues` array: {issues}"));
+    assert!(
+        list.iter().any(is_undecoded_mesh),
+        "MayaSceneKit reports no unsupported MESH/DMSH issue any more: it may now decode our \
+         meshes, or the report format changed. Revisit known-issues.md (Mesh Save is \
+         PROVISIONAL) and this test. Report: {issues}"
     );
 }
