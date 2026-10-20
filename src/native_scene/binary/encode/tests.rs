@@ -882,6 +882,35 @@ mod enabled {
         bytes.into()
     }
 
+    /// Removes the 48 inserted bytes and requires the rest to equal `input` except for the two size
+    /// words of the enclosing groups (+48) and the one diffuse word (0.8 became 0.25).
+    fn assert_only_expected_bytes_differ(input: &[u8], output: &[u8]) {
+        let at = output
+            .windows(19)
+            .position(|w| &w[..4] == b"DBL3" && &w[16..19] == b"t\0\x20")
+            .unwrap();
+        let stripped = [&output[..at], &output[at + 48..]].concat();
+        assert_eq!(stripped.len(), input.len());
+        let group = input.windows(4).position(|w| w == b"XFRM").unwrap() - 16;
+        let diffuse = input
+            .windows(8)
+            .position(|w| w == 0.8f64.to_be_bytes())
+            .unwrap();
+        let allowed = [8..16, group + 8..group + 16, diffuse..diffuse + 8];
+        for (index, (a, b)) in input.iter().zip(&stripped).enumerate() {
+            assert!(
+                a == b || allowed.iter().any(|range| range.contains(&index)),
+                "byte {index} changed outside the expected words"
+            );
+        }
+        let word =
+            |bytes: &[u8], at: usize| u64::from_be_bytes(bytes[at..at + 8].try_into().unwrap());
+        for size in [8, group + 8] {
+            assert_eq!(word(&stripped, size), word(input, size) + 48);
+        }
+        assert_eq!(stripped[diffuse..diffuse + 8], 0.25f64.to_be_bytes());
+    }
+
     #[test]
     fn a_shape_appearance_after_the_inserted_leaf_keeps_its_diffuse_edit_in_the_same_save() {
         let mut edited = decode(appearance_without_translation()).unwrap();
@@ -894,10 +923,9 @@ mod enabled {
             .unwrap();
         edited.set_material_diffuse(shape, 0.25).unwrap();
         let output = encode(&edited).unwrap();
-        assert_eq!(
-            output.len(),
-            edited.source.as_ref().unwrap().bytes.len() + 48
-        );
+        let input = edited.source.as_ref().unwrap().bytes.to_vec();
+        assert_eq!(output.len(), input.len() + 48);
+        assert_only_expected_bytes_differ(&input, &output);
         let reopened = decode(output.into()).unwrap();
         assert_eq!(translation(&reopened, 0)[0], 4.0f64.to_bits());
         let after = reopened.material_for_shape(shape).unwrap();
@@ -909,7 +937,9 @@ mod enabled {
     mod moves {
         use super::*;
         use crate::{
-            history::{History, ManipulationError, ManipulationFinish, ManipulationProvenance},
+            history::{
+                EditOutcome, History, ManipulationError, ManipulationFinish, ManipulationProvenance,
+            },
             native_scene::{ChannelLeaf, TransformTarget, WorldAxis},
         };
         use uuid::Uuid;
@@ -965,6 +995,95 @@ mod enabled {
             assert!(history.redo());
             assert!(*history.scene() == moved);
             assert_eq!(encode(history.scene()).unwrap(), expected.as_ref());
+        }
+
+        #[test]
+        fn rotate_and_scale_keep_the_absent_leaf_refusal_on_a_sited_node() {
+            use crate::native_scene::{RotateAxis, RotateSpace, ScaleHandle, ScaleSpace};
+            let (_, scene) = open();
+            let mut history = History::new(scene);
+            let target = target(&history, 0);
+            let native = ManipulationProvenance::Native;
+            let rotate = history
+                .begin_rotate(
+                    &target,
+                    RotateAxis::X,
+                    RotateSpace::Object,
+                    Uuid::new_v4(),
+                    native,
+                    BUDGET,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                rotate,
+                ManipulationError::Native(NativeError::AbsentChannelLeaf {
+                    channel: ChannelLeaf::Rotate,
+                    component: 0
+                })
+            ));
+            let scale = history
+                .begin_scale(
+                    &target,
+                    ScaleHandle::X,
+                    ScaleSpace::Object,
+                    Uuid::new_v4(),
+                    native,
+                    BUDGET,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                scale,
+                ManipulationError::Native(NativeError::AbsentChannelLeaf {
+                    channel: ChannelLeaf::Scale,
+                    component: 0
+                })
+            ));
+            assert!(history.active_manipulation().is_none());
+        }
+
+        #[test]
+        fn cancel_restores_an_unreplaced_origin_less_leaf_and_a_byte_identical_save() {
+            let (bytes, scene) = open();
+            let mut history = History::new(scene);
+            let original = history.scene().clone();
+            let (token, native) = (Uuid::new_v4(), ManipulationProvenance::Native);
+            let target = target(&history, 0);
+            let id = history
+                .begin_move(&target, WorldAxis::X, token, native, BUDGET)
+                .unwrap();
+            history.update_move(token, id, native, 3.0).unwrap();
+            assert!(history.scene().nodes[0].channels[0].replaced);
+            history
+                .finish_move(token, id, native, ManipulationFinish::Cancel)
+                .unwrap();
+            assert!(*history.scene() == original);
+            let leaf = &history.scene().nodes[0].channels[0];
+            assert!(leaf.origin.is_none() && !leaf.replaced);
+            assert!(!history.undo());
+            assert_eq!(encode(history.scene()).unwrap(), bytes.as_ref());
+        }
+
+        #[test]
+        fn moving_out_and_back_to_zero_commits_nothing() {
+            let (bytes, scene) = open();
+            let mut history = History::new(scene);
+            let original = history.scene().clone();
+            let (token, native) = (Uuid::new_v4(), ManipulationProvenance::Native);
+            let target = target(&history, 0);
+            let id = history
+                .begin_move(&target, WorldAxis::X, token, native, BUDGET)
+                .unwrap();
+            history.update_move(token, id, native, 3.0).unwrap();
+            history.update_move(token, id, native, 0.0).unwrap();
+            let outcome = history
+                .finish_move(token, id, native, ManipulationFinish::Commit)
+                .unwrap();
+            assert_eq!(outcome, EditOutcome::Unchanged);
+            let leaf = &history.scene().nodes[0].channels[0];
+            assert!(leaf.origin.is_none() && !leaf.replaced);
+            assert!(*history.scene() == original);
+            assert!(!history.undo());
+            assert_eq!(encode(history.scene()).unwrap(), bytes.as_ref());
         }
 
         #[test]
