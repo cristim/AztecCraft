@@ -626,6 +626,10 @@ impl NativeScene {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
     }
+    /// True when no parsed source is retained, so the scene is whatever was authored in memory.
+    pub(crate) fn has_no_source(&self) -> bool {
+        self.source.is_none()
+    }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate
             .source
