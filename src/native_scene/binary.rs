@@ -2,6 +2,7 @@ mod admission;
 mod appearance;
 mod binding;
 mod encode;
+mod write;
 pub use encode::encode;
 #[cfg(test)]
 mod tests;
