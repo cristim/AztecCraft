@@ -226,6 +226,23 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
     }
 
     #[test]
+    fn create_primitive_description_states_the_face_budget() {
+        let digits = azteccraft::primitive_options::MAX_FACES.to_string();
+        let mut grouped = String::new();
+        for (i, c) in digits.chars().enumerate() {
+            if i > 0 && (digits.len() - i).is_multiple_of(3) {
+                grouped.push(',');
+            }
+            grouped.push(c);
+        }
+        let spec = specs().find(|s| s.name == "create_primitive").unwrap();
+        assert!(
+            spec.description.contains(&format!("{grouped}-face budget")),
+            "description must state the {grouped}-face budget"
+        );
+    }
+
+    #[test]
     fn inventory_tools_match_registry() {
         let inspection = inspection_paths();
         let doc = std::fs::read_to_string(INVENTORY_DOC_PATH).unwrap();
