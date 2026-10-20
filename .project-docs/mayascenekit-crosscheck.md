@@ -4,11 +4,17 @@ Maya's acceptance of files from the authored writer is unproven (see
 [binary-authored-writer.md](binary-authored-writer.md)). MayaSceneKit
 (https://github.com/yamahigashi/MayaSceneKit, MIT, pinned commit
 `95a11db062689285604b3a647385dc9388402865`) is the one third-party `.mb` reader the project can run.
-At that commit it refuses a mesh with an empty UV set, which is what the writer emits.
+MayaSceneKit is a third-party reader, not Maya. At that commit it decodes the Maya-written, vendored
+`tests/fixtures/gt-tools/dummy_mesh.mb` (no MESH issue; `decode_quality_distribution` has a DMSH/MESH
+entry with quality `exact`) but reports the writer's cube as an unsupported MESH/DMSH. The writer emits
+an empty UV set; that is the INFERRED cause, from the reader's mesh decoder source (it requires a
+nonzero UV count) plus this contrast. No probe that adds UVs has been run.
 
-The ignored test `native_scene::binary::write::msk_crosscheck::msk_refuses_the_writers_empty_uv_mesh`
-documents that refusal so any change becomes visible:
+The ignored test `native_scene::binary::write::msk_crosscheck::msk_decodes_maya_meshes_but_not_the_writers_mesh`
+pins the contrast so any change on either side becomes visible:
 
+- It first runs the same command on `dummy_mesh.mb` (the control) and requires no MESH issue and an
+  exact DMSH/MESH decode entry.
 - It writes a cube with the writer and runs
   `<bin> to-ascii <in.mb> <out.ma> --issues-json <issues.json> --mode forensic`. Forensic mode is
   required: the default mode exits 1 ("operation rejected by mode best_effort") and never writes

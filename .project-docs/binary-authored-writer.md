@@ -179,7 +179,8 @@ internal words, points, edge endpoints and face loops before returning bytes. UU
 smoothness differ by design. A raw-byte test checks the 16 `CREA` identity bytes, which the decoder skips.
 No differential test against Maya-written files exists in the tree. The only cross-check against another
 reader is the ignored MayaSceneKit test described in `mayascenekit-crosscheck.md`, which records that
-MayaSceneKit refuses the writer's meshes.
+MayaSceneKit (third-party, not Maya) decodes a Maya-written mesh but not the writer's; the empty UV set
+is the inferred cause (from the reader's source), not probed.
 
 The self-check currently compares units, node count and order, names, DAG pairing and the t/r/s/pivot
 bit patterns, and for each mesh shape its name, point f32 bit patterns, edge endpoint pairs and face
