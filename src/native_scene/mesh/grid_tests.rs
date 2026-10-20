@@ -229,3 +229,34 @@ fn invalid_grid_options_fail_before_building() {
         Err(NativeError::Legacy(SceneError::InvalidPrimitiveOptions(_)))
     ));
 }
+
+pub(super) fn assert_closed_manifold(mesh: &NativeMesh) {
+    let mut uses = vec![0; mesh.edges.len()];
+    for face in &mesh.faces {
+        for e in &face.outer {
+            uses[e.edge] += 1;
+        }
+    }
+    assert!(uses.iter().all(|n| *n == 2), "every edge borders two faces");
+    mesh.validate().unwrap();
+}
+
+/// Valid for convex solids that contain the origin.
+pub(super) fn assert_outward(mesh: &NativeMesh) {
+    let p = points(mesh);
+    for face in loops(mesh) {
+        let n = face_area_vector(mesh, &face);
+        let c: [f64; 3] = std::array::from_fn(|k| {
+            face.iter().map(|i| f64::from(p[*i][k])).sum::<f64>() / face.len() as f64
+        });
+        assert!(
+            n[0] * c[0] + n[1] * c[1] + n[2] * c[2] > 0.0,
+            "face {face:?} points inward"
+        );
+    }
+    assert!(
+        p.iter()
+            .flatten()
+            .all(|v| v.to_bits() != (-0.0f32).to_bits())
+    );
+}

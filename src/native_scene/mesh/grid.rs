@@ -142,3 +142,12 @@ impl NativeMesh {
         Self::from_loops(points, loops)
     }
 }
+
+/// Shared arguments of the cylinder and cone builders.
+pub(super) struct RevolveGrid {
+    pub radius: f64,
+    pub height: f64,
+    pub axis_divisions: usize,
+    pub height_divisions: usize,
+    pub axis: Axis,
+}

@@ -361,13 +361,23 @@ impl NativeMesh {
                 height_divisions: sub_height as usize,
                 axis,
             })),
-            _ if *options == PrimitiveOptions::default_for(options.primitive()) => {
-                match options.primitive() {
-                    Primitive::Cylinder => Ok(Self::polygon_cylinder()),
-                    _ => Ok(Self::polygon_cone()),
-                }
+            PrimitiveOptions::Cylinder {
+                radius,
+                height,
+                sub_axis,
+                sub_height,
+                axis,
+            } => Ok(Self::polygon_cylinder(&revolve(
+                radius, height, sub_axis, sub_height, axis,
+            ))),
+            PrimitiveOptions::Cone { .. }
+                if *options == PrimitiveOptions::default_for(Primitive::Cone) =>
+            {
+                Ok(Self::polygon_cone())
             }
-            _ => Err(SceneError::UnsupportedPrimitive(options.primitive()).into()),
+            PrimitiveOptions::Cone { .. } => {
+                Err(SceneError::UnsupportedPrimitive(Primitive::Cone).into())
+            }
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -613,6 +623,8 @@ mod axis;
 mod cone;
 mod cylinder;
 #[cfg(test)]
+mod cylinder_tests;
+#[cfg(test)]
 mod edge_index_tests;
 mod grid;
 #[cfg(test)]
@@ -622,3 +634,19 @@ mod sphere;
 mod sphere_tests;
 #[cfg(test)]
 mod tests;
+
+fn revolve(
+    radius: f64,
+    height: f64,
+    sub_axis: u32,
+    sub_height: u32,
+    axis: crate::primitive_options::Axis,
+) -> grid::RevolveGrid {
+    grid::RevolveGrid {
+        radius,
+        height,
+        axis_divisions: sub_axis as usize,
+        height_divisions: sub_height as usize,
+        axis,
+    }
+}
