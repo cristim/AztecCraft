@@ -370,14 +370,15 @@ impl NativeMesh {
             } => Ok(Self::polygon_cylinder(&revolve(
                 radius, height, sub_axis, sub_height, axis,
             ))),
-            PrimitiveOptions::Cone { .. }
-                if *options == PrimitiveOptions::default_for(Primitive::Cone) =>
-            {
-                Ok(Self::polygon_cone())
-            }
-            PrimitiveOptions::Cone { .. } => {
-                Err(SceneError::UnsupportedPrimitive(Primitive::Cone).into())
-            }
+            PrimitiveOptions::Cone {
+                radius,
+                height,
+                sub_axis,
+                sub_height,
+                axis,
+            } => Ok(Self::polygon_cone(&revolve(
+                radius, height, sub_axis, sub_height, axis,
+            ))),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -621,6 +622,8 @@ impl NativeMesh {
 
 mod axis;
 mod cone;
+#[cfg(test)]
+mod cone_tests;
 mod cylinder;
 #[cfg(test)]
 mod cylinder_tests;
