@@ -215,6 +215,8 @@ struct Dialog {
 pub(in crate::app) struct PrimitiveOptionsUi {
     remembered: [PrimitiveOptions; 5],
     dialog: Option<Dialog>,
+    /// A dialog field held focus at the end of the last frame (egui clears it before Escape runs).
+    typing: bool,
 }
 
 impl Default for PrimitiveOptionsUi {
@@ -222,6 +224,7 @@ impl Default for PrimitiveOptionsUi {
         Self {
             remembered: PRIMITIVES.map(PrimitiveOptions::default_for),
             dialog: None,
+            typing: false,
         }
     }
 }
@@ -292,8 +295,24 @@ impl Editor {
         });
     }
 
+    /// Escape closes the window only when it has nothing else to cancel: a manipulation, a draft or
+    /// a field being typed in take the key first (the existing cancel path runs for them).
+    pub(in crate::app) fn escape_closes_primitive_options(&mut self, ctx: &egui::Context) -> bool {
+        let closes = self.primitive_options.dialog.is_some()
+            && !self.primitive_options.typing
+            && !self.has_draft()
+            && self.history.active_manipulation().is_none()
+            && self.native_move.is_none()
+            && ctx.input(|input| input.key_pressed(Key::Escape));
+        if closes {
+            self.primitive_options.dialog = None;
+        }
+        closes
+    }
+
     pub(in crate::app) fn primitive_options_window(&mut self, ctx: &egui::Context) {
         let Some(mut dialog) = self.primitive_options.dialog.take() else {
+            self.primitive_options.typing = false;
             return;
         };
         // Hidden, not discarded, while a file modal or close is in progress.
@@ -320,6 +339,11 @@ impl Editor {
         if create {
             self.create_from_dialog(&mut dialog);
         }
+        self.primitive_options.typing = ctx.memory(|memory| {
+            memory
+                .focused()
+                .is_some_and(|id| option_field_ids().any(|field| field == id))
+        });
         if open && !close {
             self.primitive_options.dialog = Some(dialog);
         }
@@ -371,9 +395,36 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
                 for (axis, name) in [(Axis::X, "X"), (Axis::Y, "Y"), (Axis::Z, "Z")] {
                     ui.selectable_value(&mut dialog.axis, axis, name);
                 }
+                for name in ["Free", "Camera"] {
+                    ui.add_enabled(false, egui::Button::new(name))
+                        .on_disabled_hover_text(
+                            "Axis modes other than X, Y and Z are not implemented",
+                        );
+                }
             });
             ui.end_row();
         });
+    ui.separator();
+    for (label, reason) in [
+        (
+            "Interactive creation",
+            "Interactive creation is not implemented",
+        ),
+        ("Create UVs", "Meshes have no UVs yet"),
+        ("Exit on completion", "Only applies to interactive creation"),
+    ] {
+        ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
+            .on_disabled_hover_text(reason);
+    }
+    if matches!(dialog.primitive, Primitive::Cylinder | Primitive::Cone) {
+        for (label, reason) in [
+            ("Subdivisions caps", "Cap divisions are not implemented"),
+            ("Round cap", "Round caps are not implemented"),
+        ] {
+            ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
+                .on_disabled_hover_text(reason);
+        }
+    }
     if let Some(message) = &dialog.message {
         ui.colored_label(Color32::from_rgb(255, 160, 130), message);
     }
