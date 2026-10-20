@@ -451,7 +451,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
 | Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |
 | Files | Save As | supported | `save_scene_as` | `save_as_available` | |
-| Files | New (Untitled) scene Save As to a fresh Maya 2025-format `.mb`, PROVISIONAL (Maya acceptance unproven, no UVs); Save returns `save_needs_path` | supported | `save_scene`, `save_scene_as` | `document_origin`, `has_file`, `save_available`, `save_as_available` | |
+| Files | New (Untitled) scene Save As to a fresh Maya 2025-format `.mb`, PROVISIONAL (Maya acceptance unproven, no UVs); Save returns `save_needs_path`; content the writer cannot carry returns `save_unwritable` | supported | `save_scene`, `save_scene_as` | `document_origin`, `has_file`, `save_available`, `save_as_available` | |
 | Files | Close and quit guard | supported | `request_close` | `closing` | |
 | Files | Export and OBJ export | unsupported | | | |
 | Files | Maya ASCII writing | unsupported | | | |
