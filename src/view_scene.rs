@@ -81,6 +81,8 @@ pub struct ViewInstance {
     transform: NodeId,
     shape: NativeId,
     world_vertices: Vec<Vec3>,
+    /// Exact f64 world matrix (centimeters) of this instance path.
+    world: DMat4,
     /// Inverse transpose of the world matrix's linear part; zero if it is singular.
     normal_matrix: Mat3,
     faces: Vec<ViewFace>,
@@ -191,6 +193,7 @@ impl ViewScene {
                                 transform: transform.id(),
                                 shape: shape.id(),
                                 world_vertices: vertices,
+                                world,
                                 normal_matrix: normal_matrix(&world),
                                 faces: view_faces(mesh)?,
                                 edges: view_edges(mesh)?,
@@ -286,6 +289,11 @@ impl ViewInstance {
     }
     pub fn world_vertices(&self) -> &[Vec3] {
         &self.world_vertices
+    }
+    /// The f64 world matrix (centimeters) the f32 display vertices were derived from, so
+    /// exporters can recompute exact positions from the authoring scene.
+    pub fn world_matrix(&self) -> DMat4 {
+        self.world
     }
     pub fn faces(&self) -> &[ViewFace] {
         &self.faces

@@ -104,6 +104,16 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
                 },
+                OperationError::ObjExport(error) => match error {
+                    crate::editor_operations::ObjExportError::DestinationExists => {
+                        "destination_exists"
+                    }
+                    crate::editor_operations::ObjExportError::NothingToExport => {
+                        "nothing_to_export"
+                    }
+                    crate::editor_operations::ObjExportError::Io(_) => "export_io",
+                    crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
+                },
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
@@ -576,6 +586,7 @@ mod tests {
                     json!({"scene_token":token,"tab":{"kind":"transform","id":"1"}})
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
+                "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1190,7 +1201,7 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as"] {
+            for tool in ["open_scene", "save_scene_as", "export_obj"] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }

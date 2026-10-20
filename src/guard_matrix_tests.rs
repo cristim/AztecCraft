@@ -209,6 +209,7 @@ struct Targets {
     pending_id: Uuid,
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
+    export: std::path::PathBuf,
 }
 
 impl Targets {
@@ -294,6 +295,7 @@ fn targets(rig: &Rig) -> Targets {
             .map_or(Uuid::nil(), |pending| pending.id.parse().unwrap()),
         ascii: rig.directory.path().join("curve.ma"),
         save_as: rig.directory.path().join("saved.mb"),
+        export: rig.directory.path().join("export.obj"),
     }
 }
 
@@ -560,6 +562,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::SaveScene,
         Operation::SaveSceneAs {
             path: t.save_as.clone(),
+        },
+        Operation::ExportObj {
+            path: t.export.clone(),
+            selection_only: false,
         },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
@@ -993,6 +999,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             )
         }],
+        Operation::ExportObj { .. } => vec![
+            sample(
+                "export_obj(all)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: false,
+                },
+            ),
+            sample(
+                "export_obj(selection)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_obj(not_obj)",
+                Operation::ExportObj {
+                    path: t.save_as.clone(),
+                    selection_only: false,
+                },
+            ),
+        ],
         Operation::ResolveFileAction { .. } => vec![
             sample(
                 "resolve_file_action(cancel)",

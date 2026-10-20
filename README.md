@@ -19,7 +19,7 @@ The current prototype has a native desktop window for cube/plane/sphere/cylinder
 | Desktop shell and viewport | Create/select cube, plane, sphere, cylinder or cone, edit name/transform channels, undo/redo, delete and frame selected, with depth-tested opaque geometry | [Native shell](src/app/mod.rs) and [viewport UI](src/viewport_ui.rs) |
 | Face selection | F11/Face menu and F8 Object/Face toggle (from Hierarchy it goes to Face); F9/F10, the Select > Components menu and the Status Line Vertex, Edge and Face buttons also enter Vertex and Edge modes, visible center markers, exact-face feedback and face framing | Shared typed operations and [Center selection policy](.project-docs/development.md#face-center-selection); native/Maya comparison remains separate |
 | File actions in the window | New/Open and provisional eligible Save/Save As, unsaved-change Save/Discard/Cancel, source-change guards and uncertain-write reconciliation | [File integration tests](src/file_ui.rs); current integration and native Save verification pending |
-| OBJ export | Library API writes world-space polygon geometry to a new file | [OBJ workflow tests](tests/obj_workflows.rs), with GUI Export still disabled |
+| OBJ export | File > Export All / Export Selection and MCP `export_obj` write world-space polygon geometry of the native scene to a new `.obj` file | [OBJ workflow tests](tests/obj_workflows.rs), [native export tests](tests/obj_native_export.rs); export option boxes and OBJ import unsupported |
 | MCP | Optional stdio server controls the tools listed in the [generated catalogue](.project-docs/mcp-tools.md), including Move, Rotate and Scale, Save/Save As, checked material Diffuse data, viewport Grid visibility, Face, Vertex and Edge selection, in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md); isolated application/SDK checks and bounded macOS material/Grid/Face QA remain separately scoped, with current-parent verification pending |
 | Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
 | UVs, animation and rigging | Full workflows pending | [Implementation plan](.project-docs/plan.md) |
@@ -76,7 +76,7 @@ Cross-platform desktop support and packaged launch behavior still need native ev
 
 Development proceeds through small, independently reviewed local commits:
 
-1. Connect GUI Export to the implemented OBJ API and expand interoperability tests.
+1. Add OBJ import and the export option boxes, and expand interoperability tests.
 2. Verify the complete create/edit/undo/save/reopen/export journey through native dialogs, then establish platform packages and launch checks.
 3. Build reviewed modeling, UV, animation and rigging slices, followed by materials, simulation, rendering, interchange, scripting and extensions.
 4. Compare the complete audited workflow inventory with the pinned Maya build, including existing plug-ins and all major domains.
@@ -85,7 +85,7 @@ Development proceeds through small, independently reviewed local commits:
 
 The [100-workflow research seed](.project-docs/inventory-seed.md) is provisional and doesn't supply the denominator. Its measurement proposal uses fixed domain budgets, zero credit for untested/partial workflows and mandatory compatibility evidence, so adding trivial rows can't inflate coverage. Exact final parity is a separate acceptance requirement.
 
-Native verification must cover startup, creation/selection, numeric edits, undo/redo, navigation, file operations, error handling and visibly unsupported controls. [The macOS verification record](.project-docs/native-verification.md) covers scene editing and file integration using OCU-supplied native panel choices. Full interactive panel navigation, other platforms and the disabled GUI Export journey remain pending. Reference screenshots/outputs are needed before any fidelity claim. See [known limitations](known-issues.md).
+Native verification must cover startup, creation/selection, numeric edits, undo/redo, navigation, file operations, error handling and visibly unsupported controls. [The macOS verification record](.project-docs/native-verification.md) covers scene editing and file integration using OCU-supplied native panel choices. Full interactive panel navigation, other platforms and the native-dialog GUI Export journey remain pending. Reference screenshots/outputs are needed before any fidelity claim. See [known limitations](known-issues.md).
 
 ## References and development
 

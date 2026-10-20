@@ -249,6 +249,11 @@ pub enum Operation {
     SaveSceneAs {
         path: PathBuf,
     },
+    /// File > Export All or Export Selection as a new OBJ file; never edits the scene.
+    ExportObj {
+        path: PathBuf,
+        selection_only: bool,
+    },
     ResolveFileAction {
         pending_id: uuid::Uuid,
         decision: FileDecision,
@@ -352,6 +357,11 @@ pub enum OperationReply {
         scene_token: String,
         dirty: bool,
         pending_action_status: PendingActionStatus,
+    },
+    Exported {
+        objects: usize,
+        vertices: usize,
+        faces: usize,
     },
 }
 
@@ -659,6 +669,8 @@ pub enum OperationError {
     /// Text may carry a filesystem path (`DocumentError`, `ObjError`); never expose it remotely.
     File(String),
     NativeSave(azteccraft::document::NativeSaveError),
+    /// OBJ export refusal or failure; its text never carries the path.
+    ObjExport(ObjExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -667,6 +679,30 @@ pub enum OperationError {
         parameter: &'static str,
         active: &'static str,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObjExportError {
+    DestinationExists,
+    NothingToExport,
+    Io(std::io::ErrorKind),
+    /// Path-free reason the scene cannot be exported (non-finite or unsupported geometry).
+    Invalid(String),
+}
+
+impl fmt::Display for ObjExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DestinationExists => {
+                f.write_str("Export destination already exists; choose a new file name")
+            }
+            Self::NothingToExport => {
+                f.write_str("Nothing to export: no displayed polygon geometry")
+            }
+            Self::Io(kind) => write!(f, "OBJ export failed: {kind}"),
+            Self::Invalid(reason) => write!(f, "Cannot export OBJ: {reason}"),
+        }
+    }
 }
 
 impl OperationError {
@@ -696,6 +732,7 @@ impl fmt::Display for OperationError {
             Self::Scene(error) => error.fmt(f),
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
+            Self::ObjExport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }

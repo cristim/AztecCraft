@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-38 tools.
+39 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -41,6 +41,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `open_scene` | mutating | no | Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. ASCII native writing is unavailable |
 | `save_scene` | mutating | no | Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write |
 | `save_scene_as` | mutating | no | Save a supported Maya binary scene to a fresh .mb path without overwriting; an uncertain prior save is reconciled instead |
+| `export_obj` | mutating | no | Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts |
 | `new_scene` | mutating | no | Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id |
 | `resolve_file_action` | mutating | no | Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening |
 | `request_close` | mutating | no | Request native window closure; dirty documents require explicit confirmation, and approved remote closure waits for its successful reply to be flushed |

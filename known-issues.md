@@ -105,7 +105,7 @@ records and reconciles uncertain installations. It does not support Maya ASCII,
 Windows writing or structural rewrites, and still needs native Save QA.
 Recovery, autosave and camera/history persistence remain
 pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
-tests don't establish native persistence. GUI Export remains disabled. Structural
+tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
 The camera core is connected to a depth-tested opaque GPU geometry viewport with hardware clipping. Materials, transparency, normal shading, textures, document color management and reference navigation parity remain pending. Backend failures remain explicit with no CPU fallback. These limits are described in [development instructions](.project-docs/development.md).
@@ -586,3 +586,18 @@ shortcut. Alt-drag may be grabbed by some Linux window managers; reconfigure the
 text includes the path. No remote operation takes a path today, so remote calls cannot
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
+
+## OBJ export limits
+
+File > Export All and Export Selection (and MCP `export_obj`) write only the
+displayed polygon geometry: world-space positions in centimetres and polygon faces,
+one `o` group per instance. Hidden or non-displayed instances are not exported
+(PROVISIONAL: the Maya docs do not say whether Export All includes them). Normals,
+UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered (the option boxes are disabled), and export never overwrites an
+existing file. The view of the whole scene is built first, so one mesh the viewport
+cannot display (for example a concave n-gon) fails every export, including Export
+Selection of another object. The Windows save dialog may first ask whether to
+replace an existing file; confirming still fails with "destination already exists"
+and the file is left untouched. The output has not been compared with
+Maya's objExport plug-in; OBJ import is unsupported.

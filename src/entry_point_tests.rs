@@ -236,6 +236,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "request_close",
             "request_new",
             "save_as_dialog",
+            "run_export",
         ],
     );
 }

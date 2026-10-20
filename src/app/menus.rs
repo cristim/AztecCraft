@@ -127,7 +127,38 @@ impl Editor {
                     ui.close();
                     self.save_as_dialog();
                 }
-                unsupported(ui, "Export...");
+                let idle = !self.files.is_modal();
+                for (label, selection_only) in
+                    [("Export All...", false), ("Export Selection...", true)]
+                {
+                    ui.horizontal(|ui| {
+                        let enabled = idle && (!selection_only || self.selected.is_some());
+                        let hover = if selection_only {
+                            "Write the selected object's polygon geometry to a new OBJ file"
+                        } else {
+                            "Write displayed polygon geometry to a new OBJ file"
+                        };
+                        if ui
+                            .add_enabled(enabled, egui::Button::new(label))
+                            .on_hover_text(hover)
+                            .on_disabled_hover_text(if idle {
+                                "Select an object to export"
+                            } else {
+                                "Finish the open file dialog first"
+                            })
+                            .clicked()
+                        {
+                            ui.close();
+                            self.export_dialog(selection_only);
+                        }
+                        // Maya's option box; OBJ export options are not implemented.
+                        ui.add_enabled(false, egui::Button::new("\u{2610}"))
+                            .on_disabled_hover_text(
+                                "Export options are not implemented: OBJ geometry only, \
+                                 without groups, materials, smoothing or normals",
+                            );
+                    });
+                }
                 ui.separator();
                 if ui.button("Close").clicked() {
                     ui.close();
