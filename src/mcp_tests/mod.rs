@@ -113,6 +113,7 @@ mod official_client {
     mod material;
     mod node_edit;
     mod primitive_options;
+    mod save_new_scene;
     mod selection;
     mod session;
     mod session_material;
