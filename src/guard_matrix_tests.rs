@@ -37,6 +37,17 @@ mod material_fixture {
         "/tests/support/maya_appearance.rs"
     ));
 }
+#[allow(dead_code)]
+mod sited_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sites.rs"
+    ));
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sited.rs"
+    ));
+}
 mod ascii_fixture {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -82,11 +93,12 @@ enum State {
     StaleNativeInput,
     ReadOnlyAscii,
     BinaryDirty,
+    SitedBinaryDirty,
     NoInstall,
     NoInstallModal,
 }
 
-const STATES: [State; 21] = [
+const STATES: [State; 22] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -106,6 +118,7 @@ const STATES: [State; 21] = [
     State::StaleNativeInput,
     State::ReadOnlyAscii,
     State::BinaryDirty,
+    State::SitedBinaryDirty,
     State::NoInstall,
     State::NoInstallModal,
 ];
@@ -132,6 +145,7 @@ impl State {
             Self::StaleNativeInput => "stale_token+native_input_pending",
             Self::ReadOnlyAscii => "read_only_ascii",
             Self::BinaryDirty => "binary_dirty",
+            Self::SitedBinaryDirty => "sited_binary_dirty",
             Self::NoInstall => "no_install",
             Self::NoInstallModal => "no_install_modal",
         }
@@ -329,8 +343,21 @@ fn material_editor() -> Editor {
 
 /// A dirty, writable Maya binary document: the only fixture whose Save paths reach the installer.
 fn binary_editor(directory: &std::path::Path) -> Editor {
+    dirty_binary_editor(directory, material_wire::specimen())
+}
+
+/// A dirty binary document whose `object` transform has no translate leaf but a recorded site, so
+/// the edit that dirtied it makes Save insert the leaf (issue #19).
+fn sited_binary_editor(directory: &std::path::Path) -> Editor {
+    dirty_binary_editor(
+        directory,
+        sited_fixture::sited_scene(&material_wire::mesh_payload(&[0, 1, 0x6000_0002])),
+    )
+}
+
+fn dirty_binary_editor(directory: &std::path::Path, bytes: Vec<u8>) -> Editor {
     let path = directory.join("original.mb");
-    std::fs::write(&path, material_wire::specimen()).unwrap();
+    std::fs::write(&path, bytes).unwrap();
     let mut editor = Editor::default();
     editor
         .apply_operation(Operation::OpenScene { path })
@@ -469,6 +496,7 @@ fn build(state: State) -> Rig {
             );
         }
         State::BinaryDirty => editor = binary_editor(directory.path()),
+        State::SitedBinaryDirty => editor = sited_binary_editor(directory.path()),
         State::NoInstall => {
             editor = binary_editor(directory.path());
             may_install = false;
