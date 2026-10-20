@@ -292,7 +292,7 @@ The Maya scripting/API surface and existing plug-ins aren't implemented or teste
 **Severity:** low
 **Area:** native text fields
 
-Fixed for the common case: `Editor::render` focuses the name, channel or material field egui already hit-tested for a primary press before the field is shown, so Text, Backspace, Delete and Paste in the press frame reach it. Regression tests: `first_click_with_same_frame_text_reaches_unfocused_channel_field`, `first_click_press_release_and_text_in_one_frame_reaches_channel_field`, `first_click_on_another_field_commits_the_valid_draft_before_typing_there`.
+Fixed for the common case: `Editor::render` focuses the name, channel or material field egui already hit-tested for a primary press before the field is shown, so Text, Backspace, Delete and Paste in the press frame reach it. Regression tests: `first_click_with_same_frame_text_reaches_unfocused_channel_field`, `first_click_with_same_frame_backspace_edits_the_field_at_the_end_caret`, `first_click_with_same_frame_delete_removes_the_character_after_the_caret`, `first_click_with_same_frame_paste_inserts_at_the_end_caret`, `first_click_on_the_material_field_receives_same_frame_text`, `first_click_press_release_and_text_in_one_frame_reaches_channel_field`, `first_click_on_another_field_commits_the_valid_draft_before_typing_there`.
 
 Residuals, none verified against Maya (PROVISIONAL):
 
@@ -301,7 +301,7 @@ Residuals, none verified against Maya (PROVISIONAL):
 - Same-frame arrow and Tab keys still move focus with the old focus filter, because egui computes the direction before the press.
 - Text typed in the press frame lands at the field's end caret; the press then moves the caret to the click point.
 - The manipulation numeric field is pre-focused too, but leaving it does not run the A-first commit, so its draft keeps its existing blur path.
-- After a move between name, channel or material fields, egui reports the old field's blur for two frames and the blur commit is skipped for both, which defers the new field's own valid blur in the second frame. The draft is kept and commits on the next blur, Enter or `commit_pending`, so nothing is lost.
+- After a move between name, channel or material fields, egui reports the old field's blur for two frames and the blur commit is skipped for both, which defers the new field's own valid blur in the second frame. The draft is kept and commits on the next blur, Enter or `commit_pending`, so nothing is lost (`release_click_and_tab_after_a_first_click_defer_the_blur_commit_once`: a release click plus Tab in the frame after the click commits the new field's draft once, a frame later). The Diffuse field is disabled while a channel draft exists, so a channel to Diffuse move cannot occur; a click on it leaves focus and text in the channel field (`first_click_on_the_disabled_material_field_keeps_the_channel_draft_and_its_text`).
 
 ## Native MCP idle responsiveness remains unverified
 
