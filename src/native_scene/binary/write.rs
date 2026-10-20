@@ -25,6 +25,11 @@ mod head;
     not(test),
     expect(dead_code, reason = "used by the emission that follows")
 )]
+mod mesh;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "used by the emission that follows")
+)]
 mod profile;
 #[cfg_attr(
     not(test),
