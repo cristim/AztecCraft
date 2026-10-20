@@ -1,47 +1,49 @@
-use super::NativeMesh;
+use super::{NativeMesh, axis::orient, grid::RevolveGrid};
 use std::f64::consts::PI;
 
 // PROVISIONAL (#5): radius 1, height 2 and 20x1x0 follow the polyCylinder node page (sc=0 variant);
 // the command page lists sz 1 and Maya 2026 is unverified.
-const RADIUS: f64 = 1.0;
-const HALF_HEIGHT: f64 = 1.0;
-const AXIS_DIVISIONS: usize = 20;
-
 impl NativeMesh {
-    /// Y-axis cylinder: a top ring (vertices `0..20`) and a bottom ring (`20..40`), 20 outward
-    /// side quads and two true 20-gon caps, with no cap centre vertices.
-    pub(super) fn polygon_cylinder() -> Self {
-        let mut points = Vec::with_capacity(2 * AXIS_DIVISIONS);
-        for y in [HALF_HEIGHT, -HALF_HEIGHT] {
-            for column in 0..AXIS_DIVISIONS {
-                let azimuth = 2.0 * PI * column as f64 / AXIS_DIVISIONS as f64;
-                points.push([
-                    (RADIUS * azimuth.cos()) as f32,
-                    y as f32,
-                    (RADIUS * azimuth.sin()) as f32,
+    /// Cylinder along `axis`: `height_divisions + 1` rings of `axis_divisions` vertices from the
+    /// top (ring 0) down, outward side quads per band and two true n-gon caps, with no cap centre
+    /// vertices.
+    pub(super) fn polygon_cylinder(grid: &RevolveGrid) -> Self {
+        let RevolveGrid {
+            radius,
+            height,
+            axis_divisions: columns,
+            height_divisions: bands,
+            axis,
+        } = *grid;
+        let mut points = Vec::with_capacity((bands + 1) * columns);
+        for ring in 0..=bands {
+            let y = (0.5 - ring as f64 / bands as f64) * height;
+            for column in 0..columns {
+                let azimuth = 2.0 * PI * column as f64 / columns as f64;
+                points.push(orient(
+                    axis,
+                    [
+                        (radius * azimuth.cos()) as f32,
+                        y as f32,
+                        (radius * azimuth.sin()) as f32,
+                    ],
+                ));
+            }
+        }
+        let vertex = |ring: usize, column: usize| ring * columns + column % columns;
+        let mut loops: Vec<Vec<usize>> = Vec::new();
+        for band in 0..bands {
+            for column in 0..columns {
+                loops.push(vec![
+                    vertex(band, column),
+                    vertex(band, column + 1),
+                    vertex(band + 1, column + 1),
+                    vertex(band + 1, column),
                 ]);
             }
         }
-        let vertex = |ring: usize, column: usize| ring * AXIS_DIVISIONS + column % AXIS_DIVISIONS;
-        let mut loops: Vec<Vec<usize>> = Vec::new();
-        for column in 0..AXIS_DIVISIONS {
-            loops.push(vec![
-                vertex(0, column),
-                vertex(0, column + 1),
-                vertex(1, column + 1),
-                vertex(1, column),
-            ]);
-        }
-        loops.push(
-            (0..AXIS_DIVISIONS)
-                .map(|column| vertex(0, AXIS_DIVISIONS - column))
-                .collect(),
-        );
-        loops.push(
-            (0..AXIS_DIVISIONS)
-                .map(|column| vertex(1, column))
-                .collect(),
-        );
+        loops.push((0..columns).map(|c| vertex(0, columns - c)).collect());
+        loops.push((0..columns).map(|c| vertex(bands, c)).collect());
         Self::from_loops(points, loops)
     }
 }
