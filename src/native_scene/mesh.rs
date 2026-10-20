@@ -1,6 +1,7 @@
 use super::{NativeError, convert};
 use crate::{
     mesh::Mesh,
+    primitive_options::PrimitiveOptions,
     scene::{Primitive, SceneError},
 };
 use glam::DVec3;
@@ -318,13 +319,45 @@ impl NativeMesh {
         &self.faces
     }
     pub(super) fn primitive(primitive: Primitive) -> Result<Self, NativeError> {
-        match primitive {
-            Primitive::Sphere => Ok(Self::polygon_sphere()),
-            Primitive::Cylinder => Ok(Self::polygon_cylinder()),
-            Primitive::Cone => Ok(Self::polygon_cone()),
-            Primitive::Cube | Primitive::Plane => {
-                Ok(Self::from_legacy(&Mesh::primitive(primitive)?))
+        Self::with_options(&PrimitiveOptions::default_for(primitive))
+    }
+    pub(super) fn with_options(options: &PrimitiveOptions) -> Result<Self, NativeError> {
+        options
+            .validate(options.primitive())
+            .map_err(SceneError::InvalidPrimitiveOptions)?;
+        match *options {
+            PrimitiveOptions::Cube {
+                width,
+                height,
+                depth,
+                sub_width,
+                sub_height,
+                sub_depth,
+                axis,
+            } => Ok(Self::cube_grid(&grid::CubeGrid {
+                size: [width, height, depth],
+                divisions: [sub_width, sub_height, sub_depth].map(|n| n as usize),
+                axis,
+            })),
+            PrimitiveOptions::Plane {
+                width,
+                height,
+                sub_width,
+                sub_height,
+                axis,
+            } => Ok(Self::plane_grid(
+                [width, height],
+                [sub_width, sub_height].map(|n| n as usize),
+                axis,
+            )),
+            _ if *options == PrimitiveOptions::default_for(options.primitive()) => {
+                match options.primitive() {
+                    Primitive::Sphere => Ok(Self::polygon_sphere()),
+                    Primitive::Cylinder => Ok(Self::polygon_cylinder()),
+                    _ => Ok(Self::polygon_cone()),
+                }
             }
+            _ => Err(SceneError::UnsupportedPrimitive(options.primitive()).into()),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -566,10 +599,12 @@ impl NativeMesh {
     }
 }
 
+mod axis;
 mod cone;
 mod cylinder;
 #[cfg(test)]
 mod edge_index_tests;
+mod grid;
 mod sphere;
 #[cfg(test)]
 mod tests;
