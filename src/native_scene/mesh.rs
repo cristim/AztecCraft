@@ -4,6 +4,7 @@ use crate::{
     scene::{Primitive, SceneError},
 };
 use glam::DVec3;
+use std::collections::HashMap;
 use std::fmt;
 
 #[derive(Clone)]
@@ -137,6 +138,19 @@ impl NativeFace {
     }
     pub fn holes(&self) -> &[Vec<DirectedEdge>] {
         &self.holes
+    }
+}
+
+/// First edge index per unordered endpoint pair, local to one build.
+#[derive(Default)]
+struct EdgeIndex(HashMap<[usize; 2], usize>);
+impl EdgeIndex {
+    fn key(endpoints: [usize; 2]) -> [usize; 2] {
+        if endpoints[0] <= endpoints[1] {
+            endpoints
+        } else {
+            [endpoints[1], endpoints[0]]
+        }
     }
 }
 
@@ -321,9 +335,10 @@ impl NativeMesh {
             faces: Vec::new(),
             unsupported_channels: Vec::new(),
         };
+        let mut index = EdgeIndex::default();
         for face in mesh.faces() {
             let outer = (0..4)
-                .map(|i| native.edge([face[i], face[(i + 1) % 4]]))
+                .map(|i| native.edge(&mut index, [face[i], face[(i + 1) % 4]]))
                 .collect();
             native.faces.push(NativeFace {
                 outer,
@@ -341,9 +356,10 @@ impl NativeMesh {
             faces: Vec::new(),
             unsupported_channels: Vec::new(),
         };
+        let mut index = EdgeIndex::default();
         for corners in loops {
             let outer: Vec<DirectedEdge> = (0..corners.len())
-                .map(|i| mesh.edge([corners[i], corners[(i + 1) % corners.len()]]))
+                .map(|i| mesh.edge(&mut index, [corners[i], corners[(i + 1) % corners.len()]]))
                 .collect();
             mesh.faces.push(NativeFace {
                 outer,
@@ -352,7 +368,21 @@ impl NativeMesh {
         }
         mesh
     }
-    fn edge(&mut self, endpoints: [usize; 2]) -> DirectedEdge {
+    fn edge(&mut self, index: &mut EdgeIndex, endpoints: [usize; 2]) -> DirectedEdge {
+        let key = EdgeIndex::key(endpoints);
+        if let Some(&edge) = index.0.get(&key) {
+            return DirectedEdge {
+                edge,
+                reversed: self.edges[edge].endpoints != endpoints,
+            };
+        }
+        let appended = self.append_edge(endpoints);
+        index.0.insert(key, appended.edge);
+        appended
+    }
+    /// Reference lookup the indexed `edge` must match exactly.
+    #[cfg(test)]
+    fn edge_linear(&mut self, endpoints: [usize; 2]) -> DirectedEdge {
         for (edge, existing) in self.edges.iter().enumerate() {
             if existing.endpoints == endpoints {
                 return DirectedEdge {
@@ -538,6 +568,8 @@ impl NativeMesh {
 
 mod cone;
 mod cylinder;
+#[cfg(test)]
+mod edge_index_tests;
 mod sphere;
 #[cfg(test)]
 mod tests;
