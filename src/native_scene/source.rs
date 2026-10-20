@@ -181,6 +181,18 @@ impl SourceRetention {
         }
         Ok(())
     }
+    /// The recorded site for `owner`'s absent `field` leaf, if the grammar allowed one.
+    pub(super) fn insert_site(
+        &self,
+        owner: NativeId,
+        field: TransformField,
+    ) -> Option<&InsertSite> {
+        let index = self
+            .sites
+            .binary_search_by_key(&owner, |site| site.owner)
+            .ok()?;
+        self.sites.get(index).filter(|site| site.field == field)
+    }
     pub(super) fn binary_leaf(
         &self,
         origin: &ScalarOrigin,

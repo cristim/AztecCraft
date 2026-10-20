@@ -108,7 +108,16 @@ fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError>
 }
 
 pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
-    encode_with(scene, &[])
+    // Without a binary source `encode_with` reports the refusal.
+    let plan = match scene
+        .source
+        .as_ref()
+        .filter(|source| source.format == SourceFormat::Binary)
+    {
+        Some(source) => plan::plan(scene, source, plan::INSERTABLE)?,
+        None => Vec::new(),
+    };
+    encode_with(scene, &plan)
 }
 
 /// `plan` lists default leaves to splice in after the word patches. Production passes none until the
@@ -323,5 +332,6 @@ fn verify(
 }
 
 mod insert;
+mod plan;
 #[cfg(test)]
 mod tests;

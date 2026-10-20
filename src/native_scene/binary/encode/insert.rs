@@ -14,6 +14,7 @@ const HEADER_BYTES: usize = 16;
 ///
 /// `owner` and `field` name the transform leaf it adds. `ancestors` are the header starts of the
 /// groups that must grow with it.
+#[derive(Debug)]
 pub(super) struct Insertion {
     pub(super) owner: NativeId,
     pub(super) field: TransformField,
