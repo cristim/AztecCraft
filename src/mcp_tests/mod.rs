@@ -111,6 +111,7 @@ mod official_client {
     mod manipulation_mcp_tests;
     mod material;
     mod node_edit;
+    mod save_new_scene;
     mod selection;
     mod session;
     mod session_material;
