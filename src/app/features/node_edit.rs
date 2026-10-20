@@ -213,7 +213,7 @@ impl Editor {
             AngularUnit::Unsupported(unit) => unit,
         };
         ui.weak(format!("Rotation in {angular} | XYZ"));
-        if apply {
+        if apply && self.blur_commit_skip_frames == 0 {
             self.commit_pending();
         }
     }

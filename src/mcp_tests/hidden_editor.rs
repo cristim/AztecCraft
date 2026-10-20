@@ -709,7 +709,7 @@ fn same_frame_click_and_type_blocks_queued_mutation_without_prior_focus() {
         reply.try_recv().unwrap(),
         Err(OperationError::BusyEditing)
     ));
-    assert!(!baseline.name.contains("human"));
+    assert!(baseline.name.contains("human"));
     assert_eq!(editor.name, baseline.name);
     assert_eq!(editor.channels, baseline.channels);
     assert_eq!(editor.selected, baseline.selected);

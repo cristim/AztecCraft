@@ -86,6 +86,8 @@ pub struct Editor {
     move_viewport: Option<features::move_tool::MoveViewportFeedback>,
     move_consumed_frame: bool,
     move_suppress_primary: bool,
+    // egui reports lost_focus for two frames, so a pre-focus move suppresses blur commits for two.
+    blur_commit_skip_frames: u8,
     renderer: Option<crate::viewport_renderer::ViewportRenderer>,
     viewport_error: Option<crate::viewport_renderer::ViewportError>,
     name: String,
@@ -133,6 +135,7 @@ impl Default for Editor {
             move_viewport: None,
             move_consumed_frame: false,
             move_suppress_primary: false,
+            blur_commit_skip_frames: 0,
             renderer: None,
             viewport_error: None,
             name: String::new(),

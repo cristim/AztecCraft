@@ -97,7 +97,7 @@ impl Editor {
             }
             apply |= response.drag_stopped();
         });
-        if apply {
+        if apply && self.blur_commit_skip_frames == 0 {
             self.commit_pending();
         }
     }

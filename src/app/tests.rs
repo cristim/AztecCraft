@@ -3353,6 +3353,212 @@ fn real_grid_button_dispatches_current_state_and_disables_for_modal_and_close() 
     }
 }
 
+fn primary_button(position: egui::Pos2, pressed: bool) -> egui::Event {
+    egui::Event::PointerButton {
+        pos: position,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    }
+}
+
+fn unfocused_cube_editor() -> (Editor, egui::Context) {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(ctx.memory(|memory| memory.focused()), None);
+    (editor, ctx)
+}
+
+#[test]
+fn first_click_with_same_frame_text_reaches_unfocused_channel_field() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let before = editor.history.scene().clone();
+    let undo_before = editor.history.undo_label();
+    let center = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            primary_button(center, true),
+            egui::Event::Text("7".into()),
+        ],
+    );
+    assert_eq!(editor.channels[0], "07");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(0))
+    );
+    frame(&mut editor, &ctx, vec![primary_button(center, false)]);
+    assert_eq!(editor.channels[0], "07");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.undo_label(), undo_before);
+}
+
+#[test]
+fn first_click_press_release_and_text_in_one_frame_reaches_channel_field() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let center = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            primary_button(center, true),
+            primary_button(center, false),
+            egui::Event::Text("7".into()),
+        ],
+    );
+    assert_eq!(editor.channels[0], "07");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(0))
+    );
+}
+
+fn click_with_text(editor: &mut Editor, ctx: &egui::Context, field: egui::Id, text: &str) {
+    let center = ctx.read_response(field).unwrap().rect.center();
+    frame(
+        editor,
+        ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            primary_button(center, true),
+            egui::Event::Text(text.into()),
+        ],
+    );
+}
+
+fn undo_entries(editor: &mut Editor) -> usize {
+    let mut depth = 0;
+    while editor.history.undo() {
+        depth += 1;
+    }
+    for _ in 0..depth {
+        assert!(editor.history.redo());
+    }
+    depth
+}
+
+fn type_into_channel(editor: &mut Editor, ctx: &egui::Context, index: usize, text: &str) {
+    ctx.memory_mut(|memory| memory.request_focus(channel_edit_id(index)));
+    frame(editor, ctx, vec![]);
+    frame(editor, ctx, vec![egui::Event::Text(text.into())]);
+}
+
+#[test]
+fn first_click_on_another_field_commits_the_valid_draft_before_typing_there() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_channel(&mut editor, &ctx, 0, "5");
+    assert_eq!(editor.channels[0], "05");
+    click_with_text(&mut editor, &ctx, channel_edit_id(1), "3");
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation,
+        [5.0, 0.0, 0.0]
+    );
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    assert_eq!(editor.channels[1], "03");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(1))
+    );
+    assert!(editor.has_draft());
+    let center = ctx.read_response(channel_edit_id(1)).unwrap().rect.center();
+    frame(&mut editor, &ctx, vec![primary_button(center, false)]);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation[1],
+        0.0
+    );
+    assert_eq!(editor.channels[1], "03");
+}
+
+#[test]
+fn first_click_on_another_field_keeps_an_invalid_draft_and_still_types() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let before = editor.history.scene().clone();
+    type_into_channel(&mut editor, &ctx, 0, "x");
+    click_with_text(&mut editor, &ctx, channel_edit_id(1), "3");
+    assert!(editor.error);
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.channels[0], "0x");
+    assert_eq!(editor.channels[1], "03");
+    let center = ctx.read_response(channel_edit_id(1)).unwrap().rect.center();
+    frame(&mut editor, &ctx, vec![primary_button(center, false)]);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.channels[1], "03");
+}
+
+#[test]
+fn pressing_the_focused_field_again_does_not_commit_its_draft() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let before = editor.history.scene().clone();
+    type_into_channel(&mut editor, &ctx, 0, "5");
+    click_with_text(&mut editor, &ctx, channel_edit_id(0), "1");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.channels[0], "051");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(0))
+    );
+}
+
+#[test]
+fn a_held_press_does_not_refocus_the_field_after_escape() {
+    // Relies on Escape clearing focus in egui's begin_pass (memory/mod.rs:599).
+    let (mut editor, ctx) = unfocused_cube_editor();
+    click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
+    let escape = || {
+        vec![egui::Event::Key {
+            key: Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }]
+    };
+    frame(&mut editor, &ctx, escape());
+    assert_eq!(ctx.memory(|memory| memory.focused()), None);
+}
+
+#[test]
+fn first_click_text_is_ignored_during_an_active_manipulation() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    // Started after the warm-up, so egui's previous-pass widget flags still say enabled.
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .history
+        .begin_move(
+            &target,
+            azteccraft::native_scene::WorldAxis::X,
+            editor.scene_token,
+            ManipulationProvenance::Remote,
+            1 << 20,
+        )
+        .unwrap();
+    let channels = editor.channels.clone();
+    click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
+    assert_eq!(ctx.memory(|memory| memory.focused()), None);
+    assert_eq!(editor.channels, channels);
+}
+
+#[test]
+fn first_click_text_is_ignored_while_a_modal_is_open() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let channels = editor.channels.clone();
+    click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
+    assert_eq!(ctx.memory(|memory| memory.focused()), None);
+    assert_eq!(editor.channels, channels);
+}
+
 #[test]
 fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
     let mut editor = Editor::default();
