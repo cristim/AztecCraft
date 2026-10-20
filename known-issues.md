@@ -449,8 +449,7 @@ edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
 effects are unsupported"). The refusal rate on real Maya files outside the
 five-file private corpus is unmeasured.
 
-Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
-binary. Setting every inserted word to +0.0 inserts nothing, because that is the
+Source-free scenes (new, OBJ) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
 default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
@@ -517,8 +516,8 @@ Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build 
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
 so the viewport looks faceted. There are no UVs or normals, and
-new nodes are not persisted (Save is unavailable for created scenes, as for the
-cube). Pole triangles cannot be extruded; body quads can. The new node is named
+new nodes save only through Save As as a fresh Maya binary (see "Mesh Save is
+PROVISIONAL"). Pole triangles cannot be extruded; body quads can. The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
@@ -714,7 +713,8 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (Untitled scenes have no save), sourced binary scenes
+session-only lambert table. It is not saved (a new scene refuses Save As with `save_unwritable` while a shape is
+assigned a non-initial group; an unassigned created material is dropped), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
@@ -871,3 +871,22 @@ paints nothing. This contradicts the "mirrors the painted highlight" wording in
 `.project-docs/mcp.md` (the pointer fields paragraph). The tests
 `a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
 `sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.
+
+## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
+
+**Severity:** medium
+**Area:** file format, Save As
+**Issue:** cristim/AztecCraft#156
+
+Save As on a new (Untitled) scene writes a fresh Maya 2025-format `.mb` through the writer above.
+Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
+documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
+`.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
+acceptance is unproven. MayaSceneKit (pinned commit 95a11db) refuses a mesh with an empty UV set; the
+ignored test `msk_refuses_the_writers_empty_uv_mesh` (`AZTECCRAFT_MSK_BIN`, see
+`.project-docs/mayascenekit-crosscheck.md`) records that refusal so a change becomes visible. The
+`save_scene_as` MCP description carries the same PROVISIONAL note.
+
+Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
+MayaSceneKit starts decoding these meshes (the cross-check test flips); a public, licensed Maya
+file shows a mesh without a UV block or with default primitive UVs.
