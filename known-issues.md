@@ -622,9 +622,13 @@ Save As on a new (Untitled) scene writes a fresh Maya 2025-format `.mb` through 
 Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
 documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
 `.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
-acceptance is unproven. MayaSceneKit (pinned commit 95a11db) refuses a mesh with an empty UV set; the
-ignored test `msk_refuses_the_writers_empty_uv_mesh` (`AZTECCRAFT_MSK_BIN`, see
-`.project-docs/mayascenekit-crosscheck.md`) records that refusal so a change becomes visible. The
+acceptance is unproven. MayaSceneKit (a third-party reader, not Maya; pinned commit 95a11db) decodes the Maya-written
+`tests/fixtures/gt-tools/dummy_mesh.mb` (no MESH issue, an exact DMSH/MESH decode) but reports the
+writer's cube MESH/DMSH as unsupported ("no decoder registered for chunk tag"). The empty UV set is the
+INFERRED cause, from the reader's mesh decoder source (it requires a nonzero UV count) plus that
+contrast; no probe that adds UVs has been run. The ignored test `msk_decodes_maya_meshes_but_not_the_writers_mesh`
+(`AZTECCRAFT_MSK_BIN`, see `.project-docs/mayascenekit-crosscheck.md`) pins the contrast so a change
+becomes visible. The
 `save_scene_as` MCP description carries the same PROVISIONAL note.
 
 Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
