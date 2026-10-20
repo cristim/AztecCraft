@@ -365,3 +365,179 @@ async fn rotate_scale_and_siteless_edits_over_mcp_still_refuse_with_absent_chann
     assert_eq!(std::fs::read(&rig.source).unwrap(), rig.original);
     rig.finish().await;
 }
+
+use crate::editor_operations::FileDecision;
+
+impl Rig {
+    async fn code(&mut self, name: &'static str, arguments: Value) -> String {
+        let result = self.call(name, arguments).await;
+        result
+            .structured_content
+            .as_ref()
+            .unwrap_or_else(|| panic!("{name}: {result:?}"))["error"]["code"]
+            .as_str()
+            .map_or_else(|| format!("no error: {result:?}"), str::to_owned)
+    }
+}
+
+type Setup = fn(&mut Editor, &egui::Context);
+
+fn pending_confirmation(editor: &mut Editor, operation: Operation) {
+    assert!(matches!(
+        editor.apply_operation(operation).unwrap(),
+        OperationReply::PendingConfirmation { .. }
+    ));
+}
+
+#[tokio::test]
+async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseline() {
+    let mut rig = Rig::open().await;
+    let object = rig.node("object");
+    rig.select(&object).await;
+    // A dirty document, so New and Close raise confirmations.
+    let dirtied = rig
+        .call(
+            "edit_node",
+            json!({"scene_token":rig.token,"node_id":object.node,"translation":[1,null,null]}),
+        )
+        .await;
+    assert_eq!(dirtied.structured_content.unwrap()["outcome"], "changed");
+    assert!(rig.editor.is_dirty());
+    let cases: [(&str, &str, Setup); 6] = [
+        ("busy_editing", "text focus", |_, context| {
+            context.memory_mut(|memory| memory.request_focus(name_edit_id()));
+        }),
+        ("busy_editing", "invalid draft", |editor, _| {
+            editor.channels[0] = "not a number".into();
+        }),
+        ("busy_editing", "valid draft", |editor, _| {
+            editor.channels[0] = "5".into();
+        }),
+        ("busy_editing", "name draft", |editor, _| {
+            editor.name = "draft name".into();
+        }),
+        ("busy_editing", "modal", |editor, _| {
+            pending_confirmation(editor, Operation::NewScene);
+        }),
+        ("busy_editing", "close in progress", |editor, _| {
+            pending_confirmation(editor, Operation::RequestClose);
+            let pending = editor.files.pending_inspection().unwrap();
+            editor
+                .apply_operation(Operation::ResolveFileAction {
+                    pending_id: pending.id.parse().unwrap(),
+                    decision: FileDecision::Discard,
+                })
+                .unwrap();
+            assert!(editor.files.is_closing());
+        }),
+    ];
+    for (expected, label, setup) in cases {
+        // Each case starts from a fresh editor state: reopen the document and redo the edit.
+        let mut case = Rig::open().await;
+        let object = case.node("object");
+        case.select(&object).await;
+        case.call(
+            "edit_node",
+            json!({"scene_token":case.token,"node_id":object.node,"translation":[1,null,null]}),
+        )
+        .await;
+        setup(&mut case.editor, &case.context);
+        frame(&mut case.editor, &case.context, vec![]);
+        let before = case.baseline();
+        let moved = case.begin(&object, json!({"kind":"move","axis":"x"}));
+        let editing =
+            json!({"scene_token":case.token,"node_id":object.node,"translation":[7,null,null]});
+        assert_eq!(
+            case.code("begin_manipulation", moved).await,
+            expected,
+            "{label}"
+        );
+        assert_eq!(
+            case.code("edit_node", editing.clone()).await,
+            expected,
+            "{label}"
+        );
+        assert_eq!(case.baseline(), before, "{label}");
+        assert!(
+            case.editor.history.active_manipulation().is_none(),
+            "{label}"
+        );
+        // A stale token is rejected the same way, ahead of every other guard.
+        let stale = json!({"scene_token":Uuid::new_v4().to_string(),"node_id":object.node,"translation":[7,null,null]});
+        assert_eq!(
+            case.code("edit_node", stale).await,
+            "stale_scene",
+            "{label}"
+        );
+        assert_eq!(case.baseline(), before, "{label}");
+        assert_eq!(std::fs::read(&case.source).unwrap(), case.original);
+        case.finish().await;
+    }
+    // Pending native input is cleared by every frame before a bridged call runs, so it is checked on
+    // the shared remote pipeline directly, with the same two operations.
+    let mut case = Rig::open().await;
+    let object = case.node("object");
+    case.select(&object).await;
+    case.editor.native_input_pending = true;
+    let before = case.baseline();
+    let transform = case
+        .editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .remove(0);
+    for operation in [
+        Operation::BeginMove {
+            target: azteccraft::native_scene::TransformTarget {
+                node: object.id,
+                path: transform.path.clone(),
+            },
+            axis: azteccraft::native_scene::WorldAxis::X,
+        },
+        Operation::EditNode {
+            id: object.id,
+            name: None,
+            translation: [Some(7.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        },
+    ] {
+        let result = case.editor.remote_operation_guarded(
+            crate::editor_operations::RemoteRequest {
+                expected_scene_token: Some(case.editor.scene_token),
+                operation,
+            },
+            &case.context,
+            &|| true,
+        );
+        assert!(matches!(result, Err(OperationError::BusyEditing)));
+        assert_eq!(case.baseline(), before);
+    }
+    case.finish().await;
+    // The clean, dirty document accepts both once nothing is pending, and then fails atomically.
+    let again = rig
+        .call(
+            "edit_node",
+            json!({"scene_token":rig.token,"node_id":object.node,"translation":[null,4,null]}),
+        )
+        .await;
+    assert_eq!(again.structured_content.unwrap()["outcome"], "changed");
+    let before = rig.baseline();
+    let refused = rig
+        .call(
+            "edit_node",
+            json!({"scene_token":rig.token,"node_id":object.node,"translation":[9,null,null],"scale":[3,null,null]}),
+        )
+        .await;
+    assert_eq!(
+        refused.structured_content.unwrap()["error"]["code"],
+        "scene_error"
+    );
+    assert_eq!(
+        rig.baseline(),
+        before,
+        "a failed edit preserves its baseline"
+    );
+    rig.finish().await;
+}
