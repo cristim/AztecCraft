@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_scene::Channel;
 use crate::scene::Primitive;
 
 pub(super) fn bare(names: &[&str]) -> NativeScene {
@@ -19,20 +20,103 @@ pub(super) fn meshed(primitives: &[Primitive]) -> NativeScene {
     scene
 }
 
-#[test]
-fn nothing_is_returned_while_emission_is_incomplete() {
-    let mut cube = NativeScene::default();
-    cube.create(Primitive::Cube, "cube").unwrap();
-    for scene in [cube, bare(&["a", "b"]), NativeScene::default()] {
-        assert_eq!(
-            encode_authored(&scene),
-            Err(AuthoredBinaryRefusal::NotYetImplemented)
+const PRIMITIVES: [Primitive; 5] = [
+    Primitive::Cube,
+    Primitive::Plane,
+    Primitive::Sphere,
+    Primitive::Cylinder,
+    Primitive::Cone,
+];
+
+/// Encode, decode with the repo's decoder and compare node by node.
+fn assert_round_trip(scene: &NativeScene) {
+    let bytes = encode_authored(scene).unwrap();
+    let reopened = crate::native_scene::binary::decode(std::sync::Arc::from(bytes)).unwrap();
+    assert_eq!(reopened.units(), scene.units());
+    assert_eq!(reopened.nodes().len(), scene.nodes().len());
+    assert_eq!(reopened.shapes().len(), scene.shapes().len());
+    for (before, after) in scene.nodes().iter().zip(reopened.nodes()) {
+        assert_eq!(before.name(), after.name());
+        let (a, b) = (
+            scene.internal_transform(before.id()).unwrap(),
+            reopened.internal_transform(after.id()).unwrap(),
         );
+        for (x, y) in [
+            (a.translation_cm, b.translation_cm),
+            (a.rotation_radians, b.rotation_radians),
+            (a.scale, b.scale),
+        ] {
+            assert_eq!(x.map(f64::to_bits), y.map(f64::to_bits));
+        }
+        let shape = authored::shape_of(scene, before).unwrap();
+        let again = authored::shape_of(&reopened, after).unwrap();
+        assert_eq!(shape.name(), again.name());
+        assert_eq!(shape.mesh().points(), again.mesh().points());
+        let ends = |s: &crate::native_scene::NativeMeshShape| {
+            s.mesh()
+                .edges()
+                .iter()
+                .map(|e| e.endpoints())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ends(shape), ends(again));
+        let loops = |s: &crate::native_scene::NativeMeshShape| {
+            s.mesh()
+                .faces()
+                .iter()
+                .map(|f| f.outer().to_vec())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(loops(shape), loops(again));
     }
 }
 
 #[test]
-fn eligibility_refusals_come_before_the_incomplete_refusal() {
+fn every_primitive_encodes_decodes_and_matches() {
+    for primitive in PRIMITIVES {
+        assert_round_trip(&meshed(&[primitive]));
+    }
+    assert_round_trip(&meshed(&PRIMITIVES));
+}
+
+#[test]
+fn every_primitive_still_matches_after_a_translate_rotate_and_scale() {
+    for primitive in PRIMITIVES {
+        let mut scene = meshed(&[primitive]);
+        let id = scene.nodes()[0].id();
+        for (channel, value) in [
+            (Channel::TranslateX, 3.5),
+            (Channel::TranslateZ, -0.125),
+            (Channel::RotateY, 30.0),
+            (Channel::ScaleY, 2.0),
+        ] {
+            scene.set_channel(id, channel, value).unwrap();
+        }
+        assert_round_trip(&scene);
+    }
+}
+
+#[test]
+fn encoding_is_deterministic_for_a_scene_with_stored_uuids() {
+    let scene = meshed(&PRIMITIVES);
+    assert_eq!(encode_authored(&scene), encode_authored(&scene));
+}
+
+#[test]
+fn a_scene_of_bare_transforms_and_an_empty_scene_encode() {
+    assert_round_trip_bare(&bare(&["a", "b"]));
+    assert_round_trip_bare(&NativeScene::default());
+}
+
+fn assert_round_trip_bare(scene: &NativeScene) {
+    let bytes = encode_authored(scene).unwrap();
+    let reopened = crate::native_scene::binary::decode(std::sync::Arc::from(bytes)).unwrap();
+    assert_eq!(reopened.nodes().len(), scene.nodes().len());
+    assert!(reopened.shapes().is_empty());
+}
+
+#[test]
+fn eligibility_refusals_come_first() {
     let mut cube = NativeScene::default();
     cube.create(Primitive::Cube, "persp").unwrap();
     for scene in [cube, bare(&["persp"])] {

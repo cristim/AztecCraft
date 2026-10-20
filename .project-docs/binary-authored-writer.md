@@ -1,9 +1,9 @@
 # Authored Maya Binary writer (issue #156)
 
-Status: in progress. The pure writer in `src/native_scene/binary/write.rs` has framing builders, the
-profile constants, the `HEAD` group, `XFRM` transform groups and a self-check. Mesh emission is not
-wired in yet, so `encode_authored` refuses every scene with `NotYetImplemented` and writes nothing;
-it has no caller. This note records what the writer may
+Status: in progress. The pure writer in `src/native_scene/binary/write.rs` builds a whole file for a
+scene of bare transforms or of transforms over one mesh each: framing builders, the profile constants,
+the `HEAD` group, `XFRM` and `DMSH` groups, and a self-check that decodes the bytes before they are
+returned. `encode_authored` has no Editor caller yet. This note records what the writer may
 emit, where each choice comes from, and what is invented. **Maya acceptance of any file this writer
 produces is unproven.** AztecCraft's own decoder reopening a file is the only check, and no PR text may
 claim more.
@@ -126,7 +126,8 @@ An ignored differential test rebuilds chunks from a private corpus given by envi
 compares them to Maya's bytes; it never commits paths or content.
 
 The self-check currently compares units, node count and order, names, DAG pairing and the t/r/s/pivot
-bit patterns of bare-transform files; mesh comparisons land with mesh emission.
+bit patterns, and for each mesh shape its name, point f32 bit patterns, edge endpoint pairs and face
+loops of directed edges (no holes or point offsets).
 
 ## Reopen trigger
 

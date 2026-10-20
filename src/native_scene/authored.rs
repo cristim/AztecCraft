@@ -127,7 +127,7 @@ fn check_valid_units(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
 }
 
 /// A scene of bare transforms: every node is a root with no child, and there is no
-/// shape. Binary emission starts here, since mesh content is not yet writable.
+/// shape: the shape-less case of the Binary writer, whose meshes go through `check_scene`.
 pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
     check_valid_units(scene)?;

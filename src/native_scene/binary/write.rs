@@ -1,39 +1,39 @@
 //! Writer for a fresh Maya Binary file from an authored (source-less) scene.
 //!
-//! Incomplete: the framing builders, the profile constants and the `HEAD` group exist,
-//! and the entry point refuses every scene until emission and the self-check are
-//! complete, so no partial file is ever returned.
+//! The entry point checks eligibility, builds the file (`HEAD`, then each transform with
+//! its mesh shape) and returns the bytes only after the self-check has decoded them and
+//! found the scene again. Maya acceptance of the output is unproven.
 
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "used by the emission that follows")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod check;
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "builders gain callers as emission lands")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod chunk;
 #[cfg(test)]
 mod fixtures;
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "used by the emission that follows")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod head;
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "used by the emission that follows")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod mesh;
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "used by the emission that follows")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod profile;
 #[cfg_attr(
     not(test),
-    expect(dead_code, reason = "used by the emission that follows")
+    expect(dead_code, reason = "only the Editor caller is missing")
 )]
 mod transform;
 
@@ -44,8 +44,6 @@ use chunk::TooLarge;
 pub(crate) enum AuthoredBinaryRefusal {
     Ineligible(AuthoredIneligible),
     TooLarge,
-    /// Emission is incomplete; nothing is written until every part lands.
-    NotYetImplemented,
     /// A node has no stored UUID, and the file's creation chunks need one.
     MissingUuid,
     /// The decoder did not read back what was written; no bytes are returned.
@@ -65,13 +63,6 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
 /// The file for a scene of bare transforms or of transforms over one mesh each, whose
 /// eligibility the caller has checked. The bytes are decoded and compared with the scene
 /// before they are returned.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "used by the entry point once emission is complete"
-    )
-)]
 fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     let mut children = Vec::new();
     children
@@ -110,7 +101,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
     } else {
         authored::check_scene(scene)?;
     }
-    Err(AuthoredBinaryRefusal::NotYetImplemented)
+    scene_file(scene)
 }
 
 #[cfg(test)]
