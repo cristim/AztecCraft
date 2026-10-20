@@ -573,9 +573,45 @@ mod hand_built_plans {
 
     #[test]
     fn a_plan_with_a_missing_ancestor_never_yields_bytes() {
-        let (_, decoded, mut plan) = setup(record([0.0; 3]));
-        plan[0].ancestors.pop();
-        assert!(encode_with(&decoded, &plan).is_err());
+        let (_, decoded, plan) = setup(record([0.0; 3]));
+        // Without the root the grown group overruns it and the reparse cannot read the file.
+        let mut unrooted = plan_with_ancestors(&plan, |a| a.pop().map(drop).unwrap_or(()));
+        assert_eq!(
+            encode_with(&decoded, &unrooted).unwrap_err().kind(),
+            ErrorKind::Malformed
+        );
+        // Without the innermost group the record would be the group's sibling; the root pads its
+        // children to 4, so the container is truncated.
+        unrooted = plan_with_ancestors(&plan, |a| {
+            a.remove(0);
+        });
+        let source = scene(&children());
+        let inspected = container::inspect(source).unwrap();
+        let group = inspected
+            .chunks()
+            .iter()
+            .find(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        unrooted[0].at = group.payload_range().end;
+        assert_eq!(
+            encode_with(&decoded, &unrooted).unwrap_err().kind(),
+            ErrorKind::Malformed
+        );
+    }
+
+    fn plan_with_ancestors(
+        plan: &[Insertion],
+        edit: impl FnOnce(&mut Vec<usize>),
+    ) -> Vec<Insertion> {
+        let mut ancestors = plan[0].ancestors.clone();
+        edit(&mut ancestors);
+        vec![Insertion {
+            owner: plan[0].owner,
+            field: plan[0].field,
+            at: plan[0].at,
+            bytes: plan[0].bytes.clone(),
+            ancestors,
+        }]
     }
 
     #[test]

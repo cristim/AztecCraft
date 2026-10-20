@@ -133,6 +133,42 @@ fn a_record_in_another_group_is_not_the_owners() {
 }
 
 #[test]
+fn a_missing_ancestor_never_reaches_the_placement_check_in_this_layout() {
+    let (_, m) = setup();
+    let source = bytes();
+    let mut budget = Budget::new(source.len()).unwrap();
+    // Without the root the grown group overruns it.
+    let unrooted = Insertion {
+        ancestors: vec![m.a],
+        ..insertion(m.owner, m.rotation, m.a)
+    };
+    let spliced = splice(&source, &[unrooted], &mut budget).unwrap();
+    assert!(inspect(spliced.into()).is_err());
+    // Without the group the 48-byte record would be the group's sibling, but the root pads its
+    // children to 4, so the leftover bytes read as a truncated header.
+    let sibling = Insertion {
+        ancestors: vec![0],
+        ..insertion(m.owner, m.a_end, m.a)
+    };
+    let spliced = splice(&source, &[sibling], &mut budget).unwrap();
+    assert_eq!(
+        inspect(spliced.into()).unwrap_err().kind(),
+        crate::maya_binary::container::ErrorKind::Truncated
+    );
+}
+
+#[test]
+fn a_record_with_a_non_zero_pad_byte_is_refused() {
+    let (_, m) = setup();
+    let plan = [insertion(m.owner, m.rotation, m.a)];
+    let pad = m.rotation + 47;
+    assert_eq!(
+        verdict(&plan, |bytes| bytes[pad] = 1),
+        Err(Violation::Record)
+    );
+}
+
+#[test]
 fn a_record_that_is_not_the_planned_translation_with_the_files_aux_is_refused() {
     let (_, m) = setup();
     let wrong_aux = Insertion {

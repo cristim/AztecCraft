@@ -147,6 +147,7 @@ pub(super) fn check(
             || bytes.len() != name.len() + 2 + 24
             || !bytes.starts_with(name)
             || bytes[name.len()..name.len() + 2] != [0, 0x20]
+            || new.source()[chunk.padding_range()].iter().any(|b| *b != 0)
         {
             return Err(Violation::Record);
         }
