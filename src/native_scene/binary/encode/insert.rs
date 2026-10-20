@@ -103,7 +103,9 @@ pub(super) fn splice(
     }
     output.extend_from_slice(&patched[cursor..]);
     for (start, delta) in growth(plan, budget)? {
-        let moved = start + shift[plan.partition_point(|insertion| insertion.at <= start)];
+        let moved = start
+            .checked_add(shift[plan.partition_point(|insertion| insertion.at <= start)])
+            .ok_or_else(resource)?;
         resize_word(&mut output, moved, |size| {
             u64::try_from(delta)
                 .ok()
