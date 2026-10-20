@@ -41,6 +41,39 @@ fn defaults_match_the_documented_table() {
         sphere(1.0, 20, 20)
     );
     assert_eq!(
+        PrimitiveOptions::default_for(Primitive::Cube),
+        PrimitiveOptions::Cube {
+            width: 1.0,
+            height: 1.0,
+            depth: 1.0,
+            sub_width: 1,
+            sub_height: 1,
+            sub_depth: 1,
+            axis: Axis::Y
+        }
+    );
+    assert_eq!(
+        PrimitiveOptions::default_for(Primitive::Plane),
+        PrimitiveOptions::Plane {
+            width: 1.0,
+            height: 1.0,
+            sub_width: 1,
+            sub_height: 1,
+            axis: Axis::Y
+        }
+    );
+    assert_eq!(
+        PrimitiveOptions::default_for(Primitive::Cylinder),
+        PrimitiveOptions::Cylinder {
+            radius: 1.0,
+            height: 2.0,
+            sub_axis: 20,
+            sub_height: 1,
+            axis: Axis::Y
+        }
+    );
+    assert_eq!(Axis::default(), Axis::Y);
+    assert_eq!(
         PrimitiveOptions::default_for(Primitive::Cone),
         PrimitiveOptions::Cone {
             radius: 1.0,
@@ -272,4 +305,79 @@ fn face_budget_binds_and_admits_the_other_maxima() {
             budget: MAX_FACES
         })
     );
+}
+
+fn cube_sub(w: u32, h: u32, d: u32) -> PrimitiveOptions {
+    PrimitiveOptions::Cube {
+        width: 1.0,
+        height: 1.0,
+        depth: 1.0,
+        sub_width: w,
+        sub_height: h,
+        sub_depth: d,
+        axis: Axis::Y,
+    }
+}
+
+fn round(primitive: Primitive, sub_axis: u32, sub_height: u32) -> PrimitiveOptions {
+    match PrimitiveOptions::default_for(primitive) {
+        PrimitiveOptions::Cylinder {
+            radius,
+            height,
+            axis,
+            ..
+        } => PrimitiveOptions::Cylinder {
+            radius,
+            height,
+            sub_axis,
+            sub_height,
+            axis,
+        },
+        PrimitiveOptions::Cone {
+            radius,
+            height,
+            axis,
+            ..
+        } => PrimitiveOptions::Cone {
+            radius,
+            height,
+            sub_axis,
+            sub_height,
+            axis,
+        },
+        other => other,
+    }
+}
+
+#[test]
+fn budget_accepts_57_and_rejects_58_subdivisions_per_axis() {
+    assert_eq!(cube_sub(57, 57, 57).face_count(), 19_494);
+    assert_eq!(cube_sub(57, 57, 57).validate(Primitive::Cube), Ok(()));
+    assert!(matches!(
+        cube_sub(58, 58, 58).validate(Primitive::Cube),
+        Err(PrimitiveOptionsError::TooManyFaces { .. })
+    ));
+}
+
+#[test]
+fn cube_face_count_distinguishes_axes() {
+    // 2*(2*3 + 3*4 + 2*4); a swapped term changes the total.
+    assert_eq!(cube_sub(2, 3, 4).face_count(), 52);
+    assert_eq!(cube_sub(4, 3, 2).face_count(), 52);
+    assert_eq!(cube_sub(2, 2, 5).face_count(), 2 * (4 + 10 + 10));
+}
+
+#[test]
+fn cylinder_and_cone_height_divisions_add_rings() {
+    assert_eq!(round(Primitive::Cylinder, 8, 3).face_count(), 8 * 3 + 2);
+    assert_eq!(round(Primitive::Cone, 8, 3).face_count(), 8 * 3 + 1);
+}
+
+#[test]
+fn cylinder_and_cone_accept_division_edges() {
+    for primitive in [Primitive::Cylinder, Primitive::Cone] {
+        for (axis, height) in [(3, 1), (128, 128)] {
+            assert_eq!(round(primitive, axis, height).validate(primitive), Ok(()));
+        }
+    }
 }
