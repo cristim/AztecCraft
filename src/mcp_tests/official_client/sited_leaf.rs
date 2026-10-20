@@ -176,10 +176,12 @@ impl Rig {
     }
 }
 
+#[cfg(unix)]
 fn inserted_record(values: [f64; 3]) -> Vec<u8> {
     sited::triple_aux(b"t", sited::SITE_AUX, values)
 }
 
+#[cfg(unix)]
 fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     haystack
         .windows(needle.len())
