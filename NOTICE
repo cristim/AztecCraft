@@ -28,5 +28,11 @@ Ubuntu-Light (https://design.ubuntu.com/font) - Ubuntu Font Licence 1.0.
 emoji-icon-font (https://github.com/jslegers/emoji-icon-font) - MIT, copyright (c) 2014 John Slegers.
   See licenses/egui-default-fonts/emoji-icon-font-mit-license.txt.
 
+MayaSceneKit test fixture (tests/fixtures/mayascenekit) - one Maya Binary file used only by unit
+tests, from https://github.com/yamahigashi/MayaSceneKit at commit
+95a11db062689285604b3a647385dc9388402865, MIT, copyright (c) 2026 Takayoshi Matsumoto. The license
+text is tests/fixtures/mayascenekit/LICENSE and the provenance is in tests/fixtures/mayascenekit/UPSTREAM.md.
+It is not part of the binary or of packaged builds.
+
 Rust crate dependencies remain under their own licenses (see Cargo.lock); no per-crate license
 bundle is shipped.
