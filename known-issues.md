@@ -348,15 +348,16 @@ The insertion is reached by the encoder, `edit_node`, the Channel Box, native
 Move, MCP and document save. Maya has never read files it did not write; acceptance of inserted records is unproven (#5).
 Only AztecCraft's own decoder reopening the output is checked.
 
-Still refused with the typed `AbsentChannelLeaf` error (MCP code
-`absent_channel_leaf`):
-
-- Rotate and scale leaves, which are not part of this slice.
-- A translate on a node with no recorded site: the file has no `DBL3` at all,
-  its `DBL3` header words differ, one has non-zero padding, or the transform's
-  children do not match the grammar. A siteless translate shows "leaf
-  insertion is unsupported" in the error text. The refusal rate on real Maya
-  files outside the five-file private corpus is unmeasured.
+Still refused: rotate and scale leaves, which are not part of this slice, and a
+translate on a node with no recorded site (the file has no `DBL3` at all, its
+`DBL3` header words differ, one has non-zero padding, or the transform's
+children do not match the grammar). The refusal differs by entry point. Move,
+Rotate and Scale (`begin_manipulation`) return the typed `AbsentChannelLeaf`
+error (MCP code `absent_channel_leaf`; for a siteless translate the text says
+"leaf insertion is unsupported"). Channel Box, `edit_node` and `set_transform`
+edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
+effects are unsupported"). The refusal rate on real Maya files outside the
+five-file private corpus is unmeasured.
 
 Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
 binary. Setting every inserted word to +0.0 inserts nothing, because that is the
