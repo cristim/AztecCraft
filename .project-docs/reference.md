@@ -51,6 +51,10 @@ The [2027 fixed-issues list](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-R
 [api-2026]: https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/class_m_fn_transform.html
 [api-2027]: https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/class_m_fn_transform.html
 
+## Authored Maya Binary evidence
+
+Autodesk publishes no Maya Binary specification. What an authored `.mb` may contain, its sources (a vendored public Maya 2026 fixture and aggregate private-corpus facts) and the invented choices are in [the authored writer note](binary-authored-writer.md). It states that Maya acceptance is unproven.
+
 ## Storytold research
 
 Inspected upstream manifests on 2026-10-14:
