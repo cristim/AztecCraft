@@ -906,6 +906,92 @@ mod enabled {
         assert_eq!(after.shared_users, before.shared_users);
     }
 
+    mod moves {
+        use super::*;
+        use crate::{
+            history::{History, ManipulationError, ManipulationFinish, ManipulationProvenance},
+            native_scene::{ChannelLeaf, TransformTarget, WorldAxis},
+        };
+        use uuid::Uuid;
+
+        const BUDGET: usize = 256 * 1024 * 1024;
+
+        fn target(history: &History, node: usize) -> TransformTarget {
+            let id = history.scene().nodes()[node].id();
+            history
+                .scene()
+                .transform_paths()
+                .unwrap()
+                .into_iter()
+                .find(|path| path.node == id)
+                .unwrap()
+        }
+
+        fn move_x(history: &mut History, node: usize, distance: f64) {
+            let token = Uuid::new_v4();
+            let target = target(history, node);
+            let id = history
+                .begin_move(
+                    &target,
+                    WorldAxis::X,
+                    token,
+                    ManipulationProvenance::Native,
+                    BUDGET,
+                )
+                .unwrap();
+            let native = ManipulationProvenance::Native;
+            history.update_move(token, id, native, distance).unwrap();
+            history
+                .finish_move(token, id, native, ManipulationFinish::Commit)
+                .unwrap();
+        }
+
+        #[test]
+        fn native_move_of_an_identity_node_saves_and_undo_redo_restore_the_absent_leaf() {
+            let (bytes, scene) = open();
+            let mut history = History::new(scene);
+            let original = history.scene().clone();
+            move_x(&mut history, 0, 3.0);
+            let expected = self::scene(&children(&[t([3.0, 0.0, 0.0])]));
+            assert_eq!(encode(history.scene()).unwrap(), expected.as_ref());
+            let moved = history.scene().clone();
+
+            assert!(history.undo());
+            assert!(*history.scene() == original);
+            let leaf = &history.scene().nodes[0].channels[0];
+            assert!(leaf.origin.is_none() && !leaf.replaced);
+            assert_eq!(encode(history.scene()).unwrap(), bytes.as_ref());
+
+            assert!(history.redo());
+            assert!(*history.scene() == moved);
+            assert_eq!(encode(history.scene()).unwrap(), expected.as_ref());
+        }
+
+        #[test]
+        fn a_node_without_a_site_keeps_the_absent_leaf_refusal() {
+            let (_, scene) = open();
+            let mut history = History::new(scene);
+            let target = target(&history, 2);
+            let error = history
+                .begin_move(
+                    &target,
+                    WorldAxis::X,
+                    Uuid::new_v4(),
+                    ManipulationProvenance::Native,
+                    BUDGET,
+                )
+                .unwrap_err();
+            assert!(matches!(
+                error,
+                ManipulationError::Native(NativeError::AbsentChannelLeaf {
+                    channel: ChannelLeaf::Translate,
+                    component: 0
+                })
+            ));
+            assert!(history.active_manipulation().is_none());
+        }
+    }
+
     /// Two sited nodes without a translation (`a`, `d`) and one with it.
     fn pair(a: &[Vec<u8>], d: &[Vec<u8>]) -> Vec<u8> {
         [
