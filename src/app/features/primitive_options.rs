@@ -72,10 +72,6 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
     }
 }
 
-#[expect(
-    dead_code,
-    reason = "the Create menu option box calls this in the next commit"
-)]
 fn texts(options: &PrimitiveOptions) -> Vec<String> {
     let (sizes, divisions): (Vec<f64>, Vec<u32>) = match *options {
         PrimitiveOptions::Cube {
@@ -125,10 +121,6 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
         .collect()
 }
 
-#[expect(
-    dead_code,
-    reason = "the Create menu option box calls this in the next commit"
-)]
 fn axis_of(options: &PrimitiveOptions) -> Axis {
     match *options {
         PrimitiveOptions::Cube { axis, .. }
@@ -234,6 +226,47 @@ impl Default for PrimitiveOptionsUi {
     }
 }
 
+/// A small hollow square at the end of a menu row, like Maya's option box.
+pub(in crate::app) fn option_box(
+    ui: &mut egui::Ui,
+    label: &str,
+    enabled: bool,
+    reason: Option<&str>,
+) -> egui::Response {
+    let side = ui.spacing().interact_size.y;
+    let sense = if enabled {
+        egui::Sense::click()
+    } else {
+        egui::Sense::hover()
+    };
+    let (rect, response) = ui.allocate_exact_size(egui::vec2(side, side), sense);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label));
+    if ui.is_rect_visible(rect) {
+        let visuals = ui.style().interact_selectable(&response, false);
+        let color = if enabled {
+            visuals.fg_stroke.color
+        } else {
+            ui.visuals()
+                .widgets
+                .noninteractive
+                .fg_stroke
+                .color
+                .gamma_multiply(0.5)
+        };
+        ui.painter().rect_stroke(
+            rect.shrink(side * 0.28),
+            1.0,
+            egui::Stroke::new(1.5, color),
+            egui::StrokeKind::Inside,
+        );
+    }
+    match (enabled, reason) {
+        (false, Some(reason)) => response.on_disabled_hover_text(reason),
+        (true, _) => response.on_hover_text(label),
+        _ => response,
+    }
+}
+
 impl Editor {
     /// Options for a plain menu or shelf click: the last successfully created, else the defaults.
     pub(in crate::app) fn remembered_options(&self, primitive: Primitive) -> PrimitiveOptions {
@@ -241,10 +274,6 @@ impl Editor {
     }
 
     /// Opens the window for `primitive`. One window at a time: another primitive replaces it.
-    #[expect(
-        dead_code,
-        reason = "the Create menu option box calls this in the next commit"
-    )]
     pub(in crate::app) fn open_primitive_options(&mut self, primitive: Primitive) {
         if self
             .primitive_options
