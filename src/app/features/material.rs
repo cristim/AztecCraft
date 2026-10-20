@@ -73,6 +73,7 @@ impl Editor {
             return;
         };
         let mut apply = false;
+        let mut blurred = false;
         ui.add_enabled_ui(material.editing_available && !channel_draft, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Diffuse");
@@ -82,8 +83,8 @@ impl Editor {
                         .desired_width(110.0),
                 );
                 draft.intent |= response.changed();
-                apply |= response.lost_focus()
-                    || (response.has_focus() && ui.input(|input| input.key_pressed(Key::Enter)));
+                blurred = response.lost_focus();
+                apply |= response.has_focus() && ui.input(|input| input.key_pressed(Key::Enter));
             });
             let mut interaction = draft
                 .text
@@ -97,7 +98,7 @@ impl Editor {
             }
             apply |= response.drag_stopped();
         });
-        if apply && self.blur_commit_skip_frames == 0 {
+        if apply || (blurred && self.blur_commit_skip_frames == 0) {
             self.commit_pending();
         }
     }
