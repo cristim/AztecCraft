@@ -13,7 +13,7 @@ mod check;
     not(test),
     expect(dead_code, reason = "only the Editor caller is missing")
 )]
-mod chunk;
+pub(in crate::native_scene::binary) mod chunk;
 #[cfg(test)]
 mod fixtures;
 #[cfg_attr(

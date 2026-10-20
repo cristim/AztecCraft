@@ -11,7 +11,7 @@ const GROUP_TAG: [u8; 4] = *b"FOR8";
 
 /// Child alignment of the enclosing group, which pads the chunk after its payload.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Align {
+pub(in crate::native_scene::binary) enum Align {
     One = 1,
     Four = 4,
     Eight = 8,
@@ -19,7 +19,7 @@ pub(super) enum Align {
 
 /// A chunk, or the file it would sit in, is over the container limit or overflows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct TooLarge;
+pub(in crate::native_scene::binary) struct TooLarge;
 
 /// Bytes a chunk with `payload` payload bytes occupies: header, payload, padding.
 pub(super) fn chunk_len(payload: usize, align: Align) -> Result<usize, TooLarge> {
@@ -48,7 +48,7 @@ fn open(
     Ok((out, total))
 }
 
-pub(super) fn leaf(
+pub(in crate::native_scene::binary) fn leaf(
     tag: [u8; 4],
     aux: u32,
     payload: &[u8],
