@@ -5,6 +5,8 @@ mod encode;
 mod write;
 pub use encode::encode;
 pub use write::AuthoredRefusalCode;
+#[cfg(unix)]
+pub(crate) use write::encode_authored;
 #[cfg(test)]
 mod tests;
 

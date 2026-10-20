@@ -13,8 +13,8 @@
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
     can_redo=true
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## idle / remote
@@ -27,8 +27,8 @@
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
     can_redo=true
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## closing / native
@@ -69,7 +69,7 @@
     can_redo=true
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  resolve_file_action(save) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
 
 ## modal / remote
   baseline:
@@ -83,7 +83,7 @@
     can_redo=true
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  resolve_file_action(save) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
 
 ## local_move / native
   baseline:
@@ -179,8 +179,8 @@
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
     modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## material_draft / remote
@@ -207,8 +207,8 @@
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
     can_redo=true
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## channel_draft / remote
@@ -235,8 +235,8 @@
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
     can_redo=true
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## text_focus / remote
@@ -263,8 +263,8 @@
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
     can_redo=true
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## native_input_pending / remote
