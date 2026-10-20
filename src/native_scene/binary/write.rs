@@ -8,6 +8,15 @@
     expect(dead_code, reason = "builders gain callers as emission lands")
 )]
 mod chunk;
+#[cfg(test)]
+mod fixtures;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "used by the emission that follows")
+)]
+mod profile;
+#[cfg(test)]
+mod sha256;
 
 use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
 use chunk::{Align, TooLarge, group};
