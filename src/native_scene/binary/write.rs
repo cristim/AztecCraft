@@ -23,6 +23,11 @@ mod head;
 mod profile;
 #[cfg(test)]
 mod sha256;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "used by the emission that follows")
+)]
+mod transform;
 
 use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
 use chunk::TooLarge;
@@ -33,6 +38,8 @@ pub(crate) enum AuthoredBinaryRefusal {
     TooLarge,
     /// Emission is incomplete; nothing is written until every part lands.
     NotYetImplemented,
+    /// A node has no stored UUID, and the file's creation chunks need one.
+    MissingUuid,
 }
 impl From<AuthoredIneligible> for AuthoredBinaryRefusal {
     fn from(ineligible: AuthoredIneligible) -> Self {
@@ -43,6 +50,42 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
     fn from(_: TooLarge) -> Self {
         Self::TooLarge
     }
+}
+
+/// The file for a scene of bare transforms, whose eligibility the caller has checked.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "used by the entry point once emission is complete"
+    )
+)]
+fn transforms_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
+    let mut children = Vec::new();
+    children
+        .try_reserve_exact(scene.nodes().len() + 1)
+        .map_err(|_| TooLarge)?;
+    children.push(head::head()?);
+    for node in scene.nodes() {
+        let uuid = node
+            .transform_uuid()
+            .ok_or(AuthoredBinaryRefusal::MissingUuid)?;
+        let internal = scene
+            .internal_transform(node.id())
+            .map_err(AuthoredIneligible::InvalidScene)?;
+        let channels = transform::Channels {
+            translation: internal.translation_cm,
+            rotation: internal.rotation_radians,
+            scale: internal.scale,
+        };
+        children.push(transform::xfrm(node.name(), uuid, channels)?);
+    }
+    Ok(chunk::group(
+        *b"Maya",
+        profile::ROOT_AUX,
+        &children,
+        chunk::Align::One,
+    )?)
 }
 
 #[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
