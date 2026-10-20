@@ -1,3 +1,4 @@
+use super::primitive_args::CreateArgs;
 use crate::{
     editor_operations::{
         EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest,
@@ -10,7 +11,7 @@ use crate::{
 };
 use azteccraft::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
-    scene::{NodeId, Primitive},
+    scene::NodeId,
 };
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -18,24 +19,6 @@ use rmcp::{
 };
 use serde::Deserialize;
 use serde_json::json;
-
-#[derive(Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-enum PrimitiveInput {
-    Cube,
-    Plane,
-    Sphere,
-    Cylinder,
-    Cone,
-}
-
-#[derive(Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-struct CreateArgs {
-    scene_token: String,
-    primitive: PrimitiveInput,
-    name: Option<String>,
-}
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -86,20 +69,13 @@ struct SelectEdgeArgs {
 }
 
 fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    let args: CreateArgs = decode(arguments)?;
-    let primitive = match args.primitive {
-        PrimitiveInput::Cube => Primitive::Cube,
-        PrimitiveInput::Plane => Primitive::Plane,
-        PrimitiveInput::Sphere => Primitive::Sphere,
-        PrimitiveInput::Cylinder => Primitive::Cylinder,
-        PrimitiveInput::Cone => Primitive::Cone,
-    };
+    let parsed = decode::<CreateArgs>(arguments)?.into_parsed()?;
     Ok(scoped(
-        token(&args.scene_token)?,
+        token(&parsed.scene_token)?,
         Operation::Create {
-            primitive,
-            options: None,
-            name: args.name,
+            primitive: parsed.primitive,
+            options: parsed.options,
+            name: parsed.name,
         },
     ))
 }
@@ -293,7 +269,7 @@ fn select_edge_schema() -> JsonObject {
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "create_primitive",
-        description: "Create a cube, plane, sphere, cylinder or cone in the live editor",
+        description: "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected",
         schema: schema::<CreateArgs>,
         parse: parse_create_primitive,
         idempotent: false,

@@ -378,39 +378,364 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder or cone in the live editor",
+    "description": "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected",
     "inputSchema": {
       "$defs": {
-        "PrimitiveInput": {
-          "enum": [
-            "cube",
-            "plane",
-            "sphere",
-            "cylinder",
-            "cone"
-          ],
-          "type": "string"
+        "ConeOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "default": 2.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "radius": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "CubeOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "depth": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "height": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_depth": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "subdivisions_width": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "width": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "CylinderOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "default": 2.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "radius": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "PlaneOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "height": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_height": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "subdivisions_width": {
+              "default": 1,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "width": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "SphereOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "radius": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 2,
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "properties": {
-        "name": {
-          "type": [
-            "string",
-            "null"
-          ]
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/CubeOptions"
+            },
+            "primitive": {
+              "const": "cube",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
         },
-        "primitive": {
-          "$ref": "#/$defs/PrimitiveInput"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/PlaneOptions"
+            },
+            "primitive": {
+              "const": "plane",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
         },
-        "scene_token": {
-          "type": "string"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/SphereOptions"
+            },
+            "primitive": {
+              "const": "sphere",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/CylinderOptions"
+            },
+            "primitive": {
+              "const": "cylinder",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/ConeOptions"
+            },
+            "primitive": {
+              "const": "cone",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "scene_token",
-        "primitive"
       ],
       "title": "CreateArgs",
       "type": "object"

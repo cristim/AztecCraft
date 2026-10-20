@@ -20,6 +20,18 @@ pub const MAX_DIVISIONS: u32 = 128;
 /// can never reject anything.
 pub const MAX_FACES: u64 = 20_000;
 
+pub const DEFAULT_AXIS: Axis = Axis::Y;
+pub const DEFAULT_CUBE_SIZE_CM: f64 = 1.0;
+pub const DEFAULT_CUBE_DIVISIONS: u32 = 1;
+pub const DEFAULT_PLANE_SIZE_CM: f64 = 1.0;
+pub const DEFAULT_PLANE_DIVISIONS: u32 = 1;
+pub const DEFAULT_RADIUS_CM: f64 = 1.0;
+/// Cylinder and cone height.
+pub const DEFAULT_HEIGHT_CM: f64 = 2.0;
+pub const DEFAULT_AXIS_DIVISIONS: u32 = 20;
+pub const DEFAULT_SPHERE_HEIGHT_DIVISIONS: u32 = 20;
+pub const DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS: u32 = 1;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Axis {
     X,
@@ -115,42 +127,42 @@ impl PrimitiveOptions {
     // (the command page lists sz 1); Maya 2026 is unverified.
     /// Options equal to the meshes created before options existed.
     pub fn default_for(primitive: Primitive) -> Self {
-        let axis = Axis::Y;
+        let axis = DEFAULT_AXIS;
         match primitive {
             Primitive::Cube => Self::Cube {
-                width: 1.0,
-                height: 1.0,
-                depth: 1.0,
-                sub_width: 1,
-                sub_height: 1,
-                sub_depth: 1,
+                width: DEFAULT_CUBE_SIZE_CM,
+                height: DEFAULT_CUBE_SIZE_CM,
+                depth: DEFAULT_CUBE_SIZE_CM,
+                sub_width: DEFAULT_CUBE_DIVISIONS,
+                sub_height: DEFAULT_CUBE_DIVISIONS,
+                sub_depth: DEFAULT_CUBE_DIVISIONS,
                 axis,
             },
             Primitive::Plane => Self::Plane {
-                width: 1.0,
-                height: 1.0,
-                sub_width: 1,
-                sub_height: 1,
+                width: DEFAULT_PLANE_SIZE_CM,
+                height: DEFAULT_PLANE_SIZE_CM,
+                sub_width: DEFAULT_PLANE_DIVISIONS,
+                sub_height: DEFAULT_PLANE_DIVISIONS,
                 axis,
             },
             Primitive::Sphere => Self::Sphere {
-                radius: 1.0,
-                sub_axis: 20,
-                sub_height: 20,
+                radius: DEFAULT_RADIUS_CM,
+                sub_axis: DEFAULT_AXIS_DIVISIONS,
+                sub_height: DEFAULT_SPHERE_HEIGHT_DIVISIONS,
                 axis,
             },
             Primitive::Cylinder => Self::Cylinder {
-                radius: 1.0,
-                height: 2.0,
-                sub_axis: 20,
-                sub_height: 1,
+                radius: DEFAULT_RADIUS_CM,
+                height: DEFAULT_HEIGHT_CM,
+                sub_axis: DEFAULT_AXIS_DIVISIONS,
+                sub_height: DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS,
                 axis,
             },
             Primitive::Cone => Self::Cone {
-                radius: 1.0,
-                height: 2.0,
-                sub_axis: 20,
-                sub_height: 1,
+                radius: DEFAULT_RADIUS_CM,
+                height: DEFAULT_HEIGHT_CM,
+                sub_axis: DEFAULT_AXIS_DIVISIONS,
+                sub_height: DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS,
                 axis,
             },
         }
