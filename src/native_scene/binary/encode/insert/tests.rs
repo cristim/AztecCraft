@@ -65,6 +65,8 @@ fn one_record_is_placed_and_only_the_two_size_words_change() {
     let new = record([4.0, 5.0, 6.0]);
     assert_eq!(new.len(), 48);
     let plan = [Insertion {
+        owner: NativeId(1),
+        field: TransformField::Translation,
         at: triple,
         bytes: new.clone(),
         ancestors: vec![xfrm, 0],
@@ -91,11 +93,15 @@ fn two_insertions_in_different_groups_grow_each_group_and_the_root_once_per_reco
     let (first, second) = (layout[0], layout[1]);
     let plan = [
         Insertion {
+            owner: NativeId(1),
+            field: TransformField::Translation,
             at: first.1,
             bytes: record([1.0; 3]),
             ancestors: vec![first.0, 0],
         },
         Insertion {
+            owner: NativeId(1),
+            field: TransformField::Translation,
             at: second.1,
             bytes: record([2.0; 3]),
             ancestors: vec![second.0, 0],
@@ -125,6 +131,8 @@ fn malformed_plans_are_refused_without_panicking() {
     let (xfrm, triple) = layout(&original)[0];
     let next = layout(&original)[1].0;
     let insertion = |at, ancestors: &[usize]| Insertion {
+        owner: NativeId(1),
+        field: TransformField::Translation,
         at,
         bytes: record([0.0; 3]),
         ancestors: ancestors.to_vec(),
@@ -162,6 +170,8 @@ fn a_size_word_that_cannot_grow_is_a_resource_error() {
     original[8..16].copy_from_slice(&(u64::MAX - 47).to_be_bytes());
     let (xfrm, triple) = layout(&file())[0];
     let plan = [Insertion {
+        owner: NativeId(1),
+        field: TransformField::Translation,
         at: triple,
         bytes: record([0.0; 3]),
         ancestors: vec![xfrm, 0],
@@ -178,6 +188,8 @@ fn output_size_is_limited_to_the_container_maximum_at_the_boundary() {
     let fits = vec![0u8; MAX_BYTES - 48];
     let plan = |at| {
         [Insertion {
+            owner: NativeId(1),
+            field: TransformField::Translation,
             at,
             bytes: record([0.0; 3]),
             ancestors: vec![],
