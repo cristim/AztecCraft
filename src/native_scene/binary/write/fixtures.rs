@@ -41,6 +41,14 @@ impl Entry {
     }
 }
 
+/// `N` bytes at `at`, with a panic naming the offset when the file ends first.
+fn array<const N: usize>(file: &[u8], at: usize) -> [u8; N] {
+    at.checked_add(N)
+        .and_then(|end| file.get(at..end))
+        .and_then(|bytes| bytes.try_into().ok())
+        .unwrap_or_else(|| panic!("file ends before {N} bytes at {at:#x}"))
+}
+
 pub(super) fn walk(file: &[u8]) -> Vec<Entry> {
     let mut out = Vec::new();
     descend(file, 0, file.len(), 1, None, &mut out);
@@ -55,15 +63,23 @@ fn descend(
     parent_form: Option<[u8; 4]>,
     out: &mut Vec<Entry>,
 ) {
-    while at + 16 <= end {
-        let tag: [u8; 4] = file[at..at + 4].try_into().unwrap();
-        let aux = u32::from_be_bytes(file[at + 4..at + 8].try_into().unwrap());
-        let size = u64::from_be_bytes(file[at + 8..at + 16].try_into().unwrap()) as usize;
-        let payload = at + 16..at + 16 + size;
+    while at
+        .checked_add(16)
+        .is_some_and(|header_end| header_end <= end)
+    {
+        let tag: [u8; 4] = array(file, at);
+        let aux = u32::from_be_bytes(array(file, at + 4));
+        let size = u64::from_be_bytes(array(file, at + 8));
+        let Some((size, payload_end)) = usize::try_from(size)
+            .ok()
+            .and_then(|size| Some((size, (at + 16).checked_add(size)?)))
+        else {
+            panic!("chunk at {at:#x} has an unrepresentable size {size}");
+        };
+        let payload = at + 16..payload_end;
         assert!(payload.end <= end, "chunk at {at:#x} overruns its parent");
         let padded = (16 + size).next_multiple_of(align);
-        let form =
-            (tag == *b"FOR8").then(|| file[payload.start..payload.start + 4].try_into().unwrap());
+        let form = (tag == *b"FOR8").then(|| array(file, payload.start));
         out.push(Entry {
             tag,
             form,

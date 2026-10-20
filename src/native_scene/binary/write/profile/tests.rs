@@ -10,6 +10,18 @@ fn the_vendored_fixtures_have_the_recorded_sizes() {
 }
 
 #[test]
+fn the_walker_consumes_each_fixture_to_its_last_byte() {
+    for file in [MAYA_2025, MAYA_2026] {
+        let top: Vec<_> = walk(file)
+            .into_iter()
+            .filter(|e| e.parent_form.is_none())
+            .collect();
+        assert_eq!(top.last().map(|e| e.end), Some(file.len()));
+        assert!(top.windows(2).all(|pair| pair[0].end == pair[1].start));
+    }
+}
+
+#[test]
 fn the_fixture_is_a_maya_2025_file() {
     let finf: Vec<_> = MAYA_2025
         .windows(b"Maya 2025".len())
