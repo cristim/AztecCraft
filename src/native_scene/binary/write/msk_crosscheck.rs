@@ -1,5 +1,5 @@
-//! Records, without gating anything, that MayaSceneKit (pinned commit 95a11db) does not accept
-//! the writer's meshes. Maya acceptance of these files is unproven; this is the only third-party
+//! Records, without gating anything, that MayaSceneKit (pinned commit 95a11db) decodes the
+//! Maya-written `dummy_mesh.mb` but not the writer's meshes (inferred cause: the empty UV set). Maya acceptance of these files is unproven; this is the only third-party
 //! reader the project can run. It needs a locally built CLI, never builds one, and is ignored by
 //! default. How to build and run it: `.project-docs/mayascenekit-crosscheck.md`.
 use super::*;
@@ -17,25 +17,16 @@ fn is_undecoded_mesh(issue: &Value) -> bool {
         && field("kind") == Some("unsupported")
 }
 
-#[test]
-#[ignore = "needs AZTECCRAFT_MSK_BIN, a MayaSceneKit CLI built from commit 95a11db"]
-fn msk_refuses_the_writers_empty_uv_mesh() {
-    let Some(binary) = std::env::var_os(ENV) else {
-        eprintln!("{ENV} is unset: skipping the MayaSceneKit cross-check");
-        return;
-    };
-    let mut scene = NativeScene::default();
-    scene.create(Primitive::Cube, "cube1").unwrap();
+/// Runs the forensic `to-ascii` command on `input` and returns the parsed issues JSON.
+fn forensic_report(binary: &std::ffi::OsStr, input: &std::path::Path) -> Value {
     let directory = tempfile::tempdir().unwrap();
-    let (input, output, report) = (
-        directory.path().join("cube.mb"),
-        directory.path().join("cube.ma"),
+    let (output, report) = (
+        directory.path().join("out.ma"),
         directory.path().join("issues.json"),
     );
-    std::fs::write(&input, encode_authored(&scene).unwrap()).unwrap();
     let run = Command::new(binary)
         .arg("to-ascii")
-        .arg(&input)
+        .arg(input)
         .arg(&output)
         .arg("--issues-json")
         .arg(&report)
@@ -49,14 +40,60 @@ fn msk_refuses_the_writers_empty_uv_mesh() {
     );
     let bytes = std::fs::read(&report)
         .unwrap_or_else(|error| panic!("MayaSceneKit wrote no issues JSON ({error}): {text}"));
-    let issues: Value = serde_json::from_slice(&bytes)
-        .unwrap_or_else(|error| panic!("MayaSceneKit issues JSON is malformed ({error})"));
-    let list = issues
+    serde_json::from_slice(&bytes)
+        .unwrap_or_else(|error| panic!("MayaSceneKit issues JSON is malformed ({error})"))
+}
+
+fn issue_list(report: &Value) -> &Vec<Value> {
+    report
         .get("issues")
         .and_then(Value::as_array)
-        .unwrap_or_else(|| panic!("MayaSceneKit issues JSON has no `issues` array: {issues}"));
+        .unwrap_or_else(|| panic!("MayaSceneKit issues JSON has no `issues` array: {report}"))
+}
+
+fn has_exact_mesh_decode(report: &Value) -> bool {
+    report
+        .get("decode_quality_distribution")
+        .and_then(Value::as_array)
+        .is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                let field = |key: &str| entry.get(key).and_then(Value::as_str);
+                field("form") == Some("DMSH")
+                    && field("tag") == Some("MESH")
+                    && field("quality") == Some("exact")
+            })
+        })
+}
+
+#[test]
+#[ignore = "needs AZTECCRAFT_MSK_BIN, a MayaSceneKit CLI built from commit 95a11db"]
+fn msk_decodes_maya_meshes_but_not_the_writers_mesh() {
+    let Some(binary) = std::env::var_os(ENV) else {
+        eprintln!("{ENV} is unset: skipping the MayaSceneKit cross-check");
+        return;
+    };
+    let control_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/gt-tools/dummy_mesh.mb");
+    let control = forensic_report(&binary, &control_path);
     assert!(
-        list.iter().any(is_undecoded_mesh),
+        !issue_list(&control)
+            .iter()
+            .any(|issue| issue.get("trace_tag").and_then(Value::as_str) == Some("MESH")),
+        "MayaSceneKit now reports a MESH issue for the Maya-written control: {control}"
+    );
+    assert!(
+        has_exact_mesh_decode(&control),
+        "MayaSceneKit no longer lists an exact DMSH/MESH decode for the control: {control}"
+    );
+
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "cube1").unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("cube.mb");
+    std::fs::write(&input, encode_authored(&scene).unwrap()).unwrap();
+    let issues = forensic_report(&binary, &input);
+    assert!(
+        issue_list(&issues).iter().any(is_undecoded_mesh),
         "MayaSceneKit reports no unsupported MESH/DMSH issue any more: it may now decode our \
          meshes, or the report format changed. Revisit known-issues.md (Mesh Save is \
          PROVISIONAL) and this test. Report: {issues}"
