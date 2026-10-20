@@ -1,9 +1,10 @@
-use super::{BUILTINS, add, mul, resource};
+use super::{add, mul, resource};
 use crate::maya_ascii::{AsciiError, MAX_BYTES, Work};
 use crate::native_scene::{
-    DirectedEdge, GeometryViewFacts, NativeError, NativeMesh, NativeMeshShape, NativeScene,
-    NativeTransformNode, Points, TransformExtras, Units,
+    DirectedEdge, NativeError, NativeMesh, NativeMeshShape, NativeScene, NativeTransformNode,
+    Points,
     admission::{self, Budget},
+    authored::{self, AuthoredIneligible, names},
 };
 use std::{error::Error, fmt};
 
@@ -26,19 +27,6 @@ const FACE_HEADER_BYTES: usize = ARRAY_HEADER_BYTES + " -type \"polyFaces\"".len
 const FACE_ROW_BYTES: usize = "\tf \n".len() + "2147483647".len() + 1;
 const FACE_TOKEN_BYTES: usize = " -2147483648".len();
 const ARRAY_END: &[u8] = b";\n";
-const RESERVED: [&str; 11] = [
-    "persp",
-    "perspShape",
-    "top",
-    "topShape",
-    "front",
-    "frontShape",
-    "side",
-    "sideShape",
-    "lambert1",
-    "standardSurface1",
-    "particleCloud1",
-];
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum AsciiWriteRefusal {
@@ -106,13 +94,6 @@ impl Error for AsciiWriteRefusal {
     }
 }
 
-fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<crate::scene::NodeId>, &str)> {
-    scene
-        .nodes
-        .iter()
-        .map(|n| (Some(n.id), n.name()))
-        .chain(scene.shapes.iter().map(|s| (None, s.name())))
-}
 fn charge_face_counts(
     work: &mut Work,
     outer_references: usize,
@@ -194,125 +175,46 @@ fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
 }
 
 fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
-    use AsciiWriteRefusal as R;
-    if scene.source.is_some() {
-        return Err(R::SourcedScene);
-    }
-    if !scene.curves.is_empty() {
-        return Err(R::Curves);
-    }
-    resource_admission(scene).map_err(|_| R::ResourceLimit)?;
-    scene.validate().map_err(R::InvalidScene)?;
-    if scene.units != Units::default() {
-        return Err(R::UnsupportedUnits);
-    }
-    if scene.shapes.len() != scene.nodes.len()
-        || scene.nodes.len().checked_mul(2) != Some(scene.dag.len())
-    {
-        return Err(R::NonAuthoredHierarchy);
-    }
-    for node in &scene.nodes {
-        let (mut roots, mut children, mut child) = (0, 0, None);
-        for edge in &scene.dag {
-            if edge.parent.is_none() && edge.child == node.transform_id {
-                roots += 1;
-            }
-            if edge.parent == Some(node.transform_id) {
-                children += 1;
-                child = Some(edge.child);
-            }
-        }
-        if roots != 1 || children != 1 {
-            return Err(R::NonAuthoredHierarchy);
-        }
-        let shape = scene
-            .shapes
-            .iter()
-            .find(|s| Some(s.id) == child)
-            .ok_or(R::NonAuthoredHierarchy)?;
-        if shape.mesh().point_count() == 0 || shape.mesh().faces().is_empty() {
-            return Err(R::EmptyMesh);
-        }
-        eligibility(node, shape)?;
-    }
-    for (index, (id, name)) in names(scene).enumerate() {
-        scene.validate_new_name(id, name).map_err(|e| match e {
-            NativeError::InvalidName => R::InvalidName,
-            NativeError::NameCollision => R::NameCollision,
-            other => R::InvalidScene(other),
-        })?;
-        if RESERVED.contains(&name) || BUILTINS.contains(&name) {
-            return Err(R::ReservedName);
-        }
-        if names(scene).take(index).any(|(_, earlier)| earlier == name) {
-            return Err(R::NameCollision);
-        }
-    }
+    authored::check_content_kind(scene)?;
+    resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
+    authored::check_scene(scene)?;
     Ok(())
 }
 
-fn eligibility(
-    node: &NativeTransformNode,
-    shape: &NativeMeshShape,
-) -> Result<(), AsciiWriteRefusal> {
-    use AsciiWriteRefusal as R;
-    if node
-        .rotate_pivot
-        .iter()
-        .chain(&node.scale_pivot)
-        .any(|v| v.value.to_bits() != 0)
-    {
-        return Err(R::NonDefaultPivot);
+impl From<AuthoredIneligible> for AsciiWriteRefusal {
+    fn from(ineligible: AuthoredIneligible) -> Self {
+        use AuthoredIneligible as I;
+        match ineligible {
+            I::SourcedScene => Self::SourcedScene,
+            I::Curves => Self::Curves,
+            I::InvalidScene(error) => Self::InvalidScene(error),
+            I::UnsupportedUnits => Self::UnsupportedUnits,
+            I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,
+            I::InvalidName => Self::InvalidName,
+            I::ReservedName => Self::ReservedName,
+            I::NameCollision => Self::NameCollision,
+            I::EmptyMesh => Self::EmptyMesh,
+            I::NonDefaultPivot => Self::NonDefaultPivot,
+            I::TransformExtras => Self::TransformExtras,
+            I::TransformRestriction => Self::TransformRestriction,
+            I::UnsupportedTransformEffect => Self::UnsupportedTransformEffect,
+            I::TransformVisibility => Self::TransformVisibility,
+            I::ShapeRestriction => Self::ShapeRestriction,
+            I::ShapeVisibility => Self::ShapeVisibility,
+            I::Double3Points => Self::Double3Points,
+            I::PointOffsets => Self::PointOffsets,
+            I::EdgeSmoothing => Self::EdgeSmoothing,
+            I::FaceHoles => Self::FaceHoles,
+            I::UnsupportedMeshChannels => Self::UnsupportedMeshChannels,
+        }
     }
-    if node.extras != TransformExtras::default() {
-        return Err(R::TransformExtras);
-    }
-    if !node.restrictions.is_empty() {
-        return Err(R::TransformRestriction);
-    }
-    if !node.unsupported_transform.is_empty() {
-        return Err(R::UnsupportedTransformEffect);
-    }
-    if node.view != GeometryViewFacts::authored() {
-        return Err(R::TransformVisibility);
-    }
-    if !shape.restrictions.is_empty() {
-        return Err(R::ShapeRestriction);
-    }
-    if shape.view != GeometryViewFacts::authored() {
-        return Err(R::ShapeVisibility);
-    }
-    let mesh = shape.mesh();
-    if matches!(mesh.points(), Points::Double3(_)) {
-        return Err(R::Double3Points);
-    }
-    if mesh.has_point_offsets() {
-        return Err(R::PointOffsets);
-    }
-    if mesh.edges().iter().any(|edge| edge.smooth() != Some(false)) {
-        return Err(R::EdgeSmoothing);
-    }
-    if mesh.faces().iter().any(|face| !face.holes().is_empty()) {
-        return Err(R::FaceHoles);
-    }
-    if mesh.has_unsupported_channels() {
-        return Err(R::UnsupportedMeshChannels);
-    }
-    Ok(())
 }
 
 fn child<'a>(
     scene: &'a NativeScene,
     node: &NativeTransformNode,
 ) -> Result<&'a NativeMeshShape, AsciiWriteRefusal> {
-    let edge = scene
-        .dag
-        .iter()
-        .find(|edge| edge.parent == Some(node.transform_id))
-        .ok_or(AsciiWriteRefusal::NonAuthoredHierarchy)?;
-    scene
-        .shape(edge.child)
-        .map_err(|_| AsciiWriteRefusal::NonAuthoredHierarchy)
+    Ok(authored::shape_of(scene, node)?)
 }
 
 fn declaration_bytes(nodes: usize, name_bytes: usize) -> Result<usize, AsciiWriteRefusal> {

@@ -1,6 +1,7 @@
 pub(crate) mod admission;
 mod appearance;
 pub mod ascii;
+mod authored;
 pub mod binary;
 mod curve;
 mod manipulator_frame;

@@ -64,7 +64,7 @@ fn literal_equal(a: &[u8], b: &[u8], work: &mut Work) -> Result<bool, AsciiError
     }
 }
 
-const BUILTINS: [&str; 14] = [
+pub(super) const BUILTINS: [&str; 14] = [
     "time1",
     "hardwareRenderingGlobals",
     "renderPartition",
