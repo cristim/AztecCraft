@@ -525,14 +525,14 @@ mod hand_built_plans {
     #[test]
     fn an_empty_plan_is_todays_encode() {
         let (source, decoded, _) = setup(record([0.0; 3]));
-        assert_eq!(encode_with(&decoded, &[]).unwrap(), source);
+        assert_eq!(encode_with(&decoded, &[], &[]).unwrap(), source);
         assert_eq!(encode(&decoded).unwrap(), source);
     }
 
     #[test]
     fn a_planned_record_matching_the_scene_is_spliced_and_reparsed() {
         let (source, decoded, plan) = setup(record([0.0; 3]));
-        let output = encode_with(&decoded, &plan).unwrap();
+        let output = encode_with(&decoded, &plan, &[]).unwrap();
         assert_eq!(output.len(), source.len() + 48);
         let again = decode(output.into()).unwrap();
         assert_eq!(again.nodes()[0].transform().translation, [0.0; 3]);
@@ -549,7 +549,7 @@ mod hand_built_plans {
     fn a_planned_record_that_disagrees_with_the_scene_is_refused() {
         for values in [[5.0, 0.0, 0.0], [-0.0, 0.0, 0.0], [0.0, 0.0, 1e-300]] {
             let (_, decoded, plan) = setup(record(values));
-            let error = encode_with(&decoded, &plan).unwrap_err();
+            let error = encode_with(&decoded, &plan, &[]).unwrap_err();
             assert_eq!(error.kind(), ErrorKind::Unsupported, "{values:?}");
         }
     }
@@ -565,9 +565,9 @@ mod hand_built_plans {
             .iter()
             .find(|c| c.form() == Some(*b"XFRM"))
             .unwrap();
-        assert!(encode_with(&decoded, &plan).is_ok());
+        assert!(encode_with(&decoded, &plan, &[]).is_ok());
         plan[0].at = group.payload_range().end;
-        let error = encode_with(&decoded, &plan).unwrap_err();
+        let error = encode_with(&decoded, &plan, &[]).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::Unsupported);
     }
 
@@ -577,7 +577,7 @@ mod hand_built_plans {
         // Without the root the grown group overruns it and the reparse cannot read the file.
         let mut unrooted = plan_with_ancestors(&plan, |a| a.pop().map(drop).unwrap_or(()));
         assert_eq!(
-            encode_with(&decoded, &unrooted).unwrap_err().kind(),
+            encode_with(&decoded, &unrooted, &[]).unwrap_err().kind(),
             ErrorKind::Malformed
         );
         // Without the innermost group the record would be the group's sibling; the root pads its
@@ -594,7 +594,7 @@ mod hand_built_plans {
             .unwrap();
         unrooted[0].at = group.payload_range().end;
         assert_eq!(
-            encode_with(&decoded, &unrooted).unwrap_err().kind(),
+            encode_with(&decoded, &unrooted, &[]).unwrap_err().kind(),
             ErrorKind::Malformed
         );
     }
@@ -662,7 +662,7 @@ mod hand_built_plans {
             bytes: record([0.0; 3]),
             ancestors: vec![inspected.chunks()[xfrm].header_range().start, 0],
         }];
-        let error = encode_with(&decoded, &plan).unwrap_err();
+        let error = encode_with(&decoded, &plan, &[]).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::ResourceLimit);
     }
 
@@ -687,7 +687,7 @@ mod hand_built_plans {
             bytes: triple_aux(b"r", 0x1234_5678, [0.0; 3]),
             ancestors: vec![group.header_range().start, 0],
         }];
-        let output = encode_with(&decoded, &plan).unwrap();
+        let output = encode_with(&decoded, &plan, &[]).unwrap();
         assert_eq!(output.len(), source.len() + 48);
         let again = decode(output.into()).unwrap();
         assert!(again.materials == decoded.materials);
@@ -825,5 +825,47 @@ mod enabled {
         );
         let same: NativeTransform = edited.nodes()[0].transform();
         assert!(edited.set_transform(sited, same).is_ok());
+    }
+
+    /// Two sited nodes without a translation (`a`, `d`) and one with it.
+    fn pair(a: &[Vec<u8>], d: &[Vec<u8>]) -> Vec<u8> {
+        [
+            sited_transform(b"a", a),
+            sited_transform(b"d", d),
+            sited_transform(b"b", &[t([7.0, 8.0, 9.0])]),
+            other_node_with_triple(b"anchor", SITE_AUX),
+        ]
+        .concat()
+    }
+
+    #[test]
+    fn an_elided_leaf_and_an_insertion_in_one_save() {
+        let mut edited = decode(scene(&pair(&[], &[]))).unwrap();
+        let (a, d) = (edited.nodes()[0].id(), edited.nodes()[1].id());
+        edited.set_channel(d, Channel::TranslateX, 5.0).unwrap();
+        edited.set_channel(d, Channel::TranslateX, 0.0).unwrap();
+        edited.set_channel(a, Channel::TranslateY, 3.0).unwrap();
+        let expected = scene(&pair(&[t([0.0, 3.0, 0.0])], &[]));
+        assert_eq!(encode(&edited).unwrap(), expected.as_ref());
+    }
+
+    #[test]
+    fn a_value_that_underflows_to_zero_centimetres_is_elided() {
+        let bytes = scene_with_units(&children(&[]), b"mm", b"deg");
+        let mut edited = decode(bytes.clone()).unwrap();
+        let id = edited.nodes()[0].id();
+        edited.set_channel(id, Channel::TranslateX, 5e-324).unwrap();
+        assert_eq!(edited.nodes()[0].channels[0].value, 5e-324);
+        assert!(edited.nodes()[0].channels[0].replaced);
+        assert_eq!(encode(&edited).unwrap(), bytes.as_ref());
+    }
+
+    #[test]
+    fn a_forged_edit_on_a_node_without_a_site_is_refused_at_encode() {
+        let (_, mut forged) = open();
+        forged.nodes[2].channels[0].value = 2.0;
+        forged.nodes[2].channels[0].replaced = true;
+        assert!(forged.validate().is_err());
+        assert!(encode(&forged).is_err());
     }
 }
