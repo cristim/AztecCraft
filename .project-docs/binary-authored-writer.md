@@ -154,6 +154,12 @@ The mapping "bit31 clear = hard edge" from the ASCII `.ed` third value therefore
 All-clear is observed on one closed mesh, so the writer may emit it for closed meshes, but it stays I
 (PROVISIONAL) and the decoder's `smooth: None` is the only honest read-back.
 
+Public check on the vendored Maya 2025 fixture (`tests/fixtures/gt-tools/dummy_mesh.mb`, counted
+2026-10-20 by reading the `MESH` chunk at offset 0x11324 and counting face-loop uses per edge): 4,264 edges,
+all interior (every edge is used by exactly two face loops, no boundary edges), and 221 of them (5.2%)
+have bit31 set. So the one public closed mesh is not all clear either; the rule that a closed mesh
+writes all clear remains an invented value, PROVISIONAL, and not a Maya-observed rule.
+
 ## Refusals (typed, path-free, nothing dropped)
 
 The shared eligibility (`src/native_scene/authored.rs`) refuses: a retained source, curves, units other
@@ -171,8 +177,9 @@ over u32, output over 16 MiB and resource overruns.
 The writer decodes its own output with `binary::decode` and compares names, DAG pairing, units, `t/r/s`
 internal words, points, edge endpoints and face loops before returning bytes. UUIDs, `NativeId`s and edge
 smoothness differ by design. A raw-byte test checks the 16 `CREA` identity bytes, which the decoder skips.
-An ignored differential test rebuilds chunks from a private corpus given by environment variable and
-compares them to Maya's bytes; it never commits paths or content.
+No differential test against Maya-written files exists in the tree. The only cross-check against another
+reader is the ignored MayaSceneKit test described in `mayascenekit-crosscheck.md`, which records that
+MayaSceneKit refuses the writer's meshes.
 
 The self-check currently compares units, node count and order, names, DAG pairing and the t/r/s/pivot
 bit patterns, and for each mesh shape its name, point f32 bit patterns, edge endpoint pairs and face
