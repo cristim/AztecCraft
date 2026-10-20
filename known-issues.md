@@ -289,12 +289,19 @@ The Maya scripting/API surface and existing plug-ins aren't implemented or teste
 
 ## First-click text input can be lost
 
-**Severity:** medium
+**Severity:** low
 **Area:** native text fields
 
-With pinned egui 0.36.2, a previously unfocused name field drops a Text event delivered in the same frame as the initial pointer click. Its TextEdit builder processes text only when the field already has focus (builder.rs:572), before pointer handling requests focus (builder.rs:815). The same real Editor event sequence reproduces this without MCP. Text delivered in the following frame is inserted.
+Fixed for the common case: `Editor::render` focuses the name, channel or material field egui already hit-tested for a primary press before the field is shown, so Text, Backspace, Delete and Paste in the press frame reach it. Regression tests: `first_click_with_same_frame_text_reaches_unfocused_channel_field`, `first_click_press_release_and_text_in_one_frame_reaches_channel_field`, `first_click_on_another_field_commits_the_valid_draft_before_typing_there`.
 
-The MCP regression compares native and bridge-connected Editors with identical events and proves equal drafts, focus, scene and history, plus BusyEditing rejection of queued remote changes. It proves no additional input loss from MCP; it does not fix the native first-click defect. Native input handling and Maya reference comparison remain outstanding.
+Residuals, none verified against Maya (PROVISIONAL):
+
+- A first click while a menu or popup is open still drops the same-frame text (`first_click_text_is_ignored_while_a_popup_is_open`).
+- IME Commit on the first click is still lost: egui only routes IME events to a field that already enabled IME.
+- Same-frame arrow and Tab keys still move focus with the old focus filter, because egui computes the direction before the press.
+- Text typed in the press frame lands at the field's end caret; the press then moves the caret to the click point.
+- The manipulation numeric field is pre-focused too, but leaving it does not run the A-first commit, so its draft keeps its existing blur path.
+- After a move between name, channel or material fields, egui reports the old field's blur for two frames and the blur commit is skipped for both, which defers the new field's own valid blur in the second frame. The draft is kept and commits on the next blur, Enter or `commit_pending`, so nothing is lost.
 
 ## Native MCP idle responsiveness remains unverified
 

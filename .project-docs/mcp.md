@@ -376,7 +376,7 @@ Unsupported and repeated notifications are filtered before SDK dispatch. Oversiz
 
 Tool results are limited to 512 KiB and framed replies to at most 1 MiB, including the terminating newline. Inspection preflights source size before cloning nodes, then bounds serialized content. Large scenes can return `too_large` rather than partial inspection. These bounds do not promise inspection of arbitrary large scenes.
 
-The [known first-click text defect](../known-issues.md#first-click-text-input-can-be-lost) remains in pinned egui. Tests prove the bridge adds no input loss compared with the same native baseline and preserves text actually inserted in the following frame; they do not fix that defect.
+The [first-click text fix](../known-issues.md#first-click-text-input-can-be-lost) delivers same-frame click-and-type to the field egui hit-tested; the residual cases it lists still drop text. Tests prove the bridge adds no input loss compared with the same native baseline.
 
 ## Shutdown and verification
 
