@@ -1,6 +1,7 @@
 use super::{
     BinaryError, ErrorKind, admission::Budget, canonical, decode_with_retained_bytes, resource,
 };
+use crate::maya_binary::container;
 use crate::native_scene::{
     NativeScene, NativeTransformNode, appearance::SourceAppearance, source::SourceFormat,
 };
@@ -242,6 +243,17 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     let reparsed =
         decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
     verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
+    drop(reparsed);
+    budget.charge(output.len())?;
+    budget.charge(spliced.len())?;
+    let before = container::inspect(Arc::from(output.as_slice()))?;
+    let after = container::inspect(Arc::from(spliced.as_slice()))?;
+    place::check(scene, &before, &after, plan, &mut budget).map_err(
+        |violation| match violation {
+            place::Violation::Resource => resource(),
+            _ => unsupported(),
+        },
+    )?;
     Ok(spliced)
 }
 
@@ -332,7 +344,6 @@ fn verify(
 }
 
 mod insert;
-#[cfg(test)]
 mod place;
 mod plan;
 #[cfg(test)]
