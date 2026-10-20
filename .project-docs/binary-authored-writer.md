@@ -87,34 +87,32 @@ format inventions.
 
 ## "No UVs" is a documented state (citations, PROVISIONAL)
 
-Read 2026-10-20 with a fetch tool that returns a model-written answer to a prompt, not the raw page.
-Each phrase below is what that tool reported as a verbatim quote; it was not compared with the raw HTML.
-Autodesk's pages say a mesh may have no UVs. They say nothing about what a Maya Binary file stores for
-that state.
+Verified 2026-10-20 against the raw HTML of each page, fetched with curl, tags stripped. The quoted
+phrases below are exact. Autodesk's pages document "No UVs" as a primitive option and an empty UV set as
+a mesh state. They say nothing about what a Maya Binary file stores for either, and no page says in
+those words that UVs are optional.
 
-- polyCube: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCube.html.
-  `createUVs`: "Create UVs or not."; value "0: No UVs".
-- polyPlane: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyPlane.html.
-  "Create UVs or not."; "0: No UVs".
-- polyCylinder: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCylinder.html.
-  "Create UVs or not."; "0: No UVs".
-- polyCone: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCone.html.
-  "Create UVs or not."; "0: No UVs".
-- polySphere: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html.
-  Different wording: "The valid values are 0, 1, or 2." and "0 implies that no UVs will be generated (No texture to be applied)."
-  The page has no "0: No UVs" label.
-- None of the five pages mentions `clearUVs`, and none says in so many words that UVs are optional;
-  "Create UVs or not." is the closest.
-- MFnMesh: the 2026 class page could not be fetched (404 at `.../CPP_API/class_m_fn_mesh.html` and
-  `.../Maya-SDK/cpp_ref/class_m_fn_mesh.html`). The Maya 2022 page
-  https://help.autodesk.com/cloudhelp/2022/ENU/Maya-SDK/cpp_ref/class_m_fn_mesh.html (member list entry
-  for `clearUVs`) was reported as: "This method clears out all texture coordinates for the mesh, and
-  leaves behind an empty UVset." Only the member-list summary was readable (the page text is 467k
-  characters and only the first 100k were read). No sentence calling UVs optional was found. The 2026
-  wording is therefore unconfirmed.
+- polyCube: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCube.html,
+  flag `createUVs` (`cuv`): "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize Each Face
+  Separately 3: Normalize Collectively 4: Normalize and Preserve Aspect Ratio Default: 3"
+- polyPlane: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyPlane.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize and Preserve Aspect Ratio Default: 1"
+- polySphere: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html:
+  "0 implies that no UVs will be generated (No texture to be applied). 1 implies UVs are created with
+  pinched at poles 2 implies UVs are created with sawtooth at poles ... Default is 2"
+- polyCylinder: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCylinder.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize 3: Normalize and Preserve Aspect Ratio
+  Default: 2"
+- polyCone: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCone.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize 3: Normalize and Preserve Aspect Ratio
+  Default: 2"
+- MFnMesh: https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/class_m_fn_mesh.html
+  (identical text on the 2025 and 2022 pages), `clearUVs`: "This method clears out all texture
+  coordinates for the mesh, and leaves behind an empty UVset."
 
 What follows for the writer: an empty UV set is a documented outcome of `clearUVs`, which is the only
-reason the writer's empty `map1` is described as "no UVs" and not as invented UV data.
+reason the writer's empty `map1` is described as "no UVs" and not as invented UV data. Whether Maya
+accepts such a set in a file is unproven.
 
 ## Can a mesh omit the UV set entirely? (investigated, no)
 
