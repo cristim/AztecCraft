@@ -360,6 +360,23 @@ fn budget_accepts_57_and_rejects_58_subdivisions_per_axis() {
 }
 
 #[test]
+fn budget_accepts_exactly_max_faces_and_rejects_one_quad_pair_over() {
+    let at = cube_sub(50, 50, 75);
+    assert_eq!(at.face_count(), MAX_FACES);
+    assert_eq!(at.validate(Primitive::Cube), Ok(()));
+    // Cube counts are even, so 20,002 is the nearest count above the budget.
+    let over = cube_sub(2, 85, 113);
+    assert_eq!(over.face_count(), MAX_FACES + 2);
+    assert_eq!(
+        over.validate(Primitive::Cube),
+        Err(PrimitiveOptionsError::TooManyFaces {
+            faces: MAX_FACES + 2,
+            budget: MAX_FACES
+        })
+    );
+}
+
+#[test]
 fn cube_face_count_distinguishes_axes() {
     // 2*(2*3 + 3*4 + 2*4); a swapped term changes the total.
     assert_eq!(cube_sub(2, 3, 4).face_count(), 52);
