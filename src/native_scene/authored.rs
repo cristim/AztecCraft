@@ -8,15 +8,6 @@ use super::{
 };
 use crate::scene::NodeId;
 
-/// Maya release the writers target, shared by the ASCII header and the Binary `VERS` chunk.
-/// The decoders never read it. Only 2025 and 2026 have been observed in real files, and
-/// 2026 is the project's acceptance profile, so a 2027 form would be invented.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "first used by the Binary HEAD emission")
-)]
-pub(super) const MAYA_VERSION: &str = "2026";
-
 /// Names of the default Maya scene nodes that a file omitting that scene still
 /// collides with on load. `ascii::BUILTINS` holds the remaining default names.
 pub(super) const RESERVED: [&str; 11] = [
@@ -119,10 +110,6 @@ fn check_valid_units(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
 
 /// A scene of bare transforms: every node is a root with no child, and there is no
 /// shape. Binary emission starts here, since mesh content is not yet writable.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "first used by the Binary transform emission")
-)]
 pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
     check_valid_units(scene)?;

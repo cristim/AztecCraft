@@ -26,6 +26,8 @@ pub(super) struct Entry {
     pub aux: u32,
     pub start: usize,
     pub payload: Range<usize>,
+    /// Header, payload and padding to the parent's alignment.
+    pub end: usize,
     pub parent_form: Option<[u8; 4]>,
 }
 
@@ -33,6 +35,9 @@ impl Entry {
     /// Payload of a leaf, or children of a group after its form.
     pub(super) fn bytes<'a>(&self, file: &'a [u8]) -> &'a [u8] {
         &file[self.payload.clone()]
+    }
+    pub(super) fn whole<'a>(&self, file: &'a [u8]) -> &'a [u8] {
+        &file[self.start..self.end]
     }
 }
 
@@ -65,6 +70,7 @@ fn descend(
             aux,
             start: at,
             payload: payload.clone(),
+            end: at + padded,
             parent_form,
         });
         if let Some(form) = form {

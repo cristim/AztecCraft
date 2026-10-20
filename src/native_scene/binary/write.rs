@@ -1,7 +1,8 @@
 //! Writer for a fresh Maya Binary file from an authored (source-less) scene.
 //!
-//! Incomplete: only the framing builders exist so far, and the entry point below is
-//! a stub that no caller may use until the emission and self-check commits land.
+//! Incomplete: the framing builders, the profile constants and the `HEAD` group exist,
+//! and the entry point refuses every scene until emission and the self-check are
+//! complete, so no partial file is ever returned.
 
 #[cfg_attr(
     not(test),
@@ -14,34 +15,24 @@ mod fixtures;
     not(test),
     expect(dead_code, reason = "used by the emission that follows")
 )]
+mod head;
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "used by the emission that follows")
+)]
 mod profile;
 #[cfg(test)]
 mod sha256;
 
 use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
-use chunk::{Align, TooLarge, group};
-
-/// Aux word of the root and `XFRM` group headers. Observed as 0 in a public Maya 2026
-/// file (`tests/fixtures/mayascenekit/UPSTREAM.md`) and in every private file checked.
-const GROUP_AUX: u32 = 0;
-
-/// Aux word of `DBL3` leaves, and of no other kind. A public Maya 2026 file stores
-/// `0xb8010000` on all 7 of its `DBL3` chunks, but other kinds carry other values there
-/// (0, `0x24000000`), so this must never be used for `HEAD` children, `MESH` or `DBLE`.
-/// Source and pin: `tests/fixtures/mayascenekit/UPSTREAM.md`, checked by a test.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "first used by DBL3 emission in the transform commit"
-    )
-)]
-const DBL3_AUX: u32 = 0xb801_0000;
+use chunk::TooLarge;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum AuthoredBinaryRefusal {
     Ineligible(AuthoredIneligible),
     TooLarge,
+    /// Emission is incomplete; nothing is written until every part lands.
+    NotYetImplemented,
 }
 impl From<AuthoredIneligible> for AuthoredBinaryRefusal {
     fn from(ineligible: AuthoredIneligible) -> Self {
@@ -57,8 +48,12 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
 #[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
 pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     authored::check_content_kind(scene)?;
-    authored::check_scene(scene)?;
-    Ok(group(*b"Maya", GROUP_AUX, &[], Align::One)?)
+    if scene.shapes().is_empty() {
+        authored::check_transforms_only(scene)?;
+    } else {
+        authored::check_scene(scene)?;
+    }
+    Err(AuthoredBinaryRefusal::NotYetImplemented)
 }
 
 #[cfg(test)]
