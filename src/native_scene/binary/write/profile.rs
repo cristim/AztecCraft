@@ -1,6 +1,6 @@
 //! The Maya Binary profile the authored writer emits: one `VERS` string and the aux word
-//! of every chunk kind, all taken from a single public Maya 2025 file so that no two Maya
-//! releases are mixed. Source: `tests/fixtures/gt-tools/UPSTREAM.md`; each value is
+//! of every chunk kind emitted so far (the `MESH` aux is added with mesh emission), all
+//! taken from a single public Maya 2025 file so that no two Maya releases are mixed. Source: `tests/fixtures/gt-tools/UPSTREAM.md`; each value is
 //! pinned to that file's bytes by `profile/tests.rs`. Autodesk documents none of them.
 //!
 //! The aux word is a per-chunk-kind property in that file, never a file-wide constant, so
