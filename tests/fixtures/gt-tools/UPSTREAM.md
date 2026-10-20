@@ -23,8 +23,8 @@ The file is unmodified. Its FINF chunks name product "Maya 2025" and cut identif
 
 Autodesk publishes no Maya Binary specification. The authored Maya Binary writer takes its
 whole profile, the `VERS` string and the aux word of every chunk kind it emits, from this one
-file. Pinned so far: root and group headers, HEAD children, `CREA` and `DBL3`; the `MESH` aux
-(`0xa8000000` at 0x11324) is recorded in the writer note and gets its pin test with mesh emission, so no two Maya releases
+file. Pinned by tests: root and group headers, HEAD children, `CREA`, `DBL3`, the plain `DMSH`
+group and its `CREA`, and the `MESH` aux (`0xa8000000` at 0x11324), so no two Maya releases
 are mixed. `src/native_scene/binary/write/profile.rs` names each value and its tests read this
 file's bytes to pin it, so a constant cannot drift from its cited source. Offsets and values
 are in `.project-docs/binary-authored-writer.md`.

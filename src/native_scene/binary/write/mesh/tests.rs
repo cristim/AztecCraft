@@ -3,7 +3,7 @@ use crate::native_scene::{
     DirectedEdge, NativeEdge, NativeFace, NativeScene,
     binary::write::{
         chunk::group as framed,
-        fixtures::{groups, walk},
+        fixtures::{MAYA_2025, groups, leaves, walk},
         profile::ROOT_AUX,
     },
 };
@@ -189,6 +189,44 @@ fn bit31_is_set_on_boundary_edges_and_clear_on_interior_edges() {
 }
 
 #[test]
+fn an_open_mesh_marks_exactly_the_edges_of_its_hole_and_non_manifold_edges() {
+    let open = mesh_of(
+        &CUBE_POINTS,
+        &[
+            CUBE_FACES[0],
+            CUBE_FACES[2],
+            CUBE_FACES[3],
+            CUBE_FACES[4],
+            CUBE_FACES[5],
+        ],
+    );
+    let set: Vec<[usize; 2]> = open
+        .edges()
+        .iter()
+        .zip(flags(&open))
+        .filter(|(_, set)| *set)
+        .map(|(edge, _)| edge.endpoints())
+        .collect();
+    let mut hole = [[4, 5], [5, 6], [6, 7], [7, 4]].map(|[a, b]: [usize; 2]| [a.min(b), a.max(b)]);
+    let mut got: Vec<_> = set.iter().map(|[a, b]| [*a.min(b), *a.max(b)]).collect();
+    hole.sort();
+    got.sort();
+    assert_eq!(got, hole);
+    // Three triangles on one edge: that edge has three uses, and every other edge one.
+    let fan = mesh_of(
+        &[
+            [0.0; 3],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, -1.0, 0.0],
+        ],
+        &[&[0, 1, 2], &[1, 0, 3], &[0, 1, 4]],
+    );
+    assert!(flags(&fan).iter().all(|set| *set));
+}
+
+#[test]
 fn the_dmsh_group_is_crea_then_mesh_with_the_shape_name_parent_and_uuid() {
     let bytes = framed(
         *b"Maya",
@@ -212,4 +250,50 @@ fn the_dmsh_group_is_crea_then_mesh_with_the_shape_name_parent_and_uuid() {
     expected.extend_from_slice(b"cubeShape\0cube\0");
     expected.extend_from_slice(UUID.as_bytes());
     assert_eq!(kids[0].bytes(&bytes), expected);
+}
+
+#[test]
+fn the_aux_words_and_flag_are_what_the_fixture_stores() {
+    let entries = walk(MAYA_2025);
+    let mesh = leaves(&entries, b"MESH", b"DMSH");
+    assert_eq!(mesh.len(), 1);
+    assert_eq!((mesh[0].start, mesh[0].aux), (0x11324, MESH_AUX));
+    let dmsh = groups(&entries, b"DMSH");
+    assert_eq!(dmsh.len(), 2);
+    // The plain shape (no MESH) is the pair a fresh plain shape takes.
+    assert_eq!((dmsh[0].start, dmsh[0].aux), (0xe5c, DMSH_GROUP_AUX));
+    let crea = leaves(&entries, b"CREA", b"DMSH");
+    assert_eq!((crea[0].start, crea[0].aux), (0xe70, SHAPE_CREA_AUX));
+    // The skinned intermediate shape that holds the MESH differs, so it is not used.
+    assert_eq!((dmsh[1].start, dmsh[1].aux), (0xfd8, 0x4d02_0000));
+    assert_eq!((crea[1].start, crea[1].aux), (0xfec, 0x4702_0000));
+    assert!(
+        crea.iter()
+            .all(|c| c.bytes(MAYA_2025)[0] == SHAPE_CREA_FLAGS)
+    );
+    let io = leaves(&entries, b"DBLE", b"DMSH")
+        .into_iter()
+        .filter(|c| c.start > dmsh[1].start && c.bytes(MAYA_2025).starts_with(b"io\0"))
+        .count();
+    assert_eq!(io, 1, "the fixture's MESH shape is an intermediate object");
+}
+
+#[test]
+fn the_fixture_mesh_has_the_uv_header_set_name_and_trailer_the_writer_emits() {
+    let entries = walk(MAYA_2025);
+    let payload = leaves(&entries, b"MESH", b"DMSH")[0]
+        .bytes(MAYA_2025)
+        .to_vec();
+    let fixture = parse(&payload);
+    assert_eq!(
+        (fixture.key.as_slice(), fixture.kind),
+        (b"ci".as_slice(), 0x20)
+    );
+    assert_ne!(
+        fixture.key, MESH_KEY,
+        "the fixture key belongs to an intermediate shape"
+    );
+    assert_eq!(fixture.uv_header, UV_HEADER);
+    assert_eq!(fixture.uv_name, UV_SET);
+    assert_eq!(fixture.trailer, [0; TRAILER_BYTES]);
 }
