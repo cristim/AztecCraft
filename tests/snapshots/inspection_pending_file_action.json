@@ -142,7 +142,7 @@
     "remembered_vertex": null,
     "retained_source_bytes": 0,
     "retained_source_records": 0,
-    "save_as_available": false,
+    "save_as_available": true,
     "save_available": false,
     "save_reconciliation_required": false,
     "scene_token": "<uuid>",
