@@ -101,6 +101,7 @@ async fn native_sdk_new_scene_save_as_reopen_inspect_and_move_succeeds() {
     assert_eq!(before["dirty"], true);
 
     // The acceptance flow: save_scene_as, open it again, inspect, move. Nothing in between.
+    let token_before_save = editor.scene_token.to_string();
     let saved = tool(
         &mut editor,
         &context,
@@ -111,6 +112,7 @@ async fn native_sdk_new_scene_save_as_reopen_inspect_and_move_succeeds() {
     .await;
     assert_eq!(saved["outcome"], "saved");
     assert_eq!(saved["dirty"], false);
+    assert_eq!(saved["scene_token"], token_before_save);
     let opened = tool(
         &mut editor,
         &context,
@@ -125,14 +127,22 @@ async fn native_sdk_new_scene_save_as_reopen_inspect_and_move_succeeds() {
     assert_eq!(after["dirty"], false);
     assert_eq!(after["has_file"], true);
     let (names_before, names_after) = (summary(&before), summary(&after));
+    assert_eq!(names_before.len(), 4);
     assert_eq!(names_after.len(), 4);
     for (expected, actual) in names_before.iter().zip(&names_after) {
         assert_eq!(
             (&expected.name, &expected.shape, &expected.counts),
             (&actual.name, &actual.shape, &actual.counts)
         );
-        let pairs = expected.channels.iter().zip(&actual.channels);
-        for (e, a) in pairs.flat_map(|(e, a)| e.iter().zip(a)) {
+        let [translation, rotation, scale] =
+            [0, 1, 2].map(|i| (&expected.channels[i], &actual.channels[i]));
+        for (e, a) in [translation, scale]
+            .into_iter()
+            .flat_map(|(e, a)| e.iter().zip(a))
+        {
+            assert_eq!(e.to_bits(), a.to_bits(), "{expected:?} != {actual:?}");
+        }
+        for (e, a) in rotation.0.iter().zip(rotation.1) {
             // Rotations go degrees -> radians -> degrees, which is not bit-exact.
             assert!((e - a).abs() < 1e-9, "{expected:?} != {actual:?}");
         }
@@ -247,6 +257,7 @@ async fn native_sdk_new_scene_save_extras_needs_path_resave_occupied_and_guards(
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
     assert!(editor.is_dirty());
 
+    let token_before_save = editor.scene_token.to_string();
     let saved = tool(
         &mut editor,
         &context,
@@ -257,17 +268,20 @@ async fn native_sdk_new_scene_save_extras_needs_path_resave_occupied_and_guards(
     .await;
     assert_eq!(saved["outcome"], "saved");
     assert_eq!(saved["dirty"], false);
+    assert_eq!(saved["scene_token"], token_before_save);
     let first = std::fs::read(&destination).unwrap();
     assert_well_formed_mb(&first);
     let inspection = inspect_json(&mut editor, &context, &client).await;
     assert_eq!(inspection["document_origin"], "maya_binary");
     assert_eq!(inspection["has_file"], true);
     assert_eq!(inspection["save_available"], true);
-    assert_eq!(inspection["scene_token"], editor.scene_token.to_string());
+    assert_eq!(inspection["scene_token"], token_before_save);
 
     // Save re-encodes the live scene and verifies the file it wrote; the writer is deterministic.
+    let token_before_resave = editor.scene_token.to_string();
     let again = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
     assert_eq!(again["outcome"], "saved");
+    assert_eq!(again["scene_token"], token_before_resave);
     assert_eq!(std::fs::read(&destination).unwrap(), first);
 
     let node = inspection["nodes"][0]["id"].as_str().unwrap().to_owned();
