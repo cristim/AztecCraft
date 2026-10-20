@@ -1,20 +1,11 @@
-use super::{NativeMesh, axis::orient};
-use crate::primitive_options::Axis;
+use super::{NativeMesh, axis::orient, grid::RevolveGrid};
 use std::f64::consts::PI;
-
-// PROVISIONAL (#5): radius 1 and 20x20 are the polySphere node defaults; Maya 2026 is unverified.
-pub(super) struct SphereGrid {
-    pub radius: f64,
-    pub axis_divisions: usize,
-    pub height_divisions: usize,
-    pub axis: Axis,
-}
 
 impl NativeMesh {
     /// UV sphere with poles on `axis`: a vertex at each pole, `height_divisions - 1` rings
     /// between them, triangle fans at the poles and outward-wound quads between rings.
-    pub(super) fn polygon_sphere(grid: &SphereGrid) -> Self {
-        let SphereGrid {
+    pub(super) fn polygon_sphere(grid: &RevolveGrid) -> Self {
+        let RevolveGrid {
             radius,
             axis_divisions,
             height_divisions,

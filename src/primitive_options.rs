@@ -110,6 +110,9 @@ impl fmt::Display for PrimitiveOptionsError {
 impl std::error::Error for PrimitiveOptionsError {}
 
 impl PrimitiveOptions {
+    // PROVISIONAL (#5): sphere radius 1 and 20x20 are the polySphere node defaults; cylinder and cone
+    // radius 1, height 2 and 20x1 follow the polyCylinder (sc=0 variant) and polyCone node pages
+    // (the command page lists sz 1); Maya 2026 is unverified.
     /// Options equal to the meshes created before options existed.
     pub fn default_for(primitive: Primitive) -> Self {
         let axis = Axis::Y;

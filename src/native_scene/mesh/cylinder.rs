@@ -1,16 +1,13 @@
 use super::{NativeMesh, axis::orient, grid::RevolveGrid};
 use std::f64::consts::PI;
 
-// PROVISIONAL (#5): radius 1, height 2 and 20x1x0 follow the polyCylinder node page (sc=0 variant);
-// the command page lists sz 1 and Maya 2026 is unverified.
 impl NativeMesh {
     /// Cylinder along `axis`: `height_divisions + 1` rings of `axis_divisions` vertices from the
     /// top (ring 0) down, outward side quads per band and two true n-gon caps, with no cap centre
     /// vertices.
-    pub(super) fn polygon_cylinder(grid: &RevolveGrid) -> Self {
+    pub(super) fn polygon_cylinder(grid: &RevolveGrid, height: f64) -> Self {
         let RevolveGrid {
             radius,
-            height,
             axis_divisions: columns,
             height_divisions: bands,
             axis,

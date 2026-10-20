@@ -355,30 +355,29 @@ impl NativeMesh {
                 sub_axis,
                 sub_height,
                 axis,
-            } => Ok(Self::polygon_sphere(&sphere::SphereGrid {
-                radius,
-                axis_divisions: sub_axis as usize,
-                height_divisions: sub_height as usize,
-                axis,
-            })),
+            } => Ok(Self::polygon_sphere(&revolve(
+                radius, sub_axis, sub_height, axis,
+            ))),
             PrimitiveOptions::Cylinder {
                 radius,
                 height,
                 sub_axis,
                 sub_height,
                 axis,
-            } => Ok(Self::polygon_cylinder(&revolve(
-                radius, height, sub_axis, sub_height, axis,
-            ))),
+            } => Ok(Self::polygon_cylinder(
+                &revolve(radius, sub_axis, sub_height, axis),
+                height,
+            )),
             PrimitiveOptions::Cone {
                 radius,
                 height,
                 sub_axis,
                 sub_height,
                 axis,
-            } => Ok(Self::polygon_cone(&revolve(
-                radius, height, sub_axis, sub_height, axis,
-            ))),
+            } => Ok(Self::polygon_cone(
+                &revolve(radius, sub_axis, sub_height, axis),
+                height,
+            )),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -640,14 +639,12 @@ mod tests;
 
 fn revolve(
     radius: f64,
-    height: f64,
     sub_axis: u32,
     sub_height: u32,
     axis: crate::primitive_options::Axis,
 ) -> grid::RevolveGrid {
     grid::RevolveGrid {
         radius,
-        height,
         axis_divisions: sub_axis as usize,
         height_divisions: sub_height as usize,
         axis,
