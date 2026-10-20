@@ -34,5 +34,11 @@ tests, from https://github.com/yamahigashi/MayaSceneKit at commit
 text is tests/fixtures/mayascenekit/LICENSE and the provenance is in tests/fixtures/mayascenekit/UPSTREAM.md.
 It is not part of the binary or of packaged builds.
 
+gt-tools test fixture (tests/fixtures/gt-tools) - one Maya Binary file used only by unit tests,
+from https://github.com/TrevisanGMW/gt-tools at commit 05837d6621b2256138c1fdf7e7a4546945dd935d,
+MIT, copyright (c) 2020 Guilherme Trevisan. The license text is tests/fixtures/gt-tools/LICENSE and
+the provenance is in tests/fixtures/gt-tools/UPSTREAM.md. It is not part of the binary or of
+packaged builds.
+
 Rust crate dependencies remain under their own licenses (see Cargo.lock); no per-crate license
 bundle is shipped.

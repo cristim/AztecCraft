@@ -1,3 +1,4 @@
 tests/snapshots/** text eol=lf
 .project-docs/mcp-tools.md text eol=lf
 tests/fixtures/mayascenekit/*.mb binary
+tests/fixtures/gt-tools/*.mb binary
