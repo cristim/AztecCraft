@@ -1,6 +1,8 @@
 //! Over MCP, a sited node in an opened Maya Binary scene gets its absent translate leaf inserted
 //! on Save (issue #19); rotate, scale and every other node still refuse with `absent_channel_leaf`.
 use super::*;
+use crate::editor_operations::FileDecision;
+use azteccraft::native_scene::NativeScene;
 
 #[allow(dead_code)]
 mod sited {
@@ -12,6 +14,31 @@ mod sited {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/support/maya_binary_sited.rs"
     ));
+}
+
+/// The sited scene plus `locked`: a transform whose first leaf is a rotate pivot (`rp`), so the file
+/// records no site for it and its absent translate leaf cannot be inserted.
+fn siteless_bytes() -> Vec<u8> {
+    let sited = sited_bytes();
+    let tree = azteccraft::maya_binary::container::inspect(sited.clone().into()).unwrap();
+    let locked = sited::sited_transform(
+        b"locked",
+        &[sited::triple_aux(b"rp", sited::SITE_AUX, [0.0; 3])],
+    );
+    // Insert before the DMSH group, then fix the root size word (the only ancestor).
+    let at = tree
+        .chunks()
+        .iter()
+        .find(|chunk| chunk.tag() == *b"FOR8" && &sited[chunk.payload_range()][..4] == b"DMSH")
+        .unwrap()
+        .header_range()
+        .start;
+    let mut bytes = sited[..at].to_vec();
+    bytes.extend(&locked);
+    bytes.extend(&sited[at..]);
+    let size = (bytes.len() as u64 - 16).to_be_bytes();
+    bytes[8..16].copy_from_slice(&size);
+    bytes
 }
 
 fn sited_bytes() -> Vec<u8> {
@@ -38,7 +65,10 @@ struct Node {
 
 impl Rig {
     async fn open() -> Self {
-        let original = sited_bytes();
+        Self::open_bytes(sited_bytes()).await
+    }
+
+    async fn open_bytes(original: Vec<u8>) -> Self {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("sited.mb");
         std::fs::write(&source, &original).unwrap();
@@ -54,8 +84,9 @@ impl Rig {
         )
         .await;
         assert_eq!(
-            opened.structured_content.unwrap()["outcome"],
-            "document_applied"
+            opened.structured_content.as_ref().unwrap()["outcome"],
+            "document_applied",
+            "{opened:?}"
         );
         let token = editor.scene_token.to_string();
         Self {
@@ -144,8 +175,6 @@ impl Rig {
         self.server.await.unwrap();
     }
 }
-
-use azteccraft::native_scene::NativeScene;
 
 fn inserted_record(values: [f64; 3]) -> Vec<u8> {
     sited::triple_aux(b"t", sited::SITE_AUX, values)
@@ -356,9 +385,11 @@ async fn rotate_scale_and_siteless_edits_over_mcp_still_refuse_with_absent_chann
         let mut args = json!({"scene_token":rig.token,"node_id":node.node});
         args[field] = value;
         let refused = rig.call("edit_node", args).await;
+        let error = refused.structured_content.unwrap()["error"].clone();
+        assert_eq!(error["code"], "scene_error", "{field}");
         assert_eq!(
-            refused.structured_content.unwrap()["error"]["code"],
-            "scene_error"
+            error["message"], "native ownership or edit effects are unsupported",
+            "{field}"
         );
         assert_eq!(rig.baseline(), before);
     }
@@ -366,7 +397,42 @@ async fn rotate_scale_and_siteless_edits_over_mcp_still_refuse_with_absent_chann
     rig.finish().await;
 }
 
-use crate::editor_operations::FileDecision;
+#[tokio::test]
+async fn a_node_without_a_recorded_site_still_refuses_translate_over_mcp() {
+    let mut rig = Rig::open_bytes(siteless_bytes()).await;
+    let locked = rig.node("locked");
+    rig.select(&locked).await;
+    let before = rig.baseline();
+    let refused = rig
+        .call(
+            "begin_manipulation",
+            rig.begin(&locked, json!({"kind":"move","axis":"x"})),
+        )
+        .await;
+    let error = refused.structured_content.unwrap()["error"].clone();
+    assert_eq!(error["code"], "absent_channel_leaf");
+    assert_eq!(
+        error["message"],
+        "translateX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported"
+    );
+    assert!(rig.editor.history.active_manipulation().is_none());
+    assert_eq!(rig.baseline(), before);
+    let refused = rig
+        .call(
+            "edit_node",
+            json!({"scene_token":rig.token,"node_id":locked.node,"translation":[2,null,null]}),
+        )
+        .await;
+    let error = refused.structured_content.unwrap()["error"].clone();
+    assert_eq!(error["code"], "scene_error");
+    assert_eq!(
+        error["message"],
+        "native ownership or edit effects are unsupported"
+    );
+    assert_eq!(rig.baseline(), before);
+    assert_eq!(std::fs::read(&rig.source).unwrap(), rig.original);
+    rig.finish().await;
+}
 
 impl Rig {
     async fn code(&mut self, name: &'static str, arguments: Value) -> String {
@@ -515,7 +581,7 @@ async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseli
         assert_eq!(case.baseline(), before);
     }
     case.finish().await;
-    // The clean, dirty document accepts both once nothing is pending, and then fails atomically.
+    // With nothing pending the dirty document accepts an edit, and a refused edit then fails atomically.
     let again = rig
         .call(
             "edit_node",
