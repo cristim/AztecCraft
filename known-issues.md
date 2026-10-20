@@ -547,6 +547,18 @@ unsupported Tool Settings panel. Gimbal, Parent, Normal, Custom and Component ar
 disabled. The MCP `update_manipulation` takes an absolute Rotate angle in the scene
 angular unit and the native numeric field takes degrees; both reach the core as degrees.
 
+## Primitive creation options are partial and PROVISIONAL (#174)
+
+`create_primitive` accepts size, subdivision and axis (X, Y or Z) options for cube, plane,
+sphere, cylinder and cone; the native Create menu has no option boxes yet (PR B). Created
+primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
+limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
+PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
+Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
+interactive creation, Free and Camera axis, and editing the options after creation (no
+construction history). The plane default stays 1x1 pending #176, where the polyPlane page
+conflicts with itself (5 and 10).
+
 ## Grid lines over primitive faces are expected (#111, closed)
 
 #111 closed as expected behaviour: origin-centred primitives straddle the y=0 grid plane, so grid
