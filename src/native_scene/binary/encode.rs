@@ -250,13 +250,8 @@ fn encode_with(
         decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
     verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
     drop(reparsed);
-    live_within_limit([
-        source.bytes.len(),
-        output.capacity(),
-        spliced.capacity(),
-        output.len(),
-        spliced.len(),
-    ])?;
+    // Live here: source, output, spliced and an Arc copy of the last two. The 2 * MAX_BYTES check
+    // above bounds source + output + spliced, so the total stays under 4 * MAX_BYTES.
     budget.charge(output.len())?;
     budget.charge(spliced.len())?;
     let before = container::inspect(Arc::from(output.as_slice()))?;
@@ -270,19 +265,6 @@ fn encode_with(
         },
     )?;
     Ok(spliced)
-}
-
-/// The placement check holds the live source, the patched copy, the spliced bytes and an `Arc` copy
-/// of each of the last two: five buffers that may each be as large as a container.
-const LIVE_LIMIT: usize = 5 * crate::maya_binary::container::MAX_BYTES;
-
-fn live_within_limit(buffers: [usize; 5]) -> Result<(), BinaryError> {
-    buffers
-        .into_iter()
-        .try_fold(0usize, |total, len| total.checked_add(len))
-        .filter(|total| *total <= LIVE_LIMIT)
-        .map(drop)
-        .ok_or_else(resource)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

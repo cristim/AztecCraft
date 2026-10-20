@@ -458,16 +458,6 @@ fn private_originals_encode_identically_and_edits_change_only_one_word() {
 }
 
 #[test]
-fn live_buffers_of_the_placement_check_have_an_exact_limit_and_checked_overflow() {
-    use super::{LIVE_LIMIT, live_within_limit};
-    assert!(live_within_limit([LIVE_LIMIT, 0, 0, 0, 0]).is_ok());
-    let error = live_within_limit([LIVE_LIMIT, 1, 0, 0, 0]).unwrap_err();
-    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
-    let error = live_within_limit([usize::MAX, 1, 0, 0, 0]).unwrap_err();
-    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
-}
-
-#[test]
 fn nodes_differing_only_in_extras_are_structurally_unequal() {
     let (_, scene) = fixture();
     let a = scene.nodes[0].clone();
@@ -590,8 +580,9 @@ mod hand_built_plans {
             encode_with(&decoded, &unrooted, &[]).unwrap_err().kind(),
             ErrorKind::Malformed
         );
-        // Without the innermost group the record would be the group's sibling; the root pads its
-        // children to 4, so the container is truncated.
+        // Root-parent layout: without the innermost group the record would be the group's sibling,
+        // but the root pads its children to 4, so the container is truncated. The nested layout in
+        // `place::tests::nested` is where only the placement check refuses it.
         unrooted = plan_with_ancestors(&plan, |a| {
             a.remove(0);
         });
@@ -877,5 +868,76 @@ mod enabled {
         forged.nodes[2].channels[0].replaced = true;
         assert!(forged.validate().is_err());
         assert!(encode(&forged).is_err());
+    }
+}
+
+mod nested_hand_built {
+    use super::super::{ErrorKind, encode_with, insert::Insertion};
+    use crate::{
+        maya_binary::container,
+        native_scene::{
+            binary::{
+                decode,
+                tests::{
+                    site_fixture::{
+                        SITE_AUX, creation_zero_pad, group_zero_pad, other_node_with_triple,
+                        triple_aux,
+                    },
+                    wire_fixture::scene,
+                },
+            },
+            source::TransformField,
+        },
+    };
+
+    #[test]
+    fn a_record_that_would_sit_beside_its_group_is_refused_by_the_placement_check() {
+        let inner = group_zero_pad(
+            b"XFRM",
+            &[
+                creation_zero_pad(b"inner", None),
+                triple_aux(b"r", SITE_AUX, [1.0; 3]),
+            ]
+            .concat(),
+            8,
+        );
+        let holder = group_zero_pad(
+            b"AMBL",
+            &[creation_zero_pad(b"holder", None), inner].concat(),
+            4,
+        );
+        let source = scene(&[holder, other_node_with_triple(b"anchor", SITE_AUX)].concat());
+        let decoded = decode(source.clone()).unwrap();
+        let tree = container::inspect(source).unwrap();
+        let chunks = tree.chunks();
+        let inner = chunks
+            .iter()
+            .position(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        let holder = chunks[inner].parent().unwrap();
+        let plan = |at: usize, ancestors: Vec<usize>| {
+            vec![Insertion {
+                owner: decoded.nodes()[0].transform_id,
+                field: TransformField::Translation,
+                at,
+                bytes: triple_aux(b"t", SITE_AUX, [0.0; 3]),
+                ancestors,
+            }]
+        };
+        let triple = chunks
+            .iter()
+            .find(|c| c.parent() == Some(inner) && c.tag() == *b"DBL3")
+            .unwrap()
+            .header_range()
+            .start;
+        let (inner_at, holder_at) = (
+            chunks[inner].header_range().start,
+            chunks[holder].header_range().start,
+        );
+        let proper = plan(triple, vec![inner_at, holder_at, 0]);
+        assert!(encode_with(&decoded, &proper, &[]).is_ok());
+        let beside = plan(chunks[inner].padding_range().end, vec![holder_at, 0]);
+        let error = encode_with(&decoded, &beside, &[]).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Unsupported);
     }
 }

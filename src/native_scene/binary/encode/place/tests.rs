@@ -84,7 +84,14 @@ fn insertion(owner: NativeId, at: usize, group: usize) -> Insertion {
 }
 
 fn verdict(plan: &[Insertion], tamper: impl FnOnce(&mut Vec<u8>)) -> Result<(), Violation> {
-    let source = bytes();
+    verdict_in(bytes(), plan, tamper)
+}
+
+fn verdict_in(
+    source: Arc<[u8]>,
+    plan: &[Insertion],
+    tamper: impl FnOnce(&mut Vec<u8>),
+) -> Result<(), Violation> {
     let decoded = decode(source.clone()).unwrap();
     let mut budget = Budget::new(source.len()).unwrap();
     let mut spliced = splice(&source, plan, &mut budget).unwrap();
@@ -133,7 +140,7 @@ fn a_record_in_another_group_is_not_the_owners() {
 }
 
 #[test]
-fn a_missing_ancestor_never_reaches_the_placement_check_in_this_layout() {
+fn a_missing_ancestor_never_reaches_the_placement_check_in_the_root_parent_layout() {
     let (_, m) = setup();
     let source = bytes();
     let mut budget = Budget::new(source.len()).unwrap();
@@ -238,5 +245,97 @@ fn any_other_changed_byte_is_refused() {
     ] {
         let found = verdict(&plan, |b| tamper(b));
         assert_eq!(found, Err(Violation::Chunk), "{name}");
+    }
+}
+
+/// A transform inside an `AMBL` group (children aligned to 8), so a 48-byte record can be a valid
+/// sibling of the transform: the layout in which only the placement check can tell.
+mod nested {
+    use super::*;
+    use crate::native_scene::binary::tests::site_fixture::{creation_zero_pad, group_zero_pad};
+
+    fn source() -> Arc<[u8]> {
+        let inner = group_zero_pad(
+            b"XFRM",
+            &[
+                creation_zero_pad(b"inner", None),
+                triple_aux(b"r", SITE_AUX, [1.0; 3]),
+            ]
+            .concat(),
+            8,
+        );
+        let holder = group_zero_pad(
+            b"AMBL",
+            &[creation_zero_pad(b"holder", None), inner].concat(),
+            4,
+        );
+        scene(&[holder, other_node_with_triple(b"anchor", SITE_AUX)].concat())
+    }
+
+    /// `(owner, inner header, holder header, end of the inner group with its padding, first triple)`.
+    fn marks() -> (NativeId, usize, usize, usize, usize) {
+        let source = source();
+        let decoded = decode(source.clone()).unwrap();
+        let tree = inspect(source).unwrap();
+        let chunks = tree.chunks();
+        let inner = chunks
+            .iter()
+            .position(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        let triple = chunks
+            .iter()
+            .find(|c| c.parent() == Some(inner) && c.tag() == *b"DBL3")
+            .unwrap();
+        let holder = chunks[inner].parent().unwrap();
+        (
+            decoded.nodes()[0].transform_id,
+            chunks[inner].header_range().start,
+            chunks[holder].header_range().start,
+            chunks[inner].padding_range().end,
+            triple.header_range().start,
+        )
+    }
+
+    #[test]
+    fn the_site_names_the_whole_chain_and_the_proper_record_is_placed() {
+        let (owner, inner, holder, _, triple) = marks();
+        let found = decode(source()).unwrap();
+        let site = &found.source.as_ref().unwrap().sites[0];
+        assert_eq!(
+            (site.at, site.ancestors.clone()),
+            (triple, vec![inner, holder, 0])
+        );
+        let good = insertion(owner, triple, inner);
+        let good = Insertion {
+            ancestors: vec![inner, holder, 0],
+            ..good
+        };
+        assert_eq!(verdict_in(source(), &[good], |_| {}), Ok(()));
+    }
+
+    #[test]
+    fn dropping_the_innermost_ancestor_yields_a_valid_container_that_only_placement_refuses() {
+        let (owner, _, holder, inner_end, _) = marks();
+        let sibling = Insertion {
+            ancestors: vec![holder, 0],
+            ..insertion(owner, inner_end, holder)
+        };
+        assert_eq!(
+            verdict_in(source(), std::slice::from_ref(&sibling), |_| {}),
+            Err(Violation::Parent)
+        );
+    }
+
+    #[test]
+    fn dropping_a_middle_ancestor_leaves_a_group_too_small_for_its_child() {
+        let (owner, inner, _, _, triple) = marks();
+        let source = source();
+        let mut budget = Budget::new(source.len()).unwrap();
+        let skipped = Insertion {
+            ancestors: vec![inner, 0],
+            ..insertion(owner, triple, inner)
+        };
+        let spliced = splice(&source, &[skipped], &mut budget).unwrap();
+        assert!(inspect(spliced.into()).is_err());
     }
 }
