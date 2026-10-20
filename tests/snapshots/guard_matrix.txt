@@ -2699,6 +2699,180 @@
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
 
+## sited_binary_dirty / native
+  baseline:
+    nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
+    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=false
+  set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(select) => Ok(unchanged) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | no state change
+  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  begin_move => Ok(manipulation_started) | active_move: none -> native
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  update_move => Err(Move: manipulation identifier is absent or stale) | no state change
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
+  begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
+  set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  assign_session_material(new) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  inspect => Ok(scene) | no state change
+  create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  select(node) => Ok(unchanged) | no state change
+  select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
+  set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
+  select_face(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  select_face(face_mode) => Ok(changed) | face_remembered: false -> true
+  select_vertex(object_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_vertex(vertex_mode) => Ok(changed) | vertex_remembered: false -> true
+  select_vertex(vertex_mode_clear) => Ok(unchanged) | no state change
+  select_vertex(face_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_edge(object_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
+  select_edge(edge_mode_clear) => Ok(unchanged) | no state change
+  select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
+  request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
+  open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
+  open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_transform => Ok(changed) | scene changed; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 1,2,3,0,0,0,1,1,1
+  edit_node(translate_x) => Ok(unchanged) | no state change
+  edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
+  edit_node(empty) => Ok(unchanged) | no state change
+  extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  undo => Ok(changed) | scene changed; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
+  redo => Ok(unchanged) | no state change
+  frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
+  set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
+  set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
+  select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
+  select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
+  orbit => Ok(changed) | camera changed
+  pan => Ok(changed) | camera changed
+  dolly => Ok(changed) | camera changed
+
+## sited_binary_dirty / remote
+  baseline:
+    nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
+    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=false
+  set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
+  set_active_tool(select) => Ok(unchanged) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | no state change
+  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  begin_move => Ok(manipulation_started) | active_move: none -> remote
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  update_move => Err(Move: manipulation identifier is absent or stale) | no state change
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_scale(object) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
+  begin_scale(world) => Err(Move: scaleX is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported) | no state change
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
+  set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_session_material => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  assign_session_material(new) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  inspect => Ok(scene) | no state change
+  create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  select(node) => Ok(unchanged) | no state change
+  select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
+  set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
+  select_face(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  select_face(face_mode) => Ok(changed) | face_remembered: false -> true
+  select_vertex(object_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_vertex(vertex_mode) => Ok(changed) | vertex_remembered: false -> true
+  select_vertex(vertex_mode_clear) => Ok(unchanged) | no state change
+  select_vertex(face_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_edge(object_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
+  select_edge(edge_mode_clear) => Ok(unchanged) | no state change
+  select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  new_scene => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> New
+  request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
+  open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
+  open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_transform => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 1,2,3,0,0,0,1,1,1
+  edit_node(translate_x) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
+  edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Transform"; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
+  redo => Ok(unchanged) | status: "Scene ready" -> "No change"
+  frame_selected => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
+  set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
+  set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
+  select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
+  select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
+  orbit => Ok(changed) | camera changed
+  pan => Ok(changed) | camera changed
+  dolly => Ok(changed) | camera changed
+
 ## no_install / native
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
@@ -3047,4 +3221,4 @@
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 2662
+cells: 2814

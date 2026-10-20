@@ -434,6 +434,34 @@
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
+## sited_binary_dirty / native
+  baseline:
+    nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
+    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=false
+  save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
+## sited_binary_dirty / remote
+  baseline:
+    nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
+    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
+    can_undo=true can_redo=false
+  save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
 ## no_install / native
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
@@ -490,4 +518,4 @@
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
-cells: 105
+cells: 111
