@@ -85,6 +85,37 @@ bodies and `known-issues.md`.
 `Retention`, `AuthoredRefusalCode` and the other save-integration types are code structures, not file
 format inventions.
 
+## "No UVs" is a documented state (citations, PROVISIONAL)
+
+Read 2026-10-20 with a fetch tool that returns a model-written answer to a prompt, not the raw page.
+Each phrase below is what that tool reported as a verbatim quote; it was not compared with the raw HTML.
+Autodesk's pages say a mesh may have no UVs. They say nothing about what a Maya Binary file stores for
+that state.
+
+- polyCube: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCube.html.
+  `createUVs`: "Create UVs or not."; value "0: No UVs".
+- polyPlane: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyPlane.html.
+  "Create UVs or not."; "0: No UVs".
+- polyCylinder: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCylinder.html.
+  "Create UVs or not."; "0: No UVs".
+- polyCone: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCone.html.
+  "Create UVs or not."; "0: No UVs".
+- polySphere: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html.
+  Different wording: "The valid values are 0, 1, or 2." and "0 implies that no UVs will be generated (No texture to be applied)."
+  The page has no "0: No UVs" label.
+- None of the five pages mentions `clearUVs`, and none says in so many words that UVs are optional;
+  "Create UVs or not." is the closest.
+- MFnMesh: the 2026 class page could not be fetched (404 at `.../CPP_API/class_m_fn_mesh.html` and
+  `.../Maya-SDK/cpp_ref/class_m_fn_mesh.html`). The Maya 2022 page
+  https://help.autodesk.com/cloudhelp/2022/ENU/Maya-SDK/cpp_ref/class_m_fn_mesh.html (member list entry
+  for `clearUVs`) was reported as: "This method clears out all texture coordinates for the mesh, and
+  leaves behind an empty UVset." Only the member-list summary was readable (the page text is 467k
+  characters and only the first 100k were read). No sentence calling UVs optional was found. The 2026
+  wording is therefore unconfirmed.
+
+What follows for the writer: an empty UV set is a documented outcome of `clearUVs`, which is the only
+reason the writer's empty `map1` is described as "no UVs" and not as invented UV data.
+
 ## Task 1.0: edge bit31 against topology (private corpus, aggregate)
 
 Read-only structural correlation over 5 files, 29 meshes, 61,429 edges. Adjacent-face normals come from
