@@ -4,12 +4,12 @@
 
 use super::{
     GeometryViewFacts, NativeError, NativeMeshShape, NativeScene, NativeTransformNode, Points,
-    TransformExtras, Units, ascii::BUILTINS,
+    TransformExtras, Units,
 };
 use crate::scene::NodeId;
 
 /// Names of the default Maya scene nodes that a file omitting that scene still
-/// collides with on load. `ascii::BUILTINS` holds the remaining default names.
+/// collides with on load. `BUILTINS` holds the remaining default names.
 pub(super) const RESERVED: [&str; 11] = [
     "persp",
     "perspShape",
@@ -22,6 +22,24 @@ pub(super) const RESERVED: [&str; 11] = [
     "lambert1",
     "standardSurface1",
     "particleCloud1",
+];
+
+/// Further default scene names, which the ASCII decoder also treats as already present.
+pub(super) const BUILTINS: [&str; 14] = [
+    "time1",
+    "hardwareRenderingGlobals",
+    "renderPartition",
+    "defaultShaderList1",
+    "postProcessList1",
+    "ikSystem",
+    "renderGlobalsList1",
+    "defaultRenderingList1",
+    "initialShadingGroup",
+    "initialParticleSE",
+    "defaultRenderGlobals",
+    "defaultResolution",
+    "hardwareRenderGlobals",
+    "defaultLightSet",
 ];
 
 #[derive(Debug, PartialEq, Eq)]

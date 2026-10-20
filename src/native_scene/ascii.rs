@@ -2,6 +2,7 @@ use super::{
     DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeScene,
     NativeTransform, NativeTransformNode, Scalar, TransformExtras, Units,
     admission::Budget,
+    authored::BUILTINS,
     curve::CurveSource,
     source::{SourceFormat, SourceRetention},
 };
@@ -63,23 +64,6 @@ fn literal_equal(a: &[u8], b: &[u8], work: &mut Work) -> Result<bool, AsciiError
         }
     }
 }
-
-pub(super) const BUILTINS: [&str; 14] = [
-    "time1",
-    "hardwareRenderingGlobals",
-    "renderPartition",
-    "defaultShaderList1",
-    "postProcessList1",
-    "ikSystem",
-    "renderGlobalsList1",
-    "defaultRenderingList1",
-    "initialShadingGroup",
-    "initialParticleSE",
-    "defaultRenderGlobals",
-    "defaultResolution",
-    "hardwareRenderGlobals",
-    "defaultLightSet",
-];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
