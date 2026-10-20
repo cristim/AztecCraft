@@ -57,8 +57,9 @@ still succeeds and the edit is refused as before (`UnsupportedEdit` / `AbsentCha
 4. Every `DBL3` chunk in the whole file, in any group, has the same aux value A, and at least one
    exists; the group's `DBLE` also has A. Any disagreement, or no `DBL3` in the file, means no site.
    The value is never invented.
-5. Existing `DBL3` chunks in the group are canonical: payload `key NUL 0x20` plus 24 bytes (27 for
-   single-letter keys, 28 for `rp`/`sp`), padding to alignment 8 all zero.
+5. Every `DBL3` chunk in the whole file is canonical: payload `key NUL 0x20` plus 24 bytes (27 for
+   single-letter keys, 28 for `rp`/`sp`) and all-zero padding to alignment 8. One exception anywhere
+   means no site in the file, because the file then does not look like Maya's own output.
 6. The record is inserted at the header start of the first existing `DBL3`, else at the end of the
    group's payload.
 7. The record is `DBL3`, aux A, size 27, `t` NUL `0x20`, three big-endian f64 in internal centimetres,

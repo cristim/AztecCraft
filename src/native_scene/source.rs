@@ -72,7 +72,8 @@ pub(super) struct SourceLeaf {
 
 /// Where an absent default leaf of `owner` may be spliced into the source bytes.
 ///
-/// `at` is the byte offset of the new record. `ancestors` holds the header start of every
+/// `at` is the byte offset of the new record and `aux` the header word every `DBL3` of the file
+/// shares, which the record copies. `ancestors` holds the header start of every
 /// enclosing group, innermost first and the root last, whose size words grow with the record.
 /// PROVISIONAL: see `.project-docs/binary-leaf-insertion.md`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -80,6 +81,7 @@ pub(super) struct InsertSite {
     pub(super) owner: NativeId,
     pub(super) field: TransformField,
     pub(super) at: usize,
+    pub(super) aux: u32,
     pub(super) ancestors: Vec<usize>,
 }
 

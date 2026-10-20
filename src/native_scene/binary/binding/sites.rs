@@ -14,12 +14,31 @@ use crate::{
 
 const FIRST_RANK_MAX: usize = 2;
 
+/// The one aux word shared by every `DBL3` in the file; `None` when there is none, they differ or
+/// one is not written as Maya writes it. The word is copied into the new record, never chosen.
+///
+/// Canonical means payload `key NUL 0x20` plus three words, which the decoder already enforces, and
+/// all-zero padding. Checking every `DBL3` of the file, not only the target group's, keeps the
+/// evidence that Maya wrote this file.
+fn file_aux(container: &Container) -> Option<u32> {
+    let mut aux = None;
+    for chunk in container.chunks().iter().filter(|c| c.tag() == *b"DBL3") {
+        let zero_padded = container.source()[chunk.padding_range()]
+            .iter()
+            .all(|byte| *byte == 0);
+        if !zero_padded || *aux.get_or_insert(chunk.auxiliary()) != chunk.auxiliary() {
+            return None;
+        }
+    }
+    aux
+}
+
 /// Byte offset of the new `t` record when `binding` matches the grammar, else `None`.
 ///
 /// Decoding already guarantees what is not re-checked here: the group is `FOR8` `XFRM`, its first
 /// child is the `CREA`, a `DBLE` is the `v` visibility word (kind `0x24`) unless a custom attribute
 /// precedes it, and a `DBL3` key is one of t/r/s/rp/sp (`effects::inspect` rejects anything else).
-fn place(container: &Container, binding: &Binding) -> Option<usize> {
+fn place(container: &Container, binding: &Binding, aux: u32) -> Option<usize> {
     binding.transform?;
     let mut kids = children(container, binding.group);
     kids.next()?;
@@ -28,7 +47,9 @@ fn place(container: &Container, binding: &Binding) -> Option<usize> {
     let mut first_triple = None;
     for chunk in kids {
         match &chunk.tag() {
-            b"DBLE" if !seen_visibility && last_rank.is_none() => seen_visibility = true,
+            b"DBLE" if !seen_visibility && last_rank.is_none() && chunk.auxiliary() == aux => {
+                seen_visibility = true;
+            }
             b"DBL3" => {
                 let rank = field(key(container, chunk).ok()?)?;
                 let ordered = match last_rank {
@@ -53,9 +74,12 @@ pub(super) fn collect(
     bindings: &[Binding],
     budget: &mut Budget,
 ) -> Result<Vec<InsertSite>, BinaryError> {
+    let Some(aux) = file_aux(container) else {
+        return Ok(Vec::new());
+    };
     let mut sites = budget.vector(bindings.len())?;
     for binding in bindings {
-        let Some(at) = place(container, binding) else {
+        let Some(at) = place(container, binding, aux) else {
             continue;
         };
         let mut chain = Vec::new();
@@ -71,6 +95,7 @@ pub(super) fn collect(
             owner: binding.id,
             field: TransformField::Translation,
             at,
+            aux,
             ancestors,
         });
     }

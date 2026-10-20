@@ -615,6 +615,17 @@ fn face_headers_and_leaf_overlap_work_are_real_admission_terms() {
         .kind(),
         ErrorKind::ResourceLimit
     );
+    let many_sites = Counts {
+        transforms: 2000,
+        dag: 2000,
+        sites: 2000,
+        site_ancestors: 1_600_000,
+        ..Counts::default()
+    };
+    assert_eq!(
+        many_sites.admit_work().unwrap_err().kind(),
+        ErrorKind::ResourceLimit
+    );
     let many_leaves = Counts {
         transforms: 2000,
         dag: 2000,
