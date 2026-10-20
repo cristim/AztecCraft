@@ -828,6 +828,84 @@ mod enabled {
         assert!(edited.set_transform(sited, same).is_ok());
     }
 
+    #[test]
+    fn a_signed_zero_companion_of_a_real_edit_reopens_bit_equal() {
+        let (_, mut edited) = open();
+        let id = edited.nodes()[0].id();
+        edited.set_channel(id, Channel::TranslateX, 5.0).unwrap();
+        edited.set_channel(id, Channel::TranslateY, -0.0).unwrap();
+        let output = encode(&edited).unwrap();
+        assert_eq!(output, scene(&children(&[t([5.0, -0.0, 0.0])])).as_ref());
+        let reopened = decode(output.into()).unwrap();
+        assert_eq!(
+            translation(&reopened, 0),
+            [5.0f64.to_bits(), (-0.0f64).to_bits(), 0.0f64.to_bits()]
+        );
+    }
+
+    #[test]
+    fn float_noise_on_an_absent_rotation_or_scale_still_refuses_through_set_transform() {
+        // The rotation case is also pinned in `nodes_without_a_site_and_ungated_fields_keep_…`.
+        let (_, mut edited) = open();
+        let id = edited.nodes()[0].id();
+        let mut noisy = edited.nodes()[0].transform();
+        noisy.scale[0] = 1.0 + 1e-12;
+        assert_eq!(
+            edited.set_transform(id, noisy),
+            Err(NativeError::UnsupportedEdit)
+        );
+        let mut noisy = edited.nodes()[0].transform();
+        noisy.translation[0] = 5.0;
+        noisy.rotation[2] = 1e-12;
+        assert_eq!(
+            edited.set_transform(id, noisy),
+            Err(NativeError::UnsupportedEdit)
+        );
+        assert_eq!(translation(&edited, 0), [0.0f64.to_bits(); 3]);
+    }
+
+    /// The appearance specimen with Maya-style zero padding and its object's `t` renamed `r`, so
+    /// the object has no translation but a site, and its shape and material follow it.
+    fn appearance_without_translation() -> Arc<[u8]> {
+        let mut bytes =
+            crate::native_scene::binary::tests::appearance_fixture::appearance_specimen();
+        let tree = crate::maya_binary::container::inspect(bytes.clone().into()).unwrap();
+        for chunk in tree.chunks() {
+            bytes[chunk.padding_range()].fill(0);
+        }
+        let translation = tree
+            .chunks()
+            .iter()
+            .find(|c| c.tag() == *b"DBL3" && bytes[c.payload_range()].starts_with(b"t\0"))
+            .unwrap();
+        bytes[translation.payload_range().start] = b'r';
+        bytes.into()
+    }
+
+    #[test]
+    fn a_shape_appearance_after_the_inserted_leaf_keeps_its_diffuse_edit_in_the_same_save() {
+        let mut edited = decode(appearance_without_translation()).unwrap();
+        let object = edited.nodes()[0].id();
+        let shape = edited.shapes()[0].id();
+        assert!(!edited.source.as_ref().unwrap().sites.is_empty());
+        let before = edited.material_for_shape(shape).unwrap();
+        edited
+            .set_channel(object, Channel::TranslateX, 4.0)
+            .unwrap();
+        edited.set_material_diffuse(shape, 0.25).unwrap();
+        let output = encode(&edited).unwrap();
+        assert_eq!(
+            output.len(),
+            edited.source.as_ref().unwrap().bytes.len() + 48
+        );
+        let reopened = decode(output.into()).unwrap();
+        assert_eq!(translation(&reopened, 0)[0], 4.0f64.to_bits());
+        let after = reopened.material_for_shape(shape).unwrap();
+        assert_eq!(after.diffuse.to_bits(), 0.25f64.to_bits());
+        assert_ne!(before.diffuse.to_bits(), after.diffuse.to_bits());
+        assert_eq!(after.shared_users, before.shared_users);
+    }
+
     /// Two sited nodes without a translation (`a`, `d`) and one with it.
     fn pair(a: &[Vec<u8>], d: &[Vec<u8>]) -> Vec<u8> {
         [
