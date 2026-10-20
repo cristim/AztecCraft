@@ -21,10 +21,10 @@ The file is unmodified. Its FINF chunks name product "Maya 2026" and cut identif
 
 ## Why it is here
 
-Autodesk publishes no Maya Binary specification. The authored writer needs the aux word
-that Maya itself stores on `DBL3` leaves. `src/native_scene/binary/write.rs` pins its
-`DBL3_AUX` constant, and the framing constants it shares with this file, to the bytes of
-this fixture with a test, so the value cannot drift from its cited public source.
+Autodesk publishes no Maya Binary specification. This Maya 2026 file is kept for read and
+decode tests, and for the table below, which shows that aux words differ between releases. The
+authored writer does not take any value from it: its whole profile comes from one Maya 2025 file,
+`tests/fixtures/gt-tools/` (see `.project-docs/binary-authored-writer.md`).
 
 Aux words observed in this file, by chunk kind (this is why one constant is not shared
 across kinds). Groups: the root `Maya`, the leading `HEAD`, `XFRM` and `DCAM` carry `0`;

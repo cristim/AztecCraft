@@ -593,3 +593,19 @@ shortcut. Alt-drag may be grabbed by some Linux window managers; reconfigure the
 text includes the path. No remote operation takes a path today, so remote calls cannot
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
+
+## Authored Maya Binary writer: unproven profile
+
+**Severity:** medium
+**Area:** file format
+**Issue:** cristim/AztecCraft#156
+
+The fresh `.mb` writer (`src/native_scene/binary/write.rs`) takes its profile (`VERS` and the aux word
+of each chunk kind) from one public Maya 2025 file and emits groups shorter than any Maya wrote. Files
+it produces are Maya 2025-format; that Maya 2026 opens them, and that Maya accepts them at all, is
+PROVISIONAL and unproven. AztecCraft's own decoder reopening a file is the only check. Saved meshes
+will carry no shading assignment. The invented items are the I rows of
+`.project-docs/binary-authored-writer.md`.
+
+Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
+profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
