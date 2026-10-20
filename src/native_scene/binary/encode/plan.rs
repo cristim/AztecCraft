@@ -13,25 +13,13 @@ use crate::native_scene::{
 
 pub(super) use crate::native_scene::source::INSERTABLE;
 
-/// `(owner, field)` of every gated field whose three scalars have no origin and an edit. It is
-/// either inserted or, when every word is +0.0, left absent.
-pub(super) fn edited_absent(
-    scene: &NativeScene,
-    insertable: &[TransformField],
-) -> Vec<(NativeId, TransformField)> {
-    let mut found = Vec::new();
-    for node in &scene.nodes {
-        for field in FIELDS
-            .into_iter()
-            .filter(|field| insertable.contains(field))
-        {
-            let scalars = node.field(field);
-            if scalars.iter().all(|s| s.origin.is_none()) && scalars.iter().any(|s| s.replaced) {
-                found.push((node.transform_id, field));
-            }
-        }
-    }
-    found
+/// What a save does about edited absent leaves.
+#[derive(Default)]
+pub(super) struct Planned {
+    /// Records to splice in, in node order, which is file order; `splice` refuses anything else.
+    pub(super) insertions: Vec<Insertion>,
+    /// Edited leaves whose words are all +0.0: the file keeps lacking them, which is their default.
+    pub(super) elided: Vec<(NativeId, TransformField)>,
 }
 
 /// The record for `field` holding `words` (internal units), with the file's own `aux`.
@@ -53,13 +41,13 @@ pub(super) fn build_record(
     leaf(*b"DBL3", aux, &payload, Align::Eight).map_err(|_| resource())
 }
 
-/// Insertions for every edited absent leaf of a field in `insertable`, in node order, which is file order; `splice` refuses anything else.
+/// Plans every edited absent leaf of a field in `insertable`.
 pub(super) fn plan(
     scene: &NativeScene,
     source: &SourceRetention,
     insertable: &[TransformField],
-) -> Result<Vec<Insertion>, BinaryError> {
-    let mut plan = Vec::new();
+) -> Result<Planned, BinaryError> {
+    let mut planned = Planned::default();
     for node in &scene.nodes {
         for field in FIELDS
             .into_iter()
@@ -88,12 +76,13 @@ pub(super) fn plan(
                 }
             }
             if words.iter().all(|word| word.to_bits() == 0.0f64.to_bits()) {
+                planned.elided.push((node.transform_id, field));
                 continue;
             }
             let site = source
                 .insert_site(node.transform_id, field)
                 .ok_or_else(unsupported)?;
-            plan.push(Insertion {
+            planned.insertions.push(Insertion {
                 owner: node.transform_id,
                 field,
                 at: site.at,
@@ -102,7 +91,7 @@ pub(super) fn plan(
             });
         }
     }
-    Ok(plan)
+    Ok(planned)
 }
 
 #[cfg(test)]

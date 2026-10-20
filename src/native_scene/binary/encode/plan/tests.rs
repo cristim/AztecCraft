@@ -40,7 +40,7 @@ fn edit(scene: &mut NativeScene, node: usize, component: usize, value: f64) {
 }
 
 fn run(scene: &NativeScene, fields: &[TransformField]) -> Result<Vec<Insertion>, BinaryError> {
-    plan(scene, scene.source.as_ref().unwrap(), fields)
+    plan(scene, scene.source.as_ref().unwrap(), fields).map(|planned| planned.insertions)
 }
 
 /// Payload end of the `index`th transform group, from the container's chunk boundaries.
@@ -142,7 +142,12 @@ fn all_zero_words_insert_nothing_but_negative_zero_is_an_edit() {
     let mut scene = decoded(wire_scene(&file(SITE_AUX)));
     edit(&mut scene, 0, 0, 5.0);
     edit(&mut scene, 0, 0, 0.0);
-    assert!(run(&scene, T).unwrap().is_empty());
+    let planned = plan(&scene, scene.source.as_ref().unwrap(), T).unwrap();
+    assert!(planned.insertions.is_empty());
+    assert_eq!(
+        planned.elided,
+        [(scene.nodes[0].transform_id, TransformField::Translation)]
+    );
     edit(&mut scene, 0, 2, -0.0);
     let found = run(&scene, T).unwrap();
     assert_eq!(found[0].bytes, triple_aux(b"t", SITE_AUX, [0.0, 0.0, -0.0]));

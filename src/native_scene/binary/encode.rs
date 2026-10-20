@@ -112,20 +112,24 @@ fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError>
 
 pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     // Without a binary source `encode_with` reports the refusal.
-    let plan = match scene
+    let planned = match scene
         .source
         .as_ref()
         .filter(|source| source.format == SourceFormat::Binary)
     {
         Some(source) => plan::plan(scene, source, plan::INSERTABLE)?,
-        None => Vec::new(),
+        None => plan::Planned::default(),
     };
-    encode_with(scene, &plan)
+    encode_with(scene, &planned.insertions, &planned.elided)
 }
 
 /// `plan` lists default leaves to splice in after the word patches. Production plans come from
 /// `plan::plan` over the `INSERTABLE` gate; tests hand-build plans.
-fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, BinaryError> {
+fn encode_with(
+    scene: &NativeScene,
+    plan: &[Insertion],
+    elided: &[(NativeId, TransformField)],
+) -> Result<Vec<u8>, BinaryError> {
     if !scene.curves.is_empty() {
         return Err(unsupported());
     }
@@ -158,11 +162,9 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
             .checked_add(retained_material_metadata(scene)?)
             .ok_or_else(resource)?,
     )?;
-    // Edited leaves the file does not have yet: inserted by `plan`, or elided because every word is
-    // +0.0. The patched copy and the word patches cannot see them.
-    let absent = plan::edited_absent(scene, plan::INSERTABLE);
+    // Edited leaves the file does not have: inserted below, or elided because every word is +0.0.
+    // The word patches have no leaf for either. The patched copy still lacks the inserted ones.
     let planned: Vec<_> = plan.iter().map(|i| (i.owner, i.field)).collect();
-    let skipped = [absent.as_slice(), planned.as_slice()].concat();
     let mut output = budget.vector::<u8>(source.bytes.len())?;
     output.extend_from_slice(&source.bytes);
     for node in &scene.nodes {
@@ -171,7 +173,8 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
                 if !scalar.replaced {
                     continue;
                 }
-                if scalar.origin.is_none() && skipped.contains(&(node.transform_id, field)) {
+                let key = (node.transform_id, field);
+                if scalar.origin.is_none() && (planned.contains(&key) || elided.contains(&key)) {
                     continue;
                 }
                 let origin = scalar.origin.as_ref().ok_or_else(unsupported)?;
@@ -230,7 +233,7 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     let retained_appearance = retained_material_metadata(scene)?;
     let parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
-    verify(scene, source, &parsed, &skipped, Appearance::Exact)?;
+    verify(scene, source, &parsed, &planned, Appearance::Exact)?;
     // Its Arc copy of `output` is not counted in `retained` below, so release it first.
     drop(parsed);
     if plan.is_empty() {
@@ -245,12 +248,7 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
     budget.charge(spliced.len())?;
     let reparsed =
         decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
-    // Elided fields are still absent from the file; inserted ones must now match.
-    let elided: Vec<_> = absent
-        .into_iter()
-        .filter(|a| !planned.contains(a))
-        .collect();
-    verify(scene, source, &reparsed, &elided, Appearance::Relocated)?;
+    verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
     drop(reparsed);
     budget.charge(output.len())?;
     budget.charge(spliced.len())?;
