@@ -926,7 +926,8 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
     let (mut editor, context) = setup();
     let output = strip_output(&mut editor, &context);
     let at = button_center(&output, CHANNEL_BOX);
-    // Pre-focus in earlier frames: the first click on a field can lose text (known-issues).
+    // Pre-focus in earlier frames: this test needs the field focused before the click, so it
+    // does not rely on the first-click pre-focus (a first click under an open popup still drops text).
     context.memory_mut(|memory| memory.request_focus(channel_edit_id(0)));
     frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
     frame_with(

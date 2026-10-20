@@ -6997,3 +6997,124 @@ fn view_menu_frame_all_row_dispatches_the_frame_all_operation() {
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
     assert_eq!(editor.camera, expected);
 }
+
+fn first_click_with_key_into_channel_field(event: egui::Event, caret: usize) -> String {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    editor.channels[0] = "12".into();
+    frame(&mut editor, &ctx, vec![]);
+    let mut state = egui::TextEdit::load_state(&ctx, channel_edit_id(0)).unwrap_or_default();
+    state
+        .cursor
+        .set_char_range(Some(egui::text::CCursorRange::one(
+            egui::text::CCursor::new(caret),
+        )));
+    state.store(&ctx, channel_edit_id(0));
+    let center = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            primary_button(center, true),
+            event,
+        ],
+    );
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(0))
+    );
+    editor.channels[0].clone()
+}
+
+#[test]
+fn first_click_with_same_frame_backspace_edits_the_field_at_the_end_caret() {
+    assert_eq!(
+        first_click_with_key_into_channel_field(key(Key::Backspace), 2),
+        "1"
+    );
+}
+
+#[test]
+fn first_click_with_same_frame_delete_removes_the_character_after_the_caret() {
+    assert_eq!(
+        first_click_with_key_into_channel_field(key(Key::Delete), 0),
+        "2"
+    );
+}
+
+#[test]
+fn first_click_with_same_frame_paste_inserts_at_the_end_caret() {
+    assert_eq!(
+        first_click_with_key_into_channel_field(egui::Event::Paste("9".into()), 2),
+        "129"
+    );
+}
+
+#[test]
+fn first_click_on_the_material_field_receives_same_frame_text() {
+    let mut editor = material_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(ctx.memory(|memory| memory.focused()), None);
+    let before = editor.material_draft.as_ref().unwrap().text.clone();
+    click_with_text(&mut editor, &ctx, material_edit_id(), "5");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(material_edit_id())
+    );
+    assert_eq!(
+        editor.material_draft.as_ref().unwrap().text,
+        format!("{before}5")
+    );
+}
+
+#[test]
+fn first_click_on_the_disabled_material_field_keeps_the_channel_draft_and_its_text() {
+    // Diffuse is disabled while a channel draft exists, so a channel to Diffuse move cannot occur.
+    let mut editor = material_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    let before = editor.history.scene().clone();
+    let material = editor.material_draft.as_ref().unwrap().text.clone();
+    type_into_channel(&mut editor, &ctx, 0, "5");
+    assert_eq!(editor.channels[0], "15");
+    click_with_text(&mut editor, &ctx, material_edit_id(), "5");
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(0))
+    );
+    assert_eq!(editor.channels[0], "155");
+    assert_eq!(editor.material_draft.as_ref().unwrap().text, material);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn release_click_and_tab_after_a_first_click_defer_the_blur_commit_once() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_channel(&mut editor, &ctx, 0, "5");
+    click_with_text(&mut editor, &ctx, channel_edit_id(1), "3");
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    let center = ctx.read_response(channel_edit_id(1)).unwrap().rect.center();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![primary_button(center, false), key(Key::Tab)],
+    );
+    // B's blur is reported in the skipped frame; the draft survives it.
+    assert_eq!(editor.channels[1], "03");
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation,
+        [5.0, 3.0, 0.0]
+    );
+    assert_eq!(undo_entries(&mut editor), undo_before + 2);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert_eq!(undo_entries(&mut editor), undo_before + 2);
+    assert!(!editor.has_draft());
+}
