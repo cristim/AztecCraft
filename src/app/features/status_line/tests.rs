@@ -963,6 +963,29 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
 }
 
 #[test]
+fn first_click_text_is_ignored_while_a_popup_is_open() {
+    let (mut editor, context) = setup();
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let combo = strip(&output).remove(0);
+    click(&mut editor, &context, combo.rect.center());
+    assert!(egui::Popup::is_any_open(&context));
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let field = context
+        .read_response(channel_edit_id(0))
+        .unwrap()
+        .rect
+        .center();
+    let channels = editor.channels.clone();
+    let mut events = vec![Event::PointerMoved(field)];
+    events.extend(press_release(field));
+    events.push(Event::Text("7".into()));
+    frame_with(&mut editor, &context, SIZE, 1.0, events);
+    assert_eq!(editor.channels, channels);
+    assert!(!editor.has_draft());
+}
+
+#[test]
 fn new_scene_in_the_same_frame_drops_the_toggle_request() {
     // Fallback path, not the Space-plus-click frame. Spiked: Space alone activates the toggle
     // with the File popup open, but a pointer press on "New scene" in that frame moves focus

@@ -3560,6 +3560,108 @@ fn first_click_text_is_ignored_while_a_modal_is_open() {
 }
 
 #[test]
+fn first_click_with_same_frame_text_reaches_the_name_field() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let name = editor.name.clone();
+    click_with_text(&mut editor, &ctx, name_edit_id(), "x");
+    assert_eq!(editor.name, format!("{name}x"));
+    assert_eq!(ctx.memory(|memory| memory.focused()), Some(name_edit_id()));
+}
+
+#[test]
+fn secondary_button_press_does_not_deliver_same_frame_text() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let center = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    let channels = editor.channels.clone();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            egui::Event::PointerButton {
+                pos: center,
+                button: egui::PointerButton::Secondary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::Text("7".into()),
+        ],
+    );
+    assert_eq!(editor.channels, channels);
+}
+
+#[test]
+fn press_then_move_focuses_the_field_egui_hit_at_the_final_position() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let first = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    let second = ctx.read_response(channel_edit_id(1)).unwrap().rect.center();
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(first),
+            primary_button(first, true),
+            egui::Event::PointerMoved(second),
+            egui::Event::Text("7".into()),
+        ],
+    );
+    assert_eq!(
+        ctx.memory(|memory| memory.focused()),
+        Some(channel_edit_id(1))
+    );
+    assert_eq!(editor.channels[0], "0");
+    assert_eq!(editor.channels[1], "07");
+}
+
+#[test]
+fn first_click_on_a_field_keeps_same_frame_delete_and_selection_keys_suppressed() {
+    // Invariant guard: main already suppresses these, since focus is set before can_select reads it.
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let center = ctx.read_response(channel_edit_id(0)).unwrap().rect.center();
+    let before = editor.history.scene().clone();
+    let mode = editor.selection_mode;
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::PointerMoved(center),
+            primary_button(center, true),
+            key(Key::Delete),
+            key(Key::F8),
+            key(Key::F11),
+        ],
+    );
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.selection_mode, mode);
+}
+
+#[test]
+fn first_click_on_a_field_that_just_disappeared_leaves_no_stale_focus() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    editor.selected = None;
+    click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    assert!(!text_edit_focused(&ctx));
+}
+
+#[test]
+fn leaving_the_manipulation_value_field_does_not_commit_a_channel_draft() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let before = editor.history.scene().clone();
+    editor.channels[0] = "5".into();
+    editor.channel_intents[0] = true;
+    ctx.memory_mut(|memory| {
+        memory.request_focus(features::manipulation_tool::manipulation_value_id())
+    });
+    // Unrendered ids lose focus at the end of the next pass, so click in the same frame.
+    click_with_text(&mut editor, &ctx, channel_edit_id(1), "3");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.channels[0], "5");
+    assert_eq!(editor.channels[1], "03");
+}
+
+#[test]
 fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
