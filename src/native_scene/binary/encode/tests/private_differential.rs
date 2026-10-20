@@ -185,12 +185,13 @@ fn private_stripped_translate_records_reinsert_byte_identically() {
                 .iter()
                 .position(|node| node.transform_id == leaf.owner)
                 .unwrap();
-            tally.tried += 1;
             let stripped = strip(&bytes, record);
             let Ok(mut scene) = decode(Arc::<[u8]>::from(stripped.clone())) else {
+                tally.tried += 1;
                 tally.stripped_undecodable += 1;
                 continue;
             };
+            tally.tried += 1;
             assert_eq!(scene.nodes()[index].name(), original.nodes()[index].name());
             let id = scene.nodes()[index].id();
             for (channel, word) in [
@@ -203,6 +204,8 @@ fn private_stripped_translate_records_reinsert_byte_identically() {
             {
                 scene.set_channel(id, channel, word).unwrap();
             }
+            // Setting +0.0 on an absent leaf is a no-op, so this branch only checks that a no-op
+            // save is byte-identical to the stripped file. It has never run on real data.
             let all_zero = words.iter().all(|w| w.to_bits() == 0);
             match encode(&scene) {
                 Ok(output) => {
@@ -277,4 +280,23 @@ fn private_stripped_translate_records_reinsert_byte_identically() {
         total.skipped_nonstandard,
         total.skipped_non_finite,
     );
+    assert!(total.tried > 0, "no stripped record was tried");
+    assert_eq!(
+        total.stripped_undecodable, 0,
+        "a stripped file did not decode"
+    );
+    let refused = total.refused_aux + total.refused_pad + total.refused_other;
+    assert_eq!(
+        total.identical + refused + total.stripped_undecodable,
+        total.tried,
+        "every tried record must be identical, refused or undecodable"
+    );
+    let expected = match std::env::var("AZTECCRAFT_MB_EXPECTED_REFUSALS") {
+        Err(std::env::VarError::NotPresent) => 0,
+        Ok(text) => text.trim().parse::<usize>().unwrap_or_else(|_| {
+            panic!("AZTECCRAFT_MB_EXPECTED_REFUSALS must be a non-negative integer")
+        }),
+        Err(_) => panic!("AZTECCRAFT_MB_EXPECTED_REFUSALS must be valid unicode"),
+    };
+    assert_eq!(refused, expected, "unexpected number of refused records");
 }
