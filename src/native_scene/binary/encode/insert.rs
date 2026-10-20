@@ -4,15 +4,20 @@
 //! group to grow by its length. The caller supplies the chunk bytes and where they go.
 
 use super::{BinaryError, Budget, resource, unsupported};
-use crate::maya_binary::container::MAX_BYTES;
+use crate::{
+    maya_binary::container::MAX_BYTES,
+    native_scene::{NativeId, source::TransformField},
+};
 
 const SIZE_WORD: std::ops::Range<usize> = 8..16;
 const HEADER_BYTES: usize = 16;
 
 /// A chunk to place at `at`, in coordinates of the bytes before the splice.
 ///
-/// `ancestors` are the header starts of the groups that must grow with it.
+/// `owner` and `field` name the transform leaf it adds. `ancestors` are the header starts of the groups that must grow with it.
 pub(super) struct Insertion {
+    pub(super) owner: NativeId,
+    pub(super) field: TransformField,
     pub(super) at: usize,
     pub(super) bytes: Vec<u8>,
     pub(super) ancestors: Vec<usize>,

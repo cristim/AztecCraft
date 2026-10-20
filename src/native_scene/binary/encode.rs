@@ -1,7 +1,10 @@
 use super::{
     BinaryError, ErrorKind, admission::Budget, canonical, decode_with_retained_bytes, resource,
 };
-use crate::native_scene::{NativeScene, NativeTransformNode, source::SourceFormat};
+use crate::native_scene::{
+    NativeScene, NativeTransformNode, appearance::SourceAppearance, source::SourceFormat,
+};
+use insert::{Insertion, splice};
 use std::sync::Arc;
 
 const FIELDS: [super::super::TransformField; 5] = [
@@ -61,6 +64,31 @@ fn check_appearance_metadata(
     Ok(())
 }
 
+/// Appearance facts that hold in any byte or chunk coordinates, for a reparse of spliced bytes.
+fn same_appearance_shape(a: Option<&SourceAppearance>, b: Option<&SourceAppearance>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.shapes.len() == b.shapes.len()
+                && a.materials.len() == b.materials.len()
+                && a.diffuse.len() == b.diffuse.len()
+                && a.shapes.iter().zip(&b.shapes).all(|(x, y)| {
+                    x.shape == y.shape
+                        && match (&x.binding, &y.binding) {
+                            (Ok(x), Ok(y)) => {
+                                x.faces == y.faces
+                                    && x.instance_parent == y.instance_parent
+                                    && x.material == y.material
+                            }
+                            (Err(x), Err(y)) => x == y,
+                            _ => false,
+                        }
+                })
+        }
+        _ => false,
+    }
+}
+
 fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError> {
     let appearance = scene
         .source
@@ -80,6 +108,12 @@ fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError>
 }
 
 pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
+    encode_with(scene, &[])
+}
+
+/// `plan` lists default leaves to splice in after the word patches. Production passes none until the
+/// planner exists; tests hand-build plans.
+fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, BinaryError> {
     if !scene.curves.is_empty() {
         return Err(unsupported());
     }
@@ -118,6 +152,13 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
         for field in FIELDS {
             for (component, scalar) in node.field(field).iter().enumerate() {
                 if !scalar.replaced {
+                    continue;
+                }
+                if scalar.origin.is_none()
+                    && plan
+                        .iter()
+                        .any(|i| i.owner == node.transform_id && i.field == field)
+                {
                     continue;
                 }
                 let origin = scalar.origin.as_ref().ok_or_else(unsupported)?;
@@ -176,10 +217,55 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     let retained_appearance = retained_material_metadata(scene)?;
     let parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
-    if !same_structure(scene, &parsed) {
+    verify(scene, source, &parsed, plan, Appearance::Exact)?;
+    if plan.is_empty() {
+        return Ok(output);
+    }
+    let spliced = splice(&output, plan, &mut budget)?;
+    let retained = retained
+        .checked_add(spliced.capacity())
+        .filter(|retained| *retained <= 2 * crate::maya_binary::container::MAX_BYTES)
+        .ok_or_else(resource)?;
+    budget.charge(spliced.len())?;
+    let reparsed =
+        decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
+    verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
+    Ok(spliced)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Appearance {
+    /// Same bytes and chunk indices as the original decode: compare the whole metadata.
+    Exact,
+    /// Spliced bytes shift offsets and chunk indices: compare coordinate-free facts only.
+    Relocated,
+}
+
+/// Compares a reparse with the scene. Fields named in `skip` are still absent in `parsed`.
+fn verify(
+    scene: &NativeScene,
+    source: &crate::native_scene::source::SourceRetention,
+    parsed: &NativeScene,
+    skip: &[Insertion],
+    appearance: Appearance,
+) -> Result<(), BinaryError> {
+    if !same_structure(scene, parsed) {
         return Err(unsupported());
     }
-    check_appearance_metadata(scene, &parsed)?;
+    if appearance == Appearance::Exact {
+        check_appearance_metadata(scene, parsed)?;
+    } else if !same_appearance_shape(
+        scene
+            .source
+            .as_ref()
+            .and_then(|source| source.appearance.as_deref()),
+        parsed
+            .source
+            .as_ref()
+            .and_then(|source| source.appearance.as_deref()),
+    ) {
+        return Err(unsupported());
+    }
     if scene.materials.len() != parsed.materials.len()
         || scene
             .materials
@@ -194,6 +280,12 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     }
     for (node, decoded) in scene.nodes.iter().zip(&parsed.nodes) {
         for field in FIELDS {
+            if skip
+                .iter()
+                .any(|i| i.owner == node.transform_id && i.field == field)
+            {
+                continue;
+            }
             for (component, (value, after)) in node
                 .field(field)
                 .iter()
@@ -224,10 +316,9 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
             }
         }
     }
-    Ok(output)
+    Ok(())
 }
 
-#[cfg(test)]
 mod insert;
 #[cfg(test)]
 mod tests;

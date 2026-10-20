@@ -466,3 +466,177 @@ fn nodes_differing_only_in_extras_are_structurally_unequal() {
     b.extras.shear = Some([0.5, 0.0, 0.0]);
     assert!(!same_node_structure(&a, &b));
 }
+
+mod hand_built_plans {
+    use super::super::insert::Insertion;
+    use super::super::{ErrorKind, encode, encode_with};
+    use crate::{
+        maya_binary::container,
+        native_scene::{
+            NativeScene,
+            binary::{
+                decode,
+                tests::{
+                    site_fixture::{SITE_AUX, other_node_with_triple, sited_transform, triple_aux},
+                    wire_fixture::{chunk, group, scene},
+                },
+            },
+            source::TransformField,
+        },
+    };
+
+    fn record(values: [f64; 3]) -> Vec<u8> {
+        triple_aux(b"t", SITE_AUX, values)
+    }
+
+    fn children() -> Vec<u8> {
+        [
+            sited_transform(b"a", &[triple_aux(b"r", SITE_AUX, [1.0; 3])]),
+            other_node_with_triple(b"anchor", SITE_AUX),
+        ]
+        .concat()
+    }
+
+    /// The decoded scene and a plan that inserts `bytes` before the first `DBL3` of the transform.
+    fn setup(bytes: Vec<u8>) -> (Vec<u8>, NativeScene, Vec<Insertion>) {
+        let source = scene(&children());
+        let decoded = decode(source.clone()).unwrap();
+        let inspected = container::inspect(source.clone()).unwrap();
+        let xfrm = inspected
+            .chunks()
+            .iter()
+            .position(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        let triple = inspected
+            .chunks()
+            .iter()
+            .find(|c| c.parent() == Some(xfrm) && c.tag() == *b"DBL3")
+            .unwrap();
+        let plan = vec![Insertion {
+            owner: decoded.nodes()[0].transform_id,
+            field: TransformField::Translation,
+            at: triple.header_range().start,
+            bytes,
+            ancestors: vec![inspected.chunks()[xfrm].header_range().start, 0],
+        }];
+        (source.to_vec(), decoded, plan)
+    }
+
+    #[test]
+    fn an_empty_plan_is_todays_encode() {
+        let (source, decoded, _) = setup(record([0.0; 3]));
+        assert_eq!(encode_with(&decoded, &[]).unwrap(), source);
+        assert_eq!(encode(&decoded).unwrap(), source);
+    }
+
+    #[test]
+    fn a_planned_record_matching_the_scene_is_spliced_and_reparsed() {
+        let (source, decoded, plan) = setup(record([0.0; 3]));
+        let output = encode_with(&decoded, &plan).unwrap();
+        assert_eq!(output.len(), source.len() + 48);
+        let again = decode(output.into()).unwrap();
+        assert_eq!(again.nodes()[0].transform().translation, [0.0; 3]);
+        let found = again.source.as_ref().unwrap();
+        assert!(
+            found
+                .leaves
+                .iter()
+                .any(|leaf| leaf.field == TransformField::Translation)
+        );
+    }
+
+    #[test]
+    fn a_planned_record_that_disagrees_with_the_scene_is_refused() {
+        for values in [[5.0, 0.0, 0.0], [-0.0, 0.0, 0.0], [0.0, 0.0, 1e-300]] {
+            let (_, decoded, plan) = setup(record(values));
+            let error = encode_with(&decoded, &plan).unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::Unsupported, "{values:?}");
+        }
+    }
+
+    #[test]
+    fn a_plan_with_a_missing_ancestor_never_yields_bytes() {
+        let (_, decoded, mut plan) = setup(record([0.0; 3]));
+        plan[0].ancestors.pop();
+        assert!(encode_with(&decoded, &plan).is_err());
+    }
+
+    #[test]
+    fn a_splice_past_the_container_limit_is_refused_not_emitted() {
+        let head = |info: usize| {
+            let header = [
+                chunk(b"LUNI", b"cm", 8),
+                chunk(b"AUNI", b"deg", 8),
+                chunk(b"TUNI", b"film", 8),
+                chunk(b"INFO", &vec![b'x'; info], 8),
+            ]
+            .concat();
+            group(
+                b"Maya",
+                &[group(b"HEAD", &header, 4), children()].concat(),
+                1,
+            )
+        };
+        let mut info = container::MAX_BYTES - 10_000;
+        let base = head(info).len();
+        info += (container::MAX_BYTES - 47 - base).next_multiple_of(8);
+        let source = head(info);
+        assert!((container::MAX_BYTES - 47..=container::MAX_BYTES).contains(&source.len()));
+        let source: std::sync::Arc<[u8]> = source.into();
+        let decoded = match decode(source.clone()) {
+            Ok(decoded) => decoded,
+            Err(error) => {
+                // A false resource refusal near the limit is acceptable; an overshoot is not.
+                assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+                return;
+            }
+        };
+        let inspected = container::inspect(source).unwrap();
+        let xfrm = inspected
+            .chunks()
+            .iter()
+            .position(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        let triple = inspected
+            .chunks()
+            .iter()
+            .find(|c| c.parent() == Some(xfrm) && c.tag() == *b"DBL3")
+            .unwrap();
+        let plan = [Insertion {
+            owner: decoded.nodes()[0].transform_id,
+            field: TransformField::Translation,
+            at: triple.header_range().start,
+            bytes: record([0.0; 3]),
+            ancestors: vec![inspected.chunks()[xfrm].header_range().start, 0],
+        }];
+        let error = encode_with(&decoded, &plan).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    }
+
+    #[test]
+    fn appearance_located_after_the_insertion_survives_the_shift() {
+        let source: std::sync::Arc<[u8]> =
+            crate::native_scene::binary::tests::appearance_fixture::appearance_specimen().into();
+        let decoded = decode(source.clone()).unwrap();
+        assert!(!decoded.materials.is_empty());
+        let inspected = container::inspect(source.clone()).unwrap();
+        let xfrm = inspected
+            .chunks()
+            .iter()
+            .position(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        let group = &inspected.chunks()[xfrm];
+        let plan = [Insertion {
+            owner: decoded.nodes()[0].transform_id,
+            field: TransformField::Rotation,
+            at: group.payload_range().end,
+            bytes: triple_aux(b"r", SITE_AUX, [0.0; 3]),
+            ancestors: vec![group.header_range().start, 0],
+        }];
+        let output = encode_with(&decoded, &plan).unwrap();
+        assert_eq!(output.len(), source.len() + 48);
+        let again = decode(output.into()).unwrap();
+        assert!(again.materials == decoded.materials);
+        assert_eq!(again.nodes()[0].transform().translation, [1.0, 2.0, 3.0]);
+    }
+}
