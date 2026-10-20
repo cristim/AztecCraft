@@ -467,6 +467,8 @@ fn nodes_differing_only_in_extras_are_structurally_unequal() {
     assert!(!same_node_structure(&a, &b));
 }
 
+mod private_differential;
+
 mod hand_built_plans {
     use super::super::insert::Insertion;
     use super::super::{ErrorKind, encode, encode_with};
