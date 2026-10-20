@@ -6,6 +6,11 @@
 
 #[cfg_attr(
     not(test),
+    expect(dead_code, reason = "used by the emission that follows")
+)]
+mod check;
+#[cfg_attr(
+    not(test),
     expect(dead_code, reason = "builders gain callers as emission lands")
 )]
 mod chunk;
@@ -40,6 +45,8 @@ pub(crate) enum AuthoredBinaryRefusal {
     NotYetImplemented,
     /// A node has no stored UUID, and the file's creation chunks need one.
     MissingUuid,
+    /// The decoder did not read back what was written; no bytes are returned.
+    SelfCheckMismatch,
 }
 impl From<AuthoredIneligible> for AuthoredBinaryRefusal {
     fn from(ineligible: AuthoredIneligible) -> Self {

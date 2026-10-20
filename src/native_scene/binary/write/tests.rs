@@ -1,7 +1,7 @@
 use super::*;
 use crate::scene::Primitive;
 
-fn bare(names: &[&str]) -> NativeScene {
+pub(super) fn bare(names: &[&str]) -> NativeScene {
     let mut scene = NativeScene::default();
     for name in names {
         scene.create(Primitive::Cube, name).unwrap();
@@ -37,7 +37,7 @@ fn eligibility_refusals_come_before_the_incomplete_refusal() {
     }
 }
 
-fn bare_numbered(count: usize) -> NativeScene {
+pub(super) fn bare_numbered(count: usize) -> NativeScene {
     let names: Vec<String> = (0..count).map(|i| format!("node{i}")).collect();
     let names: Vec<&str> = names.iter().map(String::as_str).collect();
     let mut scene = bare(&names);
