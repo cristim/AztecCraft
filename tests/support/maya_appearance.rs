@@ -20,9 +20,11 @@ pub(crate) struct Fields<'a> {
     pub color_management: &'a [u8],
     pub connections: &'a [u8],
     pub groups: &'a [u8],
+    /// The mesh carries an empty UV set (no points, no ids).
+    pub empty_mesh_uv: bool,
 }
 
-fn appearance_shape(name: &[u8], parent: &[u8], extra: &[u8]) -> Vec<u8> {
+fn appearance_shape(name: &[u8], parent: &[u8], extra: &[u8], empty_mesh_uv: bool) -> Vec<u8> {
     let attribute = |tag: &[u8; 4], key: &[u8], kind: u8, value: &[u8]| {
         chunk(tag, &[key, &[0, kind], value].concat(), 8)
     };
@@ -57,11 +59,15 @@ fn appearance_shape(name: &[u8], parent: &[u8], extra: &[u8]) -> Vec<u8> {
             string(b"cuvs", 0x20, b"uv"),
             chunk(
                 b"MESH",
-                &mesh_payload_with_uv(
-                    &[0, 1, 0x6000_0002, 0, 1, 0x6000_0002],
-                    &uv_words,
-                    &[0, 1, 2, 3, 1, 2],
-                ),
+                &if empty_mesh_uv {
+                    mesh_payload_with_uv(&[0, 1, 0x6000_0002, 0, 1, 0x6000_0002], &[], &[])
+                } else {
+                    mesh_payload_with_uv(
+                        &[0, 1, 0x6000_0002, 0, 1, 0x6000_0002],
+                        &uv_words,
+                        &[0, 1, 2, 3, 1, 2],
+                    )
+                },
                 8,
             ),
             extra.to_vec(),
@@ -85,7 +91,7 @@ pub(crate) fn appearance_specimen_with_fields(fields: Fields<'_>) -> Vec<u8> {
             &[creation(b"object", None), triple(b"t", [1.0, 2.0, 3.0])].concat(),
             4,
         ),
-        appearance_shape(b"shape", b"object", fields.shape),
+        appearance_shape(b"shape", b"object", fields.shape, fields.empty_mesh_uv),
         group(b"GPID", &creation(b"identity", None), 4),
         group(b"GPID", &creation(b"othergid", None), 4),
         group(
@@ -213,6 +219,7 @@ pub(crate) fn appearance_specimen_with_users(users: usize) -> Vec<u8> {
             shape.as_bytes(),
             object.as_bytes(),
             &extra,
+            false,
         ));
         groups.extend(group(b"GPID", &creation(identity.as_bytes(), None), 4));
         groups.extend(group(b"SHAD", &creation(surface.as_bytes(), None), 4));

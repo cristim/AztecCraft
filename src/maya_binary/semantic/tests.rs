@@ -317,6 +317,31 @@ fn mesh_wire_flags_counts_normals_uvs_and_trailer_are_preserved() {
 }
 
 #[test]
+fn an_empty_uv_set_is_admitted_only_when_both_points_and_ids_are_empty() {
+    let corners = [0, 1, 0x6000_0002];
+    let bytes = wire_fixture::mesh_payload_with_uv(&corners, &[], &[]);
+    let record = payload(&bytes, mesh::decode_mesh).unwrap();
+    assert_eq!((record.uv_points.count, record.uv_ids.count), (0, 0));
+    assert_eq!(record.corners.count, 3);
+    assert_eq!(&bytes[record.uv_name.clone()], b"uv");
+    let points_only = wire_fixture::mesh_payload_with_uv(&corners, &[0, 0, 0, 0, 0, 0], &[]);
+    assert_eq!(
+        payload(&points_only, mesh::decode_mesh).unwrap_err().kind,
+        ErrorKind::Layout
+    );
+    let ids_only = wire_fixture::mesh_payload_with_uv(&corners, &[], &[0, 1, 2]);
+    assert_eq!(
+        payload(&ids_only, mesh::decode_mesh).unwrap_err().kind,
+        ErrorKind::Reference
+    );
+    let wrong_count = wire_fixture::mesh_payload_with_uv(&corners, &[0, 0], &[0]);
+    assert_eq!(
+        payload(&wrong_count, mesh::decode_mesh).unwrap_err().kind,
+        ErrorKind::Layout
+    );
+}
+
+#[test]
 fn metadata_reservations_are_bounded_and_debug_never_expands_source() {
     let count = MAX_FACT_METADATA_BYTES / size_of::<Record>();
     assert!(metadata_bytes(count, 0).unwrap() <= MAX_FACT_METADATA_BYTES);

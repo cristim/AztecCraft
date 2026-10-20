@@ -48,7 +48,10 @@ pub(crate) fn decode_mesh(cursor: &mut Cursor<'_>) -> Result<Mesh, BinaryError> 
     let _uv_name = cursor.string()?;
     let uv_points = cursor.words(2)?;
     let uv_ids = cursor.words(1)?;
-    if uv_ids.count != corners.count {
+    // An empty set (no points and no ids) is the one shape that need not match the corner
+    // count; a set with points but no ids, or ids but no points, still must.
+    let empty_uv = uv_points.count == 0 && uv_ids.count == 0;
+    if uv_ids.count != corners.count && !empty_uv {
         return Err(error(uv_ids.range.start, ErrorKind::Layout));
     }
     let trailer = cursor.take(20)?;

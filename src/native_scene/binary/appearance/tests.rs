@@ -496,6 +496,17 @@ fn unavailable(bytes: Vec<u8>, expected: AppearanceIssue) {
     assert_eq!(binding, &Err(expected));
 }
 
+#[test]
+fn a_material_on_a_mesh_with_an_empty_uv_set_is_unavailable_not_an_error() {
+    // The file still carries a three-point uvsp array, so the length check at the
+    // explicit array (before the later count/2 hint comparison) reports the mismatch.
+    let bytes = wire_fixture::appearance_specimen_with_fields(wire_fixture::Fields {
+        empty_mesh_uv: true,
+        ..Default::default()
+    });
+    unavailable(bytes, AppearanceIssue::UvMismatch);
+}
+
 fn connection(mode: u8, source: &[u8], destination: &[u8]) -> Vec<u8> {
     crate::native_scene::binary::tests::wire_fixture::chunk(
         b"CWFL",
