@@ -55,6 +55,8 @@ The [2027 fixed-issues list](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-R
 
 Autodesk publishes no Maya Binary specification. What an authored `.mb` may contain, its sources (a vendored public Maya 2025 fixture (the writer's profile source; the Maya 2026 file is used for reads only) and aggregate private-corpus facts) and the invented choices are in [the authored writer note](binary-authored-writer.md). It states that Maya acceptance is unproven.
 
+The grammar for inserting an absent default translate leaf into an opened `.mb` (copy the file's own aux word or refuse) is in [the leaf insertion note](binary-leaf-insertion.md). It is provisional and Maya acceptance is unproven.
+
 ## Storytold research
 
 Inspected upstream manifests on 2026-10-14:
