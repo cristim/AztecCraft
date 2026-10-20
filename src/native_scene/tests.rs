@@ -67,6 +67,7 @@ fn transform_path_discovery_refuses_excess_depth_without_a_partial_result() {
 
 fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Ascii,
         records,
@@ -236,6 +237,7 @@ fn unit_conversion_only_changes_derived_view() {
 fn retained_ranges_and_exhausted_allocators_are_checked() {
     let (mut scene, _) = cube();
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
         records: vec![0..3, 2..4],
@@ -244,6 +246,7 @@ fn retained_ranges_and_exhausted_allocators_are_checked() {
     });
     assert_eq!(scene.validate(), Err(NativeError::InvalidRetention));
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
         records: std::iter::once(0..5).collect(),
@@ -894,6 +897,7 @@ fn binary_candidate_finishes_once_preserving_source_and_runtime_identity() {
     candidate.shapes[0].uuid = None;
     candidate.nodes[0].name = "native:arbitrary exact name".into();
     candidate.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: std::sync::Arc::from(&b"opaque original identity"[..]),
         format: SourceFormat::Binary,
         records: std::iter::once(0..24).collect(),

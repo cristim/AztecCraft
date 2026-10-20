@@ -41,6 +41,7 @@ fn retain_translation(scene: &mut NativeScene, node: NodeId) {
     let values = scene.internal_transform(node).unwrap().translation_cm;
     let bytes: Vec<_> = values.into_iter().flat_map(f64::to_be_bytes).collect();
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Binary,
         records: std::iter::once(0..24).collect(),
@@ -276,6 +277,7 @@ fn admission_refuses_pivots_drivers_source_gaps_and_bad_paths_without_mutation()
         ));
     }
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: [1].into(),
         format: SourceFormat::Binary,
         records: std::iter::once(0..1).collect(),
@@ -430,6 +432,7 @@ fn binary_nonbinary_units_check_actual_stored_displacement() {
 fn absent_translate_leaf_in_a_binary_source_is_refused_on_every_axis_without_mutation() {
     let (mut scene, node) = test_fixtures::cube();
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: [1].into(),
         format: SourceFormat::Binary,
         records: std::iter::once(0..1).collect(),

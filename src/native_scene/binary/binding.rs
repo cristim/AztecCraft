@@ -16,6 +16,7 @@ use std::ops::Range;
 mod custom;
 mod effects;
 mod geometry;
+mod sites;
 
 pub(super) struct Binding {
     pub(super) record: usize,
@@ -416,6 +417,7 @@ pub(super) fn construct(
         .map(|binding| binding.fields.iter().flatten().count())
         .sum();
     counts.dag = bindings.len();
+    let sites = sites::collect(container, &bindings, &mut budget)?;
     counts.atoms = container
         .chunks()
         .iter()
@@ -457,6 +459,7 @@ pub(super) fn construct(
         format: SourceFormat::Binary,
         records: budget.vector(counts.atoms)?,
         leaves: budget.vector(counts.leaves)?,
+        sites,
         appearance: None,
     };
     for chunk in container.chunks() {
