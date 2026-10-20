@@ -5,35 +5,35 @@
 //! found the scene again. Maya acceptance of the output is unproven.
 
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod check;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 pub(in crate::native_scene::binary) mod chunk;
 #[cfg(test)]
 mod fixtures;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod head;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod mesh;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod profile;
 #[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "only the Editor caller is missing")
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 mod transform;
 
@@ -98,7 +98,10 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     Ok(bytes)
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
+#[cfg_attr(
+    not(any(test, unix)),
+    expect(dead_code, reason = "only the Unix save path calls the writer")
+)]
 pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     authored::check_content_kind(scene)?;
     if scene.shapes().is_empty() {

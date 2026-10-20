@@ -20,7 +20,8 @@ mod sited {
     ));
 }
 
-fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
+pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
+pub(super) pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let path = directory.join("scene.mb");
     std::fs::write(&path, wire::specimen()).unwrap();
     let document = load_native(&path).unwrap();
@@ -32,7 +33,7 @@ fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
         Retention::Authored => panic!("expected a baseline that retains its source"),
     }
 }
-fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
+pub(super) fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
     match result.unwrap() {
         SaveOutcome::Saved { origin, path } => (origin, path),
         other => panic!("expected confirmed installation: {other:?}"),
@@ -1345,12 +1346,12 @@ fn an_authored_baseline_requires_a_scene_without_a_retained_source() {
         save_native(&origin, &document.scene, SaveDestination::Active, &|| true).unwrap_err(),
         Error::SourceChanged
     );
-    // A scene with no source passes the guard and fails later, on encoding.
+    // A scene with no source passes the guard and is written as authored content.
     let mut fresh = NativeScene::default();
     fresh.create(crate::scene::Primitive::Cube, "cube").unwrap();
     assert!(matches!(
         save_native(&origin, &fresh, SaveDestination::Active, &|| true),
-        Err(Error::Encode(_))
+        Ok(SaveOutcome::Saved { .. })
     ));
     // The reverse: a sourced baseline refuses a scene that lost its source.
     assert_eq!(

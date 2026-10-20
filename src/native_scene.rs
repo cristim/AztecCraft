@@ -633,6 +633,7 @@ impl NativeScene {
         })
     }
     /// True when no parsed source is retained, so the scene is whatever was authored in memory.
+    #[cfg(unix)]
     pub(crate) fn has_no_source(&self) -> bool {
         self.source.is_none()
     }

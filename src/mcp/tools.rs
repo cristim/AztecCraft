@@ -97,6 +97,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
                     azteccraft::document::NativeSaveError::Unsupported => "save_unsupported",
+                    azteccraft::document::NativeSaveError::NoDestination => "save_needs_path",
                     azteccraft::document::NativeSaveError::InvalidDestination => {
                         "invalid_destination"
                     }
