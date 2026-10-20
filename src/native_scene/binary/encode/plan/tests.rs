@@ -112,11 +112,26 @@ fn an_edited_absent_translation_becomes_one_record_at_the_recorded_site() {
 
 #[test]
 fn only_replaced_components_carry_a_value_and_units_convert_to_centimetres() {
-    let bytes = scene_with_units(&file(SITE_AUX), b"mm", b"deg");
-    let mut scene = decoded(bytes);
-    edit(&mut scene, 0, 1, 25.0);
-    let found = run(&scene, T).unwrap();
-    assert_eq!(found[0].bytes, triple_aux(b"t", SITE_AUX, [0.0, 2.5, 0.0]));
+    // (declared unit, centimetres per unit as Units::linear_factor defines it)
+    let units: [(&[u8], f64); 5] = [
+        (b"cm", 1.0),
+        (b"mm", 0.1),
+        (b"m", 100.0),
+        (b"in", 2.54),
+        (b"ft", 30.48),
+    ];
+    for (unit, factor) in units {
+        let mut scene = decoded(scene_with_units(&file(SITE_AUX), unit, b"deg"));
+        edit(&mut scene, 0, 1, 25.0);
+        let found = run(&scene, T).unwrap();
+        let expected = triple_aux(b"t", SITE_AUX, [0.0, 25.0 * factor, 0.0]);
+        assert_eq!(
+            found[0].bytes,
+            expected,
+            "{}",
+            String::from_utf8_lossy(unit)
+        );
+    }
 }
 
 #[test]

@@ -120,8 +120,8 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     encode_with(scene, &plan)
 }
 
-/// `plan` lists default leaves to splice in after the word patches. Production passes none until the
-/// planner exists; tests hand-build plans.
+/// `plan` lists default leaves to splice in after the word patches. Production plans come from
+/// `plan::plan`, whose `INSERTABLE` gate is empty, so production passes none; tests hand-build plans.
 fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, BinaryError> {
     if !scene.curves.is_empty() {
         return Err(unsupported());
