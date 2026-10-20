@@ -53,7 +53,7 @@ The [2027 fixed-issues list](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-R
 
 ## Authored Maya Binary evidence
 
-Autodesk publishes no Maya Binary specification. What an authored `.mb` may contain, its sources (a vendored public Maya 2026 fixture and aggregate private-corpus facts) and the invented choices are in [the authored writer note](binary-authored-writer.md). It states that Maya acceptance is unproven.
+Autodesk publishes no Maya Binary specification. What an authored `.mb` may contain, its sources (a vendored public Maya 2025 fixture (the writer's profile source; the Maya 2026 file is used for reads only) and aggregate private-corpus facts) and the invented choices are in [the authored writer note](binary-authored-writer.md). It states that Maya acceptance is unproven.
 
 ## Storytold research
 
