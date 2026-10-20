@@ -1,6 +1,6 @@
 # Inserting an absent default translate leaf into an opened Maya Binary (issue #19)
 
-Status: PROVISIONAL, in progress. Maya omits default transform leaves (translate 0, rotate 0, scale 1)
+Status: PROVISIONAL, implemented for translate (issue #19). Maya omits default transform leaves (translate 0, rotate 0, scale 1)
 from `.mb` files, so an opened scene's transform often has no `t` chunk to edit. This note defines the
 only situations in which AztecCraft inserts a missing `t` `DBL3` chunk when saving an opened `.mb`, and
 where each rule comes from. **Maya has never read files it did not write; acceptance of inserted
@@ -74,6 +74,10 @@ have no site, which keeps the existing refusal tests valid.
 ## Not established
 
 The aux word's meaning, the record order Maya expects beyond what the corpus shows, and whether Maya
-reads an inserted record are unknown. A private differential test (strip one `t` record from a real
-file, reinsert it, require byte identity) will check the mechanism against Maya's own writer in the
-observed contexts; it does not show that Maya reads files it never wrote.
+reads an inserted record are unknown. The ignored private differential test
+(`native_scene::binary::encode::tests::private_differential`) strips one `t` record from a real
+file, reinserts it and requires byte identity. It checks the mechanism against Maya's own writer in
+the observed contexts; it does not show that Maya reads files it never wrote.
+
+Save As from an opened scene derives its bytes from the bytes parsed at Open, so an inserted record
+is written from the same source the edit was checked against.

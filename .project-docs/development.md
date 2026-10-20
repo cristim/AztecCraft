@@ -519,9 +519,14 @@ Errors expose only a fixed category and an optional source byte offset. The
 decoder performs no IO or live document replacement. The document/editor adapter
 uses this decoder for native and MCP Open into the same NativeScene/History;
 supported source-bound numeric edits preserve original bytes plus typed intent.
-Missing-record insertion and structural imported edits remain unsupported. The
-provisional binary writer supports only proved existing-record edits, with native
-Save QA pending. A codec success alone doesn't
+Structural imported edits remain unsupported. The provisional binary writer
+supports proved existing-record edits and the insertion of an absent translate
+leaf at a recorded site (`binary-leaf-insertion.md`), with native Save QA
+pending. The ignored differential
+`native_scene::binary::encode::tests::private_differential` strips one `t`
+record at a time from the private corpus, reinserts it and requires byte
+identity; run it with `cargo test --lib private_differential -- --ignored
+--nocapture` and `AZTECCRAFT_MB_FIXTURE_MANIFEST` set. A codec success alone doesn't
 prove appearance or Maya parity.
 
 The ignored unit test
