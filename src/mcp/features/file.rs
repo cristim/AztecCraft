@@ -98,7 +98,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene",
-        description: "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write",
+        description: "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write. A new Untitled scene has no file yet and returns save_needs_path: use save_scene_as, which saves new scenes as Maya 2025-format .mb. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
         schema: schema::<MutationArgs>,
         parse: parse_save_scene,
         idempotent: false,
@@ -106,7 +106,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene_as",
-        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting; an uncertain prior save is reconciled instead",
+        description: "Save a supported Maya binary scene, or a new Untitled scene, to a fresh .mb path without overwriting; new scenes are written as Maya 2025-format .mb and refuse unsupported content (save_unwritable, for example an assigned session material); an uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
         schema: schema::<OpenArgs>,
         parse: parse_save_scene_as,
         idempotent: false,

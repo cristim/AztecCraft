@@ -92,8 +92,8 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `set_camera_pose` | `target`: three finite numbers; `distance`: positive; `yaw_degrees`, `pitch_degrees`: the values `inspect_scene` reports | Changed or unchanged camera; yaw wraps, pitch beyond the orbit limit is rejected, lens and clip planes untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
 | `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static cubic `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
-| `save_scene` | None | Active Unix Maya binary Save, or reconciliation of an uncertain installation without another write |
-| `save_scene_as` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Fresh `.mb` destination only, never overwrite; an existing receipt is reconciled instead |
+| `save_scene` | None | Active Unix Maya binary Save, or reconciliation of an uncertain installation without another write; an Untitled scene returns `save_needs_path` |
+| `save_scene_as` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Fresh `.mb` destination only, never overwrite; an Untitled scene is written as a new Maya 2025-format `.mb` (PROVISIONAL: Maya acceptance unproven, meshes saved without UVs); an existing receipt is reconciled instead |
 | `resolve_file_action` | `pending_action_id`: UUID; `decision`: `cancel`, `discard` or `save` | Resolve only that exact pending action; source-changed queued Open requires Cancel and reopening |
 | `request_close` | None | Native close guard; dirty documents require confirmation, and approved remote closure waits for its own successful response flush |
 
@@ -317,12 +317,7 @@ Each new Editor and each applied New/Open replaces the scene token. A `document_
 Save and Save As share the native Editor operations. Native actions first commit
 a valid human draft; remote actions refuse focus, any draft (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), pending input,
 modal state and stale tokens. Save supports source-bound Maya binary scenes on
-Unix with proved existing-record edits and, for translate only, insertion of an
-absent leaf at a recorded site. Rotate, scale and siteless nodes refuse: `begin_manipulation`
-with `absent_channel_leaf`, and `edit_node` and `set_transform` with
-`scene_error` ("native ownership or edit effects are unsupported"). Save As from an opened scene derives its bytes from the
-bytes parsed at Open, not from the destination or the file on disk. New, legacy
-and Windows writing remain unsupported. Read-through-symlink documents can Save As to a fresh destination;
+Unix with proved existing-record edits and, for translate only, insertion of an absent leaf at a recorded site. Rotate, scale and siteless nodes refuse: `begin_manipulation` with `absent_channel_leaf`, and `edit_node` and `set_transform` with `scene_error` ("native ownership or edit effects are unsupported"). Save As from an opened scene derives its bytes from the bytes parsed at Open, not from the destination or the file on disk. New (Untitled) scenes save through Save As as a fresh Maya 2025-format `.mb` written by the authored writer (`.project-docs/binary-authored-writer.md`); Save on an Untitled scene returns `save_needs_path`, and content the writer cannot carry (a shape assigned a non-initial shading group, curves) returns `save_unwritable` with nothing written. Later Saves of that file re-encode the live scene and verify the destination against the bytes written. Mesh Save is PROVISIONAL: Maya acceptance is unproven and meshes carry no UVs. Legacy and Windows writing remain unsupported. Read-through-symlink documents can Save As to a fresh destination;
 active Save through that link remains refused.
 
 `saved`, `save_uncertain` and `save_reconciled` replies include `scene_token`,
@@ -427,7 +422,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | Native New/Open and pending confirmation | `new_scene`, `open_scene` and `resolve_file_action` share native candidate and lifecycle handlers |
 | Read-only static cubic Maya ASCII curves | `open_scene` loads the admitted inert class; `inspect_scene` returns canonical class/counts/domain/read-only/prepared-draw metadata, and `select_node`/`frame_selected` use the same owner and camera. Curve picking, CV editing, native writing and broader ASCII evaluation remain unsupported |
 | Native Close | `request_close` and matching pending resolution use the native close guard and response-delivery barrier |
-| Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix binary only, current integration/native Save QA remains pending |
+| Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix binary, and new scenes through Save As as a fresh PROVISIONAL `.mb`; current integration/native Save QA remains pending |
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |
 | Polygon cylinder and cone creation | `create_primitive` with `cylinder` or `cone` dispatches the same `Operation::Create` as Create > Polygon Primitives > Cylinder/Cone; the new node, its inspected counts, and face view, pick, select (including the true 20-gon caps through the same ViewScene n-gon path) and refused cap extrusion are covered by actual Editor protocol tests; provisional topology |
 | Primitive creation options | `create_primitive` `options` (sizes, subdivisions, axis per primitive) dispatches `Operation::Create` with validated `PrimitiveOptions`, the same typed operation the native path uses; the tagged schema with published bounds, built mesh counts per primitive, invalid, null, mismatched and over-budget refusal as `invalid_params` with the scene unchanged, and the token, draft, modal, close and Maya-scene guards are covered by actual Editor protocol tests; PROVISIONAL bounds. The native Create menu option-box window is presentation only: it dispatches the same `Operation::Create` through the native pipeline, adds no operation, tool or inspected state, and does not block remote operations (only a focused dialog field does, like any text field). Its remembered options are session UI state, not scene state, so a native plain click uses them while an MCP call with omitted `options` uses the defaults. Native visual QA is pending |
@@ -462,11 +457,12 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
 | Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |
 | Files | Save As | supported | `save_scene_as` | `save_as_available` | |
+| Files | New (Untitled) scene Save As to a fresh Maya 2025-format `.mb`, PROVISIONAL (Maya acceptance unproven, no UVs); Save returns `save_needs_path` | supported | `save_scene`, `save_scene_as` | `document_origin`, `has_file`, `save_available`, `save_as_available` | |
 | Files | Close and quit guard | supported | `request_close` | `closing` | |
 | Files | macOS Command-Q and application-menu Quit through the `applicationShouldTerminate:` hook to the shared close guard: dirty-scene prompt and Cancel natively verified for Dock-style quit and Command-Q through the hook; menu-click Quit pending | supported | `request_close` | `closing` | Native menu action routed to the shared close guard; remotely reachable only as `request_close`. Menu click, clean scene, minimized window and open panels are unverified |
 | Files | OS quit, logout and SIGTERM (Dock Quit, Apple-menu Quit All) through the shared close guard: the `applicationShouldTerminate:` hook is installed at startup; SIGTERM on macOS and Linux starts the same guard (PROVISIONAL: a second SIGTERM exits at once with status 143; SIGINT and SIGHUP are out of scope); native proof covers Dock-style quit and SIGTERM, see known-issues | supported | `request_close`, `resolve_file_action` | `closing`, `pending_action` | Remote resolution of an owed termination is the existing `resolve_file_action` and `request_close`; no new tool. A Dock quit with the Open panel up is declined without a hang (build 61c7a87, PROVISIONAL policy) |
 | Files | Export and OBJ export | unsupported | | | |
-| Files | Maya ASCII and new-scene Save, ASCII writing | unsupported | | | |
+| Files | Maya ASCII writing | unsupported | | | |
 | Create | Sphere, Cube, Cylinder, Cone, Plane (Create > Polygon Primitives, shelf Cube and Plane) | supported | `create_primitive` | `nodes` | |
 | Create | Torus, Disc, Platonic Solid, Pyramid, Prism, Pipe, Helix, Gear, Soccer Ball, Super Shapes, Interactive Creation and Exit on Completion (disabled rows in Create > Polygon Primitives); Bevel, shelf Materials, Mesh and other placeholder menus | unsupported | | | |
 | Modeling | Extrude face (shelf button disabled; operation exposed) | supported | `extrude_face` | `shapes` | |
