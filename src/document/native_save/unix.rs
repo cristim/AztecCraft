@@ -1,6 +1,6 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
-    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, SourceBaseline},
+    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
     native_scene::{NativeScene, binary},
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
@@ -185,7 +185,7 @@ struct Transaction<'a> {
     destination: Arc<Destination>,
     baseline: Option<&'a SourceBaseline>,
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
+    retention: Retention,
     may_install: &'a dyn Fn() -> bool,
     state: RefCell<State>,
 }
@@ -333,7 +333,7 @@ impl Transaction<'_> {
         let receipt = Receipt {
             destination: self.destination.clone(),
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
+            retention: self.retention.clone(),
             file: file.clone(),
         };
         let cause = state
@@ -438,7 +438,7 @@ impl AtomicFs for Transaction<'_> {
 pub(super) struct Receipt {
     destination: Arc<Destination>,
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
+    retention: Retention,
     file: Arc<File>,
 }
 impl Receipt {
@@ -446,7 +446,7 @@ impl Receipt {
         self.destination.verify(&self.file, &self.bytes)?;
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
+            retention: self.retention.clone(),
             metadata: self.file.metadata().map_err(io_error)?,
             link: LinkStatus::Direct,
             file: self.file.clone(),
@@ -470,7 +470,11 @@ fn prepare<'a>(
     let NativeOrigin::Binary(source) = origin else {
         return Err(Error::Unsupported);
     };
-    if !scene.has_binary_source(&source.parse_bytes) {
+    let tied = match &source.retention {
+        Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
+        Retention::Authored => scene.has_no_source(),
+    };
+    if !tied {
         return Err(Error::SourceChanged);
     }
     let (destination, baseline) = match destination {
@@ -505,7 +509,7 @@ fn prepare<'a>(
         destination,
         baseline,
         bytes,
-        parse_bytes: source.parse_bytes.clone(),
+        retention: source.retention.clone(),
         may_install,
         state: RefCell::new(State::default()),
     })

@@ -14,6 +14,12 @@ fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let document = load_native(&path).unwrap();
     (path, document)
 }
+fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
+    match &baseline.retention {
+        Retention::Source { parse_bytes } => parse_bytes.clone(),
+        Retention::Authored => panic!("expected a baseline that retains its source"),
+    }
+}
 fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
     match result.unwrap() {
         SaveOutcome::Saved { origin, path } => (origin, path),
@@ -45,7 +51,7 @@ fn private_models_save_as_and_repeat_on_working_copies_only() {
         let NativeOrigin::Binary(original_origin) = &document.origin else {
             panic!("fixture {ordinal} needs binary origin");
         };
-        let parse = original_origin.parse_bytes.clone();
+        let parse = parse_bytes(original_origin);
         let edit = document.scene.nodes().iter().find_map(|node| {
             let id = node.id();
             [
@@ -106,7 +112,7 @@ fn private_models_save_as_and_repeat_on_working_copies_only() {
             let NativeOrigin::Binary(current) = &origin else {
                 panic!("fixture {ordinal} cycle {cycle} lost binary origin");
             };
-            assert!(Arc::ptr_eq(&parse, &current.parse_bytes));
+            assert!(Arc::ptr_eq(&parse, &parse_bytes(current)));
             assert!(document.scene.has_binary_source(&parse));
             let reopened = load_native(expected_path).unwrap();
             let actual = reopened.scene.internal_transform(id).unwrap();
@@ -146,7 +152,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(original) = &document.origin else {
         unreachable!()
     };
-    let parse = original.parse_bytes.clone();
+    let parse = parse_bytes(original);
     let id = document.scene.nodes()[0].id();
     document
         .scene
@@ -162,7 +168,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(baseline) = &origin else {
         unreachable!()
     };
-    assert!(Arc::ptr_eq(&parse, &baseline.parse_bytes));
+    assert!(Arc::ptr_eq(&parse, &parse_bytes(baseline)));
     assert!(document.scene.has_binary_source(&parse));
     let first = std::fs::read(&path).unwrap();
     let (origin, _) = saved(save_native(
@@ -1115,5 +1121,34 @@ fn exclusive_stage_collision_never_grants_ownership_or_cleanup() {
     assert!(
         transaction.state.borrow().stage.as_ref().unwrap().leaf
             != arrival.as_ref().unwrap().file_name().unwrap()
+    );
+}
+
+#[test]
+fn an_authored_baseline_requires_a_scene_without_a_retained_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, document) = opened(directory.path());
+    let NativeOrigin::Binary(source) = &document.origin else {
+        unreachable!()
+    };
+    let mut authored = source.clone();
+    authored.retention = Retention::Authored;
+    let origin = NativeOrigin::Binary(authored);
+    // A scene that still retains parsed source is not what an authored baseline describes.
+    assert_eq!(
+        save_native(&origin, &document.scene, SaveDestination::Active, &|| true).unwrap_err(),
+        Error::SourceChanged
+    );
+    // A scene with no source passes the guard and fails later, on encoding.
+    let mut fresh = NativeScene::default();
+    fresh.create(crate::scene::Primitive::Cube, "cube").unwrap();
+    assert!(matches!(
+        save_native(&origin, &fresh, SaveDestination::Active, &|| true),
+        Err(Error::Encode(_))
+    ));
+    // The reverse: a sourced baseline refuses a scene that lost its source.
+    assert_eq!(
+        save_native(&document.origin, &fresh, SaveDestination::Active, &|| true).unwrap_err(),
+        Error::SourceChanged
     );
 }
