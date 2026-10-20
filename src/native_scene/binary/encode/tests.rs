@@ -555,6 +555,23 @@ mod hand_built_plans {
     }
 
     #[test]
+    fn a_boundary_valid_but_misordered_position_is_refused_by_the_placement_check() {
+        let (_, decoded, mut plan) = setup(record([0.0; 3]));
+        // After the transform's only triple: a valid container, but `t` must come first.
+        let source = scene(&children());
+        let inspected = container::inspect(source).unwrap();
+        let group = inspected
+            .chunks()
+            .iter()
+            .find(|c| c.form() == Some(*b"XFRM"))
+            .unwrap();
+        assert!(encode_with(&decoded, &plan).is_ok());
+        plan[0].at = group.payload_range().end;
+        let error = encode_with(&decoded, &plan).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Unsupported);
+    }
+
+    #[test]
     fn a_plan_with_a_missing_ancestor_never_yields_bytes() {
         let (_, decoded, mut plan) = setup(record([0.0; 3]));
         plan[0].ancestors.pop();
@@ -630,7 +647,8 @@ mod hand_built_plans {
             owner: decoded.nodes()[0].transform_id,
             field: TransformField::Rotation,
             at: group.payload_range().end,
-            bytes: triple_aux(b"r", SITE_AUX, [0.0; 3]),
+            // The specimen's own aux word: a record with any other word is refused.
+            bytes: triple_aux(b"r", 0x1234_5678, [0.0; 3]),
             ancestors: vec![group.header_range().start, 0],
         }];
         let output = encode_with(&decoded, &plan).unwrap();
