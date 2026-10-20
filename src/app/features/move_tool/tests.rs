@@ -1807,3 +1807,54 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.status, "Edit cancelled");
 }
+
+#[test]
+fn editor_move_begins_on_a_sited_identity_node() {
+    // The specimen with Maya-style zero padding and its keys shifted (t to r, r to s): the
+    // transform has no translation leaf but the file records where one may go.
+    let mut bytes = wire::specimen();
+    let tree = azteccraft::maya_binary::container::inspect(bytes.clone().into()).unwrap();
+    for chunk in tree.chunks() {
+        bytes[chunk.padding_range()].fill(0);
+    }
+    for (from, to) in [(b't', b'r'), (b'r', b's')] {
+        let start = tree
+            .chunks()
+            .iter()
+            .find(|c| c.tag() == *b"DBL3" && tree.source()[c.payload_range()][0] == from)
+            .unwrap()
+            .payload_range()
+            .start;
+        bytes[start] = to;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("sited.mb");
+    std::fs::write(&path, &bytes).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(target.node),
+            instance_path: Some(target.path.clone()),
+        })
+        .unwrap();
+    assert!(
+        editor.history.scene().nodes()[0].transform().translation == [0.0; 3],
+        "the translation leaf is absent"
+    );
+    let kinds = editor.inspect_manipulation().unwrap().kinds;
+    let named = |name: &str| kinds.iter().find(|k| k.kind == name).unwrap();
+    assert!(named("move").available, "{:?}", named("move"));
+    assert_eq!(named("move").unavailable_reason, None);
+    let started = editor
+        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native)
+        .unwrap();
+    assert!(matches!(
+        started,
+        OperationReply::ManipulationStarted { .. }
+    ));
+    assert!(editor.history.active_manipulation().is_some());
+}
