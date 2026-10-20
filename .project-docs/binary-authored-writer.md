@@ -116,6 +116,25 @@ that state.
 What follows for the writer: an empty UV set is a documented outcome of `clearUVs`, which is the only
 reason the writer's empty `map1` is described as "no UVs" and not as invented UV data.
 
+## Can a mesh omit the UV set entirely? (investigated, no)
+
+The writer keeps the empty `map1` (0 points, 0 ids, header 0,1,0). Evidence:
+
+- The decoder's `MESH` grammar (`src/maya_binary/semantic/mesh.rs`, `decode_mesh`) has no optional
+  UV block: after the normals it reads the three header words (it requires exactly 0, 1, 0), the set
+  name, the UV points, the UV ids, and the 20-byte zero trailer, and rejects anything else. The one
+  relaxation is that the points and ids arrays may both be empty.
+- Every observed `MESH` carries that block: the one in the Maya 2025 fixture, and all 29 meshes of the
+  private corpus (aggregate: they all decode through that grammar). The Maya 2026 fixture has no mesh.
+- The header's middle word `1` is plausibly a UV-set count, but no file shows a mesh with count 0 or
+  without the block, so a count-0 layout, or the bytes that would follow it, would be invented, and
+  the decoder would need a new grammar branch with no observed file to anchor it.
+- Omission would also change what reopening yields only in a way nothing here can validate.
+
+Pinned by `an_empty_uv_set_is_admitted_only_when_both_points_and_ids_are_empty` and
+`a_mesh_without_the_uv_block_is_rejected` (decoder), and the writer test that emits `map1` with 0
+points and 0 ids. Reopen trigger: any Maya-written file showing a mesh without a UV block.
+
 ## Task 1.0: edge bit31 against topology (private corpus, aggregate)
 
 Read-only structural correlation over 5 files, 29 meshes, 61,429 edges. Adjacent-face normals come from
