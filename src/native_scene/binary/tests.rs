@@ -5,6 +5,12 @@ pub(super) mod wire_fixture {
         "/tests/support/maya_binary.rs"
     ));
 }
+pub(super) mod site_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sites.rs"
+    ));
+}
 pub(super) mod appearance_fixture {
     use super::wire_fixture as wire;
     include!(concat!(
@@ -12,6 +18,7 @@ pub(super) mod appearance_fixture {
         "/tests/support/maya_appearance.rs"
     ));
 }
+mod sites;
 use crate::view_scene::ViewScene;
 use std::{fs::File, io::Read, path::Path};
 use wire_fixture::{chunk, creation, group, mesh_payload, scene, triple};
