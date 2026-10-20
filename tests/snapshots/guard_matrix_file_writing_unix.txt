@@ -16,6 +16,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## idle / remote
@@ -31,6 +34,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## closing / native
@@ -46,6 +52,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## closing / remote
@@ -61,6 +70,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## modal / native
@@ -76,6 +88,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
 
 ## modal / remote
@@ -91,6 +106,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
 
 ## local_move / native
@@ -106,6 +124,9 @@
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## local_move / remote
@@ -121,6 +142,9 @@
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / native
@@ -136,6 +160,9 @@
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / remote
@@ -151,6 +178,9 @@
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## name_draft / native
@@ -166,6 +196,9 @@
     manipulator_size=1
   save_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   save_scene_as => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(occupied) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(material_assigned) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(wrong_extension) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## name_draft / remote
@@ -181,6 +214,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## material_draft / native
@@ -197,6 +233,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   save_scene_as => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## material_draft / remote
@@ -213,6 +252,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## channel_draft / native
@@ -228,6 +270,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   save_scene_as => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## channel_draft / remote
@@ -243,6 +288,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## text_focus / native
@@ -258,6 +306,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## text_focus / remote
@@ -273,6 +324,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## native_input_pending / native
@@ -288,6 +342,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## native_input_pending / remote
@@ -303,6 +360,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## stale_token / remote
@@ -318,6 +378,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+local_move / remote
@@ -333,6 +396,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+remote_move / remote
@@ -348,6 +414,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+closing / remote
@@ -363,6 +432,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+modal / remote
@@ -378,6 +450,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+name_draft / remote
@@ -393,6 +468,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+native_input_pending / remote
@@ -408,6 +486,9 @@
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## read_only_ascii / native
@@ -423,6 +504,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: this native scene or platform cannot be written) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## read_only_ascii / remote
@@ -438,6 +522,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: this native scene or platform cannot be written) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## binary_dirty / native
@@ -454,6 +541,9 @@
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## binary_dirty / remote
@@ -502,6 +592,9 @@
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install / native
@@ -518,6 +611,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install / remote
@@ -534,6 +630,9 @@
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install_modal / native
@@ -550,6 +649,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
 ## no_install_modal / remote
@@ -566,6 +668,9 @@
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
-cells: 111
+cells: 210
