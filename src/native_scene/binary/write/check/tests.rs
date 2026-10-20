@@ -67,14 +67,14 @@ fn a_scene_that_differs_from_the_bytes_is_caught() {
 }
 
 #[test]
-fn create_identity_bytes_are_the_stored_uuids_in_rfc_order_and_distinct() {
+fn create_identity_bytes_are_the_stored_uuids_in_guid_byte_order_and_distinct() {
     let (scene, bytes) = built(3);
     let crea = leaves(&walk(&bytes), b"CREA", b"XFRM");
     let mut seen = Vec::new();
     for (chunk, node) in crea.iter().zip(scene.nodes()) {
         let payload = chunk.bytes(&bytes);
         let identity = &payload[payload.len() - 16..];
-        assert_eq!(identity, node.transform_uuid().unwrap().as_bytes());
+        assert_eq!(identity, node.transform_uuid().unwrap().to_bytes_le());
         assert!(!seen.contains(&identity));
         seen.push(identity);
     }
@@ -146,7 +146,7 @@ fn bytes_for_another_scene_are_caught_even_when_every_name_matches() {
 }
 
 #[test]
-fn shape_create_identity_bytes_are_the_stored_uuids_in_rfc_order() {
+fn shape_create_identity_bytes_are_the_stored_uuids_in_guid_byte_order() {
     let (scene, bytes) = cube_and_plane();
     let crea = leaves(&walk(&bytes), b"CREA", b"DMSH");
     assert_eq!(crea.len(), 2);
@@ -154,7 +154,7 @@ fn shape_create_identity_bytes_are_the_stored_uuids_in_rfc_order() {
         let payload = chunk.bytes(&bytes);
         assert_eq!(
             &payload[payload.len() - 16..],
-            shape.uuid().unwrap().as_bytes()
+            shape.uuid().unwrap().to_bytes_le()
         );
     }
     assert_ne!(crea[0].bytes(&bytes)[..], crea[1].bytes(&bytes)[..]);

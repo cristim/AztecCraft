@@ -77,7 +77,7 @@ bodies and `known-issues.md`.
 | Omitted trailing `HEAD`, `CHNG`, `FINF`, `PLUG`, default scene groups, `CONS` | conservative omission; no provenance is fabricated | I |
 | Empty UV set `map1` (0 points, 0 ids) | no fabricated values; the decoder admits exactly `points == 0 && ids == 0` (a set with only one of them, or any other count mismatch, is still rejected) | I |
 | Edge word0 bit31 | set on boundary and non-manifold edges (any edge not used by exactly two face loops), clear on interior edges, so a closed mesh is all clear. From the Task 1.0 counts (99.6% of boundary, 100% of non-manifold edges set). PROVISIONAL: 37.3% of interior edges are also set in Maya's files, so it is not a full rule | I |
-| UUID bytes: stored v4 in RFC byte order | Maya's byte order is unproved | I (order) |
+| UUID bytes: stored v4, Microsoft GUID byte order (`Uuid::to_bytes_le`) | observed in the Maya 2025 fixture: all seven `XFRM` and `DMSH` `CREA` identities (e.g. `persp` at file offset 0x3ab, the `Dummy_Mesh` shape at 0x101a) carry the v4 nibble in identity byte 7 and the variant bits in byte 8, which is the mixed-endian layout; a test pins it | O (layout), I (values) |
 | Transform-then-shape ordering for several nodes; shape name rule | one `XFRM` then its `DMSH`, node order as in the scene | I |
 | New file mode | inherited from the existing staged write and umask, not observed | I |
 | No shading connections; meshes unassigned | decision | decision |

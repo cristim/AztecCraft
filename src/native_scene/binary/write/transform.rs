@@ -22,12 +22,13 @@ pub(super) struct Channels {
 }
 
 /// `CREA` payload: flag byte, NUL-terminated name, then the 16 identity bytes. The
-/// identity is the stored v4 UUID in RFC 4122 byte order, whose Maya order is unproven.
+/// identity is the stored v4 UUID in the Microsoft GUID byte order (first three fields
+/// little-endian), which is where the Maya 2025 fixture puts the version and variant bits.
 fn create(name: &str, uuid: Uuid) -> Vec<u8> {
     let mut payload = vec![XFRM_CREA_FLAGS];
     payload.extend_from_slice(name.as_bytes());
     payload.push(0);
-    payload.extend_from_slice(uuid.as_bytes());
+    payload.extend_from_slice(&uuid.to_bytes_le());
     payload
 }
 

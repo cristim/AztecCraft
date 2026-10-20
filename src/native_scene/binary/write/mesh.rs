@@ -33,14 +33,14 @@ fn invalid_topology() -> AuthoredBinaryRefusal {
 }
 
 /// `CREA` payload: flag byte, NUL-terminated name and parent name, then the 16 identity
-/// bytes (the stored v4 UUID in RFC 4122 byte order, whose Maya order is unproven).
+/// bytes (the stored v4 UUID in the Microsoft GUID byte order, as in the Maya 2025 fixture).
 fn create(name: &str, parent: &str, uuid: Uuid) -> Vec<u8> {
     let mut payload = vec![SHAPE_CREA_FLAGS];
     for text in [name, parent] {
         payload.extend_from_slice(text.as_bytes());
         payload.push(0);
     }
-    payload.extend_from_slice(uuid.as_bytes());
+    payload.extend_from_slice(&uuid.to_bytes_le());
     payload
 }
 

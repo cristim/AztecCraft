@@ -248,7 +248,7 @@ fn the_dmsh_group_is_crea_then_mesh_with_the_shape_name_parent_and_uuid() {
     assert_eq!(groups(&entries, b"DMSH")[0].aux, DMSH_GROUP_AUX);
     let mut expected = vec![0x04];
     expected.extend_from_slice(b"cubeShape\0cube\0");
-    expected.extend_from_slice(UUID.as_bytes());
+    expected.extend_from_slice(&UUID.to_bytes_le());
     assert_eq!(kids[0].bytes(&bytes), expected);
 }
 

@@ -36,14 +36,17 @@ fn a_transform_is_create_then_translate_rotate_scale_in_that_order() {
 }
 
 #[test]
-fn the_create_chunk_is_flag_name_nul_and_the_uuid_in_rfc_byte_order() {
+fn the_create_chunk_is_flag_name_nul_and_the_uuid_in_guid_byte_order() {
     let file = in_root(&[xfrm("rig", UUID_A, CHANNELS).unwrap()]);
     let crea = &leaves(&walk(&file), b"CREA", b"XFRM")[0];
     let mut expected = vec![0x8c];
     expected.extend_from_slice(b"rig\0");
-    expected.extend_from_slice(&UUID_A.into_bytes());
+    expected.extend_from_slice(&UUID_A.to_bytes_le());
     assert_eq!(crea.bytes(&file), expected);
-    assert_eq!(UUID_A.as_bytes()[..4], [0xb2, 0xb4, 0xef, 0x70]);
+    assert_eq!(
+        expected[expected.len() - 16..][..4],
+        [0x70, 0xef, 0xb4, 0xb2]
+    );
 }
 
 #[test]
@@ -81,7 +84,7 @@ fn the_create_layout_reproduces_the_fixture_mesh_transform() {
         .find(|c| c.bytes(MAYA_2025)[1..].starts_with(b"Dummy_Mesh\0"))
         .unwrap();
     let bytes = crea.bytes(MAYA_2025);
-    let uuid = Uuid::from_slice(&bytes[bytes.len() - 16..]).unwrap();
+    let uuid = Uuid::from_bytes_le(bytes[bytes.len() - 16..].try_into().unwrap());
     assert_eq!(create("Dummy_Mesh", uuid), bytes);
 }
 
@@ -99,4 +102,36 @@ fn consecutive_groups_pad_to_four_and_the_container_accepts_them() {
         .collect();
     assert_eq!(groups.len(), 2);
     crate::maya_binary::container::inspect(std::sync::Arc::from(file)).unwrap();
+}
+
+/// Evidence for the layout: in the Maya 2025 fixture every `XFRM` and `DMSH` `CREA` ends in
+/// 16 identity bytes with the v4 version nibble in byte 7 and the variant bits in byte 8.
+#[test]
+fn the_fixtures_identity_bytes_carry_version_and_variant_in_guid_positions() {
+    let entries = walk(MAYA_2025);
+    let mut identities = leaves(&entries, b"CREA", b"XFRM");
+    identities.extend(leaves(&entries, b"CREA", b"DMSH"));
+    assert_eq!(identities.len(), 7);
+    for crea in identities {
+        let payload = crea.bytes(MAYA_2025);
+        let id: [u8; 16] = payload[payload.len() - 16..].try_into().unwrap();
+        assert_eq!(id[7] >> 4, 4, "version nibble at byte 7: {id:02x?}");
+        assert_eq!(id[8] >> 6, 0b10, "variant bits at byte 8: {id:02x?}");
+        let uuid = Uuid::from_bytes_le(id);
+        assert_eq!(uuid.get_version_num(), 4);
+        assert_eq!(uuid.to_bytes_le(), id);
+    }
+}
+
+#[test]
+fn the_written_identity_has_version_and_variant_where_the_fixture_does() {
+    let uuid = Uuid::from_bytes([
+        0xb2, 0xb4, 0xef, 0x70, 0x34, 0xbb, 0x4a, 0x29, 0x98, 0x08, 0x32, 0xa0, 0x64, 0xf1, 0xe2,
+        0x2f,
+    ]);
+    assert_eq!(uuid.get_version_num(), 4);
+    let payload = create("rig", uuid);
+    let id = &payload[payload.len() - 16..];
+    assert_eq!(id[7] >> 4, 4);
+    assert_eq!(id[8] >> 6, 0b10);
 }
