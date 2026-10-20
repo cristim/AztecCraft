@@ -458,6 +458,16 @@ fn private_originals_encode_identically_and_edits_change_only_one_word() {
 }
 
 #[test]
+fn live_buffers_of_the_placement_check_have_an_exact_limit_and_checked_overflow() {
+    use super::{LIVE_LIMIT, live_within_limit};
+    assert!(live_within_limit([LIVE_LIMIT, 0, 0, 0, 0]).is_ok());
+    let error = live_within_limit([LIVE_LIMIT, 1, 0, 0, 0]).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    let error = live_within_limit([usize::MAX, 1, 0, 0, 0]).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+}
+
+#[test]
 fn nodes_differing_only_in_extras_are_structurally_unequal() {
     let (_, scene) = fixture();
     let a = scene.nodes[0].clone();
