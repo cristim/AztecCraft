@@ -9,6 +9,7 @@ pub mod mesh;
 pub mod move_handles;
 pub mod native_scene;
 pub mod obj;
+pub mod primitive_options;
 pub mod scene;
 pub mod shading;
 #[cfg(feature = "desktop")]
