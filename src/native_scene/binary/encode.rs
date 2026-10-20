@@ -4,7 +4,7 @@ use super::{
 use crate::native_scene::{
     NativeScene, NativeTransformNode, appearance::SourceAppearance, source::SourceFormat,
 };
-use insert::{Insertion, splice};
+use insert::{Insertion, check_inverse, splice};
 use std::sync::Arc;
 
 const FIELDS: [super::super::TransformField; 5] = [
@@ -222,6 +222,7 @@ fn encode_with(scene: &NativeScene, plan: &[Insertion]) -> Result<Vec<u8>, Binar
         return Ok(output);
     }
     let spliced = splice(&output, plan, &mut budget)?;
+    check_inverse(&spliced, &output, plan, &mut budget)?;
     let retained = retained
         .checked_add(spliced.capacity())
         .filter(|retained| *retained <= 2 * crate::maya_binary::container::MAX_BYTES)

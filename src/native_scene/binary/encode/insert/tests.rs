@@ -204,3 +204,38 @@ fn output_size_is_limited_to_the_container_maximum_at_the_boundary() {
     let error = splice(&over, &plan(16), &mut Budget::new(0).unwrap()).unwrap_err();
     assert_eq!(error.kind(), ErrorKind::ResourceLimit);
 }
+
+#[test]
+fn the_inverse_check_accepts_a_good_splice_and_rejects_tampering() {
+    let original = file();
+    let (xfrm, triple) = layout(&original)[0];
+    let plan = [Insertion {
+        owner: NativeId(1),
+        field: TransformField::Translation,
+        at: triple,
+        bytes: record([4.0, 5.0, 6.0]),
+        ancestors: vec![xfrm, 0],
+    }];
+    let good = splice(&original, &plan, &mut budget()).unwrap();
+    assert!(check_inverse(&good, &original, &plan, &mut budget()).is_ok());
+    let mut inserted = good.clone();
+    inserted[triple + 20] ^= 1;
+    let mut size = good.clone();
+    size[xfrm + 15] ^= 1;
+    let mut outside = good.clone();
+    outside[good.len() - 1] ^= 1;
+    let mut root = good.clone();
+    root[15] ^= 1;
+    for (name, bad) in [
+        ("record bytes", inserted),
+        ("group size word", size),
+        ("byte outside", outside),
+        ("root size word", root),
+        ("truncated", good[..good.len() - 1].to_vec()),
+    ] {
+        assert!(
+            check_inverse(&bad, &original, &plan, &mut budget()).is_err(),
+            "{name}"
+        );
+    }
+}
