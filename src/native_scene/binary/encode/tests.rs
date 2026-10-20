@@ -658,3 +658,136 @@ mod hand_built_plans {
         assert_eq!(again.nodes()[0].transform().translation, [1.0, 2.0, 3.0]);
     }
 }
+
+mod enabled {
+    use super::super::encode;
+    use crate::native_scene::{
+        Channel, NativeError, NativeScene, NativeTransform,
+        binary::{
+            decode,
+            tests::{
+                site_fixture::{
+                    SITE_AUX, double_aux, other_node_with_triple, sited_transform, triple_aux,
+                },
+                wire_fixture::{scene, scene_with_units},
+            },
+        },
+    };
+    use std::sync::Arc;
+
+    fn t(values: [f64; 3]) -> Vec<u8> {
+        triple_aux(b"t", SITE_AUX, values)
+    }
+
+    /// `a` has no translation; `b` has one; `c` has none and no site (`v` after a triple).
+    fn children(a: &[Vec<u8>]) -> Vec<u8> {
+        [
+            sited_transform(b"a", a),
+            sited_transform(
+                b"b",
+                &[t([7.0, 8.0, 9.0]), triple_aux(b"r", SITE_AUX, [1.0; 3])],
+            ),
+            sited_transform(
+                b"c",
+                &[
+                    triple_aux(b"r", SITE_AUX, [2.0; 3]),
+                    double_aux(b"v", 0x24, SITE_AUX, 1.0),
+                ],
+            ),
+            other_node_with_triple(b"anchor", SITE_AUX),
+        ]
+        .concat()
+    }
+
+    fn open() -> (Arc<[u8]>, NativeScene) {
+        let bytes = scene(&children(&[]));
+        (bytes.clone(), decode(bytes).unwrap())
+    }
+
+    fn translation(scene: &NativeScene, node: usize) -> [u64; 3] {
+        scene.nodes()[node]
+            .transform()
+            .translation
+            .map(f64::to_bits)
+    }
+
+    #[test]
+    fn an_edited_absent_translation_is_inserted_exactly_where_maya_writes_it() {
+        let (_, mut edited) = open();
+        let id = edited.nodes()[0].id();
+        edited.set_channel(id, Channel::TranslateX, 5.0).unwrap();
+        let output = encode(&edited).unwrap();
+        let expected = scene(&children(&[t([5.0, 0.0, 0.0])]));
+        assert_eq!(output, expected.as_ref());
+        let reopened = decode(output.clone().into()).unwrap();
+        assert_eq!(
+            translation(&reopened, 0),
+            [5.0f64.to_bits(), 0.0f64.to_bits(), 0.0f64.to_bits()]
+        );
+        let (_, untouched) = open();
+        for node in 1..3 {
+            assert_eq!(translation(&reopened, node), translation(&untouched, node));
+        }
+        assert_eq!(reopened.shapes, untouched.shapes);
+        assert_eq!(encode(&edited).unwrap(), output, "saving twice is stable");
+    }
+
+    #[test]
+    fn components_and_signed_zero_land_in_their_own_words() {
+        for (channel, value, words) in [
+            (Channel::TranslateY, 2.5, [0.0, 2.5, 0.0]),
+            (Channel::TranslateZ, -0.0, [0.0, 0.0, -0.0]),
+        ] {
+            let (_, mut edited) = open();
+            let id = edited.nodes()[0].id();
+            edited.set_channel(id, channel, value).unwrap();
+            let expected = scene(&children(&[t(words)]));
+            assert_eq!(encode(&edited).unwrap(), expected.as_ref(), "{channel:?}");
+        }
+    }
+
+    #[test]
+    fn declared_units_are_stored_in_centimetres() {
+        let bytes = scene_with_units(&children(&[]), b"m", b"deg");
+        let mut edited = decode(bytes).unwrap();
+        let id = edited.nodes()[0].id();
+        edited.set_channel(id, Channel::TranslateX, 2.0).unwrap();
+        let expected = scene_with_units(&children(&[t([200.0, 0.0, 0.0])]), b"m", b"deg");
+        assert_eq!(encode(&edited).unwrap(), expected.as_ref());
+    }
+
+    #[test]
+    fn editing_back_to_the_default_saves_the_input_byte_for_byte() {
+        let (bytes, mut edited) = open();
+        let id = edited.nodes()[0].id();
+        edited.set_channel(id, Channel::TranslateX, 5.0).unwrap();
+        edited.set_channel(id, Channel::TranslateX, 0.0).unwrap();
+        assert_eq!(encode(&edited).unwrap(), bytes.as_ref());
+    }
+
+    #[test]
+    fn nodes_without_a_site_and_ungated_fields_keep_their_refusal() {
+        let (_, mut edited) = open();
+        let siteless = edited.nodes()[2].id();
+        assert_eq!(
+            edited.set_channel(siteless, Channel::TranslateX, 5.0),
+            Err(NativeError::UnsupportedEdit)
+        );
+        let sited = edited.nodes()[0].id();
+        for channel in [Channel::RotateX, Channel::ScaleX] {
+            assert_eq!(
+                edited.set_channel(sited, channel, 2.0),
+                Err(NativeError::UnsupportedEdit),
+                "{channel:?}"
+            );
+        }
+        let mut noisy = edited.nodes()[0].transform();
+        noisy.rotation[0] = 1e-12;
+        assert_eq!(
+            edited.set_transform(sited, noisy),
+            Err(NativeError::UnsupportedEdit)
+        );
+        let same: NativeTransform = edited.nodes()[0].transform();
+        assert!(edited.set_transform(sited, same).is_ok());
+    }
+}

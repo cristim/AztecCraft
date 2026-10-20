@@ -56,8 +56,11 @@ fn payload_end_of_transform(bytes: &Arc<[u8]>, index: usize) -> usize {
 }
 
 #[test]
-fn production_gate_is_empty_and_saves_stay_byte_identical() {
-    assert!(INSERTABLE.is_empty());
+fn production_gate_admits_translation_only_and_saves_without_edits_stay_byte_identical() {
+    assert_eq!(INSERTABLE, [TransformField::Translation]);
+    for field in [TransformField::Rotation, TransformField::Scale] {
+        assert!(!INSERTABLE.contains(&field));
+    }
     let bytes = wire_scene(&file(SITE_AUX));
     let scene = decoded(bytes.clone());
     assert!(!scene.source.as_ref().unwrap().sites.is_empty());

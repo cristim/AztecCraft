@@ -6,13 +6,33 @@
 
 use super::{BinaryError, FIELDS, canonical, insert::Insertion, resource, unsupported};
 use crate::native_scene::{
-    NativeScene,
+    NativeId, NativeScene,
     binary::write::chunk::{Align, leaf},
     source::{SourceRetention, TransformField},
 };
 
-/// Fields whose absent leaf may be inserted. Empty until the edit paths admit them.
-pub(super) const INSERTABLE: &[TransformField] = &[];
+pub(super) use crate::native_scene::source::INSERTABLE;
+
+/// `(owner, field)` of every gated field whose three scalars have no origin and an edit. It is
+/// either inserted or, when every word is +0.0, left absent.
+pub(super) fn edited_absent(
+    scene: &NativeScene,
+    insertable: &[TransformField],
+) -> Vec<(NativeId, TransformField)> {
+    let mut found = Vec::new();
+    for node in &scene.nodes {
+        for field in FIELDS
+            .into_iter()
+            .filter(|field| insertable.contains(field))
+        {
+            let scalars = node.field(field);
+            if scalars.iter().all(|s| s.origin.is_none()) && scalars.iter().any(|s| s.replaced) {
+                found.push((node.transform_id, field));
+            }
+        }
+    }
+    found
+}
 
 /// The record for `field` holding `words` (internal units), with the file's own `aux`.
 ///

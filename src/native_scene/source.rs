@@ -23,6 +23,10 @@ pub(super) enum Storage {
     Unitless,
 }
 
+/// Fields whose absent leaf may be inserted when an opened Maya Binary is saved. Rotation and scale
+/// need their own guard work first and keep their refusal. PROVISIONAL.
+pub(super) const INSERTABLE: &[TransformField] = &[TransformField::Translation];
+
 impl TransformField {
     pub(super) fn storage(self) -> Storage {
         match self {
@@ -192,6 +196,10 @@ impl SourceRetention {
             .binary_search_by_key(&owner, |site| site.owner)
             .ok()?;
         self.sites.get(index).filter(|site| site.field == field)
+    }
+    /// Whether an edit of `owner`'s absent `field` leaf can be saved by inserting a record.
+    pub(super) fn can_insert(&self, owner: NativeId, field: TransformField) -> bool {
+        INSERTABLE.contains(&field) && self.insert_site(owner, field).is_some()
     }
     pub(super) fn binary_leaf(
         &self,
