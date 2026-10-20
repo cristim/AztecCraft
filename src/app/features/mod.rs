@@ -5,5 +5,6 @@ pub(in crate::app) mod manipulation_tool;
 mod material;
 pub(in crate::app) mod move_tool;
 mod node_edit;
+pub(in crate::app) mod primitive_options;
 mod selection;
 mod status_line;
