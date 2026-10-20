@@ -1,4 +1,5 @@
 pub use crate::mesh::Mesh;
+use crate::primitive_options::PrimitiveOptionsError;
 use glam::{EulerRot, Mat4, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -294,6 +295,7 @@ pub enum SceneError {
     InvalidExtrusionDistance,
     UndefinedFaceNormal,
     UnsupportedPrimitive(Primitive),
+    InvalidPrimitiveOptions(PrimitiveOptionsError),
 }
 
 impl fmt::Display for SceneError {
@@ -321,6 +323,7 @@ impl fmt::Display for SceneError {
             }
             Self::InvalidExtrusionDistance => f.write_str("extrusion distance must be finite"),
             Self::UndefinedFaceNormal => f.write_str("selected face has no finite nonzero normal"),
+            Self::InvalidPrimitiveOptions(error) => write!(f, "invalid primitive options: {error}"),
             Self::UnsupportedPrimitive(primitive) => write!(
                 f,
                 "{primitive:?} needs triangles or n-gons, which the quad-only legacy mesh cannot hold"
