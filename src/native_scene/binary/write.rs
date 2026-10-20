@@ -40,6 +40,9 @@ mod transform;
 use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
 use chunk::TooLarge;
 
+mod refusal;
+pub use refusal::AuthoredRefusalCode;
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum AuthoredBinaryRefusal {
     Ineligible(AuthoredIneligible),

@@ -1,5 +1,5 @@
 use super::{NativeOrigin, NativeScene};
-use crate::native_scene::binary;
+use crate::native_scene::binary::{self, AuthoredRefusalCode};
 use std::{
     fmt, io,
     path::{Path, PathBuf},
@@ -24,6 +24,8 @@ pub enum NativeSaveError {
     Cancelled,
     Io(io::ErrorKind),
     Encode(binary::BinaryError),
+    /// A new scene cannot be written as a Maya Binary file; nothing was written.
+    Unwritable(AuthoredRefusalCode),
 }
 
 impl fmt::Display for NativeSaveError {
@@ -38,6 +40,7 @@ impl fmt::Display for NativeSaveError {
             Self::Cancelled => f.write_str("save cancelled before installation"),
             Self::Io(kind) => write!(f, "native scene IO failed: {kind:?}"),
             Self::Encode(error) => error.fmt(f),
+            Self::Unwritable(code) => write!(f, "cannot write this scene as a new .mb: {code}"),
         }
     }
 }
