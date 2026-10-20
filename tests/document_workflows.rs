@@ -77,6 +77,7 @@ fn exhausted_loaded_allocator_preserves_scene_history_and_saved_reservations() {
     assert_eq!(
         history.execute(Command::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: "new".into()
         }),
         Err(azteccraft::native_scene::NativeError::Legacy(

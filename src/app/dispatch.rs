@@ -413,7 +413,11 @@ impl Editor {
             Operation::SelectAttributeEditorTab { tab } => {
                 return self.select_attribute_editor_tab(tab);
             }
-            Operation::Create { primitive, name } => {
+            Operation::Create {
+                primitive,
+                options,
+                name,
+            } => {
                 let name = name.unwrap_or_else(|| {
                     let base = match primitive {
                         Primitive::Cube => "pCube",
@@ -434,7 +438,11 @@ impl Editor {
                     }
                     format!("{base}{suffix}")
                 });
-                Command::Create { primitive, name }
+                Command::Create {
+                    primitive,
+                    options,
+                    name,
+                }
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::Rename { id, name } => Command::Rename { id, name },

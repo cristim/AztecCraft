@@ -29,6 +29,7 @@ pub use session_material::{
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras};
 
+use crate::primitive_options::PrimitiveOptions;
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};
 use glam::{DMat3, DMat4, DVec3, Vec3};
 use std::fmt;
@@ -961,7 +962,21 @@ impl NativeScene {
     }
 
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
+        self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
+    }
+
+    /// Validates `options` against `primitive` before any mutation.
+    pub fn create_with_options(
+        &mut self,
+        primitive: Primitive,
+        options: &PrimitiveOptions,
+        name: &str,
+    ) -> Result<NodeId, NativeError> {
         self.structural_edit()?;
+        // The primitive/options pairing is the one check NativeMesh::with_options does not repeat.
+        options
+            .validate(primitive)
+            .map_err(SceneError::InvalidPrimitiveOptions)?;
         self.validate_new_name(None, name)?;
         let next = self
             .next_id
@@ -971,7 +986,7 @@ impl NativeScene {
         self.append(
             id,
             name,
-            NativeMesh::primitive(primitive)?,
+            NativeMesh::with_options(options)?,
             NativeTransform::default(),
         )?;
         self.next_id = next;

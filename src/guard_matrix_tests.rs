@@ -536,6 +536,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::Inspect,
         Operation::Create {
             primitive: Primitive::Plane,
+            options: None,
             name: None,
         },
         Operation::Select {
@@ -819,6 +820,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "create(plane)",
                 Operation::Create {
                     primitive: Primitive::Plane,
+                    options: None,
                     name: None,
                 },
             ),
@@ -826,6 +828,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "create(sphere)",
                 Operation::Create {
                     primitive: Primitive::Sphere,
+                    options: None,
                     name: None,
                 },
             ),
@@ -833,6 +836,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "create(cylinder)",
                 Operation::Create {
                     primitive: Primitive::Cylinder,
+                    options: None,
                     name: None,
                 },
             ),
@@ -840,6 +844,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "create(cone)",
                 Operation::Create {
                     primitive: Primitive::Cone,
+                    options: None,
                     name: None,
                 },
             ),
@@ -1306,6 +1311,7 @@ fn add_second_node(editor: &mut Editor) {
     editor
         .apply_operation(Operation::Create {
             primitive: Primitive::Plane,
+            options: None,
             name: None,
         })
         .unwrap();

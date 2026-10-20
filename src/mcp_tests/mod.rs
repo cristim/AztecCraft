@@ -70,6 +70,7 @@ fn create_request(editor: &Editor) -> RemoteRequest {
         expected_scene_token: Some(editor.scene_token),
         operation: Operation::Create {
             primitive: Primitive::Cube,
+            options: None,
             name: None,
         },
     }

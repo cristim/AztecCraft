@@ -92,6 +92,7 @@ impl Editor {
     pub(in crate::app) fn create(&mut self, primitive: Primitive) {
         self.native_operation(Operation::Create {
             primitive,
+            options: None,
             name: None,
         });
     }
