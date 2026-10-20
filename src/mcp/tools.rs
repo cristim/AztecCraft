@@ -1406,4 +1406,21 @@ mod tests {
         );
         assert!(check_serialized_size(&result, MAX_RESULT_BYTES).is_ok());
     }
+
+    #[test]
+    fn invalid_primitive_options_have_their_own_error_code() {
+        let cause = azteccraft::primitive_options::PrimitiveOptions::default_for(
+            azteccraft::scene::Primitive::Cube,
+        )
+        .validate(azteccraft::scene::Primitive::Cone)
+        .unwrap_err();
+        let result = tool_reply(Err(OperationError::Scene(NativeError::Legacy(
+            SceneError::InvalidPrimitiveOptions(cause),
+        ))));
+        assert_eq!(result.is_error, Some(true));
+        assert_eq!(
+            result.structured_content.as_ref().unwrap()["error"]["code"],
+            "invalid_primitive_options"
+        );
+    }
 }

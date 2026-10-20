@@ -423,3 +423,102 @@ fn dirty_flag_clears_when_undoing_back_to_a_retained_saved_state() {
     }
     assert!(!is_dirty(&history, &saved));
 }
+
+mod primitive_options {
+    use azteccraft::history::{Command, EditOutcome, History};
+    use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+    use azteccraft::scene::{Primitive, SceneError};
+
+    fn sphere(radius: f64) -> PrimitiveOptions {
+        PrimitiveOptions::Sphere {
+            radius,
+            sub_axis: 8,
+            sub_height: 6,
+            axis: Axis::X,
+        }
+    }
+
+    fn create(
+        history: &mut History,
+        primitive: Primitive,
+        options: Option<PrimitiveOptions>,
+    ) -> Result<EditOutcome, azteccraft::native_scene::NativeError> {
+        history.execute(Command::Create {
+            primitive,
+            options,
+            name: "made".into(),
+        })
+    }
+
+    #[test]
+    fn rejected_options_leave_scene_and_history_untouched() {
+        let mut history = History::default();
+        create(&mut history, Primitive::Cube, None).unwrap();
+        let scene = history.scene().clone();
+        let undo = history.undo_label();
+        let invalid = [
+            (Primitive::Sphere, sphere(-1.0)),
+            (Primitive::Sphere, sphere(f64::NAN)),
+            (Primitive::Sphere, sphere(1e6 + 1.0)),
+            (Primitive::Cone, sphere(1.0)),
+            (
+                Primitive::Cube,
+                PrimitiveOptions::default_for(Primitive::Plane),
+            ),
+        ];
+        for (primitive, options) in invalid {
+            let error = create(&mut history, primitive, Some(options)).unwrap_err();
+            assert!(
+                matches!(
+                    error,
+                    azteccraft::native_scene::NativeError::Legacy(
+                        SceneError::InvalidPrimitiveOptions(_)
+                    )
+                ),
+                "{primitive:?}: {error:?}"
+            );
+            assert_eq!(history.scene(), &scene);
+            assert_eq!(history.undo_label(), undo);
+            assert!(!history.can_redo());
+        }
+        assert!(history.undo());
+        assert!(!history.can_undo());
+    }
+
+    #[test]
+    fn optioned_create_undoes_and_redoes_exactly() {
+        let mut history = History::default();
+        let before = history.scene().clone();
+        create(&mut history, Primitive::Sphere, Some(sphere(2.5))).unwrap();
+        let after = history.scene().clone();
+        assert_ne!(after, before);
+        assert!(history.undo());
+        assert_eq!(history.scene(), &before);
+        assert!(history.redo());
+        assert_eq!(history.scene(), &after);
+    }
+
+    #[test]
+    fn none_and_explicit_defaults_build_identical_scenes() {
+        for primitive in [
+            Primitive::Cube,
+            Primitive::Plane,
+            Primitive::Sphere,
+            Primitive::Cylinder,
+            Primitive::Cone,
+        ] {
+            let mut implicit = History::default();
+            let mut explicit = History::default();
+            create(&mut implicit, primitive, None).unwrap();
+            create(
+                &mut explicit,
+                primitive,
+                Some(PrimitiveOptions::default_for(primitive)),
+            )
+            .unwrap();
+            let a = implicit.scene().shapes()[0].mesh();
+            let b = explicit.scene().shapes()[0].mesh();
+            assert_eq!(a, b, "{primitive:?}");
+        }
+    }
+}

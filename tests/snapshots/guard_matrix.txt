@@ -43,6 +43,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -128,6 +131,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -212,6 +218,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -295,6 +304,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -379,6 +391,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -463,6 +478,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -547,6 +565,9 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -631,6 +652,9 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none_with_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -715,6 +739,9 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -799,6 +826,9 @@
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none_with_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -883,6 +913,9 @@
   create(sphere) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(cube,options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(sphere,invalid options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(cone,mismatched options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select(node) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select(none) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -967,6 +1000,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1051,6 +1087,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select(node) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select(none) => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -1135,6 +1174,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1219,6 +1261,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select(node) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select(none) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -1303,6 +1348,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1387,6 +1435,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -1471,6 +1522,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1555,6 +1609,9 @@
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -1639,6 +1696,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1723,6 +1783,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1807,6 +1870,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1891,6 +1957,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1974,6 +2043,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2058,6 +2130,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2142,6 +2217,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2226,6 +2304,9 @@
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2310,6 +2391,9 @@
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(sphere,invalid options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(cone,mismatched options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2394,6 +2478,9 @@
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(sphere,invalid options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(cone,mismatched options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2478,6 +2565,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2562,6 +2652,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2646,6 +2739,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2730,6 +2826,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
@@ -2814,6 +2913,9 @@
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2898,6 +3000,9 @@
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2942,4 +3047,4 @@
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 2557
+cells: 2662

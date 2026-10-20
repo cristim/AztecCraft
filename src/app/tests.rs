@@ -7120,3 +7120,116 @@ fn release_click_and_tab_after_a_first_click_defer_the_blur_commit_once() {
     assert_eq!(undo_entries(&mut editor), undo_before + 2);
     assert!(!editor.has_draft());
 }
+
+mod primitive_options_create {
+    use super::*;
+    use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+
+    fn sphere(radius: f64) -> PrimitiveOptions {
+        PrimitiveOptions::Sphere {
+            radius,
+            sub_axis: 8,
+            sub_height: 6,
+            axis: Axis::Y,
+        }
+    }
+
+    fn create(
+        editor: &mut Editor,
+        primitive: Primitive,
+        options: Option<PrimitiveOptions>,
+    ) -> Result<OperationReply, OperationError> {
+        remote(
+            editor,
+            Operation::Create {
+                primitive,
+                options,
+                name: None,
+            },
+        )
+    }
+
+    #[test]
+    fn invalid_options_leave_scene_history_selection_and_token_unchanged() {
+        let mut editor = Editor::default();
+        create(&mut editor, Primitive::Cube, None).unwrap();
+        let scene = editor.history.scene().clone();
+        let selection = (editor.selected, editor.selected_path.clone());
+        let token = editor.scene_token;
+        let dirty = editor.is_dirty();
+        let invalid = [
+            (Primitive::Sphere, sphere(0.0)),
+            (Primitive::Sphere, sphere(f64::INFINITY)),
+            (Primitive::Cone, sphere(1.0)),
+        ];
+        for (primitive, options) in invalid {
+            let error = create(&mut editor, primitive, Some(options)).unwrap_err();
+            assert!(matches!(error, OperationError::Scene(_)), "{error:?}");
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!((editor.selected, editor.selected_path.clone()), selection);
+            assert_eq!(editor.scene_token, token);
+            assert_eq!(editor.is_dirty(), dirty);
+            assert!(!editor.history.can_redo());
+        }
+    }
+
+    #[test]
+    fn optioned_create_selects_undoes_and_redoes() {
+        let mut editor = Editor::default();
+        let before = editor.history.scene().clone();
+        let OperationReply::Created { node_id } =
+            create(&mut editor, Primitive::Sphere, Some(sphere(3.0))).unwrap()
+        else {
+            panic!("expected created object")
+        };
+        assert_eq!(
+            editor.selection_presentation().0,
+            NodeId::from_decimal(&node_id).ok()
+        );
+        let after = editor.history.scene().clone();
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert_eq!(editor.history.scene(), &before);
+        remote(&mut editor, Operation::Redo).unwrap();
+        assert_eq!(editor.history.scene(), &after);
+    }
+
+    #[test]
+    fn save_and_save_as_stay_refused_and_write_nothing_after_an_optioned_create() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("created.mb");
+        let mut editor = Editor::default();
+        create(&mut editor, Primitive::Sphere, Some(sphere(3.0))).unwrap();
+        assert!(!editor.files.save_available());
+        assert!(matches!(
+            remote(&mut editor, Operation::SaveScene),
+            Err(OperationError::NativeSave(_))
+        ));
+        let save_as = remote(
+            &mut editor,
+            Operation::SaveSceneAs {
+                path: destination.clone(),
+            },
+        );
+        assert!(
+            matches!(save_as, Err(OperationError::NativeSave(_))),
+            "{save_as:?}"
+        );
+        assert!(!destination.exists());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn maximum_size_sphere_stays_inside_the_framed_far_clip() {
+        let mut editor = Editor::default();
+        create(&mut editor, Primitive::Sphere, Some(sphere(1e6))).unwrap();
+        let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+        let mut camera = editor.camera.clone();
+        camera.frame_view(&view, None, editor.aspect).unwrap();
+        let vertices = view.instances()[0].world_vertices();
+        assert!(!vertices.is_empty());
+        for vertex in vertices {
+            let projected = camera.project(*vertex, editor.aspect).unwrap();
+            assert!(projected.is_some(), "{vertex:?} is clipped");
+        }
+    }
+}
