@@ -84,3 +84,15 @@ fn a_node_without_a_stored_uuid_is_refused() {
         Err(AuthoredBinaryRefusal::MissingUuid)
     );
 }
+
+#[test]
+fn the_self_check_runs_on_the_built_bytes() {
+    // The decoder refuses a node name containing `|`, which the builders accept, so only
+    // the self-check stands between this scene and returned bytes.
+    let mut scene = bare_numbered(2);
+    scene.nodes[1].name = "a|b".to_owned();
+    assert_eq!(
+        transforms_file(&scene),
+        Err(AuthoredBinaryRefusal::SelfCheckMismatch)
+    );
+}

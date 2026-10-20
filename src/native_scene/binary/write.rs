@@ -60,6 +60,7 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
 }
 
 /// The file for a scene of bare transforms, whose eligibility the caller has checked.
+/// The bytes are decoded and compared with the scene before they are returned.
 #[cfg_attr(
     not(test),
     expect(
@@ -87,12 +88,9 @@ fn transforms_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal
         };
         children.push(transform::xfrm(node.name(), uuid, channels)?);
     }
-    Ok(chunk::group(
-        *b"Maya",
-        profile::ROOT_AUX,
-        &children,
-        chunk::Align::One,
-    )?)
+    let bytes = chunk::group(*b"Maya", profile::ROOT_AUX, &children, chunk::Align::One)?;
+    check::verify(scene, &bytes)?;
+    Ok(bytes)
 }
 
 #[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
