@@ -1,44 +1,57 @@
-use super::NativeMesh;
+use super::{NativeMesh, axis::orient};
+use crate::primitive_options::Axis;
 use std::f64::consts::PI;
 
 // PROVISIONAL (#5): radius 1 and 20x20 are the polySphere node defaults; Maya 2026 is unverified.
-const RADIUS: f64 = 1.0;
-const AXIS_DIVISIONS: usize = 20;
-const HEIGHT_DIVISIONS: usize = 20;
+pub(super) struct SphereGrid {
+    pub radius: f64,
+    pub axis_divisions: usize,
+    pub height_divisions: usize,
+    pub axis: Axis,
+}
 
 impl NativeMesh {
-    /// Y-axis UV sphere: a vertex at each pole, `HEIGHT_DIVISIONS - 1` rings between them,
-    /// triangle fans at the poles and outward-wound quads between rings.
-    pub(super) fn polygon_sphere() -> Self {
-        let mut points = vec![[0.0, RADIUS as f32, 0.0]];
-        for ring in 1..HEIGHT_DIVISIONS {
-            let polar = PI * ring as f64 / HEIGHT_DIVISIONS as f64;
-            let y = if 2 * ring == HEIGHT_DIVISIONS {
+    /// UV sphere with poles on `axis`: a vertex at each pole, `height_divisions - 1` rings
+    /// between them, triangle fans at the poles and outward-wound quads between rings.
+    pub(super) fn polygon_sphere(grid: &SphereGrid) -> Self {
+        let SphereGrid {
+            radius,
+            axis_divisions,
+            height_divisions,
+            axis,
+        } = *grid;
+        let mut points = vec![orient(axis, [0.0, radius as f32, 0.0])];
+        for ring in 1..height_divisions {
+            let polar = PI * ring as f64 / height_divisions as f64;
+            let y = if 2 * ring == height_divisions {
                 0.0
             } else {
-                RADIUS * polar.cos()
+                radius * polar.cos()
             };
-            for column in 0..AXIS_DIVISIONS {
-                let azimuth = 2.0 * PI * column as f64 / AXIS_DIVISIONS as f64;
-                let radial = RADIUS * polar.sin();
-                points.push([
-                    (radial * azimuth.cos()) as f32,
-                    y as f32,
-                    (radial * azimuth.sin()) as f32,
-                ]);
+            for column in 0..axis_divisions {
+                let azimuth = 2.0 * PI * column as f64 / axis_divisions as f64;
+                let radial = radius * polar.sin();
+                points.push(orient(
+                    axis,
+                    [
+                        (radial * azimuth.cos()) as f32,
+                        y as f32,
+                        (radial * azimuth.sin()) as f32,
+                    ],
+                ));
             }
         }
-        points.push([0.0, -RADIUS as f32, 0.0]);
+        points.push(orient(axis, [0.0, -radius as f32, 0.0]));
         let top = 0;
         let bottom = points.len() - 1;
         let vertex =
-            |ring: usize, column: usize| 1 + (ring - 1) * AXIS_DIVISIONS + column % AXIS_DIVISIONS;
+            |ring: usize, column: usize| 1 + (ring - 1) * axis_divisions + column % axis_divisions;
         let mut loops: Vec<Vec<usize>> = Vec::new();
-        for column in 0..AXIS_DIVISIONS {
+        for column in 0..axis_divisions {
             loops.push(vec![top, vertex(1, column + 1), vertex(1, column)]);
         }
-        for ring in 1..HEIGHT_DIVISIONS - 1 {
-            for column in 0..AXIS_DIVISIONS {
+        for ring in 1..height_divisions - 1 {
+            for column in 0..axis_divisions {
                 loops.push(vec![
                     vertex(ring, column),
                     vertex(ring, column + 1),
@@ -47,11 +60,11 @@ impl NativeMesh {
                 ]);
             }
         }
-        for column in 0..AXIS_DIVISIONS {
+        for column in 0..axis_divisions {
             loops.push(vec![
                 bottom,
-                vertex(HEIGHT_DIVISIONS - 1, column),
-                vertex(HEIGHT_DIVISIONS - 1, column + 1),
+                vertex(height_divisions - 1, column),
+                vertex(height_divisions - 1, column + 1),
             ]);
         }
         Self::from_loops(points, loops)

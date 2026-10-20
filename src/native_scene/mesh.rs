@@ -350,9 +350,19 @@ impl NativeMesh {
                 [sub_width, sub_height].map(|n| n as usize),
                 axis,
             )),
+            PrimitiveOptions::Sphere {
+                radius,
+                sub_axis,
+                sub_height,
+                axis,
+            } => Ok(Self::polygon_sphere(&sphere::SphereGrid {
+                radius,
+                axis_divisions: sub_axis as usize,
+                height_divisions: sub_height as usize,
+                axis,
+            })),
             _ if *options == PrimitiveOptions::default_for(options.primitive()) => {
                 match options.primitive() {
-                    Primitive::Sphere => Ok(Self::polygon_sphere()),
                     Primitive::Cylinder => Ok(Self::polygon_cylinder()),
                     _ => Ok(Self::polygon_cone()),
                 }
@@ -608,5 +618,7 @@ mod grid;
 #[cfg(test)]
 mod grid_tests;
 mod sphere;
+#[cfg(test)]
+mod sphere_tests;
 #[cfg(test)]
 mod tests;
