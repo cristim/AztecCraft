@@ -438,3 +438,7 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
     })
     .inner
 }
+
+#[cfg(test)]
+#[path = "primitive_options/tests.rs"]
+mod tests;
