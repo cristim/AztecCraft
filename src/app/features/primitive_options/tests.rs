@@ -1,6 +1,14 @@
 use super::*;
-use crate::app::tests::frame_with;
+use crate::app::tests::{frame_with, remote};
+use crate::editor_operations::{OperationError, OperationReply};
 use eframe::egui::{Event, Modifiers, PointerButton, Pos2, Rect, Vec2, accesskit};
+
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
 
 const SIZE: Vec2 = egui::vec2(1200.0, 800.0);
 
@@ -70,6 +78,16 @@ fn run(editor: &mut Editor, ctx: &egui::Context, events: Vec<Event>) -> egui::Fu
     frame_with(editor, ctx, SIZE, 1.0, events)
 }
 
+fn key(key: Key) -> Event {
+    Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    }
+}
+
 fn click(editor: &mut Editor, ctx: &egui::Context, at: Pos2) -> egui::FullOutput {
     run(editor, ctx, vec![Event::PointerMoved(at)]);
     let mut last = None;
@@ -123,6 +141,11 @@ fn dialog_open(output: &egui::FullOutput, primitive: Primitive) -> bool {
 
 fn node_count(editor: &Editor) -> usize {
     editor.history.scene().nodes().len()
+}
+
+fn focus_field(editor: &mut Editor, ctx: &egui::Context, index: usize) {
+    ctx.memory_mut(|memory| memory.request_focus(option_field_id(index)));
+    run(editor, ctx, vec![]);
 }
 
 #[test]
@@ -298,4 +321,290 @@ fn unfinished_controls_are_disabled_with_a_reason() {
     open_dialog(&mut editor, &ctx, Primitive::Sphere);
     let output = run(&mut editor, &ctx, vec![]);
     assert!(find(&output, "Round cap").is_none());
+}
+
+#[test]
+fn typing_in_a_field_blocks_hotkeys_delete_and_viewport_clicks() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Plane);
+    let selected = editor.selected;
+    let nodes = node_count(&editor);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    focus_field(&mut editor, &ctx, 0);
+    assert!(text_edit_focused(&ctx));
+    let tool = editor.active_tool;
+    let mode = editor.selection_mode;
+    run(
+        &mut editor,
+        &ctx,
+        vec![key(Key::W), key(Key::F8), key(Key::Delete), key(Key::Num4)],
+    );
+    assert_eq!(editor.active_tool, tool);
+    assert_eq!(editor.selection_mode, mode);
+    assert_eq!(node_count(&editor), nodes);
+    assert_eq!(editor.selected, selected);
+    // A viewport click while a field has focus must not select or change anything.
+    let viewport = Pos2::new(700.0, 400.0);
+    let before = (editor.selected, editor.history.scene().clone());
+    focus_field(&mut editor, &ctx, 1);
+    run(&mut editor, &ctx, vec![Event::PointerMoved(viewport)]);
+    run(
+        &mut editor,
+        &ctx,
+        vec![Event::PointerButton {
+            pos: viewport,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        }],
+    );
+    assert_eq!((editor.selected, editor.history.scene().clone()), before);
+}
+
+#[test]
+fn clicking_a_dialog_field_prefocuses_it_so_the_first_text_lands() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    let field = ctx.read_response(option_field_id(0)).unwrap().rect.center();
+    run(&mut editor, &ctx, vec![Event::PointerMoved(field)]);
+    run(
+        &mut editor,
+        &ctx,
+        vec![
+            Event::PointerButton {
+                pos: field,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers: Modifiers::NONE,
+            },
+            Event::Text("7".into()),
+        ],
+    );
+    assert_eq!(ctx.memory(|m| m.focused()), Some(option_field_id(0)));
+    assert!(editor.primitive_options.dialog.as_ref().unwrap().texts[0].contains('7'));
+}
+
+#[test]
+fn window_is_hidden_while_a_file_modal_is_open_and_returns_with_its_text() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    set_field(&mut editor, &ctx, 0, "3");
+    editor.request_new();
+    assert!(editor.files.is_modal());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(!dialog_open(&output, Primitive::Sphere));
+    let before = node_count(&editor);
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    run(&mut editor, &ctx, vec![]);
+    assert!(!editor.files.is_modal());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(dialog_open(&output, Primitive::Sphere));
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[0],
+        "3"
+    );
+    assert_eq!(node_count(&editor), before);
+}
+
+#[test]
+fn window_is_hidden_while_closing() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    editor.request_close();
+    assert!(editor.files.is_closing());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(!dialog_open(&output, Primitive::Sphere));
+}
+
+#[test]
+fn read_only_scene_disables_create_and_the_option_box() {
+    let (mut editor, ctx) = setup();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert!(
+        editor
+            .history
+            .scene()
+            .authoring_read_only_reason()
+            .is_some()
+    );
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(window_button(&output, "Create").disabled);
+    let before = editor.history.scene().clone();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(editor.history.scene(), &before);
+    let menu = menu_create(&output);
+    click(&mut editor, &ctx, menu.rect.center());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(find(&output, "Polygon sphere option box").unwrap().disabled);
+}
+
+#[test]
+fn remote_create_succeeds_while_the_window_is_open_and_busy_only_while_typing() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    set_field(&mut editor, &ctx, 0, "4");
+    let create = || Operation::Create {
+        primitive: Primitive::Cube,
+        options: None,
+        name: None,
+    };
+    let reply = remote(&mut editor, create()).unwrap();
+    assert!(matches!(reply, OperationReply::Created { .. }));
+    assert_eq!(node_count(&editor), 1);
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[0],
+        "4"
+    );
+    focus_field(&mut editor, &ctx, 0);
+    let busy = editor
+        .remote_operation(
+            crate::editor_operations::RemoteRequest {
+                expected_scene_token: Some(editor.scene_token),
+                operation: create(),
+            },
+            &ctx,
+        )
+        .unwrap_err();
+    assert!(matches!(busy, OperationError::BusyEditing));
+}
+
+#[test]
+fn create_commits_a_valid_human_draft_first_and_reports_an_invalid_one() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Plane);
+    editor.channels[0] = "5".into();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 2);
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation,
+        [5.0, 0.0, 0.0],
+        "the valid draft was committed by the create"
+    );
+    editor.channels[0] = "nope".into();
+    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    run(&mut editor, &ctx, vec![]);
+    editor.channels[0] = "nope".into();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 2, "an invalid draft blocks the create");
+    assert!(
+        editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .message
+            .is_some()
+    );
+}
+
+#[test]
+fn escape_closes_the_window_when_nothing_else_wants_it() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(!dialog_open(&output, Primitive::Sphere));
+    assert!(!editor.status.contains("Edit cancelled"));
+}
+
+#[test]
+fn escape_cancels_a_draft_first_and_a_second_press_closes() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    editor.channels[0] = "9".into();
+    assert!(editor.has_draft());
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(!editor.has_draft());
+    assert!(
+        editor.primitive_options.dialog.is_some(),
+        "the draft took the key"
+    );
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_none());
+}
+
+#[test]
+fn escape_while_typing_in_a_field_keeps_the_window() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    focus_field(&mut editor, &ctx, 0);
+    run(&mut editor, &ctx, vec![]);
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_some());
+    assert_eq!(ctx.memory(|m| m.focused()), None);
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_none());
+}
+
+#[test]
+fn escape_cancels_a_manipulation_and_keeps_the_window() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    editor
+        .apply_operation(Operation::BeginMove {
+            target: editor.selected_move_target().unwrap(),
+            axis: azteccraft::native_scene::WorldAxis::X,
+        })
+        .unwrap();
+    assert!(editor.history.active_manipulation().is_some());
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.history.active_manipulation().is_none());
+    assert!(editor.primitive_options.dialog.is_some());
+}
+
+#[test]
+fn replacing_the_scene_keeps_the_window_the_drafts_and_the_remembered_options() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    set_field(&mut editor, &ctx, 1, "8");
+    set_field(&mut editor, &ctx, 2, "6");
+    press(&mut editor, &ctx, "Create");
+    set_field(&mut editor, &ctx, 0, "3");
+    let created_token = editor.scene_token;
+    editor.request_new();
+    assert!(editor.files.is_modal(), "the created scene is unsaved");
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(
+        !dialog_open(&output, Primitive::Sphere),
+        "hidden by the prompt"
+    );
+    let pending_id = uuid::Uuid::parse_str(&editor.files.pending_inspection().unwrap().id).unwrap();
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id,
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    assert_ne!(editor.scene_token, created_token);
+    assert_eq!(node_count(&editor), 0);
+    for _ in 0..2 {
+        run(&mut editor, &ctx, vec![]);
+    }
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(dialog_open(&output, Primitive::Sphere), "the window stays");
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[0],
+        "3"
+    );
+    assert!(matches!(
+        editor.remembered_options(Primitive::Sphere),
+        PrimitiveOptions::Sphere {
+            sub_axis: 8,
+            sub_height: 6,
+            ..
+        }
+    ));
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 1, "Create now targets the new scene");
 }
