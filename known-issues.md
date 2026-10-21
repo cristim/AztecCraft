@@ -419,7 +419,7 @@ Create > Polygon sphere and `create_primitive` with `sphere` build a radius-1,
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
-so the viewport looks faceted. There is no options dialog, no UVs or normals, and
+so the viewport looks faceted. There are no UVs or normals, and
 new nodes are not persisted (Save is unavailable for created scenes, as for the
 cube). Pole triangles cannot be extruded; body quads can. The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
@@ -462,8 +462,8 @@ lists sz 1 instead, so a Maya-default cylinder may have different counts, and th
 cap topology of both solids is derived, not verified against Maya 2026 (#5). The cone
 has 21 points, 40 edges and 21 faces (20 side triangles and a 20-gon base) with its apex
 at (0, 1, 0) and its base at y=-1. Vertex and face order and winding are not claimed to
-match Maya. Edges are hard, so the viewport looks faceted. There is no options dialog,
-no UVs or normals, and new nodes are not persisted. Caps and cone side triangles cannot
+match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals,
+and new nodes are not persisted. Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
 `pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
@@ -571,7 +571,10 @@ Rotate angle in the scene angular unit and the native numeric field takes degree
 ## Primitive creation options are partial and PROVISIONAL (#174)
 
 `create_primitive` accepts size, subdivision and axis (X, Y or Z) options for cube, plane,
-sphere, cylinder and cone; the native Create menu has no option boxes yet (PR B). Created
+sphere, cylinder and cone, and each Create menu row has an option box that opens a
+"Polygon <name> Options" window (native visual QA pending). Keeping the window open after Create
+and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
+pages do not say), session only and never saved. Created
 primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
 limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
