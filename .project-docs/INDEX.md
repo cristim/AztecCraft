@@ -8,6 +8,7 @@
 - [Development](development.md): pinned Rust toolchain, local checks, bounded read-only ASCII curves, the bounded World-axis Move candidate and scoped native/SDK/GPU evidence.
 - [Build checks and packaging](builds.md): prepared CI, coverage/security checks, local hooks, packaging boundaries and Craft workflow references.
 - [Authored Maya Binary writer](binary-authored-writer.md): what a fresh `.mb` may contain, where each choice comes from, what is invented and the edge bit31 correlation (issue #156).
+- [Binary default leaf insertion](binary-leaf-insertion.md): PROVISIONAL grammar for inserting an absent translate leaf into an opened `.mb`, its sources and what stays unproven (issue #19).
 - [Native verification](native-verification.md): recorded macOS packaged-debug editing/file workflow, evidence method and remaining platform/reference checks.
 - [Native editor MCP](mcp.md): optional stdio tools, read-only ASCII curve metadata/Open, guarded Move (World axis), Rotate and Scale transactions, scene tokens, human-edit guards, protocol limits and capability synchronization.
 - [MCP tool catalogue](mcp-tools.md): generated list of every advertised tool with access and idempotency, drift-tested against the registry.

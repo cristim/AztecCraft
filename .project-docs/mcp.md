@@ -309,8 +309,12 @@ Each new Editor and each applied New/Open replaces the scene token. A `document_
 Save and Save As share the native Editor operations. Native actions first commit
 a valid human draft; remote actions refuse focus, any draft (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), pending input,
 modal state and stale tokens. Save supports source-bound Maya binary scenes on
-Unix with proved existing-record edits. New, legacy and Windows writing remain
-unsupported. Read-through-symlink documents can Save As to a fresh destination;
+Unix with proved existing-record edits and, for translate only, insertion of an
+absent leaf at a recorded site. Rotate, scale and siteless nodes refuse: `begin_manipulation`
+with `absent_channel_leaf`, and `edit_node` and `set_transform` with
+`scene_error` ("native ownership or edit effects are unsupported"). Save As from an opened scene derives its bytes from the
+bytes parsed at Open, not from the destination or the file on disk. New, legacy
+and Windows writing remain unsupported. Read-through-symlink documents can Save As to a fresh destination;
 active Save through that link remains refused.
 
 `saved`, `save_uncertain` and `save_reconciled` replies include `scene_token`,
@@ -457,7 +461,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Modeling | Extrude face (shelf button disabled; operation exposed) | supported | `extrude_face` | `shapes` | |
 | Modeling | Construction history and Inputs | unsupported | | | |
 | Nodes | Rename (Channel Box name) | supported | `rename_node` | `nodes` | |
-| Nodes | Translate, rotate and scale channels | supported | `set_transform`, `edit_node` | `nodes`, `units` | |
+| Nodes | Translate, rotate and scale channels; on an opened `.mb`, an absent translate leaf is inserted at save when the node has a recorded site, while rotate, scale and siteless nodes refuse (`absent_channel_leaf` from `begin_manipulation`, `scene_error` from `edit_node` and `set_transform`) | supported | `set_transform`, `edit_node`, `begin_manipulation`, `save_scene`, `save_scene_as` | `nodes`, `units` | #19 |
 | Nodes | Delete | supported | `delete_node` | `nodes` | |
 | Nodes | Visibility edit | unsupported | | `nodes` | |
 | Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |

@@ -1,6 +1,6 @@
 use super::*;
 
-fn key<'a>(
+pub(super) fn key<'a>(
     container: &'a Container,
     chunk: &crate::maya_binary::container::Chunk,
 ) -> Result<&'a [u8], BinaryError> {

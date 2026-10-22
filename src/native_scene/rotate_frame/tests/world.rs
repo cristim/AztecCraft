@@ -271,6 +271,7 @@ fn world_rings_need_all_three_rotate_leaves_and_inherit_the_other_refusals() {
     }
     let (mut scene, node) = test_fixtures::cube();
     scene.source = Some(SourceRetention {
+        sites: Vec::new(),
         bytes: [1].into(),
         format: SourceFormat::Binary,
         records: std::iter::once(0..1).collect(),

@@ -227,6 +227,7 @@ impl Scalar {
         if self.origin.is_none()
             && source.is_some_and(|source| source.format == SourceFormat::Binary)
             && value.to_bits() != self.value.to_bits()
+            && !source.is_some_and(|source| source.can_insert(owner, field))
         {
             return Err(NativeError::UnsupportedEdit);
         }
@@ -263,7 +264,11 @@ impl Scalar {
         component: usize,
     ) -> Result<(), NativeError> {
         match (&self.origin, source) {
-            (None, Some(source)) if source.format == SourceFormat::Binary && self.replaced => {
+            (None, Some(source))
+                if source.format == SourceFormat::Binary
+                    && self.replaced
+                    && !source.can_insert(owner, field) =>
+            {
                 Err(NativeError::InvalidRetention)
             }
             (None, _) => Ok(()),
