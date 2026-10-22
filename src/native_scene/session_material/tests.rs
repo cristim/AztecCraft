@@ -115,7 +115,10 @@ fn the_table_participates_in_equality() {
     other.session_materials.materials[0].color[0] = 0.25;
     assert_ne!(scene, other);
     other = scene.clone();
-    other.session_materials.add([0.1, 0.2, 0.3]).unwrap();
+    other
+        .session_materials
+        .add([0.1, 0.2, 0.3], std::iter::empty())
+        .unwrap();
     assert_ne!(scene, other);
     other = scene.clone();
     other.session_materials.assignments.remove(&shape);
@@ -129,6 +132,95 @@ fn removing_an_object_prunes_its_shape_assignment() {
     scene.remove(node).unwrap();
     assert!(!scene.session_materials.assignments.contains_key(&shape));
     scene.validate().unwrap();
+}
+
+/// Names observed in Maya 2025.1 (#177) unless marked: `standardSurface1` on
+/// `initialShadingGroup`, then `lambert2`/`lambert2SG` (the unconnected `lambert1` always
+/// exists), the number reused after a delete, and `lambert10` beside a transform `lambert9`.
+#[test]
+fn session_material_names_follow_maya() {
+    let (mut scene, _) = cube();
+    let names = |scene: &NativeScene| {
+        (scene.session_materials().iter().map(Lambert::name))
+            .zip(
+                scene
+                    .session_shading_groups()
+                    .iter()
+                    .map(ShadingGroup::name),
+            )
+            .map(|(material, group)| format!("{material}/{group}"))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(names(&scene), ["standardSurface1/initialShadingGroup"]);
+    scene.create_session_material([0.5; 3]).unwrap();
+    scene.create_session_material([0.5; 3]).unwrap();
+    assert_eq!(
+        names(&scene)[1..],
+        ["lambert2/lambert2SG", "lambert3/lambert3SG"]
+    );
+
+    // Session materials cannot be deleted; restoring the earlier scene stands in for Maya's
+    // delete, after which Maya reused lambert2.
+    let (mut scene, _) = cube();
+    let before = scene.clone();
+    scene.create_session_material([0.5; 3]).unwrap();
+    scene.restore_authoring(before);
+    scene.create_session_material([0.5; 3]).unwrap();
+    assert_eq!(names(&scene)[1], "lambert2/lambert2SG");
+
+    let (mut scene, _) = cube();
+    scene
+        .create(crate::scene::Primitive::Cube, "lambert9")
+        .unwrap();
+    scene.create_session_material([0.5; 3]).unwrap();
+    assert_eq!(names(&scene)[1], "lambert10/lambert10SG");
+
+    // PROVISIONAL: lambert<N>SG names counting toward N is inferred, not observed.
+    let (mut scene, _) = cube();
+    scene
+        .create(crate::scene::Primitive::Cube, "lambert3SG")
+        .unwrap();
+    let shape = scene.shapes[0].id;
+    scene
+        .assign_session_material(shape, MaterialChoice::New { color: [0.5; 3] })
+        .unwrap();
+    assert_eq!(names(&scene)[1], "lambert4/lambert4SG");
+    scene.validate().unwrap();
+}
+
+#[test]
+fn material_numbers_are_u32_and_redo_restores_the_name() {
+    assert_eq!(lambert_number("lambert12"), Some(12));
+    assert_eq!(lambert_number("lambert12SG"), Some(12));
+    for name in [
+        "lambert",
+        "lambertSG",
+        "lambert012",
+        "lambert1x",
+        "lambert99999999999",
+    ] {
+        assert_eq!(lambert_number(name), None, "{name}");
+    }
+    let (mut scene, _) = cube();
+    scene
+        .create(
+            crate::scene::Primitive::Cube,
+            &format!("lambert{}", u32::MAX),
+        )
+        .unwrap();
+    let before = scene.clone();
+    assert_eq!(
+        scene.create_session_material([0.5; 3]),
+        Err(NativeError::ResourceLimit)
+    );
+    assert_eq!(scene, before);
+
+    let (scene, _) = cube();
+    let mut history = crate::history::History::new(scene);
+    let create = crate::history::Command::CreateSessionMaterial { color: [0.5; 3] };
+    history.execute(create).unwrap();
+    assert!(history.undo() && history.redo());
+    assert_eq!(history.scene().session_materials()[1].name(), "lambert2");
 }
 
 mod operations {
@@ -148,7 +240,10 @@ mod operations {
         let shape = scene.shapes[0].id;
         let red = scene.create_session_material(RED).unwrap();
         assert_eq!(red, id(1));
-        assert_eq!(material_of(&scene, shape).unwrap().name(), "sessionDefault");
+        assert_eq!(
+            material_of(&scene, shape).unwrap().name(),
+            "standardSurface1"
+        );
         scene
             .assign_session_material(shape, MaterialChoice::Existing(red))
             .unwrap();
@@ -251,7 +346,7 @@ mod operations {
         assert!(history.undo());
         assert_eq!(
             material_of(history.scene(), shape).unwrap().name(),
-            "sessionDefault"
+            "standardSurface1"
         );
         assert!(history.undo());
         assert_eq!(history.scene().session_materials().len(), 1);

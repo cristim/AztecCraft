@@ -88,9 +88,10 @@ async fn session_material_sdk_create_assign_recolour_inspect_undo_redo() {
     assert_eq!(inspection["session_materials"][1]["color"], json!(RED));
     assert_eq!(inspection["session_materials"][1]["editable"], true);
     assert_eq!(
-        inspection["session_materials"][1]["name"],
-        "sessionLambert1"
+        inspection["session_materials"][1]["shading_group"],
+        "lambert2SG"
     );
+    assert_eq!(inspection["session_materials"][1]["name"], "lambert2");
 
     let recoloured = tool(
         &mut editor,
@@ -134,6 +135,12 @@ async fn session_material_sdk_create_assign_recolour_inspect_undo_redo() {
     .await;
     assert_eq!(inline["material_id"], "2");
     assert_eq!(base_rgb(&editor), [[0, 0, 255]]);
+    let created = &editor.history.scene().session_materials()[2];
+    assert_eq!(created.name(), "lambert3");
+    assert_eq!(
+        editor.history.scene().session_shading_groups()[2].name(),
+        "lambert3SG"
+    );
     tool(&mut editor, &context, &client, "undo", json!({})).await;
     assert_eq!(base_rgb(&editor), [[0, 255, 0]]);
     assert_eq!(editor.history.scene().session_materials().len(), 2);

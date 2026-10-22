@@ -363,8 +363,9 @@ pub struct SceneInspection {
     pub manipulation: ManipulationInspection,
     pub nodes: Vec<NodeInspection>,
     pub shapes: Vec<ShapeInspection>,
-    /// Session-only lambert table, empty on sourced scenes. Ids are valid only at the current
-    /// history position.
+    /// Session-only material table, empty on sourced scenes: entry 0 is `standardSurface1` on
+    /// `initialShadingGroup`, modelled as a placeholder lambert colour (not a standardSurface),
+    /// and later entries are lamberts. Ids are valid only at the current history position.
     pub session_materials: Vec<SessionMaterialInspection>,
     pub curves: Vec<CurveInspection>,
     pub retained_source_bytes: usize,
@@ -806,8 +807,9 @@ mod tests {
         assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_RESULT_BYTES / 2);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
-            name: format!("sessionLambert{}", materials - 1),
-            shading_group: format!("sessionLambert{}SG", materials - 1),
+            // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
+            name: format!("lambert{}", u32::MAX),
+            shading_group: format!("lambert{}SG", u32::MAX),
             color: [-1.2345678901234567e-308; 3],
             editable: true,
         };

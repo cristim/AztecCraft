@@ -583,8 +583,16 @@ refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`;
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
 are follow-ups. Ids are table indices reused after undo, so clients must not cache them. The
-table holds at most 512 materials, far inside the `inspect_scene` budget (tested); creating past it returns `session_material_limit`. The default shader is unverified for Maya 2026 and linear colour
-is shown as sRGB bytes, so no parity is claimed. No MCP test creates two instances of one shape
+table holds at most 512 materials, far inside the `inspect_scene` budget (tested); creating past it returns `session_material_limit`. Names follow Maya 2025.1 (#177): the
+initial shading group's shader is `standardSurface1`, and a new material is `lambert<N>` with
+`lambert<N>SG`, N one above the highest `lambert<N>` any transform, shape, material or group holds
+and at least 2 (Maya's unconnected `lambert1` always exists), so undo frees the number and a
+transform named `lambert9` makes the next `lambert10`, as observed. Counting `lambert<N>SG` names
+is PROVISIONAL. Transform names given to create, rename or `edit_node` are not checked against
+material or shading-group names, so a transform can share one (Maya would rename one of them).
+The initial material is modelled as a lambert colour, not a standardSurface, its colour is the
+viewport-fill placeholder rather than Maya's base colour, Maya 2026 is unverified, and linear
+colour is shown as sRGB bytes, so no parity is claimed. No MCP test creates two instances of one shape
 (no instancing operation exists yet); that case is covered by core and `ViewScene` unit tests.
 
 Right-drag dolly direction is PROVISIONAL (#154): dragging up moves the camera back and
