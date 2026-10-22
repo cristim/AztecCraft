@@ -57,6 +57,29 @@ const SELECTED_VERTEX_RGB: [u8; 3] = [255, 232, 64];
 const EDGE_RGB: [u8; 3] = [120, 180, 235];
 const SELECTED_EDGE_RGB: [u8; 3] = [255, 178, 96];
 
+// Maya 2025.1's default grid (`grid -q`): size 12, major lines every 5 units and 5 divisions
+// between them, so a line every unit out to +/-12 on the y = 0 plane (#160). Reading size as
+// the half-length, and these greys, are PROVISIONAL; Maya also draws the axes bold, which
+// one-pixel lines cannot.
+const GRID_SIZE: i32 = 12;
+const GRID_MAJOR_EVERY: i32 = 5;
+const GRID_AXIS_GRAY: u8 = 85;
+const GRID_MAJOR_GRAY: u8 = 64;
+const GRID_DIVISION_GRAY: u8 = 48;
+/// Two lines, each two vertices, per grid coordinate.
+pub(crate) const GRID_VERTICES: usize = (2 * GRID_SIZE as usize + 1) * 4;
+
+/// The grey of the grid lines `index` units from the origin.
+fn grid_gray(index: i32) -> u8 {
+    if index == 0 {
+        GRID_AXIS_GRAY
+    } else if index % GRID_MAJOR_EVERY == 0 {
+        GRID_MAJOR_GRAY
+    } else {
+        GRID_DIVISION_GRAY
+    }
+}
+
 const VERTEX_BYTES: usize = 8 * size_of::<f32>();
 // Charge snapshot, upload staging, retained vertices and a growth replacement per upload.
 const MAX_UPLOAD_WORKING_BYTES: u64 = 256 * 1024 * 1024;
@@ -391,7 +414,7 @@ impl Submission {
             .projection_matrix(physical_size[0] as f32 / physical_size[1] as f32)
             .map_err(RenderError::Camera)?
             * camera.view_matrix();
-        let mut vertices = if grid_visible { 84_usize } else { 0 };
+        let mut vertices = if grid_visible { GRID_VERTICES } else { 0 };
         for instance in scene.instances() {
             let outline_corners = if selection.edges_shown(instance) {
                 0
@@ -502,14 +525,15 @@ impl Submission {
         }
         let surface_end = submission.vertex_count();
         if grid_visible {
-            for index in -10..=10 {
+            let extent = GRID_SIZE as f32;
+            for index in -GRID_SIZE..=GRID_SIZE {
                 let coordinate = index as f32;
-                let color = Color32::from_gray(if index == 0 { 85 } else { 48 });
+                let color = Color32::from_gray(grid_gray(index));
                 for point in [
-                    Vec3::new(coordinate, 0.0, -10.0),
-                    Vec3::new(coordinate, 0.0, 10.0),
-                    Vec3::new(-10.0, 0.0, coordinate),
-                    Vec3::new(10.0, 0.0, coordinate),
+                    Vec3::new(coordinate, 0.0, -extent),
+                    Vec3::new(coordinate, 0.0, extent),
+                    Vec3::new(-extent, 0.0, coordinate),
+                    Vec3::new(extent, 0.0, coordinate),
                 ] {
                     submission.vertex(matrix, point, color, format)?;
                 }

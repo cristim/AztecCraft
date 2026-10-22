@@ -232,9 +232,11 @@ session. It does not edit NativeScene, create an undo entry, clear redo, mark th
 document dirty or change its token. Native clicks may first commit a valid human
 draft; remote setters reject drafts through the ordinary shared guards.
 
-The fixed XZ grid retains its existing extent, spacing and colors. Grid settings,
-global or additional panels, persistence and a default shortcut are unsupported.
-This scope does not establish Maya grid appearance or behavior parity.
+The fixed XZ grid uses Maya 2025.1's default grid options (#160): lines every unit out to
++/-12, major lines every 5 and brighter axes (extent reading and colours PROVISIONAL; see
+known-issues). Grid settings (the Display menu shows Grid Options disabled; there is no MCP tool for them), global or
+additional panels, persistence and a default shortcut are unsupported. This scope does not
+establish Maya grid appearance or behavior parity.
 
 `set_shading_mode` requires the current scene token and an explicit `mode` of
 `wireframe` or `smooth_shade_all`; other strings (including `default_material`),

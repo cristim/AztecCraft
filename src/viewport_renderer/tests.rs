@@ -109,7 +109,7 @@ fn face_mode_feedback_on_a_curves_only_scene_draws_lines_without_markers_or_high
     let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
     assert!(view.instances().is_empty());
     let curve = &view.curve_instances()[0];
-    let vertices = 84
+    let vertices = GRID_VERTICES
         + view
             .curve_instances()
             .iter()
@@ -147,7 +147,7 @@ fn face_mode_feedback_on_a_curves_only_scene_draws_lines_without_markers_or_high
 fn curve_submission_preflight_counts_actual_segments_and_refuses_short_buffer() {
     let native = curve_scene(true, false, 0.0);
     let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
-    let vertices = 84
+    let vertices = GRID_VERTICES
         + view
             .curve_instances()
             .iter()
@@ -389,7 +389,7 @@ fn headless_gpu_curve_line_submission_obeys_actual_surface_depth() {
         u64::MAX,
     )
     .unwrap();
-    let curve_lines = &curve.bytes[84 * VERTEX_BYTES..];
+    let curve_lines = &curve.bytes[GRID_VERTICES * VERTEX_BYTES..];
     let mut gpu = Offscreen::new();
     for (z, visible) in [(0.0, false), (-2.0, true)] {
         let mut mesh = NativeScene::default();
@@ -489,8 +489,11 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
     )
     .unwrap();
     assert_eq!(submission.surfaces, 0..36);
-    assert_eq!(submission.lines, 36..168);
-    assert_eq!(submission.bytes.len(), 168 * VERTEX_BYTES);
+    assert_eq!(submission.lines, 36..36 + GRID_VERTICES as u32 + 48);
+    assert_eq!(
+        submission.bytes.len(),
+        (36 + GRID_VERTICES + 48) * VERTEX_BYTES
+    );
     assert!(
         submission.bytes[..36 * VERTEX_BYTES]
             .as_chunks::<VERTEX_BYTES>()
@@ -558,7 +561,7 @@ fn face_submission_highlights_only_exact_identity_and_charges_physical_markers()
         .unwrap();
         assert_eq!(submission.surfaces, 0..36);
         assert_eq!(submission.markers.end - submission.markers.start, 36);
-        assert_eq!(submission.bytes.len(), 204 * VERTEX_BYTES);
+        assert_eq!(submission.bytes.len(), (GRID_VERTICES + 120) * VERTEX_BYTES);
         let selected_vertices = submission.bytes[..36 * VERTEX_BYTES]
             .as_chunks::<VERTEX_BYTES>()
             .0
@@ -889,6 +892,58 @@ fn aggregate_upload_budget_and_device_buffer_limit_have_independent_boundaries()
 }
 
 #[test]
+fn grid_follows_mayas_default_size_major_lines_and_divisions() {
+    let view = ViewScene::from_native(&NativeScene::default(), VIEW_BUDGET).unwrap();
+    let camera = Camera::default();
+    let submission = Submission::new(
+        &view,
+        &camera,
+        [SIZE; 2],
+        SelectionFeedback::Object(None),
+        true,
+        ShadingMode::SmoothShadeAll,
+        FORMAT,
+        1024 * 1024,
+    )
+    .unwrap();
+    assert_eq!(GRID_VERTICES, 100);
+    let start = submission.surfaces.end as usize * VERTEX_BYTES;
+    let grid = &submission.bytes[start..start + GRID_VERTICES * VERTEX_BYTES];
+    let float = |vertex: &[u8], at: usize| {
+        f32::from_ne_bytes(vertex[at * 4..at * 4 + 4].try_into().unwrap())
+    };
+    let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
+    let corner = matrix * Vec3::new(-12.0, 0.0, -12.0).extend(1.0);
+    let first = &grid[..VERTEX_BYTES];
+    for (axis, expected) in corner.to_array().into_iter().enumerate() {
+        assert!((float(first, axis) - expected).abs() <= 1e-5 * expected.abs().max(1.0));
+    }
+    // Each index from -12 to 12 emits its two lines (four vertices) in one colour, and equal
+    // greys give equal bytes.
+    let mut colors = std::collections::HashMap::<u8, Vec<u8>>::new();
+    for (index, lines) in (-12..=12).zip(grid.chunks(4 * VERTEX_BYTES)) {
+        let color = lines[16..VERTEX_BYTES].to_vec();
+        assert!(
+            lines
+                .chunks(VERTEX_BYTES)
+                .all(|vertex| vertex[16..] == color[..])
+        );
+        assert_eq!(
+            colors.entry(grid_gray(index)).or_insert(color.clone()),
+            &color
+        );
+    }
+    assert_eq!(colors.len(), 3);
+    let distinct: std::collections::HashSet<_> = colors.values().collect();
+    assert_eq!(distinct.len(), 3);
+    let major: Vec<i32> = (-12..=12)
+        .filter(|&index| grid_gray(index) == GRID_MAJOR_GRAY)
+        .collect();
+    assert_eq!(major, [-10, -5, 5, 10]);
+    assert!(grid_gray(0) > grid_gray(5) && grid_gray(5) > grid_gray(1));
+}
+
+#[test]
 fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
     let scene = cube();
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
@@ -946,11 +1001,20 @@ fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
         .unwrap();
         assert_eq!(visible.bytes, restored.bytes);
         assert_eq!(visible.surfaces, hidden.surfaces);
-        assert_eq!(visible.vertex_count() - hidden.vertex_count(), 84);
+        assert_eq!(
+            visible.vertex_count() - hidden.vertex_count(),
+            GRID_VERTICES as u32
+        );
         assert_eq!(visible.lines.start, hidden.lines.start);
-        assert_eq!(visible.lines.end - hidden.lines.end, 84);
-        assert_eq!(visible.markers.start - hidden.markers.start, 84);
-        assert_eq!(visible.markers.end - hidden.markers.end, 84);
+        assert_eq!(visible.lines.end - hidden.lines.end, GRID_VERTICES as u32);
+        assert_eq!(
+            visible.markers.start - hidden.markers.start,
+            GRID_VERTICES as u32
+        );
+        assert_eq!(
+            visible.markers.end - hidden.markers.end,
+            GRID_VERTICES as u32
+        );
         if matches!(selection, SelectionFeedback::Face { .. }) {
             assert!(hidden.markers.end > hidden.markers.start);
             assert_eq!(
@@ -964,7 +1028,7 @@ fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
             hidden.bytes[..surface_bytes]
         );
         assert_eq!(
-            visible.bytes[surface_bytes + 84 * VERTEX_BYTES..],
+            visible.bytes[surface_bytes + GRID_VERTICES * VERTEX_BYTES..],
             hidden.bytes[surface_bytes..]
         );
         assert!(

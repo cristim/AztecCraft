@@ -1682,6 +1682,25 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
 }
 
 #[test]
+fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "Display");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let row = face_text_position(&output, "Grid Options");
+    assert!(face_text_position(&output, "Not implemented yet").y < row.y);
+    let before = (editor.grid_visible, editor.history.scene().clone());
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    assert_eq!(
+        (editor.grid_visible, editor.history.scene().clone()),
+        before
+    );
+    assert!(super::menus::GRID_OPTIONS_REASON.contains("+/-12 units (PROVISIONAL)"));
+}
+
+#[test]
 fn shading_menu_rows_follow_the_maya_2026_panel_menu_order() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);

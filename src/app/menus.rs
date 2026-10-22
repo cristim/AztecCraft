@@ -39,8 +39,15 @@ pub(super) const HELP_MENU: &str = "Help";
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
     ui.menu_button(label, |ui| {
         unsupported(ui, "Not implemented yet");
+        if label == "Display" {
+            // Maya's Display > Grid option box: size, spacing, divisions and colours (#160).
+            ui.add_enabled(false, egui::Button::new("Grid Options"))
+                .on_disabled_hover_text(GRID_OPTIONS_REASON);
+        }
     });
 }
+
+pub(super) const GRID_OPTIONS_REASON: &str = "Not implemented: the grid uses Maya 2025.1's defaults, +/-12 units (PROVISIONAL) with lines every 5 and 5 divisions";
 
 /// "Undo Rotate" or "Redo Scale"; the bare verb when there is no entry to name.
 fn history_hover(verb: &str, label: Option<&str>) -> String {

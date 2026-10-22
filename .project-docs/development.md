@@ -90,8 +90,9 @@ It defaults on and retains its session value across New/Open, including canceled
 file actions. It shares `SetGridVisible` with MCP `set_grid_visibility`; the
 explicit boolean setter is idempotent and inspection returns `grid_visible`.
 This is visual state outside NativeScene and authoring History. It has no default
-shortcut, grid options, additional/global panels or settings persistence. Grid
-spacing, extent, colors and Maya reference parity remain unverified.
+shortcut, grid options (Display > Grid Options is disabled), additional/global panels or
+settings persistence. The grid follows Maya 2025.1's default options; its extent reading,
+colours and Maya reference parity are PROVISIONAL (see the #160 entry in known-issues.md).
 
 `NativeScene` is the editor and History's sole mutable authoring state. It owns
 separate transform/shape identities, instance DAG edges, f64 channels and pivots

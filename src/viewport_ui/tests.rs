@@ -1,4 +1,5 @@
 use super::*;
+use crate::viewport_renderer::GRID_VERTICES;
 use crate::viewport_renderer::tests::{RecordedSubmission, recorded_submission, renderer_handle};
 use azteccraft::{
     native_scene::{NativeId, NativeScene, NativeTransform},
@@ -394,7 +395,7 @@ fn canonical_quad_instances_paint_only_selected_prefix_and_persistent_limitation
     let path = view.instances()[0].path();
     let submission = painted_submission(&view, &camera(), Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..72);
-    assert_eq!(submission.lines, 72..252);
+    assert_eq!(submission.lines, 72..72 + GRID_VERTICES as u32 + 96);
     assert_eq!(surface_color_count(&submission, true), 36);
     assert_eq!(surface_color_count(&submission, false), 36);
     assert_eq!(scene, before);
@@ -417,7 +418,7 @@ fn actual_binary_triangle_paints_source_corners_and_persistent_appearance_limit(
     camera.frame_view(&view, None, 4.0 / 3.0).unwrap();
     let submission = painted_submission(&view, &camera, Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..3);
-    assert_eq!(submission.lines, 3..93);
+    assert_eq!(submission.lines, 3..3 + GRID_VERTICES as u32 + 6);
     assert_eq!(surface_color_count(&submission, true), 3);
     let matrix = camera.projection_matrix(4.0 / 3.0).unwrap() * camera.view_matrix();
     for (vertex, index) in submission.vertices[..3]
@@ -485,7 +486,7 @@ fn actual_binary_group_prefix_highlights_child_geometry_and_excludes_outside_geo
     camera.frame_view(&view, None, 4.0 / 3.0).unwrap();
     let submission = painted_submission(&view, &camera, Some(&prefix));
     assert_eq!(submission.surfaces, 0..6);
-    assert_eq!(submission.lines, 6..102);
+    assert_eq!(submission.lines, 6..6 + GRID_VERTICES as u32 + 12);
     assert_eq!(surface_color_count(&submission, true), 3);
     assert_eq!(surface_color_count(&submission, false), 3);
     assert_eq!(scene, before);
@@ -508,10 +509,10 @@ fn acute_native_face_tessellation_stays_near_its_bounded_projected_geometry() {
     let camera = camera();
     let submission = painted_submission(&view, &camera, Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..6);
-    assert_eq!(submission.lines, 6..98);
+    assert_eq!(submission.lines, 6..6 + GRID_VERTICES as u32 + 8);
     for vertex in submission.vertices[..6]
         .iter()
-        .chain(submission.vertices[90..].iter())
+        .chain(submission.vertices[6 + GRID_VERTICES..].iter())
     {
         assert!(vertex.iter().all(|v| v.is_finite()));
         let x = vertex[0] / vertex[3];
@@ -548,11 +549,11 @@ fn private_native_open_face_tessellation_preserves_prepared_frustum_bounds() {
     assert_eq!(submission.surfaces, 0..surfaces as u32);
     assert_eq!(
         submission.lines,
-        surfaces as u32..(surfaces + boundaries + 84) as u32
+        surfaces as u32..(surfaces + boundaries + GRID_VERTICES) as u32
     );
     for vertex in submission.vertices[..surfaces]
         .iter()
-        .chain(submission.vertices[surfaces + 84..].iter())
+        .chain(submission.vertices[surfaces + GRID_VERTICES..].iter())
     {
         assert!(vertex.iter().all(|v| v.is_finite()));
         assert!((vertex[0] / vertex[3]).abs() <= 1.001);

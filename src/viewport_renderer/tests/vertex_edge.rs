@@ -321,7 +321,7 @@ fn edge_mode_draws_every_edge_instead_of_outlines_for_the_active_instance_only()
     let edges = scene.instance().edges().len();
     assert_eq!(edges, 12);
     let lines = vertices(&submission, &submission.lines);
-    assert_eq!(lines.len(), 84 + edges * 2 + 48);
+    assert_eq!(lines.len(), GRID_VERTICES + edges * 2 + 48);
     let edge_color = rgba(EDGE_RGB);
     let blue = lines.iter().filter(|vertex| color(vertex) == edge_color);
     assert_eq!(blue.count(), edges * 2);
@@ -346,7 +346,7 @@ fn edge_mode_draws_each_listed_edge_between_its_own_endpoints() {
     );
     let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
     let lines = vertices(&submission, &submission.lines);
-    let drawn = &lines[84..];
+    let drawn = &lines[GRID_VERTICES..];
     for (&[a, b], pair) in scene.instance().edges().iter().zip(drawn.chunks(2)) {
         for (vertex, end) in pair.iter().zip([a, b]) {
             let clip = matrix * scene.instance().world_vertices()[end].extend(1.0);
