@@ -171,7 +171,7 @@
         "faces": 6,
         "id": "2",
         "material": null,
-        "name": "pCube1Shape",
+        "name": "pCubeShape1",
         "points": 8,
         "session_material": "0",
         "smoothing_known": true,

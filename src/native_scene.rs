@@ -678,6 +678,7 @@ impl NativeScene {
             native.append(
                 node.id(),
                 node.name(),
+                format!("{}Shape", node.name()),
                 NativeMesh::from_legacy(node.mesh()),
                 transform,
             )?;
@@ -966,12 +967,50 @@ impl NativeScene {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
 
-    /// Validates `options` against `primitive` before any mutation.
+    /// Validates `options` against `primitive` before any mutation. An explicit name gives the
+    /// shape `<name>Shape`, as Maya's `polyCube -n` does.
     pub fn create_with_options(
         &mut self,
         primitive: Primitive,
         options: &PrimitiveOptions,
         name: &str,
+    ) -> Result<NodeId, NativeError> {
+        self.create_named(primitive, options, name, format!("{name}Shape"))
+    }
+
+    /// Creates with Maya's default names: the transform takes the lowest free `pCube<N>` and
+    /// the shape, numbered separately, the lowest free `pCubeShape<M>` (#175). A name is free
+    /// when no transform or shape has it, because authored saves need unique names.
+    pub fn create_default_named(
+        &mut self,
+        primitive: Primitive,
+        options: &PrimitiveOptions,
+    ) -> Result<NodeId, NativeError> {
+        let base = match primitive {
+            Primitive::Cube => "pCube",
+            Primitive::Plane => "pPlane",
+            Primitive::Sphere => "pSphere",
+            Primitive::Cylinder => "pCylinder",
+            Primitive::Cone => "pCone",
+        };
+        let count = authored::names(self).count();
+        let free = |prefix: &str| {
+            (1..=count + 1)
+                .map(|suffix| format!("{prefix}{suffix}"))
+                .find(|name| !authored::names(self).any(|(_, taken)| taken == name))
+                .expect("count names cannot take count + 1 suffixes")
+        };
+        let name = free(base);
+        let shape_name = free(&format!("{base}Shape"));
+        self.create_named(primitive, options, &name, shape_name)
+    }
+
+    fn create_named(
+        &mut self,
+        primitive: Primitive,
+        options: &PrimitiveOptions,
+        name: &str,
+        shape_name: String,
     ) -> Result<NodeId, NativeError> {
         self.structural_edit()?;
         // The primitive/options pairing is the one check NativeMesh::with_options does not repeat.
@@ -987,6 +1026,7 @@ impl NativeScene {
         self.append(
             id,
             name,
+            shape_name,
             NativeMesh::with_options(options)?,
             NativeTransform::default(),
         )?;
@@ -998,6 +1038,7 @@ impl NativeScene {
         &mut self,
         id: NodeId,
         name: &str,
+        shape_name: String,
         mesh: NativeMesh,
         transform: NativeTransform,
     ) -> Result<(), NativeError> {
@@ -1023,7 +1064,7 @@ impl NativeScene {
         self.shapes.push(NativeMeshShape {
             id: shape_id,
             uuid: Some(Uuid::new_v4()),
-            name: format!("{name}Shape"),
+            name: shape_name,
             mesh,
             restrictions: Vec::new(),
             view: GeometryViewFacts::authored(),
@@ -1170,8 +1211,39 @@ impl NativeScene {
         self.structural_edit()?;
         let index = self.editable(id)?;
         self.validate_new_name(Some(id), name)?;
-        self.nodes[index].name = name.into();
+        self.set_transform_name(index, name);
         Ok(())
+    }
+    /// Renames the transform and, as Maya's `rename` does, each direct shape whose name is
+    /// still derived from it: `<old>Shape` becomes `<new>Shape`, and `<oldBase>Shape<digits>`
+    /// becomes `<newBase>Shape<newDigits>`, where a base is the name without trailing digits.
+    /// Other shape names are kept (#175). A derived name that another transform or shape
+    /// already has is not taken either: Maya allows that duplicate under another parent, but
+    /// authored saves need unique names.
+    fn set_transform_name(&mut self, index: usize, name: &str) {
+        let old = std::mem::replace(&mut self.nodes[index].name, name.into());
+        if old == name {
+            return;
+        }
+        let transform = self.nodes[index].transform_id;
+        let children: Vec<_> = self
+            .dag
+            .iter()
+            .filter(|edge| edge.parent == Some(transform))
+            .map(|edge| edge.child)
+            .collect();
+        let renames: Vec<_> = self
+            .shapes
+            .iter()
+            .enumerate()
+            .filter(|(_, shape)| children.contains(&shape.id))
+            .filter_map(|(at, shape)| Some((at, derived_shape_name(&shape.name, &old, name)?)))
+            .collect();
+        for (at, renamed) in renames {
+            if !authored::names(self).any(|(_, taken)| taken == renamed) {
+                self.shapes[at].name = renamed;
+            }
+        }
     }
     pub fn remove(&mut self, id: NodeId) -> Result<(), NativeError> {
         self.structural_edit()?;
@@ -1270,7 +1342,7 @@ impl NativeScene {
         }
         self.nodes[index].channels = replacement;
         if let Some(name) = name {
-            self.nodes[index].name = name.into();
+            self.set_transform_name(index, name);
         }
         Ok(())
     }
@@ -1501,6 +1573,24 @@ impl NativeScene {
     }
 }
 
+/// The shape name for a shape whose transform is renamed from `old` to `new`, or `None` when
+/// the shape name is not derived from `old` and stays as it is. The rule is inferred from
+/// Maya 2025.1 `rename` observations (PROVISIONAL, #175).
+fn derived_shape_name(shape: &str, old: &str, new: &str) -> Option<String> {
+    fn split(name: &str) -> (&str, &str) {
+        name.split_at(name.trim_end_matches(|c: char| c.is_ascii_digit()).len())
+    }
+    if shape.strip_suffix("Shape") == Some(old) {
+        return Some(format!("{new}Shape"));
+    }
+    let digits = shape.strip_prefix(split(old).0)?.strip_prefix("Shape")?;
+    if !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let (base, digits) = split(new);
+    Some(format!("{base}Shape{digits}"))
+}
+
 fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
     let value = Vec3::from_array(values.map(|v| (v * factor) as f32));
     if !value.is_finite() {
@@ -1609,6 +1699,8 @@ mod tests;
 
 #[cfg(test)]
 mod edit_policy_tests;
+#[cfg(test)]
+mod shape_naming_tests;
 #[cfg(test)]
 pub(crate) mod test_fixtures;
 

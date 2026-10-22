@@ -418,7 +418,7 @@ Vertex and face order and winding are not claimed to match Maya. Edges are hard,
 so the viewport looks faceted. There is no options dialog, no UVs or normals, and
 new nodes are not persisted (Save is unavailable for created scenes, as for the
 cube). Pole triangles cannot be extruded; body quads can. The new node is named
-`pSphere1` with shape `pSphere1Shape`, whereas Maya names the shape `pSphereShape1`.
+`pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
 ## World-space Rotate
@@ -462,9 +462,23 @@ match Maya. Edges are hard, so the viewport looks faceted. There is no options d
 no UVs or normals, and new nodes are not persisted. Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
-`pCone1` with shapes `pCylinder1Shape` and `pCone1Shape`, whereas Maya names the shapes
-`pCylinderShape1` and `pConeShape1`. The legacy quad-only JSON/OBJ scene refuses both
-with a typed error. No shelf icons exist for them.
+`pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
+quad-only JSON/OBJ scene refuses both with a typed error. No shelf icons exist for them.
+
+## Shape names follow Maya on creation and rename (#175)
+
+Observed in Maya 2025.1; Maya 2026 is unverified (#5), so this is PROVISIONAL. Default-named
+primitives get `pCube1` with shape `pCubeShape1`, the two numbered separately. An explicit name
+(MCP `create_primitive` `name`) gives `<name>Shape`, even for `pCube7`. Renaming a transform
+renames each direct shape whose name is still derived from it: `<old>Shape` becomes `<new>Shape`
+and `<oldBase>Shape<digits>` becomes `<newBase>Shape<newDigits>` (`pCube1` to `bar1` gives
+`barShape1`); other shape names are kept. AztecCraft numbers both with the lowest free suffix,
+while Maya 2025.1 chose `pCube8` when only `pCube5` and `pCube7` existed, so default numbers can
+differ after gaps. Default and derived names also skip any name a transform or shape already
+has, and a rename keeps the old shape name when the derived one is taken: Maya allows that
+duplicate under another parent, but authored saves need unique names. The rename rule is by
+name, so for shared shapes (not creatable yet) renaming a copy can rename the shape; Maya was
+only observed renaming the original. Legacy JSON scenes keep `<name>Shape`.
 
 ## DefaultLightingApprox is not Maya default lighting
 

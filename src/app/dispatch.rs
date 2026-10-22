@@ -417,33 +417,14 @@ impl Editor {
                 primitive,
                 options,
                 name,
-            } => {
-                let name = name.unwrap_or_else(|| {
-                    let base = match primitive {
-                        Primitive::Cube => "pCube",
-                        Primitive::Plane => "pPlane",
-                        Primitive::Sphere => "pSphere",
-                        Primitive::Cylinder => "pCylinder",
-                        Primitive::Cone => "pCone",
-                    };
-                    let mut suffix = 1;
-                    while self
-                        .history
-                        .scene()
-                        .nodes()
-                        .iter()
-                        .any(|node| node.name() == format!("{base}{suffix}"))
-                    {
-                        suffix += 1;
-                    }
-                    format!("{base}{suffix}")
-                });
-                Command::Create {
+            } => match name {
+                Some(name) => Command::Create {
                     primitive,
                     options,
                     name,
-                }
-            }
+                },
+                None => Command::CreateDefaultNamed { primitive, options },
+            },
             #[cfg(any(test, feature = "mcp"))]
             Operation::Rename { id, name } => Command::Rename { id, name },
             #[cfg(any(test, feature = "mcp"))]

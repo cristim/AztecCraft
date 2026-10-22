@@ -117,6 +117,7 @@ mod official_client {
     mod session;
     mod session_material;
     mod shading;
+    mod shape_naming;
     mod snapshots;
     mod sphere;
     mod status_line;

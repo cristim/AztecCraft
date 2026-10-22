@@ -130,7 +130,8 @@ fn arbitrary_duplicate_legacy_names_survive_channel_edits_and_snapshot_restore()
     );
     assert_eq!(native, before);
     native.rename(id, "pCube1").unwrap();
-    assert_eq!(shape(&native, id).name(), "name with spacesShape");
+    // The derived shape follows the rename, as Maya's rename does (#175).
+    assert_eq!(shape(&native, id).name(), "pCube1Shape");
     let changed = native.clone();
     assert_eq!(
         native.create(Primitive::Plane, "pCube1"),
