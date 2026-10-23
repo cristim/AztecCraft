@@ -73,7 +73,7 @@ async fn material_sdk_edit_inspect_history_and_repeated_save_share_the_native_wo
     )
     .await;
     assert_eq!(editor.history.scene(), &first);
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         let destination = directory.path().join("material-working.mb");
         let saved = call(

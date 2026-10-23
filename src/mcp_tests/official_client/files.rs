@@ -1,6 +1,6 @@
 use super::*;
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[tokio::test]
 async fn native_sdk_save_as_active_save_and_undo_redo_share_live_state() {
     let context = egui::Context::default();
@@ -126,7 +126,7 @@ async fn native_sdk_save_as_active_save_and_undo_redo_share_live_state() {
     server.await.unwrap();
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[tokio::test]
 async fn native_sdk_saved_source_changed_is_an_acknowledged_write_and_blocks_discard() {
     let context = egui::Context::default();

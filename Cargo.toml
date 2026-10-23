@@ -44,6 +44,9 @@ tempfile = "=3.27.0"
 libc = "=0.2.191"
 rustix = { version = "=1.1.5", default-features = false, features = ["std", "fs"] }
 
+[target.'cfg(windows)'.dependencies]
+winapi-util = "=0.1.11"
+
 [profile.dev]
 debug = 0
 incremental = false

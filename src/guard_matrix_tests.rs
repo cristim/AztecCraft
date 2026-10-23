@@ -1476,7 +1476,7 @@ fn baseline_text(state: State) -> String {
 }
 
 /// `file_writing` selects the cells that run the native writer (Save, Save As, Resolve(save)),
-/// which is supported on Unix only; every other cell is checked on all platforms.
+/// which is supported on Unix and Windows; every other cell is checked on all platforms.
 fn matrix(file_writing: bool) -> (String, usize) {
     let mut text = String::new();
     text.push_str(
@@ -1487,7 +1487,7 @@ fn matrix(file_writing: bool) -> (String, usize) {
             .replace(
                 "{}",
                 if file_writing {
-                    "cells that write files (Unix only)"
+                    "cells that write files (Unix and Windows)"
                 } else {
                     "all other cells (every platform)"
                 },
@@ -1542,8 +1542,8 @@ fn guard_matrix_matches_committed_snapshot() {
 
 #[test]
 fn guard_matrix_file_writing_cells_match_committed_snapshot() {
-    // Save cells depend on the native writer, which is supported on Unix only.
-    if !cfg!(unix) {
+    // Save cells depend on the native writer, which is supported on Unix and Windows.
+    if !cfg!(any(unix, windows)) {
         return;
     }
     let (text, cells) = matrix(true);
@@ -1551,7 +1551,7 @@ fn guard_matrix_file_writing_cells_match_committed_snapshot() {
         cells > 10,
         "file-writing matrix unexpectedly small: {cells}"
     );
-    super::snapshots::assert_snapshot("guard_matrix_file_writing_unix.txt", &text);
+    super::snapshots::assert_snapshot("guard_matrix_file_writing.txt", &text);
 }
 
 #[test]

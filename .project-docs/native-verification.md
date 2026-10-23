@@ -10,7 +10,7 @@ SDK test also passed actual protocol Open of each saved output, changed document
 tokens, inspected exact effective words and another Active Save from the reopened
 origin; the retained independent verifier reproduced the corrected journey.
 The SDK edit/inspection/History assertions are portable; Save and protocol
-reopen assertions run only on Unix, where native binary writing is supported.
+reopen assertions ran only on Unix at the time; Windows writing was added later.
 The independent source-word oracle and three intended core mutation failures with
 exact restored positives are separately recorded. The production MCP build was
 copied and hashed under its build lock. Root operated that macOS package: select

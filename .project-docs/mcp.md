@@ -46,8 +46,8 @@ isolated official SDK material edit/inspect/Undo/Save/reopen journey and full
 client matrix pass. The corrected test performs actual protocol Open after Save,
 requiring new document tokens and inspected material values; independent focused
 verification reproduced it. Bounded macOS native data QA also passed.
-SDK edit/inspection/History coverage is portable; Save/reopen assertions are
-Unix-only because Windows native binary writing remains unsupported. Committed
+SDK edit/inspection/History coverage is portable; Save/reopen assertions run on
+Unix and Windows, where native binary writing is supported. Committed
 cold, hooks/CI and published combined-parent verification remain pending;
 material data changes do not enable rendered Phong output.
 
@@ -89,7 +89,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
 | `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static cubic `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
-| `save_scene` | None | Active Unix Maya binary Save, or reconciliation of an uncertain installation without another write |
+| `save_scene` | None | Active Unix or Windows Maya binary Save, or reconciliation of an uncertain installation without another write |
 | `save_scene_as` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Fresh `.mb` destination only, never overwrite; an existing receipt is reconciled instead |
 | `resolve_file_action` | `pending_action_id`: UUID; `decision`: `cancel`, `discard` or `save` | Resolve only that exact pending action; source-changed queued Open requires Cancel and reopening |
 | `request_close` | None | Native close guard; dirty documents require confirmation, and approved remote closure waits for its own successful response flush |
@@ -311,7 +311,7 @@ Each new Editor and each applied New/Open replaces the scene token. A `document_
 Save and Save As share the native Editor operations. Native actions first commit
 a valid human draft; remote actions refuse focus, any draft (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), pending input,
 modal state and stale tokens. Save supports source-bound Maya binary scenes on
-Unix with proved existing-record edits. New, legacy and Windows writing remain
+Unix and Windows with proved existing-record edits. New and legacy writing remain
 unsupported. Read-through-symlink documents can Save As to a fresh destination;
 active Save through that link remains refused.
 
@@ -416,7 +416,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | Native New/Open and pending confirmation | `new_scene`, `open_scene` and `resolve_file_action` share native candidate and lifecycle handlers |
 | Read-only static cubic Maya ASCII curves | `open_scene` loads the admitted inert class; `inspect_scene` returns canonical class/counts/domain/read-only/prepared-draw metadata, and `select_node`/`frame_selected` use the same owner and camera. Curve picking, CV editing, native writing and broader ASCII evaluation remain unsupported |
 | Native Close | `request_close` and matching pending resolution use the native close guard and response-delivery barrier |
-| Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix binary only, current integration/native Save QA remains pending |
+| Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix and Windows binary only, current integration/native Save QA remains pending |
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |
 | Polygon cylinder and cone creation | `create_primitive` with `cylinder` or `cone` dispatches the same `Operation::Create` as Create > Polygon cylinder/cone; the new node, its inspected counts, and face view, pick, select (including the true 20-gon caps through the same ViewScene n-gon path) and refused cap extrusion are covered by actual Editor protocol tests; provisional topology |
 | Primitive creation options | `create_primitive` `options` (sizes, subdivisions, axis per primitive) dispatches `Operation::Create` with validated `PrimitiveOptions`, the same typed operation the native path uses; the tagged schema with published bounds, built mesh counts per primitive, invalid, null, mismatched and over-budget refusal as `invalid_params` with the scene unchanged, and the token, draft, modal, close and Maya-scene guards are covered by actual Editor protocol tests; PROVISIONAL bounds. The native options dialog is not built yet (PR B) |
