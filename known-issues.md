@@ -345,7 +345,7 @@ Saving an opened `.mb` now inserts an absent translate `t` leaf (`DBL3`) at a
 recorded site, copying the file's own header word and padding and refusing
 anything else (grammar and sources: `.project-docs/binary-leaf-insertion.md`).
 The insertion is reached by the encoder, `edit_node`, the Channel Box, native
-Move, MCP and document save. Maya has never read files it did not write; acceptance of inserted records is unproven (#5).
+Move, MCP and document save. No AztecCraft-written file containing an inserted record has been opened in Maya; acceptance of inserted records is unproven (#5).
 Only AztecCraft's own decoder reopening the output is checked.
 
 Still refused: rotate and scale leaves, which are not part of this slice, and a

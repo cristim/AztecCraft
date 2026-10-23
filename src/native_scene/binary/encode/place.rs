@@ -10,7 +10,7 @@ use super::{Budget, FIELDS, Insertion};
 use crate::native_scene::binary::binding::children;
 use crate::{
     maya_binary::container::{Chunk, Container},
-    native_scene::{NativeScene, source::TransformField},
+    native_scene::{NativeId, NativeScene, source::TransformField},
 };
 
 /// The rule a spliced file broke.
@@ -57,21 +57,6 @@ fn payload<'a>(container: &'a Container, chunk: &Chunk) -> &'a [u8] {
 fn key_of<'a>(container: &'a Container, chunk: &Chunk) -> Option<&'a [u8]> {
     let bytes = payload(container, chunk);
     Some(&bytes[..bytes.iter().position(|b| *b == 0)?])
-}
-
-/// The `XFRM` group whose creation record names `name`, as an index into `container`.
-fn owner_group(container: &Container, name: &str) -> Option<usize> {
-    container.chunks().iter().find_map(|chunk| {
-        let bytes = payload(container, chunk);
-        let text = bytes.get(1..)?;
-        let end = text.iter().position(|b| *b == 0)?;
-        let found = text[..end].strip_prefix(b":").unwrap_or(&text[..end]);
-        let group = chunk.parent()?;
-        (chunk.tag() == *b"CREA"
-            && found == name.as_bytes()
-            && container.chunk(group)?.form() == Some(*b"XFRM"))
-        .then_some(group)
-    })
 }
 
 /// Children of `parent` must read `CREA`, at most one `v`, then triples with ascending ranks.
@@ -132,6 +117,36 @@ pub(super) fn check(
         .iter()
         .find(|chunk| chunk.tag() == *b"DBL3")
         .map(Chunk::auxiliary);
+    // Resolve creation records once by name, then index their groups by owner.
+    let mut owners = budget
+        .vector::<(&[u8], NativeId, Option<usize>)>(scene.nodes.len())
+        .map_err(|_| Violation::Resource)?;
+    owners.extend(
+        scene
+            .nodes
+            .iter()
+            .map(|node| (node.name.as_bytes(), node.transform_id, None)),
+    );
+    owners.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    for chunk in before.iter().filter(|chunk| chunk.tag() == *b"CREA") {
+        let Some(group) = chunk.parent().filter(|group| {
+            old.chunk(*group)
+                .is_some_and(|chunk| chunk.form() == Some(*b"XFRM"))
+        }) else {
+            continue;
+        };
+        let Some(text) = payload(old, chunk).get(1..) else {
+            continue;
+        };
+        let Some(end) = text.iter().position(|byte| *byte == 0) else {
+            continue;
+        };
+        let name = text[..end].strip_prefix(b":").unwrap_or(&text[..end]);
+        if let Ok(index) = owners.binary_search_by_key(&name, |entry| entry.0) {
+            owners[index].2.get_or_insert(group);
+        }
+    }
+    owners.sort_unstable_by_key(|entry| entry.1);
     let mut shift = 0;
     for (j, insertion) in plan.iter().enumerate() {
         let k = slots[j] + j;
@@ -151,12 +166,11 @@ pub(super) fn check(
         {
             return Err(Violation::Record);
         }
-        let node = scene
-            .nodes
-            .iter()
-            .find(|node| node.transform_id == insertion.owner)
+        let group = owners
+            .binary_search_by_key(&insertion.owner, |entry| entry.1)
+            .ok()
+            .and_then(|index| owners[index].2)
             .ok_or(Violation::Owner)?;
-        let group = owner_group(old, &node.name).ok_or(Violation::Owner)?;
         if chunk.parent() != Some(moved(group)) {
             return Err(Violation::Parent);
         }

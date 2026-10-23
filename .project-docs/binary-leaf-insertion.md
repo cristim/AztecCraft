@@ -3,9 +3,9 @@
 Status: PROVISIONAL, implemented for translate (issue #19). Maya omits default transform leaves (translate 0, rotate 0, scale 1)
 from `.mb` files, so an opened scene's transform often has no `t` chunk to edit. This note defines the
 only situations in which AztecCraft inserts a missing `t` `DBL3` chunk when saving an opened `.mb`, and
-where each rule comes from. **Maya has never read files it did not write; acceptance of inserted
-records is unproven (#5).** Only AztecCraft's own decoder reopening the output is checked. No PR text
-may claim more. Rotate and scale are not in this slice and keep their refusal.
+where each rule comes from. **No AztecCraft-written file containing an inserted record has been opened
+in Maya; acceptance of inserted records is unproven (#5).** Only AztecCraft's own decoder reopening
+the output is checked. No PR text may claim more. Rotate and scale are not in this slice and keep their refusal.
 
 ## What the official documentation pins
 
@@ -32,8 +32,9 @@ refuse.
 Five Maya-written files, 65 `XFRM` groups; the files are not distributed. Every group is `FOR8` and a
 direct child of the root, with child alignment 8 and no padding.
 
-- 27 of 65 transforms hold only `CREA`, which is the common refusal. Others hold `CREA`, an optional
-  `DBLE` `v`, then `DBL3` records.
+- 27 of 65 transforms hold only `CREA`; these groups can receive an absent translate leaf when
+  the file-wide aux/padding checks and the rest of the grammar below pass. Others hold `CREA`, an
+  optional `DBLE` `v`, then `DBL3` records.
 - `DBL3` key sets seen: (t,r), (t), (t,r,s), (r,s), (s,rp,sp), (s). Order is always t < r < s < rp < sp
   and `DBLE` `v` precedes every `DBL3`.
 - Every `t`/`r`/`s` `DBL3` has a 27-byte payload (key, NUL, kind `0x20`, three big-endian f64) and 5 zero
@@ -77,7 +78,8 @@ The aux word's meaning, the record order Maya expects beyond what the corpus sho
 reads an inserted record are unknown. The ignored private differential test
 (`native_scene::binary::encode::tests::private_differential`) strips one `t` record from a real
 file, reinserts it and requires byte identity. It checks the mechanism against Maya's own writer in
-the observed contexts; it does not show that Maya reads files it never wrote.
+the observed contexts; it does not show that Maya accepts an AztecCraft-written file containing an
+inserted record.
 
 Save As from an opened scene derives its bytes from the bytes parsed at Open, so an inserted record
 is written from the same source the edit was checked against.
