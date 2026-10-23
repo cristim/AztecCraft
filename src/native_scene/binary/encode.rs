@@ -164,7 +164,12 @@ fn encode_with(
     )?;
     // Edited leaves the file does not have: inserted below, or elided because every word is +0.0.
     // The word patches have no leaf for either. The patched copy still lacks the inserted ones.
-    let planned: Vec<_> = plan.iter().map(|i| (i.owner, i.field)).collect();
+    let mut planned = budget.vector::<(NativeId, TransformField)>(plan.len())?;
+    planned.extend(plan.iter().map(|i| (i.owner, i.field)));
+    planned.sort_unstable_by_key(|entry| entry.0);
+    let mut elided_fields = budget.vector::<(NativeId, TransformField)>(elided.len())?;
+    elided_fields.extend_from_slice(elided);
+    elided_fields.sort_unstable_by_key(|entry| entry.0);
     let mut output = budget.vector::<u8>(source.bytes.len())?;
     output.extend_from_slice(&source.bytes);
     for node in &scene.nodes {
@@ -173,8 +178,10 @@ fn encode_with(
                 if !scalar.replaced {
                     continue;
                 }
-                let key = (node.transform_id, field);
-                if scalar.origin.is_none() && (planned.contains(&key) || elided.contains(&key)) {
+                if scalar.origin.is_none()
+                    && (has_field(&planned, node.transform_id, field)
+                        || has_field(&elided_fields, node.transform_id, field))
+                {
                     continue;
                 }
                 let origin = scalar.origin.as_ref().ok_or_else(unsupported)?;
@@ -275,7 +282,20 @@ enum Appearance {
     Relocated,
 }
 
-/// Compares a reparse with the scene. Fields named in `skip` are still absent in `parsed`.
+/// Owner-sorted membership; hand-built plans can name more than one field of an owner.
+fn has_field(
+    fields: &[(NativeId, TransformField)],
+    owner: NativeId,
+    field: TransformField,
+) -> bool {
+    let start = fields.partition_point(|entry| entry.0 < owner);
+    fields[start..]
+        .iter()
+        .take_while(|entry| entry.0 == owner)
+        .any(|entry| entry.1 == field)
+}
+
+/// Compares a reparse with the scene. Fields named in owner-sorted `skip` are still absent in `parsed`.
 fn verify(
     scene: &NativeScene,
     source: &crate::native_scene::source::SourceRetention,
@@ -314,7 +334,7 @@ fn verify(
     }
     for (node, decoded) in scene.nodes.iter().zip(&parsed.nodes) {
         for field in FIELDS {
-            if skip.contains(&(node.transform_id, field)) {
+            if has_field(skip, node.transform_id, field) {
                 continue;
             }
             for (component, (value, after)) in node

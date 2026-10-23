@@ -1136,6 +1136,51 @@ mod enabled {
     }
 
     #[test]
+    fn owner_lookups_preserve_mixed_edits_in_non_alphabetical_file_order() {
+        let names: [&[u8]; 6] = [b"z", b"m", b"y", b"b", b"a", b"x"];
+        let rotation = triple_aux(b"r", SITE_AUX, [1.0; 3]);
+        let children: Vec<_> = names
+            .iter()
+            .flat_map(|name| sited_transform(name, std::slice::from_ref(&rotation)))
+            .collect();
+        let mut edited = decode(scene(&children)).unwrap();
+        let mut expected = Vec::new();
+        for (index, name) in names.iter().enumerate() {
+            let id = edited.nodes()[index].id();
+            let mut records = Vec::new();
+            match index % 3 {
+                0 => {
+                    edited.set_channel(id, Channel::TranslateY, 3.0).unwrap();
+                    records.push(t([0.0, 3.0, 0.0]));
+                }
+                1 => {
+                    edited.set_channel(id, Channel::TranslateX, 5.0).unwrap();
+                    edited.set_channel(id, Channel::TranslateX, 0.0).unwrap();
+                }
+                _ => {}
+            }
+            if index % 3 != 2 {
+                edited.set_channel(id, Channel::RotateY, 2.0).unwrap();
+            }
+            records.push(triple_aux(
+                b"r",
+                SITE_AUX,
+                [
+                    1.0,
+                    if index % 3 == 2 {
+                        1.0
+                    } else {
+                        2.0f64.to_radians()
+                    },
+                    1.0,
+                ],
+            ));
+            expected.extend(sited_transform(name, &records));
+        }
+        assert_eq!(encode(&edited).unwrap(), scene(&expected).as_ref());
+    }
+
+    #[test]
     fn a_value_that_underflows_to_zero_centimetres_is_elided() {
         let bytes = scene_with_units(&children(&[]), b"mm", b"deg");
         let mut edited = decode(bytes.clone()).unwrap();
