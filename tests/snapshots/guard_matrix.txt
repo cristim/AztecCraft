@@ -2685,7 +2685,7 @@
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
-  undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Transform"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
+  undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   frame_selected => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -2859,7 +2859,7 @@
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
-  undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Transform"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
+  undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
   frame_selected => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed

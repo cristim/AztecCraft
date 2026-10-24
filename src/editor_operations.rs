@@ -400,6 +400,8 @@ pub struct SceneInspection {
     pub face_selection_policy: FaceSelectionPolicy,
     pub can_undo: bool,
     pub can_redo: bool,
+    pub undo_label: Option<String>,
+    pub redo_label: Option<String>,
     pub dirty: bool,
     pub has_draft: bool,
     pub native_input_pending: bool,

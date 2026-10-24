@@ -208,14 +208,14 @@ fn a_ring_drag_turns_about_the_picked_axis_and_is_one_rotate_history_entry() {
             );
             assert!(!editor.error);
         }
-        assert!(!editor.history.can_undo() || editor.history.undo_label() == Some("Create"));
+        assert!(!editor.history.can_undo() || editor.history.undo_label() == Some("Create".to_string()));
         release(&mut editor, &context, scale, view.ring(y, 40.0));
         assert!(editor.history.active_manipulation().is_none());
         assert!(editor.native_move.is_none());
         assert_eq!(editor.status, "Rotate committed");
         near(channels(&editor)[4], 40.0, 0.05);
         let after = editor.history.scene().clone();
-        assert_eq!(editor.history.undo_label(), Some("Rotate"));
+        assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
         editor.native_operation(Operation::Undo);
         assert_eq!(editor.status, "Undo Rotate");
         assert_eq!(channels(&editor)[4], 0.0);
@@ -239,7 +239,7 @@ fn world_space_rings_turn_the_selected_object_about_the_world_axis() {
     moved(&mut editor, &context, 1.0, view.ring(x, 30.0));
     near(channels(&editor)[3], 30.0, 0.05);
     release(&mut editor, &context, 1.0, view.ring(x, 30.0));
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
 }
 
 #[test]
@@ -271,7 +271,7 @@ fn an_axis_box_drag_scales_by_the_parameter_ratio_in_one_scale_history_entry() {
         view.screen(Vec3::X * radius * 0.5),
     );
     assert_eq!(editor.status, "Scale committed");
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
     editor.native_operation(Operation::Undo);
     assert_eq!(channels(&editor)[6], 1.0);
 }
@@ -347,7 +347,7 @@ fn a_drag_through_the_pivot_shows_the_scale_refusal_and_keeps_the_last_valid_pre
         "{}",
         editor.status
     );
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
 }
 
 #[test]
@@ -361,7 +361,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     near(values[6], 2.0, 1e-6);
     assert_eq!(values[6..], [values[6]; 3]);
     release(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
 }
 
 #[test]
@@ -535,7 +535,7 @@ fn numeric_entry_applies_one_labelled_edit_and_shows_core_refusals() {
     assert_eq!(editor.status, "Rotate applied");
     assert!(editor.manipulation.numeric.is_empty());
     near(channels(&editor)[5], 45.0, 1e-9);
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
     editor.native_operation(Operation::Undo);
     assert_eq!(channels(&editor)[5], 0.0);
 
@@ -545,7 +545,7 @@ fn numeric_entry_applies_one_labelled_edit_and_shows_core_refusals() {
     editor.apply_numeric_manipulation();
     assert_eq!(editor.status, "Scale applied");
     assert_eq!(channels(&editor)[6..], [2.0; 3]);
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
     let scene = editor.history.scene().clone();
     let entries = undo_depth(&mut editor);
     for refused in ["0", "-1"] {
@@ -590,7 +590,7 @@ fn numeric_entry_through_the_text_field_commits_on_enter_and_blocks_remote_edits
         raw(SIZE, Pos2::ZERO, 1.0, vec![key(Key::Enter)]),
     );
     near(channels(&editor)[3], 30.0, 1e-9);
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
 }
 
 #[test]
@@ -1148,7 +1148,7 @@ fn rotate_and_scale_owner_busy_cancel_and_close_follow_move() {
             azteccraft::native_scene::binary::encode(editor.history.scene()),
             bytes
         );
-        assert_eq!(editor.history.undo_label(), Some("Create"));
+        assert_eq!(editor.history.undo_label(), Some("Create".to_string()));
         assert!(!editor.history.can_redo());
     }
 }

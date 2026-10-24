@@ -116,7 +116,7 @@ impl Editor {
         };
         StatusFeedback {
             status,
-            step_label,
+            step_label: step_label.map(|s| &*Box::leak(s.into_boxed_str())),
             activated,
             fixed: matches!(*operation, Operation::FinishMove { .. }),
         }

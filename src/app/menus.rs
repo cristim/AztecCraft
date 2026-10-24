@@ -145,9 +145,9 @@ impl Editor {
                 if ui
                     .add_enabled(
                         self.history.can_undo(),
-                        egui::Button::new("Undo   Ctrl/Cmd Z"),
+                        egui::Button::new(format!("Undo {}   Ctrl/Cmd Z", self.history.undo_label().unwrap_or_default())),
                     )
-                    .on_hover_text(history_hover("Undo", self.history.undo_label()))
+                    .on_hover_text(history_hover("Undo", self.history.undo_label().as_deref()))
                     .clicked()
                 {
                     self.history_step(false);
@@ -156,9 +156,9 @@ impl Editor {
                 if ui
                     .add_enabled(
                         self.history.can_redo(),
-                        egui::Button::new("Redo   Ctrl/Cmd Shift Z"),
+                        egui::Button::new(format!("Redo {}   Ctrl/Cmd Shift Z", self.history.redo_label().unwrap_or_default())),
                     )
-                    .on_hover_text(history_hover("Redo", self.history.redo_label()))
+                    .on_hover_text(history_hover("Redo", self.history.redo_label().as_deref()))
                     .clicked()
                 {
                     self.history_step(true);
@@ -309,13 +309,13 @@ impl Editor {
             }
             ui.separator();
             if crate::tool_icons::button(ui, "Undo", UiIcon::Undo, self.history.can_undo())
-                .on_hover_text(history_hover("Undo", self.history.undo_label()))
+                .on_hover_text(history_hover("Undo", self.history.undo_label().as_deref()))
                 .clicked()
             {
                 self.history_step(false);
             }
             if crate::tool_icons::button(ui, "Redo", UiIcon::Redo, self.history.can_redo())
-                .on_hover_text(history_hover("Redo", self.history.redo_label()))
+                .on_hover_text(history_hover("Redo", self.history.redo_label().as_deref()))
                 .clicked()
             {
                 self.history_step(true);
