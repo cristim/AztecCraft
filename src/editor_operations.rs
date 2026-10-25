@@ -166,6 +166,14 @@ pub enum MoveDistance {
     Declared(f64),
 }
 
+/// The persistent selection behind the Rotate axis and Scale handle controls. The sum type makes
+/// a Rotate "uniform" or a Scale axis-only choice unrepresentable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolHandle {
+    RotateAxis(RotateAxis),
+    ScaleHandle(ScaleHandle),
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
@@ -174,6 +182,8 @@ pub enum Operation {
         tool: ActiveTool,
         space: ManipulationSpace,
     },
+    /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
+    SetToolHandle(ToolHandle),
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,

@@ -1241,3 +1241,99 @@ fn numeric_scale_of_a_fresh_editor_applies_in_world_space() {
     near(scale[1], 2.0, 1e-9);
     near(scale[2], 1.0, 1e-9);
 }
+
+#[test]
+fn tool_handle_defaults_are_x_and_uniform() {
+    let editor = Editor::default();
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Uniform);
+}
+
+#[test]
+fn set_tool_handle_reports_changed_then_unchanged_per_slot() {
+    let mut editor = Editor::default();
+    let rotate = ToolHandle::RotateAxis(RotateAxis::Y);
+    assert!(matches!(
+        editor.set_tool_handle(rotate),
+        OperationReply::Changed
+    ));
+    assert!(matches!(
+        editor.set_tool_handle(rotate),
+        OperationReply::Unchanged
+    ));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::Y);
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Uniform);
+    assert!(matches!(
+        editor.set_tool_handle(ToolHandle::ScaleHandle(ScaleHandle::Z)),
+        OperationReply::Changed
+    ));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::Y);
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Z);
+}
+
+#[test]
+fn tool_handle_selection_survives_a_tool_switch() {
+    let mut editor = Editor::default();
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+        RotateAxis::Z,
+    )));
+    editor.native_operation(Operation::SetActiveTool(ActiveTool::Scale));
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::ScaleHandle(
+        ScaleHandle::X,
+    )));
+    editor.native_operation(Operation::SetActiveTool(ActiveTool::Rotate));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::Z);
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::X);
+}
+
+#[test]
+fn numeric_rotate_entry_uses_the_selected_axis_through_the_shared_operation() {
+    let (mut editor, _, _) = setup(Key::E, 1.0);
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+        RotateAxis::Y,
+    )));
+    editor.manipulation.numeric = "30".into();
+    editor.apply_numeric_manipulation();
+    assert!(!editor.error, "{}", editor.status);
+    let channels = channels(&editor);
+    near(channels[4], 30.0, 1e-6);
+    assert_eq!(channels[3], 0.0);
+    assert_eq!(channels[5], 0.0);
+}
+
+#[test]
+fn tool_handle_is_refused_during_a_manipulation_with_the_selection_unchanged() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    press(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    assert!(editor.history.active_manipulation().is_some());
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+        RotateAxis::Z,
+    )));
+    assert_eq!(editor.status, OperationError::BusyManipulation.to_string());
+    assert!(editor.error);
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
+    let token = editor.scene_token;
+    let result = editor.remote_operation(
+        crate::editor_operations::RemoteRequest {
+            expected_scene_token: Some(token),
+            operation: Operation::SetToolHandle(ToolHandle::ScaleHandle(ScaleHandle::X)),
+        },
+        &context,
+    );
+    assert!(matches!(result, Err(OperationError::BusyManipulation)));
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Uniform);
+}
+
+#[test]
+fn tool_handle_is_refused_while_a_modal_prompt_is_open() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.request_close();
+    assert!(editor.files.is_modal());
+    let result = crate::app::tests::remote(
+        &mut editor,
+        Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Z)),
+    );
+    assert!(matches!(result, Err(OperationError::BusyEditing)));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
+}
