@@ -550,7 +550,10 @@ applies a substitute motion.
 kind with `available` and the core's `unavailable_reason` (a kind is available
 when any of its handles could begin; Rotate and Scale use the current
 `rotate_space` and `scale_space`, so a world-axis scale on a rotated node, or a
-world rotation of a node with non-positive scale, reports the refused handles); the `active` manipulation
+world rotation of a node with non-positive scale, reports the refused handles.
+Inspection reports availability for the tool's current space, while
+`begin_manipulation` takes an explicit `space`, so a caller passing a different
+space can get a different result); the `active` manipulation
 with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
 `handle`, `provenance`, the `parameter` name, its `value` and `unit` (after a remote update, `value` is the requested number exactly as given, in scene units; after a native drag it is derived from the internal parameter), `channels`
 (`translate`, `rotate` or `scale`) with the stored `baseline_channels` at begin

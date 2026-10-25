@@ -1,9 +1,9 @@
 //! Issue #253: a scale edit on a rotated node must apply on every axis.
 use super::tests::remote;
 use super::*;
-use crate::editor_operations::{ManipulationSpace, ManipulationValue};
+use crate::editor_operations::{KindInspection, ManipulationSpace, ManipulationValue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
-use azteccraft::native_scene::{ScaleHandle, TransformTarget};
+use azteccraft::native_scene::{RotateAxis, ScaleHandle, TransformTarget};
 
 fn rotated_cube(rotation: [f64; 3]) -> (Editor, NodeId) {
     let mut editor = Editor::default();
@@ -230,80 +230,141 @@ fn scale_tool_object_space_scales_a_rotated_node() {
     assert_eq!(scale_of(&editor, id), [2.0, 1.0, 1.0]);
 }
 
-#[test]
-fn inspection_scale_availability_follows_the_scale_space() {
-    let (mut editor, _) = rotated_cube([0.0, 0.0, 45.0]);
-    let scale = |editor: &Editor| {
-        editor
-            .inspect_manipulation()
-            .unwrap()
-            .kinds
-            .into_iter()
-            .find(|kind| kind.kind == "scale")
-            .unwrap()
-    };
-    let set_space = |editor: &mut Editor, space| {
-        remote(
-            editor,
-            Operation::SetToolSpace {
-                tool: ActiveTool::Scale,
-                space,
-            },
-        )
-        .unwrap();
-    };
+fn begin_scale(
+    editor: &mut Editor,
+    id: NodeId,
+    handle: ScaleHandle,
+    space: ManipulationSpace,
+) -> Result<OperationReply, OperationError> {
+    let path = editor.single_target().unwrap().1.to_vec();
+    remote(
+        editor,
+        Operation::BeginScale {
+            target: TransformTarget { node: id, path },
+            handle,
+            space,
+        },
+    )
+}
 
-    set_space(&mut editor, ManipulationSpace::World);
-    let world = scale(&editor);
-    assert!(world.available, "{world:?}");
-    let reason = world.unavailable_reason.expect("per-axis refusal");
-    assert!(
-        reason.contains("Scale unsupported: that world axis is not aligned with a local axis"),
-        "{reason}"
-    );
+fn begin_rotate(
+    editor: &mut Editor,
+    id: NodeId,
+    axis: RotateAxis,
+    space: ManipulationSpace,
+) -> Result<OperationReply, OperationError> {
+    let path = editor.single_target().unwrap().1.to_vec();
+    remote(
+        editor,
+        Operation::BeginRotate {
+            target: TransformTarget { node: id, path },
+            axis,
+            space,
+        },
+    )
+}
 
-    set_space(&mut editor, ManipulationSpace::Object);
-    let object = scale(&editor);
-    assert!(object.available, "{object:?}");
-    assert_eq!(object.unavailable_reason, None);
+fn cancel(editor: &mut Editor, started: OperationReply) {
+    let OperationReply::ManipulationStarted { manipulation_id } = started else {
+        panic!("expected a started manipulation: {started:?}");
+    };
+    let id = ManipulationId::from_decimal(&manipulation_id).unwrap();
+    remote(
+        editor,
+        Operation::FinishMove {
+            id,
+            finish: ManipulationFinish::Cancel,
+        },
+    )
+    .unwrap();
+}
+
+fn inspected(editor: &Editor, kind: &str) -> KindInspection {
+    editor
+        .inspect_manipulation()
+        .unwrap()
+        .kinds
+        .into_iter()
+        .find(|k| k.kind == kind)
+        .unwrap()
+}
+
+fn set_space(editor: &mut Editor, tool: ActiveTool, space: ManipulationSpace) {
+    remote(editor, Operation::SetToolSpace { tool, space }).unwrap();
 }
 
 #[test]
-fn inspection_rotate_availability_follows_the_rotate_space() {
+fn inspection_scale_availability_agrees_with_begin_scale() {
+    let (mut editor, id) = rotated_cube([0.0, 0.0, 45.0]);
+    set_space(&mut editor, ActiveTool::Scale, ManipulationSpace::World);
+    let world = inspected(&editor, "scale");
+    assert!(world.available, "{world:?}");
+
+    let mut refusals = Vec::new();
+    for (handle, name) in [
+        (ScaleHandle::X, "X handle"),
+        (ScaleHandle::Y, "Y handle"),
+        (ScaleHandle::Z, "Z handle"),
+        (ScaleHandle::Uniform, "uniform handle"),
+    ] {
+        match begin_scale(&mut editor, id, handle, ManipulationSpace::World) {
+            Err(error) => refusals.push((name, error.to_string())),
+            Ok(started) => cancel(&mut editor, started),
+        }
+    }
+    let names: Vec<&str> = refusals.iter().map(|(name, _)| *name).collect();
+    assert_eq!(names, ["X handle", "Y handle"], "{refusals:?}");
+    assert!(
+        refusals[0]
+            .1
+            .contains("Scale unsupported: that world axis is not aligned with a local axis"),
+        "{refusals:?}"
+    );
+    let expected: Vec<String> = refusals
+        .iter()
+        .map(|(name, reason)| format!("{name}: {reason}"))
+        .collect();
+    assert_eq!(world.unavailable_reason, Some(expected.join("; ")));
+
+    set_space(&mut editor, ActiveTool::Scale, ManipulationSpace::Object);
+    let object = inspected(&editor, "scale");
+    assert!(object.available, "{object:?}");
+    assert_eq!(object.unavailable_reason, None);
+    let started = begin_scale(&mut editor, id, ScaleHandle::X, ManipulationSpace::Object).unwrap();
+    cancel(&mut editor, started);
+}
+
+#[test]
+fn inspection_rotate_availability_agrees_with_begin_rotate() {
     let (mut editor, id) = rotated_cube([0.0, 0.0, 45.0]);
     editor.channels[6] = "-1".into();
     assert!(editor.commit_pending(), "{}", editor.status);
     assert_eq!(scale_of(&editor, id)[0], -1.0);
-    let rotate = |editor: &Editor| {
-        editor
-            .inspect_manipulation()
-            .unwrap()
-            .kinds
-            .into_iter()
-            .find(|kind| kind.kind == "rotate")
-            .unwrap()
-    };
-    let set_space = |editor: &mut Editor, space| {
-        remote(
-            editor,
-            Operation::SetToolSpace {
-                tool: ActiveTool::Rotate,
-                space,
-            },
-        )
-        .unwrap();
-    };
-    set_space(&mut editor, ManipulationSpace::Object);
-    let object = rotate(&editor);
+
+    set_space(&mut editor, ActiveTool::Rotate, ManipulationSpace::Object);
+    let object = inspected(&editor, "rotate");
     assert!(object.available, "{object:?}");
     assert_eq!(object.unavailable_reason, None);
-    set_space(&mut editor, ManipulationSpace::World);
-    let world = rotate(&editor);
+    let started = begin_rotate(&mut editor, id, RotateAxis::X, ManipulationSpace::Object).unwrap();
+    cancel(&mut editor, started);
+
+    set_space(&mut editor, ActiveTool::Rotate, ManipulationSpace::World);
+    let world = inspected(&editor, "rotate");
     assert!(!world.available, "{world:?}");
-    assert!(
-        world
-            .unavailable_reason
-            .unwrap()
-            .contains("world rotation needs positive scale on the selected node")
-    );
+    let mut expected = Vec::new();
+    for (axis, name) in [
+        (RotateAxis::X, "X axis"),
+        (RotateAxis::Y, "Y axis"),
+        (RotateAxis::Z, "Z axis"),
+    ] {
+        let error = begin_rotate(&mut editor, id, axis, ManipulationSpace::World).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("world rotation needs positive scale on the selected node"),
+            "{error}"
+        );
+        expected.push(format!("{name}: {error}"));
+    }
+    assert_eq!(world.unavailable_reason, Some(expected.join("; ")));
 }
