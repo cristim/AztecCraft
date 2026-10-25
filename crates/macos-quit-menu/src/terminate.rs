@@ -305,7 +305,7 @@ pub fn finish_terminate(approved: bool) -> Result<(), TerminateError> {
     let mut state = lock_state();
     let mut to_send = None;
     state.reply(approved, |approved| to_send = Some(approved))?;
-    state.mark_queued();
+    state.mark_queued(approved);
     drop(state);
     if let Some(approved) = to_send {
         dispatch2::DispatchQueue::main().exec_async(move || {
@@ -325,6 +325,13 @@ pub fn finish_terminate(approved: bool) -> Result<(), TerminateError> {
 /// Whether an AppKit reply is queued and not yet delivered.
 pub fn terminate_reply_queued() -> bool {
     lock_state().queued()
+}
+
+/// The answer in the queued AppKit reply, if one is queued. Lets the harness tell a decline
+/// from an approval.
+#[doc(hidden)]
+pub fn terminate_reply_queued_answer() -> Option<bool> {
+    lock_state().queued_answer()
 }
 
 #[cfg(test)]

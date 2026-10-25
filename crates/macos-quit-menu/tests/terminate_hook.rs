@@ -16,7 +16,7 @@ mod mac {
     use macos_quit_menu::{
         TerminateError, TerminateHookError, finish_terminate, install_panic_answer,
         install_terminate_guard, install_terminate_guard_in, terminate_owed,
-        terminate_reply_queued,
+        terminate_reply_queued, terminate_reply_queued_answer,
     };
     use objc2::encode::Encode;
     use objc2::rc::Retained;
@@ -31,6 +31,8 @@ mod mac {
     static PERFORM_CLOSE_CALLS: AtomicUsize = AtomicUsize::new(0);
 
     extern "C" fn noop(_: *mut AnyObject, _: Sel, _: *mut AnyObject) {}
+
+    static PREVIOUS_HOOK_CALLS: AtomicUsize = AtomicUsize::new(0);
 
     static SILENT: AtomicBool = AtomicBool::new(false);
 
@@ -285,6 +287,7 @@ mod mac {
         assert!(caught.is_err());
         assert!(!terminate_owed());
         assert!(terminate_reply_queued());
+        assert_eq!(terminate_reply_queued_answer(), Some(false));
         drain_main_queue();
         assert!(!terminate_reply_queued());
         assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 4);
@@ -302,6 +305,19 @@ mod mac {
         assert!(!terminate_reply_queued());
         drain_main_queue();
         assert!(!terminate_reply_queued());
+
+        // The installed hook still calls the hook it replaced, so the default message prints.
+        {
+            let before: Hook = Arc::from(take_hook());
+            let _restore = RestoreHook(Arc::clone(&before));
+            set_hook(Box::new(|_| {
+                PREVIOUS_HOOK_CALLS.fetch_add(1, Ordering::SeqCst);
+            }));
+            install_panic_answer();
+            assert!(!terminate_owed());
+            assert!(catch_unwind(|| panic!("forced")).is_err());
+            assert_eq!(PREVIOUS_HOOK_CALLS.load(Ordering::SeqCst), 1);
+        }
 
         window.orderOut(None);
         println!("terminate hook: ok");

@@ -9,5 +9,6 @@ mod terminate_core;
 pub use terminate::{
     TerminateHookError, finish_terminate, install_panic_answer, install_terminate_guard,
     install_terminate_guard_in, terminate_owed, terminate_reply_queued,
+    terminate_reply_queued_answer,
 };
 pub use terminate_core::{TerminateError, TerminateState, WindowFacts, choose_close_target};
