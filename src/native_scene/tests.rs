@@ -305,6 +305,15 @@ fn grouped_transform_and_pivots_preserve_native_precision_without_baking() {
 }
 
 #[test]
+fn remove_validates_the_scene_before_any_mutation() {
+    let (mut scene, id) = cube();
+    scene.nodes[0].rotate_pivot[0].value = f64::NAN;
+    let before = scene.clone();
+    assert_eq!(scene.remove(id), Err(NativeError::NonFinite));
+    assert_eq!(scene, before);
+}
+
+#[test]
 fn shared_shape_extrusion_changes_one_owner_and_checks_the_other_instance() {
     let (mut scene, first, second, shape) = shared_shape();
     let links = scene.dag.clone();
