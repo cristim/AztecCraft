@@ -60,7 +60,7 @@ mod mac {
         unsafe { msg_send![delegate, applicationShouldTerminate: std::ptr::null::<AnyObject>()] }
     }
 
-    fn window(mtm: MainThreadMarker) -> Retained<NSWindow> {
+    fn window() -> Retained<NSWindow> {
         let mut builder =
             ClassBuilder::new(c"AztecCraftTestWindow", NSWindow::class()).expect("unique name");
         // SAFETY: `performClose:` takes one object argument and returns nothing.
@@ -72,7 +72,6 @@ mod mac {
         }
         let class = builder.register();
         let rect = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(80.0, 60.0));
-        let _ = mtm;
         // SAFETY: standard NSWindow designated initialiser on a freshly allocated instance.
         unsafe {
             let allocated: *mut AnyObject = msg_send![class, alloc];
@@ -87,8 +86,30 @@ mod mac {
         }
     }
 
+    #[link(name = "ApplicationServices", kind = "framework")]
+    unsafe extern "C" {
+        fn CGSessionCopyCurrentDictionary() -> *const std::ffi::c_void;
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFRelease(object: *const std::ffi::c_void);
+    }
+
+    /// Windows need a WindowServer connection; the session dictionary is NULL without one.
+    fn has_gui_session() -> bool {
+        // SAFETY: the call takes no arguments; a non-NULL result is an owned CF object that
+        // is released exactly once.
+        let session = unsafe { CGSessionCopyCurrentDictionary() };
+        if session.is_null() {
+            return false;
+        }
+        // SAFETY: `session` is the non-NULL object returned above.
+        unsafe { CFRelease(session) };
+        true
+    }
+
     pub fn run() {
-        let mtm = MainThreadMarker::new().expect("main thread");
+        MainThreadMarker::new().expect("main thread");
 
         assert_eq!(Reply::ENCODING.to_string(), "Q", "reply type encoding");
 
@@ -142,8 +163,13 @@ mod mac {
         assert!(!terminate_owed());
         assert_eq!(finish_terminate(true), Err(TerminateError::NotOwed));
 
+        if !has_gui_session() {
+            println!("terminate hook: window cases skipped, no GUI session");
+            return;
+        }
+
         // H4: a window that cannot close is never asked to; terminate is cancelled, not owed.
-        let window = window(mtm);
+        let window = window();
         assert_eq!(terminate(&delegate), Reply::TerminateCancel);
         assert!(!terminate_owed());
         assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 0);

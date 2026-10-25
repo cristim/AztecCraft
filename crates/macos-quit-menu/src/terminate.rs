@@ -9,14 +9,14 @@
 //! [`finish_terminate`]. Unlike swizzling, nothing winit relies on is replaced.
 #![allow(unsafe_code)]
 
-use std::ffi::CString;
 use std::fmt;
-use std::panic::catch_unwind;
+use std::io::Write;
+use std::panic::{UnwindSafe, catch_unwind};
 use std::sync::Mutex;
 
 use objc2::encode::Encode;
 use objc2::ffi::class_addMethod;
-use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
+use objc2::runtime::{AnyClass, AnyObject, Imp, NSObjectProtocol, Sel};
 use objc2::{MainThreadMarker, sel};
 use objc2_app_kit::{NSApplication, NSApplicationTerminateReply, NSWindow, NSWindowStyleMask};
 
@@ -97,7 +97,14 @@ fn reply_for_terminate(mtm: MainThreadMarker) -> NSApplicationTerminateReply {
     if target.isMiniaturized() {
         target.deminiaturize(None);
     }
-    app.activate();
+    // `activate` exists only on macOS 14+; calling it elsewhere raises an Objective-C exception,
+    // which `catch_unwind` cannot stop.
+    if app.respondsToSelector(sel!(activate)) {
+        app.activate();
+    } else {
+        #[allow(deprecated)]
+        app.activateIgnoringOtherApps(true);
+    }
     target.performClose(None);
     NSApplicationTerminateReply::TerminateLater
 }
@@ -107,13 +114,25 @@ extern "C" fn should_terminate(
     _cmd: Sel,
     _sender: *mut AnyObject,
 ) -> NSApplicationTerminateReply {
-    // Unwinding out of an Objective-C callback is undefined behaviour, so any panic cancels.
-    catch_unwind(|| match MainThreadMarker::new() {
+    guarded(|| match MainThreadMarker::new() {
         Some(mtm) => reply_for_terminate(mtm),
         None => NSApplicationTerminateReply::TerminateCancel,
     })
-    .unwrap_or_else(|_| {
-        eprintln!("terminate hook panicked; cancelling terminate, see known-issues (#261)");
+}
+
+/// Unwinding out of an Objective-C callback is undefined behaviour, so any panic cancels the
+/// terminate and first clears an owed state the panicking code may have created, otherwise
+/// nothing would ever answer it.
+fn guarded(
+    body: impl FnOnce() -> NSApplicationTerminateReply + UnwindSafe,
+) -> NSApplicationTerminateReply {
+    catch_unwind(body).unwrap_or_else(|_| {
+        let _ = lock_state().reply(false, |_| {});
+        // `eprintln!` itself panics on a closed stderr, which must not escape here.
+        let _ = writeln!(
+            std::io::stderr(),
+            "terminate hook panicked; cancelling terminate, see known-issues (#261)"
+        );
         NSApplicationTerminateReply::TerminateCancel
     })
 }
@@ -153,8 +172,7 @@ pub fn install_terminate_guard_in(
     }
     let hook = sel!(applicationShouldTerminate:);
     // `Q@:@` for the real reply type: return value, receiver, selector, sender.
-    let types = CString::new(format!("{}@:@", NSApplicationTerminateReply::ENCODING))
-        .map_err(|_| TerminateHookError::ShapeChanged)?;
+    let types = format!("{}@:@\0", NSApplicationTerminateReply::ENCODING);
     // SAFETY: `Imp` is `unsafe extern "C-unwind" fn()`, a type-erased function pointer. The real
     // signature of `should_terminate` is `(id, SEL, id) -> NSUInteger`, matching `types`; it
     // never unwinds (catch_unwind), so declaring it `extern "C"` is sound. Function pointers
@@ -165,7 +183,7 @@ pub fn install_terminate_guard_in(
             Imp,
         >(should_terminate)
     };
-    // SAFETY: `class` is a live class and `types` a valid NUL-terminated encoding. The
+    // SAFETY: `class` is a live class and `types` a NUL-terminated encoding. The
     // runtime copies the class pointer and the encoding; it does not mutate through `class`
     // beyond adding the method, which only this function does and only on the main thread.
     let added = unsafe {
@@ -173,7 +191,7 @@ pub fn install_terminate_guard_in(
             std::ptr::from_ref(class).cast_mut(),
             hook,
             imp,
-            types.as_ptr(),
+            types.as_ptr().cast(),
         )
     };
     if added.as_bool() {
@@ -223,4 +241,19 @@ pub fn finish_terminate(approved: bool) -> Result<(), TerminateError> {
             }
         });
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_panic_after_begin_cancels_and_clears_the_owed_state() {
+        let reply = guarded(|| {
+            lock_state().begin();
+            panic!("forced");
+        });
+        assert_eq!(reply, NSApplicationTerminateReply::TerminateCancel);
+        assert!(!terminate_owed());
+    }
 }
