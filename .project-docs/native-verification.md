@@ -33,7 +33,7 @@ tool, 2026-10-25):
 | Quit menu click while the prompt is up, then Cancel | pending |
 | A decline followed at once by a new terminate (expected: declined while the earlier reply is queued; a later quit prompts) | pending natively; covered headlessly by the hook harness (#268) |
 | Save panel, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
-| Panic in a frame while a terminate is owed (scratch-only forced panic; expected: panic message, non-zero exit, no hang) | pending native re-run (#270) |
+| Panic in a frame while a terminate is owed (scratch-only forced panic; expected: panic message, non-zero exit, no hang) | passed (build c1115e7 plus a scratch-only panic, Dock quit, no further input): the decline line and the panic message print, and the process exits about 2 s later; on main 7355130 the same steps hung (#270). A Dock quit on the plain c1115e7 build still prompts |
 | Minimized window | pending |
 | App hidden with Command-H | pending |
 | About, Hide, Hide Others, Show All, Services and the red close button still prompts | pending |
