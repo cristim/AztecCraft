@@ -114,7 +114,10 @@ mod mac {
 
     /// Runs the main queue, so a reply queued by `finish_terminate` is delivered.
     fn drain_main_queue() {
-        // SAFETY: the mode is CoreFoundation's own constant; a source handled by an earlier pass can end a return-after-source run before the queue runs, so it waits the full 0.1 s.
+        // SAFETY: one 0.1 s default-mode pass of the main run loop runs the queued main-queue
+        // block. The arguments match CFRunLoopRunInMode's C signature, and kCFRunLoopDefaultMode
+        // is a constant CFStringRef. The pass waits the full 0.1 s because an earlier handled
+        // source can end a return-after-source run before the queue runs.
         unsafe { CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, 0) };
     }
 
