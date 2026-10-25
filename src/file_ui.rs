@@ -389,8 +389,26 @@ impl Editor {
             return Err(OperationError::NativeSave(NativeSaveError::SourceChanged));
         }
         if matches!(decision, FileDecision::Save) {
-            let mut reply = self.save_document(SaveDestination::Active, may_install)?;
+            let closing = matches!(
+                self.files.pending,
+                Some(PendingAction {
+                    action: FileAction::Close,
+                    ..
+                })
+            );
+            let mut reply = match self.save_document(SaveDestination::Active, may_install) {
+                Ok(reply) => reply,
+                Err(error) => {
+                    if closing {
+                        self.decline_terminate();
+                    }
+                    return Err(error);
+                }
+            };
             if matches!(reply, OperationReply::SaveUncertain { .. }) {
+                if closing {
+                    self.decline_terminate();
+                }
                 return Ok(reply);
             }
             if let Some(PendingAction {
@@ -452,9 +470,14 @@ impl Editor {
             .take()
             .ok_or(OperationError::StalePendingAction)?;
         match decision {
-            FileDecision::Cancel => Ok(OperationReply::Cancelled {
-                scene_token: self.scene_token.to_string(),
-            }),
+            FileDecision::Cancel => {
+                if matches!(pending.action, FileAction::Close) {
+                    self.decline_terminate();
+                }
+                Ok(OperationReply::Cancelled {
+                    scene_token: self.scene_token.to_string(),
+                })
+            }
             FileDecision::Discard | FileDecision::Save => self.apply_file_action(pending.action),
         }
     }
@@ -470,8 +493,7 @@ impl Editor {
             match bridge.poll_close_delivery() {
                 Some(crate::mcp::CloseDelivery::Waiting) => return false,
                 Some(crate::mcp::CloseDelivery::Failed) => {
-                    self.files.close_approved = false;
-                    self.files.close_sent = false;
+                    self.decline_terminate();
                     self.status = "Close response was not delivered; the scene remains open. Inspect before retrying.".into();
                     self.error = true;
                     return false;
@@ -481,7 +503,36 @@ impl Editor {
         }
         self.files.close_approved
     }
+    /// Answers an owed OS termination with "keep running" and drops any approval, in the same
+    /// frame, so the per-frame owed branch cannot re-request a close that was already refused.
+    fn decline_terminate(&mut self) {
+        if self.terminate.owed() {
+            self.terminate.finish(false);
+        }
+        self.files.close_approved = false;
+        self.files.close_sent = false;
+    }
+    /// Per-frame driver for an owed OS termination. It does not wait for a `close_requested`
+    /// event, which AppKit's `performClose:` can lose or delay, and it keeps the loop ticking.
+    fn drive_owed_terminate(&mut self, ctx: &egui::Context, ready: bool) {
+        if !self.terminate.owed() {
+            return;
+        }
+        ctx.request_repaint();
+        if ready {
+            // The reply drives the exit through `applicationWillTerminate:`; `close_sent` keeps
+            // `send_close_when_ready` from also closing the viewport once the reply clears `owed`.
+            self.terminate.finish(true);
+            self.files.close_sent = true;
+        } else if !self.files.is_modal() && !self.files.close_approved && !self.native_input_pending
+        {
+            self.request_close();
+        }
+    }
     fn send_close_when_ready(&mut self, ctx: &egui::Context) {
+        if self.terminate.owed() {
+            return;
+        }
         if !self.files.close_sent && self.close_ready() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             self.files.close_sent = true;
@@ -495,6 +546,7 @@ impl Editor {
                 self.request_close();
             }
         }
+        self.drive_owed_terminate(ctx, ready);
         self.send_close_when_ready(ctx);
     }
     pub(super) fn file_modal(&mut self, ctx: &egui::Context) {

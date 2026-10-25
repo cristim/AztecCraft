@@ -30,6 +30,7 @@ mod inspect;
 mod menus;
 mod panels;
 mod shortcuts;
+mod terminate_bridge;
 
 struct MaterialDraft {
     scene_token: Uuid,
@@ -106,6 +107,7 @@ pub struct Editor {
     error: bool,
     aspect: f32,
     files: files::FileState,
+    terminate: Box<dyn terminate_bridge::TerminateBridge>,
 }
 
 impl Default for Editor {
@@ -152,6 +154,7 @@ impl Default for Editor {
             error: false,
             aspect: 1.0,
             files: files::FileState::default(),
+            terminate: terminate_bridge::platform_bridge(),
         }
     }
 }
