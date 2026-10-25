@@ -1186,6 +1186,7 @@ mod enabled {
         use crate::native_scene::source::TransformField::{Rotation, Scale, Translation};
         let edited = decode(scene(&pair(&[], &[]))).unwrap();
         let (a, d) = (edited.nodes[0].transform_id, edited.nodes[1].transform_id);
+        assert!(a < d);
         let fields = [
             (a, Translation),
             (a, Scale),
@@ -1222,6 +1223,7 @@ mod enabled {
         assert_eq!(planned.elided.len(), 2);
         let mut reversed = planned.elided.clone();
         reversed.sort_unstable_by_key(|entry| std::cmp::Reverse(entry.0));
+        assert_ne!(planned.elided, reversed);
         assert_eq!(
             encode_with(&edited, &planned.insertions, &reversed).unwrap(),
             bytes.as_ref()
