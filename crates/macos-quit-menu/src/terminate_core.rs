@@ -59,8 +59,8 @@ pub struct TerminateState {
 }
 
 impl TerminateState {
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self { owed: false }
     }
 
     /// Whether a termination is waiting for its reply.
