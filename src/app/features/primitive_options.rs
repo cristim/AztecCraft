@@ -33,10 +33,13 @@ fn window_id() -> egui::Id {
 }
 
 fn slot(primitive: Primitive) -> usize {
-    PRIMITIVES
-        .iter()
-        .position(|p| *p == primitive)
-        .unwrap_or_default()
+    match primitive {
+        Primitive::Cube => 0,
+        Primitive::Plane => 1,
+        Primitive::Sphere => 2,
+        Primitive::Cylinder => 3,
+        Primitive::Cone => 4,
+    }
 }
 
 fn title(primitive: Primitive) -> &'static str {
@@ -215,7 +218,8 @@ struct Dialog {
 pub(in crate::app) struct PrimitiveOptionsUi {
     remembered: [PrimitiveOptions; 5],
     dialog: Option<Dialog>,
-    /// A dialog field held focus at the end of the last frame (egui clears it before Escape runs).
+    /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
+    /// clears focus before Escape runs, so the key still belongs to that field.
     typing: bool,
 }
 
@@ -311,12 +315,14 @@ impl Editor {
     }
 
     pub(in crate::app) fn primitive_options_window(&mut self, ctx: &egui::Context) {
+        let hidden = self.files.is_modal() || self.files.is_closing();
         let Some(mut dialog) = self.primitive_options.dialog.take() else {
-            self.primitive_options.typing = false;
+            self.primitive_options.typing = !hidden && text_edit_focused(ctx);
             return;
         };
         // Hidden, not discarded, while a file modal or close is in progress.
-        if self.files.is_modal() || self.files.is_closing() {
+        if hidden {
+            self.primitive_options.typing = false;
             self.primitive_options.dialog = Some(dialog);
             return;
         }
@@ -339,11 +345,7 @@ impl Editor {
         if create {
             self.create_from_dialog(&mut dialog);
         }
-        self.primitive_options.typing = ctx.memory(|memory| {
-            memory
-                .focused()
-                .is_some_and(|id| option_field_ids().any(|field| field == id))
-        });
+        self.primitive_options.typing = text_edit_focused(ctx);
         if open && !close {
             self.primitive_options.dialog = Some(dialog);
         }
@@ -382,12 +384,13 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
                 .zip(dialog.texts.iter_mut())
                 .enumerate()
             {
-                ui.label(*label);
+                let label = ui.label(*label);
                 ui.add(
                     egui::TextEdit::singleline(text)
                         .id(option_field_id(index))
                         .desired_width(80.0),
-                );
+                )
+                .labelled_by(label.id);
                 ui.end_row();
             }
             ui.label("Axis");
