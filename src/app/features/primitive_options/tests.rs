@@ -751,27 +751,34 @@ fn a_disabled_option_box_shows_the_read_only_reason_on_hover() {
             })
             .count()
     };
-    let mut hovered = output.clone();
     // egui ignores a hover that follows a click too closely; give the frames real time.
-    for step in 1..=6 {
-        let mut input = egui::RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SIZE)),
-            time: Some(10.0 + f64::from(step)),
-            ..Default::default()
-        };
-        if step == 1 {
-            input.events.push(Event::PointerMoved(target.rect.center()));
+    let frames = |editor: &mut Editor, first: f64, moved: bool| {
+        let mut last = None;
+        for step in 1..=6 {
+            let mut input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SIZE)),
+                time: Some(first + f64::from(step)),
+                ..Default::default()
+            };
+            if step == 1 && moved {
+                input.events.push(Event::PointerMoved(target.rect.center()));
+            }
+            let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+            output.textures_delta.clear();
+            last = Some(output);
         }
-        hovered = ctx.run_ui(input, |ui| editor.render(ui));
-        hovered.textures_delta.clear();
-    }
+        last.unwrap()
+    };
+    let control = frames(&mut editor, 10.0, false);
+    assert_eq!(tooltip_layers(&ctx), 0, "no tooltip without the hover");
+    let hovered = frames(&mut editor, 20.0, true);
     assert!(
         tooltip_layers(&ctx) > 0,
         "the disabled box shows its reason"
     );
     assert_eq!(
         reason_texts(&hovered),
-        reason_texts(&output) + 1,
+        reason_texts(&control) + 1,
         "the tooltip adds one copy of the read-only reason"
     );
 }

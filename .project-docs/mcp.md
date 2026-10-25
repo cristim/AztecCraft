@@ -465,7 +465,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Modeling | Construction history and Inputs | unsupported | | | |
 | Nodes | Rename (Channel Box name) | supported | `rename_node` | `nodes` | |
 | Nodes | Translate, rotate and scale channels; on an opened `.mb`, an absent translate leaf is inserted at save when the node has a recorded site, while rotate, scale and siteless nodes refuse (`absent_channel_leaf` from `begin_manipulation`, `scene_error` from `edit_node` and `set_transform`) | supported | `set_transform`, `edit_node`, `begin_manipulation`, `save_scene`, `save_scene_as` | `nodes`, `units` | #19 |
-| Nodes | Delete (root leaf nodes of authored or new scenes) | supported | `delete_node` | `nodes` | nodes with children or a parent are refused with `unsupported_delete` (#187); on an opened `.mb` a root leaf is refused as `UnsupportedEdit` because binary sources reject structural edits; opened ASCII scenes are read-only |
+| Nodes | Delete (root leaf nodes of authored or new scenes) | supported | `delete_node` | `nodes` | nodes with children or a parent are refused with `unsupported_delete` (#187); on an opened `.mb` a root leaf is refused as `unsupported_edit` because binary sources reject structural edits; an opened ASCII scene is refused as `read_only_format` |
 | Edit menu | Delete by Type, Delete All by Type (visible disabled rows, see #187) | unsupported | | | |
 | Nodes | Visibility edit | unsupported | | `nodes` | |
 | Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |

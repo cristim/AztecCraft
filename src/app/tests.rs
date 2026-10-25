@@ -5249,12 +5249,12 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         editor.native_operation(Operation::Delete(node));
         assert_eq!(editor.status, message);
         assert!(editor.error);
-        assert_eq!(editor.history.scene(), &scene);
         assert_eq!(
             state(&editor),
             baseline,
             "selection, history and dirty flag"
         );
+        assert_eq!(editor.history.scene(), &scene);
     }
 }
 
@@ -5275,6 +5275,21 @@ fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
         let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
         assert!(button_disabled(&output, label), "{label} enabled");
         let row = face_text_position(&output, label);
+        let reason_texts = |output: &egui::FullOutput| {
+            output
+                .shapes
+                .iter()
+                .filter(|shape| {
+                    matches!(&shape.shape, egui::Shape::Text(text)
+                        if text.galley.job.text == super::menus::DELETE_BY_TYPE_REASON)
+                })
+                .count()
+        };
+        assert_eq!(
+            reason_texts(&output),
+            0,
+            "{label}: reason shown before hover"
+        );
         let mut hovered = output;
         for step in 1..=8 {
             let mut input = egui::RawInput {
@@ -5290,7 +5305,7 @@ fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
             hovered = ctx.run_ui(input, |ui| editor.render(ui));
             hovered.textures_delta.clear();
         }
-        face_text_position(&hovered, super::menus::DELETE_BY_TYPE_REASON);
+        assert_eq!(reason_texts(&hovered), 1, "{label}: hover reason");
         face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
         assert_eq!(editor.history.scene(), &before, "{label}");
     }
