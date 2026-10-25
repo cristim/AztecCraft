@@ -363,6 +363,7 @@ impl Editor {
                 })
                 .collect()),
         };
+        let rotate_space = self.manipulation.space(ActiveTool::Rotate).rotate();
         let rotate_refusals = match &rotate_target {
             Err(error) => Err(error.to_string()),
             Ok(target) => Ok([
@@ -376,7 +377,7 @@ impl Editor {
                     name,
                     self.history
                         .scene()
-                        .rotation_refusal(target, axis, RotateSpace::Object)
+                        .rotation_refusal(target, axis, rotate_space)
                         .map(|error| error.to_string()),
                 )
             })

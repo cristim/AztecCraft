@@ -267,3 +267,43 @@ fn inspection_scale_availability_follows_the_scale_space() {
     assert!(object.available, "{object:?}");
     assert_eq!(object.unavailable_reason, None);
 }
+
+#[test]
+fn inspection_rotate_availability_follows_the_rotate_space() {
+    let (mut editor, id) = rotated_cube([0.0, 0.0, 45.0]);
+    editor.channels[6] = "-1".into();
+    assert!(editor.commit_pending(), "{}", editor.status);
+    assert_eq!(scale_of(&editor, id)[0], -1.0);
+    let rotate = |editor: &Editor| {
+        editor
+            .inspect_manipulation()
+            .unwrap()
+            .kinds
+            .into_iter()
+            .find(|kind| kind.kind == "rotate")
+            .unwrap()
+    };
+    let set_space = |editor: &mut Editor, space| {
+        remote(
+            editor,
+            Operation::SetToolSpace {
+                tool: ActiveTool::Rotate,
+                space,
+            },
+        )
+        .unwrap();
+    };
+    set_space(&mut editor, ManipulationSpace::Object);
+    let object = rotate(&editor);
+    assert!(object.available, "{object:?}");
+    assert_eq!(object.unavailable_reason, None);
+    set_space(&mut editor, ManipulationSpace::World);
+    let world = rotate(&editor);
+    assert!(!world.available, "{world:?}");
+    assert!(
+        world
+            .unavailable_reason
+            .unwrap()
+            .contains("world rotation needs positive scale on the selected node")
+    );
+}
