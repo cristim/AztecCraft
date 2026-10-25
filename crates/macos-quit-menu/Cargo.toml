@@ -11,6 +11,10 @@ description = "Routes the macOS application-menu Quit item through the window cl
 name = "quit_menu"
 harness = false
 
+[[test]]
+name = "terminate_hook"
+harness = false
+
 [lints.rust]
 unsafe_code = "deny"
 
