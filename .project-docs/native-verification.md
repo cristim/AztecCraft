@@ -9,7 +9,7 @@ existing close guard. SIGTERM (macOS and Linux) starts the same guard (PROVISION
 `performClose:` retarget of the Quit item was retired in #261, so Command-Q now reaches the hook. Headless
 tests cover the pure termination logic and the hook on a hand-built delegate; the checks below are native.
 
-Native runs (macOS, Apple Silicon, dirty scene made with the Cube shelf button, driven by an automation
+Native runs (macOS, dirty scene made with the Cube shelf button, driven by an automation
 tool, 2026-10-25):
 
 | Check | Result |
@@ -20,7 +20,7 @@ tool, 2026-10-25):
 | Real build: dirty scene + Dock-style quit, then Escape | passed: the prompt shows, the app stays alive, the scene stays dirty |
 | Real build: first SIGTERM on a dirty scene | passed: the prompt shows and the app stays alive (before the change SIGTERM killed it) |
 | Real build: second SIGTERM while the prompt is up | passed: the process exits (forced-exit path, PROVISIONAL) |
-| Command-Q through the hook (build after the retarget was removed) | pending |
+| Command-Q through the hook (build `b68054f`, after the retarget was removed) | passed: the prompt shows, Escape keeps the app alive |
 | AztecCraft > Quit menu click through the hook | pending |
 | Command-Q with no key window (no beep, the hook picks the window) | pending |
 | Discard and Save after a Dock quit with real clicks | pending (S0 covered Discard only with auto-Discard; the modal ignores synthetic pointer events) |
