@@ -572,7 +572,8 @@ Rotate angle in the scene angular unit and the native numeric field takes degree
 
 `create_primitive` accepts size, subdivision and axis (X, Y or Z) options for cube, plane,
 sphere, cylinder and cone, and each Create menu row has an option box that opens a
-"Polygon <name> Options" window (native visual QA pending). Keeping the window open after Create
+"Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
+and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
 pages do not say), session only and never saved. Created
 primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
