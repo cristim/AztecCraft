@@ -710,19 +710,40 @@ fn a_failed_create_message_clears_after_a_valid_create_and_options_are_remembere
 }
 
 #[test]
-fn a_disabled_option_box_is_inert_and_reports_itself_disabled() {
-    let ctx = egui::Context::default();
-    let mut states = Vec::new();
-    for enabled in [true, false] {
-        let mut response = None;
-        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-            response = Some(option_box(ui, "box", enabled, Some("read only")));
+fn a_disabled_option_box_shows_the_read_only_reason_on_hover() {
+    let (mut editor, ctx) = setup();
+    ctx.all_styles_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let reason = editor
+        .history
+        .scene()
+        .authoring_read_only_reason()
+        .unwrap()
+        .to_string();
+    let output = run(&mut editor, &ctx, vec![]);
+    click(&mut editor, &ctx, menu_create(&output).rect.center());
+    let output = run(&mut editor, &ctx, vec![]);
+    let target = find(&output, "Polygon sphere option box").unwrap();
+    assert!(target.disabled);
+    run(
+        &mut editor,
+        &ctx,
+        vec![Event::PointerMoved(target.rect.center())],
+    );
+    let mut shown = false;
+    for _ in 0..4 {
+        let output = run(&mut editor, &ctx, vec![]);
+        shown |= output.shapes.iter().any(|clipped| match &clipped.shape {
+            egui::Shape::Text(text) => text.galley.text().contains(reason.as_str()),
+            _ => false,
         });
-        output.textures_delta.clear();
-        let response = response.unwrap();
-        states.push(response.enabled());
     }
-    assert_eq!(states, [true, false]);
+    assert!(shown, "tooltip {reason:?}");
 }
 
 #[test]
@@ -752,9 +773,25 @@ fn escape_closing_the_window_consumes_the_pointer_sequence() {
     let (mut editor, ctx) = setup();
     open_dialog(&mut editor, &ctx, Primitive::Sphere);
     assert!(!editor.move_consumed_frame && !editor.move_suppress_primary);
+    let at = Pos2::new(600.0, 400.0);
+    run(&mut editor, &ctx, vec![Event::PointerMoved(at)]);
+    run(
+        &mut editor,
+        &ctx,
+        vec![Event::PointerButton {
+            pos: at,
+            button: PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        }],
+    );
     run(&mut editor, &ctx, vec![key(Key::Escape)]);
     assert!(editor.primitive_options.dialog.is_none());
     assert!(editor.move_consumed_frame);
+    assert!(
+        editor.move_suppress_primary,
+        "the held press is not replayed"
+    );
 }
 
 #[test]
