@@ -34,6 +34,7 @@ impl ShutdownSignal {
         self.armed.store(false, Ordering::SeqCst);
     }
     /// What the signal thread does for each SIGTERM.
+    #[cfg(any(unix, test))]
     fn mark(&self) {
         // Arm before requesting: if a reset lands between the stores, `armed` ends false and the
         // next SIGTERM prompts again instead of exiting with no prompt.
