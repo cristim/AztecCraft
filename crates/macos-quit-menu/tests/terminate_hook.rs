@@ -36,11 +36,15 @@ mod mac {
 
     type Hook = Arc<dyn Fn(&PanicHookInfo<'_>) + Send + Sync>;
 
-    /// Reinstates the saved hook on drop, including while an assertion failure unwinds.
+    /// Reinstates the saved hook on the pass path. `set_hook` panics on a panicking thread, so
+    /// it is left alone while an assertion failure unwinds (the process is failing anyway).
     struct RestoreHook(Hook);
 
     impl Drop for RestoreHook {
         fn drop(&mut self) {
+            if std::thread::panicking() {
+                return;
+            }
             let saved = Arc::clone(&self.0);
             set_hook(Box::new(move |info| saved(info)));
         }
