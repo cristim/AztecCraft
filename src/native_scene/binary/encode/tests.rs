@@ -1193,6 +1193,8 @@ mod enabled {
             (d, Rotation),
             (d, Translation),
         ];
+        // Several fields per owner, so a `take(1)` lookup would miss the second one.
+        assert!(fields.windows(2).any(|w| w[0].0 == w[1].0));
         for (owner, field) in fields {
             assert!(has_field(&fields, owner, field));
         }

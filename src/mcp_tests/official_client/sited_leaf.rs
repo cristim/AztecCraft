@@ -624,6 +624,11 @@ async fn delete_node_on_an_opened_binary_root_leaf_is_refused_without_mutation()
             .await;
         let error = &refused.structured_content.unwrap()["error"];
         assert_eq!(error["code"], "scene_error", "{name}");
+        // The code alone also matches ReadOnlyFormat; the message pins UnsupportedEdit.
+        assert_eq!(
+            error["message"], "native ownership or edit effects are unsupported",
+            "{name}"
+        );
         assert_eq!(rig.baseline(), baseline, "{name}");
     }
     rig.finish().await;
