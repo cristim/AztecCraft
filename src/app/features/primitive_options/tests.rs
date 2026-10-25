@@ -719,31 +719,40 @@ fn a_disabled_option_box_shows_the_read_only_reason_on_hover() {
     editor
         .apply_operation(Operation::OpenScene { path })
         .unwrap();
-    let reason = editor
-        .history
-        .scene()
-        .authoring_read_only_reason()
-        .unwrap()
-        .to_string();
     let output = run(&mut editor, &ctx, vec![]);
     click(&mut editor, &ctx, menu_create(&output).rect.center());
     let output = run(&mut editor, &ctx, vec![]);
     let target = find(&output, "Polygon sphere option box").unwrap();
     assert!(target.disabled);
-    run(
-        &mut editor,
-        &ctx,
-        vec![Event::PointerMoved(target.rect.center())],
-    );
-    let mut shown = false;
-    for _ in 0..4 {
-        let output = run(&mut editor, &ctx, vec![]);
-        shown |= output.shapes.iter().any(|clipped| match &clipped.shape {
-            egui::Shape::Text(text) => text.galley.text().contains(reason.as_str()),
-            _ => false,
-        });
+    // The Attribute Editor paints the same reason text, so look for a tooltip layer instead.
+    let tooltip_layers = |ctx: &egui::Context| {
+        ctx.memory(|memory| {
+            memory
+                .areas()
+                .visible_layer_ids()
+                .into_iter()
+                .filter(|layer| layer.order == egui::Order::Tooltip)
+                .count()
+        })
+    };
+    assert_eq!(tooltip_layers(&ctx), 0, "no tooltip before the hover");
+    // egui ignores a hover that follows a click too closely; give the frames real time.
+    for step in 1..=6 {
+        let mut input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SIZE)),
+            time: Some(10.0 + f64::from(step)),
+            ..Default::default()
+        };
+        if step == 1 {
+            input.events.push(Event::PointerMoved(target.rect.center()));
+        }
+        let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+        output.textures_delta.clear();
     }
-    assert!(shown, "tooltip {reason:?}");
+    assert!(
+        tooltip_layers(&ctx) > 0,
+        "the disabled box shows its reason"
+    );
 }
 
 #[test]
