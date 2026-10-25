@@ -1,33 +1,43 @@
 # Native verification record
 
-## macOS Command-Q close guard (#11), partly verified natively
+## macOS quit guard: Command-Q (#11), Dock Quit, logout, shutdown and SIGTERM (#261), partly verified natively
 
-Command-Q previously ran winit's `terminate:` and exited without the Save/Discard/Cancel prompt.
-`crates/macos-quit-menu` retargets that item to `performClose:`, which reaches the existing
-`CloseRequested` guard. The headless test proves only the retarget on a hand-built menu.
+Command-Q, the Quit item, Dock Quit, logout and shutdown send `terminate:`, which exits inside AppKit
+and never produces a winit `CloseRequested`. `crates/macos-quit-menu` adds `applicationShouldTerminate:`
+to winit's application delegate; the hook returns "terminate later" and routes the request through the
+existing close guard. SIGTERM (macOS and Linux) starts the same guard (PROVISIONAL). The #259
+`performClose:` retarget of the Quit item was retired in #261, so Command-Q now reaches the hook. Headless
+tests cover the pure termination logic and the hook on a hand-built delegate; the checks below are native.
 
-Native run on a build of the fix branch HEAD (macOS, default build, dirty scene made with the Cube
-shelf button), driven through an automation tool:
+Native runs (macOS, Apple Silicon, dirty scene made with the Cube shelf button, driven by an automation
+tool, 2026-10-25):
 
 | Check | Result |
 | --- | --- |
-| Command-Q on a dirty scene | passed: the "Discard changes to this scene?" Save/Discard/Cancel prompt appears (before the fix the app quit at once) |
-| Cancel via Escape | passed: the app stays open and the scene stays dirty |
-| Second Command-Q after Cancel | passed: the prompt appears again |
-| Discard | not clicked: the modal's buttons ignore synthetic pointer events, as does the red close button's prompt, so this is an automation limitation, not a regression. Code-traced to the same exit path as the red close button |
-| Save | not exercised |
-| AztecCraft > Quit menu click | not exercised |
-| Clean scene + Command-Q quits at once | not exercised |
-| Command-Q with pending text input, an invalid text draft, or the prompt already open | pending |
-| Command-Q while an Open/Save panel or alert is key; window minimized; app hidden with Command-H | pending (record the outcome; an unguarded exit or lost data is a finding) |
-| About, Hide, Hide Others, Show All, Services; red close button still prompts | pending |
-| `--features mcp` build with a client attached | pending |
+| S0 spike case A: dirty scene, Dock-style quit (`NSRunningApplication terminate`), auto-Discard | passed: the prompt shows, the deferred reply runs during terminate-wait, `on_exit` runs exactly once, the process exits (no double exit) |
+| S0 spike case B: same, then Escape | passed: the prompt takes input while AppKit waits, the app stays alive with the scene dirty; a second Dock-style quit prompts again |
+| Real branch build (`53de50b`): the hook installs at startup | passed: no startup error |
+| Real build: dirty scene + Dock-style quit, then Escape | passed: the prompt shows, the app stays alive, the scene stays dirty |
+| Real build: first SIGTERM on a dirty scene | passed: the prompt shows and the app stays alive (before the change SIGTERM killed it) |
+| Real build: second SIGTERM while the prompt is up | passed: the process exits (forced-exit path, PROVISIONAL) |
+| Command-Q through the hook (build after the retarget was removed) | pending |
+| AztecCraft > Quit menu click through the hook | pending |
+| Command-Q with no key window (no beep, the hook picks the window) | pending |
+| Discard and Save after a Dock quit with real clicks | pending (S0 covered Discard only with auto-Discard; the modal ignores synthetic pointer events) |
+| Clean scene + Command-Q or Dock Quit quits at once | pending |
+| Real logout or shutdown, including Save on the prompt (expected to abort the OS action) | pending |
+| A terminate arriving after a viewport close was sent (logout cancelled, the app still exits) | pending |
+| Open/Save panel or alert key, minimized window, app hidden with Command-H, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
+| About, Hide, Hide Others, Show All, Services; the red close button still prompts | pending |
+| `--features mcp` build with a client attached, `request_close` and `resolve_file_action` during an owed terminate | pending |
+| SIGTERM on Linux | pending |
+| SIGINT and SIGHUP | out of scope (#261) |
 
 Maya reference (PROVISIONAL where silent): the 2026 Help File menu page
 (https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm)
 says Exit prompts to save when the scene was not recently saved and gives no hotkey; the MEL `quit` command
 page (https://help.autodesk.com/cloudhelp/2026/JPN/Maya-Tech-Docs/Commands/quit.html) covers
-`-force`/`-abort`. The dialog wording, Cancel button and Command-Q mapping are PROVISIONAL.
+`-force`/`-abort`. The dialog wording, Cancel button, Command-Q mapping and SIGTERM behavior are PROVISIONAL.
 
 ## Cold verification of material Diffuse editing (2026-10-19)
 
