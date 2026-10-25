@@ -33,6 +33,10 @@ fn main() -> eframe::Result {
             // window close guard so Command-Q cannot discard a dirty scene (#11).
             #[cfg(target_os = "macos")]
             macos_quit_menu::route_quit_to_close()?;
+            // Dock Quit and logout reach the delegate, not the Quit item (#261). The call prints
+            // its own error; `?` aborts the launch if winit's delegate shape changed.
+            #[cfg(target_os = "macos")]
+            macos_quit_menu::install_terminate_guard()?;
             let editor = app::Editor::new(cc)?;
             #[cfg(feature = "mcp")]
             let mut editor = editor;
