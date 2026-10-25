@@ -404,6 +404,7 @@ dependencies = [
  "futures-util",
  "glam",
  "libc",
+ "macos-quit-menu",
  "nom",
  "pollster 1.0.1",
  "rfd",
@@ -1686,6 +1687,15 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "macos-quit-menu"
+version = "0.1.0"
+dependencies = [
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+]
 
 [[package]]
 name = "memchr"
