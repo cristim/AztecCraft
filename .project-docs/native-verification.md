@@ -1,26 +1,33 @@
 # Native verification record
 
-## macOS Command-Q close guard (#11), native run pending
+## macOS Command-Q close guard (#11), partly verified natively
 
 Command-Q previously ran winit's `terminate:` and exited without the Save/Discard/Cancel prompt.
 `crates/macos-quit-menu` retargets that item to `performClose:`, which reaches the existing
-`CloseRequested` guard. The headless test proves only the retarget on a hand-built menu; the checks
-below need a native macOS run on the fix branch (default build, and `--features mcp` with a client):
+`CloseRequested` guard. The headless test proves only the retarget on a hand-built menu.
 
-1. Dirty scene (Cube shelf button) + Command-Q and AztecCraft > Quit: prompt appears; Cancel keeps
-   the app and scene, Discard quits, Save saves then quits.
-2. Clean scene + Command-Q quits immediately.
-3. Command-Q with pending text input, with the prompt already open, and with an invalid text draft.
-4. Command-Q while an Open/Save panel or alert is key, and with the window minimized or the app hidden
-   (Command-H). Record what happens; an unguarded exit or lost data is a finding.
-5. About, Hide, Hide Others, Show All and Services still work; the red close button still prompts.
+Native run on a build of the fix branch HEAD (macOS, default build, dirty scene made with the Cube
+shelf button), driven through an automation tool:
+
+| Check | Result |
+| --- | --- |
+| Command-Q on a dirty scene | passed: the "Discard changes to this scene?" Save/Discard/Cancel prompt appears (before the fix the app quit at once) |
+| Cancel via Escape | passed: the app stays open and the scene stays dirty |
+| Second Command-Q after Cancel | passed: the prompt appears again |
+| Discard | not clicked: the modal's buttons ignore synthetic pointer events, as does the red close button's prompt, so this is an automation limitation, not a regression. Code-traced to the same exit path as the red close button |
+| Save | not exercised |
+| AztecCraft > Quit menu click | not exercised |
+| Clean scene + Command-Q quits at once | not exercised |
+| Command-Q with pending text input, an invalid text draft, or the prompt already open | pending |
+| Command-Q while an Open/Save panel or alert is key; window minimized; app hidden with Command-H | pending (record the outcome; an unguarded exit or lost data is a finding) |
+| About, Hide, Hide Others, Show All, Services; red close button still prompts | pending |
+| `--features mcp` build with a client attached | pending |
 
 Maya reference (PROVISIONAL where silent): the 2026 Help File menu page
 (https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm)
 says Exit prompts to save when the scene was not recently saved and gives no hotkey; the MEL `quit` command
 page (https://help.autodesk.com/cloudhelp/2026/JPN/Maya-Tech-Docs/Commands/quit.html) covers
-`-force`/`-abort`. The dialog wording, Cancel button and Command-Q mapping are PROVISIONAL. Native
-result: not yet recorded.
+`-force`/`-abort`. The dialog wording, Cancel button and Command-Q mapping are PROVISIONAL.
 
 ## Cold verification of material Diffuse editing (2026-10-19)
 

@@ -406,7 +406,6 @@ dependencies = [
  "libc",
  "macos-quit-menu",
  "nom",
- "objc2 0.6.5",
  "pollster 1.0.1",
  "rfd",
  "rmcp",

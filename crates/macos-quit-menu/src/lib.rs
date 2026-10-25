@@ -11,22 +11,27 @@ use std::fmt;
 use objc2::MainThreadMarker;
 use objc2::runtime::Sel;
 use objc2::sel;
-use objc2_app_kit::{NSApplication, NSMenu, NSMenuItem};
+use objc2_app_kit::{NSApplication, NSEventModifierFlags, NSMenu, NSMenuItem};
 
 /// Why the Quit item could not be retargeted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QuitMenuError {
+    /// The caller is not on the main thread.
+    NotMainThread,
     /// The application has no main menu.
     NoMainMenu,
-    /// No item with action `terminate:` and key equivalent "q" exists.
+    /// No item with action `terminate:`, key equivalent "q" and the Command modifier exists.
     NotFound,
-    /// More than one item has action `terminate:` and key equivalent "q".
+    /// More than one such item exists.
     Ambiguous,
 }
 
 impl fmt::Display for QuitMenuError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NotMainThread => f.write_str(
+                "macOS Quit menu must be routed from the main thread; see known-issues (#11)",
+            ),
             Self::NoMainMenu => f.write_str(
                 "macOS main menu is missing; Command-Q cannot be routed to the unsaved-changes \
                  guard, see known-issues (#11)",
@@ -46,10 +51,12 @@ impl fmt::Display for QuitMenuError {
 impl std::error::Error for QuitMenuError {}
 
 fn is_quit(item: &NSMenuItem, terminate: Sel) -> bool {
-    item.action() == Some(terminate) && item.keyEquivalent().to_string() == "q"
+    item.action() == Some(terminate)
+        && item.keyEquivalent().to_string() == "q"
+        && item.keyEquivalentModifierMask() == NSEventModifierFlags::Command
 }
 
-/// Sets the unique `terminate:` / "q" item of `menu` (searching its submenus) to `performClose:`.
+/// Sets the unique `terminate:` / Command-"q" item of `menu` (searching its submenus) to `performClose:`.
 /// Mutates nothing unless exactly one such item exists.
 pub fn retarget_quit(menu: &NSMenu) -> Result<(), QuitMenuError> {
     let terminate = sel!(terminate:);
@@ -79,10 +86,14 @@ pub fn retarget_quit(menu: &NSMenu) -> Result<(), QuitMenuError> {
 
 /// Retargets Quit in the running application's main menu. Prints the error before returning it
 /// so a launch that exits at startup leaves a trace.
-pub fn route_quit_to_close(mtm: MainThreadMarker) -> Result<(), QuitMenuError> {
-    let result = NSApplication::sharedApplication(mtm)
-        .mainMenu()
-        .ok_or(QuitMenuError::NoMainMenu)
+pub fn route_quit_to_close() -> Result<(), QuitMenuError> {
+    let result = MainThreadMarker::new()
+        .ok_or(QuitMenuError::NotMainThread)
+        .and_then(|mtm| {
+            NSApplication::sharedApplication(mtm)
+                .mainMenu()
+                .ok_or(QuitMenuError::NoMainMenu)
+        })
         .and_then(|menu| retarget_quit(&menu));
     if let Err(error) = &result {
         eprintln!("{error}");

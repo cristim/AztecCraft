@@ -11,8 +11,9 @@ mod mac {
     use objc2::MainThreadMarker;
     use objc2::runtime::Sel;
     use objc2::sel;
+    use objc2_app_kit::NSEventModifierFlags;
     use objc2_app_kit::{NSMenu, NSMenuItem};
-    use objc2_foundation::{NSString, ns_string};
+    use objc2_foundation::NSString;
 
     fn item(
         mtm: MainThreadMarker,
@@ -63,7 +64,6 @@ mod mac {
 
     pub fn run() {
         let mtm = MainThreadMarker::new().expect("main thread");
-        let _ = ns_string!("");
 
         let m = menu(
             mtm,
@@ -106,6 +106,19 @@ mod mac {
         assert_eq!(retarget_quit(&m), Err(QuitMenuError::Ambiguous));
         assert_eq!(snapshot(&m), before);
         println!("duplicate_quit_is_an_error_and_mutates_nothing ... ok");
+
+        let m = menu(mtm, &[("Quit X", Some(sel!(terminate:)), "q")]);
+        let quit = m
+            .itemArray()
+            .objectAtIndex(0)
+            .submenu()
+            .expect("submenu")
+            .itemArray()
+            .objectAtIndex(0);
+        quit.setKeyEquivalentModifierMask(NSEventModifierFlags::Option);
+        assert_eq!(retarget_quit(&m), Err(QuitMenuError::NotFound));
+        assert_eq!(quit.action(), Some(sel!(terminate:)));
+        println!("non_command_quit_is_not_matched ... ok");
 
         let empty = NSMenu::new(mtm);
         assert_eq!(retarget_quit(&empty), Err(QuitMenuError::NotFound));

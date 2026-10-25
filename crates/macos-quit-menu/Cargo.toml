@@ -20,5 +20,5 @@ todo = "warn"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { version = "=0.6.5", default-features = false, features = ["std"] }
-objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSResponder"] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSResponder", "NSEvent"] }
 objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSArray", "NSEnumerator"] }
