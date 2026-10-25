@@ -1203,6 +1203,22 @@ mod enabled {
     }
 
     #[test]
+    fn has_field_with_one_field_per_owner_matches_only_that_field() {
+        use super::super::has_field;
+        use crate::native_scene::source::TransformField::{Rotation, Scale, Translation};
+        let edited = decode(scene(&pair(&[], &[]))).unwrap();
+        let (a, d) = (edited.nodes[0].transform_id, edited.nodes[1].transform_id);
+        let fields = [(a, Translation), (d, Rotation)];
+        assert!(has_field(&fields, a, Translation));
+        assert!(has_field(&fields, d, Rotation));
+        for (owner, field) in [(a, Rotation), (a, Scale), (d, Translation), (d, Scale)] {
+            assert!(!has_field(&fields, owner, field));
+        }
+        assert!(!has_field(&fields[..1], d, Rotation));
+        assert!(!has_field(&fields[1..], a, Translation));
+    }
+
+    #[test]
     fn an_unsorted_elided_list_keeps_the_lookups_exact() {
         use super::super::{encode_with, plan::plan};
         use crate::native_scene::source::{INSERTABLE, SourceFormat};
