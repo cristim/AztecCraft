@@ -330,7 +330,7 @@ Fallbacks, all deliberate:
 - The save-panel-cancel row of the reply table is unreachable: cancelling the panel returns to the prompt.
 - Save on logout, restart or shutdown is accepted as aborting the OS action when the prompt cannot complete (owner decision on #261).
 
-SIGTERM (macOS and Linux) starts the same close guard. PROVISIONAL policy: the first SIGTERM prompts, a second SIGTERM before the prompt is resolved exits at once with status 143, and an unattended dirty scene waits for an answer (autosave or recovery is a separate issue). SIGINT and SIGHUP still kill the process directly; routing them through the guard is out of scope for #261. Native results and the remaining checklist are in [native-verification.md](.project-docs/native-verification.md); Cmd-Q through the hook, a real logout, Save, the Quit menu click and Linux SIGTERM are not yet verified natively.
+SIGTERM (macOS and Linux) starts the same close guard. PROVISIONAL policy: the first SIGTERM prompts, a second SIGTERM before the prompt is resolved exits at once with status 143, and an unattended dirty scene waits for an answer (autosave or recovery is a separate issue). SIGINT and SIGHUP still kill the process directly; routing them through the guard is out of scope for #261. Native results and the remaining checklist are in [native-verification.md](.project-docs/native-verification.md); a real logout, Save, the Quit menu click and Linux SIGTERM are not yet verified natively.
 
 ## Bounded World-axis Move candidate
 
