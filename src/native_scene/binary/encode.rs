@@ -166,7 +166,8 @@ fn encode_with(
     // The word patches have no leaf for either. The patched copy still lacks the inserted ones.
     let mut planned = budget.vector::<(NativeId, TransformField)>(plan.len())?;
     planned.extend(plan.iter().map(|i| (i.owner, i.field)));
-    // Believed unreachable: `plan::plan` emits file order and splice refuses reordered insertions.
+    // Believed unreachable: `plan::plan` walks `scene.nodes` in decode order (ascending owner)
+    // and the splice requires strictly ascending positions.
     planned.sort_unstable_by_key(|entry| entry.0);
     let mut elided_fields = budget.vector::<(NativeId, TransformField)>(elided.len())?;
     elided_fields.extend_from_slice(elided);
