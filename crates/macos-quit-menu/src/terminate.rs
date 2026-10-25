@@ -91,6 +91,15 @@ fn reply_for_terminate(mtm: MainThreadMarker) -> NSApplicationTerminateReply {
         return NSApplicationTerminateReply::TerminateCancel;
     }
     let app = NSApplication::sharedApplication(mtm);
+    if app.modalWindow().is_some() {
+        // An owed reply can only be sent from a later frame, which a nested modal loop (the
+        // file dialogs run inside a frame) never lets run.
+        let _ = writeln!(
+            std::io::stderr(),
+            "terminate declined while a modal window is active, see known-issues (#268)"
+        );
+        return NSApplicationTerminateReply::TerminateCancel;
+    }
     let windows: Vec<_> = app.windows().iter().collect();
     if windows.is_empty() {
         return NSApplicationTerminateReply::TerminateNow;

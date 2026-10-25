@@ -20,7 +20,8 @@ mod mac {
     use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, NSObject, Sel};
     use objc2::{ClassType, MainThreadMarker, msg_send, sel};
     use objc2_app_kit::{
-        NSApplicationTerminateReply as Reply, NSBackingStoreType, NSWindow, NSWindowStyleMask,
+        NSApplication, NSApplicationTerminateReply as Reply, NSBackingStoreType, NSWindow,
+        NSWindowStyleMask,
     };
     use objc2_foundation::{NSPoint, NSRect, NSSize};
 
@@ -118,7 +119,7 @@ mod mac {
     }
 
     pub fn run() {
-        MainThreadMarker::new().expect("main thread");
+        let mtm = MainThreadMarker::new().expect("main thread");
 
         assert_eq!(Reply::ENCODING.to_string(), "Q", "reply type encoding");
 
@@ -213,6 +214,25 @@ mod mac {
         assert_eq!(finish_terminate(false), Ok(()));
         drain_main_queue();
         assert!(!terminate_reply_queued());
+
+        // #268: while an AppKit modal is active the terminate is declined and nothing is
+        // closed. The session shows the window and makes it key.
+        let app = NSApplication::sharedApplication(mtm);
+        let session = app.beginModalSessionForWindow(&window);
+        assert_eq!(app.modalWindow().as_deref(), Some(&*window));
+        assert_eq!(terminate(&delegate), Reply::TerminateCancel);
+        assert!(!terminate_owed());
+        assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 2);
+        // SAFETY: `session` was returned by `beginModalSessionForWindow:` above and is ended once.
+        unsafe { app.endModalSession(session) };
+        assert!(app.modalWindow().is_none());
+        assert_eq!(terminate(&delegate), Reply::TerminateLater);
+        assert!(terminate_owed());
+        assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 3);
+        assert_eq!(finish_terminate(false), Ok(()));
+        drain_main_queue();
+        assert!(!terminate_reply_queued());
+        window.orderOut(None);
         println!("terminate hook: ok");
     }
 }
