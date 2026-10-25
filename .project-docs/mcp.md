@@ -457,7 +457,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Files | Save As | supported | `save_scene_as` | `save_as_available` | |
 | Files | Close and quit guard | supported | `request_close` | `closing` | |
 | Files | macOS application-menu Quit (Command-Q): dirty-scene prompt and Cancel natively verified, Discard code-traced, edge cases pending | supported | `request_close` | `closing` | Native menu action routed to the shared close guard; remotely reachable only as `request_close`. Menu click, clean scene, panels and minimized window are unverified. Dock Quit, logout and shutdown are not covered (known-issues) |
-| Files | OS quit, logout and SIGTERM through the shared close guard: bridge landed, hook not yet installed; once installed, remote resolution is the existing confirm, cancel and `request_close` operations with no new tool | missing | | | #261 |
+| Files | OS quit, logout and SIGTERM through the shared close guard: bridge landed, hook not yet installed; once installed, remote resolution is the existing confirm, cancel and `request_close` operations with no new tool | unsupported | | | |
 | Files | Export and OBJ export | unsupported | | | |
 | Files | Maya ASCII and new-scene Save, ASCII writing | unsupported | | | |
 | Create | Polygon cube, plane, sphere, cylinder, cone (Create menu, shelf) | supported | `create_primitive` | `nodes` | |

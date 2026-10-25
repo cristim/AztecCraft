@@ -31,6 +31,7 @@ struct Rig {
     ctx: egui::Context,
     probe: Probe,
     closes: usize,
+    cancels: usize,
 }
 impl Rig {
     fn new(dirty: bool) -> Self {
@@ -49,13 +50,29 @@ impl Rig {
             ctx: egui::Context::default(),
             probe,
             closes: 0,
+            cancels: 0,
         }
     }
     fn frame(&mut self, events: Vec<egui::Event>) {
-        let input = egui::RawInput {
+        self.run(events, false);
+    }
+    /// A frame carrying the window's close request, as AppKit's `performClose:` delivers it.
+    fn close_requested_frame(&mut self) {
+        self.run(vec![], true);
+    }
+    fn run(&mut self, events: Vec<egui::Event>, close_requested: bool) {
+        let mut input = egui::RawInput {
             events,
             ..Default::default()
         };
+        if close_requested {
+            input
+                .viewports
+                .get_mut(&egui::ViewportId::ROOT)
+                .unwrap()
+                .events
+                .push(egui::ViewportEvent::Close);
+        }
         let mut output = self.ctx.run_ui(input, |ui| self.editor.render(ui));
         output.textures_delta.clear();
         let root = &output.viewport_output[&egui::ViewportId::ROOT];
@@ -63,6 +80,11 @@ impl Rig {
             .commands
             .iter()
             .filter(|c| matches!(c, egui::ViewportCommand::Close))
+            .count();
+        self.cancels += root
+            .commands
+            .iter()
+            .filter(|c| matches!(c, egui::ViewportCommand::CancelClose))
             .count();
     }
     fn frames(&mut self, count: usize) {
@@ -193,6 +215,57 @@ fn a_pending_open_is_resolved_first_then_the_owed_close_prompts_itself() {
     assert!(rig.probe.replies().is_empty());
     rig.resolve(FileDecision::Cancel).unwrap();
     assert_eq!(rig.probe.replies(), [false]);
+    assert_eq!(rig.closes, 0);
+}
+
+#[test]
+fn a_late_close_request_is_cancelled_while_owed_and_after_the_approving_reply() {
+    let mut rig = Rig::new(false);
+    rig.frame(vec![]);
+    assert!(rig.editor.files.is_closing());
+    // Owed and approved: the approving reply is due this very frame.
+    rig.close_requested_frame();
+    assert_eq!(rig.probe.replies(), [true]);
+    assert_eq!(rig.cancels, 1);
+    // After the reply (no longer owed) the request is still not allowed to close the viewport.
+    rig.close_requested_frame();
+    assert_eq!(rig.cancels, 2);
+    assert_eq!(rig.closes, 0);
+}
+
+#[test]
+fn a_viewport_close_already_sent_is_refused_instead_of_exiting_twice() {
+    let mut rig = Rig::new(false);
+    rig.probe.owed.set(false);
+    rig.editor.request_close();
+    rig.frames(2);
+    assert_eq!(rig.closes, 1);
+    rig.probe.owed.set(true);
+    rig.frames(3);
+    assert_eq!(rig.probe.replies(), [false]);
+    assert_eq!(rig.closes, 1);
+}
+
+#[test]
+fn a_refused_close_request_answers_false_instead_of_retrying_forever() {
+    let mut rig = Rig::new(true);
+    rig.editor.name = String::new();
+    rig.frames(4);
+    assert_eq!(rig.probe.replies(), [false]);
+    assert!(rig.editor.error);
+    assert!(!rig.editor.files.is_modal());
+    assert_eq!(rig.closes, 0);
+}
+
+#[test]
+fn owed_save_of_an_untitled_scene_over_the_remote_path_answers_false() {
+    let mut rig = Rig::new(true);
+    rig.frame(vec![]);
+    assert!(rig.resolve(FileDecision::Save).is_err());
+    assert_eq!(rig.probe.replies(), [false]);
+    rig.frames(3);
+    assert_eq!(rig.probe.replies(), [false]);
+    assert!(rig.editor.is_dirty());
     assert_eq!(rig.closes, 0);
 }
 

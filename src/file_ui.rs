@@ -31,6 +31,8 @@ pub(super) struct FileState {
     pending: Option<PendingAction>,
     close_approved: bool,
     close_sent: bool,
+    /// `finish(true)` went out: AppKit's deferred reply now owns the exit.
+    terminate_approved: bool,
     uncertain: Option<UncertainSave>,
 }
 struct UncertainSave {
@@ -511,6 +513,7 @@ impl Editor {
         }
         self.files.close_approved = false;
         self.files.close_sent = false;
+        self.files.terminate_approved = false;
     }
     /// Per-frame driver for an owed OS termination. It does not wait for a `close_requested`
     /// event, which AppKit's `performClose:` can lose or delay, and it keeps the loop ticking.
@@ -520,13 +523,26 @@ impl Editor {
         }
         ctx.request_repaint();
         if ready {
-            // The reply drives the exit through `applicationWillTerminate:`; `close_sent` keeps
-            // `send_close_when_ready` from also closing the viewport once the reply clears `owed`.
-            self.terminate.finish(true);
-            self.files.close_sent = true;
+            if self.files.close_sent {
+                // A viewport Close already went out and exits the app. Approving as well would
+                // run a second exit through `applicationWillTerminate:`, so refuse instead.
+                self.terminate.finish(false);
+            } else {
+                // The reply drives the exit through `applicationWillTerminate:`; `close_sent`
+                // keeps `send_close_when_ready` from also closing the viewport once the reply
+                // clears `owed`.
+                self.terminate.finish(true);
+                self.files.close_sent = true;
+                self.files.terminate_approved = true;
+            }
         } else if !self.files.is_modal() && !self.files.close_approved && !self.native_input_pending
         {
             self.request_close();
+            if !self.files.is_modal() && !self.files.close_approved {
+                // The request was refused (invalid draft, active manipulation) and would be
+                // refused every frame: cancel the termination instead of hanging a logout.
+                self.decline_terminate();
+            }
         }
     }
     fn send_close_when_ready(&mut self, ctx: &egui::Context) {
@@ -540,7 +556,10 @@ impl Editor {
     }
     pub(super) fn handle_close(&mut self, ctx: &egui::Context) {
         let ready = self.close_ready();
-        if ctx.input(|i| i.viewport().close_requested()) && !ready {
+        // A late `performClose:` event must never let eframe close the viewport itself while the
+        // deferred AppKit reply owns the exit.
+        let guarded = self.terminate.owed() || self.files.terminate_approved;
+        if ctx.input(|i| i.viewport().close_requested()) && (!ready || guarded) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             if !self.files.close_approved && !self.native_input_pending {
                 self.request_close();
