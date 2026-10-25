@@ -229,3 +229,41 @@ fn scale_tool_object_space_scales_a_rotated_node() {
     result.unwrap();
     assert_eq!(scale_of(&editor, id), [2.0, 1.0, 1.0]);
 }
+
+#[test]
+fn inspection_scale_availability_follows_the_scale_space() {
+    let (mut editor, _) = rotated_cube([0.0, 0.0, 45.0]);
+    let scale = |editor: &Editor| {
+        editor
+            .inspect_manipulation()
+            .unwrap()
+            .kinds
+            .into_iter()
+            .find(|kind| kind.kind == "scale")
+            .unwrap()
+    };
+    let set_space = |editor: &mut Editor, space| {
+        remote(
+            editor,
+            Operation::SetToolSpace {
+                tool: ActiveTool::Scale,
+                space,
+            },
+        )
+        .unwrap();
+    };
+
+    set_space(&mut editor, ManipulationSpace::World);
+    let world = scale(&editor);
+    assert!(world.available, "{world:?}");
+    let reason = world.unavailable_reason.expect("per-axis refusal");
+    assert!(
+        reason.contains("Scale unsupported: that world axis is not aligned with a local axis"),
+        "{reason}"
+    );
+
+    set_space(&mut editor, ManipulationSpace::Object);
+    let object = scale(&editor);
+    assert!(object.available, "{object:?}");
+    assert_eq!(object.unavailable_reason, None);
+}

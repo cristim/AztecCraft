@@ -548,7 +548,9 @@ applies a substitute motion.
 `inspection.manipulation` reports the active tool; `units` (`distance` and
 `angle` as in `inspection.units`, `factor` `unitless`); `kinds`, one entry per
 kind with `available` and the core's `unavailable_reason` (a kind is available
-when any of its handles could begin in Object space); the `active` manipulation
+when any of its handles could begin; Scale uses the current `scale_space`, so a
+world-axis scale on a rotated node reports the refused handles, and Rotate is still
+checked in Object space); the `active` manipulation
 with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
 `handle`, `provenance`, the `parameter` name, its `value` and `unit` (after a remote update, `value` is the requested number exactly as given, in scene units; after a native drag it is derived from the internal parameter), `channels`
 (`translate`, `rotate` or `scale`) with the stored `baseline_channels` at begin

@@ -382,6 +382,7 @@ impl Editor {
             })
             .collect()),
         };
+        let scale_space = self.manipulation.space(ActiveTool::Scale).scale();
         let scale_refusals = match &scale_target {
             Err(error) => Err(error.to_string()),
             Ok(target) => Ok([
@@ -396,7 +397,7 @@ impl Editor {
                     name,
                     self.history
                         .scene()
-                        .scale_refusal(target, handle, ScaleSpace::Object)
+                        .scale_refusal(target, handle, scale_space)
                         .map(|error| error.to_string()),
                 )
             })
