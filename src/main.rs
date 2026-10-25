@@ -37,9 +37,8 @@ fn main() -> eframe::Result {
             // its own error; `?` aborts the launch if winit's delegate shape changed.
             #[cfg(target_os = "macos")]
             macos_quit_menu::install_terminate_guard()?;
-            let editor = app::Editor::new(cc)?;
-            #[cfg(feature = "mcp")]
-            let mut editor = editor;
+            let mut editor = app::Editor::new(cc)?;
+            editor.install_shutdown_signal(&cc.egui_ctx)?;
             #[cfg(feature = "mcp")]
             if mcp {
                 editor.start_mcp(&cc.egui_ctx)?;

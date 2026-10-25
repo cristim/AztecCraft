@@ -514,6 +514,25 @@ impl Editor {
         self.files.close_approved = false;
         self.files.close_sent = false;
         self.files.terminate_approved = false;
+        self.shutdown.reset();
+    }
+    /// Per-frame driver for a SIGTERM (#261, PROVISIONAL): starts the same close guard as the
+    /// window's close button once nothing else is waiting on the user.
+    fn drive_shutdown_signal(&mut self, ctx: &egui::Context) {
+        if !self.shutdown.requested() {
+            return;
+        }
+        ctx.request_repaint();
+        if self.files.is_modal() || self.files.close_approved || self.native_input_pending {
+            return;
+        }
+        self.shutdown.consume();
+        self.request_close();
+        if !self.files.is_modal() && !self.files.close_approved {
+            // Refused (invalid draft, active manipulation): not pending, so the next SIGTERM
+            // must prompt again instead of forcing the exit.
+            self.decline_terminate();
+        }
     }
     /// Per-frame driver for an owed OS termination. It does not wait for a `close_requested`
     /// event, which AppKit's `performClose:` can lose or delay, and it keeps the loop ticking.
@@ -566,6 +585,7 @@ impl Editor {
             }
         }
         self.drive_owed_terminate(ctx, ready);
+        self.drive_shutdown_signal(ctx);
         self.send_close_when_ready(ctx);
     }
     pub(super) fn file_modal(&mut self, ctx: &egui::Context) {
@@ -2137,3 +2157,7 @@ mod tests {
 #[cfg(test)]
 #[path = "app/terminate_tests.rs"]
 mod terminate_tests;
+
+#[cfg(test)]
+#[path = "app/shutdown_tests.rs"]
+mod shutdown_tests;
