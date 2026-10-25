@@ -54,7 +54,7 @@ functionality coverage and exact parity remain unmeasured and unmet.
 | `cargo test --manifest-path vendor/craft-atomic/Cargo.toml --locked` | Run actual vendor unit/integration/doc tests |
 | `cargo fmt --manifest-path crates/macos-quit-menu/Cargo.toml --all -- --check` | Check the macOS Quit-menu crate formatting |
 | `cargo clippy --manifest-path crates/macos-quit-menu/Cargo.toml --all-targets --locked -- -D warnings` | Lint the macOS Quit-menu crate |
-| `cargo test --manifest-path crates/macos-quit-menu/Cargo.toml --locked` | Run the crate tests: the platform-neutral terminate logic runs on every OS, the `harness = false` menu retarget test only on macOS (a no-op elsewhere) |
+| `cargo test --manifest-path crates/macos-quit-menu/Cargo.toml --locked` | Run the crate tests: the platform-neutral terminate logic runs on every OS, the `harness = false` terminate hook test only on macOS (a no-op elsewhere) |
 
 [Build and security notes](builds.md) describe the prepared three-platform CI,
 dependency audit, code line coverage and pre-commit configuration. Remote CI and

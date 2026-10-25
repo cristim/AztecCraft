@@ -29,12 +29,9 @@ fn main() -> eframe::Result {
             ..Default::default()
         },
         Box::new(move |cc| {
-            // winit installs Quit as `terminate:` before this runs; route it through the
-            // window close guard so Command-Q cannot discard a dirty scene (#11).
-            #[cfg(target_os = "macos")]
-            macos_quit_menu::route_quit_to_close()?;
-            // Dock Quit and logout reach the delegate, not the Quit item (#261). The call prints
-            // its own error; `?` aborts the launch if winit's delegate shape changed.
+            // Command-Q, the Quit item, Dock Quit and logout all send `terminate:`; the hook
+            // routes them through the close guard (#261). The call prints its own error; `?`
+            // aborts the launch if winit's delegate shape changed.
             #[cfg(target_os = "macos")]
             macos_quit_menu::install_terminate_guard()?;
             let mut editor = app::Editor::new(cc)?;
