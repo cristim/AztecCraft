@@ -1022,3 +1022,30 @@ fn root_transform_resolves_the_top_of_any_valid_path_and_refuses_others() {
         Err(NativeError::ResourceLimit)
     );
 }
+
+#[test]
+fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
+    for restricted in [0, 1] {
+        let (mut scene, root, child, _) = grouped_shape();
+        let at = scene
+            .nodes
+            .iter()
+            .position(|node| node.id == [root, child][restricted])
+            .unwrap();
+        scene.nodes[at]
+            .unsupported_transform
+            .push("unproved effect".into());
+        let before = scene.clone();
+        assert_eq!(
+            scene.remove(root),
+            Err(NativeError::UnsupportedDelete(
+                DeleteUnsupported::HasChildren
+            ))
+        );
+        assert_eq!(
+            scene.remove(child),
+            Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
+        );
+        assert_eq!(scene, before);
+    }
+}

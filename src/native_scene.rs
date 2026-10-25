@@ -1251,7 +1251,13 @@ impl NativeScene {
         }
     }
     pub fn remove(&mut self, id: NodeId) -> Result<(), NativeError> {
-        let index = self.editable(id)?;
+        self.authoring_preflight()?;
+        self.validate()?;
+        let index = self
+            .nodes
+            .iter()
+            .position(|n| n.id == id)
+            .ok_or(SceneError::MissingNode(id))?;
         let transform = self.nodes[index].transform_id;
         let has_children = self.dag.iter().any(|edge| {
             edge.parent == Some(transform)
@@ -1273,6 +1279,7 @@ impl NativeScene {
         if incoming.iter().any(|edge| edge.parent.is_some()) {
             return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
         }
+        self.check_effects(transform)?;
         if self.source.is_some() || incoming.len() != 1 {
             return Err(NativeError::UnsupportedEdit);
         }
