@@ -608,3 +608,103 @@ fn replacing_the_scene_keeps_the_window_the_drafts_and_the_remembered_options() 
     press(&mut editor, &ctx, "Create");
     assert_eq!(node_count(&editor), 1, "Create now targets the new scene");
 }
+
+#[test]
+fn escape_with_a_focused_non_dialog_field_keeps_the_window() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    ctx.memory_mut(|memory| memory.request_focus(crate::app::name_edit_id()));
+    run(&mut editor, &ctx, vec![]);
+    run(&mut editor, &ctx, vec![]);
+    assert!(!editor.has_draft());
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_some());
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_none());
+}
+
+#[test]
+fn typing_state_is_cleared_while_the_window_is_hidden_by_a_modal() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    focus_field(&mut editor, &ctx, 0);
+    run(&mut editor, &ctx, vec![]);
+    editor.request_new();
+    assert!(editor.files.is_modal());
+    run(&mut editor, &ctx, vec![]);
+    let pending_id = uuid::Uuid::parse_str(&editor.files.pending_inspection().unwrap().id).unwrap();
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id,
+            decision: crate::editor_operations::FileDecision::Cancel,
+        })
+        .unwrap();
+    // The very next frame: no redraw of the window has refreshed the focus state yet.
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(
+        editor.primitive_options.dialog.is_none(),
+        "one Escape closes it"
+    );
+    assert!(!editor.status.contains("Edit cancelled"));
+}
+
+#[test]
+fn text_events_reach_a_dialog_field() {
+    let (mut editor, ctx) = setup();
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    set_field(&mut editor, &ctx, 1, "");
+    focus_field(&mut editor, &ctx, 1);
+    run(&mut editor, &ctx, vec![Event::Text("1".into())]);
+    run(&mut editor, &ctx, vec![Event::Text("2".into())]);
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[1],
+        "12"
+    );
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(
+        editor.history.scene().shapes()[0].mesh().faces().len(),
+        12 * 20
+    );
+}
+
+#[test]
+fn a_failed_create_message_clears_after_a_valid_create_and_options_are_remembered() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Sphere);
+    set_field(&mut editor, &ctx, 1, "9");
+    editor.channels[0] = "nope".into();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 1);
+    assert!(
+        editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .message
+            .is_some()
+    );
+    assert_eq!(
+        editor.remembered_options(Primitive::Sphere),
+        PrimitiveOptions::default_for(Primitive::Sphere)
+    );
+    editor.sync_fields();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 2);
+    assert!(
+        editor
+            .primitive_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .message
+            .is_none()
+    );
+    assert!(matches!(
+        editor.remembered_options(Primitive::Sphere),
+        PrimitiveOptions::Sphere { sub_axis: 9, .. }
+    ));
+}
