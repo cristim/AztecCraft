@@ -9,6 +9,7 @@
 //! [`finish_terminate`]. Unlike swizzling, nothing winit relies on is replaced.
 #![allow(unsafe_code)]
 
+use std::cell::Cell;
 use std::fmt;
 use std::io::Write;
 use std::panic::{UnwindSafe, catch_unwind};
@@ -126,11 +127,33 @@ fn reply_for_terminate(mtm: MainThreadMarker) -> NSApplicationTerminateReply {
     NSApplicationTerminateReply::TerminateLater
 }
 
+thread_local! {
+    /// Set while `should_terminate` runs: its own `guarded` answers a panic there, so the global
+    /// panic hook must not queue a second reply.
+    static IN_HOOK: Cell<bool> = const { Cell::new(false) };
+}
+
+struct InHook;
+
+impl InHook {
+    fn enter() -> Self {
+        let _ = IN_HOOK.try_with(|flag| flag.set(true));
+        Self
+    }
+}
+
+impl Drop for InHook {
+    fn drop(&mut self) {
+        let _ = IN_HOOK.try_with(|flag| flag.set(false));
+    }
+}
+
 extern "C" fn should_terminate(
     _this: *mut AnyObject,
     _cmd: Sel,
     _sender: *mut AnyObject,
 ) -> NSApplicationTerminateReply {
+    let _in_hook = InHook::enter();
     guarded(|| match MainThreadMarker::new() {
         Some(mtm) => reply_for_terminate(mtm),
         None => NSApplicationTerminateReply::TerminateCancel,
@@ -152,6 +175,37 @@ fn guarded(
         );
         NSApplicationTerminateReply::TerminateCancel
     })
+}
+
+/// Declines an owed terminate when the main thread panics outside `should_terminate`. winit
+/// catches a frame panic and stops its loop, but AppKit keeps waiting for a reply that no later
+/// frame will send, so the process would hang instead of exiting on the panic (#270). Other
+/// threads do not stop the app, and a quit the user can still finish must not be cancelled.
+fn answer_owed_on_panic() {
+    if MainThreadMarker::new().is_none() || IN_HOOK.try_with(Cell::get).unwrap_or(false) {
+        return;
+    }
+    if !terminate_owed() {
+        return;
+    }
+    if finish_terminate(false).is_ok() {
+        let _ = writeln!(
+            std::io::stderr(),
+            "panic while a terminate reply was owed; declining it so the process can exit, \
+             see known-issues (#270)"
+        );
+    }
+}
+
+/// Chains a panic hook that runs [`answer_owed_on_panic`] before the previous hook. Installed
+/// by [`install_terminate_guard`]; public only so the integration test can install it.
+#[doc(hidden)]
+pub fn install_panic_answer() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        answer_owed_on_panic();
+        previous(info);
+    }));
 }
 
 fn is_instance_of(object: &AnyObject, class: &AnyClass) -> bool {
@@ -232,8 +286,9 @@ pub fn install_terminate_guard() -> Result<(), TerminateHookError> {
             let delegate: &AnyObject = (*delegate).as_ref();
             install_terminate_guard_in(class, delegate)
         });
-    if let Err(error) = &result {
-        eprintln!("{error}");
+    match &result {
+        Ok(()) => install_panic_answer(),
+        Err(error) => eprintln!("{error}"),
     }
     result
 }
@@ -276,8 +331,24 @@ pub fn terminate_reply_queued() -> bool {
 mod tests {
     use super::*;
 
+    // Both tests drive the one process-wide state.
+    static SERIAL: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn a_panic_off_the_main_thread_leaves_an_owed_reply_alone() {
+        let _serial = SERIAL.lock().unwrap_or_else(|p| p.into_inner());
+        lock_state().begin();
+        answer_owed_on_panic();
+        let owed = terminate_owed();
+        let queued = terminate_reply_queued();
+        let _ = lock_state().reply(false, |_| {});
+        assert!(owed, "a background panic must not answer");
+        assert!(!queued);
+    }
+
     #[test]
     fn a_panic_after_begin_cancels_and_clears_the_owed_state() {
+        let _serial = SERIAL.lock().unwrap_or_else(|p| p.into_inner());
         let reply = guarded(|| {
             lock_state().begin();
             panic!("forced");

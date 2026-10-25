@@ -7,7 +7,7 @@ mod terminate_core;
 
 #[cfg(target_os = "macos")]
 pub use terminate::{
-    TerminateHookError, finish_terminate, install_terminate_guard, install_terminate_guard_in,
-    terminate_owed, terminate_reply_queued,
+    TerminateHookError, finish_terminate, install_panic_answer, install_terminate_guard,
+    install_terminate_guard_in, terminate_owed, terminate_reply_queued,
 };
 pub use terminate_core::{TerminateError, TerminateState, WindowFacts, choose_close_target};
