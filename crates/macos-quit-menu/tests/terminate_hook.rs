@@ -13,7 +13,7 @@ mod mac {
 
     use macos_quit_menu::{
         TerminateError, TerminateHookError, finish_terminate, install_terminate_guard,
-        install_terminate_guard_in, terminate_owed,
+        install_terminate_guard_in, terminate_owed, terminate_reply_queued,
     };
     use objc2::encode::Encode;
     use objc2::rc::Retained;
@@ -93,6 +93,9 @@ mod mac {
     #[link(name = "CoreFoundation", kind = "framework")]
     unsafe extern "C" {
         fn CFRelease(object: *const std::ffi::c_void);
+        static kCFRunLoopDefaultMode: *const std::ffi::c_void;
+        fn CFRunLoopRunInMode(mode: *const std::ffi::c_void, seconds: f64, return_after: u8)
+        -> i32;
     }
 
     /// Windows need a WindowServer connection; the session dictionary is NULL without one.
@@ -106,6 +109,12 @@ mod mac {
         // SAFETY: `session` is the non-NULL object returned above.
         unsafe { CFRelease(session) };
         true
+    }
+
+    /// Runs the main queue, so a reply queued by `finish_terminate` is delivered.
+    fn drain_main_queue() {
+        // SAFETY: the mode is CoreFoundation's own constant; a source handled by an earlier pass can end a return-after-source run before the queue runs, so it waits the full 0.1 s.
+        unsafe { CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.1, 0) };
     }
 
     pub fn run() {
@@ -185,6 +194,25 @@ mod mac {
         assert_eq!(finish_terminate(false), Ok(()));
         assert!(!terminate_owed());
         assert_eq!(finish_terminate(false), Err(TerminateError::NotOwed));
+        assert!(terminate_reply_queued());
+
+        // #268: while the previous reply is still queued, a new terminate is declined. It owes
+        // nothing and starts no close request, so the stale reply cannot answer it.
+        assert_eq!(terminate(&delegate), Reply::TerminateCancel);
+        assert!(!terminate_owed());
+        assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 1);
+        // The queued block runs `replyToApplicationShouldTerminate:` with no terminate pending.
+        drain_main_queue();
+        assert!(!terminate_reply_queued());
+        assert!(!terminate_owed());
+
+        // Idle again: a new terminate begins normally.
+        assert_eq!(terminate(&delegate), Reply::TerminateLater);
+        assert!(terminate_owed());
+        assert_eq!(PERFORM_CLOSE_CALLS.load(Ordering::SeqCst), 2);
+        assert_eq!(finish_terminate(false), Ok(()));
+        drain_main_queue();
+        assert!(!terminate_reply_queued());
         println!("terminate hook: ok");
     }
 }

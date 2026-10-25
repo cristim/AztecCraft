@@ -82,6 +82,14 @@ fn reply_for_terminate(mtm: MainThreadMarker) -> NSApplicationTerminateReply {
     if lock_state().owed() {
         return NSApplicationTerminateReply::TerminateLater;
     }
+    if lock_state().queued() {
+        // The queued reply would answer a new request; refuse until it is delivered.
+        let _ = writeln!(
+            std::io::stderr(),
+            "terminate declined while a reply is still queued, see known-issues (#268)"
+        );
+        return NSApplicationTerminateReply::TerminateCancel;
+    }
     let app = NSApplication::sharedApplication(mtm);
     let windows: Vec<_> = app.windows().iter().collect();
     if windows.is_empty() {
@@ -230,8 +238,14 @@ pub fn terminate_owed() -> bool {
 /// returns (never inside an egui frame: `applicationWillTerminate:` re-enters winit's event
 /// handler). `Err(NotOwed)` when nothing is owed.
 pub fn finish_terminate(approved: bool) -> Result<(), TerminateError> {
-    lock_state().reply(approved, |approved| {
+    let mut state = lock_state();
+    let mut to_send = None;
+    state.reply(approved, |approved| to_send = Some(approved))?;
+    state.mark_queued();
+    drop(state);
+    if let Some(approved) = to_send {
         dispatch2::DispatchQueue::main().exec_async(move || {
+            lock_state().delivered();
             if let Some(mtm) = MainThreadMarker::new() {
                 NSApplication::sharedApplication(mtm).replyToApplicationShouldTerminate(approved);
             } else {
@@ -240,7 +254,13 @@ pub fn finish_terminate(approved: bool) -> Result<(), TerminateError> {
                 );
             }
         });
-    })
+    }
+    Ok(())
+}
+
+/// Whether an AppKit reply is queued and not yet delivered.
+pub fn terminate_reply_queued() -> bool {
+    lock_state().queued()
 }
 
 #[cfg(test)]
@@ -255,5 +275,6 @@ mod tests {
         });
         assert_eq!(reply, NSApplicationTerminateReply::TerminateCancel);
         assert!(!terminate_owed());
+        assert!(!terminate_reply_queued());
     }
 }

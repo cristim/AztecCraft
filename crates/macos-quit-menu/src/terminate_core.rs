@@ -56,16 +56,36 @@ impl std::error::Error for TerminateError {}
 #[derive(Debug, Default)]
 pub struct TerminateState {
     owed: bool,
+    reply_queued: bool,
 }
 
 impl TerminateState {
     pub const fn new() -> Self {
-        Self { owed: false }
+        Self {
+            owed: false,
+            reply_queued: false,
+        }
     }
 
     /// Whether a termination is waiting for its reply.
     pub fn owed(&self) -> bool {
         self.owed
+    }
+
+    /// Whether an AppKit reply has been queued but not yet delivered. A new terminate must not
+    /// begin until it is: the stale reply would answer the new request instead.
+    pub fn queued(&self) -> bool {
+        self.reply_queued
+    }
+
+    /// Records that an AppKit reply was queued. Call it only where a reply is really sent.
+    pub fn mark_queued(&mut self) {
+        self.reply_queued = true;
+    }
+
+    /// Records that the queued AppKit reply ran or was dropped.
+    pub fn delivered(&mut self) {
+        self.reply_queued = false;
     }
 
     /// Records a `terminate:`. Call it only after `choose_close_target` returned `Some`; with no
@@ -181,5 +201,25 @@ mod tests {
         );
         assert!(sent.is_empty());
         assert!(TerminateError::NotOwed.to_string().contains("#261"));
+    }
+
+    #[test]
+    fn queued_reply_is_tracked_until_delivered() {
+        let mut state = TerminateState::new();
+        assert!(!state.queued());
+        state.mark_queued();
+        assert!(state.queued());
+        state.delivered();
+        assert!(!state.queued());
+        state.delivered();
+        assert!(!state.queued());
+    }
+
+    #[test]
+    fn reply_does_not_mark_a_reply_as_queued() {
+        let mut state = TerminateState::new();
+        assert!(state.begin());
+        assert_eq!(state.reply(false, |_| {}), Ok(()));
+        assert!(!state.queued());
     }
 }
