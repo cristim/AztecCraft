@@ -7,6 +7,4 @@ mod terminate_core;
 
 #[cfg(target_os = "macos")]
 pub use quit_menu::{QuitMenuError, retarget_quit, route_quit_to_close};
-pub use terminate_core::{
-    ReplySink, TerminateError, TerminateState, WindowFacts, choose_close_target,
-};
+pub use terminate_core::{TerminateError, TerminateState, WindowFacts, choose_close_target};

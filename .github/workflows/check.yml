@@ -127,11 +127,11 @@ jobs:
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: cargo +1.99.0 test --manifest-path crates/macos-quit-menu/Cargo.toml --locked
-      - name: macOS quit menu compiles elsewhere
+      - name: macOS quit menu platform-neutral tests
         if: matrix.platform == 'linux'
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
-        run: cargo +1.99.0 check --manifest-path crates/macos-quit-menu/Cargo.toml --all-targets --locked
+        run: cargo +1.99.0 test --manifest-path crates/macos-quit-menu/Cargo.toml --locked
       - name: Clippy
         run: cargo +1.99.0 clippy --workspace --all-targets --locked -- -D warnings
       - name: Test

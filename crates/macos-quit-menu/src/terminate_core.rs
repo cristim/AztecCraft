@@ -32,12 +32,6 @@ pub fn choose_close_target(windows: &[WindowFacts]) -> Option<usize> {
         .or_else(|| first(|_| true))
 }
 
-/// Receives the single answer to an owed termination (the production sink schedules
-/// `replyToApplicationShouldTerminate:` on the main queue).
-pub trait ReplySink {
-    fn reply(&mut self, approved: bool);
-}
-
 /// A reply was attempted with no termination owed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminateError {
@@ -56,20 +50,12 @@ impl fmt::Display for TerminateError {
 
 impl std::error::Error for TerminateError {}
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-enum Phase {
-    #[default]
-    Idle,
-    Owed,
-    Replied,
-}
-
-/// `Idle -> Owed -> Replied`, and `Replied -> Owed` again on the next `terminate:` (a cancelled
-/// quit can be retried). Owed means the hook returned `NSTerminateLater`; exactly one reply must
-/// follow.
+/// Tracks whether a termination is owed: `begin` makes it owed (the hook returned
+/// `NSTerminateLater`), and exactly one `reply` must follow. After the reply the state is idle,
+/// so a cancelled quit can be retried.
 #[derive(Debug, Default)]
 pub struct TerminateState {
-    phase: Phase,
+    owed: bool,
 }
 
 impl TerminateState {
@@ -79,28 +65,26 @@ impl TerminateState {
 
     /// Whether a termination is waiting for its reply.
     pub fn owed(&self) -> bool {
-        self.phase == Phase::Owed
+        self.owed
     }
 
-    /// Records a `terminate:`. Returns true when this call made the termination owed, false when
+    /// Records a `terminate:`. Call it only after `choose_close_target` returned `Some`; with no
+    /// target there is nothing to owe and the caller returns `NSTerminateCancel` without
+    /// touching this state. Returns true when this call made the termination owed, false when
     /// one was already owed (the caller must not start a second close request).
     pub fn begin(&mut self) -> bool {
-        let newly_owed = self.phase != Phase::Owed;
-        self.phase = Phase::Owed;
-        newly_owed
+        !std::mem::replace(&mut self.owed, true)
     }
 
-    /// Sends the one reply for the owed termination. Without an owed termination nothing is sent.
-    pub fn reply(
-        &mut self,
-        approved: bool,
-        sink: &mut impl ReplySink,
-    ) -> Result<(), TerminateError> {
-        if !self.owed() {
+    /// Records the decision for the owed termination, then passes it to `send` exactly once.
+    /// The state is updated before the deferred AppKit reply runs, so the owed flag is already
+    /// clear when AppKit acts on it. Without an owed termination `send` is not called.
+    pub fn reply(&mut self, approved: bool, send: impl FnOnce(bool)) -> Result<(), TerminateError> {
+        if !self.owed {
             return Err(TerminateError::NotOwed);
         }
-        self.phase = Phase::Replied;
-        sink.reply(approved);
+        self.owed = false;
+        send(approved);
         Ok(())
     }
 }
@@ -156,49 +140,46 @@ mod tests {
         assert_eq!(choose_close_target(&[locked_key, locked, NONE]), Some(2));
     }
 
-    #[derive(Default)]
-    struct Recorder(Vec<bool>);
-
-    impl ReplySink for Recorder {
-        fn reply(&mut self, approved: bool) {
-            self.0.push(approved);
-        }
-    }
-
     // H3
     #[test]
     fn terminate_state_replies_exactly_once_per_owed_termination() {
         let mut state = TerminateState::new();
-        let mut sink = Recorder::default();
+        let mut sent = Vec::new();
         assert!(!state.owed());
         assert!(state.begin());
         assert!(state.owed());
-        assert_eq!(state.reply(false, &mut sink), Ok(()));
+        assert_eq!(state.reply(false, |a| sent.push(a)), Ok(()));
         assert!(!state.owed());
-        assert_eq!(state.reply(true, &mut sink), Err(TerminateError::NotOwed));
-        assert_eq!(sink.0, [false]);
+        assert_eq!(
+            state.reply(true, |a| sent.push(a)),
+            Err(TerminateError::NotOwed)
+        );
+        assert_eq!(sent, [false]);
         // a cancelled quit can be retried
         assert!(state.begin());
-        assert_eq!(state.reply(true, &mut sink), Ok(()));
-        assert_eq!(sink.0, [false, true]);
+        assert_eq!(state.reply(true, |a| sent.push(a)), Ok(()));
+        assert_eq!(sent, [false, true]);
     }
 
     #[test]
     fn second_terminate_while_owed_is_idempotent() {
         let mut state = TerminateState::new();
-        let mut sink = Recorder::default();
+        let mut sent = Vec::new();
         assert!(state.begin());
         assert!(!state.begin());
-        assert_eq!(state.reply(true, &mut sink), Ok(()));
-        assert_eq!(sink.0, [true]);
+        assert_eq!(state.reply(true, |a| sent.push(a)), Ok(()));
+        assert_eq!(sent, [true]);
     }
 
     #[test]
     fn reply_without_owed_is_an_error_value_and_sends_nothing() {
         let mut state = TerminateState::new();
-        let mut sink = Recorder::default();
-        assert_eq!(state.reply(true, &mut sink), Err(TerminateError::NotOwed));
-        assert!(sink.0.is_empty());
+        let mut sent = Vec::new();
+        assert_eq!(
+            state.reply(true, |a| sent.push(a)),
+            Err(TerminateError::NotOwed)
+        );
+        assert!(sent.is_empty());
         assert!(TerminateError::NotOwed.to_string().contains("#261"));
     }
 }
