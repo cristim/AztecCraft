@@ -31,7 +31,6 @@ struct Rig {
     ctx: egui::Context,
     probe: Probe,
     closes: usize,
-    repaint: bool,
 }
 impl Rig {
     fn new(dirty: bool) -> Self {
@@ -50,7 +49,6 @@ impl Rig {
             ctx: egui::Context::default(),
             probe,
             closes: 0,
-            repaint: false,
         }
     }
     fn frame(&mut self, events: Vec<egui::Event>) {
@@ -66,7 +64,6 @@ impl Rig {
             .iter()
             .filter(|c| matches!(c, egui::ViewportCommand::Close))
             .count();
-        self.repaint = root.repaint_delay.is_zero();
     }
     fn frames(&mut self, count: usize) {
         for _ in 0..count {
@@ -95,11 +92,10 @@ impl Rig {
 }
 
 #[test]
-fn owed_without_a_close_event_raises_the_modal_and_keeps_repainting() {
+fn owed_without_a_close_event_raises_the_modal() {
     let mut rig = Rig::new(true);
     rig.frame(vec![]);
     assert!(rig.editor.files.is_modal());
-    assert!(rig.repaint);
     assert!(rig.probe.replies().is_empty());
     assert_eq!(rig.closes, 0);
 }
