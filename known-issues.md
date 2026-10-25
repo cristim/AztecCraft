@@ -327,8 +327,9 @@ Fallbacks, all deliberate:
 - If a terminate is owed and `request_close` is refused for good (an invalid text draft or an active manipulation), the app declines the terminate: a logout or shutdown is aborted instead of hanging, and the user fixes the draft and quits again.
 - If a terminate arrives after a viewport close was already sent, the app declines it to avoid a double exit: a logout is cancelled, but the app still exits through the close already in flight, with no data lost.
 - While a deferred AppKit reply is still queued, a new `terminate:` is declined instead of begun, so the stale answer cannot cancel a new request (#268).
-- A `terminate:` that arrives while an AppKit modal is up (an rfd Open or Save panel runs a nested `runModal` inside the frame, so the reply could never be sent) is declined with a stderr line naming #268, and there is no hang (#268). PROVISIONAL (the Maya docs do not cover OS quit with a dialog open): the dialog stays up, and an open panel therefore aborts logout and shutdown.
-- Limit: the hook checks only `NSApplication.modalWindow`. Any future nested loop inside a frame that is not modal (a sheet or a popover) would bring the hang back.
+- A `terminate:` that arrives while an AppKit modal is up (an rfd Open or Save panel runs a nested `runModal` inside the frame, so the reply could never be sent) is declined with a stderr line naming #268, so the app does not hang (#268). Native proof covers a Dock quit with the Open panel up; the Save panel uses the same check and is covered only headlessly. PROVISIONAL (the Maya docs do not cover OS quit with a dialog open): the dialog stays up, and an open panel therefore aborts logout and shutdown.
+- Limit: the hook checks only `NSApplication.modalWindow`. Every rfd panel in the tree runs `runModal`, which sets it. Any future nested event loop inside a frame that does not set `modalWindow` would bring the hang back.
+- A panic in an egui frame while a terminate reply is owed may leave AppKit waiting, so the app could hang instead of crashing (not reproduced; #270).
 - Cancelling the save panel does not answer the terminate: it returns to the Save/Discard/Cancel prompt, which still owes the reply.
 - Save on logout, restart or shutdown is accepted as aborting the OS action when the prompt cannot complete (owner decision on #261).
 

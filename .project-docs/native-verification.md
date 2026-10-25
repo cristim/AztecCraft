@@ -28,7 +28,10 @@ tool, 2026-10-25):
 | Real logout or shutdown, including Save on the prompt (expected to abort the OS action) | pending |
 | A terminate arriving after a viewport close was sent (logout cancelled, the app still exits) | pending |
 | Open panel up, then Dock quit | passed (build 61c7a87): Dock quit with the Open panel up is declined (logged), the panel stays usable, no hang; a later Dock quit prompts |
-| Second terminate while the prompt is up, then Cancel | passed (main 2914585, Dock quit): no nested wait, the app stays responsive, a later quit prompts again |
+| Second Dock quit while the prompt is up, then Cancel | passed (main 2914585): no nested wait, the app stays responsive, a later quit prompts again |
+| Second Command-Q while the prompt is up, then Cancel | pending |
+| Quit menu click while the prompt is up, then Cancel | pending |
+| A decline followed at once by a new terminate (expected: declined while the earlier reply is queued; a later quit prompts) | pending natively; covered headlessly by the hook harness (#268) |
 | Save panel, alert key, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
 | Minimized window | pending |
 | App hidden with Command-H | pending |
