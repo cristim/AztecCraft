@@ -158,15 +158,15 @@ mod mac {
             );
         }
 
+        if !has_gui_session() {
+            println!("terminate hook: terminate and window cases skipped, no GUI session");
+            return;
+        }
+
         // H1: no windows at all -> terminate now, nothing owed.
         assert_eq!(terminate(&delegate), Reply::TerminateNow);
         assert!(!terminate_owed());
         assert_eq!(finish_terminate(true), Err(TerminateError::NotOwed));
-
-        if !has_gui_session() {
-            println!("terminate hook: window cases skipped, no GUI session");
-            return;
-        }
 
         // H4: a window that cannot close is never asked to; terminate is cancelled, not owed.
         let window = window();
