@@ -5221,6 +5221,18 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
     });
     let child = editor.history.scene().transform_paths().unwrap()[1].node;
     let scene = editor.history.scene().clone();
+    let state = |editor: &Editor| {
+        (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.is_dirty(),
+        )
+    };
+    let baseline = state(&editor);
     for (node, message) in [
         (root, "Deleting a node with children is not supported yet"),
         (
@@ -5238,20 +5250,47 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         assert_eq!(editor.status, message);
         assert!(editor.error);
         assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(
+            state(&editor),
+            baseline,
+            "selection, history and dirty flag"
+        );
     }
 }
 
 #[test]
 fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
-    let mut editor = Editor::default();
-    editor.create(Primitive::Cube);
-    let before = editor.history.scene().clone();
-    let ctx = egui::Context::default();
-    let output = frame(&mut editor, &ctx, vec![]);
-    let edit = face_text_position(&output, "Edit");
-    let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
-    for label in ["Delete by Type", "Delete All by Type"] {
+    for (turn, label) in ["Delete by Type", "Delete All by Type"]
+        .into_iter()
+        .enumerate()
+    {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let before = editor.history.scene().clone();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        let output = frame(&mut editor, &ctx, vec![]);
+        let edit = face_text_position(&output, "Edit");
+        let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+        assert!(button_disabled(&output, label), "{label} enabled");
         let row = face_text_position(&output, label);
+        let mut hovered = output;
+        for step in 1..=8 {
+            let mut input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1440.0, 900.0),
+                )),
+                time: Some(10.0 + (turn * 10 + step) as f64 * 0.25),
+                events: vec![egui::Event::PointerMoved(row)],
+                ..Default::default()
+            };
+            input.viewports.entry(egui::ViewportId::ROOT).or_default();
+            hovered = ctx.run_ui(input, |ui| editor.render(ui));
+            hovered.textures_delta.clear();
+        }
+        face_text_position(&hovered, super::menus::DELETE_BY_TYPE_REASON);
         face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
         assert_eq!(editor.history.scene(), &before, "{label}");
     }

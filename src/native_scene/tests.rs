@@ -1049,3 +1049,41 @@ fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
         assert_eq!(scene, before);
     }
 }
+
+#[test]
+fn read_only_format_wins_over_the_hierarchy_refusal_on_an_ascii_scene() {
+    let (mut scene, root, child, _) = grouped_shape();
+    retain(&mut scene, b"original", std::iter::once(0..8).collect());
+    let before = scene.clone();
+    for id in [root, child] {
+        assert_eq!(scene.remove(id), Err(NativeError::ReadOnlyFormat));
+    }
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() {
+    let binary = |scene: &mut NativeScene| {
+        scene.source = Some(SourceRetention {
+            sites: Vec::new(),
+            bytes: std::sync::Arc::from(&b"original"[..]),
+            format: SourceFormat::Binary,
+            records: std::iter::once(0..8).collect(),
+            leaves: Vec::new(),
+            appearance: None,
+        });
+        scene.validate().unwrap();
+    };
+    let (mut scene, gone) = cube();
+    scene.remove(gone).unwrap();
+    binary(&mut scene);
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove(gone),
+        Err(SceneError::MissingNode(gone).into())
+    );
+    assert_eq!(scene, before);
+    let (mut scene, present) = cube();
+    binary(&mut scene);
+    assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
+}

@@ -631,6 +631,18 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
     let token = editor.scene_token.to_string();
     let paths = editor.history.scene().transform_paths().unwrap();
     let before = editor.history.scene().clone();
+    let state = |editor: &Editor| {
+        (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.is_dirty(),
+        )
+    };
+    let baseline = state(&editor);
     for (index, message) in [
         (0, "Deleting a node with children is not supported yet"),
         (1, "Deleting a node that has a parent is not supported yet"),
@@ -648,6 +660,11 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
         assert_eq!(error["message"], message);
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.scene_token.to_string(), token);
+        assert_eq!(
+            state(&editor),
+            baseline,
+            "selection, history and dirty flag"
+        );
     }
     client.cancel().await.unwrap();
     drop(editor);

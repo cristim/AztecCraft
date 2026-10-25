@@ -37,7 +37,7 @@ pub(super) const MODELING_SET_MENUS: [&str; 9] = [
 pub(super) const HELP_MENU: &str = "Help";
 
 /// Maya's Edit > Delete by Type and Delete All by Type rows; the type list is not implemented.
-const DELETE_BY_TYPE_REASON: &str =
+pub(super) const DELETE_BY_TYPE_REASON: &str =
     "Deleting by node type is not supported yet; select the object and use Delete";
 
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
