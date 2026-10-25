@@ -1,5 +1,27 @@
 # Native verification record
 
+## macOS Command-Q close guard (#11), native run pending
+
+Command-Q previously ran winit's `terminate:` and exited without the Save/Discard/Cancel prompt.
+`crates/macos-quit-menu` retargets that item to `performClose:`, which reaches the existing
+`CloseRequested` guard. The headless test proves only the retarget on a hand-built menu; the checks
+below need a native macOS run on the fix branch (default build, and `--features mcp` with a client):
+
+1. Dirty scene (Cube shelf button) + Command-Q and AztecCraft > Quit: prompt appears; Cancel keeps
+   the app and scene, Discard quits, Save saves then quits.
+2. Clean scene + Command-Q quits immediately.
+3. Command-Q with pending text input, with the prompt already open, and with an invalid text draft.
+4. Command-Q while an Open/Save panel or alert is key, and with the window minimized or the app hidden
+   (Command-H). Record what happens; an unguarded exit or lost data is a finding.
+5. About, Hide, Hide Others, Show All and Services still work; the red close button still prompts.
+
+Maya reference (PROVISIONAL where silent): the 2026 Help File menu page
+(https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm)
+says Exit prompts to save when the scene was not recently saved and gives no hotkey; the MEL `quit` command
+page (https://help.autodesk.com/cloudhelp/2026/JPN/Maya-Tech-Docs/Commands/quit.html) covers
+`-force`/`-abort`. The dialog wording, Cancel button and Command-Q mapping are PROVISIONAL. Native
+result: not yet recorded.
+
 ## Cold verification of material Diffuse editing (2026-10-19)
 
 Verified source: `origin/main` commit [`7ca0ebf`](https://github.com/cristim/AztecCraft/commit/7ca0ebfd6709e3afd624d8fae057f93165fd517b), macOS (Darwin 25.1, Apple Silicon),

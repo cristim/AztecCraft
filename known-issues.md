@@ -316,12 +316,12 @@ Native testing of the initial nine-tool server reproduced repeated reply deadlin
 
 The revised hidden logic path and retained-input guard pass actual trait-callback tests, and [scoped macOS native verification](.project-docs/mcp-native-verification.md) confirmed minimized requests at source `36dffdf`. In the combined icon/MCP build `541c72c`, an idle request reached its UI reply deadline. A main-thread sample taken during investigation included Metal drawable acquisition, without establishing overlap with the timed-out request or a five-second acquisition wait; the next request recovered in the same process and scene token. The underlying cause remains unproven. These results do not establish unconditional idle/background responsiveness or other-platform native behavior.
 
-## macOS application quit guard unverified
+## macOS Dock Quit, logout and shutdown bypass the unsaved-changes guard
 
 **Severity:** medium
 **Area:** native document lifecycle
 
-Pinned winit 0.30.13 gives the default Quit menu item the `terminate:` action and Command-Q equivalent (macOS menu.rs:66–73). Its application termination callback calls window-exit notification and internal exit (app_state.rs:65–71,166–172), while window Close separately queues CloseRequested (window_delegate.rs:144–148). Native testing of Command-Q with a synthetic dirty scene remains pending; no data loss has been demonstrated. The hidden-dispatch change guards viewport Close and does not establish interception of application termination.
+Command-Q and the AztecCraft > Quit menu item now run `performClose:` through the crate `crates/macos-quit-menu`, so they reach the window close guard (#11). Dock Quit, Quit All from the Apple menu, logout, shutdown and SIGTERM/SIGINT still deliver `terminate:` or kill the process directly and skip the guard. Covering them needs an `applicationShouldTerminate:` hook (pinned winit 0.30.13 exposes none) or an NSAppleEventManager handler, a separate decision. The retarget fails the launch loudly if winit's Quit item changes shape; the native run on a dirty scene is recorded in [native-verification.md](.project-docs/native-verification.md) once done.
 
 ## Bounded World-axis Move candidate
 

@@ -52,6 +52,9 @@ functionality coverage and exact parity remain unmeasured and unmet.
 | `cargo fmt --manifest-path vendor/craft-atomic/Cargo.toml --all -- --check` | Check vendor formatting with inherited upstream settings |
 | `cargo clippy --manifest-path vendor/craft-atomic/Cargo.toml --all-targets --locked -- -D warnings` | Lint the standalone vendor crate |
 | `cargo test --manifest-path vendor/craft-atomic/Cargo.toml --locked` | Run actual vendor unit/integration/doc tests |
+| `cargo fmt --manifest-path crates/macos-quit-menu/Cargo.toml --all -- --check` | Check the macOS Quit-menu crate formatting |
+| `cargo clippy --manifest-path crates/macos-quit-menu/Cargo.toml --all-targets --locked -- -D warnings` | Lint the macOS Quit-menu crate |
+| `cargo test --manifest-path crates/macos-quit-menu/Cargo.toml --locked` | Run its `harness = false` menu retarget test (macOS only; a no-op elsewhere) |
 
 [Build and security notes](builds.md) describe the prepared three-platform CI,
 dependency audit, code line coverage and pre-commit configuration. Remote CI and
