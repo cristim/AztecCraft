@@ -29,6 +29,13 @@ fn main() -> eframe::Result {
             ..Default::default()
         },
         Box::new(move |cc| {
+            // winit installs Quit as `terminate:` before this runs; route it through the
+            // window close guard so Command-Q cannot discard a dirty scene (#11).
+            #[cfg(target_os = "macos")]
+            macos_quit_menu::route_quit_to_close(
+                objc2::MainThreadMarker::new()
+                    .ok_or("the app creator must run on the main thread")?,
+            )?;
             let editor = app::Editor::new(cc)?;
             #[cfg(feature = "mcp")]
             let mut editor = editor;
