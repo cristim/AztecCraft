@@ -35,8 +35,10 @@ impl ShutdownSignal {
     }
     /// What the signal thread does for each SIGTERM.
     fn mark(&self) {
-        self.requested.store(true, Ordering::SeqCst);
+        // Arm before requesting: if a reset lands between the stores, `armed` ends false and the
+        // next SIGTERM prompts again instead of exiting with no prompt.
         self.armed.store(true, Ordering::SeqCst);
+        self.requested.store(true, Ordering::SeqCst);
     }
     #[cfg(test)]
     pub(super) fn is_armed(&self) -> bool {
@@ -81,10 +83,15 @@ mod tests {
 
     const CHILD: &str = "AZTECCRAFT_SIGTERM_CHILD";
 
-    fn wait_for(state: &ShutdownSignal) {
+    /// Waits until the signal thread has finished its work: both flags stored and the repaint
+    /// requested, so the next assertion or signal cannot race the thread.
+    fn wait_for(state: &ShutdownSignal, ctx: &eframe::egui::Context) {
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !state.requested() {
-            assert!(Instant::now() < deadline, "SIGTERM never reached the flag");
+        while !(state.requested() && state.is_armed() && ctx.has_requested_repaint()) {
+            assert!(
+                Instant::now() < deadline,
+                "SIGTERM did not set both flags and request a repaint"
+            );
             std::thread::sleep(Duration::from_millis(5));
         }
     }
@@ -103,8 +110,7 @@ mod tests {
                 "repaint pending before the signal"
             );
             signal_hook::low_level::raise(signal_hook::consts::SIGTERM).unwrap();
-            wait_for(&state);
-            assert!(ctx.has_requested_repaint(), "no repaint was requested");
+            wait_for(&state, &ctx);
             signal_hook::low_level::raise(signal_hook::consts::SIGTERM).unwrap();
             std::thread::sleep(Duration::from_secs(10));
             panic!("the second SIGTERM did not exit");
