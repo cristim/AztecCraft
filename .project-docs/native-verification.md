@@ -32,7 +32,8 @@ tool, 2026-10-25):
 | Second Command-Q while the prompt is up, then Cancel | pending |
 | Quit menu click while the prompt is up, then Cancel | pending |
 | A decline followed at once by a new terminate (expected: declined while the earlier reply is queued; a later quit prompts) | pending natively; covered headlessly by the hook harness (#268) |
-| Save panel, alert key, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
+| Save panel, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
+| Panic in a frame while a terminate is owed (scratch-only forced panic; expected: panic message, non-zero exit, no hang) | pending native re-run (#270) |
 | Minimized window | pending |
 | App hidden with Command-H | pending |
 | About, Hide, Hide Others, Show All, Services and the red close button still prompts | pending |
