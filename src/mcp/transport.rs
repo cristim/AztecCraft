@@ -186,6 +186,19 @@ impl Shared {
         }
     }
 
+    #[cfg(test)]
+    pub(super) fn test_force_close_delivery(&self, delivery: super::CloseDelivery) {
+        let mut accounting = self
+            .accounting
+            .lock()
+            .expect("MCP accounting lock poisoned");
+        accounting.close_delivery = Some(match delivery {
+            super::CloseDelivery::Waiting => CloseState::Waiting(RequestId::Number(-1)),
+            super::CloseDelivery::Flushed => CloseState::Flushed,
+            super::CloseDelivery::Failed => CloseState::Failed,
+        });
+    }
+
     pub(super) fn arm_close<T>(&self, id: RequestId, reply: &tokio::sync::oneshot::Sender<T>) {
         let mut accounting = self
             .accounting

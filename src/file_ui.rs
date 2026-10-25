@@ -639,7 +639,7 @@ mod tests {
     use azteccraft::scene::Primitive;
 
     #[cfg(unix)]
-    fn relocate_completed_stage_once(
+    pub(super) fn relocate_completed_stage_once(
         parent: &Path,
         moved: &Path,
         expected: &[u8],
@@ -2114,3 +2114,7 @@ mod tests {
         assert!(editor.is_dirty());
     }
 }
+
+#[cfg(test)]
+#[path = "app/terminate_tests.rs"]
+mod terminate_tests;
