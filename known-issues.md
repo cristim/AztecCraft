@@ -631,11 +631,12 @@ the polyPlane node page lists sw/sh 10 (the command page lists sw 10 and sx/sy 5
 Maya 2025.1 creates 10x10 through both `polyPlane` and Create > Polygon Primitives > Plane.
 Only counts were compared; Maya 2026 is unverified.
 
-## The grid uses Maya's default options (#160)
+## The grid uses Maya 2025.1's queried size and spacing (#160)
 
 Maya 2025.1 `grid -q` in `mayapy` standalone reports size 12, major
 lines every 5 units and 5 divisions, matching the Grid Options defaults in the 2024 help;
-the 2027 grid command page instead lists 10 and 10 for spacing and divisions. The viewport
+the 2027 grid command page instead lists 10 and 10 for spacing and divisions (row 28 of the
+[policy constants table](.project-docs/development.md#application-policy-constants)). The viewport
 draws a line every unit out to +/-12 with major lines at multiples of 5. Reading size as the
 half-length is PROVISIONAL, as are the greys: `displayRGBColor` returns nothing headless, so
 Maya's grid colours are unverified (its axes may be darker, not brighter, than the lines; the

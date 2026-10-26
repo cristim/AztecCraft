@@ -928,7 +928,10 @@ fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
 }
 
 #[test]
-fn centre_box_half_extent_and_plane_handle_far_edge_are_pinned() {
+fn handle_geometry_constants_are_pinned_exactly() {
     assert_eq!(CENTER_BOX_HALF, 7.0);
+    assert_eq!(PLANE_NEAR, 0.3);
     assert_eq!(PLANE_FAR, 0.5);
+    assert_eq!(VIEW_RING_FACTOR, 1.2);
+    assert_eq!(EDGE_ON_LIMIT, 1e-3);
 }
