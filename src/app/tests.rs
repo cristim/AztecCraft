@@ -3178,6 +3178,8 @@ pub(in crate::app) fn open_polygon_primitives(
         run(editor, vec![event]);
     }
     let output = run(editor, vec![]);
+    // With Create open but the submenu not hovered, the item-only check would wrongly report closed.
+    assert!(polygon_submenu_items(&output).is_empty() && !create_menu_closed(&output));
     let parent = output
         .platform_output
         .accesskit_update
