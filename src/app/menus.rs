@@ -105,6 +105,14 @@ pub(super) const NEW_LABEL: &str = "New Scene";
 pub(super) const OPEN_LABEL: &str = "Open Scene";
 pub(super) const SAVE_LABEL: &str = "Save Scene";
 pub(super) const SAVE_AS_LABEL: &str = "Save Scene As";
+/// Why every File action is unavailable once the window is closing.
+pub(super) const CLOSING_REASON: &str = "the window is closing";
+
+/// The disabled hover for a File action while closing.
+pub(super) fn unavailable_while_closing(label: &str) -> String {
+    format!("{label}: unavailable while {CLOSING_REASON}")
+}
+
 const NEW_HINT: &str = "Ctrl/Cmd N";
 const OPEN_HINT: &str = "Ctrl/Cmd O";
 const SAVE_HINT: &str = "Ctrl/Cmd S";
@@ -156,6 +164,14 @@ impl Editor {
             .scene()
             .authoring_read_only_reason()
             .map(|reason| reason.to_string());
+        let closing = self.files.is_closing();
+        // Closing is the stronger state, so it names the reason ahead of a read-only scene.
+        let reason_for = |label: &str| {
+            closing
+                .then(|| unavailable_while_closing(label))
+                .or_else(|| read_only_reason.clone())
+        };
+        let closing_only = |label: &str| closing.then(|| unavailable_while_closing(label));
         [
             FileAction {
                 label: NEW_LABEL,
@@ -164,8 +180,8 @@ impl Editor {
                 strip: true,
                 icon: UiIcon::FileNew,
                 tooltip: NEW_LABEL,
-                enabled: true,
-                reason: None,
+                enabled: !closing,
+                reason: closing_only(NEW_LABEL),
                 run: Editor::request_new,
             },
             FileAction {
@@ -175,8 +191,8 @@ impl Editor {
                 strip: true,
                 icon: UiIcon::FileOpen,
                 tooltip: OPEN_LABEL,
-                enabled: true,
-                reason: None,
+                enabled: !closing,
+                reason: closing_only(OPEN_LABEL),
                 run: Editor::open_dialog,
             },
             FileAction {
@@ -186,8 +202,8 @@ impl Editor {
                 strip: true,
                 icon: UiIcon::FileSave,
                 tooltip: SAVE_LABEL,
-                enabled: self.files.save_available(),
-                reason: read_only_reason.clone(),
+                enabled: !closing && self.files.save_available(),
+                reason: reason_for(SAVE_LABEL),
                 run: |editor| editor.native_operation(Operation::SaveScene),
             },
             FileAction {
@@ -197,8 +213,8 @@ impl Editor {
                 strip: false,
                 icon: UiIcon::FileSave,
                 tooltip: SAVE_AS_LABEL,
-                enabled: self.files.save_as_available(),
-                reason: read_only_reason,
+                enabled: !closing && self.files.save_as_available(),
+                reason: reason_for(SAVE_AS_LABEL),
                 run: Editor::save_as_dialog,
             },
         ]
@@ -258,7 +274,12 @@ impl Editor {
                 }
                 unsupported(ui, "Export...");
                 ui.separator();
-                if ui.button("Close").clicked() {
+                let closing = self.files.is_closing();
+                let mut close = ui.add_enabled(!closing, egui::Button::new("Close"));
+                if closing {
+                    close = close.on_disabled_hover_text(unavailable_while_closing("Close"));
+                }
+                if close.clicked() {
                     ui.close();
                     self.request_close();
                 }

@@ -1,3 +1,4 @@
+use crate::app::menus::CLOSING_REASON;
 use crate::app::{Editor, SelectionModeIntent};
 use crate::editor_operations::{SelectionMode, SidebarPanel};
 use crate::tool_icons::icon_button;
@@ -115,7 +116,7 @@ impl Editor {
     /// Enabled hover text, or the reason a live toggle is disabled.
     fn sidebar_toggle_hover(&self, button: &StripButton) -> String {
         let reason = if self.files.is_closing() {
-            "the window is closing"
+            CLOSING_REASON
         } else if self.files.is_modal() {
             "a dialog is open"
         } else if self.history.active_manipulation().is_some() {

@@ -1,4 +1,7 @@
 use super::*;
+use crate::app::menus::{
+    NEW_LABEL, OPEN_LABEL, SAVE_AS_LABEL, SAVE_LABEL, unavailable_while_closing,
+};
 use crate::app::tests::frame_with;
 use crate::app::{channel_edit_id, text_edit_focused};
 use crate::editor_operations::{Operation, SelectionMode, SidebarPanel};
@@ -1475,5 +1478,132 @@ fn component_type_hover_states_hotkey_exclusivity_and_uv() {
         assert!(hover.contains(&format!("{hotkey:?}")), "{label}: {hover}");
         assert!(hover.contains("exclusive"), "{label}: {hover}");
         assert!(hover.contains("UV is unsupported"), "{label}: {hover}");
+    }
+}
+
+#[cfg(unix)]
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ClosingState {
+    Closing,
+    ClosingReadOnly,
+    #[cfg(unix)]
+    ClosingSaved,
+}
+
+const CLOSING_STATES: &[ClosingState] = &[
+    ClosingState::Closing,
+    ClosingState::ClosingReadOnly,
+    #[cfg(unix)]
+    ClosingState::ClosingSaved,
+];
+
+/// A closing editor with no modal; the tempdir keeps the opened file in place.
+fn closing_editor(state: ClosingState) -> (Editor, egui::Context, tempfile::TempDir) {
+    let directory = tempfile::tempdir().unwrap();
+    let (mut editor, context) = match state {
+        ClosingState::Closing => file_editor(FileState::Clean),
+        ClosingState::ClosingReadOnly => file_editor(FileState::ReadOnlyAscii),
+        #[cfg(unix)]
+        ClosingState::ClosingSaved => {
+            let (mut editor, context) = file_editor(FileState::Clean);
+            let path = directory.path().join("saved.mb");
+            std::fs::write(&path, binary_fixture::specimen()).unwrap();
+            editor
+                .apply_operation(Operation::OpenScene { path })
+                .unwrap();
+            assert!(editor.files.save_available() && editor.files.save_as_available());
+            (editor, context)
+        }
+    };
+    editor.close_document().unwrap();
+    assert!(editor.files.is_closing() && !editor.files.is_modal());
+    (editor, context, directory)
+}
+
+#[test]
+fn closing_disables_every_file_row_and_strip_button() {
+    for &state in CLOSING_STATES {
+        let (mut editor, context, _directory) = closing_editor(state);
+        let expected: Vec<String> = [NEW_LABEL, OPEN_LABEL, SAVE_LABEL, SAVE_AS_LABEL]
+            .map(unavailable_while_closing)
+            .into();
+        let actions = editor.file_actions();
+        for (action, reason) in actions.iter().zip(&expected) {
+            assert!(!action.enabled, "{state:?} {}", action.label);
+            assert_eq!(action.reason.as_ref(), Some(reason), "{state:?}");
+        }
+        assert_eq!(
+            expected[0],
+            "New Scene: unavailable while the window is closing"
+        );
+        let output = strip_output(&mut editor, &context);
+        let buttons = strip_files(&output);
+        assert_eq!(buttons.len(), 3, "{state:?}");
+        let rects: Vec<Rect> = buttons.iter().map(|b| b.rect).collect();
+        for (button, reason) in buttons.iter().zip(&expected) {
+            assert!(button.disabled, "{state:?} {}", button.label);
+            let hover = hover_texts(&mut editor, &context, button.rect.center());
+            assert!(hover.contains(reason.as_str()), "{state:?} strip: {hover}");
+        }
+        let items = open_file_menu(&mut editor, &context, &rects);
+        assert_eq!(items.len(), 4, "{state:?} menu items");
+        for (label, reason) in MENU_FILES.iter().zip(&expected) {
+            let item = items.iter().find(|i| i.label == *label).unwrap();
+            assert!(item.disabled, "{state:?} {label}");
+            let hover = hover_texts(&mut editor, &context, item.rect.center());
+            assert!(hover.contains(reason.as_str()), "{state:?} menu: {hover}");
+        }
+        let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+        let file_left = items[0].rect.left();
+        let close = controls(&output)
+            .into_iter()
+            .find(|c| c.label == "Close" && (c.rect.left() - file_left).abs() < 20.0)
+            .expect("Close row in the File menu");
+        assert!(close.disabled, "{state:?} Close");
+        let hover = hover_texts(&mut editor, &context, close.rect.center());
+        assert!(
+            hover.contains(unavailable_while_closing("Close").as_str()),
+            "{state:?} Close: {hover}"
+        );
+    }
+}
+
+#[test]
+fn closing_file_clicks_change_nothing() {
+    // Never clicks Open Scene or Save Scene As: a regressed tree would block on a native dialog.
+    for &state in CLOSING_STATES {
+        #[cfg_attr(not(unix), allow(unused_mut))]
+        let mut labels = vec!["New Scene"];
+        #[cfg(unix)]
+        if matches!(state, ClosingState::ClosingSaved) {
+            labels.push("Save Scene");
+        }
+        for label in labels {
+            let (mut editor, context, _directory) = closing_editor(state);
+            let before = outcome(&editor);
+            let token = editor.scene_token;
+            let output = strip_output(&mut editor, &context);
+            let buttons = strip_files(&output);
+            let rects: Vec<Rect> = buttons.iter().map(|b| b.rect).collect();
+            let target = buttons.iter().find(|b| b.label == *label).unwrap();
+            click(&mut editor, &context, target.rect.center());
+            assert_eq!(outcome(&editor), before, "{state:?} strip {label}");
+            let items = open_file_menu(&mut editor, &context, &rects);
+            assert_eq!(items.len(), 4, "{state:?} menu items");
+            let text = MENU_FILES[STRIP_FILES.iter().position(|l| l == &label).unwrap()];
+            let row = items.iter().find(|i| i.label == text).unwrap();
+            click(&mut editor, &context, row.rect.center());
+            assert_eq!(outcome(&editor), before, "{state:?} menu {label}");
+            assert_eq!(editor.scene_token, token, "{state:?} {label}");
+            assert!(editor.files.is_closing(), "{state:?} {label}");
+        }
     }
 }
