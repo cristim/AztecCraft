@@ -78,21 +78,10 @@ impl Editor {
             })
         });
         let (undo, redo, frame, frame_all) = ctx.input(|i| {
+            let (undo, redo) = history_chords(&i.events);
             (
-                i.modifiers.command
-                    && !i.modifiers.alt
-                    && !i.modifiers.shift
-                    && i.key_pressed(Key::Z),
-                // Alt chords belong to Maya camera and marking menus, as in file_chord.
-                // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
-                i.modifiers.command
-                    && !i.modifiers.alt
-                    && i.modifiers.shift
-                    && i.key_pressed(Key::Z)
-                    || i.modifiers.command
-                        && !i.modifiers.alt
-                        && !i.modifiers.shift
-                        && i.key_pressed(Key::Y),
+                undo,
+                redo,
                 i.modifiers.is_none() && i.key_pressed(Key::F),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
@@ -211,4 +200,31 @@ impl Editor {
             self.error = false;
         }
     }
+}
+
+/// Undo and Redo from each key event's own modifiers: egui's `i.modifiers` keeps only the frame-final
+/// state, so a release in the same frame could rescue or cancel the press. `repeat` is allowed so a
+/// held chord keeps stepping.
+fn history_chords(events: &[egui::Event]) -> (bool, bool) {
+    let (mut undo, mut redo) = (false, false);
+    for event in events {
+        if let egui::Event::Key {
+            key,
+            pressed: true,
+            modifiers,
+            ..
+        } = event
+            && modifiers.command
+            && !modifiers.alt
+        {
+            // Alt chords belong to Maya camera and marking menus, as in file_chord.
+            // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
+            match (key, modifiers.shift) {
+                (Key::Z, false) => undo = true,
+                (Key::Z, true) | (Key::Y, false) => redo = true,
+                _ => {}
+            }
+        }
+    }
+    (undo, redo)
 }

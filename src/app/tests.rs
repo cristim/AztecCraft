@@ -3701,6 +3701,71 @@ fn alt_modified_undo_and_redo_do_nothing() {
     }
 }
 
+/// An editor with both Undo and Redo available.
+fn history_chord_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    editor
+}
+
+/// What a refused history chord must leave untouched.
+fn history_outcome(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
+    (
+        editor.history.scene().clone(),
+        editor.status.clone(),
+        editor.error,
+        editor.scene_token,
+    )
+}
+
+/// egui keeps only the frame-final modifiers, so the press must be judged by its own snapshot.
+#[test]
+fn history_chord_pressed_with_alt_is_not_rescued_by_a_same_frame_alt_release() {
+    let (command, shift) = (egui::Modifiers::COMMAND, egui::Modifiers::SHIFT);
+    let alt = command | egui::Modifiers::ALT;
+    for (pressed, key) in [(alt, Key::Z), (alt | shift, Key::Z), (alt, Key::Y)] {
+        let mut editor = history_chord_editor();
+        let before = history_outcome(&editor);
+        let events = vec![
+            key_event(key, pressed, false),
+            egui::Event::ModifiersChanged(command),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, pressed, events);
+        assert_eq!(history_outcome(&editor), before, "{pressed:?} {key:?}");
+    }
+}
+
+#[test]
+fn history_chord_pressed_with_alt_is_not_rescued_through_the_frame() {
+    let mut editor = history_chord_editor();
+    let before = history_outcome(&editor);
+    let command = egui::Modifiers::COMMAND;
+    let events = vec![
+        egui::Event::ModifiersChanged(command | egui::Modifiers::ALT),
+        key_event(Key::Z, command | egui::Modifiers::ALT, false),
+        egui::Event::ModifiersChanged(command),
+    ];
+    frame(&mut editor, &egui::Context::default(), events);
+    assert_eq!(history_outcome(&editor), before);
+}
+
+#[test]
+fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
+    let mut editor = history_chord_editor();
+    let undone = editor.history.scene().clone();
+    let command = egui::Modifiers::COMMAND;
+    let events = vec![
+        key_event(Key::Z, command, false),
+        egui::Event::ModifiersChanged(command | egui::Modifiers::ALT),
+    ];
+    shortcuts_in(&egui::Context::default(), &mut editor, command, events);
+    assert_ne!(editor.history.scene(), &undone);
+    assert!(editor.status.starts_with("Undo"), "{}", editor.status);
+}
+
 #[test]
 fn save_chord_does_nothing_while_save_is_unavailable() {
     let mut editor = Editor::default();
