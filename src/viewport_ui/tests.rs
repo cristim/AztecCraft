@@ -999,7 +999,7 @@ fn drag_release(
         input
     };
     step(0.1, press, vec![primary(start, true, press)]);
-    step(0.2, during, vec![Event::PointerMoved(end)]);
+    step(0.2, press, vec![Event::PointerMoved(end)]);
     step(
         0.25,
         during,
@@ -1076,4 +1076,11 @@ fn marquee_follows_the_release_event_modifiers_not_the_frame_modifiers() {
         input.unsupported_selection(),
         Some(SelectionRefusal::Marquee)
     );
+}
+
+#[test]
+fn alt_pressed_mid_drag_orbits_without_marquee() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(orbited);
+    assert_eq!(input.unsupported_selection(), None);
 }

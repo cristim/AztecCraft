@@ -346,6 +346,7 @@ impl Editor {
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
             let selection_intent = selection_intent.filter(|_| can_select);
             let delete_intent = delete_intent && can_select;
+            // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
             let mode_refused = features::manipulation_tool::is_manipulation_tool(self.active_tool)
                 && features::manipulation_tool::mode_refusal(
                     features::manipulation_tool::tool_name(self.active_tool),
@@ -408,8 +409,17 @@ impl Editor {
             if delete_intent && let Some((id, _)) = self.single_target().ok() {
                 self.native_operation(Operation::Delete(id));
             }
-            if let Some(refusal) = selection_refusal {
-                return Err(OperationError::InvalidInput(refusal.message().into()));
+            match selection_refusal {
+                Some(crate::viewport_ui::SelectionRefusal::Marquee) => {
+                    self.status = crate::viewport_ui::SelectionRefusal::Marquee
+                        .message()
+                        .into();
+                    self.error = false;
+                }
+                Some(refusal) => {
+                    return Err(OperationError::InvalidInput(refusal.message().into()));
+                }
+                None => {}
             }
             let view =
                 ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024).map_err(|e| {
