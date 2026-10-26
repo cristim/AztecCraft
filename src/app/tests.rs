@@ -8539,3 +8539,98 @@ fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reason
         open_polygon_primitives(&mut editor, &ctx, size);
     }
 }
+
+fn pose_op(yaw: f32, pitch: f32, distance: f32) -> Operation {
+    Operation::SetCameraPose {
+        target: [1.0, 0.5, -2.0],
+        distance,
+        yaw,
+        pitch,
+    }
+}
+
+fn remote_pose(
+    editor: &mut Editor,
+    token: Uuid,
+    operation: Operation,
+) -> Result<OperationReply, OperationError> {
+    editor.remote_operation(
+        RemoteRequest {
+            expected_scene_token: Some(token),
+            operation,
+        },
+        &egui::Context::default(),
+    )
+}
+
+#[test]
+fn set_camera_pose_changes_only_the_camera_and_reports_unchanged_on_repeat() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let (token, dirty, scene, undoable) = (
+        editor.scene_token,
+        editor.is_dirty(),
+        editor.history.scene().clone(),
+        editor.history.can_undo(),
+    );
+    let lens = editor.camera.clone();
+    let reply = remote_pose(&mut editor, token, pose_op(7.0, 0.2, 5.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Changed));
+    assert_eq!(editor.camera.target(), Vec3::new(1.0, 0.5, -2.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert_eq!(editor.camera.pitch(), 0.2);
+    assert_eq!(
+        editor.camera.yaw(),
+        7.0_f32.rem_euclid(std::f32::consts::TAU)
+    );
+    assert_eq!(
+        [
+            editor.camera.fov_y(),
+            editor.camera.near(),
+            editor.camera.far()
+        ],
+        [lens.fov_y(), lens.near(), lens.far()]
+    );
+    let again = remote_pose(&mut editor, token, pose_op(7.0, 0.2, 5.0)).unwrap();
+    assert!(matches!(again, OperationReply::Unchanged));
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.history.can_undo(), undoable);
+}
+
+#[test]
+fn set_camera_pose_rejects_invalid_fields_with_a_named_error_and_keeps_the_camera() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token;
+    let camera = editor.camera.clone();
+    for (operation, text) in [
+        (pose_op(0.0, 1.6, 5.0), "pitch"),
+        (pose_op(f32::NAN, 0.2, 5.0), "yaw"),
+        (pose_op(0.0, 0.2, 0.0), "distance"),
+        (pose_op(0.0, 0.2, f32::INFINITY), "distance"),
+    ] {
+        let error = remote_pose(&mut editor, token, operation).unwrap_err();
+        assert!(matches!(error, OperationError::CameraPose(_)), "{error}");
+        assert!(error.to_string().contains(text), "{error}");
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.scene_token, token);
+    }
+}
+
+#[test]
+fn set_camera_pose_rejects_a_stale_token_and_native_dispatch_matches_remote() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let camera = editor.camera.clone();
+    let error = remote_pose(&mut editor, Uuid::new_v4(), pose_op(0.3, 0.2, 5.0)).unwrap_err();
+    assert!(matches!(error, OperationError::StaleScene));
+    assert_eq!(editor.camera, camera);
+    editor.native_operation(pose_op(0.3, 0.2, 5.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert!(!editor.error);
+    editor.native_operation(pose_op(0.3, 0.2, -1.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert!(editor.error);
+}

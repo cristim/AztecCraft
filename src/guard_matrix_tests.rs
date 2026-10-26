@@ -643,6 +643,13 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             world_units: [1.0, 0.0],
         },
         Operation::Dolly { factor: 1.1 },
+        // Differs from the rig's default camera so a Changed outcome is observable.
+        Operation::SetCameraPose {
+            target: [1.0, 0.5, -2.0],
+            distance: 5.0,
+            yaw: 0.3,
+            pitch: 0.2,
+        },
     ]
 }
 
@@ -1248,6 +1255,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             },
         )],
         Operation::Dolly { .. } => vec![sample("dolly", Operation::Dolly { factor: 1.1 })],
+        Operation::SetCameraPose { .. } => vec![sample(
+            "set_camera_pose",
+            Operation::SetCameraPose {
+                target: [1.0, 0.5, -2.0],
+                distance: 5.0,
+                yaw: 0.3,
+                pitch: 0.2,
+            },
+        )],
     }
 }
 

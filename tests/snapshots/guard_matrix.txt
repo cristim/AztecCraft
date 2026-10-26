@@ -96,6 +96,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## idle / remote
   baseline:
@@ -190,6 +191,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## closing / native
   baseline:
@@ -283,6 +285,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## closing / remote
   baseline:
@@ -376,6 +379,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## modal / native
   baseline:
@@ -469,6 +473,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## modal / remote
   baseline:
@@ -562,6 +567,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## local_move / native
   baseline:
@@ -655,6 +661,7 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## local_move / remote
   baseline:
@@ -748,6 +755,7 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / native
   baseline:
@@ -841,6 +849,7 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / remote
   baseline:
@@ -934,6 +943,7 @@
   orbit => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   pan => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   dolly => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## name_draft / native
   baseline:
@@ -1027,6 +1037,7 @@
   orbit => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   pan => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   dolly => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_camera_pose => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
 
 ## name_draft / remote
   baseline:
@@ -1120,6 +1131,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## material_draft / native
   baseline:
@@ -1214,6 +1226,7 @@
   orbit => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   pan => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   dolly => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_camera_pose => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
 
 ## material_draft / remote
   baseline:
@@ -1308,6 +1321,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## channel_draft / native
   baseline:
@@ -1401,6 +1415,7 @@
   orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
 
 ## channel_draft / remote
   baseline:
@@ -1494,6 +1509,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## text_focus / native
   baseline:
@@ -1587,6 +1603,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## text_focus / remote
   baseline:
@@ -1680,6 +1697,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## native_input_pending / native
   baseline:
@@ -1773,6 +1791,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## native_input_pending / remote
   baseline:
@@ -1866,6 +1885,7 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## stale_token / remote
   baseline:
@@ -1959,6 +1979,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+local_move / remote
   baseline:
@@ -2052,6 +2073,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+remote_move / remote
   baseline:
@@ -2145,6 +2167,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+closing / remote
   baseline:
@@ -2238,6 +2261,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+modal / remote
   baseline:
@@ -2331,6 +2355,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+name_draft / remote
   baseline:
@@ -2424,6 +2449,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+native_input_pending / remote
   baseline:
@@ -2517,6 +2543,7 @@
   orbit => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   pan => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   dolly => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## read_only_ascii / native
   baseline:
@@ -2610,6 +2637,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## read_only_ascii / remote
   baseline:
@@ -2703,6 +2731,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## binary_dirty / native
   baseline:
@@ -2797,6 +2826,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## binary_dirty / remote
   baseline:
@@ -2891,6 +2921,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## sited_binary_dirty / native
   baseline:
@@ -2985,6 +3016,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## sited_binary_dirty / remote
   baseline:
@@ -3079,6 +3111,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## no_install / native
   baseline:
@@ -3173,6 +3206,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## no_install / remote
   baseline:
@@ -3267,6 +3301,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## no_install_modal / native
   baseline:
@@ -3361,6 +3396,7 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
 
 ## no_install_modal / remote
   baseline:
@@ -3455,5 +3491,6 @@
   orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 2999
+cells: 3036

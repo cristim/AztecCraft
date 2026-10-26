@@ -12,7 +12,7 @@ mod ascii_fixture {
     ));
 }
 
-fn camera_operations() -> [Operation; 3] {
+fn camera_operations() -> [Operation; 4] {
     [
         Operation::Orbit {
             radians: [0.2, -0.1],
@@ -21,6 +21,12 @@ fn camera_operations() -> [Operation; 3] {
             world_units: [1.0, -2.0],
         },
         Operation::Dolly { factor: 0.5 },
+        Operation::SetCameraPose {
+            target: [1.0, 0.5, -2.0],
+            distance: 5.0,
+            yaw: 0.3,
+            pitch: 0.2,
+        },
     ]
 }
 

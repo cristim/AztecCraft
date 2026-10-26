@@ -87,7 +87,10 @@ impl Editor {
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. } => None,
-            Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => None,
+            Operation::Orbit { .. }
+            | Operation::Pan { .. }
+            | Operation::Dolly { .. }
+            | Operation::SetCameraPose { .. } => None,
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
             | Operation::BeginRotate { .. }
@@ -722,6 +725,22 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                 }
                 .map_err(OperationError::Camera)?;
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
+                });
+            }
+            Operation::SetCameraPose {
+                target,
+                distance,
+                yaw,
+                pitch,
+            } => {
+                let before = self.camera.clone();
+                self.camera
+                    .set_pose(target.into(), distance, yaw, pitch)
+                    .map_err(OperationError::CameraPose)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
                 } else {

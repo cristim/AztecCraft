@@ -204,7 +204,7 @@ fn remote_numeric_move_survives_successive_actual_hidden_editor_callbacks() {
 #[test]
 fn camera_sparse_extrusion_and_grid_requests_keep_human_and_closed_bridge_guards() {
     for condition in 0..8 {
-        for operation_index in 0..8 {
+        for operation_index in 0..9 {
             let context = egui::Context::default();
             let (bridge, ingress) = mcp::test_bridge(context.clone());
             let mut editor = Editor::default();
@@ -212,18 +212,18 @@ fn camera_sparse_extrusion_and_grid_requests_keep_human_and_closed_bridge_guards
             let id = editor.selected.unwrap();
             let shape = editor.history.scene().shapes()[0].id();
             let operation = match operation_index {
-                0..=2 => camera_operations()
+                0..=3 => camera_operations()
                     .into_iter()
                     .nth(operation_index)
                     .unwrap(),
-                3 => Operation::EditNode {
+                4 => Operation::EditNode {
                     id,
                     name: None,
                     translation: [None; 3],
                     rotation_degrees: [None; 3],
                     scale: [None; 3],
                 },
-                4 => Operation::ExtrudeFace {
+                5 => Operation::ExtrudeFace {
                     target: FaceTarget {
                         transform: id,
                         shape,
@@ -235,8 +235,8 @@ fn camera_sparse_extrusion_and_grid_requests_keep_human_and_closed_bridge_guards
                     },
                     distance: 1.0,
                 },
-                5 => Operation::SetGridVisible { visible: false },
-                6 => Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+                6 => Operation::SetGridVisible { visible: false },
+                7 => Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
                 _ => Operation::SetSidebarPanelVisible {
                     panel: SidebarPanel::ChannelBox,
                     visible: false,

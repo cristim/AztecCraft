@@ -8,7 +8,7 @@ use azteccraft::{
         ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
-    viewport::InvalidCameraInput,
+    viewport::{InvalidCameraInput, InvalidCameraPose},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -314,6 +314,15 @@ pub enum Operation {
     },
     Dolly {
         factor: f32,
+    },
+    /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched.
+    // Remove with the MCP tool and View > Default View commits, which construct it.
+    #[cfg_attr(not(test), expect(dead_code))]
+    SetCameraPose {
+        target: [f32; 3],
+        distance: f32,
+        yaw: f32,
+        pitch: f32,
     },
 }
 
@@ -688,6 +697,8 @@ pub enum OperationError {
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
+    /// A refused absolute pose; names the field.
+    CameraPose(InvalidCameraPose),
     /// An update parameter that does not belong to the active manipulation's kind.
     KindMismatch {
         parameter: &'static str,
@@ -729,6 +740,7 @@ impl fmt::Display for OperationError {
                 f.write_str("pending file action is absent or stale; inspect before deciding")
             }
             Self::Camera(error) => error.fmt(f),
+            Self::CameraPose(error) => error.fmt(f),
             Self::KindMismatch { parameter, active } => write!(
                 f,
                 "{} {parameter} does not apply to the active {active} manipulation",
