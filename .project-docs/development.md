@@ -263,6 +263,102 @@ redo branch, while node ID reservations stay at their highest allocated value so
 IDs from discarded branches aren't reused. Memory grows with scene size and edit
 count, and no history limit or history persistence exists yet.
 
+## Application policy constants
+
+This table is the single place that records each fixed application policy value, what
+evidence exists for it and which test pins it. Other documents point here instead of
+repeating the values. It claims no Maya parity. A row has one of three statuses:
+
+- **verified-by-docs**: the Maya online help states the same value and the quote below
+  reproduces on the retrieved page. Only the part the quote covers is verified.
+- **provisional**: the help is silent (or gives a value for a different object), so the
+  choice is ours and a test pins it. The test makes a later change visible; it is not
+  evidence about Maya.
+- **differs-from-docs**: the help states a value for the same kind of setting and ours is
+  different. #33 changes no behaviour; the divergence is recorded in the row.
+
+Evidence mapping (acceptance criterion 3 of #33):
+
+- **Release.** The quotes come from the Maya 2027 online help (`cloudhelp/2027` URLs).
+  `reference.md` pins documentation release 2027.2; the help pages do not say which update
+  they describe, so a difference that exists only in 2027.2 would not show here.
+- **Retrieved.** 2026-10-26. Each page was fetched as raw HTML and the quoted text
+  compared against it character by character. A claim that did not reproduce was dropped.
+  Quotes are shortened to the part that matters; link text inside a sentence is omitted.
+- **Platform.** The pages do not distinguish platforms or display scales.
+- **Fixture.** None. No Maya build was run for any row except the grid, whose
+  value comes from Maya 2025.1 `mayapy` (`grid -q`), as recorded in `known-issues.md`.
+- **Scope.** Each quote covers only the named preference, option or attribute. For
+  example the Pick Range quote is about when a manipulator handle highlights, not about
+  our single hit radius.
+
+Units: pixel values are physical pixels of the snapped viewport capture (the pointer is
+multiplied by the pixel ratio before comparing), not UI points.
+
+Excluded: resource budgets that admit or refuse work and have no Maya counterpart
+(`VIEW_BUDGET` in `src/app/features/manipulation_tool.rs`, the segment, depth and work
+limits in `src/view_scene/curves.rs`, the 16 MiB document input limit). Preferences
+the app does not implement are not constants: Select dead space (docs: "By default, Select dead space is set to 4 pixels."), Preselect size, the Handle size and Line size
+preferences, and Tumble scale (docs: "The default value is 1.").
+
+Sources:
+[Manipulators preferences][maya-manip],
+[Resize the manipulator][maya-resize],
+[Undo preferences][maya-undo],
+[Selection preferences][maya-sel],
+[Polygons options][maya-poly],
+[Create Camera options][maya-cam],
+[Tumble Tool options][maya-tumble],
+[`grid` command][maya-grid].
+
+| # | Policy | Value | Defined in | Status | Docs evidence | Pinned by |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Face-center marker | 4 px square | `src/view_scene.rs` `FACE_CENTER_MARKER_PIXELS` | provisional | Polygons: "Show a small square to indicate the face center." No size or unit. | `marker_sizes_are_pinned_to_their_provisional_pixel_values`, `face_submission_highlights_only_exact_identity_and_charges_physical_markers` |
+| 2 | Face-center click box | 8 px edge, 4 px each side of the pointer | `src/view_scene.rs` `FACE_CENTER_CLICK_PIXELS` | provisional | Selection: "you must click the box at the center of the face to select the entire face". Click box size: "This option controls the size of the selection area around the mouse pointer, or click box." No value or unit. | `center_click_hits_triangle_and_quad_centers_but_not_the_face_body` |
+| 3 | Face center | mean of the ordered corners, summed in f64 | `src/view_scene.rs` `ViewFace::center` | provisional | The docs do not define the center. | `twenty_gon_center_marker_is_the_corner_average_and_clickable` |
+| 4 | Center-ray work cap | 1,000,000 eligible centers times occluder triangles; more is refused | `src/viewport.rs` `MAX_FACE_CENTER_INTERSECTIONS` | provisional | No Maya counterpart (a pick cost limit). | `face_center_work_budget_accepts_exactly_the_limit_and_rejects_one_more`, `center_work_boundary_is_enforced_on_the_actual_picker` |
+| 5 | Face-center depth tolerance | 1e-4 of linear view depth | `src/viewport.rs` `FACE_CENTER_DEPTH_TOLERANCE` | provisional | Numerical, no docs analogue. | `depth_tolerances_are_pinned_independently`, `center_depth_tolerance_admits_rounding_gaps_but_not_half_percent_occluders` |
+| 6 | Vertex and edge depth tolerance | 6e-3 of linear view depth | `src/viewport.rs` `VERTEX_MARKER_DEPTH_TOLERANCE` | provisional | Chosen from readbacks recorded in `known-issues.md`, not from docs. | `depth_tolerances_are_pinned_independently` |
+| 7 | Vertex marker | 5 px square | `src/view_scene.rs` `VERTEX_MARKER_PIXELS` | provisional | Polygons: "Adjusts the size that vertices are drawn in the scene view. The default size is 3. The range is from 0.2 to 10." The unit is not stated, so no conflict is claimed. | `marker_sizes_are_pinned_to_their_provisional_pixel_values` |
+| 8 | Vertex click box | 10 px edge, 5 px each side | `src/view_scene.rs` `VERTEX_CLICK_PIXELS` | provisional | Same Click box size quote as row 2, no value. | `vertex_pick_uses_the_click_box_and_reaches_loose_vertices`, `vertex_and_edge_thresholds_include_their_exact_limit` |
+| 9 | Edge click distance | 6 px from the segment | `src/view_scene.rs` `EDGE_CLICK_PIXELS` | provisional | Same as row 8. | `edge_pick_uses_screen_distance_and_reaches_face_less_edges`, `vertex_and_edge_thresholds_include_their_exact_limit` |
+| 10 | Selected-edge strip | 3 px wide | `src/view_scene.rs` `SELECTED_EDGE_PIXELS` | provisional | The docs give no width for the selected-edge highlight. | `marker_sizes_are_pinned_to_their_provisional_pixel_values`, `selected_edge_is_a_three_pixel_strip_on_top_in_its_own_colour_and_stale_indices_draw_nothing` |
+| 11 | Vertex and edge candidate ranking | pointer distance, then depth, then source order | `src/viewport.rs` `pick_vertex`, `pick_edge` | provisional | Not documented. | `vertex_pick_prefers_the_nearest_to_the_pointer_then_the_lowest_index`, `coincident_edges_resolve_to_the_lowest_edge_index` |
+| 12 | Face tie order | nearest depth, then instance path, transform ID, shape ID, source face index | `src/viewport.rs` `pick_face_center` | provisional | Not documented. | `center_pick_keeps_two_direct_imported_shapes_and_excludes_descendant_shapes`, `center_work_boundary_is_enforced_on_the_actual_picker` (both fail when the tie comparison is reversed in a scratch copy) |
+| 13 | Foreground occlusion of a face center | a strictly closer surface hides it; planar equality stays visible; a nonplanar face can hide its own center | `src/viewport.rs` `unoccluded_depth` | provisional | Not documented. | `center_visibility_uses_center_ray_even_for_offset_clicks_and_all_faces_occlude`, `center_planar_equality_is_visible_but_nonplanar_quad_can_occlude_its_own_center`, `center_visibility_uses_rendered_near_far_clipping_for_positive_occluder_hits` |
+| 14 | Manipulator hit radius | 6 px (Euclidean), shared by Move, Rotate and Scale | `src/move_handles.rs` `HIT_RADIUS`, used in `src/manipulator_handles.rs` | differs-from-docs | Manipulators: "Sets the range within which the cursor must land before the manipulator handle is highlighted. The range is set to 8 pixels by default." Also "Line pick size Determines the line thickness used when picking the rotate manipulator rings." (no default). The 8 px is a highlight range; whether it is a radius is not stated. | `rotate_and_scale_pick_radius_stays_six_pixels_at_every_size`, `front_axes_share_exact_physical_drawing_and_hit_geometry`, `ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment` |
+| 15 | Move handle length | 72 px times the size | `src/move_handles.rs` `ARROW_LENGTH` | provisional | Manipulators: "Handle size Specifies the size of the handle. The range is from 4 to 100." No default or unit. | `move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike`, `axis_length_is_the_full_length_times_its_projected_fraction` |
+| 16 | Handle length floor | 36 px (half of row 15) | `src/move_handles.rs` `MIN_HANDLE_LENGTH` | provisional | Not documented. | `move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike` |
+| 17 | Manipulator size range | 0.1 to 10 | `src/move_handles.rs` `ManipulatorSize::MIN`, `ManipulatorSize::MAX` | verified-by-docs for the range; how it maps onto our drawn size is provisional | Manipulators: "Specifies the size of the manipulators. The range is from 0.10 to 10.00." | `manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli` |
+| 18 | Manipulator size default | 1.0 | `src/move_handles.rs` `ManipulatorSize::DEFAULT` | provisional | The page states the range but no default. | `manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli` |
+| 19 | Size key steps | grid 1.25^k, k from -10 to 10, three-decimal display, held key steps again, session only | `src/move_handles.rs` `SIZE_STEP`, `GRID_LIMIT` | provisional | Resize: "you can use the plus (+) and minus (-) key to grow and shrink it". No step, repeat or persistence. | `key_steps_from_any_grid_value_return_to_it_bit_exactly`, `every_milli_size_steps_to_the_adjacent_visibly_different_grid_value`, `an_exact_tie_steps_by_its_shown_value_and_keeps_the_raw_grid_value`, `key_limits_are_the_ends_of_the_grid` |
+| 20 | Rotate and Scale handle geometry | box half 5 px, centre box half 7 px, ring of 64 segments, view ring 1.2 times, edge-on limit 1e-3, pivot grab 1 px, uniform reference 100 px, plane handles at 0.3 to 0.5 | `src/manipulator_handles.rs` constants | provisional | Manipulators: "Plane handle offset Sets the distance between the plane handles and the center of the manipulator." No value. Nothing else is stated. | box `scale_boxes_share_drawing_and_pick_geometry`; ring `ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment`; view ring `hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_help`; edge-on `edge_on_limit_sits_between_five_ten_thousandths_and_two_thousandths`; pivot `scale_refuses_a_start_too_close_to_the_pivot`; uniform `uniform_scale_grows_right_and_up_from_a_reference_distance`; plane near `scale_plane_handles_are_drawn_but_only_reported_unsupported`. PLANE_FAR and CENTER_BOX_HALF: no test fails when changed by one step (scratch probe), so they are unpinned. |
+| 21 | Undo queue | newest 50 snapshots kept, oldest dropped silently, fixed size | `src/history.rs` `UNDO_LIMIT` | default 50 is verified-by-docs; a fixed queue is differs-from-docs | Undo: "If Finite is the selected Queue setting, specify here the number of undo operations you can perform. The default is 50." and "Select Finite to limit the number of undo operations you can perform (specified in the Queue Size box). The default is Finite." The page also offers "Select Infinite to perform an unlimited number of undo operations." We offer neither choice. What happens to the oldest entry when the queue fills is not stated. | `undo_limit_is_pinned_to_fifty`, `undo_keeps_only_the_newest_limit_entries_and_redo_is_intact` |
+| 22 | Undo granularity | one entry per edit and per Move release; selection, selection mode, camera, tool and panel operations add none | `src/history.rs` `History::execute` | provisional | Undo: "When this option is active, all consecutive time/playback commands are considered a single undo step." Nothing says whether selection is undoable. | `selection_mode_camera_tool_and_panel_changes_add_no_undo_entry`, `real_axis_press_absolute_motion_release_makes_one_undo_at_fractional_dpi` |
+| 23 | Move cancellation | Escape, a modifier change, focus loss, pointer loss and a window change cancel a Move preview; an Escape that closes a menu does not also cancel it | `src/app/shortcuts.rs` `cancel_on_escape`, `src/app/features/move_tool.rs` `cancel_move` | provisional | No docs for Move. | `escape_modifiers_focus_and_pointer_loss_cancel_real_captured_gestures`, `stationary_release_in_changed_window_origin_size_or_dpi_cancels_without_fallthrough`, `escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_cancels_it` |
+| 24 | Default camera pose | target 0, yaw 0.6 rad, pitch 0.4 rad, distance 8 | `src/viewport.rs` `impl Default for Camera` | provisional | The pages checked state no default perspective camera pose. | `default_camera_pins_the_provisional_pose_fov_and_clip_planes` |
+| 25 | Default fov and clip planes | vertical fov 45 degrees, near 0.01, far 10000 | `src/viewport.rs` `impl Default for Camera` | near clip differs-from-docs; far clip and fov provisional | Create Camera options: "The default setting for Near Clip Plane is 0.1 and for Far Clip Plane is 10000." That page is about cameras created from the menu, not the default perspective camera. No default field of view is stated. | `default_camera_pins_the_provisional_pose_fov_and_clip_planes` |
+| 26 | Pitch limit | plus or minus (pi/2 minus 0.001) rad; orbit clamps, `set_pose` rejects | `src/viewport.rs` `MAX_PITCH` | provisional | Tumble Tool: "The Tumble Tool revolves the camera by varying the azimuth and elevation angles in a perspective view." No limit. | `set_pose_accepts_the_pitch_limit_and_names_the_bound_in_the_error`, `set_pose_rejects_each_invalid_field_and_leaves_the_camera_unchanged` |
+| 27 | Navigation gains | orbit 0.007 rad/px; pan 0.002 times distance per px; Alt-right dolly exp(0.01 per px); wheel exp(0.002 per px); no distance limits beyond positive and representable | `src/viewport_ui.rs` | provisional | Tumble Tool: "The slider range is 0.01 to 10. The default value is 1." for Tumble scale. No baseline in pixels per degree, so our gains cannot be compared. | `captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once` |
+| 28 | Grid | extent 12 units from the origin, a line every unit, a major line every 5 | `src/viewport_renderer.rs` `GRID_SIZE`, `GRID_MAJOR_EVERY` | size provisional (reading it as a half-length is ours); major spacing differs-from-docs | `grid` command: "Sets the size of the grid in linear units. The default is 12 units." and "Sets the spacing between major grid lines in linear units. The default is 10 units." Maya 2025.1 `mayapy` `grid -q` reported size 12 and major lines every 5, which is the only build-backed value here. | `grid_follows_mayas_default_size_major_lines_and_divisions` (the test name says more than this row supports) |
+| 29 | Shading ambient floor | 0.4 of the base colour | `src/shading.rs` `AMBIENT_FLOOR` | provisional | Not documented. | `back_facing_and_grazing_fall_to_the_ambient_floor`, `unusable_normals_or_views_give_the_ambient_floor_not_nan` |
+| 30 | Move arrowhead | 12 px long, 4 px half width | `src/move_handles.rs` `ARROWHEAD_LENGTH`, `ARROWHEAD_HALF_WIDTH` | provisional | Not documented. | `arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values` |
+| 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
+
+Tally: 31 rows. Verified-by-docs parts: the manipulator size range (17) and the Undo
+default of 50 (21). Differs-from-docs parts: the hit radius (14), the near clip (25), the
+fixed undo queue (21) and the grid major spacing (28). Everything else is provisional.
+Changing any value requires updating its pinning test and this row in the same commit.
+
+[maya-manip]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8740471F-BD72-4BDC-87B4-4DE870AD51E5.htm
+[maya-resize]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09DEFD6A-E8F9-4606-9D81-1CD45E01B59A.htm
+[maya-undo]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-DD494155-AC94-4C48-8A36-58267FECBB0A.htm
+[maya-sel]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8C8BA1F4-59EE-4A02-BFE7-9193C0D6F5BE.htm
+[maya-poly]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-B7F70ACE-0F3F-483B-83B5-D9711D6CBAAC.htm
+[maya-cam]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-35B872B1-840E-4DEE-B80F-F2715B1E8BF0.htm
+[maya-tumble]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-A3305185-DFBD-42BF-8A70-59208C2C9887.htm
+[maya-grid]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/grid.html
+
 ## Native documents
 
 `document::load_native` stages Maya binary `.mb`, supported static cubic Maya
