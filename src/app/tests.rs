@@ -3768,15 +3768,43 @@ fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
 
 /// The assertions before each dialog call make a broken setup panic instead of reaching rfd.
 #[test]
-fn save_as_dialog_refuses_while_closing() {
+fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     let mut editor = Editor::default();
-    editor.close_document().unwrap();
-    assert!(editor.files.is_closing() && !editor.files.save_as_available());
-    let token = editor.scene_token;
+    editor.create(Primitive::Cube);
+    let Ok(OperationReply::PendingConfirmation {
+        pending_action_id, ..
+    }) = editor.close_document()
+    else {
+        panic!("a dirty scene must ask before closing");
+    };
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: Uuid::parse_str(&pending_action_id).unwrap(),
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .history
+        .begin_move(
+            &target,
+            azteccraft::native_scene::WorldAxis::X,
+            editor.scene_token,
+            ManipulationProvenance::Remote,
+            1 << 20,
+        )
+        .unwrap();
+    // Without the guard the move yields BusyManipulation, a different status, so this fails
+    // instead of reaching rfd.
+    assert!(
+        editor.files.is_closing()
+            && !editor.files.save_as_available()
+            && editor.history.active_manipulation().is_some()
+    );
     editor.save_as_dialog();
     assert_eq!(editor.status, OperationError::BusyEditing.to_string());
     assert!(editor.error);
-    assert_eq!(editor.scene_token, token);
+    assert!(editor.history.active_manipulation().is_some());
 }
 
 #[test]
