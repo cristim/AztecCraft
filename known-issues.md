@@ -766,7 +766,7 @@ docs give bare names (PROVISIONAL).
 
 Held Ctrl/Cmd Z and Ctrl/Cmd Y keep repeating Undo and Redo (egui reports OS key repeat). Keys that
 ignore repeat: the file chords N, O, S and Shift+S (menus.rs:128), Q/W/E/R (shortcuts.rs:26), 4/5/6/7
-(shortcuts.rs:44), A (shortcuts.rs:90) and Ctrl+A (shortcuts.rs:103). Keys that repeat besides Undo and
+(shortcuts.rs:44), Alt+Home (shortcuts.rs:74), A (shortcuts.rs:90) and Ctrl+A (shortcuts.rs:103). Keys that repeat besides Undo and
 Redo: the manipulator size keys +, = and - (shortcuts.rs:52), F (shortcuts.rs:85), Escape
 (shortcuts.rs:190, idempotent), and F8/F9/F10/F11 and Delete (panels.rs:48-62, no repeat filter). Not
 reviewed against Maya: a held Delete or F8-F11 repeats. The Maya 2027 hotkeys page lists Ctrl z and Ctrl y

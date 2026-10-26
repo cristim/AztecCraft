@@ -3846,6 +3846,53 @@ fn open_dialog_refuses_while_closing_and_keeps_the_active_move() {
     assert!(editor.history.active_manipulation().is_some());
 }
 
+/// egui-winit stamps a key release with the held modifiers, so only the press may step history.
+#[test]
+fn undo_and_redo_step_once_per_keystroke_not_on_release() {
+    let command = egui::Modifiers::COMMAND;
+    let release = |key| egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: command,
+    };
+    for key in [Key::Z, Key::Y] {
+        for same_frame in [true, false] {
+            let mut editor = Editor::default();
+            for _ in 0..3 {
+                editor.create(Primitive::Cube);
+            }
+            let one_object_more = editor.history.scene().clone();
+            editor.history_step(false);
+            let middle = editor.history.scene().clone();
+            editor.history_step(false);
+            let two_undone = editor.history.scene().clone();
+            // Z starts from the full scene, Y from the doubly undone one; one step reaches `middle`.
+            if key == Key::Z {
+                editor.history_step(true);
+                editor.history_step(true);
+            }
+            assert_ne!(middle, one_object_more);
+            assert_ne!(middle, two_undone);
+            let ctx = egui::Context::default();
+            if same_frame {
+                let events = vec![key_event(key, command, false), release(key)];
+                shortcuts_in(&ctx, &mut editor, command, events);
+            } else {
+                let press = vec![key_event(key, command, false)];
+                shortcuts_in(&ctx, &mut editor, command, press);
+                shortcuts_in(&ctx, &mut editor, command, vec![release(key)]);
+            }
+            assert_eq!(
+                editor.history.scene(),
+                &middle,
+                "{key:?} same_frame={same_frame}"
+            );
+        }
+    }
+}
+
 #[test]
 fn save_chord_does_nothing_while_save_is_unavailable() {
     let mut editor = Editor::default();
