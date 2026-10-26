@@ -1039,3 +1039,41 @@ fn shift_click_keeps_modified_click() {
         Some(SelectionRefusal::ModifiedClick)
     );
 }
+
+#[test]
+fn marquee_follows_the_release_event_modifiers_not_the_frame_modifiers() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::ALT, 40.0);
+    assert!(!orbited);
+    assert_eq!(input.unsupported_selection(), None);
+
+    let context = egui::Context::default();
+    let camera = camera();
+    let start = egui::pos2(64.0, 48.0);
+    let end = start + egui::vec2(40.0, 0.0);
+    let clip = Rect::EVERYTHING;
+    let none = Modifiers::NONE;
+    for (time, events) in [
+        (0.0, vec![Event::PointerMoved(start)]),
+        (0.1, vec![primary(start, true, none)]),
+        (0.2, vec![Event::PointerMoved(end)]),
+    ] {
+        capture_frame(&context, &camera, raw(time, none, events), clip);
+    }
+    let (input, _) = capture_frame(
+        &context,
+        &camera,
+        raw(
+            0.3,
+            none,
+            vec![
+                primary(end, false, none),
+                Event::ModifiersChanged(Modifiers::ALT),
+            ],
+        ),
+        clip,
+    );
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::Marquee)
+    );
+}

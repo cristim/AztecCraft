@@ -1888,10 +1888,19 @@ fn drag_off_a_handle_shows_the_marquee_refusal_and_on_a_handle_does_not() {
     assert_eq!(editor.status, MARQUEE_STATUS);
 
     let (mut editor, context, rect) = setup(1.0);
+    let node = editor.selected.unwrap();
     let from = rect.center() + egui::vec2(40.0, 0.0);
     drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
     assert_ne!(editor.status, MARQUEE_STATUS);
     assert!(editor.history.active_manipulation().is_none());
+    let translation = editor
+        .history
+        .scene()
+        .node(node)
+        .unwrap()
+        .transform()
+        .translation;
+    assert!(translation[0] > 0.0, "{translation:?}");
 }
 
 #[test]
