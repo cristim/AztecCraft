@@ -1666,6 +1666,8 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
             )
         })
         .expect("Layers stub");
+    // The stub's own label reads the same, so the tooltip is the extra copy that appears on hover.
+    let label_copies = visible_text_rects(&output, "Not implemented yet").len();
     let mut tooltip = false;
     for step in 0..8 {
         let mut input = egui::RawInput {
@@ -1678,7 +1680,7 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
             viewport.native_pixels_per_point = Some(1.0);
         }
         let hovered = ctx.run_ui(input, |ui| editor.render(ui));
-        tooltip |= !visible_text_rects(&hovered, "Not implemented in this build").is_empty();
+        tooltip |= visible_text_rects(&hovered, "Not implemented yet").len() > label_copies;
     }
     assert!(tooltip, "Layers stub tooltip not painted");
     let at = delete[0].center();
@@ -2075,15 +2077,12 @@ fn num4_and_num5_select_shading_and_num6_num7_only_set_status() {
     frame(&mut editor, &ctx, vec![shifted, released]);
     assert_eq!(editor.shading, ShadingMode::Wireframe);
     for (pressed, name) in [
-        (
-            Key::Num6,
-            "Hardware Texturing (6) is not implemented in this build",
-        ),
-        (Key::Num7, "Use All Lights"),
+        (Key::Num6, "Hardware Texturing (6) is not implemented yet"),
+        (Key::Num7, "Use All Lights (7) is not implemented yet"),
     ] {
         frame(&mut editor, &ctx, vec![key(pressed)]);
         assert_eq!(editor.shading, ShadingMode::Wireframe);
-        assert!(editor.status.contains(name) && editor.status.contains("not implemented"));
+        assert_eq!(editor.status, name);
         assert!(!editor.error && !editor.is_dirty());
         assert_eq!(editor.scene_token, token);
     }
@@ -2127,10 +2126,7 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
         hovered = ctx.run_ui(input, |ui| editor.render(ui));
         hovered.textures_delta.clear();
     }
-    face_text_position(
-        &hovered,
-        "Hardware Texturing (6) is not implemented in this build",
-    );
+    face_text_position(&hovered, "Hardware Texturing (6) is not implemented yet");
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
     assert_eq!(
         before,

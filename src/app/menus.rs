@@ -75,7 +75,7 @@ fn unbuilt_primitive_reason(label: &str) -> String {
 
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
     ui.menu_button(label, |ui| {
-        unsupported(ui, "Not implemented yet");
+        unsupported(ui, NOT_IMPLEMENTED_YET);
         if label == "Display" {
             // Maya's Display > Grid option box: size, spacing, divisions and colours (#160).
             ui.add_enabled(false, egui::Button::new("Grid Options"))

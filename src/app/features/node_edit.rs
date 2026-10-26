@@ -319,7 +319,7 @@ impl Editor {
 
 fn unsupported_section(ui: &mut egui::Ui, heading: &str) {
     ui.label(RichText::new(heading).strong());
-    let response = unsupported(ui, "Not implemented yet");
+    let response = unsupported(ui, NOT_IMPLEMENTED_YET);
     ui.ctx().accesskit_node_builder(response.id, |node| {
         node.set_label(format!("{heading}: not implemented yet"));
     });

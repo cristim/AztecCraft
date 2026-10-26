@@ -1,7 +1,7 @@
 //! Rotate and Scale: Tool Box state, Object/World selector, numeric entry, handle hover, pick and
 //! paint. The drag samples, guards and history entry are shared with Move (`move_tool.rs`).
 
-use crate::app::Editor;
+use crate::app::{Editor, NOT_IMPLEMENTED_YET};
 use crate::editor_operations::{
     ActiveTool, ManipulationSpace, ManipulationValue, Operation, OperationError, OperationReply,
     SelectionMode, ToolHandle,
@@ -767,7 +767,7 @@ impl Editor {
                         }
                         for name in UNSUPPORTED_SPACES {
                             ui.add_enabled(false, egui::Button::selectable(false, name))
-                                .on_disabled_hover_text("unsupported");
+                                .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
                         }
                     });
                 if tool == ActiveTool::Rotate {

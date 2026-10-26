@@ -6,7 +6,7 @@ const USE_ALL_LIGHTS_NAME: &str = "Use All Lights (7)";
 
 /// One reason string for the hotkey status and the disabled menu row.
 pub(super) fn unsupported_shading_reason(name: &str) -> String {
-    format!("{name} is not implemented in this build")
+    format!("{name} is not implemented yet")
 }
 
 impl Editor {

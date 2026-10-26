@@ -308,9 +308,12 @@ impl Editor {
     }
 }
 
+/// The one reason shown on every disabled control that has no behaviour yet.
+const NOT_IMPLEMENTED_YET: &str = "Not implemented yet";
+
 fn unsupported(ui: &mut egui::Ui, label: &str) -> egui::Response {
     ui.add_enabled(false, egui::Button::new(label))
-        .on_disabled_hover_text("Not implemented in this build")
+        .on_disabled_hover_text(NOT_IMPLEMENTED_YET)
 }
 
 fn text_field_ids() -> impl Iterator<Item = egui::Id> {
