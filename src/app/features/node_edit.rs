@@ -163,6 +163,7 @@ impl Editor {
         authoring: bool,
         style: NameStyle,
     ) -> bool {
+        let reason = self.read_only_reason();
         let edit = egui::TextEdit::singleline(&mut self.name)
             .interactive(authoring)
             .id(name_edit_id());
@@ -184,6 +185,10 @@ impl Editor {
                 response
             }
         };
+        let response = match &reason {
+            Some(reason) => response.on_disabled_hover_text(reason),
+            None => response,
+        };
         self.name_intent |= response.changed();
         ui.separator();
         response.lost_focus()
@@ -198,6 +203,7 @@ impl Editor {
     /// the Attribute Editor Transform tab so both edit the same drafts and widget ids. Returns
     /// whether a channel field lost focus.
     pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) -> bool {
+        let reason = self.read_only_reason();
         let mut apply = false;
         let visibility = self
             .selection_presentation()
@@ -231,6 +237,10 @@ impl Editor {
                             .id(channel_edit_id(index))
                             .desired_width(100.0),
                     );
+                    let response = match &reason {
+                        Some(reason) => response.on_disabled_hover_text(reason),
+                        None => response,
+                    };
                     self.channel_intents[index] |= response.changed();
                     apply |= response.lost_focus();
                     ui.end_row();
@@ -248,26 +258,34 @@ impl Editor {
         ui.weak(format!("Rotation in {angular} | XYZ"));
         apply
     }
-    pub(in crate::app) fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
-        ui.label(RichText::new("Channel Box").strong());
-        let read_only_reason = self
-            .history
+    pub(in crate::app) fn read_only_reason(&self) -> Option<String> {
+        self.history
             .scene()
             .authoring_read_only_reason()
-            .map(|reason| reason.to_string());
-        let authoring = read_only_reason.is_none();
-        if let Some(reason) = &read_only_reason {
+            .map(|reason| reason.to_string())
+    }
+    /// Help Line row under the time slider: the read-only reason and curves note that the blank
+    /// Channel Box no longer carries, and the appearance summary behind a closed header.
+    pub(in crate::app) fn help_line(&self, ui: &mut egui::Ui) {
+        if let Some(reason) = self.read_only_reason() {
             ui.weak(reason);
         }
         if !self.history.scene().curves().is_empty() {
             ui.weak("Curves: select in the Outliner and frame with F. Viewport curve picking and CV editing are unavailable.");
         }
-        self.appearance_summary(ui);
+        egui::CollapsingHeader::new("Scene diagnostics")
+            .id_salt("scene_diagnostics")
+            .default_open(false)
+            .show(ui, |ui| self.appearance_summary(ui));
+    }
+    pub(in crate::app) fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
+        ui.label(RichText::new("Channel Box").strong());
         ui.separator();
         if self.single_target().is_err() {
-            ui.weak("Select an object to edit its channels.");
             return;
         }
+        let read_only_reason = self.read_only_reason();
+        let authoring = read_only_reason.is_none();
         let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
         let channel_blur = self.transform_section(ui, authoring);
         self.commit_on_blur(name_blur | channel_blur);
