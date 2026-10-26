@@ -2,7 +2,7 @@
 
 Status: not expanded, no evidence. ID prefix `UVE`. Framework and rules: [README.md](README.md).
 
-Owner issues (open feature or epic issues): #53
+Owner issues (open feature, epic or verification issues): #53
 
 | ID | Workflow | Doc | Component | Status | Evidence | MCP | Owner / out-of-scope |
 | --- | --- | --- | --- | --- | --- | --- | --- |

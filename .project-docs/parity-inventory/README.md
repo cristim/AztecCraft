@@ -18,26 +18,25 @@ Status describes documented behaviour only, never equivalence to Maya.
 | Status | Meaning |
 | --- | --- |
 | Doc-conformant | The behaviour the cited page describes is implemented, with evidence for each applicable dimension: interaction, semantic output, persistence, undo, invalid input and interop. A single happy-path test does not qualify. |
-| Implemented-untested | Implemented, but at least one dimension has no test evidence. |
-| Partial | Part of the documented behaviour is implemented. A row with an applicable dimension still unchecked is Partial, and its Evidence cell names that dimension. |
+| Implemented-untested | Implemented, with no test evidence for any dimension. |
+| Partial | Only part of the documented behaviour is implemented, or some but not all applicable dimensions have evidence. The Evidence cell names each unchecked dimension. |
 | Visible-unsupported | A disabled or placeholder control is drawn and reports that the operation is unsupported. |
 | Missing | Nothing is drawn or callable. The Evidence cell says what was checked. |
 | Out-of-scope | Excluded with a recorded reason (see the list below). |
 
 Rows needing a running Maya (numerics, pixels, binary acceptance by Maya) are tagged `runtime-only`. They stay in the denominator at 0 until a reference run exists (#5).
 
-### Mapping between the three vocabularies
+### Mapping between the status vocabularies
 
-| UI inventory ([ui-parity-inventory.md](../ui-parity-inventory.md)) | Family rows (this inventory) | Policy-constants table (#33) |
-| --- | --- | --- |
-| Supported | at least Implemented-untested; Doc-conformant only with all applicable dimensions evidenced | verified-by-docs |
-| Partial | Partial | provisional |
-| Visible-unsupported | Visible-unsupported | not a row status |
-| Missing | Missing | not a row status |
-| not used | Out-of-scope | not a row status |
-| not used | not used | differs-from-docs (a recorded deviation, not a row status) |
+| UI inventory ([ui-parity-inventory.md](../ui-parity-inventory.md)) | Family rows (this inventory) |
+| --- | --- |
+| Supported | at least Implemented-untested; Doc-conformant only with all applicable dimensions evidenced |
+| Partial | Partial |
+| Visible-unsupported | Visible-unsupported |
+| Missing | Missing |
+| not used | Out-of-scope |
 
-The policy-constants labels classify a constant's evidence. They are never row statuses.
+The application policy constants table proposed in PR #294 (development.md once merged) uses the labels verified-by-docs, provisional and differs-from-docs. They classify evidence for constants and never map to row statuses.
 
 ## Row format
 
@@ -61,7 +60,7 @@ Each family file carries a header with the fields below, filled when it is expan
 - Documentation pin: Maya 2027.2 help, with the fetch date per file.
 - Repository SHA at which the Evidence column was checked.
 - Test platform or CI job for each cited test.
-- Build, platform, GPU, locale and OCIO: not applicable; documentation-only. No installed Maya build was used.
+- No Maya build, GPU, locale or OCIO is involved (documentation-only). AztecCraft test evidence records its platform or CI job (above).
 - Fixtures: the repository's synthetic fixtures, by path and hash where a row cites one. None for Missing rows.
 - Scope: the documented behaviour of the cited page. Nothing is generalized to other versions, options or Maya runtime behaviour.
 
@@ -80,7 +79,7 @@ This rule is PROPOSED and needs the user's approval, including the budgets. It m
 
 ## Out-of-scope add-ons (pending maintainer confirmation)
 
-Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in needs-user.md.
+Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in the claim comment on issue #6.
 
 - Golaem
 - Flow services (Flow-connected cloud capabilities)
@@ -89,7 +88,7 @@ Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in
 
 ## Families
 
-Names and order match [parity.md](../parity.md). Owner issues are open feature or epic issues; bug issues and #202 are not owners. Each file lists its own owners.
+Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners. Each file lists its own owners.
 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
