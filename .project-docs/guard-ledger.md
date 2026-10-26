@@ -30,7 +30,7 @@ provenance Native and no token or draft checks. In order:
    `UpdateMove`/`FinishMove`.
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn apply_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `SetToolSpace`, `SetToolHandle`, `SetGridVisible`, `SetShadingMode`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`).
+3. `SetGridVisible`, `SetShadingMode`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace` and `SetToolHandle` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
