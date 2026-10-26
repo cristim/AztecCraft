@@ -315,7 +315,8 @@ pub enum Operation {
     Dolly {
         factor: f32,
     },
-    /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched.
+    /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched. Unchanged is
+    /// judged numerically, so a pose differing only in zero signs replies Unchanged.
     SetCameraPose {
         target: [f32; 3],
         distance: f32,

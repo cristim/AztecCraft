@@ -8822,6 +8822,37 @@ fn remote_pose(
     )
 }
 
+/// The reply is numeric, so -0.0 over 0.0 is `Unchanged` although the stored sign bits flip.
+#[test]
+fn set_camera_pose_negative_zero_over_zero_replies_unchanged_and_flips_the_stored_bits() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token;
+    let pose = |zero: f32| Operation::SetCameraPose {
+        target: [zero; 3],
+        distance: 5.0,
+        yaw: zero,
+        pitch: zero,
+    };
+    let reply = remote_pose(&mut editor, token, pose(0.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Changed));
+    let (dirty, scene, undoable) = (
+        editor.is_dirty(),
+        editor.history.scene().clone(),
+        editor.history.can_undo(),
+    );
+    let reply = remote_pose(&mut editor, token, pose(-0.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Unchanged));
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.history.can_undo(), undoable);
+    let negative = (-0.0_f32).to_bits();
+    assert_eq!(editor.camera.yaw().to_bits(), negative);
+    assert_eq!(editor.camera.pitch().to_bits(), negative);
+    assert_eq!(editor.camera.target().x.to_bits(), negative);
+}
+
 #[test]
 fn set_camera_pose_changes_only_the_camera_and_reports_unchanged_on_repeat() {
     let mut editor = Editor::default();

@@ -267,6 +267,8 @@ impl Camera {
     /// Restores an absolute view. Yaw wraps like `orbit`; a pitch beyond orbit's limit is
     /// rejected rather than clamped so a pose that was read back never changes silently.
     /// fov and clip planes are untouched. The camera is unchanged on error.
+    /// Changed/Unchanged is numeric: -0.0 equals 0.0, so a pose differing only in zero signs is
+    /// no change although the stored bits may flip; `same_capture` compares bits.
     pub fn set_pose(
         &mut self,
         target: Vec3,

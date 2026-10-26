@@ -864,3 +864,20 @@ fn new_agrees_with_set_pose() {
         }
     }
 }
+
+/// Changed/Unchanged is numeric, so a render-identical -0.0 pose is no change even though
+/// `same_capture`, which cancels a live drag, compares bits.
+#[test]
+fn set_pose_with_negative_zero_is_numerically_equal_but_not_the_same_capture() {
+    let zero = new_at(0.0, 0.0).unwrap();
+    let mut flipped = zero.clone();
+    flipped
+        .set_pose(Vec3::new(-0.0, -0.0, -0.0), 8.0, -0.0, -0.0)
+        .unwrap();
+    assert_eq!(flipped, zero);
+    assert_eq!(zero, flipped);
+    assert!(!flipped.same_capture(&zero));
+    assert!(!zero.same_capture(&flipped));
+    assert_eq!(flipped.yaw().to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(flipped.pitch().to_bits(), (-0.0_f32).to_bits());
+}
