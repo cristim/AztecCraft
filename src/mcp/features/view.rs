@@ -5,6 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
+use azteccraft::viewport::MAX_PITCH;
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -30,6 +31,16 @@ struct PanArgs {
 struct DollyArgs {
     scene_token: String,
     factor: f32,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SetCameraPoseArgs {
+    scene_token: String,
+    target: [f64; 3],
+    distance: f64,
+    yaw_degrees: f64,
+    pitch_degrees: f64,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -102,6 +113,56 @@ fn parse_dolly_camera(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
     ))
 }
 
+/// Narrows after the f64 arithmetic so a pose read from `inspect_scene` sets back bitwise.
+fn camera_f32(name: &str, value: f64) -> Result<f32, ErrorData> {
+    let narrowed = value as f32;
+    if narrowed.is_finite() {
+        Ok(narrowed)
+    } else {
+        Err(ErrorData::invalid_params(
+            format!("{name} must be a finite number within single-precision range"),
+            None,
+        ))
+    }
+}
+
+fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SetCameraPoseArgs = decode(arguments)?;
+    let token = token(&args.scene_token)?;
+    let target = [
+        camera_f32("target", args.target[0])?,
+        camera_f32("target", args.target[1])?,
+        camera_f32("target", args.target[2])?,
+    ];
+    let distance = camera_f32("distance", args.distance)?;
+    if distance <= 0.0 {
+        return Err(ErrorData::invalid_params(
+            "distance must be greater than zero",
+            None,
+        ));
+    }
+    let yaw = camera_f32("yaw_degrees", args.yaw_degrees.to_radians())?;
+    let pitch = camera_f32("pitch_degrees", args.pitch_degrees.to_radians())?;
+    if pitch.abs() > MAX_PITCH {
+        return Err(ErrorData::invalid_params(
+            format!(
+                "pitch_degrees must be within \u{b1}{}",
+                MAX_PITCH.to_degrees()
+            ),
+            None,
+        ));
+    }
+    Ok(scoped(
+        token,
+        Operation::SetCameraPose {
+            target,
+            distance,
+            yaw,
+            pitch,
+        },
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "frame_selected",
@@ -141,6 +202,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         schema: schema::<OrbitArgs>,
         parse: parse_orbit_camera,
         idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_camera_pose",
+        description: "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly. Yaw wraps; pitch beyond about \u{b1}89.94 degrees is rejected. The field of view and clip planes are untouched. Session-only; does not edit the scene",
+        schema: schema::<SetCameraPoseArgs>,
+        parse: parse_set_camera_pose,
+        idempotent: true,
         read_only: false,
     },
     ToolSpec {

@@ -89,6 +89,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
 | `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
+| `set_camera_pose` | `target`: three finite numbers; `distance`: positive; `yaw_degrees`, `pitch_degrees`: the values `inspect_scene` reports | Changed or unchanged camera; yaw wraps, pitch beyond the orbit limit is rejected, lens and clip planes untouched |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
 | `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static cubic `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
 | `save_scene` | None | Active Unix Maya binary Save, or reconciliation of an uncertain installation without another write |
@@ -478,11 +479,11 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Multi-select, marquee, Lasso, Paint Selection, UV mask | unsupported | | | |
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
-| Camera | Orbit, pan, dolly | supported | `orbit_camera`, `pan_camera`, `dolly_camera` | `camera` | |
+| Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
 | Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |
 | Camera | Camera pose read (target, eye, distance, yaw/pitch, vertical field of view, clip planes) | supported | | `camera` | |
-| Camera | Orthographic views, field-of-view edits, restoring a saved view | unsupported | | | |
+| Camera | Orthographic views, field-of-view edits, camera bookmarks | unsupported | | | |
 | Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |

@@ -8605,6 +8605,7 @@ fn set_camera_pose_rejects_invalid_fields_with_a_named_error_and_keeps_the_camer
     editor.create(Primitive::Cube);
     let token = editor.scene_token;
     let camera = editor.camera.clone();
+    let status = editor.status.clone();
     for (operation, text) in [
         (pose_op(0.0, 1.6, 5.0), "pitch"),
         (pose_op(f32::NAN, 0.2, 5.0), "yaw"),
@@ -8616,6 +8617,7 @@ fn set_camera_pose_rejects_invalid_fields_with_a_named_error_and_keeps_the_camer
         assert!(error.to_string().contains(text), "{error}");
         assert_eq!(editor.camera, camera);
         assert_eq!(editor.scene_token, token);
+        assert_eq!(editor.status, status);
     }
 }
 

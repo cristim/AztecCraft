@@ -662,6 +662,9 @@ mod tests {
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
+                "set_camera_pose" => {
+                    json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
+                }
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "set_shading_mode" => json!({"scene_token":token,"mode":"wireframe"}),
                 "set_sidebar_panel_visibility" => {
@@ -763,6 +766,7 @@ mod tests {
                     | "set_session_material_color"
                     | "select_vertex"
                     | "select_edge"
+                    | "set_camera_pose"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),

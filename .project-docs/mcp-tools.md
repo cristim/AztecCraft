@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-40 tools.
+41 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -36,6 +36,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `set_grid_visibility` | mutating | yes | Set the current viewport's grid visibility explicitly. Session-only and idempotent; does not edit the scene or report GPU health |
 | `set_shading_mode` | mutating | yes | Set the current viewport's shading mode explicitly to wireframe or smooth_shade_all. Session-only and idempotent; does not edit the scene, change picking or report GPU health |
 | `orbit_camera` | mutating | no | Orbit the live camera by [yaw, pitch] radians; pitch clamps near the poles |
+| `set_camera_pose` | mutating | yes | Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly. Yaw wraps; pitch beyond about ±89.94 degrees is rejected. The field of view and clip planes are untouched. Session-only; does not edit the scene |
 | `pan_camera` | mutating | no | Translate the live camera target by [right, up] camera-plane world units |
 | `dolly_camera` | mutating | no | Multiply live camera distance by a positive finite factor; below one moves closer |
 | `set_sidebar_panel_visibility` | mutating | yes | Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse |
