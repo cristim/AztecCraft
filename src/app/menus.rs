@@ -40,6 +40,17 @@ pub(super) const HELP_MENU: &str = "Help";
 pub(super) const DELETE_BY_TYPE_REASON: &str =
     "Deleting by node type is not supported yet; select the object and use Delete";
 
+pub(super) const POLYGON_PRIMITIVES_MENU: &str = "Polygon Primitives";
+
+/// Maya 2027's Create > Polygon Primitives order, for the primitives built so far.
+pub(super) const POLYGON_PRIMITIVES: [(&str, Primitive); 5] = [
+    ("Sphere", Primitive::Sphere),
+    ("Cube", Primitive::Cube),
+    ("Cylinder", Primitive::Cylinder),
+    ("Cone", Primitive::Cone),
+    ("Plane", Primitive::Plane),
+];
+
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
     ui.menu_button(label, |ui| {
         unsupported(ui, "Not implemented yet");
@@ -218,16 +229,11 @@ impl Editor {
                 }
             });
             ui.menu_button("Create", |ui| {
-                for (primitive, label) in [
-                    (Primitive::Cube, "Polygon cube"),
-                    (Primitive::Plane, "Polygon plane"),
-                    (Primitive::Sphere, "Polygon sphere"),
-                    (Primitive::Cylinder, "Polygon cylinder"),
-                    (Primitive::Cone, "Polygon cone"),
-                ] {
-                    self.create_row(ui, primitive, label, read_only_reason);
-                }
-                unsupported(ui, "Other primitives");
+                ui.menu_button(POLYGON_PRIMITIVES_MENU, |ui| {
+                    for (label, primitive) in POLYGON_PRIMITIVES {
+                        self.create_row(ui, primitive, label, read_only_reason);
+                    }
+                });
             });
             ui.menu_button("Select", |ui| {
                 if ui.button("Object / Component   F8").clicked() {

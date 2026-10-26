@@ -1,5 +1,7 @@
 use super::*;
-use crate::app::tests::{frame_with, remote};
+use crate::app::tests::{
+    click_at, frame_with, open_polygon_primitives, polygon_submenu_items, remote, submenu_item,
+};
 use crate::editor_operations::{OperationError, OperationReply};
 use eframe::egui::{Event, Modifiers, PointerButton, Pos2, Rect, Vec2, accesskit};
 
@@ -56,14 +58,6 @@ fn window_button(output: &egui::FullOutput, label: &str) -> Control {
         .unwrap_or_else(|| panic!("button {label}"))
 }
 
-fn menu_create(output: &egui::FullOutput) -> Control {
-    controls(output)
-        .into_iter()
-        .filter(|c| c.label == "Create" && c.role == accesskit::Role::Button)
-        .min_by(|a, b| a.rect.top().total_cmp(&b.rect.top()))
-        .expect("Create menu")
-}
-
 fn setup() -> (Editor, egui::Context) {
     let context = egui::Context::default();
     context.enable_accesskit();
@@ -106,14 +100,11 @@ fn click(editor: &mut Editor, ctx: &egui::Context, at: Pos2) -> egui::FullOutput
     last.unwrap()
 }
 
+/// Clicks a control of the Create > Polygon Primitives popup, found by its position there.
 fn open_menu_and_click(editor: &mut Editor, ctx: &egui::Context, label: &str) {
-    let output = run(editor, ctx, vec![]);
-    let menu = menu_create(&output);
-    click(editor, ctx, menu.rect.center());
-    let output = run(editor, ctx, vec![]);
-    let target = find(&output, label).unwrap_or_else(|| panic!("menu control {label}"));
-    click(editor, ctx, target.rect.center());
-    run(editor, ctx, vec![]);
+    let output = open_polygon_primitives(editor, ctx, SIZE);
+    let at = submenu_item(&output, label).rect.center();
+    click_at(editor, ctx, SIZE, at);
 }
 
 fn open_dialog(editor: &mut Editor, ctx: &egui::Context, primitive: Primitive) {
@@ -188,25 +179,33 @@ fn assemble_names_the_bad_field_and_never_panics_on_odd_text() {
 #[test]
 fn option_box_in_the_create_menu_opens_that_primitives_window_and_closes_the_menu() {
     let (mut editor, ctx) = setup();
-    open_menu_and_click(&mut editor, &ctx, "Polygon sphere option box");
+    open_menu_and_click(&mut editor, &ctx, "Sphere option box");
     let output = run(&mut editor, &ctx, vec![]);
     assert!(dialog_open(&output, Primitive::Sphere));
-    assert!(find(&output, "Polygon cube").is_none(), "the menu closes");
+    assert!(
+        polygon_submenu_items(&output).is_empty(),
+        "the whole menu chain closes"
+    );
     assert_eq!(node_count(&editor), 0, "opening the window creates nothing");
 }
 
 #[test]
 fn plain_menu_item_still_creates_with_the_remembered_options() {
     let (mut editor, ctx) = setup();
-    open_menu_and_click(&mut editor, &ctx, "Polygon cube");
+    open_menu_and_click(&mut editor, &ctx, "Cube");
     assert_eq!(node_count(&editor), 1);
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(
+        polygon_submenu_items(&output).is_empty(),
+        "the item closes the menu chain"
+    );
     open_dialog(&mut editor, &ctx, Primitive::Plane);
     set_field(&mut editor, &ctx, 2, "3");
     set_field(&mut editor, &ctx, 3, "2");
     press(&mut editor, &ctx, "Create");
     let planes = node_count(&editor);
     assert_eq!(planes, 2);
-    open_menu_and_click(&mut editor, &ctx, "Polygon plane");
+    open_menu_and_click(&mut editor, &ctx, "Plane");
     let faces = |index: usize| editor.history.scene().shapes()[index].mesh().faces().len();
     assert_eq!(faces(1), faces(2));
     assert_eq!(faces(1), 6);
@@ -440,10 +439,8 @@ fn read_only_scene_disables_create_and_the_option_box() {
     let before = editor.history.scene().clone();
     press(&mut editor, &ctx, "Create");
     assert_eq!(editor.history.scene(), &before);
-    let menu = menu_create(&output);
-    click(&mut editor, &ctx, menu.rect.center());
-    let output = run(&mut editor, &ctx, vec![]);
-    assert!(find(&output, "Polygon sphere option box").unwrap().disabled);
+    let output = open_polygon_primitives(&mut editor, &ctx, SIZE);
+    assert!(submenu_item(&output, "Sphere option box").disabled);
 }
 
 #[test]
@@ -719,10 +716,8 @@ fn a_disabled_option_box_shows_the_read_only_reason_on_hover() {
     editor
         .apply_operation(Operation::OpenScene { path })
         .unwrap();
-    let output = run(&mut editor, &ctx, vec![]);
-    click(&mut editor, &ctx, menu_create(&output).rect.center());
-    let output = run(&mut editor, &ctx, vec![]);
-    let target = find(&output, "Polygon sphere option box").unwrap();
+    let output = open_polygon_primitives(&mut editor, &ctx, SIZE);
+    let target = submenu_item(&output, "Sphere option box");
     assert!(target.disabled);
     // The Attribute Editor paints the same reason text, so look for a tooltip layer instead.
     let tooltip_layers = |ctx: &egui::Context| {
@@ -792,10 +787,8 @@ fn clicking_a_read_only_option_box_opens_no_window() {
     editor
         .apply_operation(Operation::OpenScene { path })
         .unwrap();
-    let output = run(&mut editor, &ctx, vec![]);
-    click(&mut editor, &ctx, menu_create(&output).rect.center());
-    let output = run(&mut editor, &ctx, vec![]);
-    let target = find(&output, "Polygon sphere option box").unwrap();
+    let output = open_polygon_primitives(&mut editor, &ctx, SIZE);
+    let target = submenu_item(&output, "Sphere option box");
     assert!(target.disabled);
     let before = editor.history.scene().clone();
     click(&mut editor, &ctx, target.rect.center());

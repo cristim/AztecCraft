@@ -1398,16 +1398,14 @@ fn read_only_scene_disables_creation_and_history_controls_with_the_core_reason()
         );
     }
     let before = editor.history.scene().clone();
-    let menu = face_text_position(&frame(&mut editor, &ctx, vec![]), "Create");
-    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
-    for label in [
-        "Polygon cube",
-        "Polygon plane",
-        "Polygon sphere",
-        "Polygon cylinder",
-        "Polygon cone",
-    ] {
-        assert!(button_disabled(&output, label), "{label} enabled");
+    let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+    for (label, _) in menus::POLYGON_PRIMITIVES {
+        assert!(submenu_item(&output, label).disabled, "{label} enabled");
+        let option_box = format!("{label} option box");
+        assert!(
+            submenu_item(&output, &option_box).disabled,
+            "{option_box} enabled"
+        );
     }
     assert_eq!(editor.history.scene(), &before);
 }
@@ -3069,6 +3067,140 @@ pub(in crate::app) fn frame_with(
     output
 }
 
+/// A control inside the Create > Polygon Primitives popup, of any role (checkboxes included).
+pub(in crate::app) struct SubmenuItem {
+    pub(in crate::app) label: String,
+    pub(in crate::app) rect: egui::Rect,
+    pub(in crate::app) disabled: bool,
+}
+
+/// Controls to the right of the "Polygon Primitives" button, so the shelf's Cube and Plane never match.
+pub(in crate::app) fn polygon_submenu_items(output: &egui::FullOutput) -> Vec<SubmenuItem> {
+    let update = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .expect("accesskit enabled");
+    let nodes: Vec<SubmenuItem> = update
+        .nodes
+        .iter()
+        .filter_map(|(_, node)| {
+            let bounds = node.bounds()?;
+            Some(SubmenuItem {
+                label: node.label()?.to_owned(),
+                rect: egui::Rect::from_min_max(
+                    egui::pos2(bounds.x0 as f32, bounds.y0 as f32),
+                    egui::pos2(bounds.x1 as f32, bounds.y1 as f32),
+                ),
+                disabled: node.is_disabled(),
+            })
+        })
+        .collect();
+    let Some(parent) = nodes
+        .iter()
+        .find(|item| is_polygon_primitives_button(&item.label))
+    else {
+        return Vec::new();
+    };
+    let right = parent.rect.right();
+    // The popup's rows share one left edge, which no panel control shares; option boxes sit to their right.
+    let Some(anchor) = nodes
+        .iter()
+        .find(|item| item.label == "Sphere" && item.rect.left() >= right)
+    else {
+        return Vec::new();
+    };
+    let left = anchor.rect.left();
+    let in_popup = |item: &SubmenuItem| {
+        (item.rect.left() - left).abs() < 2.0
+            || (item.label.ends_with("option box") && item.rect.left() > left)
+    };
+    nodes.into_iter().filter(in_popup).collect()
+}
+
+/// egui appends a submenu arrow to the button's accessible label.
+fn is_polygon_primitives_button(label: &str) -> bool {
+    label.starts_with(menus::POLYGON_PRIMITIVES_MENU)
+}
+
+pub(in crate::app) fn submenu_item(output: &egui::FullOutput, label: &str) -> SubmenuItem {
+    let mut found: Vec<SubmenuItem> = polygon_submenu_items(output)
+        .into_iter()
+        .filter(|item| item.label == label)
+        .collect();
+    assert_eq!(found.len(), 1, "submenu control {label:?}");
+    found.remove(0)
+}
+
+fn pointer_click_events(at: egui::Pos2) -> [egui::Event; 2] {
+    [true, false].map(|pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    })
+}
+
+/// Opens Create, then hovers "Polygon Primitives" (it opens on hover) and returns the open frame.
+pub(in crate::app) fn open_polygon_primitives(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+) -> egui::FullOutput {
+    ctx.enable_accesskit();
+    let run = |editor: &mut Editor, events| frame_with(editor, ctx, size, 1.0, events);
+    let output = run(editor, vec![]);
+    let create = {
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        update
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.label() == Some("Create"))
+            .filter_map(|(_, node)| node.bounds())
+            .min_by(|a, b| a.y0.total_cmp(&b.y0))
+            .map(|b| egui::pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32))
+            .expect("Create menu")
+    };
+    run(editor, vec![egui::Event::PointerMoved(create)]);
+    for event in pointer_click_events(create) {
+        run(editor, vec![event]);
+    }
+    let output = run(editor, vec![]);
+    let parent = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.label().is_some_and(is_polygon_primitives_button))
+        .find_map(|(_, node)| node.bounds())
+        .expect("Polygon Primitives submenu button");
+    let at = egui::pos2(
+        ((parent.x0 + parent.x1) / 2.0) as f32,
+        ((parent.y0 + parent.y1) / 2.0) as f32,
+    );
+    let mut output = run(editor, vec![egui::Event::PointerMoved(at)]);
+    for _ in 0..3 {
+        output = run(editor, vec![]);
+    }
+    output
+}
+
+/// Moves to a submenu control and clicks it, then returns the frame after the click.
+pub(in crate::app) fn click_at(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    at: egui::Pos2,
+) -> egui::FullOutput {
+    frame_with(editor, ctx, size, 1.0, vec![egui::Event::PointerMoved(at)]);
+    for event in pointer_click_events(at) {
+        frame_with(editor, ctx, size, 1.0, vec![event]);
+    }
+    frame_with(editor, ctx, size, 1.0, vec![])
+}
+
 fn face_viewport_rect(output: &egui::FullOutput) -> egui::Rect {
     output
         .shapes
@@ -4603,10 +4735,13 @@ mod menu_bar_wire {
             render(vec![event]);
         }
         let opened = render(vec![]);
-        let cube = controls(&opened)
+        let parent = controls(&opened)
             .into_iter()
-            .find(|c| c.label == "Polygon cube")
+            .find(|c| is_polygon_primitives_button(&c.label))
             .unwrap();
+        render(vec![egui::Event::PointerMoved(parent.rect.center())]);
+        let hovered = (0..3).map(|_| render(vec![])).last().unwrap();
+        let cube = submenu_item(&hovered, "Cube");
         assert!(!cube.disabled);
         render(vec![egui::Event::PointerMoved(cube.rect.center())]);
         for event in click_events(cube.rect.center()) {
@@ -4980,12 +5115,9 @@ fn startup_status_names_every_creatable_primitive() {
 fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() {
     let mut editor = Editor::default();
     let ctx = egui::Context::default();
-    let output = frame(&mut editor, &ctx, vec![]);
-    let create = face_text_position(&output, "Create");
-    let output = face_pointer_click(&mut editor, &ctx, create, egui::Modifiers::NONE, vec![]);
-    face_text_position(&output, "Other primitives");
-    let sphere = face_text_position(&output, "Polygon sphere");
-    face_pointer_click(&mut editor, &ctx, sphere, egui::Modifiers::NONE, vec![]);
+    let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+    let sphere = submenu_item(&output, "Sphere").rect.center();
+    click_at(&mut editor, &ctx, egui::vec2(1440.0, 900.0), sphere);
     let id = editor
         .single_target()
         .expect("menu item selects the new sphere")
@@ -5686,17 +5818,14 @@ fn delete_controls_are_enabled_in_hierarchy_mode_and_disabled_in_component_modes
 #[test]
 fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids() {
     for (label, name, faces, cap) in [
-        ("Polygon cylinder", "pCylinder1", 22, 20),
-        ("Polygon cone", "pCone1", 21, 20),
+        ("Cylinder", "pCylinder1", 22, 20),
+        ("Cone", "pCone1", 21, 20),
     ] {
         let mut editor = Editor::default();
         let ctx = egui::Context::default();
-        let output = frame(&mut editor, &ctx, vec![]);
-        let create = face_text_position(&output, "Create");
-        let output = face_pointer_click(&mut editor, &ctx, create, egui::Modifiers::NONE, vec![]);
-        face_text_position(&output, "Other primitives");
-        let item = face_text_position(&output, label);
-        face_pointer_click(&mut editor, &ctx, item, egui::Modifiers::NONE, vec![]);
+        let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+        let item = submenu_item(&output, label).rect.center();
+        click_at(&mut editor, &ctx, egui::vec2(1440.0, 900.0), item);
         let id = editor
             .single_target()
             .expect("menu item selects the new solid")
@@ -7948,6 +8077,59 @@ mod primitive_options_create {
         for vertex in vertices {
             let projected = camera.project(*vertex, editor.aspect).unwrap();
             assert!(projected.is_some(), "{vertex:?} is clipped");
+        }
+    }
+}
+
+#[test]
+fn polygon_primitives_submenu_lists_the_maya_labels_in_docs_order() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    let output = open_polygon_primitives(&mut editor, &ctx, size);
+    let mut items = polygon_submenu_items(&output);
+    items.sort_by(|a, b| a.rect.top().total_cmp(&b.rect.top()));
+    let rows: Vec<&str> = items
+        .iter()
+        .map(|item| item.label.as_str())
+        .filter(|label| !label.ends_with("option box"))
+        .collect();
+    assert_eq!(rows, ["Sphere", "Cube", "Cylinder", "Cone", "Plane"]);
+    for (label, _) in menus::POLYGON_PRIMITIVES {
+        let option_box = format!("{label} option box");
+        assert!(
+            items.iter().any(|item| item.label == option_box),
+            "{option_box}"
+        );
+    }
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    assert!(update.nodes.iter().all(|(_, node)| {
+        node.label()
+            .is_none_or(|label| !label.starts_with("Polygon c") && label != "Other primitives")
+    }));
+}
+
+#[test]
+fn every_primitive_variant_is_in_the_create_menu() {
+    let listed = |primitive: Primitive| {
+        menus::POLYGON_PRIMITIVES
+            .iter()
+            .any(|(_, built)| *built == primitive)
+    };
+    // A new variant fails to compile here until it is placed in the menu list.
+    for primitive in [
+        Primitive::Cube,
+        Primitive::Plane,
+        Primitive::Sphere,
+        Primitive::Cylinder,
+        Primitive::Cone,
+    ] {
+        match primitive {
+            Primitive::Cube
+            | Primitive::Plane
+            | Primitive::Sphere
+            | Primitive::Cylinder
+            | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
         }
     }
 }
