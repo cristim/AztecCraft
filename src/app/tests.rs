@@ -3646,6 +3646,33 @@ fn alt_modified_file_chords_do_nothing() {
 }
 
 #[test]
+fn alt_modified_undo_and_redo_do_nothing() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    let outcome = |editor: &Editor| {
+        (
+            editor.history.scene().clone(),
+            editor.status.clone(),
+            editor.error,
+            editor.scene_token,
+        )
+    };
+    let before = outcome(&editor);
+    let alt = egui::Modifiers::COMMAND | egui::Modifiers::ALT;
+    for (modifiers, key) in [
+        (alt, Key::Z),
+        (alt | egui::Modifiers::SHIFT, Key::Z),
+        (alt, Key::Y),
+    ] {
+        shortcuts_with(&mut editor, modifiers, &[key]);
+        assert_eq!(outcome(&editor), before, "{modifiers:?} {key:?}");
+    }
+}
+
+#[test]
 fn save_chord_does_nothing_while_save_is_unavailable() {
     let mut editor = Editor::default();
     assert!(!editor.files.save_available());

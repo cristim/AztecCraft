@@ -67,10 +67,20 @@ impl Editor {
         });
         let (undo, redo, frame, frame_all) = ctx.input(|i| {
             (
-                i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::Z),
+                i.modifiers.command
+                    && !i.modifiers.alt
+                    && !i.modifiers.shift
+                    && i.key_pressed(Key::Z),
+                // Alt chords belong to Maya camera and marking menus, as in file_chord.
                 // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
-                i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::Z)
-                    || i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::Y),
+                i.modifiers.command
+                    && !i.modifiers.alt
+                    && i.modifiers.shift
+                    && i.key_pressed(Key::Z)
+                    || i.modifiers.command
+                        && !i.modifiers.alt
+                        && !i.modifiers.shift
+                        && i.key_pressed(Key::Y),
                 i.modifiers.is_none() && i.key_pressed(Key::F),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
