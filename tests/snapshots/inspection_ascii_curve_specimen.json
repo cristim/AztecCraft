@@ -68,6 +68,7 @@
           "unavailable_reason": "Select an object or face before framing"
         }
       ],
+      "manipulator_size": 1.0,
       "refusal": null,
       "rotate_axis": "x",
       "rotate_space": "object",

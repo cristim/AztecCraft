@@ -16,6 +16,7 @@ use crate::editor_operations::{
 };
 use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
+use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
     WorldAxis,
@@ -521,6 +522,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             space: ManipulationSpace::Object,
         },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
+        Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
@@ -700,6 +702,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "set_tool_handle(scale,x)",
                 Operation::SetToolHandle(ToolHandle::ScaleHandle(ScaleHandle::X)),
+            ),
+        ],
+        Operation::SetManipulatorSize(_) => vec![
+            sample(
+                "set_manipulator_size(2)",
+                Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
+            ),
+            sample(
+                "set_manipulator_size(1)",
+                Operation::SetManipulatorSize(ManipulatorSize::default()),
             ),
         ],
         Operation::BeginMove { .. } => vec![
@@ -1367,6 +1379,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                 editor.manipulation.rotate_axis(),
                 editor.manipulation.scale_handle()
             ),
+        ),
+        (
+            "manipulator_size",
+            editor.manipulation.manipulator_size().get().to_string(),
         ),
     ];
     Observed {

@@ -2,6 +2,7 @@ use super::*;
 use crate::app::features::move_tool::tests::{button, frame, key, raw, viewport};
 use azteccraft::{
     manipulator_handles::{DisabledKind, HandleFrame, RotateHandles},
+    move_handles::ManipulatorSize,
     native_scene::{NativeError, ScaleUnsupported},
     scene::Primitive,
     viewport::Camera,
@@ -92,11 +93,16 @@ impl View {
 
     // The point of the ring about `axis` at `degrees` from the ring point nearest the eye.
     fn ring(&self, axis: Vec3, degrees: f32) -> Pos2 {
+        self.ring_sized(axis, degrees, 1.0)
+    }
+
+    // The same point on a ring whose radius is `factor` times the default one.
+    fn ring_sized(&self, axis: Vec3, degrees: f32, factor: f32) -> Pos2 {
         let eye = self.camera.eye();
         let u = (eye - axis * eye.dot(axis)).normalize();
         let v = axis.cross(u);
         let angle = degrees.to_radians();
-        self.screen((u * angle.cos() + v * angle.sin()) * self.radius())
+        self.screen((u * angle.cos() + v * angle.sin()) * self.radius() * factor)
     }
 }
 
@@ -1403,6 +1409,113 @@ fn inspection_reports_the_persistent_axis_and_handle_in_tool_argument_spelling()
         editor.native_operation(Operation::SetToolHandle(ToolHandle::ScaleHandle(handle)));
         assert_eq!(read(&editor), ("x", text));
     }
+}
+
+fn size(value: f64) -> ManipulatorSize {
+    ManipulatorSize::new(value).unwrap()
+}
+
+#[test]
+fn set_manipulator_size_reports_changed_then_unchanged_without_touching_the_scene() {
+    let mut editor = Editor::default();
+    assert!(!editor.is_dirty());
+    let depth = undo_depth(&mut editor);
+    assert!(matches!(
+        editor.apply_operation(Operation::SetManipulatorSize(size(2.5))),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        editor.apply_operation(Operation::SetManipulatorSize(size(2.5))),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(editor.inspect_manipulation().unwrap().manipulator_size, 2.5);
+    assert!(!editor.is_dirty());
+    assert_eq!(undo_depth(&mut editor), depth);
+}
+
+#[test]
+fn manipulator_size_survives_a_new_scene() {
+    let mut editor = Editor::default();
+    editor.native_operation(Operation::SetManipulatorSize(size(3.0)));
+    editor.native_operation(Operation::NewScene);
+    assert_eq!(editor.manipulation.manipulator_size(), size(3.0));
+}
+
+#[test]
+fn a_native_size_change_resizes_the_next_handles() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    editor.native_operation(Operation::SetManipulatorSize(size(2.0)));
+    idle(&mut editor, &context, 1.0);
+    // The default ring radius no longer matches the drawn ring.
+    press(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    assert!(editor.history.active_manipulation().is_none());
+    press(
+        &mut editor,
+        &context,
+        1.0,
+        view.ring_sized(Vec3::Y, 0.0, 2.0),
+    );
+    assert!(editor.history.active_manipulation().is_some());
+}
+
+#[test]
+fn manipulator_size_is_refused_during_a_manipulation_with_the_size_unchanged() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    press(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    assert!(editor.history.active_manipulation().is_some());
+    editor.native_operation(Operation::SetManipulatorSize(size(2.0)));
+    assert_eq!(editor.status, OperationError::BusyManipulation.to_string());
+    assert!(editor.error);
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+    let token = editor.scene_token;
+    let result = editor.remote_operation(
+        crate::editor_operations::RemoteRequest {
+            expected_scene_token: Some(token),
+            operation: Operation::SetManipulatorSize(size(2.0)),
+        },
+        &context,
+    );
+    assert!(matches!(result, Err(OperationError::BusyManipulation)));
+    // The draft commit before native dispatch refuses with the same status text, so only the
+    // operation's own result proves the move-dispatch guard holds.
+    assert!(matches!(
+        editor.apply_operation(Operation::SetManipulatorSize(size(2.0))),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+}
+
+#[test]
+fn manipulator_size_is_refused_while_a_modal_prompt_is_open() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.request_close();
+    assert!(editor.files.is_modal());
+    // Native dispatch reaches the per-variant modal list; the remote path is refused earlier.
+    editor.native_operation(Operation::SetManipulatorSize(size(2.0)));
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+    assert!(editor.error);
+    assert_eq!(editor.status, OperationError::BusyEditing.to_string());
+}
+
+#[test]
+fn a_remote_size_change_is_refused_during_a_human_draft_and_native_commits_the_draft_first() {
+    let (mut editor, context, _) = setup(Key::E, 1.0);
+    editor.channels[0] = "2".into();
+    let token = editor.scene_token;
+    let result = editor.remote_operation(
+        crate::editor_operations::RemoteRequest {
+            expected_scene_token: Some(token),
+            operation: Operation::SetManipulatorSize(size(2.0)),
+        },
+        &context,
+    );
+    assert!(matches!(result, Err(OperationError::BusyEditing)));
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+    assert!(editor.has_draft());
+    editor.native_operation(Operation::SetManipulatorSize(size(2.0)));
+    assert!(!editor.has_draft());
+    assert_eq!(editor.manipulation.manipulator_size(), size(2.0));
 }
 
 #[test]

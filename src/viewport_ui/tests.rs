@@ -791,7 +791,9 @@ fn fractional_capture_click_handle_and_submission_share_the_same_physical_aspect
         let ndc = input.click_ndc().unwrap();
         assert!((ndc.x - 40.0 / size[0] as f32).abs() < 2e-6);
         assert!(ndc.y.abs() < 2e-6);
-        let capture = input.move_capture(&camera).unwrap();
+        let capture = input
+            .move_capture(&camera, ManipulatorSize::default())
+            .unwrap();
         let pixel = capture
             .pointer_pixel(Vec2::new(pointer.x, pointer.y))
             .unwrap();

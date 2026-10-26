@@ -1,7 +1,7 @@
 use crate::editor_operations::Operation;
 use crate::viewport_renderer::{RenderError, SelectionFeedback, ViewportRenderer};
 use azteccraft::{
-    move_handles::{HandleError, ViewportCapture},
+    move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
     view_scene::{ViewError, ViewScene},
@@ -210,13 +210,18 @@ impl ViewportInput {
     pub fn aspect(&self) -> f32 {
         self.physical_size[0] as f32 / self.physical_size[1] as f32
     }
-    pub fn move_capture(&self, camera: &Camera) -> Result<ViewportCapture, HandleError> {
-        ViewportCapture::new(
+    pub fn move_capture(
+        &self,
+        camera: &Camera,
+        size: ManipulatorSize,
+    ) -> Result<ViewportCapture, HandleError> {
+        Ok(ViewportCapture::new(
             camera,
             self.physical_origin,
             self.physical_size,
             self.pixels_per_point,
-        )
+        )?
+        .with_manipulator_size(size))
     }
     pub fn move_pointer(&self) -> MovePointer {
         self.move_pointer

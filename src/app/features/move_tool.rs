@@ -582,6 +582,7 @@ impl Editor {
             rotate_space: self.manipulation.space(ActiveTool::Rotate),
             scale_space: self.manipulation.space(ActiveTool::Scale),
             rotate_axis: rotate_axis_id(self.manipulation.rotate_axis()),
+            manipulator_size: self.manipulation.manipulator_size().get(),
             scale_handle: scale_handle_id(self.manipulation.scale_handle()),
             units: ManipulationUnits {
                 distance: linear_unit_name(&units.linear).to_owned(),
@@ -700,7 +701,7 @@ impl Editor {
         frame_token: Uuid,
     ) -> Result<bool, OperationError> {
         let pointer = input.move_pointer();
-        let capture = match input.move_capture(&self.camera) {
+        let capture = match input.move_capture(&self.camera, self.manipulation.manipulator_size()) {
             Ok(capture) => capture,
             Err(error) => {
                 self.missing_move_viewport()?;
@@ -903,7 +904,7 @@ impl Editor {
                 return Err(OperationError::Scene(refusals.swap_remove(0)));
             }
             let capture = input
-                .move_capture(&self.camera)
+                .move_capture(&self.camera, self.manipulation.manipulator_size())
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
             let handles = WorldHandles::new(&capture, frame.origin_cm())
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;

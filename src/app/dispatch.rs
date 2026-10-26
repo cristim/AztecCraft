@@ -82,6 +82,7 @@ impl Editor {
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
             | Operation::SetToolHandle(_)
+            | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
@@ -320,6 +321,7 @@ impl Editor {
                 Operation::SetActiveTool(_)
                     | Operation::SetToolSpace { .. }
                     | Operation::SetToolHandle(_)
+                    | Operation::SetManipulatorSize(_)
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
@@ -402,6 +404,7 @@ impl Editor {
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
+            Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
             Operation::BeginMove { target, axis } => {
                 return self.begin_editor_move(&target, axis, provenance);
             }

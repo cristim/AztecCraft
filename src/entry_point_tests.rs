@@ -256,6 +256,15 @@ fn tool_handle_setter_is_reached_only_through_dispatch() {
 }
 
 #[test]
+fn manipulator_size_setter_is_reached_only_through_dispatch() {
+    expect(
+        "manipulator size setter",
+        ".set_manipulator_size(",
+        &["apply_operation_guarded"],
+    );
+}
+
+#[test]
 fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     // commit_pending commits a human draft; it is the one documented non-Operation mutation.
     expect(

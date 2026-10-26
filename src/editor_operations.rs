@@ -2,6 +2,7 @@
 use azteccraft::native_scene::{NativeTransform, TransformAttributes};
 use azteccraft::{
     history::{ManipulationError, ManipulationFinish, ManipulationId},
+    move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, NativeError, NativeId, RotateAxis, RotateSpace, ScaleHandle,
         ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
@@ -184,6 +185,10 @@ pub enum Operation {
     },
     /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
     SetToolHandle(ToolHandle),
+    /// Sets the global manipulator size, a session-only tool setting.
+    // Remove when the hotkeys and the MCP tool construct it.
+    #[cfg_attr(not(test), allow(dead_code))]
+    SetManipulatorSize(ManipulatorSize),
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,
@@ -474,6 +479,8 @@ pub struct ManipulationInspection {
     /// that numeric entry uses, spelled as the tool arguments are.
     pub rotate_axis: &'static str,
     pub scale_handle: &'static str,
+    /// The global manipulator size, as set.
+    pub manipulator_size: f64,
     /// What each parameter of `update_manipulation` is measured in.
     pub units: ManipulationUnits,
     /// Whether a numeric manipulation of each kind could begin on the selection now.

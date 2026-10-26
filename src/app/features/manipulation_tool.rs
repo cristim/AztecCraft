@@ -15,7 +15,7 @@ use azteccraft::{
         HandleFrame, RotateDrag, RotateHandles, ScaleDrag, ScaleHandles,
         paint::{paint_rotate, paint_scale},
     },
-    move_handles::{HandleError, ViewportCapture},
+    move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{RotateAxis, ScaleHandle, TransformTarget},
 };
 use eframe::egui;
@@ -30,6 +30,8 @@ pub(in crate::app) struct ManipulationOptions {
     scale_space: ManipulationSpace,
     rotate_axis: RotateAxis,
     scale_handle: ScaleHandle,
+    // Global and session-only: it never enters the scene, the history or the dirty state.
+    manipulator_size: ManipulatorSize,
     numeric: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
@@ -51,6 +53,7 @@ impl Default for ManipulationOptions {
             scale_space: ManipulationSpace::World,
             rotate_axis: RotateAxis::X,
             scale_handle: ScaleHandle::Uniform,
+            manipulator_size: ManipulatorSize::default(),
             numeric: String::new(),
             hover: None,
             quiet: false,
@@ -74,6 +77,10 @@ impl ManipulationOptions {
 
     pub(in crate::app) fn scale_handle(&self) -> ScaleHandle {
         self.scale_handle
+    }
+
+    pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
+        self.manipulator_size
     }
 }
 
@@ -117,6 +124,16 @@ impl Editor {
             OperationReply::Changed
         } else {
             OperationReply::Unchanged
+        }
+    }
+}
+
+impl Editor {
+    pub(in crate::app) fn set_manipulator_size(&mut self, size: ManipulatorSize) -> OperationReply {
+        if std::mem::replace(&mut self.manipulation.manipulator_size, size) == size {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
         }
     }
 }
@@ -637,7 +654,7 @@ impl Editor {
         let drawn = (|| {
             let (_, frame) = self.manipulation_frame(tool)?;
             let capture = input
-                .move_capture(&self.camera)
+                .move_capture(&self.camera, self.manipulation.manipulator_size())
                 .map_err(|error| handle_error(tool, error))?;
             let pointer = input
                 .move_pointer()

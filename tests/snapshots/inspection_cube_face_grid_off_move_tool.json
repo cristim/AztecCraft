@@ -53,6 +53,7 @@
           "unavailable_reason": "Scale is unavailable in Face selection; switch to Object selection"
         }
       ],
+      "manipulator_size": 1.0,
       "refusal": null,
       "rotate_axis": "x",
       "rotate_space": "object",
