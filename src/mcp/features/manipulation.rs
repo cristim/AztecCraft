@@ -10,6 +10,7 @@ use crate::{
 };
 use azteccraft::{
     history::ManipulationFinish,
+    move_handles::ManipulatorSize,
     native_scene::{RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
 };
 use rmcp::{
@@ -80,6 +81,16 @@ enum ToolHandleArgs {
         scene_token: String,
         handle: HandleInput,
     },
+}
+
+/// Sets the global manipulator size. The value is rounded to three decimals.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ManipulatorSizeArgs {
+    scene_token: String,
+    /// Between 0.1 and 10.0 inclusive; 2.5555 is stored and read back as 2.556.
+    #[schemars(range(min = 0.1, max = 10.0))]
+    size: f64,
 }
 
 /// `kind` selects the manipulation; each kind takes its own handle fields and nothing else. Move
@@ -173,6 +184,16 @@ fn parse_set_tool_handle(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
     Ok(scoped(
         token(&scene_token)?,
         Operation::SetToolHandle(handle),
+    ))
+}
+
+fn parse_set_manipulator_size(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ManipulatorSizeArgs = decode(arguments)?;
+    let size = ManipulatorSize::new(args.size)
+        .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetManipulatorSize(size),
     ))
 }
 
@@ -394,6 +415,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
     ToolSpec {
+        name: "set_manipulator_size",
+        description: "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); the value is rounded to three decimals, so 2.5555 reads back as 2.556. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
+        schema: schema::<ManipulatorSizeArgs>,
+        parse: parse_set_manipulator_size,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "begin_manipulation",
         description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools",
         schema: schema::<BeginManipulationArgs>,
@@ -491,6 +520,33 @@ mod parse_tool_handle_tests {
                 operation,
                 Operation::SetToolHandle(ToolHandle::ScaleHandle(got)) if got == handle
             ));
+        }
+    }
+}
+
+#[cfg(test)]
+mod parse_manipulator_size_tests {
+    use super::*;
+
+    fn parsed(size: Value) -> Result<RemoteRequest, ErrorData> {
+        let token = uuid::Uuid::new_v4().to_string();
+        let Value::Object(arguments) = json!({"scene_token":token,"size":size}) else {
+            unreachable!()
+        };
+        parse_set_manipulator_size(arguments)
+    }
+
+    #[test]
+    fn bounds_are_inclusive_and_values_round_to_three_decimals() {
+        for (given, stored) in [(0.1, 0.1), (10.0, 10.0), (2.5555, 2.556)] {
+            let operation = parsed(json!(given)).ok().unwrap().operation;
+            assert!(matches!(
+                operation,
+                Operation::SetManipulatorSize(size) if size.get() == stored
+            ));
+        }
+        for given in [0.0999, 10.0001, 0.0, -0.0, 1e300] {
+            assert!(parsed(json!(given)).is_err(), "{given}");
         }
     }
 }

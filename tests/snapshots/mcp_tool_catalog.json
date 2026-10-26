@@ -180,6 +180,38 @@
     }
   },
   {
+    "name": "set_manipulator_size",
+    "description": "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); the value is rounded to three decimals, so 2.5555 reads back as 2.556. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Sets the global manipulator size. The value is rounded to three decimals.",
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "size": {
+          "description": "Between 0.1 and 10.0 inclusive; 2.5555 is stored and read back as 2.556.",
+          "format": "double",
+          "maximum": 10.0,
+          "minimum": 0.1,
+          "type": "number"
+        }
+      },
+      "required": [
+        "scene_token",
+        "size"
+      ],
+      "title": "ManipulatorSizeArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "begin_manipulation",
     "description": "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools",
     "inputSchema": {

@@ -372,6 +372,44 @@ mod tests {
                 "set_tool_handle",
                 json!({"scene_token":token,"tool":"scale","handle":"x","axis":"x"}),
             ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":"1"}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":"NaN"}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":0.05}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":0.0999}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":10.0001}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":11}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":-1}),
+            ),
+            ("set_manipulator_size", json!({"scene_token":token})),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":1,"extra":1}),
+            ),
+            ("set_manipulator_size", json!({"size":1})),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":"not-a-uuid","size":1}),
+            ),
             ("set_tool_handle", json!({"tool":"rotate","axis":"x"})),
             (
                 "set_tool_handle",
@@ -586,6 +624,7 @@ mod tests {
                 "set_tool_handle" => {
                     json!({"scene_token":token,"tool":"scale","handle":"uniform"})
                 }
+                "set_manipulator_size" => json!({"scene_token":token,"size":2.5}),
                 "begin_manipulation" => {
                     json!({"scene_token":token,"kind":"move","node_id":"1","instance_path":["1"],"axis":"x"})
                 }
@@ -717,6 +756,7 @@ mod tests {
                     | "set_active_tool"
                     | "set_tool_space"
                     | "set_tool_handle"
+                    | "set_manipulator_size"
                     | "select_node"
                     | "set_selection_mode"
                     | "select_face"

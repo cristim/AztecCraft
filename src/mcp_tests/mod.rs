@@ -110,6 +110,7 @@ mod official_client {
     mod frame_all;
     mod grid;
     mod manipulation_mcp_tests;
+    mod manipulator_size;
     mod material;
     mod node_edit;
     mod primitive_options;
