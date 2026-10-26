@@ -1858,3 +1858,47 @@ fn editor_move_begins_on_a_sited_identity_node() {
     ));
     assert!(editor.history.active_manipulation().is_some());
 }
+
+const MARQUEE_STATUS: &str = "Marquee (drag) selection is not implemented yet; click to select";
+
+fn drag(editor: &mut Editor, context: &egui::Context, from: Pos2, to: Pos2) {
+    let size = egui::vec2(1440.0, 900.0);
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, button(from, true)),
+    );
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, vec![Event::PointerMoved(to)]),
+    );
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, button(to, false)),
+    );
+}
+
+#[test]
+fn drag_off_a_handle_shows_the_marquee_refusal_and_on_a_handle_does_not() {
+    let (mut editor, context, rect) = setup(1.0);
+    let from = rect.center() + egui::vec2(-300.0, 200.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 30.0));
+    assert_eq!(editor.status, MARQUEE_STATUS);
+
+    let (mut editor, context, rect) = setup(1.0);
+    let from = rect.center() + egui::vec2(40.0, 0.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
+    assert_ne!(editor.status, MARQUEE_STATUS);
+    assert!(editor.history.active_manipulation().is_none());
+}
+
+#[test]
+fn face_mode_refusal_wins_over_marquee_for_a_manipulator_drag() {
+    let (mut editor, context, rect) = setup(1.0);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let from = rect.center() + egui::vec2(40.0, 0.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
+    assert_eq!(editor.status, FACE_MODE_REFUSAL);
+}

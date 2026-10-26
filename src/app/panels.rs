@@ -346,7 +346,17 @@ impl Editor {
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
             let selection_intent = selection_intent.filter(|_| can_select);
             let delete_intent = delete_intent && can_select;
-            let selection_refusal = input.unsupported_selection().filter(|_| can_select);
+            let mode_refused = features::manipulation_tool::is_manipulation_tool(self.active_tool)
+                && features::manipulation_tool::mode_refusal(
+                    features::manipulation_tool::tool_name(self.active_tool),
+                    self.selection_mode,
+                )
+                .is_some();
+            let selection_refusal = input.unsupported_selection().filter(|refusal| {
+                can_select
+                    && (*refusal != crate::viewport_ui::SelectionRefusal::Marquee
+                        || !(consumed || mode_refused))
+            });
             let navigation = if current_document && !consumed {
                 navigation
             } else {

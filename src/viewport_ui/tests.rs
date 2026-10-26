@@ -960,3 +960,82 @@ fn plain_middle_and_right_drags_leave_the_camera_unbound_and_alt_still_navigates
         }
     }
 }
+
+fn primary(pos: Pos2, pressed: bool, modifiers: Modifiers) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers,
+    }
+}
+
+/// Press, drag past the threshold, then release; returns the release frame's input and
+/// whether any frame of the drag emitted an Orbit.
+fn drag_release(
+    press: Modifiers,
+    during: Modifiers,
+    release: Modifiers,
+    move_distance: f32,
+) -> (ViewportInput, bool) {
+    let context = egui::Context::default();
+    let camera = camera();
+    let start = egui::pos2(64.0, 48.0);
+    let end = start + egui::vec2(move_distance, 0.0);
+    let clip = Rect::EVERYTHING;
+    capture_frame(
+        &context,
+        &camera,
+        raw(0.0, press, vec![Event::PointerMoved(start)]),
+        clip,
+    );
+    let mut orbited = false;
+    let mut step = |time, modifiers, events| {
+        let (mut input, _) = capture_frame(&context, &camera, raw(time, modifiers, events), clip);
+        orbited |= input
+            .take_navigation()
+            .iter()
+            .any(|operation| matches!(operation, Operation::Orbit { .. }));
+        input
+    };
+    step(0.1, press, vec![primary(start, true, press)]);
+    step(0.2, during, vec![Event::PointerMoved(end)]);
+    step(
+        0.25,
+        during,
+        vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))],
+    );
+    let input = step(0.3, release, vec![primary(end, false, release)]);
+    (input, orbited)
+}
+
+#[test]
+fn plain_drag_release_raises_marquee_but_a_quick_click_does_not() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 40.0);
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::Marquee)
+    );
+    assert!(!orbited && input.click_ndc().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);
+    assert!(input.click_ndc().is_some());
+    assert_eq!(input.unsupported_selection(), None);
+}
+
+#[test]
+fn alt_drag_orbits_without_marquee_even_when_alt_is_released_before_the_button() {
+    for release in [Modifiers::ALT, Modifiers::NONE] {
+        let (input, orbited) = drag_release(Modifiers::ALT, Modifiers::ALT, release, 40.0);
+        assert!(orbited);
+        assert_eq!(input.unsupported_selection(), None, "{release:?}");
+    }
+}
+
+#[test]
+fn shift_click_keeps_modified_click() {
+    let (input, _) = drag_release(Modifiers::SHIFT, Modifiers::SHIFT, Modifiers::SHIFT, 0.0);
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::ModifiedClick)
+    );
+}
