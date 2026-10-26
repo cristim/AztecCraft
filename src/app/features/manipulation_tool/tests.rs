@@ -1518,6 +1518,135 @@ fn a_remote_size_change_is_refused_during_a_human_draft_and_native_commits_the_d
     assert_eq!(editor.manipulation.manipulator_size(), size(2.0));
 }
 
+fn size_key(key: Key, repeat: bool, modifiers: Modifiers) -> Event {
+    Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat,
+        modifiers,
+    }
+}
+
+fn press_size_key(tool: Key, event: Event) -> Editor {
+    let (mut editor, context, _) = setup(tool, 1.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, vec![event]),
+    );
+    editor
+}
+
+#[test]
+fn plus_with_or_without_shift_and_equals_grow_and_minus_shrinks() {
+    let shift = Modifiers::SHIFT;
+    for event in [
+        size_key(Key::Plus, false, shift),
+        size_key(Key::Plus, false, Modifiers::NONE),
+        size_key(Key::Equals, false, Modifiers::NONE),
+    ] {
+        let editor = press_size_key(Key::W, event);
+        assert_eq!(editor.manipulation.manipulator_size(), size(1.25));
+    }
+    let editor = press_size_key(Key::E, size_key(Key::Minus, false, Modifiers::NONE));
+    assert_eq!(editor.manipulation.manipulator_size(), size(0.8));
+    let editor = press_size_key(Key::R, size_key(Key::Plus, false, Modifiers::NONE));
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.25));
+}
+
+#[test]
+fn other_modifiers_shift_minus_and_the_select_tool_do_not_resize() {
+    for event in [
+        size_key(Key::Plus, false, Modifiers::CTRL),
+        size_key(Key::Minus, false, Modifiers::COMMAND),
+        size_key(Key::Equals, false, Modifiers::ALT),
+        size_key(Key::Minus, false, Modifiers::SHIFT),
+    ] {
+        let editor = press_size_key(Key::W, event);
+        assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+    }
+    let editor = press_size_key(Key::Q, size_key(Key::Plus, false, Modifiers::NONE));
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+}
+
+#[test]
+fn key_repeat_steps_and_the_bounds_report_a_status_without_an_operation() {
+    let (mut editor, context, _) = setup(Key::W, 1.0);
+    for _ in 0..2 {
+        frame(
+            &mut editor,
+            &context,
+            raw(
+                SIZE,
+                Pos2::ZERO,
+                1.0,
+                vec![size_key(Key::Plus, true, Modifiers::NONE)],
+            ),
+        );
+    }
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.5625));
+    editor.native_operation(Operation::SetManipulatorSize(size(10.0)));
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(Key::Plus, false, Modifiers::NONE)],
+        ),
+    );
+    assert_eq!(editor.status, "Manipulator size is at its maximum (10.00)");
+    assert!(!editor.error);
+    editor.native_operation(Operation::SetManipulatorSize(size(0.1)));
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(Key::Minus, false, Modifiers::NONE)],
+        ),
+    );
+    assert_eq!(editor.status, "Manipulator size is at its minimum (0.10)");
+    assert_eq!(editor.manipulation.manipulator_size(), size(0.1));
+}
+
+#[test]
+fn the_size_keys_are_refused_during_a_drag_and_ignored_under_a_modal() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    press(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    assert!(editor.history.active_manipulation().is_some());
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(Key::Plus, false, Modifiers::NONE)],
+        ),
+    );
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+    assert!(editor.history.active_manipulation().is_some());
+    release(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    editor.request_close();
+    assert!(editor.files.is_modal());
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(Key::Plus, false, Modifiers::NONE)],
+        ),
+    );
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.0));
+}
+
 #[test]
 fn a_worst_case_manipulation_inspection_stays_within_the_reserved_budget() {
     let (mut editor, context, view) = setup(Key::R, 1.0);

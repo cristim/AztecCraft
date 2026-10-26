@@ -1,4 +1,5 @@
 use super::*;
+use azteccraft::move_handles::ManipulatorSize;
 
 pub(super) const SHADED_TEXTURED_NAME: &str = "Hardware Texturing (6)";
 const USE_ALL_LIGHTS_NAME: &str = "Use All Lights (7)";
@@ -41,6 +42,23 @@ impl Editor {
                     modifiers,
                     ..
                 } if modifiers.is_none() => Some(*key),
+                _ => None,
+            })
+        });
+        // Shift is ignored for grow: Shift+= arrives as Plus on a US layout. Shift+- is "_".
+        // Key repeat steps again while held (PROVISIONAL, the docs do not say).
+        let size_key = ctx.input(|i| {
+            i.events.iter().find_map(|event| match event {
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if !modifiers.ctrl && !modifiers.alt && !modifiers.command => match key {
+                    Key::Plus | Key::Equals => Some(true),
+                    Key::Minus if !modifiers.shift => Some(false),
+                    _ => None,
+                },
                 _ => None,
             })
         });
@@ -91,6 +109,11 @@ impl Editor {
             Some(Key::Num7) => self.unsupported_shading_status(USE_ALL_LIGHTS_NAME),
             _ => {}
         }
+        if self.active_tool != ActiveTool::Select
+            && let Some(grow) = size_key
+        {
+            self.step_manipulator_size(grow);
+        }
         if undo {
             self.history_step(false);
         }
@@ -110,6 +133,26 @@ impl Editor {
             self.save_as_dialog();
         }
         tool_intent
+    }
+    fn step_manipulator_size(&mut self, grow: bool) {
+        let current = self.manipulation.manipulator_size();
+        let next = if grow {
+            current.grown()
+        } else {
+            current.shrunk()
+        };
+        match next {
+            Some(size) => self.native_operation(Operation::SetManipulatorSize(size)),
+            None => {
+                let (bound, name) = if grow {
+                    (ManipulatorSize::MAX, "maximum")
+                } else {
+                    (ManipulatorSize::MIN, "minimum")
+                };
+                self.status = format!("Manipulator size is at its {name} ({bound:.2})");
+                self.error = false;
+            }
+        }
     }
     fn unsupported_shading_status(&mut self, name: &str) {
         self.status = unsupported_shading_reason(name);

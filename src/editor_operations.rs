@@ -186,8 +186,6 @@ pub enum Operation {
     /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
-    // Remove when the hotkeys and the MCP tool construct it.
-    #[cfg_attr(not(test), allow(dead_code))]
     SetManipulatorSize(ManipulatorSize),
     BeginMove {
         target: TransformTarget,
