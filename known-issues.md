@@ -763,3 +763,10 @@ Ctrl/Cmd N, O, S, Shift+S and Y follow the Maya hotkeys page, which shows the ma
 as an image the documentation fetch could not read, so Command on macOS is PROVISIONAL. Held file
 chords no longer repeat; Cmd+S used to. Open Scene and Save Scene As have no trailing ellipsis because the
 docs give bare names (PROVISIONAL).
+
+Held Ctrl/Cmd Z and Ctrl/Cmd Y keep repeating Undo and Redo (egui reports OS key repeat), while the file
+chords and tool keys ignore repeat. The Maya 2027 hotkeys page lists Ctrl z and Ctrl y
+(https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-30CACC9D-8FBE-4B85-8A8F-C5ADF32DDD4E.htm)
+but does not say whether a held key repeats, so the repeat is PROVISIONAL and no Maya parity is claimed.
+It is the behaviour before #283; a test pins it. File chords ignore repeat to avoid a second dialog or
+New, which does not apply to history steps.

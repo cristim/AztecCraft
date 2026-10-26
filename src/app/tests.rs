@@ -3633,6 +3633,35 @@ fn new_chord_ignores_shift_repeat_and_missing_command() {
     }
 }
 
+/// Held Undo and Redo repeat; Maya's hotkeys page does not say (PROVISIONAL, known-issues.md).
+#[test]
+fn held_undo_and_redo_chords_repeat() {
+    let command = egui::Modifiers::COMMAND;
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let full = editor.history.scene().clone();
+    editor.history_step(false);
+    editor.history_step(false);
+    let two_undone = editor.history.scene().clone();
+    assert_ne!(two_undone, full);
+    // Redo twice by hand, then hold the chords: the second event of each is a real repeat.
+    editor.history_step(true);
+    editor.history_step(true);
+    let hold = |editor: &mut Editor, key: Key| {
+        let ctx = egui::Context::default();
+        for repeat in [false, true] {
+            let events = vec![key_event(key, command, repeat)];
+            let _ = shortcuts_in(&ctx, editor, command, events);
+        }
+    };
+    hold(&mut editor, Key::Z);
+    assert_eq!(editor.history.scene(), &two_undone);
+    hold(&mut editor, Key::Y);
+    assert_eq!(editor.history.scene(), &full);
+}
+
 #[test]
 fn alt_modified_file_chords_do_nothing() {
     let alt = egui::Modifiers::COMMAND | egui::Modifiers::ALT;
