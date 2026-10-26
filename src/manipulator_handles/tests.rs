@@ -926,3 +926,9 @@ fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
         );
     }
 }
+
+#[test]
+fn centre_box_half_extent_and_plane_handle_far_edge_are_pinned() {
+    assert_eq!(CENTER_BOX_HALF, 7.0);
+    assert_eq!(PLANE_FAR, 0.5);
+}
