@@ -80,7 +80,14 @@ impl Editor {
         let (history, frame, frame_all) = ctx.input(|i| {
             (
                 history_chord(&i.events),
-                i.modifiers.is_none() && i.key_pressed(Key::F),
+                i.events.iter().any(|event| {
+                    matches!(event, egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.is_none())
+                }),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
                         key: Key::A,

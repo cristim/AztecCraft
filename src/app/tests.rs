@@ -3633,6 +3633,82 @@ fn new_chord_ignores_shift_repeat_and_missing_command() {
     }
 }
 
+/// A selected cube and a camera panned off it, so framing visibly moves the camera.
+fn frame_key_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    assert!(editor.selected_move_target().is_ok());
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    editor
+}
+
+/// egui keeps only the frame-final modifiers, so F must be judged by its own event.
+#[test]
+fn frame_selected_pressed_with_a_modifier_is_not_rescued_by_a_same_frame_release() {
+    for held in [
+        egui::Modifiers::CTRL,
+        egui::Modifiers::SHIFT,
+        egui::Modifiers::ALT,
+        egui::Modifiers::COMMAND,
+    ] {
+        let mut editor = frame_key_editor();
+        let before = editor.camera.clone();
+        let events = vec![
+            key_event(Key::F, held, false),
+            egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+        assert!(editor.camera.same_capture(&before), "{held:?}");
+    }
+}
+
+#[test]
+fn frame_selected_pressed_bare_is_not_cancelled_by_a_modifier_arriving_later() {
+    let mut editor = frame_key_editor();
+    let before = editor.camera.clone();
+    let events = vec![
+        key_event(Key::F, egui::Modifiers::NONE, false),
+        egui::Event::ModifiersChanged(egui::Modifiers::CTRL),
+    ];
+    let none = egui::Modifiers::NONE;
+    shortcuts_in(&egui::Context::default(), &mut editor, none, events);
+    assert!(!editor.camera.same_capture(&before));
+}
+
+/// Held F repeats (PROVISIONAL, known-issues.md): the second frame on one context, with no
+/// release between, carries an OS repeat event and frames again.
+#[test]
+fn frame_selected_repeats_while_f_is_held() {
+    let mut editor = frame_key_editor();
+    let ctx = egui::Context::default();
+    let none = egui::Modifiers::NONE;
+    shortcuts_in(
+        &ctx,
+        &mut editor,
+        none,
+        vec![key_event(Key::F, none, false)],
+    );
+    let first = editor.camera.clone();
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    let panned = editor.camera.clone();
+    assert!(!panned.same_capture(&first));
+    shortcuts_in(&ctx, &mut editor, none, vec![key_event(Key::F, none, true)]);
+    let repeated = ctx.input(|i| {
+        i.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Key {
+                    key: Key::F,
+                    repeat: true,
+                    ..
+                }
+            )
+        })
+    });
+    assert!(repeated, "the second frame must carry a repeat event");
+    assert!(!editor.camera.same_capture(&panned));
+}
+
 /// Held Undo and Redo repeat; Maya's hotkeys page does not say (PROVISIONAL, known-issues.md).
 #[test]
 fn held_undo_and_redo_chords_repeat() {
