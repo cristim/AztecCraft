@@ -3442,6 +3442,76 @@ fn face_native_closing_editor_refuses_mode_intents_without_selection_changes() {
     assert_eq!(editor.scene_token, token);
 }
 
+/// Drives `shortcuts` directly with a held modifier, returning the tool intent it produced.
+fn shortcuts_with(
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    keys: &[Key],
+) -> Option<ActiveTool> {
+    let ctx = egui::Context::default();
+    let events = std::iter::once(egui::Event::ModifiersChanged(modifiers))
+        .chain(keys.iter().map(|&key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        }))
+        .collect();
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1440.0, 900.0),
+        )),
+        events,
+        ..Default::default()
+    };
+    let mut intent = None;
+    let mut output = ctx.run_ui(input, |ui| intent = editor.shortcuts(ui.ctx()));
+    output.textures_delta.clear();
+    intent
+}
+
+#[test]
+fn closing_editor_ignores_file_and_tool_shortcuts() {
+    let mut editor = Editor {
+        active_tool: ActiveTool::Move,
+        ..Editor::default()
+    };
+    editor.close_document().unwrap();
+    assert!(editor.files.is_closing() && !editor.files.is_modal());
+    let (status, error, token) = (editor.status.clone(), editor.error, editor.scene_token);
+    let scene = editor.history.scene().clone();
+    let mode = editor.selection_mode;
+    let tool = editor.active_tool;
+    // Cmd+S and Cmd+N only bite once Save is available or N is bound; Cmd+Z reaches
+    // history_step and BusyEditing without the gate. Cmd+Shift+S is not driven: it would open a
+    // native dialog on a scene where Save As is available.
+    let command = egui::Modifiers::COMMAND;
+    for (modifiers, key) in [
+        (command, Key::S),
+        (command, Key::N),
+        (command, Key::Z),
+        (command | egui::Modifiers::SHIFT, Key::Z),
+    ] {
+        let intent = shortcuts_with(&mut editor, modifiers, &[key]);
+        assert_eq!(intent, None);
+    }
+    for key in [Key::W, Key::Num5, Key::Plus] {
+        let intent = shortcuts_with(&mut editor, egui::Modifiers::NONE, &[key]);
+        assert_eq!(intent, None);
+    }
+    assert_eq!(editor.status, status);
+    assert_eq!(editor.error, error);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.selection_mode, mode);
+    assert_eq!(editor.active_tool, tool);
+    assert_eq!(editor.active_tool, ActiveTool::Move);
+    assert!(editor.files.pending_inspection().is_none());
+    assert!(editor.files.is_closing() && !editor.files.is_modal());
+}
+
 #[test]
 fn vertex_and_edge_modes_refuse_native_delete_and_frame_without_a_component() {
     for (mode, noun) in [
