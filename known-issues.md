@@ -19,8 +19,9 @@ session-only (no preferences store; it never dirties the scene or enters history
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions
   -handleSize` and `-lineSize`).
-- Plain-text focus keeps the keys for the field. The hotkey focus behaviour in the native window
-  is verified by hand only.
+- Plain-text focus keeps the keys for the field (the shortcut gate returns early while a text field
+  wants keyboard input); this is checked by code reading only, with no test. Native QA covered + and -
+  resizing the Move manipulator, not text-field focus.
 
 ## Material data editing is a bounded candidate
 
