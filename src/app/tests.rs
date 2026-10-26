@@ -3444,15 +3444,40 @@ fn shortcuts_with(
     modifiers: egui::Modifiers,
     keys: &[Key],
 ) -> Option<ActiveTool> {
-    let ctx = egui::Context::default();
+    let events = keys
+        .iter()
+        .map(|&key| key_event(key, modifiers, false))
+        .collect();
+    shortcuts_events(editor, modifiers, events)
+}
+
+fn key_event(key: Key, modifiers: egui::Modifiers, repeat: bool) -> egui::Event {
+    egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat,
+        modifiers,
+    }
+}
+
+fn shortcuts_events(
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    events: Vec<egui::Event>,
+) -> Option<ActiveTool> {
+    shortcuts_in(&egui::Context::default(), editor, modifiers, events)
+}
+
+/// egui derives `repeat` from whether the key was already down in this context.
+fn shortcuts_in(
+    ctx: &egui::Context,
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    events: Vec<egui::Event>,
+) -> Option<ActiveTool> {
     let events = std::iter::once(egui::Event::ModifiersChanged(modifiers))
-        .chain(keys.iter().map(|&key| egui::Event::Key {
-            key,
-            physical_key: None,
-            pressed: true,
-            repeat: false,
-            modifiers,
-        }))
+        .chain(events)
         .collect();
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
@@ -3480,15 +3505,15 @@ fn closing_editor_ignores_file_and_tool_shortcuts() {
     let scene = editor.history.scene().clone();
     let mode = editor.selection_mode;
     let tool = editor.active_tool;
-    // Cmd+S and Cmd+N only bite once Save is available or N is bound; Cmd+Z reaches
-    // history_step and BusyEditing without the gate. Cmd+Shift+S is not driven: it would open a
-    // native dialog on a scene where Save As is available.
+    // Cmd+S needs Save available to bite; Cmd+Z reaches history_step and BusyEditing without the
+    // gate. Cmd+Shift+S is not driven: it would open a native dialog where Save As is available.
     let command = egui::Modifiers::COMMAND;
     for (modifiers, key) in [
         (command, Key::S),
         (command, Key::N),
         (command, Key::Z),
         (command | egui::Modifiers::SHIFT, Key::Z),
+        (command, Key::Y),
     ] {
         let intent = shortcuts_with(&mut editor, modifiers, &[key]);
         assert_eq!(intent, None);
@@ -3506,6 +3531,138 @@ fn closing_editor_ignores_file_and_tool_shortcuts() {
     assert_eq!(editor.active_tool, ActiveTool::Move);
     assert!(editor.files.pending_inspection().is_none());
     assert!(editor.files.is_closing() && !editor.files.is_modal());
+}
+
+#[test]
+fn file_chords_map_to_the_table_row_with_that_label() {
+    let actions = Editor::default().file_actions();
+    for (key, shift, label) in [
+        (Key::N, false, "New Scene"),
+        (Key::O, false, "Open Scene"),
+        (Key::S, false, "Save Scene"),
+        (Key::S, true, "Save Scene As"),
+    ] {
+        let index = menus::chord_entry(&actions, (key, shift)).expect("a row for the chord");
+        assert_eq!(actions[index].label, label);
+    }
+    assert_eq!(menus::chord_entry(&actions, (Key::N, true)), None);
+    let command = egui::Modifiers::COMMAND;
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::N, command, false)]),
+        Some((Key::N, false))
+    );
+    assert_eq!(menus::file_chord(&[key_event(Key::N, command, true)]), None);
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::N, egui::Modifiers::NONE, false)]),
+        None
+    );
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::Z, command, false)]),
+        None
+    );
+}
+
+fn file_outcome(editor: &Editor) -> (String, bool, bool, bool, Uuid, Option<String>) {
+    (
+        editor.status.clone(),
+        editor.error,
+        editor.is_dirty(),
+        editor.files.is_modal(),
+        editor.scene_token,
+        editor
+            .files
+            .pending_inspection()
+            .map(|p| format!("{:?}", p.kind)),
+    )
+}
+
+#[test]
+fn cmd_n_runs_the_same_new_scene_path_as_the_menu() {
+    for dirty in [false, true] {
+        let make = || {
+            let mut editor = Editor::default();
+            if dirty {
+                editor.create(Primitive::Cube);
+            }
+            editor
+        };
+        let (mut by_key, mut by_menu) = (make(), make());
+        assert_eq!(by_key.is_dirty(), dirty);
+        let before = file_outcome(&by_key);
+        shortcuts_with(&mut by_key, egui::Modifiers::COMMAND, &[Key::N]);
+        by_menu.request_new();
+        let after = file_outcome(&by_key);
+        assert_ne!(after, before, "dirty={dirty}: the key must act");
+        assert_eq!(
+            after.4 != before.4,
+            !dirty,
+            "a clean New replaces the document; a dirty one only asks"
+        );
+        // The token is a fresh random id per New, so it is compared above, not here.
+        let without_token =
+            |o: (String, bool, bool, bool, Uuid, Option<String>)| (o.0, o.1, o.2, o.3, o.5);
+        assert_eq!(without_token(after), without_token(file_outcome(&by_menu)));
+    }
+}
+
+#[test]
+fn new_chord_ignores_shift_repeat_and_missing_command() {
+    let command = egui::Modifiers::COMMAND;
+    let shifted = command | egui::Modifiers::SHIFT;
+    let fresh = || {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor
+    };
+    let mut editors = [fresh(), fresh(), fresh()];
+    let before = editors.each_ref().map(file_outcome);
+    let [shift, bare, repeat] = &mut editors;
+    let _ = shortcuts_with(shift, shifted, &[Key::N]);
+    let _ = shortcuts_with(bare, egui::Modifiers::NONE, &[Key::N]);
+    // The first press runs on a throwaway editor so the context holds N down.
+    let ctx = egui::Context::default();
+    let press = || vec![key_event(Key::N, command, false)];
+    let _ = shortcuts_in(&ctx, &mut Editor::default(), command, press());
+    let _ = shortcuts_in(&ctx, repeat, command, press());
+    for (i, name) in ["shift", "no command", "repeat"].into_iter().enumerate() {
+        assert_eq!(file_outcome(&editors[i]), before[i], "{name}");
+    }
+}
+
+#[test]
+fn save_chord_does_nothing_while_save_is_unavailable() {
+    let mut editor = Editor::default();
+    assert!(!editor.files.save_available());
+    let before = file_outcome(&editor);
+    shortcuts_with(&mut editor, egui::Modifiers::COMMAND, &[Key::S]);
+    assert_eq!(file_outcome(&editor), before);
+}
+
+#[test]
+fn cmd_y_redoes_after_undo_and_shift_y_does_not() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let created = editor.history.scene().clone();
+    editor.history_step(false);
+    let undone = editor.history.scene().clone();
+    assert_ne!(undone, created);
+    let command = egui::Modifiers::COMMAND;
+    shortcuts_with(&mut editor, command | egui::Modifiers::SHIFT, &[Key::Y]);
+    assert_eq!(editor.history.scene(), &undone);
+    shortcuts_with(&mut editor, command, &[Key::Y]);
+    assert_eq!(editor.history.scene(), &created);
+    assert!(editor.status.starts_with("Redo"), "{}", editor.status);
+}
+
+#[test]
+fn cmd_shift_z_still_redoes() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    let undone = editor.history.scene().clone();
+    let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+    shortcuts_with(&mut editor, chord, &[Key::Z]);
+    assert_ne!(editor.history.scene(), &undone);
 }
 
 #[test]

@@ -6,6 +6,9 @@ pub(super) struct FileAction {
     pub(super) label: &'static str,
     /// Hotkey text shown after the label in the menu row, only for keys that are bound.
     pub(super) hint: Option<&'static str>,
+    /// The key and whether Shift is held, with Command (Ctrl off macOS); `shortcuts()` dispatches
+    /// the row this names, so the key, the hint and the click share one `enabled` and `run`.
+    pub(super) chord: (Key, bool),
     /// False for entries the Status Line does not draw (Save Scene As has no button).
     pub(super) strip: bool,
     pub(super) icon: UiIcon,
@@ -102,8 +105,30 @@ pub(super) const NEW_LABEL: &str = "New Scene";
 pub(super) const OPEN_LABEL: &str = "Open Scene";
 pub(super) const SAVE_LABEL: &str = "Save Scene";
 pub(super) const SAVE_AS_LABEL: &str = "Save Scene As";
+const NEW_HINT: &str = "Ctrl/Cmd N";
+const OPEN_HINT: &str = "Ctrl/Cmd O";
 const SAVE_HINT: &str = "Ctrl/Cmd S";
 const SAVE_AS_HINT: &str = "Ctrl/Cmd Shift S";
+
+/// The first File chord pressed this frame: N, O or S with Command, and whether Shift is held.
+/// Key repeat is ignored so a held key cannot start a second New or dialog.
+pub(super) fn file_chord(events: &[egui::Event]) -> Option<(Key, bool)> {
+    events.iter().find_map(|event| match event {
+        egui::Event::Key {
+            key: key @ (Key::N | Key::O | Key::S),
+            pressed: true,
+            repeat: false,
+            modifiers,
+            ..
+        } if modifiers.command => Some((*key, modifiers.shift)),
+        _ => None,
+    })
+}
+
+/// The table row a chord belongs to.
+pub(super) fn chord_entry(actions: &[FileAction], chord: (Key, bool)) -> Option<usize> {
+    actions.iter().position(|action| action.chord == chord)
+}
 
 impl FileAction {
     /// The menu row text: the label, then the hotkey after three spaces like Undo and Redo.
@@ -134,7 +159,8 @@ impl Editor {
         [
             FileAction {
                 label: NEW_LABEL,
-                hint: None,
+                hint: Some(NEW_HINT),
+                chord: (Key::N, false),
                 strip: true,
                 icon: UiIcon::FileNew,
                 tooltip: NEW_LABEL,
@@ -144,7 +170,8 @@ impl Editor {
             },
             FileAction {
                 label: OPEN_LABEL,
-                hint: None,
+                hint: Some(OPEN_HINT),
+                chord: (Key::O, false),
                 strip: true,
                 icon: UiIcon::FileOpen,
                 tooltip: OPEN_LABEL,
@@ -155,6 +182,7 @@ impl Editor {
             FileAction {
                 label: SAVE_LABEL,
                 hint: Some(SAVE_HINT),
+                chord: (Key::S, false),
                 strip: true,
                 icon: UiIcon::FileSave,
                 tooltip: SAVE_LABEL,
@@ -165,6 +193,7 @@ impl Editor {
             FileAction {
                 label: SAVE_AS_LABEL,
                 hint: Some(SAVE_AS_HINT),
+                chord: (Key::S, true),
                 strip: false,
                 icon: UiIcon::FileSave,
                 tooltip: SAVE_AS_LABEL,
@@ -249,7 +278,7 @@ impl Editor {
                 if ui
                     .add_enabled(
                         self.history.can_redo(),
-                        egui::Button::new("Redo   Ctrl/Cmd Shift Z"),
+                        egui::Button::new("Redo   Ctrl/Cmd Y"),
                     )
                     .on_hover_text(history_hover("Redo", self.history.redo_label()))
                     .clicked()

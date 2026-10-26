@@ -17,8 +17,8 @@ const PRESETS: &str = "Selection mode menu";
 const STRIP_FILES: [&str; 3] = ["New Scene", "Open Scene", "Save Scene"];
 /// Menu row text, hints included. Save Scene As has a row but no strip button.
 const MENU_FILES: [&str; 4] = [
-    "New Scene",
-    "Open Scene",
+    "New Scene   Ctrl/Cmd N",
+    "Open Scene   Ctrl/Cmd O",
     "Save Scene   Ctrl/Cmd S",
     "Save Scene As   Ctrl/Cmd Shift S",
 ];
@@ -1311,6 +1311,22 @@ fn file_menu_lists_the_maya_labels_with_hints_in_order() {
         .map(|b| b.label)
         .collect();
     assert_eq!(strip, STRIP_FILES);
+}
+
+#[test]
+fn edit_menu_pins_the_undo_and_redo_hints() {
+    let (mut editor, context) = file_editor(FileState::Clean);
+    let output = strip_output(&mut editor, &context);
+    let edit = controls(&output)
+        .into_iter()
+        .find(|c| c.label == "Edit")
+        .expect("Edit menu button");
+    click(&mut editor, &context, edit.rect.center());
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let labels: Vec<String> = controls(&output).into_iter().map(|c| c.label).collect();
+    for row in ["Undo   Ctrl/Cmd Z", "Redo   Ctrl/Cmd Y"] {
+        assert!(labels.iter().any(|l| l == row), "missing {row}");
+    }
 }
 
 #[test]
