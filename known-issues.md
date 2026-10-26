@@ -756,3 +756,10 @@ Create > Polygon Primitives shows the reason on its 12 disabled rows (unbuilt pr
 interactive toggles) as an egui hover tooltip. egui does not copy `on_disabled_hover_text` into the
 AccessKit node and disabled widgets cannot take keyboard focus, so keyboard and screen-reader users never
 get the reason. Edit > Delete by Type and Delete All by Type share this limitation.
+
+## File and Redo hotkeys use Command on macOS without a documented glyph
+
+Ctrl/Cmd N, O, S, Shift+S and Y follow the Maya hotkeys page, which shows the macOS alternate modifier
+as an image the documentation fetch could not read, so Command on macOS is PROVISIONAL. Held file
+chords no longer repeat; Cmd+S used to. Open Scene and Save Scene As have no trailing ellipsis because the
+docs give bare names (PROVISIONAL).
