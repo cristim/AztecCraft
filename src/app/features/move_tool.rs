@@ -5,6 +5,8 @@ use crate::app::Editor;
 use crate::editor_operations::{
     ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
 };
+#[cfg(any(test, feature = "mcp"))]
+use azteccraft::native_scene::{RotateAxis, ScaleHandle};
 use azteccraft::{
     history::{
         EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationProvenance,
@@ -82,6 +84,27 @@ fn axis_name(axis: WorldAxis) -> &'static str {
         WorldAxis::X => "x",
         WorldAxis::Y => "y",
         WorldAxis::Z => "z",
+    }
+}
+
+/// The lowercase id the MCP tools and inspection use for a Rotate axis.
+#[cfg(any(test, feature = "mcp"))]
+fn rotate_axis_id(axis: RotateAxis) -> &'static str {
+    match axis {
+        RotateAxis::X => "x",
+        RotateAxis::Y => "y",
+        RotateAxis::Z => "z",
+    }
+}
+
+/// The lowercase id the MCP tools and inspection use for a Scale handle.
+#[cfg(any(test, feature = "mcp"))]
+fn scale_handle_id(handle: ScaleHandle) -> &'static str {
+    match handle {
+        ScaleHandle::X => "x",
+        ScaleHandle::Y => "y",
+        ScaleHandle::Z => "z",
+        ScaleHandle::Uniform => "uniform",
     }
 }
 
@@ -299,7 +322,7 @@ impl Editor {
         };
         use azteccraft::{
             history::ManipulationKindState,
-            native_scene::{RotateAxis, RotateSpace, ScaleHandle, ScaleSpace},
+            native_scene::{RotateSpace, ScaleSpace},
         };
         let units = self.history.scene().units();
         // Each kind names itself in the selection-mode refusal.
@@ -448,11 +471,7 @@ impl Editor {
                                 RotateSpace::Object => "object",
                                 RotateSpace::World => "world",
                             },
-                            Some(match axis {
-                                RotateAxis::X => "x",
-                                RotateAxis::Y => "y",
-                                RotateAxis::Z => "z",
-                            }),
+                            Some(rotate_axis_id(axis)),
                             None,
                             "angle",
                             value,
@@ -466,12 +485,7 @@ impl Editor {
                             ScaleSpace::World => "world",
                         },
                         None,
-                        Some(match handle {
-                            ScaleHandle::X => "x",
-                            ScaleHandle::Y => "y",
-                            ScaleHandle::Z => "z",
-                            ScaleHandle::Uniform => "uniform",
-                        }),
+                        Some(scale_handle_id(handle)),
                         "factor",
                         active.parameter,
                         "unitless".to_owned(),
@@ -567,6 +581,8 @@ impl Editor {
             active_tool: self.active_tool,
             rotate_space: self.manipulation.space(ActiveTool::Rotate),
             scale_space: self.manipulation.space(ActiveTool::Scale),
+            rotate_axis: rotate_axis_id(self.manipulation.rotate_axis()),
+            scale_handle: scale_handle_id(self.manipulation.scale_handle()),
             units: ManipulationUnits {
                 distance: linear_unit_name(&units.linear).to_owned(),
                 angle: angular_unit_name(&units.angular).to_owned(),

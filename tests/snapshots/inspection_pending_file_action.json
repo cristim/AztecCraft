@@ -54,7 +54,9 @@
         }
       ],
       "refusal": null,
+      "rotate_axis": "x",
       "rotate_space": "object",
+      "scale_handle": "uniform",
       "scale_space": "world",
       "units": {
         "angle": "deg",

@@ -1337,3 +1337,51 @@ fn tool_handle_is_refused_while_a_modal_prompt_is_open() {
     assert!(matches!(result, Err(OperationError::BusyEditing)));
     assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
 }
+
+#[test]
+fn inspection_reports_the_persistent_axis_and_handle_in_tool_argument_spelling() {
+    let mut editor = Editor::default();
+    let read = |editor: &Editor| {
+        let inspected = editor.inspect_manipulation().unwrap();
+        (inspected.rotate_axis, inspected.scale_handle)
+    };
+    assert_eq!(read(&editor), ("x", "uniform"));
+    for (axis, text) in [
+        (RotateAxis::Y, "y"),
+        (RotateAxis::Z, "z"),
+        (RotateAxis::X, "x"),
+    ] {
+        editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(axis)));
+        assert_eq!(read(&editor), (text, "uniform"));
+    }
+    for (handle, text) in [
+        (ScaleHandle::X, "x"),
+        (ScaleHandle::Y, "y"),
+        (ScaleHandle::Z, "z"),
+        (ScaleHandle::Uniform, "uniform"),
+    ] {
+        editor.native_operation(Operation::SetToolHandle(ToolHandle::ScaleHandle(handle)));
+        assert_eq!(read(&editor), ("x", text));
+    }
+}
+
+#[test]
+fn a_worst_case_manipulation_inspection_stays_within_the_reserved_budget() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::ScaleHandle(
+        ScaleHandle::Uniform,
+    )));
+    press(
+        &mut editor,
+        &context,
+        1.0,
+        view.screen(Vec3::X * view.radius()),
+    );
+    let inspected = editor.inspect_manipulation().unwrap();
+    assert!(inspected.active.is_some() && inspected.viewport.is_some());
+    let bytes = serde_json::to_vec(&inspected).unwrap().len();
+    assert!(
+        bytes <= crate::editor_operations::MOVE_INSPECTION_MAX_BYTES,
+        "{bytes}"
+    );
+}
