@@ -1322,6 +1322,15 @@ fn tool_handle_is_refused_during_a_manipulation_with_the_selection_unchanged() {
     );
     assert!(matches!(result, Err(OperationError::BusyManipulation)));
     assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Uniform);
+    // The draft commit before native dispatch refuses with the same status text, so only the
+    // operation's own result proves the move-dispatch guard holds.
+    assert!(matches!(
+        editor.apply_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+            RotateAxis::Z
+        ))),
+        Err(OperationError::BusyManipulation)
+    ));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
 }
 
 #[test]
