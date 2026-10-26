@@ -63,13 +63,13 @@ async fn sdk_manipulator_size_reads_the_default_sets_values_and_shares_the_nativ
         assert_eq!(editor.is_dirty(), dirty);
         assert_eq!(editor.scene_token.to_string(), token);
     }
-    // A native hotkey step reads back, and an MCP set feeds the next hotkey step.
+    // A native hotkey step reads back, and an MCP set feeds the next hotkey step, which snaps to the 1.25^k grid.
     editor.native_operation(Operation::SetActiveTool(ActiveTool::Move));
     editor.native_operation(Operation::SetManipulatorSize(
         ManipulatorSize::new(2.0).unwrap(),
     ));
     frame(&mut editor, &context, vec![plus()]);
-    assert_eq!(size(&mut editor, &context, &client).await, 2.5);
+    assert_eq!(size(&mut editor, &context, &client).await, 1.25_f64.powi(4));
     call(
         &mut editor,
         &context,
@@ -79,7 +79,7 @@ async fn sdk_manipulator_size_reads_the_default_sets_values_and_shares_the_nativ
     )
     .await;
     frame(&mut editor, &context, vec![plus()]);
-    assert_eq!(size(&mut editor, &context, &client).await, 5.0);
+    assert_eq!(size(&mut editor, &context, &client).await, 1.25_f64.powi(7));
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

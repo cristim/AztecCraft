@@ -1556,6 +1556,26 @@ fn plus_with_or_without_shift_and_equals_grow_and_minus_shrinks() {
 }
 
 #[test]
+fn one_key_press_and_its_release_step_exactly_once() {
+    let (mut editor, context, _) = setup(Key::W, 1.0);
+    let release = Event::Key {
+        key: Key::Plus,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    };
+    for event in [size_key(Key::Plus, false, Modifiers::NONE), release] {
+        frame(
+            &mut editor,
+            &context,
+            raw(SIZE, Pos2::ZERO, 1.0, vec![event]),
+        );
+    }
+    assert_eq!(editor.manipulation.manipulator_size(), size(1.25));
+}
+
+#[test]
 fn other_modifiers_shift_minus_and_the_select_tool_do_not_resize() {
     for event in [
         size_key(Key::Plus, false, Modifiers::CTRL),
@@ -1585,7 +1605,7 @@ fn key_repeat_steps_and_the_bounds_report_a_status_without_an_operation() {
             ),
         );
     }
-    assert_eq!(editor.manipulation.manipulator_size(), size(1.5625));
+    assert_eq!(editor.manipulation.manipulator_size().get(), 1.5625);
     editor.native_operation(Operation::SetManipulatorSize(size(10.0)));
     frame(
         &mut editor,
@@ -1612,6 +1632,21 @@ fn key_repeat_steps_and_the_bounds_report_a_status_without_an_operation() {
     );
     assert_eq!(editor.status, "Manipulator size is at its minimum (0.10)");
     assert_eq!(editor.manipulation.manipulator_size(), size(0.1));
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(Key::Plus, false, Modifiers::NONE)],
+        ),
+    );
+    assert!(
+        editor.status.is_empty() && !editor.error,
+        "{}",
+        editor.status
+    );
 }
 
 #[test]

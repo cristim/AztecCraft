@@ -142,7 +142,12 @@ impl Editor {
             current.shrunk()
         };
         match next {
-            Some(size) => self.native_operation(Operation::SetManipulatorSize(size)),
+            Some(size) => {
+                // A refusal below sets its own status; a success must not leave a stale bound message.
+                self.status.clear();
+                self.error = false;
+                self.native_operation(Operation::SetManipulatorSize(size));
+            }
             None => {
                 let (bound, name) = if grow {
                     (ManipulatorSize::MAX, "maximum")

@@ -582,27 +582,74 @@ fn manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli() {
 }
 
 #[test]
-fn manipulator_size_steps_by_a_quarter_round_trip_and_saturate_at_the_bounds() {
+fn manipulator_size_steps_on_the_exponent_grid_and_saturate_at_its_ends() {
     let one = ManipulatorSize::default();
     assert_eq!(one.grown().unwrap().get(), 1.25);
-    assert_eq!(one.grown().unwrap().shrunk(), Some(one));
-    assert_eq!(ManipulatorSize::new(10.0).unwrap().grown(), None);
+    assert_eq!(one.shrunk().unwrap().get(), 0.8);
+    let top = ManipulatorSize::new(10.0).unwrap();
+    assert_eq!(top.grown(), None);
+    assert_eq!(top.shrunk().unwrap().get(), 1.25_f64.powi(9));
     assert_eq!(ManipulatorSize::new(0.1).unwrap().shrunk(), None);
-    assert_eq!(
-        ManipulatorSize::new(9.0).unwrap().grown().unwrap().get(),
-        10.0
-    );
+    assert_eq!(ManipulatorSize::new(9.0).unwrap().grown(), None);
     let mut size = one;
     for _ in 0..50 {
         size = size.grown().unwrap_or(size);
         assert!((0.1..=10.0).contains(&size.get()));
     }
-    assert_eq!(size.get(), 10.0);
+    assert_eq!(size.get(), 1.25_f64.powi(10));
     for _ in 0..50 {
         size = size.shrunk().unwrap_or(size);
         assert!((0.1..=10.0).contains(&size.get()));
     }
-    assert_eq!(size.get(), 0.1);
+    assert_eq!(size.get(), 1.25_f64.powi(-10));
+}
+
+#[test]
+fn key_steps_from_any_grid_value_return_to_it_bit_exactly() {
+    for k in -10..=10 {
+        let start = ManipulatorSize(1.25_f64.powi(k));
+        for n in 1..=20 {
+            let mut size = start;
+            let mut reachable = true;
+            for _ in 0..n {
+                match size.shrunk() {
+                    Some(next) => size = next,
+                    None => reachable = false,
+                }
+            }
+            if !reachable {
+                continue;
+            }
+            for _ in 0..n {
+                size = size.grown().unwrap();
+            }
+            assert_eq!(size.get().to_bits(), start.get().to_bits(), "k={k} n={n}");
+        }
+        for n in 1..=20 {
+            let mut size = start;
+            let mut reachable = true;
+            for _ in 0..n {
+                match size.grown() {
+                    Some(next) => size = next,
+                    None => reachable = false,
+                }
+            }
+            if !reachable {
+                continue;
+            }
+            for _ in 0..n {
+                size = size.shrunk().unwrap();
+            }
+            assert_eq!(size.get().to_bits(), start.get().to_bits(), "k={k} n={n}");
+        }
+    }
+}
+
+#[test]
+fn a_key_step_from_an_off_grid_value_snaps_to_the_grid_first() {
+    let off = ManipulatorSize::new(2.5).unwrap();
+    assert_eq!(off.grown().unwrap().get(), 1.25_f64.powi(5));
+    assert_eq!(off.shrunk().unwrap().get(), 1.25_f64.powi(3));
 }
 
 #[test]
@@ -619,6 +666,28 @@ fn move_axes_are_pickable_outside_the_centre_at_every_size() {
             assert!(point.distance(handles.origin) > CENTER_EXCLUSION);
             assert_eq!(handles.hit_test(point), Some(axis), "{axis:?} at {size}");
         }
+    }
+}
+
+#[test]
+fn the_move_pick_radius_stays_six_pixels_at_every_size() {
+    let camera = front_camera();
+    for size in [0.1, 10.0] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        let along = (shaft.end - shaft.start).normalize();
+        let normal = DVec2::new(-along.y, along.x);
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.35;
+        assert_eq!(
+            handles.hit_test(on_shaft + normal * (HIT_RADIUS - 0.1)),
+            Some(WorldAxis::X),
+            "inside at {size}"
+        );
+        assert_eq!(
+            handles.hit_test(on_shaft + normal * (HIT_RADIUS + 0.1)),
+            None,
+            "outside at {size}"
+        );
     }
 }
 

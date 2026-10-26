@@ -9,6 +9,7 @@ pub(crate) const ARROW_LENGTH: f64 = 72.0;
 // PROVISIONAL floor at half the default so the smallest sizes stay pickable.
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
+const GRID_LIMIT: i32 = 10;
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;
@@ -99,7 +100,7 @@ impl fmt::Display for ManipulatorSizeError {
 
 impl std::error::Error for ManipulatorSizeError {}
 
-/// Global scale of the Move, Rotate and Scale manipulators, rounded to three decimals.
+/// Global scale of the Move, Rotate and Scale manipulators. Set values round to three decimals; key steps land on 1.25^k.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ManipulatorSize(f64);
 
@@ -131,19 +132,24 @@ impl ManipulatorSize {
         self.0
     }
 
-    /// One step larger, or `None` at the maximum.
+    /// One key step larger on the 1.25^k grid, or `None` at the top of the grid.
     pub fn grown(self) -> Option<Self> {
-        self.stepped(SIZE_STEP)
+        self.stepped(1)
     }
 
-    /// One step smaller, or `None` at the minimum.
+    /// One key step smaller on the 1.25^k grid, or `None` at the bottom of the grid.
     pub fn shrunk(self) -> Option<Self> {
-        self.stepped(1.0 / SIZE_STEP)
+        self.stepped(-1)
     }
 
-    fn stepped(self, factor: f64) -> Option<Self> {
-        let next = Self(round_milli(self.0 * factor).clamp(Self::MIN, Self::MAX));
-        (next != self).then_some(next)
+    // The power is taken from the integer, never from the previous f64, so steps are exact inverses.
+    fn stepped(self, direction: i32) -> Option<Self> {
+        let nearest = (self.0.ln() / SIZE_STEP.ln()).round() as i32;
+        let nearest = nearest.clamp(-GRID_LIMIT, GRID_LIMIT);
+        let next = nearest + direction;
+        (-GRID_LIMIT..=GRID_LIMIT)
+            .contains(&next)
+            .then(|| Self(SIZE_STEP.powi(next)))
     }
 }
 
