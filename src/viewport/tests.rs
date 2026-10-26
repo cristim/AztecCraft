@@ -702,6 +702,28 @@ fn set_pose_round_trips_the_default_and_an_orbit_to_the_pole_exactly() {
 }
 
 #[test]
+fn yaw_stays_below_a_full_turn_and_its_pose_round_trips() {
+    let tau = std::f32::consts::TAU;
+    for steps in [&[-1e-9_f32][..], &[-0.6, -1e-9][..]] {
+        let mut camera = Camera::default();
+        camera.set_pose(Vec3::ZERO, 8.0, 0.0, 0.4).unwrap();
+        for step in steps {
+            camera.orbit(Vec2::new(*step, 0.0)).unwrap();
+        }
+        assert!((0.0..tau).contains(&camera.yaw()), "{steps:?}");
+        let mut restored = camera.clone();
+        let yaw = f64::from(camera.yaw()).to_degrees().to_radians() as f32;
+        restored
+            .set_pose(camera.target(), camera.distance(), yaw, camera.pitch())
+            .unwrap();
+        assert!(restored.same_capture(&camera), "{steps:?}");
+    }
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, -1e-9, 0.4).unwrap();
+    assert!((0.0..tau).contains(&camera.yaw()));
+}
+
+#[test]
 fn set_pose_rejects_each_invalid_field_and_leaves_the_camera_unchanged() {
     use InvalidCameraPose as E;
     let limit = MAX_PITCH;

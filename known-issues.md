@@ -775,6 +775,7 @@ New, which does not apply to history steps.
 
 The Default View row and Alt+Home restore AztecCraft's own default camera (target 0, yaw 0.6 rad,
 pitch 0.4 rad, distance 8). Maya documents no default perspective pose, so the pose is not
-compared with Maya: PROVISIONAL. Fn+Option+Left as Alt+Home on compact Mac keyboards is unchecked.
+compared with Maya: PROVISIONAL. Default View restores only the pose (target, distance, yaw,
+pitch); the far clip plane, which framing can grow, is not reset. Fn+Option+Left as Alt+Home on compact Mac keyboards is unchecked.
 Maya's Undo/Redo View Change, the `[` and `]` view history and View > Bookmarks are not
 implemented; camera changes create no undo entries (see Core authoring limits).

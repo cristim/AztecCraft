@@ -414,7 +414,10 @@ async fn sdk_set_camera_pose_restores_an_inspected_pose_exactly() {
         editor.history.scene().clone(),
     );
     let text = token.to_string();
+    editor.camera.set_pose(Vec3::ZERO, 8.0, 0.0, 0.4).unwrap();
     for (tool, fields) in [
+        // From yaw 0 a tiny negative step must not wrap to a full turn.
+        ("orbit_camera", json!({"radians":[-1e-9,0.0]})),
         ("orbit_camera", json!({"radians":[0.7,-0.2]})),
         ("pan_camera", json!({"world_units":[1.3,-2.1]})),
         ("dolly_camera", json!({"factor":0.37})),

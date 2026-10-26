@@ -75,9 +75,9 @@ impl fmt::Display for InvalidCameraPose {
             ),
             Self::DistanceNotFinite => f.write_str("camera distance must be finite"),
             Self::DistanceNotPositive => f.write_str("camera distance must be greater than zero"),
-            Self::Unrepresentable => {
-                f.write_str("camera pose is too large to produce a finite view")
-            }
+            Self::Unrepresentable => f.write_str(
+                "camera pose is not representable (distance too small or values too large)",
+            ),
         }
     }
 }
@@ -98,6 +98,17 @@ impl Default for Camera {
             10_000.0,
         )
         .expect("default camera is valid")
+    }
+}
+
+/// Wraps yaw into `[0, TAU)`. In f32 `rem_euclid` rounds a tiny negative input up to exactly
+/// `TAU`, which would report 360 degrees and not round-trip through a pose.
+fn wrap_yaw(yaw: f32) -> f32 {
+    let wrapped = yaw.rem_euclid(std::f32::consts::TAU);
+    if wrapped >= std::f32::consts::TAU {
+        0.0
+    } else {
+        wrapped
     }
 }
 
@@ -244,7 +255,7 @@ impl Camera {
             return Err(InvalidCameraInput);
         }
         let mut next = self.clone();
-        next.yaw = (next.yaw + radians.x).rem_euclid(std::f32::consts::TAU);
+        next.yaw = wrap_yaw(next.yaw + radians.x);
         next.pitch = (next.pitch + radians.y).clamp(-MAX_PITCH, MAX_PITCH);
         next.validate()?;
         *self = next;
@@ -282,7 +293,7 @@ impl Camera {
         let mut next = self.clone();
         next.target = target;
         next.distance = distance;
-        next.yaw = yaw.rem_euclid(std::f32::consts::TAU);
+        next.yaw = wrap_yaw(yaw);
         next.pitch = pitch;
         next.validate()
             .map_err(|InvalidCameraInput| InvalidCameraPose::Unrepresentable)?;

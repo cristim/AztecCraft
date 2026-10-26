@@ -8668,7 +8668,7 @@ fn press_alt_home(editor: &mut Editor, ctx: &egui::Context, modifiers: egui::Mod
 }
 
 #[test]
-fn view_menu_default_view_row_restores_the_default_camera() {
+fn view_menu_default_view_row_restores_the_default_pose() {
     let mut editor = disturbed_camera_editor();
     let (token, scene) = (editor.scene_token, editor.history.scene().clone());
     let ctx = egui::Context::default();
@@ -8684,7 +8684,39 @@ fn view_menu_default_view_row_restores_the_default_camera() {
 }
 
 #[test]
-fn alt_home_restores_the_default_camera_and_other_modifiers_do_not() {
+fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let transform = NativeTransform {
+        translation: [500000.0, 0.0, 0.0],
+        ..Default::default()
+    };
+    let input = editor.transform_input(transform).unwrap();
+    let id = editor.selected.unwrap();
+    remote(
+        &mut editor,
+        Operation::SetTransform {
+            id,
+            transform: input,
+        },
+    )
+    .unwrap();
+    let default = Camera::default();
+    remote(&mut editor, Operation::FrameAll).unwrap();
+    assert!(editor.camera.far() > default.far());
+    let grown = editor.camera.far();
+    editor.default_view();
+    let camera = &editor.camera;
+    assert_eq!(camera.target(), default.target());
+    assert_eq!(camera.distance(), default.distance());
+    assert_eq!(camera.yaw(), default.yaw());
+    assert_eq!(camera.pitch(), default.pitch());
+    assert_eq!(camera.far(), grown);
+}
+
+#[test]
+fn alt_home_restores_the_default_pose_and_other_modifiers_do_not() {
     let mut editor = disturbed_camera_editor();
     let disturbed = editor.camera.clone();
     let ctx = egui::Context::default();
