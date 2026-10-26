@@ -858,5 +858,9 @@ fn attribute_editor_scrolls_to_the_pivots_at_the_minimum_window_size() {
         );
     }
     // The tab bar stays pinned while the body scrolls.
-    assert!(!visible_text_rects(&output, "Attribute Editor").is_empty());
+    let tab = editor.history.scene().nodes()[0].name().to_owned();
+    assert!(
+        !visible_text_rects(&output, &tab).is_empty(),
+        "tab bar scrolled away"
+    );
 }
