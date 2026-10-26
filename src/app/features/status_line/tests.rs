@@ -1082,6 +1082,17 @@ fn showing_again_restores_width_and_values_hiding_blurs_and_selected_follows() {
 }
 
 #[test]
+fn enabled_toggle_hover_says_the_layer_editor_is_not_implemented() {
+    let editor = Editor::default();
+    let toggle = &SIDEBAR_TOGGLES[4];
+    assert_eq!(toggle.label, CHANNEL_BOX);
+    assert_eq!(
+        editor.sidebar_toggle_hover(toggle),
+        "Show or hide the Channel Box (Layer Editor: not implemented yet)"
+    );
+}
+
+#[test]
 fn closing_without_a_dialog_shows_the_closing_hover_on_the_toggle() {
     let mut editor = Editor::default();
     editor.close_document().unwrap();

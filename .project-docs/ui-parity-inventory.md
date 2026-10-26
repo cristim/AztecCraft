@@ -65,7 +65,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Snap buttons: grids, curves, points, Projected Center, view planes | [statusline] | Missing in the Status Line | absent from the Status Line strip (`src/app/features/status_line.rs "const COMPONENT_TYPES"` draws only the component-type buttons); the former Tool Box 'Snap' placeholder was removed because the Tool Box page ([toolbox]) lists seven tools and snapping is a Status Line group per [statusline] | none | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Make Live and live-surface field | [statusline] | Missing | absent | none | P3 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Symmetry setting | [statusline] | Missing | absent | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
-| Construction history Inputs/Outputs menus and toggle | [statusline] | Missing | absent from the strip; a disabled Inputs entry exists in the Channel Box | none | P2 | S4 Attribute Editor and Channel Box (#60) |
+| Construction history Inputs/Outputs menus and toggle | [statusline] | Missing | absent from the strip; a disabled INPUTS stub exists in the Channel Box | none | P2 | S4 Attribute Editor and Channel Box (#60) |
 | Render buttons: Render View, render, IPR, render settings | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Hypershade button | [statusline] | Missing | absent | none | P3 | S6 Menu content (#66) |
 | Input box (Absolute, Relative, Rename, Select by name) | [statusline] | Missing | absent; the Channel Box has per-field edits instead | `edit_node`, `rename_node` | P2 | S1 Status Line strip (#59) |
@@ -74,7 +74,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Sidebar toggle: HumanIK | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:61 "HumanIK: not implemented yet"` | none | P3 | S1 Status Line strip (#59) |
 | Sidebar toggle: Attribute Editor | [statusline] | Supported | `src/app/features/status_line.rs:67 "Show or hide the Attribute Editor"`; shows the Attribute Editor and hides the Channel Box; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
 | Sidebar toggle: Tool Settings | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:73 "Tool Settings: not implemented yet"` | none | P2 | S1 Status Line strip (#59) |
-| Sidebar toggle: Channel Box / Layer Editor | [statusline] | Partial | `src/app/features/status_line.rs:79 "Show or hide the Channel Box / Layer Editor"`; no Layer Editor exists, so it shows or hides the Channel Box only; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
+| Sidebar toggle: Channel Box / Layer Editor | [statusline] | Partial | `src/app/features/status_line.rs "Show or hide the Channel Box (Layer Editor: not implemented yet)"`; no Layer Editor exists, so it shows or hides the Channel Box only and the hover says so; disabled during an active manipulation | `set_sidebar_panel_visibility` | P1 | S1 Status Line strip (#59) |
 
 ## 3. Shelf
 
@@ -149,13 +149,15 @@ The Channel Box panel docks right at `src/app/panels.rs "Some(SidebarPanel::Chan
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
 | Channel Box panel, right side | [channelbox] | Supported | `src/app/panels.rs "Some(SidebarPanel::ChannelBox) =>"`, `src/app/features/node_edit.rs "fn channels"` | `inspect_scene` | P1 | S4 Attribute Editor and Channel Box (#60) |
-| Object name field | [channelbox] | Supported | `src/app/features/node_edit.rs "Object name"` | `rename_node`, `edit_node` | P1 | S4 Attribute Editor and Channel Box (#60) |
+| Object name field (the section heading, editable in place; Attribute Editor keeps a labelled row) | [channelbox] | Supported | `src/app/features/node_edit.rs "fn name_field"` | `rename_node`, `edit_node` | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Transform channels (Translate, Rotate, Scale X/Y/Z) | [channelbox] | Supported | `src/app/features/node_edit.rs "Translate X"` | `set_transform`, `edit_node` | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Visibility channel | [channelbox] | Partial | read-only row for the selected transform's own `.v` (on/off/unknown), disabled with "visibility edit not implemented"; src/app/features/node_edit.rs | `inspect_scene` (`nodes[].visible`, read-only) | P1 | S4 Attribute Editor and Channel Box (#60) |
-| SHAPES section | [channelbox] | Missing | no shape channels; the nearby `src/app/features/material.rs "Materials"` is the Materials block with Diffuse | `set_material_diffuse` | P2 | S4 Attribute Editor and Channel Box (#60) |
-| INPUTS section | [channelbox] | Visible-unsupported | `src/app/features/node_edit.rs "Inputs / construction history"` (disabled; source-verified) | none | P2 | S4 Attribute Editor and Channel Box (#60) |
-| OUTPUTS section | [channelbox] | Missing | absent | none | P3 | S4 Attribute Editor and Channel Box (#60) |
+| SHAPES section | [channelbox] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"` (disabled stub, no shape data; the nearby `src/app/features/material.rs "Materials"` is the Materials block with Diffuse) | `set_material_diffuse` | P2 | S4 Attribute Editor and Channel Box (#60) |
+| INPUTS section | [channelbox] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"` (disabled stub; source-verified) | none | P2 | S4 Attribute Editor and Channel Box (#60) |
+| OUTPUTS section | [channelbox] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"` (disabled stub) | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Channel Box feedback for selected vertices or edges (component attributes, coordinates) | [channelbox] UNCONFIRMED for Maya 2026 | Missing | in Vertex, Edge and Face modes the Channel Box (`Editor::channels`, src/app/features/node_edit.rs) shows the parent object's name, Translate/Rotate/Scale rows, material controls and Delete, with no component-specific rows; nothing about the picked component is shown | none | P2 | S3 Component modes (#29) |
+| Channel Box blank with no selection; reason, curves note and appearance summary on the Help Line row | [channelbox] | Supported | `src/app/features/node_edit.rs "fn help_line"`, `src/app/panels.rs "timeline_status"`; read-only fields also explain themselves on hover | `inspect_scene` (`read_only`, `source_appearance`) | P1 | S4 Attribute Editor and Channel Box (#60) |
+| Layer Editor panel (stub heading in the Channel Box) | [layers] | Visible-unsupported | `src/app/features/node_edit.rs "unsupported_section"`; no tabs or layers | none | P2 | S9 Layer Editor (#61) |
 | Layer Editor: Display Layers tab | [layers] | Missing | absent | none | P2 | S9 Layer Editor (#61) |
 | Layer Editor: Animation Layers tab | [layers] | Missing | absent | none | P3 | S9 Layer Editor (#61) |
 

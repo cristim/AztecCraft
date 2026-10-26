@@ -419,7 +419,7 @@ snaps, symmetry, construction history, render buttons, Hypershade and the input 
 cluster therefore follows the last drawn group.
 
 - The F2 to F6 menu-set hotkeys are deferred.
-- No Layer Editor exists, so the toggle shows or hides only the Channel Box.
+- No Layer Editor exists, so the toggle shows or hides only the Channel Box; its hover and a Layers stub in the panel say so.
 - The toggle is disabled during an active manipulation, including a remote one with no native gesture, like other edits.
 - Save As has no strip button and stays in the File menu.
 - Open's native dialog calls `rfd` directly and cannot be click-tested, so equivalence between the strip

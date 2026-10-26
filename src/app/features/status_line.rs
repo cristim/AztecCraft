@@ -99,7 +99,7 @@ const SIDEBAR_TOGGLES: [StripButton; 5] = [
     StripButton {
         label: "Channel Box / Layer Editor",
         icon: UiIcon::SidebarChannelBox,
-        hover: "Show or hide the Channel Box / Layer Editor",
+        hover: "Show or hide the Channel Box (Layer Editor: not implemented yet)",
         panel: Some(SidebarPanel::ChannelBox),
     },
 ];
