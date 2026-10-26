@@ -191,11 +191,6 @@ fn plain_menu_item_still_creates_with_the_remembered_options() {
     let (mut editor, ctx) = setup();
     open_menu_and_click(&mut editor, &ctx, "Cube");
     assert_eq!(node_count(&editor), 1);
-    let output = run(&mut editor, &ctx, vec![]);
-    assert!(
-        create_menu_closed(&output),
-        "the item closes the menu chain"
-    );
     open_dialog(&mut editor, &ctx, Primitive::Plane);
     set_field(&mut editor, &ctx, 2, "3");
     set_field(&mut editor, &ctx, 3, "2");

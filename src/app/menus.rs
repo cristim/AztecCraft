@@ -47,7 +47,8 @@ pub(super) const INTERACTIVE_CREATION_REASON: &str =
 pub(super) const EXIT_ON_COMPLETION_REASON: &str =
     "Only applies to interactive creation, which is not implemented";
 
-/// Maya 2027's Create > Polygon Primitives order; `None` marks an entry not built yet.
+/// Maya 2027's Create > Polygon Primitives list (docs GUID-45D2EAD4-5BCF-42DA-A1AB-EC6EE09FE705);
+/// the order within the submenu is PROVISIONAL. `None` marks an entry not built yet.
 pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
     ("Sphere", Some(Primitive::Sphere)),
     ("Cube", Some(Primitive::Cube)),
@@ -251,6 +252,8 @@ impl Editor {
             });
             ui.menu_button("Create", |ui| {
                 ui.menu_button(POLYGON_PRIMITIVES_MENU, |ui| {
+                    // Toggles per Maya-Modeling GUID-6D21314A-54AD-41D4-AFC0-AAED13CD50A6; their
+                    // position and the unchecked Exit on Completion default are PROVISIONAL.
                     for (label, reason) in [
                         ("Interactive Creation", INTERACTIVE_CREATION_REASON),
                         ("Exit on Completion", EXIT_ON_COMPLETION_REASON),

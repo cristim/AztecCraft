@@ -749,3 +749,10 @@ unverified against Maya:
   nothing.
 - Alt held only on the release event, with no Orbit during the drag, is silent.
 - A drag that starts in the viewport and ends over another panel shows the message.
+
+## Disabled Create menu rows expose their reason by hover only
+
+Create > Polygon Primitives shows the reason on its 12 disabled rows (unbuilt primitives and the two
+interactive toggles) as an egui hover tooltip. egui does not copy `on_disabled_hover_text` into the
+AccessKit node and disabled widgets cannot take keyboard focus, so keyboard and screen-reader users never
+get the reason. Edit > Delete by Type and Delete All by Type share this limitation.

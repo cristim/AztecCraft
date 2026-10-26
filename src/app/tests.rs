@@ -8134,16 +8134,36 @@ fn polygon_primitives_submenu_lists_the_maya_labels_in_docs_order() {
         .map(|item| item.label.as_str())
         .filter(|label| !label.ends_with("option box"))
         .collect();
-    let expected: Vec<&str> = ["Interactive Creation", "Exit on Completion"]
-        .into_iter()
-        .chain(menus::POLYGON_PRIMITIVES.iter().map(|(label, _)| *label))
-        .collect();
+    // Maya 2027 order for the 15 primitives (the toggles' place is PROVISIONAL):
+    // https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-45D2EAD4-5BCF-42DA-A1AB-EC6EE09FE705.htm
+    let expected = [
+        "Interactive Creation",
+        "Exit on Completion",
+        "Sphere",
+        "Cube",
+        "Cylinder",
+        "Cone",
+        "Torus",
+        "Plane",
+        "Disc",
+        "Platonic Solid",
+        "Pyramid",
+        "Prism",
+        "Pipe",
+        "Helix",
+        "Gear",
+        "Soccer Ball",
+        "Super Shapes",
+    ];
     assert_eq!(rows, expected);
     assert_eq!(menus::POLYGON_PRIMITIVES.len(), 15);
     for (label, primitive) in menus::POLYGON_PRIMITIVES {
         let option_box = format!("{label} option box");
-        let has_box = items.iter().any(|item| item.label == option_box);
-        assert_eq!(has_box, primitive.is_some(), "{option_box}");
+        let found = items.iter().find(|item| item.label == option_box);
+        assert_eq!(found.is_some(), primitive.is_some(), "{option_box}");
+        if let Some(found) = found {
+            assert!(!found.disabled, "{option_box} disabled");
+        }
     }
     let update = output.platform_output.accesskit_update.as_ref().unwrap();
     assert!(update.nodes.iter().all(|(_, node)| {
