@@ -240,7 +240,19 @@ impl Editor {
     pub(super) fn close_document(&mut self) -> Result<OperationReply, OperationError> {
         self.request_file_action(FileAction::Close)
     }
+    /// Native dialogs bypass the disabled menu rows, so they refuse here like `native_operation` does.
+    fn refuse_while_closing(&mut self) -> bool {
+        let closing = self.files.is_closing();
+        if closing {
+            self.set_error_status(&OperationError::BusyEditing);
+            self.error = true;
+        }
+        closing
+    }
     pub(super) fn open_dialog(&mut self) {
+        if self.refuse_while_closing() {
+            return;
+        }
         if let Err(error) = self.cancel_move() {
             self.set_error_status(&error);
             self.error = true;
@@ -260,6 +272,9 @@ impl Editor {
         }
     }
     pub(super) fn save_as_dialog(&mut self) {
+        if self.refuse_while_closing() {
+            return;
+        }
         if self.history.active_manipulation().is_some() {
             self.status = OperationError::BusyManipulation.to_string();
             self.error = true;
