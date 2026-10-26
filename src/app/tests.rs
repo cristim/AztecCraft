@@ -6960,6 +6960,11 @@ fn modified_clicks_in_vertex_and_edge_modes_are_refused_without_changes() {
 fn a_mode_intent_in_the_click_frame_makes_the_click_use_the_new_mode() {
     for (key_code, vertex) in [(Key::F9, true), (Key::F10, false)] {
         let (mut editor, ctx, rect) = component_click_editor();
+        assert_eq!(
+            face_viewport_rect(&frame(&mut editor, &ctx, vec![])),
+            rect,
+            "stale viewport rect"
+        );
         let (front, points) = front_vertices(&editor);
         let at = screen_point(&editor, rect, points[front[0]]);
         let center = screen_point(&editor, rect, glam::Vec3::ZERO);
@@ -7610,7 +7615,7 @@ fn heading_name_enter_commits_one_rename() {
 }
 
 #[test]
-fn heading_name_click_away_commits_exactly_once() {
+fn heading_name_tab_blur_commits_exactly_once() {
     let (mut editor, ctx) = unfocused_cube_editor();
     let undo_before = undo_entries(&mut editor);
     type_into_name(&mut editor, &ctx, "Boxy");
@@ -7657,6 +7662,35 @@ fn heading_name_rejected_rename_keeps_the_draft() {
     assert_eq!(editor.name, "");
     assert!(editor.name_intent && editor.error);
     assert_eq!(undo_entries(&mut editor), undo_before);
+}
+
+#[test]
+fn read_only_heading_still_exposes_the_object_name_label() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let id = editor.history.scene().nodes()[0].id();
+    editor.select(Some(id));
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let mut output = context.run_ui(egui::RawInput::default(), |ui| {
+        editor.channels(ui, &mut false)
+    });
+    output.textures_delta.clear();
+    let node = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Object name"))
+        .expect("heading label");
+    assert!(node.1.is_disabled());
 }
 
 #[test]

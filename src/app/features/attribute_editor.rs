@@ -1,4 +1,4 @@
-use crate::app::features::node_edit::NameStyle;
+use crate::app::features::NameStyle;
 use crate::app::*;
 
 impl Editor {
