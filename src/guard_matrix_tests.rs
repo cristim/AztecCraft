@@ -1358,6 +1358,16 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("dirty", editor.is_dirty().to_string()),
         ("can_undo", editor.history.can_undo().to_string()),
         ("can_redo", editor.history.can_redo().to_string()),
+        (
+            "tool_settings",
+            format!(
+                "rotate_space={:?} scale_space={:?} rotate_axis={:?} scale_handle={:?}",
+                editor.manipulation.space(ActiveTool::Rotate),
+                editor.manipulation.space(ActiveTool::Scale),
+                editor.manipulation.rotate_axis(),
+                editor.manipulation.scale_handle()
+            ),
+        ),
     ];
     Observed {
         scene: scene.clone(),

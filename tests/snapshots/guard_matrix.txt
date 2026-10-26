@@ -12,17 +12,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -103,17 +103,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -194,6 +194,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -283,6 +284,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -372,7 +374,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -462,7 +464,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -552,7 +554,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -642,7 +644,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -732,7 +734,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -822,7 +824,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -912,7 +914,7 @@
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1002,7 +1004,7 @@
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1093,16 +1095,17 @@
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
     modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(select) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_tool_space(rotate,world) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_tool_space(scale,object) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_tool_space(rotate,world) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_tool_handle(rotate,y) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_tool_handle(rotate,y) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_tool_handle(scale,x) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_tool_handle(scale,x) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; active_move: none -> native; has_draft: true -> false; can_undo: false -> true
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -1183,6 +1186,7 @@
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
     modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1272,17 +1276,17 @@
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(select) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  set_tool_space(rotate,world) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  set_tool_space(scale,object) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_space(rotate,world) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  set_tool_handle(rotate,y) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_handle(rotate,y) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -1362,7 +1366,7 @@
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1452,17 +1456,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -1542,7 +1546,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1632,17 +1636,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -1722,7 +1726,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1812,7 +1816,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1902,7 +1906,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -1992,7 +1996,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2082,6 +2086,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2171,7 +2176,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2261,7 +2266,7 @@
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2351,7 +2356,7 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true
+    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2441,17 +2446,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false
+    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2531,17 +2536,17 @@
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
     session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false
+    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2622,16 +2627,17 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2712,16 +2718,17 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2802,16 +2809,17 @@
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2892,16 +2900,17 @@
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -2982,16 +2991,17 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3072,16 +3082,17 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
   set_active_tool(select) => Ok(unchanged) | no state change
-  set_tool_space(rotate,world) => Ok(changed) | no state change
-  set_tool_space(scale,object) => Ok(changed) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
   set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
-  set_tool_handle(rotate,y) => Ok(changed) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
-  set_tool_handle(scale,x) => Ok(changed) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3162,6 +3173,7 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3252,6 +3264,7 @@
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
     channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
     can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
