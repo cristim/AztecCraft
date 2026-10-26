@@ -713,8 +713,11 @@ implemented yet; click to select", because the real marquee (#30) is missing. Th
 per drag from egui's drag state and the release event's modifiers. These cases are PROVISIONAL and
 unverified against Maya:
 
-- A stationary press held over 0.8 s counts as a drag in egui 0.36, so it shows the message and no
-  longer click-selects.
+- A stationary press held longer than 0.8 s can count as a drag in egui 0.36 (only if some frame
+  lands during the hold) and then shows the message; egui does not treat such a press as a click
+  either way.
 - Releasing Alt before the drag threshold is crossed shows the message, because no Orbit was emitted.
 - A fast flick whose press, move and release coalesce into one frame is not seen as a drag and shows
   nothing.
+- Alt held only on the release event, with no Orbit during the drag, is silent.
+- A drag that starts in the viewport and ends over another panel shows the message.
