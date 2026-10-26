@@ -65,6 +65,18 @@ impl Editor {
                 _ => None,
             })
         });
+        // Maya's Alt+Home returns to the default view; Alt chords are otherwise camera navigation.
+        let default_view = ctx.input(|i| {
+            i.events.iter().any(|event| {
+                matches!(event, egui::Event::Key {
+                    key: Key::Home,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.ctrl && !modifiers.shift && !modifiers.command)
+            })
+        });
         let (undo, redo, frame, frame_all) = ctx.input(|i| {
             (
                 i.modifiers.command
@@ -138,6 +150,9 @@ impl Editor {
         }
         if frame_all {
             self.frame_all();
+        }
+        if default_view {
+            self.default_view();
         }
         if let Some(chord) = ctx.input(|i| menus::file_chord(&i.events)) {
             let actions = self.file_actions();

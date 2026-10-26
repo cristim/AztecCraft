@@ -8636,3 +8636,93 @@ fn set_camera_pose_rejects_a_stale_token_and_native_dispatch_matches_remote() {
     assert_eq!(editor.camera.distance(), 5.0);
     assert!(editor.error);
 }
+
+fn disturb_camera(editor: &mut Editor) {
+    editor.camera.orbit(glam::Vec2::new(1.2, -0.7)).unwrap();
+    editor.camera.pan(glam::Vec2::new(2.0, -1.0)).unwrap();
+    editor.camera.dolly(2.5).unwrap();
+    assert_ne!(editor.camera, Camera::default());
+}
+
+fn disturbed_camera_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    disturb_camera(&mut editor);
+    editor
+}
+
+/// Presses and releases Home so egui does not mark the next press as a repeat.
+fn press_alt_home(editor: &mut Editor, ctx: &egui::Context, modifiers: egui::Modifiers) {
+    frame(editor, ctx, vec![key_with(Key::Home, modifiers)]);
+    frame(
+        editor,
+        ctx,
+        vec![egui::Event::Key {
+            key: Key::Home,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+}
+
+#[test]
+fn view_menu_default_view_row_restores_the_default_camera() {
+    let mut editor = disturbed_camera_editor();
+    let (token, scene) = (editor.scene_token, editor.history.scene().clone());
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "View");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let row = face_text_position(&output, "Default View (Alt+Home)");
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    assert_eq!(editor.camera, Camera::default());
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.scene(), &scene);
+}
+
+#[test]
+fn alt_home_restores_the_default_camera_and_other_modifiers_do_not() {
+    let mut editor = disturbed_camera_editor();
+    let disturbed = editor.camera.clone();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    for modifiers in [
+        egui::Modifiers::NONE,
+        egui::Modifiers::SHIFT | egui::Modifiers::ALT,
+        egui::Modifiers::CTRL | egui::Modifiers::ALT,
+        egui::Modifiers::COMMAND | egui::Modifiers::ALT,
+    ] {
+        press_alt_home(&mut editor, &ctx, modifiers);
+        assert_eq!(editor.camera, disturbed, "{modifiers:?}");
+    }
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, Camera::default());
+}
+
+#[test]
+fn alt_home_and_default_view_are_refused_while_modal_or_closing() {
+    let ctx = egui::Context::default();
+    let mut editor = disturbed_camera_editor();
+    editor.new_document().unwrap();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    assert!(editor.files.is_modal());
+    let disturbed = editor.camera.clone();
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, disturbed, "modal");
+
+    let mut editor = Editor::default();
+    editor.close_document().unwrap();
+    disturb_camera(&mut editor);
+    assert!(editor.files.is_closing());
+    let disturbed = editor.camera.clone();
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, disturbed, "closing");
+    assert!(!editor.error, "the shortcut gate stops it before dispatch");
+    editor.default_view();
+    assert_eq!(editor.camera, disturbed, "menu path while closing");
+    assert!(editor.error);
+}

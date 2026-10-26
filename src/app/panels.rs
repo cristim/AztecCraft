@@ -224,6 +224,7 @@ impl Editor {
     ) {
         let mut grid_requested = false;
         let mut shading_requested = None;
+        let mut default_view_requested = false;
         let mut frame_all_requested = false;
         ui.horizontal(|ui| {
             ui.label("persp");
@@ -245,8 +246,14 @@ impl Editor {
             let shading_enabled = !self.files.is_modal() && !self.files.is_closing();
             ui.add_enabled_ui(shading_enabled, |ui| {
                 // Frame All hotkey A is from the Maya 2026 docs; the panel View > Frame All
-                // menu path is from the Maya 2014 page (PROVISIONAL for 2026).
+                // menu path is from the Maya 2014 page (PROVISIONAL for 2026). Default View and
+                // Alt+Home are from the Maya 2027 "Return to the default view" page; the
+                // default pose itself is an AztecCraft choice (Maya's persp pose is undocumented).
                 ui.menu_button("View", |ui| {
+                    if ui.button("Default View (Alt+Home)").clicked() {
+                        default_view_requested = true;
+                        ui.close();
+                    }
                     if ui.button("Frame All (A)").clicked() {
                         frame_all_requested = true;
                         ui.close();
@@ -299,6 +306,9 @@ impl Editor {
             self.native_operation(Operation::SetGridVisible {
                 visible: !self.grid_visible,
             });
+        }
+        if default_view_requested && self.scene_token == frame_token {
+            self.default_view();
         }
         if frame_all_requested && self.scene_token == frame_token {
             self.frame_all();

@@ -316,8 +316,6 @@ pub enum Operation {
         factor: f32,
     },
     /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched.
-    // Remove with the native View > Default View commit; until then only the MCP tool constructs it.
-    #[cfg_attr(not(any(test, feature = "mcp")), expect(dead_code))]
     SetCameraPose {
         target: [f32; 3],
         distance: f32,

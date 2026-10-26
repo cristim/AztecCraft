@@ -223,6 +223,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         &[
             "create",
             "create_from_dialog",
+            "default_view",
             "file_actions",
             "frame_all",
             "frame_selected",
