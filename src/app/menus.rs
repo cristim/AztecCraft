@@ -42,14 +42,35 @@ pub(super) const DELETE_BY_TYPE_REASON: &str =
 
 pub(super) const POLYGON_PRIMITIVES_MENU: &str = "Polygon Primitives";
 
-/// Maya 2027's Create > Polygon Primitives order, for the primitives built so far.
-pub(super) const POLYGON_PRIMITIVES: [(&str, Primitive); 5] = [
-    ("Sphere", Primitive::Sphere),
-    ("Cube", Primitive::Cube),
-    ("Cylinder", Primitive::Cylinder),
-    ("Cone", Primitive::Cone),
-    ("Plane", Primitive::Plane),
+pub(super) const INTERACTIVE_CREATION_REASON: &str =
+    "Interactive creation is not implemented; primitives are created at the origin";
+pub(super) const EXIT_ON_COMPLETION_REASON: &str =
+    "Only applies to interactive creation, which is not implemented";
+
+/// Maya 2027's Create > Polygon Primitives order; `None` marks an entry not built yet.
+pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
+    ("Sphere", Some(Primitive::Sphere)),
+    ("Cube", Some(Primitive::Cube)),
+    ("Cylinder", Some(Primitive::Cylinder)),
+    ("Cone", Some(Primitive::Cone)),
+    ("Torus", None),
+    ("Plane", Some(Primitive::Plane)),
+    ("Disc", None),
+    ("Platonic Solid", None),
+    ("Pyramid", None),
+    ("Prism", None),
+    ("Pipe", None),
+    ("Helix", None),
+    ("Gear", None),
+    ("Soccer Ball", None),
+    ("Super Shapes", None),
 ];
+
+fn unbuilt_primitive_reason(label: &str) -> String {
+    format!(
+        "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
+    )
+}
 
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {
     ui.menu_button(label, |ui| {
@@ -230,8 +251,24 @@ impl Editor {
             });
             ui.menu_button("Create", |ui| {
                 ui.menu_button(POLYGON_PRIMITIVES_MENU, |ui| {
+                    for (label, reason) in [
+                        ("Interactive Creation", INTERACTIVE_CREATION_REASON),
+                        ("Exit on Completion", EXIT_ON_COMPLETION_REASON),
+                    ] {
+                        ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
+                            .on_disabled_hover_text(reason);
+                    }
+                    ui.separator();
                     for (label, primitive) in POLYGON_PRIMITIVES {
-                        self.create_row(ui, primitive, label, read_only_reason);
+                        match primitive {
+                            Some(primitive) => {
+                                self.create_row(ui, primitive, label, read_only_reason);
+                            }
+                            None => {
+                                ui.add_enabled(false, egui::Button::new(label))
+                                    .on_disabled_hover_text(unbuilt_primitive_reason(label));
+                            }
+                        }
                     }
                 });
             });

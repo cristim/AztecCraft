@@ -406,10 +406,13 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, read_only: Option<&str>) 
     for (label, reason) in [
         (
             "Interactive creation",
-            "Interactive creation is not implemented",
+            crate::app::menus::INTERACTIVE_CREATION_REASON,
         ),
         ("Create UVs", "Meshes have no UVs yet"),
-        ("Exit on completion", "Only applies to interactive creation"),
+        (
+            "Exit on completion",
+            crate::app::menus::EXIT_ON_COMPLETION_REASON,
+        ),
     ] {
         ui.add_enabled(false, egui::Checkbox::new(&mut false, label))
             .on_disabled_hover_text(reason);

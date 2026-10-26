@@ -1399,13 +1399,15 @@ fn read_only_scene_disables_creation_and_history_controls_with_the_core_reason()
     }
     let before = editor.history.scene().clone();
     let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
-    for (label, _) in menus::POLYGON_PRIMITIVES {
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
         assert!(submenu_item(&output, label).disabled, "{label} enabled");
-        let option_box = format!("{label} option box");
-        assert!(
-            submenu_item(&output, &option_box).disabled,
-            "{option_box} enabled"
-        );
+        if primitive.is_some() {
+            let option_box = format!("{label} option box");
+            assert!(
+                submenu_item(&output, &option_box).disabled,
+                "{option_box} enabled"
+            );
+        }
     }
     assert_eq!(editor.history.scene(), &before);
 }
@@ -8081,6 +8083,32 @@ mod primitive_options_create {
     }
 }
 
+fn hover_reason_shown(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    at: egui::Pos2,
+    reason: &str,
+) -> bool {
+    let mut shown = false;
+    let start = ctx.input(|input| input.time);
+    for step in 1..=8 {
+        let mut input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(start + f64::from(step) * 0.25),
+            events: vec![egui::Event::PointerMoved(at)],
+            ..Default::default()
+        };
+        input.viewports.entry(egui::ViewportId::ROOT).or_default();
+        let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+        output.textures_delta.clear();
+        shown = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(text) if text.galley.job.text == reason)
+        });
+    }
+    shown
+}
+
 #[test]
 fn polygon_primitives_submenu_lists_the_maya_labels_in_docs_order() {
     let size = egui::vec2(1440.0, 900.0);
@@ -8094,13 +8122,16 @@ fn polygon_primitives_submenu_lists_the_maya_labels_in_docs_order() {
         .map(|item| item.label.as_str())
         .filter(|label| !label.ends_with("option box"))
         .collect();
-    assert_eq!(rows, ["Sphere", "Cube", "Cylinder", "Cone", "Plane"]);
-    for (label, _) in menus::POLYGON_PRIMITIVES {
+    let expected: Vec<&str> = ["Interactive Creation", "Exit on Completion"]
+        .into_iter()
+        .chain(menus::POLYGON_PRIMITIVES.iter().map(|(label, _)| *label))
+        .collect();
+    assert_eq!(rows, expected);
+    assert_eq!(menus::POLYGON_PRIMITIVES.len(), 15);
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
         let option_box = format!("{label} option box");
-        assert!(
-            items.iter().any(|item| item.label == option_box),
-            "{option_box}"
-        );
+        let has_box = items.iter().any(|item| item.label == option_box);
+        assert_eq!(has_box, primitive.is_some(), "{option_box}");
     }
     let update = output.platform_output.accesskit_update.as_ref().unwrap();
     assert!(update.nodes.iter().all(|(_, node)| {
@@ -8114,7 +8145,7 @@ fn every_primitive_variant_is_in_the_create_menu() {
     let listed = |primitive: Primitive| {
         menus::POLYGON_PRIMITIVES
             .iter()
-            .any(|(_, built)| *built == primitive)
+            .any(|(_, built)| *built == Some(primitive))
     };
     // A new variant fails to compile here until it is placed in the menu list.
     for primitive in [
@@ -8131,5 +8162,53 @@ fn every_primitive_variant_is_in_the_create_menu() {
             | Primitive::Cylinder
             | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
         }
+    }
+    let built = menus::POLYGON_PRIMITIVES
+        .iter()
+        .filter(|(_, primitive)| primitive.is_some())
+        .count();
+    assert_eq!(built, 5);
+}
+
+#[test]
+fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reasons() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let output = open_polygon_primitives(&mut editor, &ctx, size);
+    let before = editor.history.scene().clone();
+    let mut rows: Vec<(String, String)> = vec![
+        (
+            "Interactive Creation".into(),
+            menus::INTERACTIVE_CREATION_REASON.into(),
+        ),
+        (
+            "Exit on Completion".into(),
+            menus::EXIT_ON_COMPLETION_REASON.into(),
+        ),
+    ];
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
+        if primitive.is_none() {
+            rows.push((
+                label.into(),
+                format!(
+                    "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
+                ),
+            ));
+        }
+    }
+    assert_eq!(rows.len(), 12);
+    for (label, reason) in rows {
+        let item = submenu_item(&output, &label);
+        assert!(item.disabled, "{label} enabled");
+        assert!(
+            hover_reason_shown(&mut editor, &ctx, size, item.rect.center(), &reason),
+            "{label} shows no specific reason"
+        );
+        click_at(&mut editor, &ctx, size, item.rect.center());
+        assert_eq!(editor.history.scene(), &before, "{label} changed the scene");
+        assert!(!editor.history.can_undo(), "{label} added history");
+        open_polygon_primitives(&mut editor, &ctx, size);
     }
 }
