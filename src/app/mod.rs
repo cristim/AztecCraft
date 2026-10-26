@@ -308,9 +308,9 @@ impl Editor {
     }
 }
 
-fn unsupported(ui: &mut egui::Ui, label: &str) {
+fn unsupported(ui: &mut egui::Ui, label: &str) -> egui::Response {
     ui.add_enabled(false, egui::Button::new(label))
-        .on_disabled_hover_text("Not implemented in this build");
+        .on_disabled_hover_text("Not implemented in this build")
 }
 
 fn text_field_ids() -> impl Iterator<Item = egui::Id> {

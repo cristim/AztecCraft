@@ -281,6 +281,13 @@ impl Editor {
     pub(in crate::app) fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
         ui.label(RichText::new("Channel Box").strong());
         ui.separator();
+        egui::ScrollArea::vertical()
+            .id_salt("channel_box_scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| self.channel_sections(ui, delete_intent));
+    }
+
+    fn channel_sections(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
         if self.single_target().is_err() {
             unsupported_section(ui, "Layers");
             return;
@@ -312,7 +319,10 @@ impl Editor {
 
 fn unsupported_section(ui: &mut egui::Ui, heading: &str) {
     ui.label(RichText::new(heading).strong());
-    unsupported(ui, "Not implemented yet");
+    let response = unsupported(ui, "Not implemented yet");
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_label(format!("{heading}: not implemented yet"));
+    });
 }
 
 #[derive(Clone, Copy)]

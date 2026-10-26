@@ -1565,12 +1565,58 @@ fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state()
         .unwrap()
         .nodes
         .iter()
-        .filter(|(_, node)| node.label() == Some("Not implemented yet"))
+        .filter(|(_, node)| {
+            node.label()
+                .is_some_and(|label| label.ends_with(": not implemented yet"))
+        })
         .collect::<Vec<_>>();
-    assert_eq!(stubs.len(), 4);
+    let mut names = stubs
+        .iter()
+        .map(|(_, node)| node.label().unwrap())
+        .collect::<Vec<_>>();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "INPUTS: not implemented yet",
+            "Layers: not implemented yet",
+            "OUTPUTS: not implemented yet",
+            "SHAPES: not implemented yet",
+        ]
+    );
     assert!(stubs.iter().all(|(_, node)| node.is_disabled()));
     assert_eq!(editor.history.scene(), &scene);
     assert!(!editor.has_draft());
+}
+
+#[test]
+fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    let size = egui::vec2(960.0, 640.0);
+    let painted = |output: &egui::FullOutput, text: &str| {
+        output.shapes.iter().any(|shape| match &shape.shape {
+            egui::Shape::Text(t) => t.galley.job.text == text && t.pos.y < size.y,
+            _ => false,
+        })
+    };
+    let mut output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(painted(&output, "Translate X"));
+    // Pointer over the right-hand Channel Box panel, below its heading.
+    let over_panel = egui::pos2(size.x - 100.0, 300.0);
+    let mut events = vec![egui::Event::PointerMoved(over_panel)];
+    for _ in 0..10 {
+        events.push(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -200.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: egui::Modifiers::NONE,
+        });
+        output = frame_with(&mut editor, &ctx, size, 1.0, std::mem::take(&mut events));
+    }
+    assert!(painted(&output, "Delete selected"), "Delete unreachable");
+    assert!(painted(&output, "Layers"), "Layers unreachable");
 }
 
 #[test]
