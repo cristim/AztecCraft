@@ -1330,12 +1330,17 @@ fn tool_handle_is_refused_while_a_modal_prompt_is_open() {
     editor.create(Primitive::Cube);
     editor.request_close();
     assert!(editor.files.is_modal());
-    let result = crate::app::tests::remote(
-        &mut editor,
-        Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Z)),
-    );
-    assert!(matches!(result, Err(OperationError::BusyEditing)));
+    // Native dispatch reaches the per-variant modal list; the remote path is refused earlier.
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+        RotateAxis::Z,
+    )));
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::ScaleHandle(
+        ScaleHandle::X,
+    )));
     assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::X);
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::Uniform);
+    assert!(editor.error);
+    assert_eq!(editor.status, OperationError::BusyEditing.to_string());
 }
 
 #[test]
