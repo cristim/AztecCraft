@@ -763,6 +763,66 @@ fn the_move_pick_radius_stays_eight_pixels_at_every_size() {
 }
 
 #[test]
+fn move_picks_at_seven_and_eight_pixels_and_misses_past_eight_at_every_size() {
+    // 7.0, 7.9 and 8.0 fail at the old 6 px radius; 8.1 and 9.0 pass there (not red).
+    let camera = front_camera();
+    for size in [0.1, 10.0] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        // The front X shaft is horizontal, so the offsets below are exact.
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.35;
+        for (offset, expected) in [
+            (7.0, Some(WorldAxis::X)),
+            (7.9, Some(WorldAxis::X)),
+            (8.0, Some(WorldAxis::X)),
+            (8.1, None),
+            (9.0, None),
+        ] {
+            for sign in [1.0, -1.0] {
+                assert_eq!(
+                    handles.hit_test(on_shaft + DVec2::new(0.0, sign * offset)),
+                    expected,
+                    "{offset} at {size}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn oblique_shaft_bands_overlap_and_the_nearer_axis_wins() {
+    // On the X/Y bisector just outside the centre exclusion both shafts are within 8 px; the
+    // nearer one wins and an exact tie goes to X (see the XYZ-order test).
+    // Yaw 0.2, pitch 0.5 puts X and Y about 95 degrees apart, so the band reaches 10.8 px.
+    let camera = Camera::new(Vec3::ZERO, 0.2, 0.5, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap();
+    let handles = WorldHandles::new(&capture(&camera, 1.0), DVec3::ZERO).unwrap();
+    let origin = handles.origin;
+    let (x, y) = (shaft_of(&handles, 0), shaft_of(&handles, 1));
+    let direction = |shaft: ScreenSegment| (shaft.end - shaft.start).normalize();
+    let bisector = (direction(x) + direction(y)).normalize();
+    let distance = |axis: usize, pixel: DVec2| {
+        handles.axes()[axis]
+            .arrow()
+            .unwrap()
+            .segments()
+            .map(|segment| segment_distance_squared(*segment, pixel).sqrt())
+            .fold(f64::INFINITY, f64::min)
+    };
+    let found = (0..40).find_map(|step| {
+        let pixel = origin + bisector * (10.05 + f64::from(step) * 0.05);
+        let both = distance(0, pixel) <= HIT_RADIUS && distance(1, pixel) <= HIT_RADIUS;
+        (both && distance(2, pixel) > HIT_RADIUS).then_some(pixel)
+    });
+    let pixel = found.expect("a pixel in the X/Y overlap band outside the centre exclusion");
+    let expected = if distance(0, pixel) <= distance(1, pixel) {
+        WorldAxis::X
+    } else {
+        WorldAxis::Y
+    };
+    assert_eq!(handles.hit_test(pixel), Some(expected));
+}
+
+#[test]
 fn move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike() {
     let camera = front_camera();
     let length = |size: f64| {

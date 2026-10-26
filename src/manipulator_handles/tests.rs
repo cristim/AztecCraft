@@ -929,6 +929,148 @@ fn rotate_and_scale_pick_radius_stays_eight_pixels_at_every_size() {
 }
 
 #[test]
+fn scale_picks_at_seven_and_eight_pixels_and_misses_past_eight_at_every_size() {
+    // 7.0, 7.9 and 8.0 fail at the old 6 px radius; 8.1 and 9.0 pass there (not red).
+    let camera = front_camera();
+    for size in [0.1, 10.0] {
+        let handles = ScaleHandles::new(&sized(&camera, size), &world_frame()).unwrap();
+        let shaft = handles.axes()[0].geometry().unwrap().shaft.unwrap();
+        // The front X shaft is horizontal, so the offsets below are exact.
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.6;
+        for (offset, expected) in [
+            (7.0, Some(ScaleHandle::X)),
+            (7.9, Some(ScaleHandle::X)),
+            (8.0, Some(ScaleHandle::X)),
+            (8.1, None),
+            (9.0, None),
+        ] {
+            assert_eq!(
+                handles.hit_test(on_shaft + DVec2::new(0.0, offset)),
+                expected,
+                "{offset} at {size}"
+            );
+        }
+    }
+}
+
+#[test]
+fn rotate_picks_at_seven_pixels_and_misses_at_nine_at_every_size() {
+    // 7.0 and 7.9 fail at the old 6 px radius; 8.1 and 9.0 pass there (not red). The 8.0 edge is
+    // pinned exactly by the Move and Scale tests; a ring offset is not exact in floating point.
+    let camera = oblique_camera();
+    for size in [0.1, 10.0] {
+        let capture = ViewportCapture::new(&camera, [0, 0], [2400, 1800], 1.0)
+            .unwrap()
+            .with_manipulator_size(ManipulatorSize::new(size).unwrap());
+        let rotate = RotateHandles::new(&capture, &world_frame()).unwrap();
+        let (middle, normal) = rotate.rings()[1]
+            .segments()
+            .iter()
+            .find_map(|segment| {
+                let middle = (segment.start + segment.end) * 0.5;
+                let delta = segment.end - segment.start;
+                let normal = DVec2::new(-delta.y, delta.x).normalize();
+                let alone = [0, 2].into_iter().all(|other| {
+                    rotate.rings()[other]
+                        .segments()
+                        .iter()
+                        .all(|other| segment_distance_squared(*other, middle).sqrt() > 17.0)
+                });
+                let fits = |pixel: DVec2| inside_viewport(pixel, rotate.size);
+                (alone && fits(middle + normal * 9.0) && fits(middle - normal * 9.0))
+                    .then_some((middle, normal))
+            })
+            .expect("an isolated Y segment");
+        for (offset, expected) in [
+            (7.0, Some(RotateAxis::Y)),
+            (7.9, Some(RotateAxis::Y)),
+            (8.1, None),
+            (9.0, None),
+        ] {
+            for sign in [1.0, -1.0] {
+                assert_eq!(
+                    rotate.hit_test(middle + normal * (sign * offset)),
+                    expected,
+                    "{offset} at {size}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn scale_diagonal_ties_go_to_x_and_the_dead_zone_corner_stays_empty() {
+    // The front camera has no Z axis, so the X and Y shafts are the only candidates.
+    let handles = world_scale(&front_camera());
+    let origin = DVec2::new(400.0, 300.0);
+    // 7.5 px from both shafts: an exact tie, which goes to X. Fails at 6 px.
+    assert_eq!(
+        handles.hit_test(origin + DVec2::new(7.5, 7.5)),
+        Some(ScaleHandle::X)
+    );
+    // 8.5 px from both shafts is outside the radius. Passes at 6 px too (not red).
+    assert_eq!(handles.hit_test(origin + DVec2::new(8.5, 8.5)), None);
+    // Just past the centre box and on the shaft. Passes at 6 px too (not red).
+    assert_eq!(
+        handles.hit_test(origin + DVec2::new(7.1, 0.0)),
+        Some(ScaleHandle::X)
+    );
+}
+
+#[test]
+fn an_end_on_scale_axis_wins_a_pixel_just_outside_the_centre_box() {
+    // Known defect, widened by the 8 px radius (#297): the end-on Z tip box sits next to the
+    // origin and wins this pixel. It fails at 6 px, so 8 px is what makes Z win this pixel.
+    let handles = world_scale(&camera_at(0.02, 0.0, 10.0));
+    assert_eq!(
+        handles.hit_test(DVec2::new(400.0, 300.0) + DVec2::new(9.0, 9.0)),
+        Some(ScaleHandle::Z)
+    );
+}
+
+#[test]
+fn scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned() {
+    // Front: the corner is 10.8 px from each shaft at size 0.1, outside the 8 px radius.
+    let front = ScaleHandles::new(&sized(&front_camera(), 0.1), &world_frame()).unwrap();
+    let corner = front.origin + DVec2::new(0.3 * 36.0, -0.3 * 36.0);
+    assert_eq!(front.hit_test(corner), None);
+    assert_eq!(front.hit_disabled(corner), Some(DisabledKind::ScalePlane));
+    // Oblique: at size 0.1 the plane corners are within 8 px of a shaft. That is new behaviour:
+    // the shaft is picked in preference to the unsupported plane.
+    let oblique = ScaleHandles::new(&sized(&oblique_camera(), 0.1), &world_frame()).unwrap();
+    let corners = oblique
+        .disabled()
+        .iter()
+        .filter(|handle| handle.kind == DisabledKind::ScalePlane)
+        .flat_map(|handle| handle.segments().iter().map(|segment| segment.start))
+        .filter(|pixel| oblique.hit_test(*pixel).is_some())
+        .count();
+    assert!(corners > 0);
+}
+
+#[test]
+fn free_rotate_and_view_ring_overlap_resolves_to_the_nearer_circle() {
+    // The circles are 72 and 86.4 px out, so 79.0 to 79.5 px is within 8 px of both.
+    // Neither is in range at the old 6 px radius, so both assertions fail there.
+    let handles = world_rings(&oblique_camera());
+    let origin = handles.origin();
+    let mut checked = 0;
+    for degrees in 0..360 {
+        let angle = f64::from(degrees).to_radians();
+        let direction = DVec2::new(angle.cos(), angle.sin());
+        let free = origin + direction * 79.0;
+        let view = origin + direction * 79.5;
+        if handles.hit_test(free).is_some() || handles.hit_test(view).is_some() {
+            continue;
+        }
+        assert_eq!(handles.hit_disabled(free), Some(DisabledKind::FreeRotate));
+        assert_eq!(handles.hit_disabled(view), Some(DisabledKind::ViewRing));
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
+
+#[test]
 fn handle_geometry_constants_are_pinned_exactly() {
     assert_eq!(CENTER_BOX_HALF, 7.0);
     assert_eq!(PLANE_NEAR, 0.3);

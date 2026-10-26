@@ -1564,6 +1564,57 @@ fn hover_and_active_painter_states_use_the_same_actual_axis_hit() {
 }
 
 #[test]
+fn hover_and_press_use_the_same_eight_pixel_distance() {
+    // 7 px off the X shaft both highlight and grab (red at 6 px); 9 px does neither.
+    for (offset, grabbed) in [(7.0, true), (9.0, false)] {
+        let (mut editor, context, rect) = setup(1.0);
+        let point = rect.center() + egui::vec2(40.0, offset);
+        let shaft_is_white = |output: &egui::FullOutput| {
+            output.shapes.iter().any(|shape| {
+                matches!(&shape.shape, Shape::LineSegment { points, stroke }
+                    if points[0].distance(rect.center()) < 0.01
+                        && points[1].x > rect.center().x + 30.0
+                        && (points[1].y - rect.center().y).abs() < 0.01
+                        && stroke.color == egui::Color32::WHITE)
+            })
+        };
+        let hover = frame(
+            &mut editor,
+            &context,
+            raw(
+                egui::vec2(1440.0, 900.0),
+                Pos2::ZERO,
+                1.0,
+                vec![Event::PointerMoved(point)],
+            ),
+        );
+        assert_eq!(shaft_is_white(&hover), grabbed, "hover at {offset}");
+        let inspected = editor.inspect_manipulation().unwrap();
+        let pointer_hit = inspected.viewport.unwrap().pointer_hit;
+        assert_eq!(
+            pointer_hit,
+            grabbed.then_some("x"),
+            "inspection at {offset}"
+        );
+        frame(
+            &mut editor,
+            &context,
+            raw(
+                egui::vec2(1440.0, 900.0),
+                Pos2::ZERO,
+                1.0,
+                button(point, true),
+            ),
+        );
+        assert_eq!(
+            editor.history.active_manipulation().is_some(),
+            grabbed,
+            "press at {offset}"
+        );
+    }
+}
+
+#[test]
 fn actual_hidden_logic_cancels_native_pointer_capture() {
     let (mut editor, context, rect) = setup(1.0);
     let before = editor.history.scene().clone();

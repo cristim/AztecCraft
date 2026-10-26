@@ -407,6 +407,32 @@ fn hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_
 }
 
 #[test]
+fn scale_hover_and_press_use_the_same_eight_pixel_distance() {
+    // 7 px off the X shaft both names the handle and begins the drag (red at 6 px); 9 px neither.
+    for (offset, grabbed) in [(7.0_f32, true), (9.0, false)] {
+        let (mut editor, context, view) = setup(Key::R, 1.0);
+        let origin = view.screen(Vec3::ZERO);
+        let tip = view.screen(Vec3::X * view.radius());
+        let along = (tip - origin).normalized();
+        let normal = egui::vec2(-along.y, along.x);
+        let point = origin + (tip - origin) * 0.6 + normal * offset;
+        let help = editor.status.clone();
+        moved(&mut editor, &context, 1.0, point);
+        if grabbed {
+            assert_eq!(editor.status, "World X Scale: drag to scale");
+        } else {
+            assert_eq!(editor.status, help, "hover at {offset}");
+        }
+        press(&mut editor, &context, 1.0, point);
+        assert_eq!(
+            editor.history.active_manipulation().is_some(),
+            grabbed,
+            "press at {offset}"
+        );
+    }
+}
+
+#[test]
 fn pressing_an_unsupported_handle_is_refused_and_consumed_without_selecting() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     let origin = view.screen(Vec3::ZERO);
