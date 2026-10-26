@@ -881,3 +881,23 @@ fn set_pose_with_negative_zero_is_numerically_equal_but_not_the_same_capture() {
     assert_eq!(flipped.yaw().to_bits(), (-0.0_f32).to_bits());
     assert_eq!(flipped.pitch().to_bits(), (-0.0_f32).to_bits());
 }
+
+/// The default view is a documented-by-us constant: any drift must be a conscious change.
+#[test]
+fn default_camera_is_pinned_bit_for_bit() {
+    let camera = Camera::default();
+    assert_eq!(
+        camera.target().to_array().map(f32::to_bits),
+        [0.0_f32; 3].map(f32::to_bits)
+    );
+    let scalars = [
+        camera.distance(),
+        camera.yaw(),
+        camera.pitch(),
+        camera.fov_y(),
+        camera.near(),
+        camera.far(),
+    ];
+    let expected = [8.0, 0.6, 0.4, 45_f32.to_radians(), 0.01, 10_000.0];
+    assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
+}

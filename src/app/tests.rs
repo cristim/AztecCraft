@@ -3709,6 +3709,33 @@ fn frame_selected_repeats_while_f_is_held() {
     assert!(!editor.camera.same_capture(&panned));
 }
 
+/// Only the press frames: a release, in the same frame or a later one, must not frame again.
+#[test]
+fn frame_selected_counts_the_f_press_and_not_the_release() {
+    let none = egui::Modifiers::NONE;
+    let release = || egui::Event::Key {
+        key: Key::F,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: none,
+    };
+    let mut editor = frame_key_editor();
+    let ctx = egui::Context::default();
+    let both = vec![key_event(Key::F, none, false), release()];
+    shortcuts_in(&ctx, &mut editor, none, both);
+    let framed = editor.camera.clone();
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    let panned = editor.camera.clone();
+    assert!(!panned.same_capture(&framed));
+    shortcuts_in(&ctx, &mut editor, none, vec![release()]);
+    assert!(editor.camera.same_capture(&panned));
+    let mut lone = frame_key_editor();
+    let before = lone.camera.clone();
+    shortcuts_in(&ctx, &mut lone, none, vec![release()]);
+    assert!(lone.camera.same_capture(&before));
+}
+
 /// Held Undo and Redo repeat; Maya's hotkeys page does not say (PROVISIONAL, known-issues.md).
 #[test]
 fn held_undo_and_redo_chords_repeat() {
