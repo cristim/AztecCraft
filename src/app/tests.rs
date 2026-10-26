@@ -3726,15 +3726,18 @@ fn cmd_y_redoes_after_undo_and_shift_y_does_not() {
     assert!(editor.status.starts_with("Redo"), "{}", editor.status);
 }
 
+/// Two creates so an Undo that also fires in the same frame as the Redo leaves one object, not two.
 #[test]
 fn cmd_shift_z_still_redoes() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let full = editor.history.scene().clone();
     editor.history_step(false);
-    let undone = editor.history.scene().clone();
+    assert_ne!(editor.history.scene(), &full);
     let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
     shortcuts_with(&mut editor, chord, &[Key::Z]);
-    assert_ne!(editor.history.scene(), &undone);
+    assert_eq!(editor.history.scene(), &full);
 }
 
 #[test]
