@@ -11,7 +11,7 @@ Rotate and Scale manipulators (Maya's Global scale). No parity with Maya is clai
 state the range but not the default, the step, key repeat or persistence, so these are PROVISIONAL:
 default 1.0, keys step on the 1.25^k grid (integer k from -10 to 10, 0.107 to 9.313 when shown, so round
 trips are exact), key repeat steps again, and the size is session-only (no preferences store; it
-never dirties the scene or enters history). The MCP tool accepts any value from 0.1 to 10, rounded to three decimals; a later key step moves to the next grid value in its direction that changes the three-decimal value. A key step stores the raw grid value, so an exact tie such as 1.5625 shows as 1.563 but is stored as 1.5625.
+never dirties the scene or enters history). The MCP tool accepts any value from 0.1 to 10, rounded to three decimals; a later key step moves to the next grid value in its direction that changes the three-decimal value. A key step stores the raw grid value, so an exact tie such as 1.5625 rounds to 1.563 for stepping but is stored as 1.5625.
 
 - The drawn length is `max(72 * size, 36)` px before the view foreshortening, so below size 0.5 the
   manipulator stops shrinking on screen. A foreshortened axis (#155) can still become hard to pick.

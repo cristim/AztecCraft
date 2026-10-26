@@ -611,7 +611,7 @@ fn manipulator_size_steps_on_the_exponent_grid_and_saturate_at_its_ends() {
 
 #[test]
 fn key_steps_from_any_grid_value_return_to_it_bit_exactly() {
-    for k in -10..=10 {
+    for k in -GRID_LIMIT..=GRID_LIMIT {
         let start = ManipulatorSize(1.25_f64.powi(k));
         for n in 1..=20 {
             let mut size = start;
@@ -661,7 +661,9 @@ fn a_key_step_from_an_off_grid_value_moves_to_the_adjacent_grid_value() {
 
 #[test]
 fn every_milli_size_steps_to_the_adjacent_visibly_different_grid_value() {
-    let grid: Vec<f64> = (-10..=10).map(|k| 1.25_f64.powi(k)).collect();
+    let grid: Vec<f64> = (-GRID_LIMIT..=GRID_LIMIT)
+        .map(|k| 1.25_f64.powi(k))
+        .collect();
     let (mut skips, mut wrong_way, mut stuck, mut false_refusals) = (0, 0, 0, 0);
     for milli in 100..=10_000 {
         let size = ManipulatorSize::new(f64::from(milli) / 1000.0).unwrap();

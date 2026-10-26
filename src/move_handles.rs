@@ -10,7 +10,6 @@ pub(crate) const ARROW_LENGTH: f64 = 72.0;
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
 const GRID_LIMIT: i32 = 10;
-// A step must change the three-decimal value a set size shows, so it clears the rounding.
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;
@@ -153,10 +152,7 @@ impl ManipulatorSize {
 
     /// The smallest and largest sizes the keys reach.
     pub fn key_limits() -> (f64, f64) {
-        (
-            Self::grid().next().unwrap_or(Self::MIN),
-            Self::grid().next_back().unwrap_or(Self::MAX),
-        )
+        (SIZE_STEP.powi(-GRID_LIMIT), SIZE_STEP.powi(GRID_LIMIT))
     }
 
     // Each power comes from its integer, never from a previous f64, so steps are exact inverses.
