@@ -18,6 +18,35 @@ use eframe::egui::{self, Key};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+/// Open dialog filters, the first being the default. Maya 2025.1 lists "Maya Scenes (*.ma *.mb
+/// *.mlt)" first (`fileDialogFilterTypes.mel`); AztecCraft reads no `.mlt`, and the per-format
+/// rows keep saying how much of each format is read (#189).
+pub(super) const OPEN_FILTERS: [(&str, &[&str]); 4] = [
+    ("Maya Scenes", &["ma", "mb"]),
+    ("Maya static cubic ASCII scene", &["ma"]),
+    ("Maya binary scene", &["mb"]),
+    ("Legacy AztecCraft scene", &["aztec"]),
+];
+
+/// The unsaved-changes prompt, worded as Maya 2025.1's `saveChanges.mel`: the heading and the
+/// question for a scene with a path, then for an untitled one (#189).
+pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String) {
+    match path {
+        Some(path) => (
+            "Save Changes",
+            format!("Save changes to {}?", path.display()),
+        ),
+        None => (
+            "Warning: Scene Not Saved",
+            "Save changes to untitled scene?".into(),
+        ),
+    }
+}
+
+/// Why the prompt's Save is disabled outside reconciliation. Maya's Save runs Save As for an
+/// untitled scene; this build saves in place only an opened Maya Binary scene on macOS or Linux.
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene on macOS or Linux (#156, #15)";
+
 #[cfg(all(test, unix))]
 mod binary_fixture {
     include!("../tests/support/maya_binary.rs");
@@ -113,8 +142,13 @@ impl Editor {
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled".into());
+        let read_only = if self.history.scene().authoring_read_only_reason().is_some() {
+            " (read-only)"
+        } else {
+            ""
+        };
         format!(
-            "AztecCraft | {name}{}",
+            "AztecCraft | {name}{read_only}{}",
             if self.is_dirty() { " *" } else { "" }
         )
     }
@@ -249,13 +283,11 @@ impl Editor {
         if self.files.is_modal() {
             return;
         }
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("Open Maya or legacy scene")
-            .add_filter("Maya static cubic ASCII scene", &["ma"])
-            .add_filter("Maya binary scene", &["mb"])
-            .add_filter("Legacy AztecCraft scene", &["aztec"])
-            .pick_file()
-        {
+        let dialog = OPEN_FILTERS.iter().fold(
+            rfd::FileDialog::new().set_title("Open Maya or legacy scene"),
+            |dialog, (label, extensions)| dialog.add_filter(*label, extensions),
+        );
+        if let Some(path) = dialog.pick_file() {
             self.open_path(&path);
         }
     }
@@ -596,14 +628,16 @@ impl Editor {
         let mut decision = ctx
             .input(|i| i.key_pressed(Key::Escape))
             .then_some(FileDecision::Cancel);
+        let (heading, question) = save_changes_prompt(self.files.path.as_deref());
         egui::Modal::new(egui::Id::new("unsaved_scene")).show(ctx, |ui| {
-            ui.heading("Discard changes to this scene?");
+            ui.heading(heading);
+            ui.label(question);
             if let Some(uncertain) = &self.files.uncertain {
                 ui.label(format!(
                     "A destination may already have been written: {}",
                     uncertain.cause
                 ));
-                ui.label("Discard abandons reconciliation and the in-memory edits.");
+                ui.label("Don't Save abandons reconciliation and the in-memory edits.");
             }
             if self
                 .files
@@ -613,7 +647,7 @@ impl Editor {
             {
                 ui.label("The queued Open source changed. Cancel and reopen the file.");
             }
-            ui.label("Discarding changes cannot be undone.");
+            ui.label("Don't Save cannot be undone.");
             ui.horizontal(|ui| {
                 let source_changed = self
                     .files
@@ -625,12 +659,17 @@ impl Editor {
                         !source_changed && self.files.save_available(),
                         egui::Button::new("Save"),
                     )
+                    .on_disabled_hover_text(if source_changed {
+                        "The queued Open source changed. Cancel and reopen the file."
+                    } else {
+                        PROMPT_SAVE_UNAVAILABLE
+                    })
                     .clicked()
                 {
                     decision = Some(FileDecision::Save);
                 }
                 if ui
-                    .add_enabled(!source_changed, egui::Button::new("Discard"))
+                    .add_enabled(!source_changed, egui::Button::new("Don't Save"))
                     .clicked()
                 {
                     decision = Some(FileDecision::Discard);
@@ -676,6 +715,38 @@ mod tests {
     use crate::editor_operations::SelectionMode;
     use azteccraft::native_scene::FaceTarget;
     use azteccraft::scene::Primitive;
+
+    #[test]
+    fn open_dialog_defaults_to_the_combined_maya_scenes_filter() {
+        let (label, extensions) = OPEN_FILTERS[0];
+        assert_eq!((label, extensions), ("Maya Scenes", &["ma", "mb"][..]));
+        let offered: Vec<&str> = OPEN_FILTERS
+            .iter()
+            .flat_map(|(_, ext)| ext.iter().copied())
+            .collect();
+        for extension in ["ma", "mb", "aztec"] {
+            assert!(offered.contains(&extension), "{extension}");
+        }
+    }
+
+    #[test]
+    fn save_changes_prompt_uses_mayas_wording() {
+        assert_eq!(
+            save_changes_prompt(None),
+            (
+                "Warning: Scene Not Saved",
+                "Save changes to untitled scene?".to_owned()
+            )
+        );
+        let path = Path::new("scenes").join("shot.mb");
+        assert_eq!(
+            save_changes_prompt(Some(&path)),
+            (
+                "Save Changes",
+                format!("Save changes to {}?", path.display())
+            )
+        );
+    }
 
     #[cfg(unix)]
     pub(super) fn relocate_completed_stage_once(
@@ -1977,6 +2048,43 @@ mod tests {
                 ..Default::default()
             },
         );
+    }
+
+    #[test]
+    fn unsaved_prompt_names_the_current_scene_not_the_open_candidate() {
+        let directory = tempfile::tempdir().unwrap();
+        let current = directory.path().join("current.aztec");
+        let candidate = directory.path().join("candidate.aztec");
+        write_legacy_cube(&current, 0.0);
+        write_legacy_cube(&candidate, 1.0);
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::OpenScene {
+                path: current.clone(),
+            })
+            .unwrap();
+        editor.create(Primitive::Cube);
+        editor
+            .apply_operation(Operation::OpenScene { path: candidate })
+            .unwrap();
+        assert!(editor.files.is_modal());
+        let ctx = egui::Context::default();
+        let output = ui_frame(&mut editor, &ctx, egui::RawInput::default());
+        let texts: Vec<String> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) => Some(text.galley.job.text.clone()),
+                _ => None,
+            })
+            .collect();
+        let question = format!("Save changes to {}?", current.display());
+        for expected in ["Save Changes", question.as_str(), "Don't Save"] {
+            assert!(
+                texts.iter().any(|text| text == expected),
+                "{expected}: {texts:?}"
+            );
+        }
     }
 
     #[test]

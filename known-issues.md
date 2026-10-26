@@ -271,6 +271,29 @@ and every edge through surfaces. When that check is over budget `vertex_markers_
 `ViewInstance` edge; the bin crate has no loose-edge fixture, so the face-less case is
 covered by the carried edge list and the picker tests, not pixels.
 
+## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
+
+**Severity:** low
+**Area:** native document lifecycle
+**Issue:** cristim/AztecCraft#189
+
+The Open dialog's first (default) filter is "Maya Scenes" for `*.ma` and `*.mb`, as Maya 2025.1's
+`fileDialogFilterTypes.mel` puts "Maya Scenes (*.ma *.mb *.mlt)" first; AztecCraft reads no `.mlt`,
+and the per-format filters keep their existing labels, which say how much of each format is
+read. The unsaved-changes prompt uses Maya 2025.1's `saveChanges.mel` wording: "Save Changes" and
+"Save changes to <path>?" for a scene with a path (Maya formats the full scene name), "Warning:
+Scene Not Saved" and "Save changes to untitled scene?" otherwise, with Save, Don't Save and
+Cancel. The MCP decision for Don't Save is still `discard`. AztecCraft keeps its own extra lines
+for uncertain writes and changed Open sources. The default filter applies where the platform dialog has a filter list: Windows and GTK select
+the first filter, the Linux XDG portal leaves the default to its backend (PROVISIONAL), and the
+macOS panel merges every filter into its allowed types with no filter choice. In the prompt, Save
+is disabled with a reason unless the scene is an opened Maya Binary on macOS or Linux (or a write
+is being reconciled); Maya's Save would run Save As for an untitled scene (#156, #15). A read-only
+(Maya ASCII) scene shows " (read-only)" in the window title and its reason at the top of the File
+menu, both AztecCraft additions with no Maya counterpart. File > Recent Files is not implemented
+yet: it needs persisted preferences and an MCP read path. Maya 2026 and the 2027.2 documentation
+pin are unverified.
+
 ## Selection changes are refused under a file modal
 
 **Severity:** low
@@ -348,7 +371,7 @@ The revised hidden logic path and retained-input guard pass actual trait-callbac
 **Severity:** medium
 **Area:** native document lifecycle
 
-Cmd-Q, the AztecCraft > Quit menu item, Dock Quit, Quit All from the Apple menu, logout and shutdown all send `terminate:`. `crates/macos-quit-menu` adds an `applicationShouldTerminate:` method to winit's application delegate at startup (additive `class_addMethod`; the launch aborts with a printed error if the selector already exists or the delegate shape changed; winit is pinned to 0.30.13 and `tests/winit_pin.rs` fails if the lock moves). The hook replies "terminate later", asks the app to close the front window through the shared close guard (#11), and answers AppKit with the user's choice, so each of those paths is designed to show the Save/Discard/Cancel prompt (native coverage is listed below). The earlier `performClose:` retarget of the Quit item is retired. With no key window the hook picks the window itself, which should stop the Cmd-Q beep (native check pending).
+Cmd-Q, the AztecCraft > Quit menu item, Dock Quit, Quit All from the Apple menu, logout and shutdown all send `terminate:`. `crates/macos-quit-menu` adds an `applicationShouldTerminate:` method to winit's application delegate at startup (additive `class_addMethod`; the launch aborts with a printed error if the selector already exists or the delegate shape changed; winit is pinned to 0.30.13 and `tests/winit_pin.rs` fails if the lock moves). The hook replies "terminate later", asks the app to close the front window through the shared close guard (#11), and answers AppKit with the user's choice, so each of those paths is designed to show the Save/Don't Save/Cancel prompt (native coverage is listed below). The earlier `performClose:` retarget of the Quit item is retired. With no key window the hook picks the window itself, which should stop the Cmd-Q beep (native check pending).
 
 Fallbacks, all deliberate:
 - If a terminate is owed and `request_close` is refused for good (an invalid text draft or an active manipulation), the app declines the terminate: a logout or shutdown is aborted instead of hanging, and the user fixes the draft and quits again.

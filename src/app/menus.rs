@@ -261,6 +261,11 @@ impl Editor {
         let authoring = read_only_reason.is_none();
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
+                if let Some(reason) = read_only_reason {
+                    // The opened scene cannot be saved; say so above the actions (#189).
+                    ui.weak(format!("Read-only scene: {reason}"));
+                    ui.separator();
+                }
                 for action in self.file_actions() {
                     let mut response =
                         ui.add_enabled(action.enabled, egui::Button::new(action.menu_text()));

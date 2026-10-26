@@ -1731,6 +1731,68 @@ fn channel_box_is_blank_with_nothing_selected() {
 }
 
 #[test]
+fn read_only_scene_is_marked_in_the_title_and_file_menu() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert_eq!(editor.document_title(), "AztecCraft | curve.ma (read-only)");
+    let reason = editor.read_only_reason().unwrap();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let file = face_text_position(&output, "File");
+    let output = face_pointer_click(&mut editor, &ctx, file, egui::Modifiers::NONE, vec![]);
+    let marker = face_text_position(&output, &format!("Read-only scene: {reason}"));
+    assert!(marker.y < face_text_position(&output, "Close").y);
+
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    assert_eq!(editor.document_title(), "AztecCraft | Untitled *");
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let file = face_text_position(&output, "File");
+    let output = face_pointer_click(&mut editor, &ctx, file, egui::Modifiers::NONE, vec![]);
+    face_text_position(&output, "Close");
+    assert!(!output.shapes.iter().any(|shape| matches!(
+        &shape.shape,
+        egui::Shape::Text(text) if text.galley.job.text.starts_with("Read-only scene")
+    )));
+}
+
+#[test]
+fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    for text in [
+        "Warning: Scene Not Saved",
+        "Save changes to untitled scene?",
+    ] {
+        face_text_position(&output, text);
+    }
+    let buttons: Vec<f32> = ["Save", "Don't Save", "Cancel"]
+        .iter()
+        .map(|label| face_text_position(&output, label).x)
+        .collect();
+    assert!(
+        buttons.windows(2).all(|pair| pair[0] < pair[1]),
+        "{buttons:?}"
+    );
+    // An untitled scene cannot be saved in place yet (Maya would Save As), so Save is inert.
+    let before = editor.history.scene().clone();
+    let save = face_text_position(&output, "Save");
+    face_pointer_click(&mut editor, &ctx, save, egui::Modifiers::NONE, vec![]);
+    assert!(editor.files.is_modal());
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
 fn help_line_carries_the_read_only_reason_and_curves_note() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("curve.ma");
@@ -4087,7 +4149,7 @@ fn face_native_menu_explicit_face_beats_toggle_and_modal_replacement_drops_inten
     assert!(editor.files.is_modal());
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     let output = frame(&mut editor, &ctx, vec![]);
-    let discard = face_text_position(&output, "Discard");
+    let discard = face_text_position(&output, "Don't Save");
     face_pointer_click(
         &mut editor,
         &ctx,

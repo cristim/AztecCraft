@@ -342,7 +342,7 @@ If saving changed that source, the reply still acknowledges the Save with
 `pending_action_status: source_changed`; the same pending action remains blocked
 against Discard until Cancel and reopening. A newer dirty snapshot or expired
 request retains the pending action. Cancel preserves uncertainty. Explicit
-Discard warns that a destination may already contain written bytes and abandons
+Don't Save (decision `discard`) warns that a destination may already contain written bytes and abandons
 the receipt only after a successful document replacement; Close retains it until
 actual Editor drop, including a failed close-response flush.
 
@@ -391,7 +391,7 @@ The [first-click text fix](../known-issues.md#first-click-text-input-can-be-lost
 
 ## Shutdown and verification
 
-Ingress EOF or protocol failure closes the bridge immediately, skips queued mutations and invokes the existing native close guard before SDK handler draining, except after a failed remote-close delivery attempt as described above. A clean editor closes. Unsaved committed scenes, including valid drafts committed by native close handling, prompt Save/Discard/Cancel confirmation, with Save enabled only for active-save or receipt-reconciliation eligibility. An invalid draft keeps the GUI open with a validation error; the user must fix or cancel that edit before Close can reach confirmation. This deliberately departs from MCP's recommendation to exit promptly for a dirty document. A client can forcibly terminate its subprocess and lose unsaved work; universal shutdown compatibility is not claimed. Cancelling native close does not revive an EOF-closed protocol connection.
+Ingress EOF or protocol failure closes the bridge immediately, skips queued mutations and invokes the existing native close guard before SDK handler draining, except after a failed remote-close delivery attempt as described above. A clean editor closes. Unsaved committed scenes, including valid drafts committed by native close handling, prompt Save/Don't Save/Cancel confirmation (decision `discard` for Don't Save), with Save enabled only for active-save or receipt-reconciliation eligibility. An invalid draft keeps the GUI open with a validation error; the user must fix or cancel that edit before Close can reach confirmation. This deliberately departs from MCP's recommendation to exit promptly for a dirty document. A client can forcibly terminate its subprocess and lose unsaved work; universal shutdown compatibility is not claimed. Cancelling native close does not revive an EOF-closed protocol connection.
 
 Approved native close cancels protocol work and uses a one-second bounded runtime shutdown rather than waiting indefinitely on silent stdin. The subprocess regression holds stdin open and checks bounded cleanup. Tests also cover actual Editor input/order/history, official SDK tool journeys, both lifecycles, cancellation, deadlines, floods, framing and stalled output. They use real Editor/egui state without an OS window. Native protocol/window verification and cross-platform graphical interaction remain separate evidence requirements.
 

@@ -279,8 +279,8 @@ Open validates/prepares an off-document candidate and frames its visible geometr
 before replacement or an unsaved confirmation. Discard applies the exact staged
 bytes, even if the path changed; a modal resize reframes that candidate using the
 current aspect before consuming it. Failed decode/view/framing preserves the old
-document. New/Open/Close use explicit eligible Save/Discard/Cancel with a
-pending-action UUID; MCP also requires the current scene token. A successful Save
+document. New/Open/Close use explicit eligible Save/Don't Save/Cancel (MCP decision
+`discard` for Don't Save) with a pending-action UUID; MCP also requires the current scene token. A successful Save
 acknowledges its written snapshot before revalidating queued Open. A source
 detected as changed during Save blocks that pending Open until Cancel/reopen.
 Uncertain installations retain a
