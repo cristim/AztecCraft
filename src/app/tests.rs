@@ -1529,13 +1529,58 @@ fn help_line_summary_is_closed_until_the_scene_diagnostics_header_opens() {
 }
 
 #[test]
+fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let scene = editor.history.scene().clone();
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let mut output = context.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(420.0, 1200.0),
+            )),
+            ..Default::default()
+        },
+        |ui| editor.channels(ui, &mut false),
+    );
+    output.textures_delta.clear();
+    let y = |label: &str| face_text_position(&output, label).y;
+    let order = [
+        "Translate X",
+        "SHAPES",
+        "INPUTS",
+        "OUTPUTS",
+        "Materials",
+        "Layers",
+    ];
+    for pair in order.windows(2) {
+        assert!(y(pair[0]) < y(pair[1]), "{} before {}", pair[0], pair[1]);
+    }
+    let stubs = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.label() == Some("Not implemented yet"))
+        .collect::<Vec<_>>();
+    assert_eq!(stubs.len(), 4);
+    assert!(stubs.iter().all(|(_, node)| node.is_disabled()));
+    assert_eq!(editor.history.scene(), &scene);
+    assert!(!editor.has_draft());
+}
+
+#[test]
 fn channel_box_is_blank_with_nothing_selected() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.select(None);
     assert!(editor.single_target().is_err());
     let (text, _) = channel_box_text(&mut editor);
-    assert_eq!(text, "Channel Box");
+    assert_eq!(text, "Channel Box|Layers|Not implemented yet");
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("curve.ma");
     std::fs::write(&path, ascii_fixture::specimen()).unwrap();
@@ -1974,7 +2019,20 @@ fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
     let menu = face_text_position(&output, "Display");
     let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
     let row = face_text_position(&output, "Grid Options");
-    assert!(face_text_position(&output, "Not implemented yet").y < row.y);
+    // The Channel Box on the right also carries unsupported stubs; the menu row is the left one.
+    let stub = output
+        .shapes
+        .iter()
+        .find_map(|shape| match &shape.shape {
+            egui::Shape::Text(text)
+                if text.galley.job.text == "Not implemented yet" && text.pos.x < 1100.0 =>
+            {
+                Some(text.pos)
+            }
+            _ => None,
+        })
+        .expect("menu stub row");
+    assert!(stub.y < row.y);
     let before = (editor.grid_visible, editor.history.scene().clone());
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
     assert_eq!(
@@ -4453,7 +4511,11 @@ mod menu_bar_wire {
             let opened = frame(&mut editor, &context, vec![]);
             let rows: Vec<Control> = controls(&opened)
                 .into_iter()
-                .filter(|c| c.rect.top() > 30.0 && c.label == "Not implemented yet")
+                .filter(|c| {
+                    c.rect.top() > 20.0
+                        && c.rect.left() < 1100.0
+                        && c.label == "Not implemented yet"
+                })
                 .collect();
             assert_eq!(rows.len(), 1, "{label}");
             assert!(rows[0].disabled, "{label} row must be disabled");

@@ -282,6 +282,7 @@ impl Editor {
         ui.label(RichText::new("Channel Box").strong());
         ui.separator();
         if self.single_target().is_err() {
+            unsupported_section(ui, "Layers");
             return;
         }
         let read_only_reason = self.read_only_reason();
@@ -289,6 +290,9 @@ impl Editor {
         let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
         let channel_blur = self.transform_section(ui, authoring);
         self.commit_on_blur(name_blur | channel_blur);
+        for heading in ["SHAPES", "INPUTS", "OUTPUTS"] {
+            unsupported_section(ui, heading);
+        }
         self.material_controls(ui);
         ui.separator();
         if ui
@@ -302,9 +306,13 @@ impl Editor {
             *delete_intent = true;
         }
         ui.separator();
-        ui.weak("Inputs / construction history");
-        unsupported(ui, "Not implemented yet");
+        unsupported_section(ui, "Layers");
     }
+}
+
+fn unsupported_section(ui: &mut egui::Ui, heading: &str) {
+    ui.label(RichText::new(heading).strong());
+    unsupported(ui, "Not implemented yet");
 }
 
 #[derive(Clone, Copy)]
