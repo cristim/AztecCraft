@@ -181,7 +181,7 @@
   },
   {
     "name": "set_manipulator_size",
-    "description": "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); the value is rounded to three decimals, so 2.5555 reads back as 2.556. The keys step on the 1.25^k grid (k from -10 to 10, about 0.107 to 9.313) and a step from an off-grid value moves to the next grid value in that direction that changes the three-decimal value. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
+    "description": "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); a value set here is rounded to three decimals, so 2.5555 reads back as 2.556. The keys step on the 1.25^k grid (k from -10 to 10, about 0.107 to 9.313) and store the exact grid value, so after a key step inspect_scene may report more decimals (for example 1.5625); a step from an off-grid value moves to the next grid value in that direction that changes the three-decimal value. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
