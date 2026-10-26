@@ -829,3 +829,34 @@ fn transform_attributes_render_read_only_for_a_node_with_extras() {
     let texts = attribute_editor_texts(&mut plain, &context, vec![]);
     assert!(texts.iter().any(|text| text == "xyz"), "{texts:?}");
 }
+
+#[test]
+fn attribute_editor_scrolls_to_the_pivots_at_the_minimum_window_size() {
+    use crate::app::tests::{visible_text_rects, wheel_frames};
+    let (mut editor, context) = setup();
+    ctrl_a(&mut editor, &context);
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    assert_eq!(editor.sidebar_dock, Some(AE));
+    for text in ["Rotate Pivot Translate", "Scale Pivot Translate"] {
+        assert!(
+            visible_text_rects(&output, text).is_empty(),
+            "{text} visible"
+        );
+    }
+    let camera = editor.camera.clone();
+    let over_body = Pos2::new(SIZE.x - 100.0, 300.0);
+    let output = wheel_frames(&mut editor, &context, SIZE, over_body, 10);
+    assert_eq!(editor.camera, camera, "wheel reached the viewport");
+    for text in [
+        "Pivots (read-only)",
+        "Rotate Pivot Translate",
+        "Scale Pivot Translate",
+    ] {
+        assert!(
+            !visible_text_rects(&output, text).is_empty(),
+            "{text} unreachable"
+        );
+    }
+    // The tab bar stays pinned while the body scrolls.
+    assert!(!visible_text_rects(&output, "Attribute Editor").is_empty());
+}

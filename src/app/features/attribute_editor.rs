@@ -145,6 +145,21 @@ pub(in crate::app) fn ctrl_a_target(dock: Option<SidebarPanel>) -> SidebarPanel 
 impl Editor {
     pub(in crate::app) fn attribute_editor(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Attribute Editor").strong());
+        let Some(active) = self.effective_attribute_editor_tab() else {
+            ui.separator();
+            ui.weak("Select an object to edit its attributes.");
+            return;
+        };
+        ui.separator();
+        self.attribute_editor_tabs(ui, active);
+        ui.separator();
+        egui::ScrollArea::vertical()
+            .id_salt("attribute_editor_scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| self.attribute_editor_body(ui, active));
+    }
+
+    fn attribute_editor_body(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
         let read_only_reason = self.history.scene().authoring_read_only_reason();
         let authoring = read_only_reason.is_none();
         if let Some(reason) = read_only_reason {
@@ -154,12 +169,6 @@ impl Editor {
             ui.weak("Curves: select in the Outliner and frame with F. Curve attributes are unavailable.");
         }
         self.appearance_summary(ui);
-        ui.separator();
-        let Some(active) = self.effective_attribute_editor_tab() else {
-            ui.weak("Select an object to edit its attributes.");
-            return;
-        };
-        self.attribute_editor_tabs(ui, active);
         ui.separator();
         match active {
             AttributeEditorTab::Transform(_) => {

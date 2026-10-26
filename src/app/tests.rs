@@ -1589,37 +1589,109 @@ fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state()
     assert!(!editor.has_draft());
 }
 
-#[test]
-fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
-    let mut editor = Editor::default();
-    editor.create(Primitive::Cube);
-    let ctx = egui::Context::default();
-    let size = egui::vec2(960.0, 640.0);
-    let painted = |output: &egui::FullOutput, text: &str| {
-        output.shapes.iter().any(|shape| match &shape.shape {
-            egui::Shape::Text(t) => t.galley.job.text == text && t.pos.y < size.y,
-            _ => false,
+/// Rects of every `text` paint whose whole galley lies inside the clip it was painted with.
+pub(in crate::app) fn visible_text_rects(output: &egui::FullOutput, text: &str) -> Vec<egui::Rect> {
+    output
+        .shapes
+        .iter()
+        .filter_map(|clipped| match &clipped.shape {
+            egui::Shape::Text(t) if t.galley.job.text == text => {
+                let rect = egui::Rect::from_min_size(t.pos, t.galley.size());
+                clipped.clip_rect.contains_rect(rect).then_some(rect)
+            }
+            _ => None,
         })
-    };
-    let mut output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
-    assert!(painted(&output, "Translate X"));
-    assert!(!painted(&output, "Delete selected"), "scroll not exercised");
-    let camera = editor.camera.clone();
-    // Pointer over the right-hand Channel Box panel, below its heading.
-    let over_panel = egui::pos2(size.x - 100.0, 300.0);
-    let mut events = vec![egui::Event::PointerMoved(over_panel)];
-    for _ in 0..10 {
+        .collect()
+}
+
+pub(in crate::app) fn wheel_frames(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    over: egui::Pos2,
+    frames: usize,
+) -> egui::FullOutput {
+    let mut events = vec![egui::Event::PointerMoved(over)];
+    let mut output = egui::FullOutput::default();
+    for _ in 0..frames {
         events.push(egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Point,
             delta: egui::vec2(0.0, -200.0),
             phase: egui::TouchPhase::Move,
             modifiers: egui::Modifiers::NONE,
         });
-        output = frame_with(&mut editor, &ctx, size, 1.0, std::mem::take(&mut events));
+        output = frame_with(editor, ctx, size, 1.0, std::mem::take(&mut events));
     }
+    output
+}
+
+#[test]
+fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let size = egui::vec2(960.0, 640.0);
+    let output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(!visible_text_rects(&output, "Translate X").is_empty());
+    assert!(
+        visible_text_rects(&output, "Delete selected").is_empty(),
+        "scroll not exercised"
+    );
+    let camera = editor.camera.clone();
+    // Pointer over the right-hand Channel Box panel, below its heading.
+    let over_panel = egui::pos2(size.x - 100.0, 300.0);
+    let output = wheel_frames(&mut editor, &ctx, size, over_panel, 10);
     assert_eq!(editor.camera, camera, "wheel reached the viewport");
-    assert!(painted(&output, "Delete selected"), "Delete unreachable");
-    assert!(painted(&output, "Layers"), "Layers unreachable");
+    let delete = visible_text_rects(&output, "Delete selected");
+    assert!(!delete.is_empty(), "Delete unreachable");
+    assert!(
+        !visible_text_rects(&output, "Layers").is_empty(),
+        "Layers unreachable"
+    );
+    // Hover the Layers stub, the last "Not implemented yet" button.
+    let stub = visible_text_rects(&output, "Not implemented yet")
+        .into_iter()
+        .max_by(|a, b| a.center().y.total_cmp(&b.center().y))
+        .unwrap();
+    let mut tooltip = false;
+    for step in 0..8 {
+        let mut input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(10.0 + f64::from(step) * 0.25),
+            events: vec![egui::Event::PointerMoved(stub.center())],
+            ..Default::default()
+        };
+        if let Some(viewport) = input.viewports.get_mut(&egui::ViewportId::ROOT) {
+            viewport.native_pixels_per_point = Some(1.0);
+        }
+        let hovered = ctx.run_ui(input, |ui| editor.render(ui));
+        tooltip = !visible_text_rects(&hovered, "Not implemented in this build").is_empty();
+    }
+    assert!(tooltip, "Layers stub tooltip not painted");
+    let at = delete[0].center();
+    frame_with(
+        &mut editor,
+        &ctx,
+        size,
+        1.0,
+        vec![egui::Event::PointerMoved(at)],
+    );
+    for pressed in [true, false] {
+        frame_with(
+            &mut editor,
+            &ctx,
+            size,
+            1.0,
+            vec![egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+    }
+    assert!(editor.history.scene().nodes().is_empty(), "Delete click");
 }
 
 #[test]
