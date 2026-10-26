@@ -32,7 +32,9 @@ Attributes, rotate and scale pivots, limits, visibility editing and material ass
 visibly unsupported, and Shear, Rotate Order, Rotate Axis and the pivot translations are shown
 read-only with no edit control. Maya's default modifier is Ctrl on every platform; AztecCraft
 uses an explicit Ctrl modifier rather than its `modifiers.command` convention, and the macOS
-Cmd-versus-Ctrl behavior is unverified. Native visual verification is pending.
+Cmd-versus-Ctrl behavior is unverified. Native visual verification is pending. The body
+scrolls with the wheel; Alt+middle-drag and Ctrl+Alt+middle-drag panning and wheel-over-tabs
+node switching (Maya 2027 Attribute Editor page) are unsupported.
 
 ## Reference baseline unavailable
 
@@ -115,8 +117,8 @@ validation doesn't repair geometry or guarantee rendering fidelity.
 The camera core is connected to a depth-tested opaque GPU geometry viewport with hardware clipping. Materials, transparency, normal shading, textures, document color management and reference navigation parity remain pending. Backend failures remain explicit with no CPU fallback. These limits are described in [development instructions](.project-docs/development.md).
 
 Checked source appearance summaries now distinguish supported immutable source
-associations from unavailable or unbound shapes in the Channel Box and MCP
-inspection. They do not evaluate materials, resolve texture assets, prove
+associations from unavailable or unbound shapes in the Help Line's "Scene
+diagnostics" header and MCP inspection. They do not evaluate materials, resolve texture assets, prove
 quadratic-filter equivalence or provide a color processor. The geometry preview
 continues to report incomplete appearance; correct display and Maya comparison
 remain acceptance work.
