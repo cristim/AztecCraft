@@ -701,3 +701,20 @@ profile from it), or Maya rejects, repairs or rewrites these files (issue #5 ask
 Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
 Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
 found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+
+## Marquee drag feedback has PROVISIONAL edge cases
+
+**Severity:** low
+**Area:** viewport input
+**Issue:** cristim/AztecCraft#168
+
+A plain primary drag in the viewport ends with the status "Marquee (drag) selection is not
+implemented yet; click to select", because the real marquee (#30) is missing. The message is decided
+per drag from egui's drag state and the release event's modifiers. These cases are PROVISIONAL and
+unverified against Maya:
+
+- A stationary press held over 0.8 s counts as a drag in egui 0.36, so it shows the message and no
+  longer click-selects.
+- Releasing Alt before the drag threshold is crossed shows the message, because no Orbit was emitted.
+- A fast flick whose press, move and release coalesce into one frame is not seen as a drag and shows
+  nothing.
