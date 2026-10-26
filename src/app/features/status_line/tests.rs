@@ -14,7 +14,14 @@ const MODES: [&str; 3] = [
 const COMPONENT_TYPES: [&str; 3] = ["Vertex selection", "Edge selection", "Face selection"];
 const MENU_SET: &str = "Menu set";
 const PRESETS: &str = "Selection mode menu";
-const FILES: [&str; 3] = ["New scene", "Open...", "Save"];
+const STRIP_FILES: [&str; 3] = ["New Scene", "Open Scene", "Save Scene"];
+/// Menu row text, hints included. Save Scene As has a row but no strip button.
+const MENU_FILES: [&str; 4] = [
+    "New Scene",
+    "Open Scene",
+    "Save Scene   Ctrl/Cmd S",
+    "Save Scene As   Ctrl/Cmd Shift S",
+];
 const HIERARCHY: &str = "Hierarchy selection";
 const CHANNEL_BOX: &str = "Channel Box / Layer Editor";
 const ATTRIBUTE_EDITOR: &str = "Attribute Editor";
@@ -68,7 +75,7 @@ fn strip(output: &egui::FullOutput) -> Vec<Control> {
         .into_iter()
         .filter(|c| {
             c.role == accesskit::Role::ComboBox && (c.label == MENU_SET || c.label == PRESETS)
-                || FILES.contains(&c.label.as_str())
+                || STRIP_FILES.contains(&c.label.as_str())
                 || MODES.contains(&c.label.as_str())
                 || COMPONENT_TYPES.contains(&c.label.as_str())
                 || TOGGLES.contains(&c.label.as_str())
@@ -172,7 +179,7 @@ fn strip_elements_are_in_documented_order() {
     let labels: Vec<String> = strip(&output).into_iter().map(|c| c.label).collect();
     let expected: Vec<&str> = [MENU_SET]
         .into_iter()
-        .chain(FILES)
+        .chain(STRIP_FILES)
         .chain([PRESETS])
         .chain(MODES)
         .chain(COMPONENT_TYPES)
@@ -989,7 +996,7 @@ fn first_click_text_is_ignored_while_a_popup_is_open() {
 #[test]
 fn new_scene_in_the_same_frame_drops_the_toggle_request() {
     // Fallback path, not the Space-plus-click frame. Spiked: Space alone activates the toggle
-    // with the File popup open, but a pointer press on "New scene" in that frame moves focus
+    // with the File popup open, but a pointer press on "New Scene" in that frame moves focus
     // to that item first, so Space activates the item and no toggle request exists to drop.
     let mut editor = Editor {
         renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
@@ -999,7 +1006,7 @@ fn new_scene_in_the_same_frame_drops_the_toggle_request() {
     strip_output(&mut editor, &context);
     let old = editor.scene_token;
     editor.sidebar_panel_request = Some((SidebarPanel::ChannelBox, false));
-    // The menu bar draws before viewport(), so New scene has run when the request is consumed.
+    // The menu bar draws before viewport(), so New Scene has run when the request is consumed.
     editor.request_new();
     assert_ne!(editor.scene_token, old, "a clean New replaces the document");
     let mut output = context.run_ui(egui::RawInput::default(), |ui| {
@@ -1205,7 +1212,7 @@ fn open_file_menu(
     controls(&output)
         .into_iter()
         .filter(|c| {
-            FILES.contains(&c.label.as_str())
+            MENU_FILES.contains(&c.label.as_str())
                 && !strip_rects.contains(&c.rect)
                 && (c.rect.left() - file.rect.left()).abs() < 20.0
         })
@@ -1217,7 +1224,9 @@ fn strip_files(output: &egui::FullOutput) -> Vec<Control> {
     let row = found[0].rect.center().y;
     found
         .into_iter()
-        .filter(|c| FILES.contains(&c.label.as_str()) && (c.rect.center().y - row).abs() < 8.0)
+        .filter(|c| {
+            STRIP_FILES.contains(&c.label.as_str()) && (c.rect.center().y - row).abs() < 8.0
+        })
         .collect()
 }
 
@@ -1243,38 +1252,65 @@ fn strip_file_buttons_match_the_file_menu_in_enable_state_and_hover_reason() {
         if matches!(state, FileState::Modal) {
             // The modal blocks the menu bar, so the strip must be as inert as the menu.
             assert!(items.is_empty());
-            for (button, action) in buttons.iter().zip(&actions) {
+            for (button, action) in buttons.iter().zip(actions.iter().filter(|a| a.strip)) {
                 assert_eq!(button.disabled, !action.enabled, "{state:?}");
             }
             continue;
         }
-        assert_eq!(items.len(), 3, "{state:?} menu items");
-        for (index, label) in FILES.iter().enumerate() {
-            let button = buttons.iter().find(|b| b.label == *label).unwrap();
-            let item = items.iter().find(|i| i.label == *label).unwrap();
-            assert_eq!(button.disabled, item.disabled, "{state:?} {label} enable");
-            assert_eq!(
-                button.disabled, !actions[index].enabled,
-                "{state:?} {label}"
-            );
+        assert_eq!(items.len(), 4, "{state:?} menu items");
+        for (index, menu_label) in MENU_FILES.iter().enumerate() {
+            let action = &actions[index];
+            assert_eq!(action.menu_text(), *menu_label, "{state:?}");
+            let item = items.iter().find(|i| i.label == *menu_label).unwrap();
+            assert_eq!(item.disabled, !action.enabled, "{state:?} {menu_label}");
             let menu_hover = hover_texts(&mut editor, &context, item.rect.center());
-            let strip_hover =
-                &strip_hovers[buttons.iter().position(|b| b.label == *label).unwrap()];
-            match (&reason, *label) {
-                (Some(reason), "Save") => {
-                    assert!(button.disabled, "{state:?}");
-                    assert_eq!(actions[index].reason.as_ref(), Some(reason), "{state:?}");
-                    assert_eq!(actions[index].hover(), reason.as_str(), "{state:?}");
-                    assert!(menu_hover.contains(reason.as_str()), "{state:?} menu");
+            let read_only_row = matches!(action.label, "Save Scene" | "Save Scene As");
+            if let (Some(reason), true) = (&reason, read_only_row) {
+                assert!(item.disabled, "{state:?} {menu_label}");
+                assert_eq!(action.reason.as_ref(), Some(reason), "{state:?}");
+                assert!(menu_hover.contains(reason.as_str()), "{state:?} menu");
+            }
+            let found = buttons.iter().position(|b| b.label == action.label);
+            assert_eq!(
+                found.is_some(),
+                action.strip,
+                "{state:?} {menu_label} strip"
+            );
+            let Some(position) = found else { continue };
+            let button = &buttons[position];
+            let strip_hover = &strip_hovers[position];
+            assert_eq!(
+                button.disabled, item.disabled,
+                "{state:?} {menu_label} enable"
+            );
+            match (&reason, action.label) {
+                (Some(reason), "Save Scene") => {
+                    assert_eq!(action.hover(), reason.as_str(), "{state:?}");
                     assert!(strip_hover.contains(reason.as_str()), "{state:?} strip");
                 }
                 _ => assert!(
-                    strip_hover.contains(actions[index].tooltip),
-                    "{state:?} {label}: {strip_hover}"
+                    strip_hover.contains(action.tooltip),
+                    "{state:?} {menu_label}: {strip_hover}"
                 ),
             }
         }
     }
+}
+
+#[test]
+fn file_menu_lists_the_maya_labels_with_hints_in_order() {
+    let (mut editor, context) = file_editor(FileState::Clean);
+    let strip_output = strip_output(&mut editor, &context);
+    let rects: Vec<Rect> = strip_files(&strip_output).iter().map(|b| b.rect).collect();
+    let mut items = open_file_menu(&mut editor, &context, &rects);
+    items.sort_by(|a, b| a.rect.top().total_cmp(&b.rect.top()));
+    let labels: Vec<&str> = items.iter().map(|i| i.label.as_str()).collect();
+    assert_eq!(labels, MENU_FILES);
+    let strip: Vec<String> = strip_files(&strip_output)
+        .into_iter()
+        .map(|b| b.label)
+        .collect();
+    assert_eq!(strip, STRIP_FILES);
 }
 
 #[test]
@@ -1283,7 +1319,7 @@ fn strip_save_enablement_comes_from_file_actions() {
     let output = strip_output(&mut editor, &context);
     let save = strip_files(&output)
         .into_iter()
-        .find(|b| b.label == "Save")
+        .find(|b| b.label == "Save Scene")
         .unwrap();
     assert_eq!(save.disabled, !editor.files.save_available());
 }
@@ -1309,8 +1345,8 @@ fn strip_and_menu_clicks_dispatch_the_same_handlers() {
     // Modal only compares "no change": the modal blocks the File menu. Open is not clicked
     // outside Modal because open_dialog calls rfd directly (src/file_ui.rs), with no seam.
     for state in ALL_STATES {
-        for label in FILES {
-            if label == "Open..." && !matches!(state, FileState::Modal) {
+        for (index, label) in STRIP_FILES.into_iter().enumerate() {
+            if label == "Open Scene" && !matches!(state, FileState::Modal) {
                 // The unmodal Open handler would block on a native dialog.
                 continue;
             }
@@ -1328,7 +1364,7 @@ fn strip_and_menu_clicks_dispatch_the_same_handlers() {
                 continue;
             }
             let items = open_file_menu(&mut by_menu, &context, &rects);
-            let item = items.iter().find(|i| i.label == label).unwrap();
+            let item = items.iter().find(|i| i.label == MENU_FILES[index]).unwrap();
             click(&mut by_menu, &context, item.rect.center());
 
             assert_eq!(outcome(&by_strip), outcome(&by_menu), "{state:?} {label}");
@@ -1342,7 +1378,7 @@ fn dirty_new_from_the_strip_raises_the_unsaved_changes_modal() {
     let output = strip_output(&mut editor, &context);
     let new = strip_files(&output)
         .into_iter()
-        .find(|b| b.label == "New scene")
+        .find(|b| b.label == "New Scene")
         .unwrap();
     click(&mut editor, &context, new.rect.center());
     assert!(editor.files.is_modal());

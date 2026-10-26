@@ -136,7 +136,7 @@ impl Editor {
         ui.horizontal(|ui| {
             menu_set_selector(ui);
             ui.separator();
-            for action in self.file_actions() {
+            for action in self.file_actions().into_iter().filter(|a| a.strip) {
                 let response = icon_button(
                     ui,
                     action.label,

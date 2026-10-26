@@ -453,7 +453,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Area | Capability | Status | Tools | State | Issue |
 | --- | --- | --- | --- | --- | --- |
 | Inspection | Read committed editor state, outliner hierarchy, drafts and modal state | supported | `inspect_scene` | `nodes`, `dirty`, `has_draft`, `native_input_pending`, `text_focused`, `modal` | |
-| Files | New scene (File, Status Line) | supported | `new_scene`, `resolve_file_action` | `pending_action` | |
+| Files | New Scene (File, Status Line) | supported | `new_scene`, `resolve_file_action` | `pending_action` | |
 | Files | Open `.mb`, read-only static `.ma`, legacy `.aztec` | supported | `open_scene` | `document_origin`, `read_only_reason` | |
 | Files | Save | supported | `save_scene` | `save_available`, `save_reconciliation_required` | |
 | Files | Save As | supported | `save_scene_as` | `save_as_available` | |

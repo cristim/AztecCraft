@@ -4,6 +4,10 @@ use azteccraft::ui_icons::UiIcon;
 /// One File menu entry that the Status Line also draws, so the two cannot diverge.
 pub(super) struct FileAction {
     pub(super) label: &'static str,
+    /// Hotkey text shown after the label in the menu row, only for keys that are bound.
+    pub(super) hint: Option<&'static str>,
+    /// False for entries the Status Line does not draw (Save Scene As has no button).
+    pub(super) strip: bool,
     pub(super) icon: UiIcon,
     /// Strip hover text when there is no disabled reason.
     pub(super) tooltip: &'static str,
@@ -94,7 +98,22 @@ fn history_hover(verb: &str, label: Option<&str>) -> String {
     }
 }
 
+pub(super) const NEW_LABEL: &str = "New Scene";
+pub(super) const OPEN_LABEL: &str = "Open Scene";
+pub(super) const SAVE_LABEL: &str = "Save Scene";
+pub(super) const SAVE_AS_LABEL: &str = "Save Scene As";
+const SAVE_HINT: &str = "Ctrl/Cmd S";
+const SAVE_AS_HINT: &str = "Ctrl/Cmd Shift S";
+
 impl FileAction {
+    /// The menu row text: the label, then the hotkey after three spaces like Undo and Redo.
+    pub(super) fn menu_text(&self) -> String {
+        match self.hint {
+            Some(hint) => format!("{}   {hint}", self.label),
+            None => self.label.to_owned(),
+        }
+    }
+
     pub(super) fn hover(&self) -> &str {
         match (self.enabled, self.reason.as_deref()) {
             (false, Some(reason)) => reason,
@@ -104,8 +123,9 @@ impl FileAction {
 }
 
 impl Editor {
-    /// New, Open and Save in menu order: enable state, disabled reason and dispatch.
-    pub(super) fn file_actions(&self) -> [FileAction; 3] {
+    /// New, Open, Save and Save As in menu order: label, hint, enable state, disabled reason and
+    /// dispatch. The File menu and the Status Line both read this table.
+    pub(super) fn file_actions(&self) -> [FileAction; 4] {
         let read_only_reason = self
             .history
             .scene()
@@ -113,28 +133,44 @@ impl Editor {
             .map(|reason| reason.to_string());
         [
             FileAction {
-                label: "New scene",
+                label: NEW_LABEL,
+                hint: None,
+                strip: true,
                 icon: UiIcon::FileNew,
-                tooltip: "New scene",
+                tooltip: NEW_LABEL,
                 enabled: true,
                 reason: None,
                 run: Editor::request_new,
             },
             FileAction {
-                label: "Open...",
+                label: OPEN_LABEL,
+                hint: None,
+                strip: true,
                 icon: UiIcon::FileOpen,
-                tooltip: "Open a scene...",
+                tooltip: OPEN_LABEL,
                 enabled: true,
                 reason: None,
                 run: Editor::open_dialog,
             },
             FileAction {
-                label: "Save",
+                label: SAVE_LABEL,
+                hint: Some(SAVE_HINT),
+                strip: true,
                 icon: UiIcon::FileSave,
-                tooltip: "Save the scene",
+                tooltip: SAVE_LABEL,
                 enabled: self.files.save_available(),
-                reason: read_only_reason,
+                reason: read_only_reason.clone(),
                 run: |editor| editor.native_operation(Operation::SaveScene),
+            },
+            FileAction {
+                label: SAVE_AS_LABEL,
+                hint: Some(SAVE_AS_HINT),
+                strip: false,
+                icon: UiIcon::FileSave,
+                tooltip: SAVE_AS_LABEL,
+                enabled: self.files.save_as_available(),
+                reason: read_only_reason,
+                run: Editor::save_as_dialog,
             },
         ]
     }
@@ -182,7 +218,7 @@ impl Editor {
             ui.menu_button("File", |ui| {
                 for action in self.file_actions() {
                     let mut response =
-                        ui.add_enabled(action.enabled, egui::Button::new(action.label));
+                        ui.add_enabled(action.enabled, egui::Button::new(action.menu_text()));
                     if let Some(reason) = action.reason.as_deref() {
                         response = response.on_disabled_hover_text(reason);
                     }
@@ -190,17 +226,6 @@ impl Editor {
                         ui.close();
                         (action.run)(self);
                     }
-                }
-                let mut save_as = ui.add_enabled(
-                    self.files.save_as_available(),
-                    egui::Button::new("Save As..."),
-                );
-                if let Some(reason) = read_only_reason {
-                    save_as = save_as.on_disabled_hover_text(reason);
-                }
-                if save_as.clicked() {
-                    ui.close();
-                    self.save_as_dialog();
                 }
                 unsupported(ui, "Export...");
                 ui.separator();

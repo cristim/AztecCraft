@@ -4737,8 +4737,8 @@ mod menu_bar_wire {
         let row_bottom = found.iter().map(|c| c.rect.bottom()).fold(0.0, f32::max);
         let status = controls(&output)
             .into_iter()
-            .find(|c| c.label == "New scene")
-            .expect("Status Line New scene button");
+            .find(|c| c.label == "New Scene")
+            .expect("Status Line New Scene button");
         assert!(status.rect.top() > row_bottom, "menu overlaps Status Line");
         let wheel_at = egui::pos2(size.x / 2.0, first.rect.center().y);
         let scroll = |delta| {
