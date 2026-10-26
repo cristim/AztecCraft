@@ -539,3 +539,122 @@ fn an_end_on_axis_picks_only_where_it_is_drawn_and_never_steals_other_axes() {
         assert!((segment.end - handles.origin).length() < 4.0);
     }
 }
+
+const SIZES: [f64; 3] = [0.1, 1.0, 10.0];
+
+fn sized(camera: &Camera, size: f64) -> ViewportCapture {
+    capture(camera, 1.0).with_manipulator_size(ManipulatorSize::new(size).unwrap())
+}
+
+fn oblique_camera() -> Camera {
+    Camera::new(Vec3::ZERO, 0.6, 0.4, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap()
+}
+
+fn shaft_of(handles: &WorldHandles, index: usize) -> ScreenSegment {
+    *handles.axes()[index]
+        .arrow()
+        .unwrap()
+        .segments()
+        .next()
+        .unwrap()
+}
+
+#[test]
+fn manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli() {
+    for value in [0.1, 10.0, 1.0] {
+        assert_eq!(ManipulatorSize::new(value).unwrap().get(), value);
+    }
+    for value in [0.0999, 10.0001, 0.0, -0.0, -1.0] {
+        assert_eq!(
+            ManipulatorSize::new(value),
+            Err(ManipulatorSizeError::OutOfRange),
+            "{value}"
+        );
+    }
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            ManipulatorSize::new(value),
+            Err(ManipulatorSizeError::NotFinite)
+        );
+    }
+    assert_eq!(ManipulatorSize::new(2.123_49).unwrap().get(), 2.123);
+    assert_eq!(ManipulatorSize::default().get(), 1.0);
+}
+
+#[test]
+fn manipulator_size_steps_by_a_quarter_round_trip_and_saturate_at_the_bounds() {
+    let one = ManipulatorSize::default();
+    assert_eq!(one.grown().unwrap().get(), 1.25);
+    assert_eq!(one.grown().unwrap().shrunk(), Some(one));
+    assert_eq!(ManipulatorSize::new(10.0).unwrap().grown(), None);
+    assert_eq!(ManipulatorSize::new(0.1).unwrap().shrunk(), None);
+    assert_eq!(
+        ManipulatorSize::new(9.0).unwrap().grown().unwrap().get(),
+        10.0
+    );
+    let mut size = one;
+    for _ in 0..50 {
+        size = size.grown().unwrap_or(size);
+        assert!((0.1..=10.0).contains(&size.get()));
+    }
+    assert_eq!(size.get(), 10.0);
+    for _ in 0..50 {
+        size = size.shrunk().unwrap_or(size);
+        assert!((0.1..=10.0).contains(&size.get()));
+    }
+    assert_eq!(size.get(), 0.1);
+}
+
+#[test]
+fn move_axes_are_pickable_outside_the_centre_at_every_size() {
+    let camera = oblique_camera();
+    for size in SIZES {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        for (index, axis) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .into_iter()
+            .enumerate()
+        {
+            let shaft = shaft_of(&handles, index);
+            let point = shaft.start + (shaft.end - shaft.start) * 0.75;
+            assert!(point.distance(handles.origin) > CENTER_EXCLUSION);
+            assert_eq!(handles.hit_test(point), Some(axis), "{axis:?} at {size}");
+        }
+    }
+}
+
+#[test]
+fn move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike() {
+    let camera = front_camera();
+    let length = |size: f64| {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        (shaft.end - shaft.start).length()
+    };
+    near(length(1.0), 72.0, 1e-5);
+    near(length(0.5), 36.0, 1e-5);
+    near(length(0.1), 36.0, 1e-5);
+    let segments = |size: f64| {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        handles.axes()[0]
+            .arrow()
+            .unwrap()
+            .segments()
+            .map(|segment| (segment.start, segment.end))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(segments(0.1), segments(0.5));
+    assert_ne!(segments(0.5), segments(1.0));
+}
+
+#[test]
+fn the_floor_applies_before_the_foreshortening() {
+    let camera = Camera::new(Vec3::ZERO, 1.2, 0.0, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap();
+    let capture = sized(&camera, 0.1);
+    let fraction = capture.projected_fraction(DVec3::ZERO, DVec3::X).unwrap();
+    assert!((0.1..0.9).contains(&fraction), "{fraction}");
+    let handles = WorldHandles::new(&capture, DVec3::ZERO).unwrap();
+    let shaft = shaft_of(&handles, 0);
+    let drawn = (shaft.end - shaft.start).length();
+    assert!(drawn < 36.0, "{drawn}");
+    near(drawn, 36.0 * fraction, 1e-6);
+}

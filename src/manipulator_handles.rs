@@ -7,8 +7,8 @@
 
 use crate::{
     move_handles::{
-        ARROW_LENGTH, HIT_RADIUS, HandleError, ScreenSegment, ViewportCapture,
-        axis_parameter_along, clip_segment, segment_distance_squared,
+        HIT_RADIUS, HandleError, ScreenSegment, ViewportCapture, axis_parameter_along,
+        clip_segment, segment_distance_squared,
     },
     native_scene::{RotateAxis, ScaleHandle},
 };
@@ -186,7 +186,7 @@ impl RotateHandles {
     pub fn new(capture: &ViewportCapture, frame: &HandleFrame) -> Result<Self, HandleError> {
         let (clip, origin) = capture.project_origin(frame.origin)?;
         let size = capture.size();
-        let radius = capture.world_length(ARROW_LENGTH, clip.w);
+        let radius = capture.world_length(capture.handle_length(), clip.w);
         let to_eye = capture.eye() - frame.origin;
         if !radius.is_finite() || !to_eye.is_finite() {
             return Err(HandleError::InvalidProjection);
@@ -216,11 +216,11 @@ impl RotateHandles {
         let disabled = vec![
             DisabledHandle {
                 kind: DisabledKind::FreeRotate,
-                segments: screen_circle(origin, ARROW_LENGTH, size),
+                segments: screen_circle(origin, capture.handle_length(), size),
             },
             DisabledHandle {
                 kind: DisabledKind::ViewRing,
-                segments: screen_circle(origin, ARROW_LENGTH * VIEW_RING_FACTOR, size),
+                segments: screen_circle(origin, capture.handle_length() * VIEW_RING_FACTOR, size),
             },
         ];
         Ok(Self {
@@ -446,7 +446,7 @@ impl ScaleHandles {
             .into_iter()
             .filter_map(|(a, b)| {
                 let (da, db) = (directions[a].ok()?.0, directions[b].ok()?.0);
-                let corner = |s: f64, t: f64| origin + (da * s + db * t) * ARROW_LENGTH;
+                let corner = |s: f64, t: f64| origin + (da * s + db * t) * capture.handle_length();
                 let points = [
                     corner(PLANE_NEAR, PLANE_NEAR),
                     corner(PLANE_FAR, PLANE_NEAR),

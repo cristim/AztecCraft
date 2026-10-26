@@ -6,6 +6,9 @@ use glam::{DMat4, DVec2, DVec3, DVec4, Vec2};
 use std::fmt;
 
 pub(crate) const ARROW_LENGTH: f64 = 72.0;
+// PROVISIONAL floor at half the default so the smallest sizes stay pickable.
+const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
+const SIZE_STEP: f64 = 1.25;
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;
@@ -74,6 +77,80 @@ impl HandleError {
 
 impl std::error::Error for HandleError {}
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManipulatorSizeError {
+    NotFinite,
+    OutOfRange,
+}
+
+impl fmt::Display for ManipulatorSizeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotFinite => f.write_str("manipulator size must be a finite number"),
+            Self::OutOfRange => write!(
+                f,
+                "manipulator size must be between {} and {}",
+                ManipulatorSize::MIN,
+                ManipulatorSize::MAX
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ManipulatorSizeError {}
+
+/// Global scale of the Move, Rotate and Scale manipulators, rounded to three decimals.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ManipulatorSize(f64);
+
+// Construction rejects NaN, so equality is total.
+impl Eq for ManipulatorSize {}
+
+impl Default for ManipulatorSize {
+    fn default() -> Self {
+        Self(Self::DEFAULT)
+    }
+}
+
+impl ManipulatorSize {
+    pub const MIN: f64 = 0.1;
+    pub const MAX: f64 = 10.0;
+    pub const DEFAULT: f64 = 1.0;
+
+    pub fn new(value: f64) -> Result<Self, ManipulatorSizeError> {
+        if !value.is_finite() {
+            return Err(ManipulatorSizeError::NotFinite);
+        }
+        if !(Self::MIN..=Self::MAX).contains(&value) {
+            return Err(ManipulatorSizeError::OutOfRange);
+        }
+        Ok(Self(round_milli(value)))
+    }
+
+    pub fn get(self) -> f64 {
+        self.0
+    }
+
+    /// One step larger, or `None` at the maximum.
+    pub fn grown(self) -> Option<Self> {
+        self.stepped(SIZE_STEP)
+    }
+
+    /// One step smaller, or `None` at the minimum.
+    pub fn shrunk(self) -> Option<Self> {
+        self.stepped(1.0 / SIZE_STEP)
+    }
+
+    fn stepped(self, factor: f64) -> Option<Self> {
+        let next = Self(round_milli(self.0 * factor).clamp(Self::MIN, Self::MAX));
+        (next != self).then_some(next)
+    }
+}
+
+fn round_milli(value: f64) -> f64 {
+    (value * 1000.0).round() / 1000.0
+}
+
 #[derive(Clone)]
 pub struct ViewportCapture {
     camera: Camera,
@@ -85,6 +162,7 @@ pub struct ViewportCapture {
     aspect: f32,
     view_projection: DMat4,
     focal_pixels: f64,
+    handle_length: f64,
 }
 
 impl ViewportCapture {
@@ -132,7 +210,18 @@ impl ViewportCapture {
             aspect,
             view_projection,
             focal_pixels,
+            handle_length: ARROW_LENGTH,
         })
+    }
+
+    /// The drawn length is `max(72 * size, 36)` pixels, before the view foreshortening.
+    pub fn with_manipulator_size(mut self, size: ManipulatorSize) -> Self {
+        self.handle_length = (ARROW_LENGTH * size.get()).max(MIN_HANDLE_LENGTH);
+        self
+    }
+
+    pub(crate) fn handle_length(&self) -> f64 {
+        self.handle_length
     }
 
     pub fn same_camera(&self, camera: &Camera) -> bool {
@@ -252,7 +341,7 @@ impl ViewportCapture {
         Ok(fraction)
     }
 
-    /// Screen vector of a handle axis: its unit screen direction scaled to `ARROW_LENGTH` times
+    /// Screen vector of a handle axis: its unit screen direction scaled to the handle length times
     /// the projected fraction, so an axis seen end-on shrinks instead of keeping full length.
     pub(crate) fn axis_screen_vector(
         &self,
@@ -261,7 +350,7 @@ impl ViewportCapture {
         direction: DVec3,
     ) -> Result<(DVec2, f64), HandleError> {
         let unit = self.screen_direction(clip, direction)?;
-        let length = ARROW_LENGTH * self.projected_fraction(origin_cm, direction)?;
+        let length = self.handle_length * self.projected_fraction(origin_cm, direction)?;
         Ok((unit, length))
     }
 
