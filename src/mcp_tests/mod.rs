@@ -122,6 +122,7 @@ mod official_client {
     mod snapshots;
     mod sphere;
     mod status_line;
+    mod tool_handle;
     mod tool_space;
     mod vertex_edge;
 
