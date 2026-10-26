@@ -3560,6 +3560,10 @@ fn file_chords_map_to_the_table_row_with_that_label() {
         menus::file_chord(&[key_event(Key::Z, command, false)]),
         None
     );
+    let alt = command | egui::Modifiers::ALT;
+    for key in [Key::N, Key::O, Key::S] {
+        assert_eq!(menus::file_chord(&[key_event(key, alt, false)]), None);
+    }
 }
 
 fn file_outcome(editor: &Editor) -> (String, bool, bool, bool, Uuid, Option<String>) {
@@ -3627,6 +3631,18 @@ fn new_chord_ignores_shift_repeat_and_missing_command() {
     for (i, name) in ["shift", "no command", "repeat"].into_iter().enumerate() {
         assert_eq!(file_outcome(&editors[i]), before[i], "{name}");
     }
+}
+
+#[test]
+fn alt_modified_file_chords_do_nothing() {
+    let alt = egui::Modifiers::COMMAND | egui::Modifiers::ALT;
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let before = file_outcome(&editor);
+    for key in [Key::N, Key::S] {
+        let _ = shortcuts_with(&mut editor, alt, &[key]);
+    }
+    assert_eq!(file_outcome(&editor), before);
 }
 
 #[test]

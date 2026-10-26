@@ -55,7 +55,7 @@ The AztecCraft window draws a partial Status Line strip, from `Editor::status_li
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
 | Menu set drop-down | [statusline] | Partial | `src/app/features/status_line.rs:168 "fn menu_set_selector"`; only Modeling is active, the other four sets are disabled; native-only, no state | none | P2 | S1 Status Line strip (#59) |
-| File buttons: New Scene, Open Scene, Save Scene | [statusline] | Supported | `src/app/features/status_line.rs "self.file_actions().into_iter().filter(|a| a.strip)"`, shared with the File menu at `src/app/menus.rs "fn file_actions"`; Save Scene As is a table entry with `strip: false`, so it stays in the File menu | `new_scene`, `open_scene`, `save_scene` | P2 | S1 Status Line strip (#59) |
+| File buttons: New Scene, Open Scene, Save Scene | [statusline] | Supported | `src/app/features/status_line.rs "self.file_actions()"` (it draws only the entries whose `strip` field is true), shared with the File menu at `src/app/menus.rs "fn file_actions"`; Save Scene As is a table entry with `strip: false`, so it stays in the File menu | `new_scene`, `open_scene`, `save_scene` | P2 | S1 Status Line strip (#59) |
 | Selection mode menu (presets) | [statusline] | Visible-unsupported | `src/app/features/status_line.rs:12 "Selection mode menu (presets): not implemented yet"`; disabled combo box with no state; real presets need masks | none | P1 | S3 Component modes (#29) |
 | Hierarchy mode button | [statusline] | Partial | `src/app/features/status_line.rs:33 "Hierarchy selection (Root only; Leaf and Template unsupported)"`; Root sub-mask only, a viewport click selects the hit hierarchy's root transform; Leaf and Template unsupported | `set_selection_mode` | P1 | S1 Status Line strip (#59) |
 | Object mode button | [statusline] | Supported | `src/app/features/status_line.rs:39 "Object selection (F8 toggles)"` | `set_selection_mode` | P1 | S1 Status Line strip (#59) |
@@ -259,7 +259,7 @@ No Modeling Toolkit panel exists. Default dock is UNCONFIRMED for 2026.
 
 ## 12. Hotkeys
 
-Editor::shortcuts (`src/app/shortcuts.rs "fn shortcuts"`) handles Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, F, Cmd/Ctrl+S and Cmd/Ctrl+Shift+S. F8, F11 and Delete are read in `src/app/panels.rs "pressed(Key::F8)"`. Escape cancels an edit in `src/app/shortcuts.rs "fn cancel_on_escape"`.
+Editor::shortcuts (`src/app/shortcuts.rs "fn shortcuts"`) handles Cmd/Ctrl+Z, Cmd/Ctrl+Y, Cmd/Ctrl+Shift+Z, F, Cmd/Ctrl+N, O, S and Cmd/Ctrl+Shift+S. F8, F11 and Delete are read in `src/app/panels.rs "pressed(Key::F8)"`. Escape cancels an edit in `src/app/shortcuts.rs "fn cancel_on_escape"`.
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |

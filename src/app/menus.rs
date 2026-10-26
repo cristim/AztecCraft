@@ -120,7 +120,7 @@ pub(super) fn file_chord(events: &[egui::Event]) -> Option<(Key, bool)> {
             repeat: false,
             modifiers,
             ..
-        } if modifiers.command => Some((*key, modifiers.shift)),
+        } if modifiers.command && !modifiers.alt => Some((*key, modifiers.shift)),
         _ => None,
     })
 }
