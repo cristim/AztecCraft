@@ -780,6 +780,20 @@ fn scale_tips_and_the_centre_box_are_pickable_at_every_size() {
     }
 }
 
+#[test]
+fn the_scale_centre_box_keeps_its_fixed_pixel_half_extent_at_every_size() {
+    let camera = oblique_camera();
+    for size in SIZES {
+        let handles = ScaleHandles::new(&sized(&camera, size), &world_frame()).unwrap();
+        let extent = handles
+            .center()
+            .flat_map(|segment| [segment.start, segment.end])
+            .map(|point| (point - handles.origin).abs().max_element())
+            .fold(0.0, f64::max);
+        assert_eq!(extent, CENTER_BOX_HALF, "centre box at {size}");
+    }
+}
+
 fn tip_center(geometry: &ScaleGeometry) -> Option<DVec2> {
     let corners = geometry
         .tip_box

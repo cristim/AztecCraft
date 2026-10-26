@@ -9,9 +9,8 @@ pub(crate) const ARROW_LENGTH: f64 = 72.0;
 // PROVISIONAL floor at half the default so the smallest sizes stay pickable.
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
-pub const GRID_LIMIT: i32 = 10;
+const GRID_LIMIT: i32 = 10;
 // A step must change the three-decimal value a set size shows, so it clears the rounding.
-const HALF_MILLI: f64 = 0.0005;
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;
@@ -134,19 +133,30 @@ impl ManipulatorSize {
         self.0
     }
 
-    /// The next 1.25^k grid value above this size, or `None` at or above the top of the grid.
+    /// The next 1.25^k grid value whose three-decimal value is above this size's, or `None` at the top.
+    /// A key step stores the raw grid value, so an exact tie like 1.5625 shows as 1.563 but stays 1.5625.
     pub fn grown(self) -> Option<Self> {
+        let shown = round_milli(self.0);
         Self::grid()
-            .find(|grid| *grid > self.0 + HALF_MILLI)
+            .find(|grid| round_milli(*grid) > shown)
             .map(Self)
     }
 
-    /// The next 1.25^k grid value below this size, or `None` at or below the bottom of the grid.
+    /// The next 1.25^k grid value whose three-decimal value is below this size's, or `None` at the bottom.
     pub fn shrunk(self) -> Option<Self> {
+        let shown = round_milli(self.0);
         Self::grid()
             .rev()
-            .find(|grid| *grid < self.0 - HALF_MILLI)
+            .find(|grid| round_milli(*grid) < shown)
             .map(Self)
+    }
+
+    /// The smallest and largest sizes the keys reach.
+    pub fn key_limits() -> (f64, f64) {
+        (
+            Self::grid().next().unwrap_or(Self::MIN),
+            Self::grid().next_back().unwrap_or(Self::MAX),
+        )
     }
 
     // Each power comes from its integer, never from a previous f64, so steps are exact inverses.

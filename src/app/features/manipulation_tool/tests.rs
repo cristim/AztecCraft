@@ -1555,8 +1555,9 @@ fn plus_with_or_without_shift_and_equals_grow_and_minus_shrinks() {
     assert_eq!(editor.manipulation.manipulator_size(), size(1.25));
 }
 
-const TOP_STATUS: &str = "Manipulator size is at or above its largest key step (9.31); set_manipulator_size reaches 10.00";
-const BOTTOM_STATUS: &str = "Manipulator size is at or below its smallest key step (0.11); set_manipulator_size reaches 0.10";
+const TOP_STATUS: &str =
+    "Manipulator size is at or above its largest key step (9.313); set_manipulator_size reaches 10";
+const BOTTOM_STATUS: &str = "Manipulator size is at or below its smallest key step (0.107); set_manipulator_size reaches 0.1";
 
 fn tap(editor: &mut Editor, context: &egui::Context, key: Key) {
     frame(

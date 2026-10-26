@@ -1,5 +1,5 @@
 use super::*;
-use azteccraft::move_handles::{GRID_LIMIT, ManipulatorSize};
+use azteccraft::move_handles::ManipulatorSize;
 
 pub(super) const SHADED_TEXTURED_NAME: &str = "Hardware Texturing (6)";
 const USE_ALL_LIGHTS_NAME: &str = "Use All Lights (7)";
@@ -149,23 +149,14 @@ impl Editor {
                 self.native_operation(Operation::SetManipulatorSize(size));
             }
             None => {
+                let (lowest, highest) = ManipulatorSize::key_limits();
                 let (side, name, key_limit, mcp_limit) = if grow {
-                    (
-                        "above",
-                        "largest",
-                        1.25_f64.powi(GRID_LIMIT),
-                        ManipulatorSize::MAX,
-                    )
+                    ("above", "largest", highest, ManipulatorSize::MAX)
                 } else {
-                    (
-                        "below",
-                        "smallest",
-                        1.25_f64.powi(-GRID_LIMIT),
-                        ManipulatorSize::MIN,
-                    )
+                    ("below", "smallest", lowest, ManipulatorSize::MIN)
                 };
                 self.status = format!(
-                    "Manipulator size is at or {side} its {name} key step ({key_limit:.2}); set_manipulator_size reaches {mcp_limit:.2}"
+                    "Manipulator size is at or {side} its {name} key step ({key_limit:.3}); set_manipulator_size reaches {mcp_limit}"
                 );
                 self.error = false;
             }

@@ -661,31 +661,17 @@ fn a_key_step_from_an_off_grid_value_moves_to_the_adjacent_grid_value() {
 
 #[test]
 fn every_milli_size_steps_to_the_adjacent_visibly_different_grid_value() {
-    let grid: Vec<f64> = (-GRID_LIMIT..=GRID_LIMIT)
-        .map(|k| 1.25_f64.powi(k))
-        .collect();
-    // Exact ties such as 1.5625 print as 1.562 but store as 1.563, so a tie counts as unchanged.
-    let shown = |value: f64| (format!("{value:.3}"), round_milli(value).to_bits());
-    let differs = |a: f64, b: f64| {
-        let (a, b) = (shown(a), shown(b));
-        a.0 != b.0 && a.1 != b.1
-    };
+    let grid: Vec<f64> = (-10..=10).map(|k| 1.25_f64.powi(k)).collect();
     let (mut skips, mut wrong_way, mut stuck, mut false_refusals) = (0, 0, 0, 0);
     for milli in 100..=10_000 {
         let size = ManipulatorSize::new(f64::from(milli) / 1000.0).unwrap();
-        let up = grid
-            .iter()
-            .copied()
-            .find(|g| *g > size.get() && differs(*g, size.get()));
-        let down = grid
-            .iter()
-            .copied()
-            .rev()
-            .find(|g| *g < size.get() && differs(*g, size.get()));
+        let shown = round_milli(size.get());
+        let up = grid.iter().copied().find(|g| round_milli(*g) > shown);
+        let down = grid.iter().copied().rev().find(|g| round_milli(*g) < shown);
         for (step, expected, upward) in [(size.grown(), up, true), (size.shrunk(), down, false)] {
             match (step.map(ManipulatorSize::get), expected) {
-                (Some(next), _) if !differs(next, size.get()) => stuck += 1,
-                (Some(next), _) if (next > size.get()) != upward => wrong_way += 1,
+                (Some(next), _) if round_milli(next) == shown => stuck += 1,
+                (Some(next), _) if (round_milli(next) > shown) != upward => wrong_way += 1,
                 (Some(next), Some(want)) if next == want => {}
                 (Some(_), Some(_)) => skips += 1,
                 (Some(_), None) => wrong_way += 1,
@@ -695,6 +681,35 @@ fn every_milli_size_steps_to_the_adjacent_visibly_different_grid_value() {
         }
     }
     assert_eq!((skips, wrong_way, stuck, false_refusals), (0, 0, 0, 0));
+}
+
+#[test]
+fn an_exact_tie_steps_by_its_shown_value_and_keeps_the_raw_grid_value() {
+    let bits = |size: Option<ManipulatorSize>| size.unwrap().get().to_bits();
+    let tie = 1.25_f64.powi(2);
+    assert_eq!(tie, 1.5625);
+    assert_eq!(
+        bits(ManipulatorSize::new(1.562).unwrap().grown()),
+        tie.to_bits()
+    );
+    assert_eq!(bits(ManipulatorSize(tie).shrunk()), 1.25_f64.to_bits());
+    assert_eq!(
+        bits(ManipulatorSize::new(1.563).unwrap().shrunk()),
+        1.25_f64.to_bits()
+    );
+    assert_eq!(
+        bits(ManipulatorSize::new(1.563).unwrap().grown()),
+        1.25_f64.powi(3).to_bits()
+    );
+    assert_eq!(ManipulatorSize::new(tie).unwrap().get(), 1.563);
+}
+
+#[test]
+fn key_limits_are_the_ends_of_the_grid() {
+    assert_eq!(
+        ManipulatorSize::key_limits(),
+        (1.25_f64.powi(-10), 1.25_f64.powi(10))
+    );
 }
 
 #[test]
