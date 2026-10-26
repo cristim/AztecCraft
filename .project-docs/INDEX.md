@@ -5,6 +5,7 @@
 - [Reference dossier](reference.md): reference baseline, researched sources, and reuse decisions.
 - [Parity inventory](parity.md): required functionality families, not a measured coverage percentage.
 - [Workflow inventory seed](inventory-seed.md): provisional candidate workflows, official sources, component boundaries and a measurement proposal.
+- [Parity inventory framework](parity-inventory/README.md): per-family workflow inventory skeleton, status vocabulary, evidence record and the PROPOSED documentation-conformance measurement rule (issue #6, in progress; no family expanded yet).
 - [Development](development.md): pinned Rust toolchain, local checks, bounded read-only ASCII curves, the bounded World-axis Move candidate and scoped native/SDK/GPU evidence.
 - [Build checks and packaging](builds.md): prepared CI, coverage/security checks, local hooks, packaging boundaries and Craft workflow references.
 - [Authored Maya Binary writer](binary-authored-writer.md): what a fresh `.mb` may contain, where each choice comes from, what is invented and the edge bit31 correlation (issue #156).

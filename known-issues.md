@@ -74,7 +74,7 @@ The exact Maya version/platform and reference installation have not been establi
 
 The original first-push restriction required 80–90% of all Maya 2026 functionality, including simulation, rendering, scripting, and plugin compatibility. The user's later explicit push/merge instruction authorizes early prototype publication, superseding that restriction. The full-functionality target remains unmet, and the complete inventory must still be enumerated and verified against a reference. Don't calculate a percentage from an arbitrary feature list.
 
-[The initial inventory seed](.project-docs/inventory-seed.md) provides source-backed candidate workflows, but its 100 entries aren't a complete denominator. Component versions, cloud services, collection components and third-party plug-in scope still need to be pinned. Overall coverage remains unmeasured.
+The [parity inventory framework](.project-docs/parity-inventory/README.md) (status vocabulary, evidence record, PROPOSED documentation-conformance measurement rule and 14 unexpanded family files) is in progress; the slices are tracked in #6 and no family has rows yet. [The initial inventory seed](.project-docs/inventory-seed.md) provides source-backed candidate workflows, but its 100 entries aren't a complete denominator. Component versions, cloud services, collection components and third-party plug-in scope still need to be pinned. Overall coverage remains unmeasured.
 
 ## Desktop and platform verification pending
 
