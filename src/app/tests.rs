@@ -1603,6 +1603,8 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
     };
     let mut output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
     assert!(painted(&output, "Translate X"));
+    assert!(!painted(&output, "Delete selected"), "scroll not exercised");
+    let camera = editor.camera.clone();
     // Pointer over the right-hand Channel Box panel, below its heading.
     let over_panel = egui::pos2(size.x - 100.0, 300.0);
     let mut events = vec![egui::Event::PointerMoved(over_panel)];
@@ -1615,6 +1617,7 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
         });
         output = frame_with(&mut editor, &ctx, size, 1.0, std::mem::take(&mut events));
     }
+    assert_eq!(editor.camera, camera, "wheel reached the viewport");
     assert!(painted(&output, "Delete selected"), "Delete unreachable");
     assert!(painted(&output, "Layers"), "Layers unreachable");
 }
