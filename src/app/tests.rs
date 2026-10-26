@@ -3893,6 +3893,70 @@ fn undo_and_redo_step_once_per_keystroke_not_on_release() {
     }
 }
 
+/// Undo and Redo take one step per frame, and the last history chord in the frame wins.
+#[test]
+fn history_chords_step_once_per_frame_and_the_last_one_wins() {
+    let command = egui::Modifiers::COMMAND;
+    let redo_chord = command | egui::Modifiers::SHIFT;
+    let release = || egui::Event::Key {
+        key: Key::Z,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: command,
+    };
+    let steps = |events: Vec<egui::Event>, redo_available: bool| {
+        let mut editor = Editor::default();
+        for _ in 0..3 {
+            editor.create(Primitive::Cube);
+        }
+        let full = editor.history.scene().clone();
+        editor.history_step(false);
+        let one_undone = editor.history.scene().clone();
+        editor.history_step(false);
+        let two_undone = editor.history.scene().clone();
+        if !redo_available {
+            editor.history_step(true);
+            editor.history_step(true);
+        }
+        let start = editor.history.scene().clone();
+        shortcuts_in(&egui::Context::default(), &mut editor, command, events);
+        (
+            full,
+            one_undone,
+            two_undone,
+            start,
+            editor.history.scene().clone(),
+        )
+    };
+    // Two Undo presses with a release between: one step, not one per press.
+    let events = vec![
+        key_event(Key::Z, command, false),
+        release(),
+        key_event(Key::Z, command, false),
+    ];
+    let (full, one_undone, _, start, after) = steps(events, false);
+    assert_eq!(start, full);
+    assert_eq!(after, one_undone);
+    // Redo chord then Undo chord: Undo wins. With the redo stack empty a leaked Redo would re-apply it.
+    let events = vec![
+        key_event(Key::Z, redo_chord, false),
+        egui::Event::ModifiersChanged(command),
+        key_event(Key::Z, command, false),
+    ];
+    let (full, one_undone, _, start, after) = steps(events, false);
+    assert_eq!(start, full);
+    assert_eq!(after, one_undone);
+    // Undo chord then Redo chord: Redo wins and takes exactly one step.
+    let events = vec![
+        key_event(Key::Z, command, false),
+        key_event(Key::Z, redo_chord, false),
+    ];
+    let (_, one_undone, two_undone, start, after) = steps(events, true);
+    assert_eq!(start, two_undone);
+    assert_eq!(after, one_undone);
+}
+
 #[test]
 fn save_chord_does_nothing_while_save_is_unavailable() {
     let mut editor = Editor::default();

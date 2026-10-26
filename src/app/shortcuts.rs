@@ -77,11 +77,9 @@ impl Editor {
                 } if modifiers.alt && !modifiers.ctrl && !modifiers.shift && !modifiers.command)
             })
         });
-        let (undo, redo, frame, frame_all) = ctx.input(|i| {
-            let (undo, redo) = history_chords(&i.events);
+        let (history, frame, frame_all) = ctx.input(|i| {
             (
-                undo,
-                redo,
+                history_chord(&i.events),
                 i.modifiers.is_none() && i.key_pressed(Key::F),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
@@ -128,11 +126,8 @@ impl Editor {
         {
             self.step_manipulator_size(grow);
         }
-        if undo {
-            self.history_step(false);
-        }
-        if redo {
-            self.history_step(true);
+        if let Some(operation) = history {
+            self.native_operation(operation);
         }
         if frame {
             self.frame_selected();
@@ -202,29 +197,28 @@ impl Editor {
     }
 }
 
-/// Undo and Redo from each key event's own modifiers: egui's `i.modifiers` keeps only the frame-final
-/// state, so a release in the same frame could rescue or cancel the press. `repeat` is allowed so a
-/// held chord keeps stepping.
-fn history_chords(events: &[egui::Event]) -> (bool, bool) {
-    let (mut undo, mut redo) = (false, false);
-    for event in events {
-        if let egui::Event::Key {
-            key,
-            pressed: true,
-            modifiers,
-            ..
-        } = event
-            && modifiers.command
-            && !modifiers.alt
-        {
-            // Alt chords belong to Maya camera and marking menus, as in file_chord.
-            // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
-            match (key, modifiers.shift) {
-                (Key::Z, false) => undo = true,
-                (Key::Z, true) | (Key::Y, false) => redo = true,
-                _ => {}
+/// The last history chord wins, so one frame steps once and never undoes then redoes its own step.
+/// Modifiers are per event because egui's `i.modifiers` keeps only the frame-final state; `repeat` is
+/// allowed so a held chord keeps stepping (once per frame).
+fn history_chord(events: &[egui::Event]) -> Option<Operation> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.command && !modifiers.alt => {
+                // Alt chords belong to Maya camera and marking menus, as in file_chord.
+                // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
+                match (key, modifiers.shift) {
+                    (Key::Z, false) => Some(Operation::Undo),
+                    (Key::Z, true) | (Key::Y, false) => Some(Operation::Redo),
+                    _ => None,
+                }
             }
-        }
-    }
-    (undo, redo)
+            _ => None,
+        })
+        .next_back()
 }
