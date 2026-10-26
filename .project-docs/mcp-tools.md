@@ -2,13 +2,14 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-38 tools.
+39 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
 | `inspect_scene` | read-only | no | Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, pivot translations and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view and clip planes. No CV arrays or script bodies are exposed |
 | `set_active_tool` | mutating | yes | Select the native Select, Move, Rotate or Scale tool; unsupported tools are not exposed |
 | `set_tool_space` | mutating | yes | Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool |
+| `set_tool_handle` | mutating | yes | Set the persistent Rotate axis (x, y, z) or Scale handle (x, y, z, uniform) that the native Tool Settings selectors use for numeric entry; read them from inspect_scene manipulation.rotate_axis and scale_handle. begin_manipulation always names its own axis or handle and ignores this setting. Does not change the active tool or space |
 | `begin_manipulation` | mutating | no | Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools |
 | `update_manipulation` | mutating | no | Preview an absolute value from begin: distance in the scene linear unit for Move, angle in the scene angular unit for Rotate, a unitless factor greater than zero for Scale. Units are echoed in inspection.manipulation.units. Matching scene token and remote-owned manipulation ID are required; a parameter of the wrong kind is a typed error |
 | `finish_manipulation` | mutating | no | Commit one undoable Move, Rotate or Scale edit or cancel to the exact begin authoring state. Only the matching remote-owned manipulation ID may finish |

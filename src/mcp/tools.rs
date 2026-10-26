@@ -328,6 +328,55 @@ mod tests {
                 "set_tool_space",
                 json!({"scene_token":token,"tool":"rotate"}),
             ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"move","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"select","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","handle":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"w"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"uniform"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","handle":"xy"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"x","space":"world"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","handle":"x","axis":"x"}),
+            ),
+            ("set_tool_handle", json!({"tool":"rotate","axis":"x"})),
+            (
+                "set_tool_handle",
+                json!({"scene_token":"not-a-uuid","tool":"rotate","axis":"x"}),
+            ),
             ("begin_manipulation", move_args(json!({"instance_path":[]}))),
             ("begin_manipulation", move_args(json!({"axis":"xy"}))),
             (
@@ -534,6 +583,9 @@ mod tests {
                 "set_tool_space" => {
                     json!({"scene_token":token,"tool":"scale","space":"object"})
                 }
+                "set_tool_handle" => {
+                    json!({"scene_token":token,"tool":"scale","handle":"uniform"})
+                }
                 "begin_manipulation" => {
                     json!({"scene_token":token,"kind":"move","node_id":"1","instance_path":["1"],"axis":"x"})
                 }
@@ -664,6 +716,7 @@ mod tests {
                     | "select_attribute_editor_tab"
                     | "set_active_tool"
                     | "set_tool_space"
+                    | "set_tool_handle"
                     | "select_node"
                     | "set_selection_mode"
                     | "select_face"
