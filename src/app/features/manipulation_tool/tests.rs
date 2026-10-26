@@ -1272,6 +1272,32 @@ fn set_tool_handle_reports_changed_then_unchanged_per_slot() {
 }
 
 #[test]
+fn set_tool_handle_leaves_the_other_slot_untouched() {
+    let mut editor = Editor::default();
+    editor.set_tool_handle(ToolHandle::ScaleHandle(ScaleHandle::X));
+    editor.set_tool_handle(ToolHandle::RotateAxis(RotateAxis::Z));
+    assert_eq!(editor.manipulation.scale_handle(), ScaleHandle::X);
+    editor.set_tool_handle(ToolHandle::ScaleHandle(ScaleHandle::Y));
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::Z);
+}
+
+#[test]
+fn native_set_tool_handle_commits_a_pending_draft_first() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.channels[0] = "2".into();
+    editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
+        RotateAxis::Z,
+    )));
+    assert_eq!(
+        editor.history.scene().nodes()[0].transform().translation[0],
+        2.0
+    );
+    assert!(!editor.has_draft());
+    assert_eq!(editor.manipulation.rotate_axis(), RotateAxis::Z);
+}
+
+#[test]
 fn tool_handle_selection_survives_a_tool_switch() {
     let mut editor = Editor::default();
     editor.native_operation(Operation::SetToolHandle(ToolHandle::RotateAxis(
