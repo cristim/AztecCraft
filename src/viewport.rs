@@ -49,6 +49,43 @@ impl fmt::Display for InvalidCameraInput {
 }
 impl std::error::Error for InvalidCameraInput {}
 
+/// Why `Camera::set_pose` refused a pose; names the field so callers can report it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InvalidCameraPose {
+    TargetNotFinite,
+    YawNotFinite,
+    PitchNotFinite,
+    PitchOutOfRange,
+    DistanceNotFinite,
+    DistanceNotPositive,
+    /// Every field is valid alone but the eye or view matrix overflows.
+    Unrepresentable,
+}
+
+impl fmt::Display for InvalidCameraPose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TargetNotFinite => f.write_str("camera target must be finite"),
+            Self::YawNotFinite => f.write_str("camera yaw must be finite"),
+            Self::PitchNotFinite => f.write_str("camera pitch must be finite"),
+            Self::PitchOutOfRange => write!(
+                f,
+                "camera pitch must be within \u{b1}{} degrees",
+                MAX_PITCH.to_degrees()
+            ),
+            Self::DistanceNotFinite => f.write_str("camera distance must be finite"),
+            Self::DistanceNotPositive => f.write_str("camera distance must be greater than zero"),
+            Self::Unrepresentable => {
+                f.write_str("camera pose is too large to produce a finite view")
+            }
+        }
+    }
+}
+impl std::error::Error for InvalidCameraPose {}
+
+/// Orbit's pitch limit, just short of the poles so the view never flips.
+pub const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.001;
+
 impl Default for Camera {
     fn default() -> Self {
         Self::new(
@@ -208,9 +245,47 @@ impl Camera {
         }
         let mut next = self.clone();
         next.yaw = (next.yaw + radians.x).rem_euclid(std::f32::consts::TAU);
-        let limit = std::f32::consts::FRAC_PI_2 - 0.001;
-        next.pitch = (next.pitch + radians.y).clamp(-limit, limit);
+        next.pitch = (next.pitch + radians.y).clamp(-MAX_PITCH, MAX_PITCH);
         next.validate()?;
+        *self = next;
+        Ok(())
+    }
+
+    /// Restores an absolute view. Yaw wraps like `orbit`; a pitch beyond orbit's limit is
+    /// rejected rather than clamped so a pose that was read back never changes silently.
+    /// fov and clip planes are untouched. The camera is unchanged on error.
+    pub fn set_pose(
+        &mut self,
+        target: Vec3,
+        distance: f32,
+        yaw: f32,
+        pitch: f32,
+    ) -> Result<(), InvalidCameraPose> {
+        if !target.is_finite() {
+            return Err(InvalidCameraPose::TargetNotFinite);
+        }
+        if !distance.is_finite() {
+            return Err(InvalidCameraPose::DistanceNotFinite);
+        }
+        if distance <= 0.0 {
+            return Err(InvalidCameraPose::DistanceNotPositive);
+        }
+        if !yaw.is_finite() {
+            return Err(InvalidCameraPose::YawNotFinite);
+        }
+        if !pitch.is_finite() {
+            return Err(InvalidCameraPose::PitchNotFinite);
+        }
+        if pitch.abs() > MAX_PITCH {
+            return Err(InvalidCameraPose::PitchOutOfRange);
+        }
+        let mut next = self.clone();
+        next.target = target;
+        next.distance = distance;
+        next.yaw = yaw.rem_euclid(std::f32::consts::TAU);
+        next.pitch = pitch;
+        next.validate()
+            .map_err(|InvalidCameraInput| InvalidCameraPose::Unrepresentable)?;
         *self = next;
         Ok(())
     }

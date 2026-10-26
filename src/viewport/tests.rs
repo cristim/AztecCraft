@@ -642,3 +642,130 @@ fn edge_pick_rejects_edges_clipped_by_the_border_and_the_far_plane() {
     let beyond = Fixture::new(vec![[0.0, 0.0, -150.0], [0.5, 0.0, -150.0]], &[], &[[0, 1]]);
     assert_eq!(beyond.edge_at(near(400.0, 300.0)), Ok(None));
 }
+
+fn pose_camera() -> Camera {
+    let mut camera = Camera::default();
+    camera.orbit(Vec2::new(1.0, -0.3)).unwrap();
+    camera.pan(Vec2::new(2.0, 1.0)).unwrap();
+    camera
+}
+
+#[test]
+fn set_pose_sets_the_pose_and_keeps_lens_and_clip() {
+    let mut camera = pose_camera();
+    let lens = Camera::default();
+    camera
+        .set_pose(Vec3::new(1.0, 2.0, 3.0), 4.5, 0.25, -0.5)
+        .unwrap();
+    assert_eq!(camera.target(), Vec3::new(1.0, 2.0, 3.0));
+    assert_eq!(camera.distance(), 4.5);
+    assert_eq!(camera.yaw(), 0.25);
+    assert_eq!(camera.pitch(), -0.5);
+    assert_eq!(
+        [camera.fov_y(), camera.near(), camera.far()],
+        [lens.fov_y(), lens.near(), lens.far()]
+    );
+}
+
+#[test]
+fn set_pose_wraps_yaw_like_orbit() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, -0.5, 0.4).unwrap();
+    assert_eq!(camera.yaw(), (-0.5_f32).rem_euclid(std::f32::consts::TAU));
+    camera
+        .set_pose(Vec3::ZERO, 8.0, 7.0 * std::f32::consts::TAU + 0.5, 0.4)
+        .unwrap();
+    assert!((0.0..std::f32::consts::TAU).contains(&camera.yaw()));
+    assert!((camera.yaw() - 0.5).abs() < 1e-3);
+}
+
+#[test]
+fn set_pose_round_trips_the_default_and_an_orbit_to_the_pole_exactly() {
+    let mut camera = pose_camera();
+    let default = Camera::default();
+    camera
+        .set_pose(
+            default.target(),
+            default.distance(),
+            default.yaw(),
+            default.pitch(),
+        )
+        .unwrap();
+    assert!(camera.same_capture(&default));
+    let mut polar = pose_camera();
+    polar.orbit(Vec2::new(0.0, 10.0)).unwrap();
+    let mut restored = Camera::default();
+    restored
+        .set_pose(polar.target(), polar.distance(), polar.yaw(), polar.pitch())
+        .unwrap();
+    assert!(restored.same_capture(&polar));
+}
+
+#[test]
+fn set_pose_rejects_each_invalid_field_and_leaves_the_camera_unchanged() {
+    use InvalidCameraPose as E;
+    let limit = MAX_PITCH;
+    let cases = [
+        (
+            Vec3::new(f32::NAN, 0.0, 0.0),
+            8.0,
+            0.0,
+            0.0,
+            E::TargetNotFinite,
+        ),
+        (
+            Vec3::new(0.0, f32::INFINITY, 0.0),
+            8.0,
+            0.0,
+            0.0,
+            E::TargetNotFinite,
+        ),
+        (Vec3::ZERO, f32::NAN, 0.0, 0.0, E::DistanceNotFinite),
+        (Vec3::ZERO, f32::INFINITY, 0.0, 0.0, E::DistanceNotFinite),
+        (Vec3::ZERO, 0.0, 0.0, 0.0, E::DistanceNotPositive),
+        (Vec3::ZERO, -1.0, 0.0, 0.0, E::DistanceNotPositive),
+        (Vec3::ZERO, 8.0, f32::NAN, 0.0, E::YawNotFinite),
+        (Vec3::ZERO, 8.0, f32::NEG_INFINITY, 0.0, E::YawNotFinite),
+        (Vec3::ZERO, 8.0, 0.0, f32::NAN, E::PitchNotFinite),
+        (Vec3::ZERO, 8.0, 0.0, f32::INFINITY, E::PitchNotFinite),
+        (
+            Vec3::ZERO,
+            8.0,
+            0.0,
+            std::f32::consts::FRAC_PI_2,
+            E::PitchOutOfRange,
+        ),
+        (Vec3::ZERO, 8.0, 0.0, limit.next_up(), E::PitchOutOfRange),
+        (Vec3::ZERO, 8.0, 0.0, -limit.next_up(), E::PitchOutOfRange),
+        (
+            Vec3::splat(f32::MAX),
+            f32::MAX,
+            0.0,
+            0.4,
+            E::Unrepresentable,
+        ),
+        // Finite eye (equal to the target) but a NaN view matrix.
+        (Vec3::splat(1e6), 1e-30, 0.0, 0.4, E::Unrepresentable),
+    ];
+    for (target, distance, yaw, pitch, expected) in cases {
+        let mut camera = pose_camera();
+        let before = camera.clone();
+        assert_eq!(camera.set_pose(target, distance, yaw, pitch), Err(expected));
+        assert!(
+            camera.same_capture(&before),
+            "{expected:?} changed the camera"
+        );
+    }
+}
+
+#[test]
+fn set_pose_accepts_the_pitch_limit_and_names_the_bound_in_the_error() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, 0.0, MAX_PITCH).unwrap();
+    camera.set_pose(Vec3::ZERO, 8.0, 0.0, -MAX_PITCH).unwrap();
+    let message = InvalidCameraPose::PitchOutOfRange.to_string();
+    assert!(
+        message.contains("pitch") && message.contains("89.9427"),
+        "{message}"
+    );
+}
