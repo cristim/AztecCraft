@@ -242,6 +242,20 @@ fn native_operation_callers_are_the_known_ui_handlers() {
 }
 
 #[test]
+fn tool_handle_setter_is_reached_only_through_dispatch() {
+    expect(
+        "tool handle setter",
+        ".set_tool_handle(",
+        &["apply_operation_guarded"],
+    );
+    expect(
+        "tool handle combos",
+        "native_operation(Operation::SetToolHandle(",
+        &["manipulation_options"],
+    );
+}
+
+#[test]
 fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     // commit_pending commits a human draft; it is the one documented non-Operation mutation.
     expect(
