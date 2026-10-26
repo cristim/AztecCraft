@@ -9151,3 +9151,48 @@ fn alt_home_and_default_view_are_refused_while_modal_or_closing() {
     assert_eq!(editor.camera, disturbed, "menu path while closing");
     assert!(editor.error);
 }
+
+#[test]
+fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.single_target().unwrap().0;
+    remote(
+        &mut editor,
+        Operation::Rename {
+            id,
+            name: "renamed".into(),
+        },
+    )
+    .unwrap();
+    remote(&mut editor, Operation::Undo).unwrap();
+    let undo = editor.history.undo_label();
+    let redo = editor.history.redo_label();
+    assert!(redo.is_some());
+    for operation in [
+        Operation::Select {
+            node: None,
+            instance_path: None,
+        },
+        Operation::Select {
+            node: Some(id),
+            instance_path: None,
+        },
+        Operation::SetSelectionMode(SelectionMode::Hierarchy),
+        Operation::SetSelectionMode(SelectionMode::Object),
+        Operation::Orbit {
+            radians: [0.1, 0.1],
+        },
+        Operation::Pan {
+            world_units: [0.5, 0.5],
+        },
+        Operation::Dolly { factor: 1.5 },
+        Operation::FrameSelected,
+        Operation::SetActiveTool(ActiveTool::Move),
+        Operation::SetGridVisible { visible: false },
+    ] {
+        remote(&mut editor, operation).unwrap();
+        assert_eq!(editor.history.undo_label(), undo);
+        assert_eq!(editor.history.redo_label(), redo);
+    }
+}

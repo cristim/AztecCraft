@@ -2387,3 +2387,10 @@ fn face_center_work_budget_accepts_exactly_the_limit_and_rejects_one_more() {
         );
     }
 }
+
+#[test]
+fn marker_sizes_are_pinned_to_their_provisional_pixel_values() {
+    assert_eq!(FACE_CENTER_MARKER_PIXELS, 4.0);
+    assert_eq!(VERTEX_MARKER_PIXELS, 5.0);
+    assert_eq!(SELECTED_EDGE_PIXELS, 3.0);
+}

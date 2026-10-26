@@ -818,3 +818,9 @@ fn the_move_centre_exclusion_stays_fixed_at_every_size() {
         }
     }
 }
+
+#[test]
+fn arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values() {
+    assert_eq!(ARROWHEAD_LENGTH, 12.0);
+    assert_eq!(ARROWHEAD_HALF_WIDTH, 4.0);
+}

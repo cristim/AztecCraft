@@ -901,3 +901,15 @@ fn default_camera_is_pinned_bit_for_bit() {
     let expected = [8.0, 0.6, 0.4, 45_f32.to_radians(), 0.01, 10_000.0];
     assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
 }
+
+#[test]
+fn default_camera_pins_the_provisional_pose_fov_and_clip_planes() {
+    let camera = Camera::default();
+    assert_eq!(camera.target(), Vec3::ZERO);
+    assert_eq!(camera.yaw(), 0.6);
+    assert_eq!(camera.pitch(), 0.4);
+    assert_eq!(camera.distance(), 8.0);
+    assert_eq!(camera.fov_y(), 45_f32.to_radians());
+    assert_eq!(camera.near(), 0.01);
+    assert_eq!(camera.far(), 10_000.0);
+}
