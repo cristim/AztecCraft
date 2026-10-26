@@ -118,7 +118,8 @@ The camera core is connected to a depth-tested opaque GPU geometry viewport with
 
 Checked source appearance summaries now distinguish supported immutable source
 associations from unavailable or unbound shapes in the Help Line's "Scene
-diagnostics" header and MCP inspection. They do not evaluate materials, resolve texture assets, prove
+diagnostics" header, also shown in the Attribute Editor body while a node is
+selected, and in MCP inspection. They do not evaluate materials, resolve texture assets, prove
 quadratic-filter equivalence or provide a color processor. The geometry preview
 continues to report incomplete appearance; correct display and Maya comparison
 remain acceptance work.

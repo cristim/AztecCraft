@@ -857,10 +857,42 @@ fn attribute_editor_scrolls_to_the_pivots_at_the_minimum_window_size() {
             "{text} unreachable"
         );
     }
-    // The tab bar stays pinned while the body scrolls.
+    // The tab bar stays pinned while the body scrolls, and its tabs still take clicks.
     let tab = editor.history.scene().nodes()[0].name().to_owned();
     assert!(
         !visible_text_rects(&output, &tab).is_empty(),
         "tab bar scrolled away"
+    );
+    let shape = editor.history.scene().shapes()[0].id();
+    let name = editor.history.scene().shapes()[0].name().to_owned();
+    click_at(&mut editor, &context, label_center(&output, &name));
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Shape(shape))
+    );
+}
+
+#[test]
+fn empty_attribute_editor_shows_no_diagnostics_header() {
+    let (mut editor, _directory) =
+        open_with_attribute_editor("curve.ma", &ascii_fixture::specimen());
+    let reason = editor
+        .history
+        .scene()
+        .authoring_read_only_reason()
+        .unwrap()
+        .to_string();
+    let context = egui::Context::default();
+    let selected = attribute_editor_texts(&mut editor, &context, vec![]);
+    assert!(selected.contains(&reason), "{selected:?}");
+    editor.select(None);
+    let texts = attribute_editor_texts(&mut editor, &context, vec![]);
+    assert_eq!(
+        texts,
+        [
+            "Attribute Editor",
+            "Select an object to edit its attributes."
+        ]
     );
 }

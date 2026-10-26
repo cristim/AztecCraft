@@ -1631,6 +1631,7 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
     editor.create(Primitive::Cube);
     let ctx = egui::Context::default();
     ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    ctx.enable_accesskit();
     let size = egui::vec2(960.0, 640.0);
     let output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
     assert!(!visible_text_rects(&output, "Translate X").is_empty());
@@ -1649,11 +1650,22 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
         !visible_text_rects(&output, "Layers").is_empty(),
         "Layers unreachable"
     );
-    // Hover the Layers stub, the last "Not implemented yet" button.
-    let stub = visible_text_rects(&output, "Not implemented yet")
-        .into_iter()
-        .max_by(|a, b| a.center().y.total_cmp(&b.center().y))
-        .unwrap();
+    let stub = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Layers: not implemented yet"))
+        .and_then(|(_, node)| node.bounds())
+        .map(|b| {
+            egui::Rect::from_min_max(
+                egui::pos2(b.x0 as f32, b.y0 as f32),
+                egui::pos2(b.x1 as f32, b.y1 as f32),
+            )
+        })
+        .expect("Layers stub");
     let mut tooltip = false;
     for step in 0..8 {
         let mut input = egui::RawInput {
@@ -1666,7 +1678,7 @@ fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
             viewport.native_pixels_per_point = Some(1.0);
         }
         let hovered = ctx.run_ui(input, |ui| editor.render(ui));
-        tooltip = !visible_text_rects(&hovered, "Not implemented in this build").is_empty();
+        tooltip |= !visible_text_rects(&hovered, "Not implemented in this build").is_empty();
     }
     assert!(tooltip, "Layers stub tooltip not painted");
     let at = delete[0].center();
