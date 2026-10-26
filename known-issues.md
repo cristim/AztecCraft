@@ -7,13 +7,11 @@
 **Issue:** cristim/AztecCraft#165
 
 The + and - keys and `set_manipulator_size` set one global size from 0.1 to 10 for the Move,
-Rotate and Scale manipulators (Maya's Global scale). No parity with Maya is claimed. The Maya docs
-state the range but not the default, the step, key repeat or persistence, so these are PROVISIONAL:
-default 1.0, keys step on the 1.25^k grid (integer k from -10 to 10, 0.107 to 9.313 when shown, so round
-trips are exact), key repeat steps again, and the size is session-only (no preferences store; it
-never dirties the scene or enters history). The MCP tool accepts any value from 0.1 to 10, rounded to three decimals; a later key step moves to the next grid value in its direction that changes the three-decimal value. A key step stores the raw grid value, so an exact tie such as 1.5625 rounds to 1.563 for stepping but is stored as 1.5625.
+Rotate and Scale manipulators (Maya's Global scale). No parity with Maya is claimed. The default,
+key step grid, key repeat and drawn length (rows 15 to 19) and their evidence are in the [policy constants table](.project-docs/development.md#application-policy-constants).
+The size is session-only (no preferences store; it never dirties the scene or enters history). The MCP tool accepts any value from 0.1 to 10, rounded to three decimals; a later key step moves to the next grid value in its direction that changes the three-decimal value. A key step stores the raw grid value, so an exact tie such as 1.5625 rounds to 1.563 for stepping but is stored as 1.5625.
 
-- The drawn length is `max(72 * size, 36)` px before the view foreshortening, so below size 0.5 the
+- The drawn length has a floor before the view foreshortening, so at small sizes the
   manipulator stops shrinking on screen. A foreshortened axis (#155) can still become hard to pick.
 - The arrowhead, boxes, centre zones and pick radius stay fixed in pixels.
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
@@ -104,18 +102,17 @@ verification must distinguish this observation from a confirmed diagnosis.
 **Severity:** medium
 **Area:** history, documents and viewport
 
-Undo keeps the newest 50 NativeScene snapshots and silently drops older ones
-(Maya's documented default Finite queue size, Preferences > Undo; the limit is
-fixed, not configurable, pending #178; Maya 2017 Help is the newest page found
-stating the default, so 2026/2027 are unconfirmed: PROVISIONAL). Redo is
+Undo keeps the newest 50 NativeScene snapshots and silently drops older ones. The 50 matches
+the Maya 2027 Undo preferences default; the fixed size (no Infinite choice) does not, and
+the evidence is in the [policy constants table](.project-docs/development.md#application-policy-constants) (row 21; configurable limit pending #178). Redo is
 unchanged. The dirty state compares the live scene with the saved scene by value,
 so dropping old entries cannot make an edited scene read clean. Memory still
 scales with scene size times 50. Autosave and persisting history remain pending.
 
 Selection, camera, tool and panel changes do not create undo entries in
 AztecCraft (`.project-docs/mcp.md` already says selection does not). Whether Maya
-puts selection changes on its undo queue is unverified and deferred to #33
-(reconcile provisional application policies with Maya defaults).
+puts selection changes on its undo queue is not stated by its Undo preferences page; see
+row 22 of the [policy constants table](.project-docs/development.md#application-policy-constants).
 
 Measurement: on macOS (Darwin 25.1, arm64 release build),
 `cargo test --release --test history_memory -- --ignored --nocapture` with 1000
@@ -192,12 +189,11 @@ made the whole view refuse. Polygons with extreme coordinates (about |c| >= 1e15
 **Area:** component input and viewport
 
 Face mode supports one exact canonical face target, visible depth-tested center
-markers and plain primary-click replacement/clearing. The fixed 4x4 marker,
-8x8 click box, corner-mean center, center-ray visibility and 1,000,000-intersection
-budget are application policies, not verified Maya defaults. Nonplanar faces can
-hide their own centers. Center visibility uses a 1e-4 relative linear
-view-depth tolerance, so occluders within about 1e-4 of the center's view depth
-(z-fighting range, e.g. stacked planes 1e-3 apart at distance 50) do not hide it;
+markers and plain primary-click replacement/clearing. The marker, click box, center
+definition, center-ray visibility, depth tolerance and work cap are application policies,
+not verified Maya defaults (rows 1 to 5, 12 and 13 of the [policy constants table](.project-docs/development.md#application-policy-constants)). Nonplanar faces can
+hide their own centers. Occluders within the face-center depth tolerance of the center's
+view depth (z-fighting range, e.g. stacked planes 1e-3 apart at distance 50) do not hide it;
 unobstructed finite degenerate centers can be selected.
 Other component masks, multiple-face gestures, marquee, hover and marking menus
 are unsupported. The same holds in Vertex and Edge modes: a Shift or Ctrl click is refused
@@ -226,13 +222,11 @@ UNCONFIRMED, so this is provisional. A click on empty space clears the active ty
 pick, also UNCONFIRMED for Maya.
 The Channel Box shows only the parent object's channels in Vertex, Edge and Face modes; there is
 no component feedback (coordinates or attributes) for the picked vertex or edge.
-The 10 px vertex click box, the 6 px edge click distance, the 5 px vertex marker, the
-3 px selected-edge strip and the depth tolerance below are original provisional values,
-not verified Maya defaults; Maya's click tolerance and preselection defaults are
-UNCONFIRMED for 2026. Colours follow only the Maya 2026 colour words (purple-ish
+The vertex click box, edge click distance, vertex marker, selected-edge strip, candidate
+ranking and depth tolerance are original provisional values listed in the [policy constants table](.project-docs/development.md#application-policy-constants)
+(rows 6 to 11), not verified Maya defaults. Colours follow only the Maya 2026 colour words (purple-ish
 vertex, highlighted when selected, light-blue edge, light-orange selected edge) with
-original RGB values. Candidates are ranked by pointer distance, then depth, then
-source order, which is also an application policy. In Vertex and Edge modes component
+original RGB values. In Vertex and Edge modes component
 feedback replaces Object feedback, so the selected object's faces are not tinted and
 selected curves are not highlighted.
 
@@ -248,7 +242,7 @@ view axis from the eye: marker bias moves a point toward the eye by that fractio
 eye distance, and occlusion treats a hit as blocking only when its linear view depth is
 below `depth * (1 - 6e-3)`. It is neither normalized device depth nor world units. Marker
 bias, selected-edge strip bias, Wireframe marker filtering and pick occlusion share it, so
-draw and pick agree; the face centre keeps 1e-4. Readbacks (Apple M1 Pro, Metal, side-2
+draw and pick agree; the face centre keeps its own tolerance (table row 5). Readbacks (Apple M1 Pro, Metal, side-2
 cube at the origin, near 0.01, far 10000, yaw 0.6, pitch 0.4, 1024 px square, 45 degree
 fov): every corner with a front-facing face showed all 25 marker pixels and no hidden
 corner drew at the default distance 8 and at 120 for tolerances 6e-3 through 8e-3; 5e-3
@@ -571,14 +565,14 @@ Untouched channels are preserved bit for bit. Inspection echoes the requested va
 ## Rotate and Scale handle limits are provisional
 
 The Rotate ring angle comes from a ray-plane hit. Just above the edge-on limit
-(|ray . ring normal| of 1e-3, about 0.06 degrees from the plane) the hit is
+(the edge-on limit, about 0.06 degrees from the plane) the hit is
 far away and the angle can swing sharply per pixel; below it the drag is refused as
-Degenerate. The limit, the 72 px handle size, the 1 px Scale pivot refusal and the
-100 px uniform-scale reference are provisional, not taken from Maya, were not changed
+Degenerate. The limit and the other handle geometry values (rows 15, 16 and 20 of the [policy constants table](.project-docs/development.md#application-policy-constants))
+are provisional, not taken from Maya, were not changed
 by the UI wiring and use physical pixels (they ignore HiDPI scaling). Maya 2026 back-half
 ring behaviour is unverified.
 
-Move arrows and Scale shafts and boxes draw at 72 px times the sine of the angle between
+Move arrows and Scale shafts and boxes draw at their full length times the sine of the angle between
 the axis and the view ray, so an end-on axis is short and picks exactly where it is drawn
 (#155). Plain perspective foreshortening was chosen because a search of the Maya 2026
 manipulator help found no documented minimum length, fading or hiding of end-on axes; the
@@ -586,7 +580,7 @@ rule is unverified against Maya itself. It is a first-order approximation: exact
 Off-centre it draws short. For a pinhole camera, a small displacement perpendicular to a view ray `a` off
 the camera axis, at distance D, shows on screen scaled by 1/(D cos a) out of the ray/axis
 plane and 1/(D cos^2 a) in it (checked with a finite-difference projection), against 1/D
-for the same displacement at the same distance on-axis. The constant 72 px times the sine
+for the same displacement at the same distance on-axis. The constant full length (table row 15) times the sine
 is therefore short by between 1 - cos(a) and 1 - cos^2(a), depending on the axis
 direction: 29-50% at the edge midpoints and 42-67% in the corners of a square viewport at
 a 90 degree field of view, approaching 100% as a nears 90 degrees. The finite length of the
@@ -778,8 +772,7 @@ New, which does not apply to history steps.
 
 ## Default View pose and view history are unverified
 
-The Default View row and Alt+Home restore AztecCraft's own default camera (target 0, yaw 0.6 rad,
-pitch 0.4 rad, distance 8). Maya documents no default perspective pose, so the pose is not
+The Default View row and Alt+Home restore AztecCraft's own default camera (row 24 of the [policy constants table](.project-docs/development.md#application-policy-constants)). Maya documents no default perspective pose, so the pose is not
 compared with Maya: PROVISIONAL. Default View restores only the pose (target, distance, yaw,
 pitch); the far clip plane, which framing can grow, is not reset. Fn+Option+Left as Alt+Home on compact Mac keyboards is unchecked.
 Maya's Undo/Redo View Change, the `[` and `]` view history and View > Bookmarks are not

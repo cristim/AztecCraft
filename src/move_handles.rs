@@ -6,7 +6,8 @@ use glam::{DMat4, DVec2, DVec3, DVec4, Vec2};
 use std::fmt;
 
 pub(crate) const ARROW_LENGTH: f64 = 72.0;
-// PROVISIONAL floor at half the default so the smallest sizes stay pickable.
+// PROVISIONAL floor at half the default so the smallest sizes stay pickable; see the policy
+// constants table in `.project-docs/development.md`.
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
 const GRID_LIMIT: i32 = 10;

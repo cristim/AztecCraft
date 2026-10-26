@@ -17,7 +17,7 @@ pub const FACE_CENTER_DEPTH_TOLERANCE: f32 = 1e-4;
 /// on. Vertex markers and the selected-edge strip are biased toward the eye by it and vertex and
 /// edge picks test occlusion with it, so what is drawn and what is picked agree. Kept apart from
 /// the face constant so loosening one never moves the other. A flat provisional policy value,
-/// see `known-issues.md`.
+/// see the policy constants table in `.project-docs/development.md`.
 pub const VERTEX_MARKER_DEPTH_TOLERANCE: f32 = 6e-3;
 
 // Right-handed, Y-up; yaw zero looks from +Z. NDC uses X/Y [-1, 1], Y up, Z [0, 1].

@@ -157,23 +157,24 @@ selected group. A plain primary click replaces the face or clears it when no
 eligible center is hit. The shared typed operations and inspection are available
 through [MCP selection tools](mcp.md#tools-and-state).
 
-Each marker is a 4x4 physical-pixel box at the arithmetic mean of the ordered
-face corners, accumulated in f64 before conversion to view space. The click box
-is 8x8 physical pixels. Homogeneous clipping, viewport dimensions and scale use
+Each marker sits at the arithmetic mean of the ordered face corners, accumulated
+in f64 before conversion to view space (marker and click-box sizes: rows 1 to 3 of
+the [policy constants table](#application-policy-constants)). Homogeneous clipping, viewport dimensions and scale use
 the same snapped physical capture as rendering. A ray through each eligible
 center, rather than the offset click, checks all rendered triangles, including
 the face itself, within the rendered near/far range. A closer surface blocks the
 center; planar depth equality is admitted. Center-ray occlusion compares linear
-view depth with a 1e-4 relative tolerance, so occluders closer than that to the
+view depth with a relative tolerance (row 5), so occluders closer than that to the
 center (z-fighting range) do not hide it. A nonplanar face can hide its own
 center, while an unobstructed finite degenerate center can remain selectable.
 The GPU markers use the existing depth attachment and comparison path.
 
 Picking preflights eligible centers times all occluder triangles with checked
-arithmetic and refuses work above 1,000,000 intersections. Nearest surviving
+arithmetic and refuses work above the cap in row 4. Nearest surviving
 camera depth wins; exact ties use full instance path, transform/shape IDs and
-original source face index. These fixed application policies have not been
-verified against Maya's Center/CBS behavior or numerical boundaries.
+original source face index. These fixed application policies are in the
+[policy constants table](#application-policy-constants); they have not been verified against Maya's
+Center/CBS behavior or numerical boundaries.
 
 Object mode suppresses component feedback but remembers a still-valid face on
 the same object/path. Switching object/path or successfully replacing a document
@@ -261,7 +262,8 @@ Failed edits and unchanged values
 don't create history entries or clear redo. A changed edit after undo clears the
 redo branch, while node ID reservations stay at their highest allocated value so
 IDs from discarded branches aren't reused. Memory grows with scene size and edit
-count, and no history limit or history persistence exists yet.
+count; the undo queue keeps a fixed number of newest entries (row 21 of the
+[policy constants table](#application-policy-constants)), and no history persistence exists yet.
 
 ## Application policy constants
 
@@ -662,7 +664,8 @@ Only object translation is implemented. Plane/center handles, components,
 rotation/scale manipulation, snapping and alternate orientations remain
 unsupported. Missing source translation leaves, selected pivots, driven data and
 unstable or unrepresentable transforms refuse editing. Pixel sizes, ray thresholds
-and last-valid release behavior are provisional application policies.
+and last-valid release behavior are provisional application policies (rows 14 to 16
+and 22 to 23 of the [policy constants table](#application-policy-constants)).
 
 Source-only tests were authored for real Q/W/buttons and egui pointer paths,
 absolute XYZ and outside-viewport motion, one Undo, stationary release under
