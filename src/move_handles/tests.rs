@@ -658,3 +658,24 @@ fn the_floor_applies_before_the_foreshortening() {
     assert!(drawn < 36.0, "{drawn}");
     near(drawn, 36.0 * fraction, 1e-6);
 }
+
+#[test]
+fn the_move_centre_exclusion_stays_fixed_at_every_size() {
+    let camera = oblique_camera();
+    for (size, distance, picked) in [(0.1, 8.0, false), (10.0, 12.0, true), (0.1, 12.0, true)] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        for (index, axis) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .into_iter()
+            .enumerate()
+        {
+            let shaft = shaft_of(&handles, index);
+            let direction = (shaft.end - shaft.start).normalize();
+            let hit = handles.hit_test(shaft.start + direction * distance);
+            assert_eq!(
+                hit,
+                picked.then_some(axis),
+                "{axis:?} at {size}, {distance}"
+            );
+        }
+    }
+}

@@ -818,10 +818,13 @@ fn rotate_ring_radius_and_disabled_circles_follow_the_size_above_the_floor() {
 #[test]
 fn rotate_at_the_largest_size_with_a_wide_fov_and_a_close_origin_stays_finite_and_in_view() {
     let camera = Camera::new(Vec3::ZERO, 0.6, 0.4, 0.5, 120_f32.to_radians(), 0.1, 100.0).unwrap();
-    let capture = sized(&camera, 10.0);
+    let capture = ViewportCapture::new(&camera, [0, 0], [2400, 1800], 1.0)
+        .unwrap()
+        .with_manipulator_size(ManipulatorSize::new(10.0).unwrap());
     let handles = RotateHandles::new(&capture, &world_frame()).unwrap();
     // The ring is wider than the eye distance, so only the parts in front of the camera draw.
     for ring in handles.rings() {
+        assert!(!ring.segments().is_empty(), "{:?}", ring.axis);
         for segment in ring.segments() {
             for point in [segment.start, segment.end] {
                 assert!(point.is_finite());
@@ -829,5 +832,31 @@ fn rotate_at_the_largest_size_with_a_wide_fov_and_a_close_origin_stays_finite_an
             }
         }
     }
-    let _ = handles.hit_test(DVec2::new(400.0, 300.0));
+}
+
+#[test]
+fn the_scale_centre_box_stays_fixed_at_every_size() {
+    let camera = oblique_camera();
+    let small = ScaleHandles::new(&sized(&camera, 0.1), &world_frame()).unwrap();
+    // Inside the fixed box edge it is Uniform, a bit past it is not.
+    let inside = small.origin + DVec2::new(6.0, 0.0);
+    assert_eq!(small.hit_test(inside), Some(ScaleHandle::Uniform));
+    let outside = small.origin + DVec2::new(CENTER_BOX_HALF + HIT_RADIUS + 1.0, 0.0);
+    assert_ne!(small.hit_test(outside), Some(ScaleHandle::Uniform));
+    let large = ScaleHandles::new(&sized(&camera, 10.0), &world_frame()).unwrap();
+    for (index, expected) in [ScaleHandle::X, ScaleHandle::Y, ScaleHandle::Z]
+        .into_iter()
+        .enumerate()
+    {
+        let shaft = large.axes()[index].geometry().unwrap().shaft.unwrap();
+        let direction = (shaft.end - shaft.start).normalize();
+        for distance in [12.0, 20.0] {
+            let pixel = shaft.start + direction * distance;
+            assert_eq!(
+                large.hit_test(pixel),
+                Some(expected),
+                "{expected:?} {distance}"
+            );
+        }
+    }
 }
