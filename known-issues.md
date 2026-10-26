@@ -565,7 +565,7 @@ Untouched channels are preserved bit for bit. Inspection echoes the requested va
 ## Rotate and Scale handle limits are provisional
 
 The Rotate ring angle comes from a ray-plane hit. Just above the edge-on limit
-(the edge-on limit, about 0.06 degrees from the plane) the hit is
+(|ray . ring normal| of 1e-3, about 0.06 degrees from the plane) the hit is
 far away and the angle can swing sharply per pixel; below it the drag is refused as
 Degenerate. The limit and the other handle geometry values (rows 15, 16 and 20 of the [policy constants table](.project-docs/development.md#application-policy-constants))
 are provisional, not taken from Maya, were not changed
