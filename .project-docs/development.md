@@ -292,8 +292,8 @@ Evidence mapping (acceptance criterion 3 of #33):
 - **Fixture.** None. No Maya build was run for any row except the grid, whose
   value comes from Maya 2025.1 `mayapy` (`grid -q`), as recorded in `known-issues.md`.
 - **Scope.** Each quote covers only the named preference, option or attribute. For
-  example the Pick Range quote is about when a manipulator handle highlights, not about
-  our single hit radius.
+  example the Pick Range quote is about when a manipulator handle highlights; our one
+  hit distance serves both the highlight and the click, which the docs do not state.
 
 Units: pixel values are physical pixels of the snapped viewport capture (the pointer is
 multiplied by the pixel ratio before comparing), not UI points.
@@ -329,7 +329,7 @@ Sources:
 | 11 | Vertex and edge candidate ranking | pointer distance, then depth, then source order | `src/viewport.rs` `pick_vertex`, `pick_edge` | provisional | Not documented. | `vertex_pick_prefers_the_nearest_to_the_pointer_then_the_lowest_index`, `coincident_edges_resolve_to_the_lowest_edge_index` |
 | 12 | Face tie order | nearest depth, then instance path, transform ID, shape ID, source face index | `src/viewport.rs` `pick_face_center` | provisional | Not documented. | `center_pick_keeps_two_direct_imported_shapes_and_excludes_descendant_shapes`, `center_work_boundary_is_enforced_on_the_actual_picker` (both fail when the tie comparison is reversed in a scratch copy) |
 | 13 | Foreground occlusion of a face center | a strictly closer surface hides it; planar equality stays visible; a nonplanar face can hide its own center | `src/viewport.rs` `unoccluded_depth` | provisional | Not documented. | `center_visibility_uses_center_ray_even_for_offset_clicks_and_all_faces_occlude`, `center_planar_equality_is_visible_but_nonplanar_quad_can_occlude_its_own_center`, `center_visibility_uses_rendered_near_far_clipping_for_positive_occluder_hits` |
-| 14 | Manipulator hit radius | 6 px (Euclidean), shared by Move, Rotate and Scale | `src/move_handles.rs` `HIT_RADIUS`, used in `src/manipulator_handles.rs` | differs-from-docs | Manipulators: "Sets the range within which the cursor must land before the manipulator handle is highlighted. The range is set to 8 pixels by default." Also "Line pick size Determines the line thickness used when picking the rotate manipulator rings." (no default). The 8 px is a highlight range; whether it is a radius is not stated. | `rotate_and_scale_pick_radius_stays_six_pixels_at_every_size`, `front_axes_share_exact_physical_drawing_and_hit_geometry`, `ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment` |
+| 14 | Manipulator hit radius | 8 px (Euclidean), shared by hover, click, Move, Rotate, Scale and the unsupported-handle probe | `src/move_handles.rs` `HIT_RADIUS`, used in `src/manipulator_handles.rs` | value verified-by-docs (8 px default); that it is a Euclidean radius, shared by hover and click and all three tools, and measured in physical pixels, is provisional | Manipulators: "Sets the range within which the cursor must land before the manipulator handle is highlighted. The range is set to 8 pixels by default." Also "Line pick size Determines the line thickness used when picking the rotate manipulator rings." (no default, so the rings share Pick Range; PROVISIONAL). The docs do not say whether the range is a radius or a box, or physical or logical pixels. | `rotate_and_scale_pick_radius_stays_eight_pixels_at_every_size`, `the_move_pick_radius_stays_eight_pixels_at_every_size`, `front_axes_share_exact_physical_drawing_and_hit_geometry`, `ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment` |
 | 15 | Move handle length | 72 px times the size | `src/move_handles.rs` `ARROW_LENGTH` | provisional | Manipulators: "Handle size Specifies the size of the handle. The range is from 4 to 100." No default or unit. | `move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike`, `axis_length_is_the_full_length_times_its_projected_fraction` |
 | 16 | Handle length floor | 36 px (half of row 15) | `src/move_handles.rs` `MIN_HANDLE_LENGTH` | provisional | Not documented. | `move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike` |
 | 17 | Manipulator size range | 0.1 to 10 | `src/move_handles.rs` `ManipulatorSize::MIN`, `ManipulatorSize::MAX` | verified-by-docs for the range; how it maps onto our drawn size is provisional | Manipulators: "Specifies the size of the manipulators. The range is from 0.10 to 10.00." | `manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli` |
@@ -348,8 +348,8 @@ Sources:
 | 30 | Move arrowhead | 12 px long, 4 px half width | `src/move_handles.rs` `ARROWHEAD_LENGTH`, `ARROWHEAD_HALF_WIDTH` | provisional | Not documented. | `arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values` |
 | 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
 
-Tally: 31 rows. Verified-by-docs parts: the manipulator size range (17) and the Undo
-default of 50 (21). Differs-from-docs parts: the hit radius (14), the near clip and the field of view (25), the
+Tally: 31 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Differs-from-docs parts: the near clip and the field of view (25), the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
 

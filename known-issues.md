@@ -13,7 +13,12 @@ The size is session-only (no preferences store; it never dirties the scene or en
 
 - The drawn length has a floor before the view foreshortening, so at small sizes the
   manipulator stops shrinking on screen. A foreshortened axis (#155) can still become hard to pick.
-- The arrowhead, boxes, centre zones and pick radius stay fixed in pixels.
+- The arrowhead, boxes, centre zones and pick radius (8 px, Maya Pick Range) stay fixed in pixels.
+- Since the pick radius became 8 px (#295), a click within 8 px of a manipulator handle grabs it
+  instead of selecting the object behind. The disabled handles (the free-rotate circle, the view ring
+  and the Scale planes) consume clicks in that band with an unsupported status.
+- An end-on Scale axis keeps its 5 px tip box about 0.7 px from the origin, so it wins a ring just
+  outside the 7 px centre box; the 8 px radius widens that ring (#297).
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions

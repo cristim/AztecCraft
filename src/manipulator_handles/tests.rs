@@ -133,8 +133,8 @@ fn ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment() {
             "{pixel}"
         );
     }
-    assert_eq!(handles.hit_test(middle + normal * 5.9), Some(RotateAxis::Y));
-    assert_eq!(handles.hit_test(middle + normal * 6.5), None);
+    assert_eq!(handles.hit_test(middle + normal * 7.9), Some(RotateAxis::Y));
+    assert_eq!(handles.hit_test(middle + normal * 8.5), None);
 }
 
 #[test]
@@ -358,12 +358,12 @@ fn scale_boxes_share_drawing_and_pick_geometry() {
         handles.hit_test(DVec2::new(400.0, 228.0)),
         Some(ScaleHandle::Y)
     );
-    // The box edge sits five pixels past the tip, with the six pixel pick margin.
+    // The box edge sits five pixels past the tip, with the eight pixel pick margin.
     assert_eq!(
-        handles.hit_test(DVec2::new(483.0, 300.0)),
+        handles.hit_test(DVec2::new(485.0, 300.0)),
         Some(ScaleHandle::X)
     );
-    assert_eq!(handles.hit_test(DVec2::new(483.5, 300.0)), None);
+    assert_eq!(handles.hit_test(DVec2::new(485.5, 300.0)), None);
     assert_eq!(
         handles.hit_test(DVec2::new(407.0, 293.0)),
         Some(ScaleHandle::Uniform)
@@ -876,7 +876,8 @@ fn the_scale_centre_box_stays_fixed_at_every_size() {
 }
 
 #[test]
-fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
+fn rotate_and_scale_pick_radius_stays_eight_pixels_at_every_size() {
+    assert_eq!(HIT_RADIUS, 8.0);
     let camera = oblique_camera();
     for size in [0.1, 10.0] {
         let capture = ViewportCapture::new(&camera, [0, 0], [2400, 1800], 1.0)
@@ -891,20 +892,20 @@ fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
                 rotate.rings()[other]
                     .segments()
                     .iter()
-                    .all(|segment| segment_distance_squared(*segment, middle).sqrt() > 13.0)
+                    .all(|segment| segment_distance_squared(*segment, middle).sqrt() > 17.0)
             });
             let fits = |pixel: DVec2| inside_viewport(pixel, rotate.size);
-            (alone && fits(middle + normal * 6.1) && fits(middle - normal * 6.1))
+            (alone && fits(middle + normal * 8.1) && fits(middle - normal * 8.1))
                 .then_some((middle, normal))
         });
         let (middle, normal) = found.expect("an isolated Y segment");
         assert_eq!(
-            rotate.hit_test(middle + normal * 5.9),
+            rotate.hit_test(middle + normal * 7.9),
             Some(RotateAxis::Y),
             "rotate inside at {size}"
         );
         assert_eq!(
-            rotate.hit_test(middle + normal * 6.1),
+            rotate.hit_test(middle + normal * 8.1),
             None,
             "rotate outside at {size}"
         );
@@ -915,12 +916,12 @@ fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
         let delta = shaft.end - shaft.start;
         let normal = DVec2::new(-delta.y, delta.x).normalize();
         assert_eq!(
-            scale.hit_test(on_shaft + normal * 5.9),
+            scale.hit_test(on_shaft + normal * 7.9),
             Some(ScaleHandle::X),
             "scale inside at {size}"
         );
         assert_eq!(
-            scale.hit_test(on_shaft + normal * 6.1),
+            scale.hit_test(on_shaft + normal * 8.1),
             None,
             "scale outside at {size}"
         );

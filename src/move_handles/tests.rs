@@ -46,10 +46,10 @@ fn front_axes_share_exact_physical_drawing_and_hit_geometry() {
         Some(WorldAxis::Y)
     );
     assert_eq!(
-        handles.hit_test(DVec2::new(436.0, 306.0)),
+        handles.hit_test(DVec2::new(436.0, 308.0)),
         Some(WorldAxis::X)
     );
-    assert_eq!(handles.hit_test(DVec2::new(436.0, 306.001)), None);
+    assert_eq!(handles.hit_test(DVec2::new(436.0, 308.001)), None);
     assert_eq!(handles.hit_test(DVec2::new(410.0, 300.0)), None);
     assert_eq!(
         handles.hit_test(DVec2::new(410.001, 300.0)),
@@ -740,7 +740,8 @@ fn move_axes_are_pickable_outside_the_centre_at_every_size() {
 }
 
 #[test]
-fn the_move_pick_radius_stays_six_pixels_at_every_size() {
+fn the_move_pick_radius_stays_eight_pixels_at_every_size() {
+    assert_eq!(HIT_RADIUS, 8.0);
     let camera = front_camera();
     for size in [0.1, 10.0] {
         let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
