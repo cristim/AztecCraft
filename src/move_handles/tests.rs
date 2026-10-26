@@ -660,31 +660,49 @@ fn a_key_step_from_an_off_grid_value_moves_to_the_adjacent_grid_value() {
 }
 
 #[test]
-fn every_milli_size_steps_to_the_adjacent_grid_value_in_its_direction() {
+fn every_milli_size_steps_to_the_adjacent_visibly_different_grid_value() {
     let grid: Vec<f64> = (-GRID_LIMIT..=GRID_LIMIT)
         .map(|k| 1.25_f64.powi(k))
         .collect();
-    let (mut skips, mut wrong_way, mut false_refusals) = (0, 0, 0);
+    // Exact ties such as 1.5625 print as 1.562 but store as 1.563, so a tie counts as unchanged.
+    let shown = |value: f64| (format!("{value:.3}"), round_milli(value).to_bits());
+    let differs = |a: f64, b: f64| {
+        let (a, b) = (shown(a), shown(b));
+        a.0 != b.0 && a.1 != b.1
+    };
+    let (mut skips, mut wrong_way, mut stuck, mut false_refusals) = (0, 0, 0, 0);
     for milli in 100..=10_000 {
         let size = ManipulatorSize::new(f64::from(milli) / 1000.0).unwrap();
-        let above = grid.iter().copied().find(|g| *g > size.get() + 1e-9);
-        match (size.grown(), above) {
-            (Some(next), Some(expected)) if next.get() == expected => {}
-            (Some(next), Some(expected)) if next.get() > expected => skips += 1,
-            (Some(_), Some(_)) | (Some(_), None) => wrong_way += 1,
-            (None, Some(_)) => false_refusals += 1,
-            (None, None) => {}
-        }
-        let below = grid.iter().copied().rev().find(|g| *g < size.get() - 1e-9);
-        match (size.shrunk(), below) {
-            (Some(next), Some(expected)) if next.get() == expected => {}
-            (Some(next), Some(expected)) if next.get() < expected => skips += 1,
-            (Some(_), Some(_)) | (Some(_), None) => wrong_way += 1,
-            (None, Some(_)) => false_refusals += 1,
-            (None, None) => {}
+        let up = grid
+            .iter()
+            .copied()
+            .find(|g| *g > size.get() && differs(*g, size.get()));
+        let down = grid
+            .iter()
+            .copied()
+            .rev()
+            .find(|g| *g < size.get() && differs(*g, size.get()));
+        for (step, expected, upward) in [(size.grown(), up, true), (size.shrunk(), down, false)] {
+            match (step.map(ManipulatorSize::get), expected) {
+                (Some(next), _) if !differs(next, size.get()) => stuck += 1,
+                (Some(next), _) if (next > size.get()) != upward => wrong_way += 1,
+                (Some(next), Some(want)) if next == want => {}
+                (Some(_), Some(_)) => skips += 1,
+                (Some(_), None) => wrong_way += 1,
+                (None, Some(_)) => false_refusals += 1,
+                (None, None) => {}
+            }
         }
     }
-    assert_eq!((skips, wrong_way, false_refusals), (0, 0, 0));
+    assert_eq!((skips, wrong_way, stuck, false_refusals), (0, 0, 0, 0));
+}
+
+#[test]
+fn a_size_just_below_a_grid_point_steps_past_it_and_the_top_refuses() {
+    let near = ManipulatorSize::new(1.953).unwrap();
+    assert_eq!(near.grown().unwrap().get(), 1.25_f64.powi(4));
+    assert_eq!(ManipulatorSize::new(9.313).unwrap().grown(), None);
+    assert_eq!(ManipulatorSize::new(0.107).unwrap().shrunk(), None);
 }
 
 #[test]

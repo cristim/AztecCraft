@@ -10,8 +10,8 @@ pub(crate) const ARROW_LENGTH: f64 = 72.0;
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
 pub const GRID_LIMIT: i32 = 10;
-// Absorbs the rounding of ln so an on-grid size steps to its neighbour, not past it.
-const GRID_EPSILON: f64 = 1e-9;
+// A step must change the three-decimal value a set size shows, so it clears the rounding.
+const HALF_MILLI: f64 = 0.0005;
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;
@@ -136,23 +136,22 @@ impl ManipulatorSize {
 
     /// The next 1.25^k grid value above this size, or `None` at or above the top of the grid.
     pub fn grown(self) -> Option<Self> {
-        Self::on_grid((self.exponent() + GRID_EPSILON).floor() as i32 + 1)
+        Self::grid()
+            .find(|grid| *grid > self.0 + HALF_MILLI)
+            .map(Self)
     }
 
     /// The next 1.25^k grid value below this size, or `None` at or below the bottom of the grid.
     pub fn shrunk(self) -> Option<Self> {
-        Self::on_grid((self.exponent() - GRID_EPSILON).ceil() as i32 - 1)
+        Self::grid()
+            .rev()
+            .find(|grid| *grid < self.0 - HALF_MILLI)
+            .map(Self)
     }
 
-    fn exponent(self) -> f64 {
-        self.0.ln() / SIZE_STEP.ln()
-    }
-
-    // The power is taken from the integer, never from the previous f64, so steps are exact inverses.
-    fn on_grid(k: i32) -> Option<Self> {
-        (-GRID_LIMIT..=GRID_LIMIT)
-            .contains(&k)
-            .then(|| Self(SIZE_STEP.powi(k)))
+    // Each power comes from its integer, never from a previous f64, so steps are exact inverses.
+    fn grid() -> impl DoubleEndedIterator<Item = f64> {
+        (-GRID_LIMIT..=GRID_LIMIT).map(|k| SIZE_STEP.powi(k))
     }
 }
 
