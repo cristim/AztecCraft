@@ -588,9 +588,14 @@ fn manipulator_size_steps_on_the_exponent_grid_and_saturate_at_its_ends() {
     assert_eq!(one.shrunk().unwrap().get(), 0.8);
     let top = ManipulatorSize::new(10.0).unwrap();
     assert_eq!(top.grown(), None);
-    assert_eq!(top.shrunk().unwrap().get(), 1.25_f64.powi(9));
+    assert_eq!(top.shrunk().unwrap().get(), 1.25_f64.powi(10));
     assert_eq!(ManipulatorSize::new(0.1).unwrap().shrunk(), None);
-    assert_eq!(ManipulatorSize::new(9.0).unwrap().grown(), None);
+    assert_eq!(
+        ManipulatorSize::new(9.0).unwrap().grown().unwrap().get(),
+        1.25_f64.powi(10)
+    );
+    assert_eq!(ManipulatorSize(1.25_f64.powi(10)).grown(), None);
+    assert_eq!(ManipulatorSize(1.25_f64.powi(-10)).shrunk(), None);
     let mut size = one;
     for _ in 0..50 {
         size = size.grown().unwrap_or(size);
@@ -646,10 +651,40 @@ fn key_steps_from_any_grid_value_return_to_it_bit_exactly() {
 }
 
 #[test]
-fn a_key_step_from_an_off_grid_value_snaps_to_the_grid_first() {
+fn a_key_step_from_an_off_grid_value_moves_to_the_adjacent_grid_value() {
     let off = ManipulatorSize::new(2.5).unwrap();
     assert_eq!(off.grown().unwrap().get(), 1.25_f64.powi(5));
-    assert_eq!(off.shrunk().unwrap().get(), 1.25_f64.powi(3));
+    assert_eq!(off.shrunk().unwrap().get(), 1.25_f64.powi(4));
+    let low = ManipulatorSize::new(1.2).unwrap();
+    assert_eq!(low.grown().unwrap().get(), 1.25);
+}
+
+#[test]
+fn every_milli_size_steps_to_the_adjacent_grid_value_in_its_direction() {
+    let grid: Vec<f64> = (-GRID_LIMIT..=GRID_LIMIT)
+        .map(|k| 1.25_f64.powi(k))
+        .collect();
+    let (mut skips, mut wrong_way, mut false_refusals) = (0, 0, 0);
+    for milli in 100..=10_000 {
+        let size = ManipulatorSize::new(f64::from(milli) / 1000.0).unwrap();
+        let above = grid.iter().copied().find(|g| *g > size.get() + 1e-9);
+        match (size.grown(), above) {
+            (Some(next), Some(expected)) if next.get() == expected => {}
+            (Some(next), Some(expected)) if next.get() > expected => skips += 1,
+            (Some(_), Some(_)) | (Some(_), None) => wrong_way += 1,
+            (None, Some(_)) => false_refusals += 1,
+            (None, None) => {}
+        }
+        let below = grid.iter().copied().rev().find(|g| *g < size.get() - 1e-9);
+        match (size.shrunk(), below) {
+            (Some(next), Some(expected)) if next.get() == expected => {}
+            (Some(next), Some(expected)) if next.get() < expected => skips += 1,
+            (Some(_), Some(_)) | (Some(_), None) => wrong_way += 1,
+            (None, Some(_)) => false_refusals += 1,
+            (None, None) => {}
+        }
+    }
+    assert_eq!((skips, wrong_way, false_refusals), (0, 0, 0));
 }
 
 #[test]

@@ -416,7 +416,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_manipulator_size",
-        description: "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); the value is rounded to three decimals, so 2.5555 reads back as 2.556. The keys step on the 1.25^k grid (k from -10 to 10, about 0.107 to 9.313) and snap an off-grid value to it first. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
+        description: "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); the value is rounded to three decimals, so 2.5555 reads back as 2.556. The keys step on the 1.25^k grid (k from -10 to 10, about 0.107 to 9.313) and a step from an off-grid value moves to the adjacent grid value in that direction. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
         schema: schema::<ManipulatorSizeArgs>,
         parse: parse_set_manipulator_size,
         idempotent: true,

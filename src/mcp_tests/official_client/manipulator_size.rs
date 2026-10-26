@@ -63,7 +63,7 @@ async fn sdk_manipulator_size_reads_the_default_sets_values_and_shares_the_nativ
         assert_eq!(editor.is_dirty(), dirty);
         assert_eq!(editor.scene_token.to_string(), token);
     }
-    // A native hotkey step reads back, and an MCP set feeds the next hotkey step, which snaps to the 1.25^k grid.
+    // A native hotkey step reads back, and an MCP set feeds the next hotkey step, which moves to the adjacent 1.25^k grid value.
     editor.native_operation(Operation::SetActiveTool(ActiveTool::Move));
     editor.native_operation(Operation::SetManipulatorSize(
         ManipulatorSize::new(2.0).unwrap(),

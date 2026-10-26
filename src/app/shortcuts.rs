@@ -149,13 +149,23 @@ impl Editor {
                 self.native_operation(Operation::SetManipulatorSize(size));
             }
             None => {
-                let (name, key_limit, mcp_limit) = if grow {
-                    ("largest", 1.25_f64.powi(GRID_LIMIT), ManipulatorSize::MAX)
+                let (side, name, key_limit, mcp_limit) = if grow {
+                    (
+                        "above",
+                        "largest",
+                        1.25_f64.powi(GRID_LIMIT),
+                        ManipulatorSize::MAX,
+                    )
                 } else {
-                    ("smallest", 1.25_f64.powi(-GRID_LIMIT), ManipulatorSize::MIN)
+                    (
+                        "below",
+                        "smallest",
+                        1.25_f64.powi(-GRID_LIMIT),
+                        ManipulatorSize::MIN,
+                    )
                 };
                 self.status = format!(
-                    "Manipulator size is at its {name} key step ({key_limit:.2}); set_manipulator_size reaches {mcp_limit:.2}"
+                    "Manipulator size is at or {side} its {name} key step ({key_limit:.2}); set_manipulator_size reaches {mcp_limit:.2}"
                 );
                 self.error = false;
             }
