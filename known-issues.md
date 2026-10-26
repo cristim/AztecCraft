@@ -464,7 +464,7 @@ Tracked in the UI parity inventory (`.project-docs/ui-parity-inventory.md`, sect
 
 ## Poly Sphere is provisional (#43)
 
-Create > Polygon sphere and `create_primitive` with `sphere` build a radius-1,
+Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build a radius-1,
 20x20, Y-axis sphere (382 points, 780 edges, 400 faces: 40 pole triangles and
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
@@ -504,7 +504,7 @@ rotateX and rotateY by about the same amount, and one of them is snapped away.
 
 ## Poly Cylinder and Poly Cone are provisional (#43)
 
-Create > Polygon cylinder and cone, and `create_primitive` with `cylinder` or `cone`,
+Create > Polygon Primitives > Cylinder and Cone, and `create_primitive` with `cylinder` or `cone`,
 build radius-1, height-2 (y from -1 to 1), Y-axis solids with 20 axis divisions,
 1 height division and no cap subdivisions. The cylinder is the sc=0 variant (node-page
 default) with 40 points, 60 edges, 22 faces and two true 20-gon caps; the command page
@@ -621,7 +621,7 @@ Rotate angle in the scene angular unit and the native numeric field takes degree
 ## Primitive creation options are partial and PROVISIONAL (#174)
 
 `create_primitive` accepts size, subdivision and axis (X, Y or Z) options for cube, plane,
-sphere, cylinder and cone, and each Create menu row has an option box that opens a
+sphere, cylinder and cone, and each built Create > Polygon Primitives row has an option box that opens a
 "Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
 and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
@@ -630,7 +630,8 @@ primitives are still not persisted: Save is unavailable for created scenes. The 
 limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
-interactive creation, Free and Camera axis, and editing the options after creation (no
+interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
+Primitives and in the options window), Free and Camera axis, and editing the options after creation (no
 construction history). The plane default is 1x1 with 10x10 subdivisions (#176), PROVISIONAL:
 the polyPlane node page lists sw/sh 10 (the command page lists sw 10 and sx/sy 5), and
 Maya 2025.1 creates 10x10 through both `polyPlane` and Create > Polygon Primitives > Plane.
