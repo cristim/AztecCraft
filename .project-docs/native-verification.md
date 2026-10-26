@@ -299,3 +299,9 @@ comparison; colours, sizes, marker shape and button order are provisional
 application choices. The screenshots are not committed. Windows, Linux, release builds
 and the hidden-corner margin at other distances or adapters are not covered (see
 known-issues.md).
+
+## Channel Box heading (#171)
+
+| Check | Result |
+| --- | --- |
+| IME composition, macOS text shortcuts (Cmd+A/C/V/Z in the name heading) and VoiceOver reading of the Channel Box heading and stubs | pending (needs a human) |
