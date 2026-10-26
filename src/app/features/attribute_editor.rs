@@ -1,3 +1,4 @@
+use crate::app::features::node_edit::NameStyle;
 use crate::app::*;
 
 impl Editor {
@@ -162,7 +163,9 @@ impl Editor {
         ui.separator();
         match active {
             AttributeEditorTab::Transform(_) => {
-                self.transform_section(ui, authoring);
+                let name_blur = self.name_field(ui, authoring, NameStyle::Plain);
+                let channel_blur = self.transform_section(ui, authoring);
+                self.commit_on_blur(name_blur | channel_blur);
                 self.transform_attributes_section(ui);
             }
             AttributeEditorTab::Shape(shape) => self.shape_section(ui, shape),

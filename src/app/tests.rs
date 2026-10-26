@@ -1459,7 +1459,7 @@ fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() 
             .unwrap();
         let controls = labels
             .iter()
-            .find(|(text, _)| *text == "Object name")
+            .find(|(text, _)| *text == "Translate X")
             .unwrap();
         assert!(summary.1 < controls.1);
         assert!(
@@ -7423,6 +7423,94 @@ fn release_click_and_tab_after_a_first_click_defer_the_blur_commit_once() {
     }
     assert_eq!(undo_entries(&mut editor), undo_before + 2);
     assert!(!editor.has_draft());
+}
+
+fn type_into_name(editor: &mut Editor, ctx: &egui::Context, text: &str) {
+    ctx.memory_mut(|memory| memory.request_focus(name_edit_id()));
+    frame(editor, ctx, vec![]);
+    frame(editor, ctx, vec![egui::Event::Text(text.into())]);
+}
+
+fn node_name(editor: &Editor) -> String {
+    editor.history.scene().nodes()[0].name().to_string()
+}
+
+#[test]
+fn heading_name_enter_commits_one_rename() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    assert!(editor.name.ends_with("Boxy") && editor.has_draft());
+    frame(&mut editor, &ctx, vec![key(Key::Enter)]);
+    assert!(node_name(&editor).ends_with("Boxy"));
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    assert!(!editor.has_draft());
+}
+
+#[test]
+fn heading_name_click_away_commits_exactly_once() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    frame(&mut editor, &ctx, vec![key(Key::Tab)]);
+    for _ in 0..4 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert!(node_name(&editor).ends_with("Boxy"));
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+}
+
+#[test]
+fn heading_name_blur_honours_the_skip_frames_and_the_kept_draft_commits_after() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let original = node_name(&editor);
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    editor.blur_commit_skip_frames = 3;
+    frame(&mut editor, &ctx, vec![key(Key::Tab)]);
+    assert_eq!(node_name(&editor), original);
+    assert!(editor.has_draft());
+    assert_eq!(undo_entries(&mut editor), undo_before);
+    // The blur was swallowed, so the draft stays until a later commit trigger.
+    editor.blur_commit_skip_frames = 0;
+    editor.commit_pending();
+    assert!(node_name(&editor).ends_with("Boxy"));
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+}
+
+#[test]
+fn heading_name_rejected_rename_keeps_the_draft() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let original = node_name(&editor);
+    let undo_before = undo_entries(&mut editor);
+    ctx.memory_mut(|memory| memory.request_focus(name_edit_id()));
+    frame(&mut editor, &ctx, vec![]);
+    editor.name.clear();
+    editor.name_intent = true;
+    frame(&mut editor, &ctx, vec![key(Key::Enter)]);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert_eq!(node_name(&editor), original);
+    assert_eq!(editor.name, "");
+    assert!(editor.name_intent && editor.error);
+    assert_eq!(undo_entries(&mut editor), undo_before);
+}
+
+#[test]
+fn attribute_editor_keeps_the_labelled_object_name_row() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| editor.attribute_editor(ui));
+    output.textures_delta.clear();
+    assert!(output.shapes.iter().any(|shape| matches!(
+        &shape.shape,
+        egui::Shape::Text(text) if text.galley.job.text == "Object name"
+    )));
 }
 
 mod primitive_options_create {
