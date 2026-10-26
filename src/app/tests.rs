@@ -3120,6 +3120,16 @@ pub(in crate::app) fn polygon_submenu_items(output: &egui::FullOutput) -> Vec<Su
     nodes.into_iter().filter(in_popup).collect()
 }
 
+/// True once the whole Create popup chain is gone: neither the submenu button nor its rows remain.
+pub(in crate::app) fn create_menu_closed(output: &egui::FullOutput) -> bool {
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    polygon_submenu_items(output).is_empty()
+        && !update
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label().is_some_and(is_polygon_primitives_button))
+}
+
 /// egui appends a submenu arrow to the button's accessible label.
 fn is_polygon_primitives_button(label: &str) -> bool {
     label.starts_with(menus::POLYGON_PRIMITIVES_MENU)

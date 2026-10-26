@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::tests::{
-    click_at, frame_with, open_polygon_primitives, polygon_submenu_items, remote, submenu_item,
+    click_at, create_menu_closed, frame_with, open_polygon_primitives, remote, submenu_item,
 };
 use crate::editor_operations::{OperationError, OperationReply};
 use eframe::egui::{Event, Modifiers, PointerButton, Pos2, Rect, Vec2, accesskit};
@@ -182,10 +182,7 @@ fn option_box_in_the_create_menu_opens_that_primitives_window_and_closes_the_men
     open_menu_and_click(&mut editor, &ctx, "Sphere option box");
     let output = run(&mut editor, &ctx, vec![]);
     assert!(dialog_open(&output, Primitive::Sphere));
-    assert!(
-        polygon_submenu_items(&output).is_empty(),
-        "the whole menu chain closes"
-    );
+    assert!(create_menu_closed(&output), "the whole menu chain closes");
     assert_eq!(node_count(&editor), 0, "opening the window creates nothing");
 }
 
@@ -196,7 +193,7 @@ fn plain_menu_item_still_creates_with_the_remembered_options() {
     assert_eq!(node_count(&editor), 1);
     let output = run(&mut editor, &ctx, vec![]);
     assert!(
-        polygon_submenu_items(&output).is_empty(),
+        create_menu_closed(&output),
         "the item closes the menu chain"
     );
     open_dialog(&mut editor, &ctx, Primitive::Plane);
