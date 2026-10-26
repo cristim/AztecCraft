@@ -860,3 +860,55 @@ fn the_scale_centre_box_stays_fixed_at_every_size() {
         }
     }
 }
+
+#[test]
+fn rotate_and_scale_pick_radius_stays_six_pixels_at_every_size() {
+    let camera = oblique_camera();
+    for size in [0.1, 10.0] {
+        let capture = ViewportCapture::new(&camera, [0, 0], [2400, 1800], 1.0)
+            .unwrap()
+            .with_manipulator_size(ManipulatorSize::new(size).unwrap());
+        let rotate = RotateHandles::new(&capture, &world_frame()).unwrap();
+        let found = rotate.rings()[1].segments().iter().find_map(|segment| {
+            let middle = (segment.start + segment.end) * 0.5;
+            let delta = segment.end - segment.start;
+            let normal = DVec2::new(-delta.y, delta.x).normalize();
+            let alone = [0, 2].into_iter().all(|other| {
+                rotate.rings()[other]
+                    .segments()
+                    .iter()
+                    .all(|segment| segment_distance_squared(*segment, middle).sqrt() > 13.0)
+            });
+            let fits = |pixel: DVec2| inside_viewport(pixel, rotate.size);
+            (alone && fits(middle + normal * 6.1) && fits(middle - normal * 6.1))
+                .then_some((middle, normal))
+        });
+        let (middle, normal) = found.expect("an isolated Y segment");
+        assert_eq!(
+            rotate.hit_test(middle + normal * 5.9),
+            Some(RotateAxis::Y),
+            "rotate inside at {size}"
+        );
+        assert_eq!(
+            rotate.hit_test(middle + normal * 6.1),
+            None,
+            "rotate outside at {size}"
+        );
+
+        let scale = ScaleHandles::new(&capture, &world_frame()).unwrap();
+        let shaft = scale.axes()[0].geometry().unwrap().shaft.unwrap();
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.35;
+        let delta = shaft.end - shaft.start;
+        let normal = DVec2::new(-delta.y, delta.x).normalize();
+        assert_eq!(
+            scale.hit_test(on_shaft + normal * 5.9),
+            Some(ScaleHandle::X),
+            "scale inside at {size}"
+        );
+        assert_eq!(
+            scale.hit_test(on_shaft + normal * 6.1),
+            None,
+            "scale outside at {size}"
+        );
+    }
+}

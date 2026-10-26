@@ -9,7 +9,7 @@ pub(crate) const ARROW_LENGTH: f64 = 72.0;
 // PROVISIONAL floor at half the default so the smallest sizes stay pickable.
 const MIN_HANDLE_LENGTH: f64 = ARROW_LENGTH / 2.0;
 const SIZE_STEP: f64 = 1.25;
-const GRID_LIMIT: i32 = 10;
+pub const GRID_LIMIT: i32 = 10;
 pub(crate) const HIT_RADIUS: f64 = 6.0;
 const ARROWHEAD_LENGTH: f64 = 12.0;
 const ARROWHEAD_HALF_WIDTH: f64 = 4.0;

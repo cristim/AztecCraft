@@ -1555,6 +1555,51 @@ fn plus_with_or_without_shift_and_equals_grow_and_minus_shrinks() {
     assert_eq!(editor.manipulation.manipulator_size(), size(1.25));
 }
 
+const TOP_STATUS: &str =
+    "Manipulator size is at its largest key step (9.31); set_manipulator_size reaches 10.00";
+const BOTTOM_STATUS: &str =
+    "Manipulator size is at its smallest key step (0.11); set_manipulator_size reaches 0.10";
+
+fn tap(editor: &mut Editor, context: &egui::Context, key: Key) {
+    frame(
+        editor,
+        context,
+        raw(
+            SIZE,
+            Pos2::ZERO,
+            1.0,
+            vec![size_key(key, false, Modifiers::NONE)],
+        ),
+    );
+}
+
+#[test]
+fn holding_a_size_key_stops_at_the_grid_end_and_names_that_limit() {
+    for (key, steps, end, status) in [
+        (Key::Plus, 10, 1.25_f64.powi(10), TOP_STATUS),
+        (Key::Minus, 10, 1.25_f64.powi(-10), BOTTOM_STATUS),
+    ] {
+        let (mut editor, context, _) = setup(Key::W, 1.0);
+        for _ in 0..steps {
+            tap(&mut editor, &context, key);
+        }
+        assert_eq!(editor.manipulation.manipulator_size().get(), end);
+        assert!(editor.status.is_empty(), "{}", editor.status);
+        tap(&mut editor, &context, key);
+        assert_eq!(editor.status, status);
+        assert_eq!(editor.manipulation.manipulator_size().get(), end);
+    }
+}
+
+#[test]
+fn an_mcp_size_above_the_key_grid_end_is_refused_by_plus_without_changing() {
+    let (mut editor, context, _) = setup(Key::W, 1.0);
+    editor.native_operation(Operation::SetManipulatorSize(size(9.5)));
+    tap(&mut editor, &context, Key::Plus);
+    assert_eq!(editor.status, TOP_STATUS);
+    assert_eq!(editor.manipulation.manipulator_size().get(), 9.5);
+}
+
 #[test]
 fn one_key_press_and_its_release_step_exactly_once() {
     let (mut editor, context, _) = setup(Key::W, 1.0);
@@ -1617,7 +1662,7 @@ fn key_repeat_steps_and_the_bounds_report_a_status_without_an_operation() {
             vec![size_key(Key::Plus, false, Modifiers::NONE)],
         ),
     );
-    assert_eq!(editor.status, "Manipulator size is at its maximum (10.00)");
+    assert_eq!(editor.status, TOP_STATUS);
     assert!(!editor.error);
     editor.native_operation(Operation::SetManipulatorSize(size(0.1)));
     frame(
@@ -1630,7 +1675,7 @@ fn key_repeat_steps_and_the_bounds_report_a_status_without_an_operation() {
             vec![size_key(Key::Minus, false, Modifiers::NONE)],
         ),
     );
-    assert_eq!(editor.status, "Manipulator size is at its minimum (0.10)");
+    assert_eq!(editor.status, BOTTOM_STATUS);
     assert_eq!(editor.manipulation.manipulator_size(), size(0.1));
     frame(
         &mut editor,
