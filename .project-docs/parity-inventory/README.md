@@ -6,22 +6,22 @@ This inventory replaces the provisional [workflow seed](../inventory-seed.md) as
 
 ## Documentation pin
 
-- Denominator source: the Maya 2027.2 online documentation ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), the pin recorded in [reference.md](../reference.md). No Maya installation is used; the 2026-10-20 decision makes the official online documentation the source of truth.
+- Denominator source: the Maya 2027.2 online documentation ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), the pin recorded in [reference.md](../reference.md). No Maya installation is used; the maintainer's 2026-10-20 decision that the official online Maya documentation is the source of truth (recorded on #5).
 - The wording "all Maya 2026 functionality" in #6 maps to this pin. Rows that exist only in the 2026 documentation are tagged `2026-only`; rows that the 2027 notes add are tagged `2027-new`. No claim is made that the 2027.2 set contains or equals the 2026 set.
 - A row whose 2027 page could not be read cites a 2026 page and carries the tag `2026 FALLBACK`. Details the documentation does not state are tagged `PROVISIONAL`.
 - Component versions (Arnold, Bifrost, MayaUSD, LookdevX, MASH, XGen and so on) are taken from the 2027 documentation, never from an install.
 
 ## Status vocabulary
 
-Status describes documented behaviour only, never equivalence to Maya.
+Status describes documented behaviour only, never equivalence to Maya. The order is Missing < Visible-unsupported < Implemented-untested < Partial < Doc-conformant, and only Doc-conformant scores.
 
 | Status | Meaning |
 | --- | --- |
-| Doc-conformant | The behaviour the cited page describes is implemented, with evidence for each applicable dimension: interaction, semantic output, persistence, undo, invalid input and interop. A single happy-path test does not qualify. |
-| Implemented-untested | Implemented, with no test evidence for any dimension. |
-| Partial | Only part of the documented behaviour is implemented, or some but not all applicable dimensions have evidence. The Evidence cell names each unchecked dimension. |
-| Visible-unsupported | A disabled or placeholder control is drawn and reports that the operation is unsupported. |
 | Missing | Nothing is drawn or callable. The Evidence cell says what was checked. |
+| Visible-unsupported | Visible but inert: a disabled or placeholder control is drawn and reports that the operation is unsupported. |
+| Implemented-untested | Fully implemented, with no test evidence. |
+| Partial | Partly implemented (tested or not), or fully implemented with only some dimensions evidenced. |
+| Doc-conformant | The behaviour the cited page describes is fully implemented. The Evidence cell names every dimension (interaction, semantic output, persistence, undo, invalid input, interop) and gives for each either its evidence or `n/a: <reason>`. A dimension left unnamed counts as not checked, which makes the row Partial. A single happy-path test does not qualify. |
 | Out-of-scope | Excluded with a recorded reason (see the list below). |
 
 Rows needing a running Maya (numerics, pixels, binary acceptance by Maya) are tagged `runtime-only`. They stay in the denominator at 0 until a reference run exists (#5).
@@ -30,7 +30,7 @@ Rows needing a running Maya (numerics, pixels, binary acceptance by Maya) are ta
 
 | UI inventory ([ui-parity-inventory.md](../ui-parity-inventory.md)) | Family rows (this inventory) |
 | --- | --- |
-| Supported | at least Implemented-untested; Doc-conformant only with all applicable dimensions evidenced |
+| Supported | Implemented-untested, Partial or Doc-conformant, decided per row by completeness (for example the prototype-text Help menu is Partial) |
 | Partial | Partial |
 | Visible-unsupported | Visible-unsupported |
 | Missing | Missing |
@@ -73,6 +73,7 @@ This rule is PROPOSED and needs the user's approval, including the budgets. It m
 - Out-of-scope and retired rows leave that family's divisor and are counted separately, so moving a row to Out-of-scope visibly changes the denominator.
 - `runtime-only` rows stay in the divisor at 0 and are also counted separately, so the ceiling is visible.
 - Report together: row counts per status, the Out-of-scope and runtime-only counts, and per-family results. No family may vanish in an average.
+- A family with no in-scope rows contributes 0 to both numerator and denominator, its budget is reported as unallocated, and it is listed separately.
 - No percentage is computed until all 14 files are expanded and the budgets are approved at the freeze.
 - No figure from this inventory may be quoted as Maya parity or Maya coverage. It does not count toward the 80-90% target or toward publication eligibility; those need reference comparisons ([inventory-seed.md](../inventory-seed.md), "Measurement proposal").
 - Deviation from inventory-seed.md: the seed gives credit only after reference comparisons. This inventory uses documentation as its truth, so its top status is documentation conformance, which the seed would not credit.
@@ -88,13 +89,13 @@ Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in
 
 ## Families
 
-Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners. Each file lists its own owners.
+Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners (#202 is a custom path tracer, not a Maya workflow). Each file lists its own owners.
 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
-| 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71 |
+| 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #170, #178, #71 |
 | 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #189 |
-| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49 |
+| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #166, #167, #35, #36, #37, #38, #39, #40, #41, #48, #49, #292, #295 |
 | 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #43, #44, #45, #46 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
@@ -102,7 +103,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
-| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #14, #15, #17, #18, #22, #23 |
+| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #22, #23, #272 |
 | 12 | Scripting and extensions | [12-scripting-and-extensions.md](12-scripting-and-extensions.md) | SCR | #57 |
 | 13 | Dynamics and extended systems | [13-dynamics-and-extended-systems.md](13-dynamics-and-extended-systems.md) | DYN | #56 |
 | 14 | Pipeline and robustness | [14-pipeline-and-robustness.md](14-pipeline-and-robustness.md) | PIP | #8, #21, #58 |
