@@ -254,7 +254,6 @@ impl eframe::App for Editor {
             egui::Event::PointerMoved(_) | egui::Event::MouseMoved(_) => pointer_held,
             egui::Event::Key { pressed, .. } => *pressed,
             egui::Event::Copy
-            | egui::Event::Screenshot { .. }
             | egui::Event::ModifiersChanged(_)
             | egui::Event::WindowFocused(_)
             | egui::Event::PointerGone => false,
@@ -336,15 +335,15 @@ fn text_edit_focused(ctx: &egui::Context) -> bool {
 }
 
 fn name_edit_id() -> egui::Id {
-    egui::Id::new("node_name")
+    egui::Id::unique("node_name")
 }
 
 fn channel_edit_id(index: usize) -> egui::Id {
-    egui::Id::new(("channel", index))
+    egui::Id::unique(("channel", index))
 }
 
 fn material_edit_id() -> egui::Id {
-    egui::Id::new("material_diffuse")
+    egui::Id::unique("material_diffuse")
 }
 
 #[cfg(test)]

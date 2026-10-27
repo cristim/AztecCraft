@@ -276,6 +276,7 @@ fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_onc
                     unit: MouseWheelUnit::Point,
                     delta: egui::vec2(0.0, 20.0),
                     phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers,
                 },
             ],

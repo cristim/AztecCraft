@@ -25,11 +25,11 @@ pub(in crate::app) fn option_field_ids() -> impl Iterator<Item = egui::Id> {
 }
 
 fn option_field_id(index: usize) -> egui::Id {
-    egui::Id::new(("primitive_option", index))
+    egui::Id::unique(("primitive_option", index))
 }
 
 fn window_id() -> egui::Id {
-    egui::Id::new("primitive_options_window")
+    egui::Id::unique("primitive_options_window")
 }
 
 fn slot(primitive: Primitive) -> usize {
@@ -245,9 +245,7 @@ pub(in crate::app) fn option_box(
         .add_enabled_ui(enabled, |ui| {
             let (rect, response) =
                 ui.allocate_exact_size(egui::vec2(side, side), egui::Sense::click());
-            response.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, label)
-            });
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, label));
             if ui.is_rect_visible(rect) {
                 let visuals = ui.style().interact_selectable(&response, false);
                 ui.painter().rect_stroke(

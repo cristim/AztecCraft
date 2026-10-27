@@ -1618,6 +1618,7 @@ pub(in crate::app) fn wheel_frames(
             unit: egui::MouseWheelUnit::Point,
             delta: egui::vec2(0.0, -200.0),
             phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Unknown,
             modifiers: egui::Modifiers::NONE,
         });
         output = frame_with(editor, ctx, size, 1.0, std::mem::take(&mut events));
@@ -2576,7 +2577,7 @@ fn sidebar_remote_refuses_stale_token_text_focus_modal_and_close_with_baseline_i
         before
     );
     let context = egui::Context::default();
-    context.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    context.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     frame(&mut editor, &context, vec![]);
     assert!(text_edit_focused(&context));
     let focused = editor.remote_operation(
@@ -2822,7 +2823,7 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
     assert_eq!(editor.channels[0], "nan");
     editor.sync_fields();
     let ctx = egui::Context::default();
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     assert!(matches!(
         editor.remote_operation(
             RemoteRequest {
@@ -4637,13 +4638,13 @@ fn real_escape_event_cancels_channel_and_name_after_egui_clears_focus() {
     let before = editor.history.scene().clone();
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new(("channel", 0_usize))));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique(("channel", 0_usize))));
     frame(&mut editor, &ctx, vec![]);
     editor.channels[0] = "3".into();
     frame(&mut editor, &ctx, vec![key(Key::Escape)]);
     assert_eq!(editor.channels[0], "0");
     assert_eq!(editor.history.scene(), &before);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     frame(&mut editor, &ctx, vec![]);
     editor.name = "discarded".into();
     frame(&mut editor, &ctx, vec![key(Key::Escape)]);
@@ -5157,7 +5158,7 @@ fn enter_commits_once_and_selection_commits_draft_to_previous_object() {
     editor.select(Some(old));
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new(("channel", 0_usize))));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique(("channel", 0_usize))));
     frame(&mut editor, &ctx, vec![]);
     editor.channels[0] = "2".into();
     frame(&mut editor, &ctx, vec![key(Key::Enter)]);
@@ -5401,12 +5402,14 @@ mod menu_bar_wire {
                     unit: egui::MouseWheelUnit::Point,
                     delta: egui::Vec2::ZERO,
                     phase: egui::TouchPhase::Start,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers: egui::Modifiers::NONE,
                 },
                 egui::Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
                     delta: egui::vec2(delta, 0.0),
                     phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers: egui::Modifiers::NONE,
                 },
             ]

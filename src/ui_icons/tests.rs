@@ -64,6 +64,7 @@ fn rasterize(shapes: Vec<Shape>, canvas_pts: f32, ppp: f32) -> Raster {
             ClippedShape {
                 clip_rect: Rect::EVERYTHING,
                 shape,
+                transform_after_tessellation: egui::emath::TSTransform::IDENTITY,
             },
             &mut prims,
         );

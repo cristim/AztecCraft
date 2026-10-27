@@ -2549,7 +2549,7 @@ fn a_popup_opening_mid_drag_cancels_the_native_rotate() {
         "{}",
         editor.status
     );
-    egui::Popup::open_id(&context, egui::Id::new("popup_admission_probe"));
+    egui::Popup::open_id(&context, egui::Id::unique("popup_admission_probe"));
     assert!(egui::Popup::is_any_open(&context));
     frame(&mut editor, &context, raw(SIZE, Pos2::ZERO, 1.0, vec![]));
     assert!(editor.history.active_manipulation().is_none());
