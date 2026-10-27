@@ -2343,6 +2343,14 @@ fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
         ys.windows(2).all(|pair| pair[0] < pair[1]),
         "rows out of order: {ys:?}"
     );
+    for label in [
+        "All   Ctrl/Cmd Shift A",
+        "All by Type",
+        "Hierarchy",
+        "Inverse",
+    ] {
+        assert!(button_disabled(&output, label), "{label} must be disabled");
+    }
     for label in ["All   Ctrl/Cmd Shift A", "Hierarchy", "Inverse"] {
         face_pointer_click(
             &mut editor,
