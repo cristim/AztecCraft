@@ -268,7 +268,7 @@ near 0.1, so the default near of 0.1 moves that limit beyond the default far pla
 the planned follow-up (#135).
 The default near clip is 0.1 (Create Camera Options default; the persp camera's own is
 undocumented, PROVISIONAL). Dolly has no minimum distance, so a distance below the near
-clip puts the target in front of the near plane and clips it; whether Maya has a hard dolly
+clip puts the target closer to the eye than the near plane (between the eye and the plane) and clips it; whether Maya has a hard dolly
 stop is PROVISIONAL (no Dolly Tool page cited). A biased vertex marker (0.6% toward the
 eye) can be near-clipped while its surface vertex at eye depth in [0.1, 0.1006) stays
 visible; negligible and pre-existing.

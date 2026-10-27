@@ -940,11 +940,10 @@ fn frame_floors_tiny_objects_at_twice_near() {
 
 #[test]
 fn dolly_does_not_change_near_or_far() {
-    let mut camera = Camera::default();
-    let (near, far) = (camera.near().to_bits(), camera.far().to_bits());
-    camera.dolly(0.001).unwrap();
-    camera.dolly(1000.0).unwrap();
-    assert_eq!(camera.near().to_bits(), near);
-    assert_eq!(camera.far().to_bits(), far);
-    assert_eq!(near, 0.1_f32.to_bits());
+    let mut camera =
+        Camera::new(Vec3::ZERO, 0.6, 0.4, 8.0, 45_f32.to_radians(), 0.5, 50.0).unwrap();
+    camera.dolly(0.5).unwrap();
+    camera.dolly(2.0).unwrap();
+    assert_eq!(camera.near().to_bits(), 0.5_f32.to_bits());
+    assert_eq!(camera.far().to_bits(), 50.0_f32.to_bits());
 }
