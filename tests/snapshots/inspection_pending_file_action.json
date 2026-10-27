@@ -161,6 +161,15 @@
       "1"
     ],
     "selected_node": "1",
+    "selection": [
+      {
+        "instance_path": [
+          "1"
+        ],
+        "node": "1"
+      }
+    ],
+    "selection_count": 1,
     "selection_mode": "object",
     "session_materials": [
       {

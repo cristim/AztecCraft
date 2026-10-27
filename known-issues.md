@@ -947,3 +947,11 @@ path) cannot occur in a running editor: no decoder or runtime operation gives a 
 parents, so every node has one path. Only the unit test
 `an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
 covers `only_instance_path`; there is no end-to-end test through a loaded scene.
+
+## Inspection refuses very large selections
+
+The selection set is charged against the inspection size budget like the node paths, so with
+every object selected `inspect_scene` reports `too_large` from about 1450 objects, where it
+managed about 2900 before the selection list existed. Slice 1 has no Select All (#325), so a
+selection that large needs that many `modify_selection` calls. The limit is by design and pinned
+by `inspection_refuses_a_selection_that_exceeds_the_budget`.

@@ -55,6 +55,18 @@ impl Editor {
             bytes(self.remembered_edge.as_ref().map(|t| t.path.len()))?,
         ])
     }
+    /// Reported size of the selection set, charged like the node paths.
+    #[cfg(any(test, feature = "mcp"))]
+    fn selection_path_bytes(&self) -> Result<usize, OperationError> {
+        self.selection
+            .members()
+            .iter()
+            .try_fold(0usize, |sum, target| {
+                sum.checked_add(target.path.len().checked_mul(24)?)
+                    .and_then(|sum| sum.checked_add(64))
+            })
+            .ok_or(OperationError::TooLarge)
+    }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn inspect(&self, text_focused: bool) -> Result<SceneInspection, OperationError> {
         self.inspect_within(text_focused, crate::editor_operations::MAX_RESULT_BYTES / 2)
@@ -78,6 +90,9 @@ impl Editor {
                 sum.checked_add(target.path.len().checked_mul(24)?)
                     .and_then(|sum| sum.checked_add(64))
             })
+            .ok_or(OperationError::TooLarge)?;
+        let path_bytes = path_bytes
+            .checked_add(self.selection_path_bytes()?)
             .ok_or(OperationError::TooLarge)?;
         let remembered = self.remembered_path_bytes()?;
         if !inspection_paths_fit(path_bytes, remembered, path_limit) {
@@ -276,6 +291,18 @@ impl Editor {
             pending_action: self.files.pending_inspection(),
             selected_node: selected.map(NodeId::to_decimal),
             selected_instance_path: selected_path.iter().map(|id| id.to_decimal()).collect(),
+            selection: self
+                .selection
+                .members()
+                .iter()
+                .map(
+                    |member| crate::editor_operations::SelectionMemberInspection {
+                        node: member.node.to_decimal(),
+                        instance_path: member.path.iter().map(|id| id.to_decimal()).collect(),
+                    },
+                )
+                .collect(),
+            selection_count: self.selection.len(),
             selection_mode: self.selection_mode,
             remembered_face: self
                 .remembered_face
@@ -349,7 +376,7 @@ pub(in crate::app) fn angular_unit_name(unit: &AngularUnit) -> &str {
 }
 
 #[cfg(any(test, feature = "mcp"))]
-/// The node paths plus every remembered component path must fit `limit`.
+/// The node paths, the selection set and every remembered component path must fit `limit`.
 fn inspection_paths_fit(path_bytes: usize, remembered: [usize; 3], limit: usize) -> bool {
     remembered
         .into_iter()
@@ -450,11 +477,106 @@ mod tests {
             .iter()
             .map(|target| target.path.len() * 24 + 64)
             .sum();
-        let total = node_bytes + 3 * 128 + 24 * (2 + 3 + 4);
+        let total =
+            node_bytes + editor.selection_path_bytes().unwrap() + 3 * 128 + 24 * (2 + 3 + 4);
         assert!(editor.inspect_within(false, total).is_ok());
         assert!(matches!(
             editor.inspect_within(false, total - 1),
             Err(crate::editor_operations::OperationError::TooLarge)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use crate::editor_operations::{MAX_RESULT_BYTES, OperationError};
+    use azteccraft::native_scene::{MAX_TRANSFORM_PATHS, TransformTarget};
+    use azteccraft::scene::{NodeId, Primitive};
+
+    fn two_selected() -> crate::app::Editor {
+        let mut editor = crate::app::Editor::default();
+        editor.create(Primitive::Cube);
+        editor.create(Primitive::Cube);
+        let paths = editor.history.scene().transform_paths().unwrap();
+        editor.set_selection_members_for_test(paths);
+        editor
+    }
+
+    #[test]
+    fn inspection_lists_the_selection_in_order_with_the_lead_last() {
+        let editor = two_selected();
+        let members = editor.selection.members().to_vec();
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.selection_count, 2);
+        let listed: Vec<_> = inspection
+            .selection
+            .iter()
+            .map(|member| (member.node.clone(), member.instance_path.clone()))
+            .collect();
+        let expected: Vec<_> = members
+            .iter()
+            .map(|t| {
+                (
+                    t.node.to_decimal(),
+                    t.path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        assert_eq!(listed, expected);
+        assert_eq!(inspection.selected_node, Some(expected[1].0.clone()));
+        assert_eq!(inspection.selected_instance_path, expected[1].1);
+        let json = serde_json::to_value(&inspection).unwrap();
+        assert_eq!(json["selection_count"], 2);
+        assert_eq!(json["selection"][1]["node"], expected[1].0);
+        assert!(serde_json::to_vec(&json).unwrap().len() < MAX_RESULT_BYTES);
+    }
+
+    #[test]
+    fn an_empty_selection_reports_an_empty_list() {
+        let mut editor = two_selected();
+        editor.deselect_all();
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.selection_count, 0);
+        assert!(inspection.selection.is_empty() && inspection.selected_node.is_none());
+    }
+
+    #[test]
+    fn inspection_charges_the_selection_set_against_its_limit() {
+        let editor = two_selected();
+        let node_bytes: usize = editor
+            .history
+            .scene()
+            .transform_paths()
+            .unwrap()
+            .iter()
+            .map(|target| target.path.len() * 24 + 64)
+            .sum();
+        let total = node_bytes + editor.selection_path_bytes().unwrap();
+        assert_eq!(total, 2 * node_bytes);
+        assert!(editor.inspect_within(false, total).is_ok());
+        assert!(matches!(
+            editor.inspect_within(false, total - 1),
+            Err(OperationError::TooLarge)
+        ));
+    }
+
+    #[test]
+    fn inspection_refuses_a_selection_that_exceeds_the_budget() {
+        let mut editor = crate::app::Editor::default();
+        editor.create(Primitive::Cube);
+        let path = editor.selected_path().to_vec();
+        let members: Vec<_> = (1..=MAX_TRANSFORM_PATHS as u64)
+            .map(|id| TransformTarget {
+                node: NodeId::from_decimal(&id.to_string()).unwrap(),
+                path: path.clone(),
+            })
+            .collect();
+        assert_eq!(members.len(), MAX_TRANSFORM_PATHS);
+        editor.set_selection_members_for_test(members);
+        assert_eq!(editor.selection.len(), MAX_TRANSFORM_PATHS);
+        assert!(matches!(
+            editor.inspect(false),
+            Err(OperationError::TooLarge)
         ));
     }
 }

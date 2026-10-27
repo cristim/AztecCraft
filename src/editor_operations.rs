@@ -434,8 +434,12 @@ pub struct SceneInspection {
     pub appearance_incomplete: bool,
     pub source_appearance: azteccraft::native_scene::AppearanceSummary,
     pub pending_action: Option<PendingInspection>,
+    /// The lead of the ordered object selection (`selection`'s last member), if any.
     pub selected_node: Option<String>,
     pub selected_instance_path: Vec<String>,
+    /// Selected object instances in selection order; the last is the lead.
+    pub selection: Vec<SelectionMemberInspection>,
+    pub selection_count: usize,
     pub selection_mode: SelectionMode,
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
@@ -585,6 +589,13 @@ pub struct MoveAxisInspection {
     pub axis: &'static str,
     pub visible: bool,
     pub unavailable_reason: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct SelectionMemberInspection {
+    pub node: String,
+    pub instance_path: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]

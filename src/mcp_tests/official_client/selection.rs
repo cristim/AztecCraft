@@ -788,6 +788,27 @@ async fn sdk_modify_selection_adds_toggles_and_removes_in_order_with_the_lead_la
         assert_eq!(editor.selection.members(), want, "{change} {index}");
     }
     assert_eq!(editor.selected(), Some(targets[1].node));
+    // The protocol's inspection reports the ordered set with the lead last.
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let inspection = &inspected["inspection"];
+    assert_eq!(inspection["selection_count"], 1);
+    assert_eq!(
+        inspection["selection"][0]["node"],
+        targets[1].node.to_decimal()
+    );
+    assert_eq!(
+        inspection["selected_node"],
+        inspection["selection"][0]["node"]
+    );
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
