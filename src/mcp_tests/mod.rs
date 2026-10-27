@@ -116,6 +116,7 @@ mod official_client {
     mod attribute_editor;
     mod camera;
     mod cylinder_cone;
+    mod delete_selected;
     mod deselect_all;
     mod extrude;
     mod files;

@@ -848,6 +848,7 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
             "delete_node",
             json!({"node_id":selected.unwrap().to_decimal()}),
         ),
+        ("delete_selected", json!({})),
         ("undo", json!({})),
         ("redo", json!({})),
         ("frame_selected", json!({})),

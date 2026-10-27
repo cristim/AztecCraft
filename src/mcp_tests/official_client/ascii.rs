@@ -123,6 +123,7 @@ async fn ascii_open_inspect_select_frame(path: &std::path::Path, expected_counts
             json!({"node_id":id,"translation":[1,null,null]}),
         ),
         ("delete_node", json!({"node_id":id})),
+        ("delete_selected", json!({})),
     ] {
         let mut args = fields;
         args["scene_token"] = json!(token);

@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-44 tools.
+45 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -32,6 +32,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `assign_session_material` | mutating | no | Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `set_session_material_color` | mutating | yes | Set the linear RGB colour of a session material created in this session; the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `delete_node` | mutating | no | Delete an object through editor undo history; refused in Face, Vertex or Edge selection mode |
+| `delete_selected` | mutating | no | Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected |
 | `undo` | mutating | no | Undo the last editor authoring operation |
 | `redo` | mutating | no | Redo the last undone authoring operation |
 | `frame_selected` | mutating | no | Frame the selected object using the live camera |
