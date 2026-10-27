@@ -1228,3 +1228,18 @@ fn frame_selected_with_a_lone_point_uses_the_near_floor() {
         .unwrap();
     assert_eq!(camera.distance(), camera.near() * 2.0 * 1.05);
 }
+
+/// Pins the existing deviation from Maya's F (children excluded): a prefix match frames the
+/// geometry below a group that owns none itself.
+#[test]
+fn frame_view_of_a_group_frames_the_geometry_of_its_children() {
+    let (scene, root, child, _) = test_fixtures::grouped_shape();
+    let view = view_of(&scene);
+    let (root_path, child_path) = (root_path(&scene, root), root_path(&scene, child));
+    assert!(child_path.starts_with(&root_path) && child_path.len() > root_path.len());
+    let mut group = Camera::default();
+    group.frame_view(&view, Some(&root_path), 1.0).unwrap();
+    let mut leaf = Camera::default();
+    leaf.frame_view(&view, Some(&child_path), 1.0).unwrap();
+    assert_eq!(group, leaf);
+}

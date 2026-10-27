@@ -321,6 +321,38 @@ confirms these labels, their order, Alt+D, Ctrl+Shift+A and Ctrl+Shift+I and lis
 submenu, drawn here as a plain disabled row. Similar, Grow, Shrink and the rest of Maya's Select
 menu are absent. Option+D on macOS relies on egui-winit's physical-key fallback (PROVISIONAL).
 
+## Select All, Hierarchy and Inverse: PROVISIONAL scope choices (#325)
+
+The Select menu page does not state these, so each is a pinned choice, not Maya parity:
+
+- P1/P2: Select All selects every transform instance, nested children included, in scene order
+  with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
+  scene therefore selects parent and children together, and Delete of that selection is refused
+  whole because a parent with children and a child each fail.
+- P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
+  Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
+  `select_inverse_in_hierarchy_mode_swaps_roots_only`,
+  `select_hierarchy_in_hierarchy_mode_is_unchanged`).
+- P4: Hierarchy adds every descendant of the selected objects and no parents, although the page
+  says "parent and child"; the lead stays the lead and added nodes sit before it
+  (`select_hierarchy_adds_descendants_keeps_lead`).
+- P5/P6: Inverse selects the unselected instances in scene order, last as the lead, and an empty
+  selection selects everything (`select_inverse_of_an_empty_selection_selects_everything`).
+- P7: Maya selects components in a component mode; here All, Hierarchy and Inverse are refused in
+  Face, Vertex and Edge mode (components cannot be multi-selected until #30), natively with
+  disabled rows and over MCP with `invalid_input`
+  (`select_rules_in_component_modes_are_refused_and_keep_state`).
+- P17: after Delete of several objects the selection is empty and Undo restores the nodes but
+  not the selection (`undo_of_delete_selection_restores_nodes_but_not_the_selection`).
+
+## Frame Selected includes the descendants of the selected objects
+
+`Camera::frame_view` and `frame_view_many` match instances by path prefix, so framing a selected
+group also frames everything below it. Maya's F frames the selected objects and excludes children
+unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
+union framing; no with-Children variant exists. Pinned by
+`frame_view_of_a_group_frames_the_geometry_of_its_children`.
+
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
 **Severity:** low
@@ -975,9 +1007,10 @@ covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
 ## Inspection refuses very large selections
 
-The selection set is charged against the inspection size budget like the node paths, so with
-every object selected `inspect_scene` reports `too_large` from about 1450 objects, where it
-managed about 2900 before the selection list existed. Select All (native, and MCP `select_by_rule`) now builds such a
+The selection set is charged against the inspection size budget like the node paths. The budget
+as a whole is exhausted by about 65 cubes (about 140 shapeless nodes) whatever is selected, so
+`inspect_scene` reports `too_large` for modest scenes before the selection term matters; that is
+tracked in #332, which owns the fix. Select All (native, and MCP `select_by_rule`) builds a whole-scene
 selection in one call (#325). A client holding the document token
 recovers with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
 token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
