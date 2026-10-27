@@ -232,6 +232,32 @@ pub(in crate::app) fn begin_error(error: ManipulationError) -> OperationError {
     }
 }
 
+/// The handle a drag begins on: the enabled picks, never a disabled one.
+#[derive(Clone, Copy)]
+enum DragHandle {
+    Rotate(RotateAxis),
+    Scale(ScaleHandle),
+}
+
+/// The drag a press at `pointer` begins on `handle`, or the reason it cannot. Press goes through
+/// this function; it must not apply an operation.
+fn start_drag(
+    capture: ViewportCapture,
+    frame: &HandleFrame,
+    handle: DragHandle,
+    pointer: Vec2,
+) -> Result<crate::app::features::move_tool::NativeDrag, HandleError> {
+    use crate::app::features::move_tool::NativeDrag;
+    Ok(match handle {
+        DragHandle::Rotate(axis) => {
+            NativeDrag::Rotate(RotateDrag::begin(capture, frame, axis, pointer)?)
+        }
+        DragHandle::Scale(handle) => {
+            NativeDrag::Scale(ScaleDrag::begin(capture, frame, handle, pointer)?)
+        }
+    })
+}
+
 fn handle_error(tool: ActiveTool, error: HandleError) -> OperationError {
     OperationError::InvalidInput(error.describe_for(tool_name(tool)))
 }
@@ -627,43 +653,35 @@ impl Editor {
         let Some(picked) = self.pick_handle(tool, &capture, &frame, pixel) else {
             return Ok(false);
         };
-        let (drag, operation, label) = match picked {
+        let (handle, operation, label) = match picked {
             ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
                 return self.refuse_disabled(kind);
             }
-            ToolPick::Rotate(Pick::Handle(axis)) => {
-                let drag = match RotateDrag::begin(capture, &frame, axis, position) {
-                    Ok(drag) => drag,
-                    Err(error) => return self.refuse_drag(tool, error),
-                };
-                (
-                    crate::app::features::move_tool::NativeDrag::Rotate(drag),
-                    Operation::BeginRotate {
-                        target,
-                        axis,
-                        space,
-                    },
-                    format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
-                )
-            }
-            ToolPick::Scale(Pick::Handle(handle)) => {
-                let drag = match ScaleDrag::begin(capture, &frame, handle, position) {
-                    Ok(drag) => drag,
-                    Err(error) => return self.refuse_drag(tool, error),
-                };
-                (
-                    crate::app::features::move_tool::NativeDrag::Scale(drag),
-                    Operation::BeginScale {
-                        target,
-                        handle,
-                        space,
-                    },
-                    match handle {
-                        ScaleHandle::Uniform => "Uniform Scale".to_string(),
-                        _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
-                    },
-                )
-            }
+            ToolPick::Rotate(Pick::Handle(axis)) => (
+                DragHandle::Rotate(axis),
+                Operation::BeginRotate {
+                    target,
+                    axis,
+                    space,
+                },
+                format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
+            ),
+            ToolPick::Scale(Pick::Handle(handle)) => (
+                DragHandle::Scale(handle),
+                Operation::BeginScale {
+                    target,
+                    handle,
+                    space,
+                },
+                match handle {
+                    ScaleHandle::Uniform => "Uniform Scale".to_string(),
+                    _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
+                },
+            ),
+        };
+        let drag = match start_drag(capture, &frame, handle, position) {
+            Ok(drag) => drag,
+            Err(error) => return self.refuse_drag(tool, error),
         };
         self.clear_manipulation_hover();
         if let Err(error) = self.apply_operation(operation) {
