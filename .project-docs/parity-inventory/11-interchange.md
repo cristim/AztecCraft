@@ -59,7 +59,7 @@ Owner issues (open feature, epic or verification issues): #9, #14, #15, #17, #18
 
 ## File menu coverage
 
-The 2027 [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) lists 31 items. Each has a home: New Scene, Close and Exit are SCN or SHL workflows (see the README menu map); Open, Save Scene, Save Scene As, Increment & Save, Archive Scene, Optimize Scene Size, Import, Export All, Export Selection, the Send to items, Game Exporter, After Effects Live Link, Export to Offline File, Assign Offline File, Create Reference, Reference Editor, Project Window, Set Project, Recent Files and Recent Projects have INT rows above; Save Preferences, View Image, View Sequence and ATOM are pointer rows below.
+The 2027 [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) lists 31 items. Each has a home: New Scene and Exit are SCN or SHL workflows (AztecCraft's own File > Close is not a Maya item) (see the README menu map); Open, Save Scene, Save Scene As, Increment & Save, Archive Scene, Optimize Scene Size, Import, Export All, Export Selection, the Send to items, Game Exporter, After Effects Live Link, Export to Offline File, Assign Offline File, Create Reference, Reference Editor, Project Window, Set Project, Recent Files and Recent Projects have INT rows above; Save Preferences, View Image, View Sequence and ATOM are pointer rows below.
 
 ## Cross-family pointer rows (not scored in INT)
 
