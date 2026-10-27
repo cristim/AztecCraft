@@ -189,6 +189,9 @@ impl Editor {
         if let Some(reason) = read_only {
             return reason.to_owned();
         }
+        if self.selection.len() > 1 {
+            return OperationError::MultipleSelection.to_string();
+        }
         match self.selection_mode.component_noun() {
             Some(noun) if menu => format!(
                 "Object or Hierarchy selection required; {} deletion is unsupported",

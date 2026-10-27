@@ -164,7 +164,7 @@ impl Editor {
         authoring: bool,
         style: NameStyle,
     ) -> bool {
-        let reason = self.read_only_reason();
+        let reason = self.authoring_refusal();
         let edit = egui::TextEdit::singleline(&mut self.name)
             .interactive(authoring)
             .id(name_edit_id());
@@ -204,7 +204,7 @@ impl Editor {
     /// the Attribute Editor Transform tab so both edit the same drafts and widget ids. Returns
     /// whether a channel field lost focus.
     pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) -> bool {
-        let reason = self.read_only_reason();
+        let reason = self.authoring_refusal();
         let mut apply = false;
         let visibility = self
             .selection_presentation()
@@ -259,6 +259,14 @@ impl Editor {
         ui.weak(format!("Rotation in {angular} | XYZ"));
         apply
     }
+    /// Why the Channel Box and Attribute Editor cannot edit right now: the scene's read-only
+    /// reason, else that editing acts on one object and several are selected (acting on all is
+    /// tracked in #325).
+    pub(in crate::app) fn authoring_refusal(&self) -> Option<String> {
+        self.read_only_reason().or_else(|| {
+            (self.selection.len() > 1).then(|| OperationError::MultipleSelection.to_string())
+        })
+    }
     pub(in crate::app) fn read_only_reason(&self) -> Option<String> {
         self.history
             .scene()
@@ -293,7 +301,7 @@ impl Editor {
             unsupported_section(ui, "Layers");
             return;
         }
-        let read_only_reason = self.read_only_reason();
+        let read_only_reason = self.authoring_refusal();
         let authoring = read_only_reason.is_none();
         let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
         let channel_blur = self.transform_section(ui, authoring);

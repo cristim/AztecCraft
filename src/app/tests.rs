@@ -9522,3 +9522,198 @@ fn a_draft_on_the_lead_is_committed_through_the_lead_with_several_selected() {
     assert_eq!(x, 5.0);
     assert_eq!(editor.selection.len(), 2);
 }
+
+fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
+    (
+        editor.history.scene().clone(),
+        editor.selection.clone(),
+        editor.selection_mode,
+        editor.camera.clone(),
+        editor.scene_token,
+        editor.history.can_undo(),
+        editor.history.undo_label(),
+    )
+}
+
+#[test]
+fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+    let mut editor = two_cube_editor();
+    let baseline = multi_baseline(&editor);
+    let target = editor.selection.lead().unwrap().clone();
+    let space = crate::editor_operations::ManipulationSpace::World;
+    let make = |index: usize| match index {
+        0 => Operation::BeginMove {
+            target: target.clone(),
+            axis: azteccraft::native_scene::WorldAxis::X,
+        },
+        1 => Operation::BeginRotate {
+            target: target.clone(),
+            axis: azteccraft::native_scene::RotateAxis::X,
+            space,
+        },
+        _ => Operation::BeginScale {
+            target: target.clone(),
+            handle: azteccraft::native_scene::ScaleHandle::Uniform,
+            space,
+        },
+    };
+    for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
+        assert!(
+            matches!(
+                editor.apply_operation(make(index)),
+                Err(OperationError::MultipleSelection)
+            ),
+            "native {label}"
+        );
+        assert!(
+            matches!(
+                remote(&mut editor, make(index)),
+                Err(OperationError::MultipleSelection)
+            ),
+            "remote {label}"
+        );
+        assert!(editor.history.active_manipulation().is_none());
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+}
+
+#[test]
+fn component_modes_refuse_several_selected_objects_and_object_modes_do_not() {
+    let mut editor = two_cube_editor();
+    let baseline = multi_baseline(&editor);
+    for mode in [
+        SelectionMode::Face,
+        SelectionMode::Vertex,
+        SelectionMode::Edge,
+    ] {
+        assert!(matches!(
+            remote(&mut editor, Operation::SetSelectionMode(mode)),
+            Err(OperationError::MultipleSelection)
+        ));
+        assert!(matches!(
+            editor.apply_operation(Operation::SetSelectionMode(mode)),
+            Err(OperationError::MultipleSelection)
+        ));
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Hierarchy),
+    )
+    .unwrap();
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn f8_and_the_delete_key_report_the_refusal_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let baseline = multi_baseline(&editor);
+    frame(&mut editor, &ctx, vec![key(Key::F8)]);
+    assert!(editor.error, "{}", editor.status);
+    assert!(editor.status.contains("Several objects are selected"));
+    assert_eq!(multi_baseline(&editor), baseline);
+    editor.status.clear();
+    editor.error = false;
+    frame(&mut editor, &ctx, vec![key(Key::Delete)]);
+    assert!(editor.error, "{}", editor.status);
+    assert!(editor.status.contains("Several objects are selected"));
+    assert_eq!(multi_baseline(&editor), baseline);
+}
+
+#[test]
+fn channel_box_and_attribute_editor_edits_are_refused_with_several_selected() {
+    let mut editor = two_cube_editor();
+    assert_eq!(
+        editor.authoring_refusal().as_deref(),
+        Some("Several objects are selected; select one object")
+    );
+    assert_eq!(
+        editor.delete_disabled_hover(None, true),
+        "Several objects are selected; select one object"
+    );
+    let lead = editor.selection.lead().unwrap().clone();
+    editor.set_selection_members_for_test(vec![lead]);
+    assert_eq!(editor.authoring_refusal(), None);
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    editor.channels[0] = "9".into();
+    editor.channel_intents[0] = true;
+    let baseline = multi_baseline(&editor);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(multi_baseline(&editor), baseline);
+    assert_eq!(editor.channels[0], "9");
+}
+
+#[test]
+fn attribute_editor_tab_follows_the_lead_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let (first, lead) = {
+        let members = editor.selection.members();
+        (members[0].node, members[1].node)
+    };
+    remote(
+        &mut editor,
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+    )
+    .unwrap();
+    assert!(matches!(
+        remote(
+            &mut editor,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Transform(first),
+            },
+        ),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(lead))
+    );
+    remote(
+        &mut editor,
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Transform(lead),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(lead))
+    );
+}
+
+#[test]
+fn by_id_edits_of_a_non_lead_member_keep_the_selection_ordered() {
+    let mut editor = two_cube_editor();
+    let members = editor.selection.members().to_vec();
+    let first = members[0].node;
+    remote(
+        &mut editor,
+        Operation::Rename {
+            id: first,
+            name: "renamed".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(editor.selection.members(), members);
+    remote(
+        &mut editor,
+        Operation::EditNode {
+            id: first,
+            name: None,
+            translation: [Some(3.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        },
+    )
+    .unwrap();
+    assert_eq!(editor.selection.members(), members);
+    remote(&mut editor, Operation::Delete(first)).unwrap();
+    assert_eq!(editor.selection.members(), &members[1..]);
+    assert_eq!(editor.lead_target().unwrap().0, members[1].node);
+}

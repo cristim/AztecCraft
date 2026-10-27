@@ -614,6 +614,9 @@ impl Editor {
             }
             Operation::Delete(id) => Command::Remove(id),
             Operation::SetSelectionMode(mode) => {
+                if mode.is_component() && self.selection.len() > 1 {
+                    return Err(OperationError::MultipleSelection);
+                }
                 let changed = self.selection_mode != mode;
                 self.selection_mode = mode;
                 return Ok(if changed {
