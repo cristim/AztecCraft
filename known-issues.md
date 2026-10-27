@@ -249,7 +249,7 @@ eye distance, and occlusion treats a hit as blocking only when its linear view d
 below `depth * (1 - 6e-3)`. It is neither normalized device depth nor world units. Marker
 bias, selected-edge strip bias, Wireframe marker filtering and pick occlusion share it, so
 draw and pick agree; the face centre keeps its own tolerance (table row 5). Readbacks (Apple M1 Pro, Metal, side-2
-cube at the origin, near 0.01, far 10000, yaw 0.6, pitch 0.4, 1024 px square, 45 degree
+cube at the origin, near 0.01 (the default is now 0.1; not re-run), far 10000, yaw 0.6, pitch 0.4, 1024 px square, 45 degree
 fov): every corner with a front-facing face showed all 25 marker pixels and no hidden
 corner drew at the default distance 8 and at 120 for tolerances 6e-3 through 8e-3; 5e-3
 left one silhouette corner at 20/25, and 2e-2 let a hidden corner show at 120, so the
@@ -260,10 +260,18 @@ software Vulkan job runs the GPU tests, but it was not used to choose or bracket
 value; other adapters were not run. Limits: the tolerance is relative to distance, so
 plates thinner than about 0.05 units at the default distance 8 (6e-3 times 8) can show,
 or let a click pick, the vertex behind them; objects only a few px across can have a
-hidden corner picked; and at distances beyond about 500 a flat 6e-3 under-covers the
-Depth32Float resolution (no readback needed more at d=120 or d=300 with small-object
-runs, but the buffer's relative resolution grows with distance). A pixel-derived bias is
+hidden corner picked; and at large distances a flat 6e-3 under-covers the Depth32Float
+resolution (no readback needed more at d=120 or d=300 with small-object runs, but the
+buffer's relative resolution grows with distance). The relative depth step is about
+5.96e-8 * z / near, which reaches 6e-3 near z = 1007 at near 0.01 and near z = 10067 at
+near 0.1, so the default near of 0.1 moves that limit beyond the default far plane. A pixel-derived bias is
 the planned follow-up (#135).
+The default near clip is 0.1 (Create Camera Options default; the persp camera's own is
+undocumented, PROVISIONAL). Dolly has no minimum distance, so a distance below the near
+clip puts the target in front of the near plane and clips it; whether Maya has a hard dolly
+stop is PROVISIONAL (no Dolly Tool page cited). A biased vertex marker (0.6% toward the
+eye) can be near-clipped while its surface vertex at eye depth in [0.1, 0.1006) stays
+visible; negligible and pre-existing.
 
 Wireframe hides occluded vertex markers like face centres, but draws the selected edge
 and every edge through surfaces. When that check is over budget `vertex_markers_hidden`
