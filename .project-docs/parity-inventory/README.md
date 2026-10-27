@@ -114,7 +114,7 @@ Documented menus and the family that owns their content. The always-available me
 
 | Menu (set) | Family | Source and note |
 | --- | --- | --- |
-| File (all) | INT; New Scene and Close in SCN; Exit in SHL; View Image and View Sequence in RND; Save Preferences in SHL | [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) |
+| File (all) | INT; New Scene in SCN (AztecCraft's File > Close, not a Maya item, also lives in SCN); Exit in SHL; View Image and View Sequence in RND; Save Preferences in SHL | [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) |
 | Edit | SCN (undo, redo, duplicate, group, parent, delete) | per-item split when SCN expands |
 | Create | MOD (Polygon Primitives), CRV (NURBS, curve tools), MAT (Lights), VPT (Cameras, image planes), SCN (Empty Group, Sets) | split per submenu when those families expand |
 | Select | SCN | |
