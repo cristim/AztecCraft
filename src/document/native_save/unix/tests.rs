@@ -21,7 +21,6 @@ mod sited {
 }
 
 pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
-pub(super) pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let path = directory.join("scene.mb");
     std::fs::write(&path, wire::specimen()).unwrap();
     let document = load_native(&path).unwrap();
