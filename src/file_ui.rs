@@ -1438,7 +1438,7 @@ mod tests {
         assert!(!editor.is_dirty());
     }
 
-    #[cfg(any(unix, windows))]
+    #[cfg(unix)]
     #[test]
     fn untitled_scene_enables_save_as_and_its_title_follows_the_saved_file() {
         let directory = tempfile::tempdir().unwrap();

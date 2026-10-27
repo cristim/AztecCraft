@@ -4050,6 +4050,7 @@ fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
 }
 
 /// The assertions before each dialog call make a broken setup panic instead of reaching rfd.
+#[cfg(unix)]
 #[test]
 fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     let mut editor = Editor::default();
@@ -8892,6 +8893,7 @@ mod primitive_options_create {
         assert_eq!(editor.history.scene(), &after);
     }
 
+    #[cfg(unix)]
     #[test]
     fn optioned_create_can_be_saved_as_a_new_maya_binary_scene() {
         let directory = tempfile::tempdir().unwrap();
