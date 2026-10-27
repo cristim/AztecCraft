@@ -20,6 +20,8 @@ mod parent_cpu_reference;
 #[path = "tests/manipulator_handles.rs"]
 mod manipulator_handles;
 
+#[path = "tests/multi_selection.rs"]
+mod multi_selection;
 #[path = "tests/vertex_edge.rs"]
 mod vertex_edge;
 
@@ -2153,8 +2155,8 @@ fn headless_gpu_grid_is_hidden_by_opaque_faces_but_shows_through_wireframe() {
     );
 }
 
-#[test]
-fn object_feedback_highlights_descendants_of_a_selected_root_only() {
+/// A root with one child mesh and a separate flat root with one mesh.
+fn nested_and_flat_scene() -> NativeScene {
     use maya_binary::{chunk, creation, group, mesh_payload, scene, triple};
     let bytes = scene(
         &[
@@ -2190,12 +2192,17 @@ fn object_feedback_highlights_descendants_of_a_selected_root_only() {
         ]
         .concat(),
     );
-    let native = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    azteccraft::native_scene::binary::decode(bytes).unwrap()
+}
+
+#[test]
+fn object_feedback_highlights_descendants_of_a_selected_root_only() {
+    let native = nested_and_flat_scene();
     let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
     assert_eq!(view.instances().len(), 2);
     let selected = |feedback: SelectionFeedback<'_>, index: usize| {
         let instance = &view.instances()[index];
-        feedback.selected(instance, &instance.faces()[0])
+        feedback.highlight(instance, &instance.faces()[0]) != Highlight::None
     };
     let roots = native.transform_paths().unwrap();
     let root = roots.iter().find(|t| t.path.len() == 1).unwrap();

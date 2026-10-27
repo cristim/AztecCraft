@@ -930,3 +930,12 @@ paints nothing. This contradicts the "mirrors the painted highlight" wording in
 `.project-docs/mcp.md` (the pointer fields paragraph). The tests
 `a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
 `sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.
+
+## Multi-object selection colours and group descendants are PROVISIONAL
+
+With several objects selected, the lead and the other members are drawn in our own colours
+(`.project-docs/development.md` row 33); Maya's page says only "a different colour". The
+renderer matches by instance-path prefix, so an object below the lead's path is drawn in the lead
+colour and an object below another member in the member colour, whichever member is listed
+first. Whether Maya draws descendants of a selected group that way is unconfirmed. Pinned by
+`descendants_take_the_colour_of_the_selected_ancestor_they_sit_below`.

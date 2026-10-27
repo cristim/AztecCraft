@@ -499,8 +499,16 @@ impl Editor {
                 &view,
                 match self.selection_mode {
                     SelectionMode::Object | SelectionMode::Hierarchy => {
-                        let (selected, path) = self.selection_presentation();
-                        crate::viewport_renderer::SelectionFeedback::Object(selected.map(|_| path))
+                        if self.selection.len() > 1 {
+                            crate::viewport_renderer::SelectionFeedback::Multi(
+                                self.selection.members(),
+                            )
+                        } else {
+                            let (selected, path) = self.selection_presentation();
+                            crate::viewport_renderer::SelectionFeedback::Object(
+                                selected.map(|_| path),
+                            )
+                        }
                     }
                     SelectionMode::Vertex => crate::viewport_renderer::SelectionFeedback::Vertex {
                         active: self.single_target().ok(),
