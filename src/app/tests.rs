@@ -10516,3 +10516,46 @@ fn outliner_modified_clicks_are_refused_while_a_file_modal_is_open() {
         assert_eq!(selected_nodes(&editor), [ids[0]], "{modifiers:?}");
     }
 }
+
+#[test]
+fn modify_selection_at_the_cap_reports_the_typed_error_and_keeps_the_set() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let real = editor.history.scene().transform_paths().unwrap().remove(0);
+    // Stand-in members for 4096 objects: the cap check never looks the members up.
+    let full: Vec<TransformTarget> = (0..azteccraft::native_scene::MAX_TRANSFORM_PATHS as u64)
+        .map(|index| TransformTarget {
+            node: NodeId::from_decimal(&(100_000 + index).to_string()).unwrap(),
+            path: real.path.clone(),
+        })
+        .collect();
+    editor.set_selection_members_for_test(full.clone());
+    let status = editor.status.clone();
+    for change in [SelectionChange::Add, SelectionChange::Toggle] {
+        let operation = || Operation::ModifySelection {
+            change,
+            node: real.node,
+            instance_path: Some(real.path.clone()),
+        };
+        for result in [
+            editor.apply_operation(operation()),
+            remote(&mut editor, operation()),
+        ] {
+            let Err(OperationError::InvalidInput(message)) = result else {
+                panic!("{change:?} at the cap must fail with InvalidInput");
+            };
+            assert_eq!(message, "A selection holds at most 4096 objects");
+        }
+        assert_eq!(editor.selection.members(), full.as_slice(), "{change:?}");
+    }
+    assert_eq!(editor.status, status);
+    // A non-member Remove stays Unchanged at the cap.
+    assert!(matches!(
+        editor.apply_operation(Operation::ModifySelection {
+            change: SelectionChange::Remove,
+            node: real.node,
+            instance_path: Some(real.path.clone()),
+        }),
+        Ok(OperationReply::Unchanged)
+    ));
+}
