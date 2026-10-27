@@ -852,11 +852,115 @@ const CAMERA_INSPECTION_MAX_BYTES: usize = 512;
 #[cfg(any(test, feature = "mcp"))]
 const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 192;
 
+// The inspection preflight is a guaranteed minimum: each constant below is the serialized length
+// of the smallest value the DTO can take, so the sum never exceeds what `inspect_scene` writes and
+// can never refuse a scene that would fit. It only has to bound the clone memory (a hostile scene
+// can carry huge names); `tool_reply` measures the real reply. Per-field minima: `null` and `true`
+// are 4 bytes (`false` is 5), floats `0.0` are 3, `[]` is 2, an `Option<String>` is `""` (2), a
+// decimal id is `"1"` (3), and every key counts with its quotes and colon. Commas and fields
+// skipped with `skip_serializing_if` count 0. Names add `len()` unescaped, which JSON can only
+// lengthen.
+#[cfg(any(test, feature = "mcp"))]
+macro_rules! min_appearance_summary {
+    () => {
+        concat!(
+            r#"{"state":"unbound","shapes":0,"checked_source_bindings":0,"unavailable":0,"unbound":0,"#,
+            r#""issues":{"missing_membership":true,"overlapping_membership":true,"#,
+            r#""unsupported_shader":true,"unsupported_graph":true,"ambiguous_instance":true,"#,
+            r#""unsupported_settings":true,"uv_mismatch":true,"malformed_data":true,"#,
+            r#""evaluation_unavailable":true,"quadratic_filtering_unproved":true,"#,
+            r#""color_processor_unavailable":true}}"#
+        )
+    };
+}
+#[cfg(any(test, feature = "mcp"))]
+const MIN_NODE: &str = concat!(
+    r#"{"id":"1","name":"","transform_id":"1","visible":null,"#,
+    r#""transform":{"translation":[0.0,0.0,0.0],"rotation_degrees":[0.0,0.0,0.0],"scale":[0.0,0.0,0.0]},"#,
+    r#""authoring_transform":{"translation":[0.0,0.0,0.0],"rotation":[0.0,0.0,0.0],"scale":[0.0,0.0,0.0]},"#,
+    r#""instance_paths":[],"shape_ids":[]}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_SHAPE: &str = concat!(
+    r#"{"id":"1","name":"","points":0,"edges":0,"faces":0,"smoothing_known":true,"#,
+    r#""source_appearance":"#,
+    min_appearance_summary!(),
+    r#","#,
+    r#""material":null,"session_material":"0"}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_CURVE: &str = concat!(
+    r#"{"id":"1","name":"","degree":0,"form":"open","control_vertices":0,"knots":0,"#,
+    r#""domain":[0.0,0.0],"read_only":true,"draw_available":true}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_SESSION_MATERIAL: &str =
+    r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true}"#;
+/// Everything in `SceneInspection` except the four lists; nested fixed objects at their minimum.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_FIXED: &str = concat!(
+    r#"{"scene_token":"00000000-0000-0000-0000-000000000000","#,
+    r#""manipulation":{"active_tool":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
+    r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
+    r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
+    r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,
+    r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
+    r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
+    r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","#,
+    r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
+    r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
+    r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
+    r#""source_appearance":"#,
+    min_appearance_summary!(),
+    r#","#,
+    r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
+    r#""selection_count":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
+    r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
+    r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""text_focused":true,"modal":true,"status_message":"","#,
+    r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0}}"#
+);
+
+/// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part
+/// plus the minimum of every node, shape, curve and session material and each name's length.
+#[cfg(any(test, feature = "mcp"))]
+pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> usize {
+    let nodes = scene.nodes().iter().fold(0usize, |sum, node| {
+        sum.saturating_add(MIN_NODE.len())
+            .saturating_add(node.name().len())
+    });
+    let shapes = scene.shapes().iter().fold(0usize, |sum, shape| {
+        sum.saturating_add(MIN_SHAPE.len())
+            .saturating_add(shape.name().len())
+    });
+    let curves = scene.curves().iter().fold(0usize, |sum, curve| {
+        sum.saturating_add(MIN_CURVE.len())
+            .saturating_add(curve.name().len())
+    });
+    // Sourced scenes (appearance incomplete) report an empty table.
+    let materials = if scene.appearance_incomplete() {
+        0
+    } else {
+        scene
+            .session_materials()
+            .len()
+            .saturating_mul(MIN_SESSION_MATERIAL.len())
+    };
+    [nodes, shapes, curves, materials]
+        .into_iter()
+        .fold(MIN_FIXED.len(), usize::saturating_add)
+}
+
 #[cfg(any(test, feature = "mcp"))]
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
     let limit = MAX_RESULT_BYTES / 2;
+    if inspection_lower_bound(scene) > limit {
+        return Err(OperationError::TooLarge);
+    }
     let mut estimated_bytes = APPEARANCE_SUMMARY_MAX_BYTES
         + MOVE_INSPECTION_MAX_BYTES
         + STATUS_MESSAGE_MAX_BYTES
@@ -1101,6 +1205,92 @@ mod tests {
             check_inspection_size(&native),
             Err(OperationError::TooLarge)
         ));
+    }
+
+    fn zeros() -> [f64; 3] {
+        [0.0; 3]
+    }
+
+    #[test]
+    fn minimum_constants_are_the_smallest_serialized_dtos() {
+        use azteccraft::native_scene::{
+            AppearanceIssues, AppearanceState, AppearanceSummary, CurveForm,
+        };
+        let summary = AppearanceSummary {
+            state: AppearanceState::Unbound,
+            shapes: 0,
+            checked_source_bindings: 0,
+            unavailable: 0,
+            unbound: 0,
+            issues: AppearanceIssues {
+                missing_membership: true,
+                overlapping_membership: true,
+                unsupported_shader: true,
+                unsupported_graph: true,
+                ambiguous_instance: true,
+                unsupported_settings: true,
+                uv_mismatch: true,
+                malformed_data: true,
+                evaluation_unavailable: true,
+                quadratic_filtering_unproved: true,
+                color_processor_unavailable: true,
+            },
+        };
+        let node = NodeInspection {
+            id: "1".into(),
+            name: String::new(),
+            transform_id: "1".into(),
+            visible: None,
+            transform: TransformInput {
+                translation: zeros(),
+                rotation_degrees: zeros(),
+                scale: zeros(),
+            },
+            authoring_transform: AuthoringTransformInspection {
+                translation: zeros(),
+                rotation: zeros(),
+                scale: zeros(),
+            },
+            transform_attributes: None,
+            instance_paths: Vec::new(),
+            shape_ids: Vec::new(),
+        };
+        assert_eq!(serde_json::to_string(&node).unwrap(), MIN_NODE);
+        let shape = ShapeInspection {
+            id: "1".into(),
+            name: String::new(),
+            points: 0,
+            edges: 0,
+            faces: 0,
+            smoothing_known: true,
+            source_appearance: summary,
+            material: None,
+            session_material: Some("0".into()),
+        };
+        assert_eq!(serde_json::to_string(&shape).unwrap(), MIN_SHAPE);
+        let curve = CurveInspection {
+            id: "1".into(),
+            name: String::new(),
+            degree: 0,
+            form: CurveForm::Open,
+            control_vertices: 0,
+            knots: 0,
+            domain: [0.0; 2],
+            read_only: true,
+            draw_available: true,
+        };
+        assert_eq!(serde_json::to_string(&curve).unwrap(), MIN_CURVE);
+        let material = SessionMaterialInspection {
+            id: "0".into(),
+            name: String::new(),
+            shading_group: String::new(),
+            color: zeros(),
+            editable: true,
+        };
+        assert_eq!(
+            serde_json::to_string(&material).unwrap(),
+            MIN_SESSION_MATERIAL
+        );
     }
 
     #[test]

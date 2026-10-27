@@ -580,3 +580,128 @@ mod selection_tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod lower_bound_tests {
+    // No multi-instance or `visible: null` fixture: the bin crate cannot build instancing
+    // (src/app/tests.rs:8252), MIN_NODE already uses null (the smallest value), and node
+    // instance paths are charged 4L against a real cost of at least 4L + 1.
+    use crate::app::{Editor, History};
+    use crate::editor_operations::{MIN_FIXED, inspection_lower_bound};
+    use azteccraft::native_scene::{NativeScene, ascii};
+    use azteccraft::scene::{Primitive, Scene};
+
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+
+    fn editor_for(scene: NativeScene) -> Editor {
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    /// The serialized length of the real inspection, after checking the bound does not exceed it.
+    fn assert_lower_bound(editor: &Editor) -> usize {
+        let inspection = editor.inspect(false).unwrap();
+        let real = serde_json::to_vec(&inspection).unwrap().len();
+        let bound = inspection_lower_bound(editor.history.scene());
+        assert!(bound <= real, "bound {bound} exceeds the real {real} bytes");
+        real
+    }
+
+    fn key_structure(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(map) => serde_json::Value::Object(
+                map.iter()
+                    .map(|(key, value)| (key.clone(), key_structure(value)))
+                    .collect(),
+            ),
+            _ => serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn the_fixed_minimum_has_every_key_of_the_tightest_inspection() {
+        // An empty default editor: every Option null, nothing selected, no nodes.
+        let editor = Editor::default();
+        let real = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        let minimum: serde_json::Value = serde_json::from_str(MIN_FIXED).unwrap();
+        assert_eq!(key_structure(&minimum), key_structure(&real));
+        let real_len = assert_lower_bound(&editor);
+        assert!(MIN_FIXED.len() <= real_len);
+        assert!(
+            real_len - MIN_FIXED.len() < 1024,
+            "the minimum drifted loose"
+        );
+    }
+
+    #[test]
+    fn the_bound_holds_for_a_sourced_scene_with_curves_and_null_session_material() {
+        let editor = editor_for(ascii::decode(ascii_fixture::specimen().into()).unwrap());
+        assert!(editor.history.scene().appearance_incomplete());
+        assert_lower_bound(&editor);
+    }
+
+    #[test]
+    fn the_bound_holds_for_flat_cubes_up_to_the_reply_ceiling() {
+        for count in [1, 30, 60] {
+            let mut editor = Editor::default();
+            for _ in 0..count {
+                editor.create(Primitive::Cube);
+            }
+            let real = assert_lower_bound(&editor);
+            assert!(real > 0);
+        }
+    }
+
+    #[test]
+    fn the_bound_holds_for_escaped_and_multibyte_names() {
+        let mut accepted = 0;
+        for name in [
+            "quo\"te\\back".to_string(),
+            "caf\u{e9} \u{4e2d}\u{6587} \u{1f600}".to_string(),
+            "\"".repeat(1000),
+            "plain".to_string(),
+        ] {
+            let mut legacy = Scene::default();
+            legacy.create(Primitive::Cube, &name).unwrap();
+            let editor = editor_for(NativeScene::from_legacy(legacy).unwrap());
+            assert_lower_bound(&editor);
+            accepted += 1;
+        }
+        assert_eq!(accepted, 4);
+    }
+
+    #[test]
+    fn the_bound_holds_for_a_full_session_material_table() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let mut scene = editor.history.scene().clone();
+        while scene.session_materials().len() < azteccraft::native_scene::MAX_SESSION_MATERIALS {
+            scene.create_session_material([0.5; 3]).unwrap();
+        }
+        assert_lower_bound(&editor_for(scene));
+    }
+
+    #[test]
+    fn the_bound_holds_for_transform_attributes_and_unproved_or_false_visibility() {
+        let source = "//Maya ASCII 2016 scene\nrequires maya \"2016\";\ncurrentUnit -l centimeter -a degree -t film;\n\
+            createNode transform -n \"a\";\nsetAttr \".ro\" 3;\nsetAttr \".sh\" -type \"double3\" 1 2 3;\n\
+            createNode transform -n \"b\";\nsetAttr \".v\" no;\ncreateNode transform -n \"c\";\n";
+        let editor = editor_for(ascii::decode(source.as_bytes().to_vec().into()).unwrap());
+        let inspection = editor.inspect(false).unwrap();
+        assert!(
+            inspection
+                .nodes
+                .iter()
+                .any(|n| n.transform_attributes.is_some())
+        );
+        assert!(inspection.nodes.iter().any(|n| n.visible == Some(false)));
+        assert_lower_bound(&editor);
+    }
+}
