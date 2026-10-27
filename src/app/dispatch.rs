@@ -269,7 +269,7 @@ impl Editor {
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
         if let Some(noun) = self.selection_mode.component_noun()
-            && matches!(operation, Operation::Delete(_))
+            && matches!(operation, Operation::Delete(_) | Operation::DeleteSelection)
         {
             return Err(OperationError::InvalidInput(format!(
                 "{noun} deletion is unsupported; switch to Object or Hierarchy selection"
@@ -616,6 +616,12 @@ impl Editor {
                 }
             }
             Operation::Delete(id) => Command::Remove(id),
+            Operation::DeleteSelection => {
+                if self.selection.is_empty() {
+                    return Err(OperationError::NoSelection);
+                }
+                Command::RemoveMany(self.selection.members().iter().map(|t| t.node).collect())
+            }
             Operation::SetSelectionMode(mode) => {
                 if mode.is_component() && self.selection.len() > 1 {
                     return Err(OperationError::MultipleSelection);

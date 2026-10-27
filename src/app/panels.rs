@@ -425,16 +425,8 @@ impl Editor {
                 };
                 self.apply_operation(Operation::SetSelectionMode(mode))?;
             }
-            if delete_intent {
-                match self.single_target().map(|(id, _)| id) {
-                    Ok(id) => {
-                        self.native_operation(Operation::Delete(id));
-                    }
-                    Err(OperationError::MultipleSelection) => {
-                        return Err(OperationError::MultipleSelection);
-                    }
-                    Err(_) => {}
-                }
+            if delete_intent && !self.selection.is_empty() {
+                self.native_operation(Operation::DeleteSelection);
             }
             match selection_refusal {
                 Some(crate::viewport_ui::SelectionRefusal::Marquee) => {

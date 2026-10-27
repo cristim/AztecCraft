@@ -301,8 +301,9 @@ impl Editor {
             unsupported_section(ui, "Layers");
             return;
         }
-        let read_only_reason = self.authoring_refusal();
-        let authoring = read_only_reason.is_none();
+        let authoring_refusal = self.authoring_refusal();
+        let authoring = authoring_refusal.is_none();
+        let read_only_reason = self.read_only_reason();
         let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
         let channel_blur = self.transform_section(ui, authoring);
         self.commit_on_blur(name_blur | channel_blur);
@@ -313,7 +314,7 @@ impl Editor {
         ui.separator();
         if ui
             .add_enabled(
-                authoring && !self.selection_mode.is_component(),
+                read_only_reason.is_none() && !self.selection_mode.is_component(),
                 egui::Button::new("Delete selected"),
             )
             .on_disabled_hover_text(self.delete_disabled_hover(read_only_reason.as_deref(), false))

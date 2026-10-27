@@ -9738,7 +9738,7 @@ fn component_modes_refuse_several_selected_objects_and_object_modes_do_not() {
 }
 
 #[test]
-fn f8_and_the_delete_key_report_the_refusal_with_several_selected() {
+fn f8_reports_the_refusal_with_several_selected() {
     let mut editor = two_cube_editor();
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
@@ -9747,12 +9747,19 @@ fn f8_and_the_delete_key_report_the_refusal_with_several_selected() {
     assert!(editor.error, "{}", editor.status);
     assert!(editor.status.contains("Several objects are selected"));
     assert_eq!(multi_baseline(&editor), baseline);
-    editor.status.clear();
-    editor.error = false;
+}
+
+#[test]
+fn the_delete_key_deletes_every_selected_object_as_one_undo_step() {
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
     frame(&mut editor, &ctx, vec![key(Key::Delete)]);
-    assert!(editor.error, "{}", editor.status);
-    assert!(editor.status.contains("Several objects are selected"));
-    assert_eq!(multi_baseline(&editor), baseline);
+    assert!(!editor.error, "{}", editor.status);
+    assert!(editor.history.scene().nodes().is_empty());
+    assert!(editor.selection.is_empty());
+    assert!(editor.history.undo());
+    assert_eq!(editor.history.scene().nodes().len(), 2);
 }
 
 #[test]
@@ -9761,10 +9768,6 @@ fn channel_box_and_attribute_editor_edits_are_refused_with_several_selected() {
     assert_eq!(
         editor.authoring_refusal().as_deref(),
         Some("Several objects are selected; select one object")
-    );
-    assert_eq!(
-        editor.delete_disabled_hover(None, true),
-        "Several objects are selected; select one object"
     );
     let lead = editor.selection.lead().unwrap().clone();
     editor.set_selection_members_for_test(vec![lead]);
@@ -9985,10 +9988,11 @@ fn channel_box_controls_are_disabled_with_the_reason_while_several_are_selected(
         "Diffuse slider"
     );
     assert!(count_text(&output2, SEVERAL_REASON) > 0, "Diffuse reason");
-    assert!(button_disabled(&output, "Delete selected"));
+    assert!(
+        !button_disabled(&output, "Delete selected"),
+        "Delete acts on all"
+    );
     assert!(button_disabled(&output, "Frame selected  F"));
-    let at = face_text_position(&output2, "Delete selected");
-    assert!(hover_adds_the_reason(&mut editor, &ctx, at), "Delete");
     let at = face_text_position(&output2, "Frame selected  F");
     assert!(hover_adds_the_reason(&mut editor, &ctx, at), "Frame");
 }
@@ -10031,15 +10035,17 @@ fn attribute_editor_controls_are_disabled_with_the_reason_while_several_are_sele
 }
 
 #[test]
-fn edit_menu_delete_is_disabled_with_the_reason_while_several_are_selected() {
+fn edit_menu_delete_removes_every_selected_object() {
     let ctx = editing_ctx();
-    let mut editor = multi_material_editor();
+    let mut editor = two_cube_editor();
     let output = frame(&mut editor, &ctx, vec![]);
     let edit = face_text_position(&output, "Edit");
     let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
-    assert!(button_disabled(&output, "Delete"), "edit menu Delete");
+    assert!(!button_disabled(&output, "Delete"), "edit menu Delete");
     let at = face_text_position(&output, "Delete");
-    assert!(hover_adds_the_reason(&mut editor, &ctx, at));
+    face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
+    assert!(editor.history.scene().nodes().is_empty());
+    assert!(editor.selection.is_empty());
 }
 
 #[test]

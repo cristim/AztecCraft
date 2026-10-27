@@ -241,6 +241,9 @@ pub(in crate::app) fn only_instance_path(
 }
 
 #[cfg(test)]
+mod delete_tests;
+
+#[cfg(test)]
 mod rule_tests;
 
 #[cfg(test)]

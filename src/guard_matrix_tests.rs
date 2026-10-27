@@ -635,6 +635,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             distance: 0.5,
         },
         Operation::Delete(t.node),
+        Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
         Operation::FrameSelected,
@@ -1293,6 +1294,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 ..sample("delete(edge_mode)", Operation::Delete(t.node))
             },
         ],
+        Operation::DeleteSelection => vec![sample("delete_selection", Operation::DeleteSelection)],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
         Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],

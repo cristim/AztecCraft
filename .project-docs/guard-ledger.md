@@ -21,7 +21,7 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
 provenance Native and no token or draft checks. In order:
 
-1. A Delete in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
+1. A Delete or DeleteSelection in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
    `SetActiveTool`, `Select`, `ModifySelection`, `SelectByRule`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
    and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
@@ -62,7 +62,7 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `src/native_scene.rs "fn authoring_read_only_reason"`) and surfaces as `ReadOnlyFormat`; Move, Rotate and Scale map it in
   `begin_error` (`src/app/features/manipulation_tool.rs "fn begin_error"`).
 - `EditNode` with no fields returns `Unchanged` after only checking the node (`src/app/dispatch.rs "Operation::EditNode {"`).
-- Delete in Face, Vertex or Edge mode is refused by the first guard of `apply_operation_guarded`
+- Delete and DeleteSelection in Face, Vertex or Edge mode are refused by the first guard of `apply_operation_guarded`
   (`src/app/dispatch.rs "fn apply_operation_guarded"`), so native and remote callers refuse alike;
   `native_operation` no longer carries a separate pre-check and
   `native_operation_reports_face_mode_delete_refusal` covers the UI status line. The remote

@@ -323,7 +323,13 @@ pub enum Operation {
         target: FaceTarget,
         distance: f64,
     },
+    /// Deletes one node by id; only MCP `delete_node` and tests build it, the UI deletes through
+    /// `DeleteSelection`.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     Delete(NodeId),
+    /// Edit > Delete on the whole object selection: every selected node is removed as one undo
+    /// step, or none is. Object and Hierarchy modes only.
+    DeleteSelection,
     Undo,
     Redo,
     FrameSelected,

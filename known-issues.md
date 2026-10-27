@@ -953,10 +953,10 @@ first. Whether Maya draws descendants of a selected group that way is unconfirme
 
 Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
 in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It does
-not act on several objects: Move, Rotate, Scale, the native Delete (menu, Channel Box and key), Frame Selected
+not act on several objects: Move, Rotate, Scale, Frame Selected
 and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP tools `delete_node`,
 `rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
-(#30) is absent (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+(#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
 pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl

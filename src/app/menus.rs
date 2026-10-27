@@ -329,7 +329,7 @@ impl Editor {
                 if ui
                     .add_enabled(
                         authoring
-                            && self.single_target().is_ok()
+                            && !self.selection.is_empty()
                             && !self.selection_mode.is_component(),
                         egui::Button::new("Delete"),
                     )
