@@ -23,6 +23,7 @@ Status describes documented behaviour only, never equivalence to Maya. The order
 | Partial | Partly implemented (tested or not), or fully implemented with only some dimensions evidenced. |
 | Doc-conformant | The behaviour the cited page describes is fully implemented. The Evidence cell names every dimension (interaction, semantic output, persistence, undo, invalid input, interop) and gives for each either its evidence or `n/a: <reason>`. A dimension left unnamed counts as not checked, which makes the row Partial. A single happy-path test does not qualify. |
 | Out-of-scope | Excluded with a recorded reason (see the list below). |
+| retired | An ID kept for an option-box or duplicate row folded into another row. Not in the divisor; counted separately. |
 
 Rows needing a running Maya (numerics, pixels, binary acceptance by Maya) are tagged `runtime-only`. They stay in the denominator at 0 until a reference run exists (#5).
 
@@ -118,7 +119,7 @@ Documented menus and the family that owns their content. The always-available me
 | Edit | SCN (undo, redo, duplicate, group, parent, delete) | per-item split when SCN expands |
 | Create | MOD (Polygon Primitives), CRV (NURBS, curve tools), MAT (Lights), VPT (Cameras, image planes), SCN (Empty Group, Sets) | split per submenu when those families expand |
 | Select | SCN | |
-| Modify > Transform, Pivot | SCN (transform tools, freeze, pivot); VPT (tool settings) | [Modify menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-378D7FF6-492F-4DA4-A468-507E6ABF8B58.htm) (fetched 2026-10-27, groups Transform, Pivot, Align, Rotate Order, Nodes, Naming, Attributes, Objects, Convert, Paint Tool, Asset) |
+| Modify > Transform, Pivot | SCN (transform tools, freeze, pivot); VPT (tool settings) | [Modify menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-378D7FF6-492F-4DA4-A468-507E6ABF8B58.htm) (fetched 2026-10-27, groups Transform, Pivot, Align, Rotate Order, Nodes, Naming, Attributes, Objects (holding Make Live, Replace Objects and Convert), Paint Tool, Asset) |
 | Modify > Align, Naming, Attributes, Objects, Asset | SCN | Align Tool and Snap Align place objects; Naming renames nodes; Attributes adds, edits and deletes custom attributes; Replace Objects edits the scene graph; Asset is a node container. Make Live (snap target) is VPT |
 | Modify > Rotate Order | ANM | Reorder Rotation keeps animation unchanged while changing the order, so it works on animated channels |
 | Modify > Nodes | PIP | Evaluate Nodes turns node evaluation off for performance |
@@ -129,7 +130,7 @@ Documented menus and the family that owns their content. The always-available me
 | Mesh, Edit Mesh, Mesh Tools, Mesh Display (Modeling) | MOD | [Modeling menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm) |
 | Curves, Surfaces (Modeling) | CRV | same page |
 | UV (Modeling) | UVE | same page |
-| Generate (Modeling) | DYN (XGen, Paint Effects); Cloud Services (Character Generator and ReCap web launchers) are OOS: other Autodesk web products | [Generate menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3BAFC1CC-9BF8-4BA3-990B-BA57CF30CC10.htm) (fetched 2026-10-27); it holds XGen, Cloud Services and Paint Effects, no polygon modeling |
+| Generate (Modeling) | DYN (XGen, Paint Effects); Cloud Services (Character Generator and ReCap web launchers) are OOS: other Autodesk web products (pending maintainer confirmation) | [Generate menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3BAFC1CC-9BF8-4BA3-990B-BA57CF30CC10.htm) (fetched 2026-10-27); it holds XGen, Cloud Services and Paint Effects, no polygon modeling |
 | Deform (Modeling, Rigging, Animation) | RIG | one owner for all three sets |
 | Skeleton, Skin, Constrain, Control (Rigging); Constrain (Animation) | RIG | [Rigging menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-CharacterAnimation/files/GUID-E8BE786A-AA88-46FD-A402-FBCD8855368B.htm) |
 | Key, Playback, Audio, Visualize (Animation) | ANM | [Animation menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-3CCAA3C8-A480-4CB7-A85E-F5AB17D3FB1F.htm) |
