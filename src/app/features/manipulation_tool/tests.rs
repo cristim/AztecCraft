@@ -2423,6 +2423,31 @@ fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
     }
 }
 
+// HandleFrame::new refuses an axis whose length overflows. Two ancestors scaled 1e100 give a finite
+// 1e200 world scale the viewport still draws, so the capture is live and the whole tool is refused.
+#[test]
+fn an_unrepresentable_handle_frame_refuses_the_whole_tool_at_any_pixel() {
+    for (tool, name) in [(ActiveTool::Rotate, "Rotate"), (ActiveTool::Scale, "Scale")] {
+        let (mut editor, context, view) = ascii_editor(&ascii_chain("1e100"), "leaf", tool);
+        editor
+            .set_tool_space(tool, ManipulationSpace::Object)
+            .unwrap();
+        idle(&mut editor, &context, 1.0);
+        let expected = format!("{name} handle projection cannot be represented");
+        for at in [view.rect.center(), view.rect.min + egui::vec2(40.0, 40.0)] {
+            moved(&mut editor, &context, 1.0, at);
+            let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+            assert_eq!(viewport.pointer_hit, None, "{name}");
+            assert_eq!(
+                viewport.pointer_refusal.as_deref(),
+                Some(expected.as_str()),
+                "{name}"
+            );
+            assert_eq!(editor.status, format!("{name} unavailable: {expected}"));
+        }
+    }
+}
+
 #[test]
 fn no_selection_has_no_frame_refusal() {
     let (mut editor, context, view) = setup(Key::E, 1.0);

@@ -885,3 +885,51 @@ fn arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values() {
     assert_eq!(ARROWHEAD_LENGTH, 12.0);
     assert_eq!(ARROWHEAD_HALF_WIDTH, 4.0);
 }
+
+// InvalidProjection is shared by several guards, so each test also names what a mutant without the
+// guard would return instead. Not tested because no input reaches them: the non-finite-origin check in
+// `project_origin` (the clip check right after returns the same variant, and `HandleFrame::new`
+// already rejects such origins), the non-finite `fraction` in `projected_fraction` (the `max(0.0)`
+// maps NaN and -inf to zero), and the non-finite radius in `RotateHandles::new` (a successful
+// `project_origin` bounds depth and lateral offset by the finite clip planes).
+
+#[test]
+fn project_origin_reports_an_overflowing_clip_as_invalid_not_clipped() {
+    // A 60 degree field of view scales x by about 1.3, so a lone f64::MAX x overflows the clip (at
+    // 90 degrees the scale is 0.75 and it would not).
+    let camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 10.0, 60_f32.to_radians(), 0.1, 100.0).unwrap();
+    let capture = capture(&camera, 1.0);
+    // Finite origin, non-finite clip: without the guard NaN pixels would read as OriginClipped.
+    assert_eq!(
+        capture.project_origin(DVec3::new(f64::MAX, 0.0, 0.0)).err(),
+        Some(HandleError::InvalidProjection)
+    );
+    assert_eq!(
+        capture.project_origin(DVec3::new(1e6, 0.0, 0.0)).err(),
+        Some(HandleError::OriginClipped)
+    );
+}
+
+#[test]
+fn projected_fraction_refuses_an_origin_at_the_eye_instead_of_reporting_zero() {
+    let capture = capture(&front_camera(), 1.0);
+    // Without the guard the zero distance gives a NaN cosine, which `max(0.0)` turns into Ok(0.0).
+    assert_eq!(
+        capture.projected_fraction(capture.eye(), DVec3::X).err(),
+        Some(HandleError::InvalidProjection)
+    );
+    assert!(capture.projected_fraction(DVec3::ZERO, DVec3::X).is_ok());
+}
+
+#[test]
+fn screen_direction_refuses_an_overflowing_clip_depth_instead_of_a_degenerate_axis() {
+    let capture = capture(&front_camera(), 1.0);
+    // w * w overflows; without the guard the derivative is zero (a finite numerator over an infinite
+    // denominator) and ProjectedAxisDegenerate results.
+    assert_eq!(
+        capture
+            .screen_direction(DVec4::new(0.0, 0.0, 0.0, 1e200), DVec3::X)
+            .err(),
+        Some(HandleError::InvalidProjection)
+    );
+}
