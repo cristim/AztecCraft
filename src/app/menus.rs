@@ -1,13 +1,12 @@
 use super::*;
 use azteccraft::ui_icons::UiIcon;
 
-/// Select > All, All by Type, Hierarchy and Inverse select several objects, which needs
-/// multi-selection.
+/// Select > All, All by Type, Hierarchy and Inverse select several objects. The ordered selection
+/// exists, but these commands are not built yet (#325).
 pub(super) const MULTI_SELECTION_REASON: &str =
-    "Not implemented: selecting several objects needs multi-selection (#166)";
+    "Not implemented: selecting several objects at once is tracked in #325";
 /// Status for Ctrl/Cmd+Shift+A, Maya's Select All hotkey, which is bound but unsupported.
-pub(super) const SELECT_ALL_STATUS: &str =
-    "Select All is not implemented: selecting several objects needs multi-selection (#166)";
+pub(super) const SELECT_ALL_STATUS: &str = "Select All is not implemented: it is tracked in #325";
 
 /// One File menu entry that the Status Line also draws, so the two cannot diverge.
 pub(super) struct FileAction {
@@ -370,7 +369,7 @@ impl Editor {
                 });
             });
             ui.menu_button("Select", |ui| {
-                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel), #167.
+                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel).
                 ui.add_enabled(false, egui::Button::new("All   Ctrl/Cmd Shift A"))
                     .on_disabled_hover_text(MULTI_SELECTION_REASON);
                 ui.add_enabled(false, egui::Button::new("All by Type"))

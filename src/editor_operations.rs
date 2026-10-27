@@ -246,7 +246,7 @@ pub enum Operation {
     },
     SetSelectionMode(SelectionMode),
     /// Maya's Select > Deselect All (`SelectNone`, Alt+D): clears the object and component
-    /// selection and returns to Object selection mode (#167).
+    /// selection and returns to Object selection mode.
     DeselectAll,
     SelectFace {
         target: Option<FaceTarget>,

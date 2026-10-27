@@ -2235,7 +2235,7 @@ fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
 }
 
 /// Maya 2025.1's SelectNone runs `changeSelectMode -component; changeSelectMode -object;
-/// select -cl`, so Deselect All also leaves component and hierarchy modes (#167).
+/// select -cl`, so Deselect All also leaves component and hierarchy modes.
 #[test]
 fn deselect_all_clears_object_and_components_and_returns_to_object_mode() {
     let changed = |reply: Result<OperationReply, OperationError>| {
@@ -2301,13 +2301,19 @@ fn alt_d_deselects_all_and_other_d_chords_do_not() {
 }
 
 #[test]
-fn ctrl_shift_a_reports_that_select_all_needs_multi_selection() {
+fn ctrl_shift_a_reports_that_select_all_is_not_implemented_325() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     let selected = editor.selection_presentation().0;
     let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
     shortcuts_events(&mut editor, chord, vec![key_event(Key::A, chord, false)]);
     assert_eq!(editor.status, super::menus::SELECT_ALL_STATUS);
+    for text in [
+        super::menus::SELECT_ALL_STATUS,
+        super::menus::MULTI_SELECTION_REASON,
+    ] {
+        assert!(text.contains("#325") && !text.contains("#166"), "{text}");
+    }
     assert!(!editor.error);
     assert_eq!(editor.selection_presentation().0, selected);
 }

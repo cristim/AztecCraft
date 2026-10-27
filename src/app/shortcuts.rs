@@ -118,7 +118,7 @@ impl Editor {
             });
         }
         // Maya 2025.1 hotkeySetup.mel binds Alt+D to SelectNone and Ctrl+Shift+A (Cmd on macOS)
-        // to Select_All (#167). Option+D on macOS relies on egui-winit's physical-key fallback,
+        // to Select_All. Option+D on macOS relies on egui-winit's physical-key fallback,
         // PROVISIONAL.
         let (deselect_all, select_all) = ctx.input(|i| {
             let chord = |key: Key, held: fn(&egui::Modifiers) -> bool| {

@@ -53,7 +53,7 @@ impl Editor {
         }
     }
 
-    /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll` (#167).
+    /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll`.
     pub(in crate::app) fn deselect_all(&mut self) {
         self.native_operation(Operation::DeselectAll);
     }

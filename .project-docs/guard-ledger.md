@@ -127,7 +127,7 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   the menu path, and the entry-point allowlist names `file_actions` instead of `menus`.
 - Select > Deselect All and Alt+D share `deselect_all` (`src/app/features/selection.rs`), the one
   native caller of `Operation::DeselectAll`, so the entry-point allowlist names it instead of the
-  menu bar; MCP reaches the same operation as `deselect_all` (#167).
+  menu bar; MCP reaches the same operation as `deselect_all`.
 - Human-draft commits (`commit_pending`) are the only history mutation besides operations; the
   entry-point test names them.
 

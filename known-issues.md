@@ -296,7 +296,7 @@ and every edge through surfaces. When that check is over budget `vertex_markers_
 `ViewInstance` edge; the bin crate has no loose-edge fixture, so the face-less case is
 covered by the carried edge list and the picker tests, not pixels.
 
-## Select menu: Deselect All works, All, Hierarchy and Inverse wait for multi-selection (#167)
+## Select menu: Deselect All works, All, Hierarchy and Inverse are not implemented (#325)
 
 The Select menu follows Maya 2025.1's order (`buildSelectMenu.mel`): All (Ctrl+Shift+A), All by
 Type, Deselect All (Alt+D), Hierarchy and Inverse, with labels from the `SelectAll`, `SelectNone`,
@@ -305,7 +305,7 @@ Deselect All is the typed `DeselectAll` operation shared by the menu, Alt+D and 
 `deselect_all`; like Maya's `SelectNone` (`changeSelectMode -component; changeSelectMode
 -object; select -cl`) it also clears remembered components and returns to Object mode from Face,
 Vertex, Edge or Hierarchy. All, All by Type, Hierarchy and Inverse select several objects, so they stay disabled
-rows with a reason until multi-selection (#166), and Ctrl/Cmd+Shift+A reports the same on the
+rows with a reason until they are built (#325), and Ctrl/Cmd+Shift+A reports the same on the
 status line. Similar, Grow, Shrink and the rest of Maya's Select menu are absent. Option+D on
 macOS relies on egui-winit's physical-key fallback (PROVISIONAL). Maya 2026 and the 2027.2
 documentation pin are unverified.
