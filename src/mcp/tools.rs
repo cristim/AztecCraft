@@ -3,7 +3,7 @@ use super::{
     registry::{catalog, parse_request},
     transport::{Control, Shared, check_serialized_size},
 };
-use crate::editor_operations::{MAX_RESULT_BYTES, OperationError, OperationReply};
+use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
 use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
 use rmcp::{
     RoleServer, ServerHandler,
@@ -43,7 +43,7 @@ fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
 fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
     match reply {
         Ok(reply) => {
-            if check_serialized_size(&reply, MAX_RESULT_BYTES / 4).is_err() {
+            if check_serialized_size(&reply, MAX_REPLY_BYTES).is_err() {
                 return tool_error("too_large", OperationError::TooLarge);
             }
             let value = serde_json::to_value(reply).expect("bounded editor replies must serialize");
@@ -1510,6 +1510,36 @@ mod tests {
             "too_large"
         );
         assert!(check_serialized_size(&result, MAX_RESULT_BYTES).is_ok());
+    }
+
+    /// The result check is the exact bound: a result of `MAX_RESULT_BYTES` is accepted and one
+    /// more byte of reply (two bytes of result, as the text copy repeats it) is refused, while the
+    /// reply itself stays under the early cap `MAX_REPLY_BYTES`.
+    #[test]
+    fn the_result_bound_is_exact_at_the_boundary_and_the_reply_cap_is_only_an_early_reject() {
+        let result_len = |filler: usize| {
+            let result = tool_reply(Ok(OperationReply::Created {
+                node_id: "x".repeat(filler),
+            }));
+            (result.is_error, serde_json::to_vec(&result).unwrap().len())
+        };
+        let (_, empty) = result_len(0);
+        // The filler is repeated in the structured value and in the text copy.
+        let fits = (MAX_RESULT_BYTES - empty) / 2;
+        let (error, len) = result_len(fits);
+        assert_eq!(error, Some(false));
+        assert!(
+            len <= MAX_RESULT_BYTES && len + 2 > MAX_RESULT_BYTES,
+            "{len}"
+        );
+        let reply = OperationReply::Created {
+            node_id: "x".repeat(fits),
+        };
+        assert!(
+            serde_json::to_vec(&reply).unwrap().len() <= MAX_REPLY_BYTES,
+            "the early cap must not decide here"
+        );
+        assert_eq!(result_len(fits + 1).0, Some(true));
     }
 
     #[test]

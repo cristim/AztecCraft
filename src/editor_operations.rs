@@ -136,6 +136,15 @@ use uuid::Uuid;
 pub const MAX_NAME_BYTES: usize = 4096;
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_RESULT_BYTES: usize = 512 * 1024;
+/// Early reject for a tool reply, before it is turned into a `serde_json::Value`, and the limit of
+/// the inspection preflight. The `CallToolResult` carries the reply twice (the structured value
+/// and a compact text copy that escapes every `"` and `\`, about 1.1 times the reply for
+/// `inspect_scene`), so a reply near this cap makes a result of about 2.1 times its size. That
+/// result is the authoritative bound: it must stay within `MAX_RESULT_BYTES`, and the 1 MiB
+/// transport frame is the result plus about 100 bytes of envelope. This cap only bounds the
+/// allocation made before the exact check, so it never admits more than that check would.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_REPLY_BYTES: usize = MAX_RESULT_BYTES / 2;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, Serialize)]
 #[cfg_attr(feature = "mcp", derive(rmcp::schemars::JsonSchema))]
@@ -962,7 +971,7 @@ pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> 
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
-    if inspection_lower_bound(scene) > MAX_RESULT_BYTES / 2 {
+    if inspection_lower_bound(scene) > MAX_REPLY_BYTES {
         return Err(OperationError::TooLarge);
     }
     Ok(())
@@ -975,7 +984,7 @@ mod tests {
     #[test]
     fn a_full_session_material_table_stays_well_inside_the_inspection_budget() {
         let materials = azteccraft::native_scene::MAX_SESSION_MATERIALS;
-        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_RESULT_BYTES / 2);
+        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_REPLY_BYTES);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
             // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
@@ -1168,7 +1177,7 @@ mod tests {
         // Pinned from the limit and the constants, not as a second literal.
         let per_cube = MIN_NODE.len() + MIN_SHAPE.len() + "cube_000".len() + "cube_000Shape".len();
         let fixed = MIN_FIXED.len() + MIN_SESSION_MATERIAL.len();
-        let capacity = (MAX_RESULT_BYTES / 2 - fixed) / per_cube;
+        let capacity = (MAX_REPLY_BYTES - fixed) / per_cube;
         assert!(check_inspection_size(&cubes(capacity)).is_ok());
         assert!(matches!(
             check_inspection_size(&cubes(capacity + 1)),

@@ -84,7 +84,7 @@ impl Editor {
     }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn inspect(&self, text_focused: bool) -> Result<SceneInspection, OperationError> {
-        self.inspect_within(text_focused, crate::editor_operations::MAX_RESULT_BYTES / 2)
+        self.inspect_within(text_focused, crate::editor_operations::MAX_REPLY_BYTES)
     }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.
     #[cfg(any(test, feature = "mcp"))]
@@ -481,7 +481,7 @@ mod tests {
         let real = serde_json::to_vec(&inspection).unwrap().len();
         let bound =
             inspection_lower_bound(editor.history.scene()) + editor.path_lower_bound(&paths);
-        assert!(bound <= real && real <= crate::editor_operations::MAX_RESULT_BYTES / 2);
+        assert!(bound <= real && real <= crate::editor_operations::MAX_REPLY_BYTES);
     }
 }
 
@@ -633,7 +633,7 @@ mod lower_bound_tests {
                 editor.create(Primitive::Cube);
             }
             let real = assert_lower_bound(&editor);
-            assert!(count < 146 || real <= crate::editor_operations::MAX_RESULT_BYTES / 4);
+            assert!(count < 146 || real <= crate::editor_operations::MAX_REPLY_BYTES);
         }
     }
 
