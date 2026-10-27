@@ -135,7 +135,7 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 | Tool catalog bytes | `tests/snapshots/mcp_tool_catalog.json` |
 | Inspection bytes for four editor states | `tests/snapshots/inspection_*.json` |
 | Operation x pipeline x state matrix, all platforms | `tests/snapshots/guard_matrix.txt` |
-| Matrix cells that write files (Save, Save As, Resolve(save)), Unix only | `tests/snapshots/guard_matrix_file_writing_unix.txt` |
+| Matrix cells that write files (Save, Save As, Resolve(save)), Unix and Windows | `tests/snapshots/guard_matrix_file_writing.txt` |
 | Entry points | `src/entry_point_tests.rs` |
 
 Snapshots are public: they hold no scene

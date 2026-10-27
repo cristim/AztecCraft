@@ -8774,7 +8774,7 @@ mod primitive_options_create {
     }
 
     #[test]
-    fn save_and_save_as_stay_refused_and_write_nothing_after_an_optioned_create() {
+    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene() {
         let directory = tempfile::tempdir().unwrap();
         let destination = directory.path().join("created.mb");
         let mut editor = Editor::default();
@@ -8791,11 +8791,11 @@ mod primitive_options_create {
             },
         );
         assert!(
-            matches!(save_as, Err(OperationError::NativeSave(_))),
+            matches!(save_as, Ok(OperationReply::Saved { .. })),
             "{save_as:?}"
         );
-        assert!(!destination.exists());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        assert!(destination.is_file());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 
     #[test]

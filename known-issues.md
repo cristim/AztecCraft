@@ -95,7 +95,7 @@ An acute CPU tessellation defect was reproduced and corrected; material, depth
 and clipping fidelity remain incomplete. Imported-scene GUI editing and the new
 native lifecycle still require final independent native evidence. Earlier JSON
 Save As verification does not establish native Maya writing. The current
-Unix binary Save candidate uses the ordinary vendored atomic engine. Its
+Unix and Windows binary Save candidate uses the ordinary vendored atomic engine. Its
 document-layer repeat-save checks are separate from current application checks
 and pending native Save QA.
 
@@ -135,9 +135,10 @@ hierarchy, f64 authoring channels and original source bytes. Triangle
 and quad derived views are supported; arbitrary loops/holes remain retained but
 unsupported for projection. Imported editing is limited to proved source-bound
 numeric changes; missing-record insertion and structural rewrites refuse safely.
-The provisional Unix binary Save/Save As candidate preserves proved existing
-records and reconciles uncertain installations. It does not support Maya ASCII,
-Windows writing or structural rewrites, and still needs native Save QA.
+The provisional Unix and Windows binary Save/Save As candidate preserves proved
+existing records and reconciles uncertain installations. It does not support Maya
+ASCII or structural rewrites, and still needs native Save QA. Windows limits are
+listed under "Windows binary Save limits".
 Recovery, autosave and camera/history persistence remain
 pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
 tests don't establish native persistence. GUI Export remains disabled. Structural
@@ -380,6 +381,50 @@ Residuals, none verified against Maya (PROVISIONAL):
 - Text typed in the press frame lands at the field's end caret; the press then moves the caret to the click point.
 - The manipulation numeric field is pre-focused too, but leaving it does not run the A-first commit, so its draft keeps its existing blur path.
 - After a move between name, channel or material fields, egui reports the old field's blur for two frames and the blur commit is skipped for both, which defers the new field's own valid blur in the second frame. The draft is kept and commits on the next blur, Enter or `commit_pending`, so nothing is lost (`release_click_and_tab_after_a_first_click_defer_the_blur_commit_once`: a release click plus Tab in the frame after the click commits the new field's draft once, a frame later). The Diffuse field is disabled while a channel draft exists, so a channel to Diffuse move cannot occur; a click on it leaves focus and text in the channel field (`first_click_on_the_disabled_material_field_keeps_the_channel_draft_and_its_text`).
+
+## Windows binary Save limits
+
+**Severity:** low
+**Area:** native document lifecycle
+
+Windows Save and Save As use the same transaction and uncertain-outcome receipt as
+Unix, through std path calls checked against the volume serial number and file
+index of the opened file and its folder. The following differ from Unix and are
+PROVISIONAL until native Save QA on Windows:
+
+- The opened scene's handle stays open, so Windows refuses to rename or move its
+  folder (or a parent folder) until another scene is opened or the editor closes.
+  A Save As destination folder is likewise pinned for the duration of the save.
+- A scene held by another process without delete sharing (some sync or backup
+  tools) refuses Save with an access-denied error after the engine's short retry;
+  a sharing or lock violation reports busy. Neither is reported as a changed file.
+  Retry once the file is released.
+- Destination names Windows cannot store as ordinary files (a `:` stream
+  separator, device names such as `CON.mb`, a trailing dot or space, wildcards)
+  are refused as invalid destinations.
+- Active Save refuses a file with the Hidden or System attribute, because the
+  replacement cannot carry them; Save As to a new name still works. A read-only
+  file refuses Save, as on Unix. Explicit ACL entries and alternate data streams of
+  the replaced file are not carried over; the new file inherits its folder's ACL.
+- Windows cannot flush a folder without administrator rights. After the rename
+  the installed file is flushed instead, which relies on the NTFS journal for the
+  name change; this durability claim is unverified.
+- Save As relies on hard links for its no-clobber install. Volumes without them
+  (FAT32, exFAT) refuse Save As rather than risk replacing a file.
+- File identity uses the 64-bit file index. It is unique on NTFS; ReFS 128-bit
+  identifiers are not compared in full, and FAT/exFAT derive the index from the
+  directory slot, so a recreated folder can reuse it. On FAT/exFAT, Active Save
+  replacing a file that another handle has open is expected to fail rather than
+  replace it; this is unverified.
+- Only symbolic links and junctions are refused as links. Other reparse points
+  (OneDrive placeholders, deduplicated or compressed files) are treated as
+  ordinary files; saving them is untested (PROVISIONAL).
+- Symbolic-link tests need Developer Mode or elevation; without it they print
+  `SKIPPED` and pass without exercising links. CI's Windows runners can create
+  links.
+- App-level tests that simulate an uncertain outcome by moving the scene's folder
+  stay Unix-only, because Windows refuses that move; the Windows core tests cover
+  the same receipt through injected faults.
 
 ## Native MCP idle responsiveness remains unverified
 

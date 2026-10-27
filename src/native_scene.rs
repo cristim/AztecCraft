@@ -626,7 +626,7 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     pub(crate) fn has_binary_source(&self, bytes: &std::sync::Arc<[u8]>) -> bool {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)

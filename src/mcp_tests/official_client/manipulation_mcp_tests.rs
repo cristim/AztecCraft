@@ -359,7 +359,7 @@ async fn move_sdk_declared_inches_cancel_and_saved_translation_preserve_other_so
     )
     .await;
     assert_eq!(editor.history.scene(), &committed);
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         let destination = directory.path().join("move-saved.mb");
         let saved = call(
@@ -1227,7 +1227,7 @@ async fn rotate_and_scale_sdk_use_angular_and_unitless_values_in_a_non_cm_radian
         json!({"scene_token":token,"manipulation_id":id,"finish":"commit"}),
     )
     .await;
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     {
         let destination = directory.path().join("units-saved.mb");
         let saved = call(
@@ -1257,7 +1257,7 @@ async fn rotate_and_scale_sdk_use_angular_and_unitless_values_in_a_non_cm_radian
     server.await.unwrap();
 }
 
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 #[tokio::test]
 async fn rotate_commit_in_a_radian_scene_saves_the_expected_radians() {
     // An angle whose degree round trip is not exact, so only a typed radian path stores 0.25 + it.

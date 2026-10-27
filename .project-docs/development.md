@@ -17,7 +17,7 @@ The isolated branch passed default248, headless192 and MCP-client314 tests, plus
 formatting and strict default/headless/client/production lint. Actual widget and
 SDK tests cover draft targeting, precise Enter/Escape, History and repeated Save.
 SDK edit/inspection/History assertions remain portable; persistence assertions
-run only on Unix, matching the native writer's supported platforms.
+run on Unix and Windows, matching the native writer's supported platforms.
 The independent viewer source-word oracle passed; three isolated core mutations
 each failed at their intended assertions and passed after exact restoration.
 Those private-resolver sensitivity runs are separate from the ordinary matrix.
@@ -86,7 +86,7 @@ Alt-middle drag tracks (pans), Alt-right drag dollies, the wheel dollies without
 and plain middle/right drags are unbound (reserved for #37 and #32), and F frames the active object or face when
 a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes.
 New/Open use the shared native document lifecycle. This candidate enables
-eligible Unix Maya binary Save/Save As through that same lifecycle and ordinary
+eligible Unix and Windows Maya binary Save/Save As through that same lifecycle and ordinary
 vendored writer; current integration and native Save QA remain pending. No derived JSON save is substituted.
 GUI Export and unfinished modeling/animation/material controls are disabled.
 Docking and full Maya interaction parity aren't implemented or verified.
@@ -371,7 +371,8 @@ baseline. Unix reads use nonblocking open followed by a regular-handle check so
 special files cannot wait for a writer. No equivalent Windows deadline is claimed.
 The 16 MiB input limit is application policy. Legacy validation uses these same
 bytes rather than rereading the path. The local
-Unix binary writer preserves supported existing-record edits; document-layer
+Unix and Windows binary writer preserves supported existing-record edits
+(Windows differences are listed in known-issues.md); document-layer
 repeat-save checks do not establish the pending native Save journey.
 
 Open validates/prepares an off-document candidate and frames its visible geometry
