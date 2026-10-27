@@ -1,7 +1,7 @@
 use super::primitive_args::CreateArgs;
 use crate::{
     editor_operations::{
-        EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest,
+        EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest, SelectionChange,
         SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
@@ -25,6 +25,25 @@ use serde_json::json;
 struct SelectArgs {
     scene_token: String,
     node_id: Option<String>,
+    #[schemars(length(max = 256))]
+    instance_path: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "SelectionChange")]
+enum Change {
+    Add,
+    Toggle,
+    Remove,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ModifySelectionArgs {
+    scene_token: String,
+    change: Change,
+    node_id: String,
     #[schemars(length(max = 256))]
     instance_path: Option<Vec<String>>,
 }
@@ -106,6 +125,37 @@ fn parse_select_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
         token(&args.scene_token)?,
         Operation::Select {
             node: args.node_id.as_deref().map(node_id).transpose()?,
+            instance_path,
+        },
+    ))
+}
+
+fn parse_modify_selection(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ModifySelectionArgs = decode(arguments)?;
+    let instance_path = args
+        .instance_path
+        .map(|path| {
+            if path.len() > 256 {
+                return Err(ErrorData::invalid_params(
+                    "instance_path exceeds 256 IDs",
+                    None,
+                ));
+            }
+            path.into_iter()
+                .map(|value| native_id(&value))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+    let change = match args.change {
+        Change::Add => SelectionChange::Add,
+        Change::Toggle => SelectionChange::Toggle,
+        Change::Remove => SelectionChange::Remove,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ModifySelection {
+            change,
+            node: node_id(&args.node_id)?,
             instance_path,
         },
     ))
@@ -285,6 +335,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         schema: schema::<SelectArgs>,
         parse: parse_select_node,
         idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "modify_selection",
+        description: "Add, toggle or remove one object instance in the ordered object selection; the last member is the lead. add appends an absent instance as the lead or moves a present one to the end, toggle flips membership, remove drops a member and leaves an absent one unchanged; removing the lead promotes the previous member. Ambiguous objects require a full instance_path; Object and Hierarchy modes only. Not idempotent; does not edit the scene",
+        schema: schema::<ModifySelectionArgs>,
+        parse: parse_modify_selection,
+        idempotent: false,
         read_only: false,
     },
     ToolSpec {

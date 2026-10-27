@@ -637,6 +637,9 @@ mod tests {
                 }
                 "create_primitive" => json!({"scene_token":token,"primitive":"cube"}),
                 "select_node" => json!({"scene_token":token,"node_id":null}),
+                "modify_selection" => {
+                    json!({"scene_token":token,"change":"toggle","node_id":"1"})
+                }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})

@@ -896,6 +896,57 @@
     }
   },
   {
+    "name": "modify_selection",
+    "description": "Add, toggle or remove one object instance in the ordered object selection (Shift, Ctrl and Shift+Ctrl clicks); the last member is the lead. add appends an absent instance as the lead or moves a present one to the end, toggle flips membership, remove drops a member and leaves an absent one unchanged; removing the lead promotes the previous member. Ambiguous objects require a full instance_path; Object and Hierarchy modes only. Not idempotent; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "SelectionChange": {
+          "enum": [
+            "add",
+            "toggle",
+            "remove"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/SelectionChange"
+        },
+        "instance_path": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "change",
+        "node_id"
+      ],
+      "title": "ModifySelectionArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "deselect_all",
     "description": "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
     "inputSchema": {

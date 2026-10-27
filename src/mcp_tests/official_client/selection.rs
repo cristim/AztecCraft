@@ -743,3 +743,146 @@ async fn sdk_delete_node_of_a_non_lead_member_keeps_the_other_selected_and_the_l
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_modify_selection_adds_toggles_and_removes_in_order_with_the_lead_last() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let targets = editor.history.scene().transform_paths().unwrap();
+    editor.deselect_all();
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let args = |change: &str, index: usize| {
+        let target = &targets[index];
+        json!({"scene_token":token,"change":change,"node_id":target.node.to_decimal(),
+               "instance_path":target.path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>()})
+    };
+    let steps = [
+        ("add", 0, "changed", vec![0]),
+        ("add", 1, "changed", vec![0, 1]),
+        ("add", 1, "unchanged", vec![0, 1]),
+        ("add", 0, "changed", vec![1, 0]),
+        ("toggle", 2, "changed", vec![1, 0, 2]),
+        ("toggle", 0, "changed", vec![1, 2]),
+        ("remove", 0, "unchanged", vec![1, 2]),
+        ("remove", 2, "changed", vec![1]),
+    ];
+    for (change, index, outcome, expected) in steps {
+        let result = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "modify_selection",
+            args(change, index),
+        )
+        .await;
+        assert_eq!(
+            result.structured_content.unwrap()["outcome"],
+            outcome,
+            "{change} {index}"
+        );
+        let want: Vec<_> = expected.iter().map(|i| targets[*i].clone()).collect();
+        assert_eq!(editor.selection.members(), want, "{change} {index}");
+    }
+    assert_eq!(editor.selected(), Some(targets[1].node));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_modify_selection_rejects_bad_arguments_and_reports_guard_refusals() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let targets = editor.history.scene().transform_paths().unwrap();
+    editor.deselect_all();
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let node = targets[0].node.to_decimal();
+    for arguments in [
+        json!({"scene_token":token,"node_id":node}),
+        json!({"scene_token":token,"change":"flip","node_id":node}),
+        json!({"scene_token":token,"change":"add"}),
+        json!({"scene_token":token,"change":"add","node_id":null}),
+        json!({"scene_token":token,"change":"add","node_id":node,"mode":"object"}),
+        json!({"scene_token":token,"change":"add","node_id":node,
+               "instance_path":vec!["1"; 257]}),
+    ] {
+        assert!(
+            call_response(
+                &mut editor,
+                &context,
+                client.peer(),
+                "modify_selection",
+                arguments
+            )
+            .await
+            .is_err()
+        );
+    }
+    assert!(editor.selection.is_empty());
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "modify_selection",
+        json!({"scene_token":Uuid::new_v4().to_string(),"change":"add","node_id":node}),
+    )
+    .await;
+    assert_eq!(
+        stale.structured_content.unwrap()["error"]["code"],
+        "stale_scene"
+    );
+    editor.select(Some(targets[0].node));
+    editor.channels[0] = "9".into();
+    editor.channel_intents[0] = true;
+    let busy = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "modify_selection",
+        json!({"scene_token":token,"change":"add","node_id":node}),
+    )
+    .await;
+    assert_eq!(
+        busy.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert_eq!(editor.selection.members(), [targets[0].clone()]);
+    editor.channel_intents[0] = false;
+    editor.sync_fields();
+    editor.deselect_all();
+    for target in &targets {
+        let ok = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "modify_selection",
+            json!({"scene_token":token,"change":"add","node_id":target.node.to_decimal()}),
+        )
+        .await;
+        assert_ne!(ok.is_error, Some(true));
+    }
+    assert_eq!(editor.selection.len(), 2);
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_selection_mode",
+        json!({"scene_token":token,"mode":"face"}),
+    )
+    .await;
+    assert_eq!(
+        refused.structured_content.unwrap()["error"]["code"],
+        "multiple_selection"
+    );
+    assert_eq!(editor.selection.len(), 2);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
