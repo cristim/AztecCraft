@@ -113,6 +113,12 @@ impl Editor {
         })
     }
 
+    /// The Select menu rows and Ctrl/Cmd+Shift+A and +I share this one native caller of
+    /// `SelectByRule`.
+    pub(in crate::app) fn native_select_by_rule(&mut self, rule: SelectRule) {
+        self.native_operation(Operation::SelectByRule(rule));
+    }
+
     /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll`.
     pub(in crate::app) fn deselect_all(&mut self) {
         self.native_operation(Operation::DeselectAll);

@@ -39,8 +39,6 @@ pub enum AttributeEditorTab {
 /// lead) and Inverse swaps selected and unselected. In Hierarchy selection mode All and Inverse
 /// see only the roots and Hierarchy changes nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The Select menu row and shortcut that construct it land in the next commit.
-#[cfg_attr(not(test), allow(dead_code))]
 pub enum SelectRule {
     All,
     Hierarchy,
@@ -275,7 +273,6 @@ pub enum Operation {
         instance_path: Option<Vec<NativeId>>,
     },
     /// Replaces the object selection by a rule (Select > All, Hierarchy, Inverse). Object and Hierarchy modes only.
-    #[cfg_attr(not(test), allow(dead_code))]
     SelectByRule(SelectRule),
     SetSelectionMode(SelectionMode),
     /// Maya's Select > Deselect All (`SelectNone`, Alt+D): clears the object and component

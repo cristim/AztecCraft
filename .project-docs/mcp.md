@@ -478,7 +478,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |
 | Selection | Select object, clear selection, Outliner click, viewport pick | supported | `select_node` | `selected_node`, `selected_instance_path`, `selection`, `selection_count` | |
 | Selection | Select > Deselect All and Alt+D (returns to Object mode, as Maya) | supported | `deselect_all` | `selected_node`, `selection_mode`, `remembered_face`, `remembered_vertex`, `remembered_edge` | |
-| Selection | Select > All (Ctrl+Shift+A), All by Type, Hierarchy and Inverse (visible disabled rows; not implemented, tracked in #325) | unsupported | | | |
+| Selection | Select > All (Ctrl+Shift+A), Hierarchy and Inverse (Ctrl+Shift+I) are implemented in the native UI (`SelectByRule`) and have no MCP tool yet (`select_by_rule` is pending, #325); All by Type is a visible disabled row | unsupported | | | |
 | Selection | Selection mode (Object, Face, Vertex, Edge, Hierarchy), F8 to F11 | supported | `set_selection_mode` | `selection_mode` | |
 | Selection | Face, vertex and edge component targets | supported | `select_face`, `select_vertex`, `select_edge` | `remembered_face`, `remembered_vertex`, `remembered_edge` | |
 | Selection | Add, toggle or remove one object in the ordered selection (Shift, Ctrl and Shift+Ctrl viewport clicks, and Shift and Ctrl Outliner clicks) | supported | `modify_selection` | `selected_node`, `selection`, `selection_count` | the lead is the last member |

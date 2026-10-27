@@ -300,7 +300,7 @@ and every edge through surfaces. When that check is over budget `vertex_markers_
 `ViewInstance` edge; the bin crate has no loose-edge fixture, so the face-less case is
 covered by the carried edge list and the picker tests, not pixels.
 
-## Select menu: Deselect All works, All, Hierarchy and Inverse are not implemented (#325)
+## Select menu: All by Type is not implemented; the rules are Object and Hierarchy mode only (#325)
 
 The Select menu follows Maya 2025.1's order (`buildSelectMenu.mel`): All (Ctrl+Shift+A), All by
 Type, Deselect All (Alt+D), Hierarchy and Inverse (Ctrl+Shift+I, hint only), with labels from
@@ -309,12 +309,17 @@ hotkeys from `hotkeySetup.mel`.
 Deselect All is the typed `DeselectAll` operation shared by the menu, Alt+D and MCP
 `deselect_all`; like Maya's `SelectNone` (`changeSelectMode -component; changeSelectMode
 -object; select -cl`) it also clears remembered components and returns to Object mode from Face,
-Vertex, Edge or Hierarchy. All, All by Type, Hierarchy and Inverse select several objects, so they stay disabled
-rows with a reason until they are built (#325), and Ctrl/Cmd+Shift+A reports the same on the
-status line. The [2027 Select menu page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-D1BBC051-0EE7-4A91-B4FF-2A369764EC8B.htm) confirms these labels, their order, Alt+D
-and Ctrl+Shift+A; it also lists Inverse as Ctrl+Shift+I and All by Type as a submenu, which is
-drawn here as a plain disabled row. Similar, Grow, Shrink and the rest of Maya's Select menu are
-absent. Option+D on macOS relies on egui-winit's physical-key fallback (PROVISIONAL).
+Vertex, Edge or Hierarchy. All, Hierarchy and Inverse are the typed `SelectByRule` operation shared by the menu,
+Ctrl/Cmd+Shift+A (All) and Ctrl/Cmd+Shift+I (Inverse). They select transform instances, nested ones
+included (PROVISIONAL), and in Hierarchy selection mode All and Inverse select roots only and
+Hierarchy changes nothing. Maya's Hierarchy adds "parent and child" nodes; ours adds descendants
+only (PROVISIONAL). In Face, Vertex or Edge mode Maya selects components, which cannot be
+multi-selected yet (#30), so the rows are disabled and the operation is refused, a documented
+deviation. All by Type stays a disabled row with a reason (#325); the
+[2027 Select menu page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-D1BBC051-0EE7-4A91-B4FF-2A369764EC8B.htm)
+confirms these labels, their order, Alt+D, Ctrl+Shift+A and Ctrl+Shift+I and lists All by Type as a
+submenu, drawn here as a plain disabled row. Similar, Grow, Shrink and the rest of Maya's Select
+menu are absent. Option+D on macOS relies on egui-winit's physical-key fallback (PROVISIONAL).
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
@@ -950,8 +955,8 @@ Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ct
 in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It does
 not act on several objects: Move, Rotate, Scale, the native Delete (menu, Channel Box and key), Frame Selected
 and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP tools `delete_node`,
-`rename_node`, `set_transform` and `edit_node` still act on the node they name), and Select All, Hierarchy, Inverse and marquee
-(#30) are absent. These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+`rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
+(#30) is absent (Select All, Hierarchy and Inverse exist in the native UI only; MCP `select_by_rule` is pending). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
 pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
@@ -972,8 +977,9 @@ covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
 The selection set is charged against the inspection size budget like the node paths, so with
 every object selected `inspect_scene` reports `too_large` from about 1450 objects, where it
-managed about 2900 before the selection list existed. Slice 1 has no Select All (#325), so a
-selection that large needs that many `modify_selection` calls. A client holding the document token
+managed about 2900 before the selection list existed. Native Select All now builds such a
+selection in one step; MCP has no `select_by_rule` yet (#325), so over MCP it still needs that many
+`modify_selection` calls. A client holding the document token
 recovers with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
 token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
 (a plain click on empty space, or Alt+D). The limit is by design and pinned
