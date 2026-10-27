@@ -76,6 +76,7 @@ impl Editor {
         let status = match *operation {
             Operation::Select { .. }
             | Operation::ModifySelection { .. }
+            | Operation::SelectByRule(_)
             | Operation::DeselectAll
             | Operation::SelectFace { .. }
             | Operation::SelectVertex { .. }
@@ -337,6 +338,7 @@ impl Editor {
                     | Operation::FinishMove { .. }
                     | Operation::Select { .. }
                     | Operation::ModifySelection { .. }
+                    | Operation::SelectByRule(_)
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }
@@ -370,6 +372,11 @@ impl Editor {
                     ));
                 }
                 Some(self.selection_path(*node, instance_path.clone())?)
+            }
+            Operation::SelectByRule(_) if self.selection_mode.is_component() => {
+                return Err(OperationError::InvalidInput(
+                    "Selection changes need Object or Hierarchy selection mode".into(),
+                ));
             }
             _ => None,
         };
@@ -695,6 +702,7 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
+            Operation::SelectByRule(rule) => return self.select_by_rule(rule),
             Operation::ModifySelection { change, node, .. } => {
                 let target = TransformTarget {
                     node,

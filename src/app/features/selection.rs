@@ -53,6 +53,40 @@ impl Editor {
         }
     }
 
+    /// Replaces the object selection by `rule`. Hierarchy mode (Root submask) only ever holds
+    /// roots, so its rules see only the root transforms. PROVISIONAL, pinned by
+    /// `select_all_in_hierarchy_mode_selects_roots_only`.
+    pub(in crate::app) fn select_by_rule(
+        &mut self,
+        rule: SelectRule,
+    ) -> Result<OperationReply, OperationError> {
+        let mut candidates = self
+            .history
+            .scene()
+            .transform_paths()
+            .map_err(OperationError::Scene)?;
+        if self.selection_mode == SelectionMode::Hierarchy {
+            candidates.retain(|target| target.path.len() == 1);
+        }
+        let members = match rule {
+            SelectRule::All => candidates,
+        };
+        let mut next = self.selection.clone();
+        next.replace_with(members)
+            .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+        let changed = next != self.selection;
+        if changed {
+            self.selection = next;
+            self.clear_remembered_components();
+            self.sync_fields();
+        }
+        Ok(if changed {
+            OperationReply::Changed
+        } else {
+            OperationReply::Unchanged
+        })
+    }
+
     /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll`.
     pub(in crate::app) fn deselect_all(&mut self) {
         self.native_operation(Operation::DeselectAll);
@@ -173,6 +207,9 @@ pub(in crate::app) fn only_instance_path(
     }
     Ok(first.path)
 }
+
+#[cfg(test)]
+mod rule_tests;
 
 #[cfg(test)]
 mod tests {

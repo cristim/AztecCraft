@@ -11,8 +11,8 @@
 
 use super::*;
 use crate::editor_operations::{
-    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, ToolHandle,
-    TransformInput,
+    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, SelectRule,
+    ToolHandle, TransformInput,
 };
 use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -586,6 +586,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             node: t.node,
             instance_path: Some(t.path.clone()),
         },
+        Operation::SelectByRule(SelectRule::All),
         Operation::SetSelectionMode(SelectionMode::Face),
         Operation::DeselectAll,
         Operation::SelectFace {
@@ -1035,6 +1036,16 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ]
         }
+        Operation::SelectByRule(_) => vec![
+            sample("select_all", Operation::SelectByRule(SelectRule::All)),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "select_all(face_mode)",
+                    Operation::SelectByRule(SelectRule::All),
+                )
+            },
+        ],
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),

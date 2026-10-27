@@ -6371,7 +6371,7 @@ fn group_editor() -> Editor {
 }
 
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
-fn deep_group_editor() -> Editor {
+pub(in crate::app) fn deep_group_editor() -> Editor {
     nested_group_editor(&[b"mid", b"child"])
 }
 
