@@ -249,8 +249,8 @@ eye distance, and occlusion treats a hit as blocking only when its linear view d
 below `depth * (1 - 6e-3)`. It is neither normalized device depth nor world units. Marker
 bias, selected-edge strip bias, Wireframe marker filtering and pick occlusion share it, so
 draw and pick agree; the face centre keeps its own tolerance (table row 5). Readbacks (Apple M1 Pro, Metal, side-2
-cube at the origin, near 0.01 (the default is now 0.1; not re-run), far 10000, yaw 0.6, pitch 0.4, 1024 px square, 45 degree
-fov): every corner with a front-facing face showed all 25 marker pixels and no hidden
+cube at the origin, near 0.01, far 10000, yaw 0.6, pitch 0.4, 1024 px square, 45 degree
+fov; the committed ignored default-camera readbacks were re-run on the same adapter at the default near 0.1 and the film-fit lens and pass): every corner with a front-facing face showed all 25 marker pixels and no hidden
 corner drew at the default distance 8 and at 120 for tolerances 6e-3 through 8e-3; 5e-3
 left one silhouette corner at 20/25, and 2e-2 let a hidden corner show at 120, so the
 margin is thin. The 5e-3 and 2e-2 bracket comes from manual readbacks with the constant
@@ -272,6 +272,20 @@ clip puts the target closer to the eye than the near plane (between the eye and 
 stop is PROVISIONAL (no Dolly Tool page cited). A biased vertex marker (0.6% toward the
 eye) can be near-clipped while its surface vertex at eye depth in [0.1, 0.1006) stays
 visible; negligible and pre-existing.
+Frame All and Frame Selected floor the distance at twice the near clip plus 5% (0.21 at the
+default near), so an object with a radius under 2·near·sin(limiting half angle), about 0.065 at aspect up to 1.5 and less in wider viewports, frames smaller than the screen
+fraction other objects get. There is no per-camera near clip control (Maya exposes Near Clip
+Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
+The default lens is film-fit (development.md row 25). Only the Fill film fit is built;
+Horizontal, Vertical and Overscan fits, film offset, camera scale and lens squeeze are
+unsupported, and the focal length and aperture cannot be changed. The Fill threshold, the Fill
+default and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
+`pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
+1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
+cursor-locked (pre-existing). MCP-only sessions that never painted frame at viewport aspect 1.0
+(a placeholder), so Frame All there is framed for a square viewport; `fov_y_degrees` then
+reports the 1.0-aspect value. Readbacks calibrated at 45 degrees (the marker bracket above) were
+not repeated at the film-fit lens beyond the committed default-camera ones.
 
 Wireframe hides occluded vertex markers like face centres, but draws the selected edge
 and every edge through surfaces. When that check is over budget `vertex_markers_hidden`

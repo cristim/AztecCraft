@@ -576,7 +576,8 @@ fn corner_failures(camera: &Camera, size: u32) -> Vec<String> {
 }
 
 // Readbacks ran on an Apple M1 Pro (Metal) with a side-2 cube at the origin, near 0.01 and far
-// 10000, yaw 0.6 and pitch 0.4 for the far cameras; see `known-issues.md` for the table.
+// 10000, yaw 0.6 and pitch 0.4 for the far cameras; see `known-issues.md` for the table. The
+// default-camera readbacks now run at near 0.1 and the film-fit lens.
 #[test]
 #[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_every_visible_corner_marker_is_whole_at_the_default_distance_and_1024_px() {
