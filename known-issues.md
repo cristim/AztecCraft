@@ -1005,14 +1005,15 @@ parents, so every node has one path. Only the unit test
 `an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
 covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
-## Inspection refuses very large selections
+## Inspection is one response of at most 256 KiB
 
-The selection set is charged against the inspection size budget like the node paths. The budget
-as a whole is exhausted by about 65 cubes (about 140 shapeless nodes) whatever is selected, so
-`inspect_scene` reports `too_large` for modest scenes before the selection term matters; that is
-tracked in #332, which owns the fix. Select All (native, and MCP `select_by_rule`) builds a whole-scene
-selection in one call (#325). A client holding the document token
-recovers with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
+`inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
+default-named cubes, 269 with every cube selected, measured through the official client) report
+`too_large`. A selection counts about 40-60 bytes per member: 4096 selected members fit with one cube but
+not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
+whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
+selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
 token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
-(a plain click on empty space, or Alt+D). The limit is by design and pinned
-by `inspection_refuses_a_selection_that_exceeds_the_budget`.
+(a plain click on empty space, or Alt+D). Fix: page the nodes (#332, second PR). The limit is pinned by
+`inspect_scene_returns_250_cubes_and_refuses_400_without_closing` and
+`inspect_scene_sizes_a_maximal_selection_by_its_serialized_bytes`.
