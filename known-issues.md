@@ -117,6 +117,10 @@ unchanged. The dirty state compares the live scene with the saved scene by value
 so dropping old entries cannot make an edited scene read clean. Memory still
 scales with scene size times 50. Autosave and persisting history remain pending.
 
+Undo and Redo entry names are PROVISIONAL: the Maya 2027 documentation names no undo entries. A
+transform edit that changes several value groups reads "Transform"; Channel Box and numeric edits
+read "Edit" whatever channel changed.
+
 Selection, camera, tool and panel changes do not create undo entries in
 AztecCraft (`.project-docs/mcp.md` already says selection does not). Whether Maya
 puts selection changes on its undo queue is not stated by its Undo preferences page; see
