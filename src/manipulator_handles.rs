@@ -91,6 +91,30 @@ impl fmt::Display for DisabledKind {
     }
 }
 
+/// What lies under the pointer: an enabled handle, or a drawn-but-unsupported one that no enabled
+/// handle outranks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick<H> {
+    Handle(H),
+    Disabled(DisabledKind),
+}
+
+impl<H> Pick<H> {
+    pub fn handle(self) -> Option<H> {
+        match self {
+            Self::Handle(handle) => Some(handle),
+            Self::Disabled(_) => None,
+        }
+    }
+
+    pub fn disabled(self) -> Option<DisabledKind> {
+        match self {
+            Self::Handle(_) => None,
+            Self::Disabled(kind) => Some(kind),
+        }
+    }
+}
+
 pub struct DisabledHandle {
     pub kind: DisabledKind,
     segments: Vec<ScreenSegment>,
@@ -264,12 +288,20 @@ impl RotateHandles {
         selected
     }
 
-    /// A drawn-but-unsupported handle under the pointer, for the status line.
-    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
-        if !inside_viewport(pixel, self.size) || self.hit_test(pixel).is_some() {
+    /// The one pick for hover, press and inspection: an enabled ring wins, else a disabled handle.
+    pub fn pick(&self, pixel: DVec2) -> Option<Pick<RotateAxis>> {
+        if !inside_viewport(pixel, self.size) {
             return None;
         }
-        nearest_disabled(&self.disabled, pixel)
+        match self.hit_test(pixel) {
+            Some(axis) => Some(Pick::Handle(axis)),
+            None => nearest_disabled(&self.disabled, pixel).map(Pick::Disabled),
+        }
+    }
+
+    /// A drawn-but-unsupported handle under the pointer, for the status line.
+    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
+        self.pick(pixel).and_then(Pick::disabled)
     }
 }
 
@@ -507,11 +539,19 @@ impl ScaleHandles {
         selected
     }
 
-    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
-        if !inside_viewport(pixel, self.size) || self.hit_test(pixel).is_some() {
+    /// The one pick for hover, press and inspection: an enabled handle wins, else a disabled one.
+    pub fn pick(&self, pixel: DVec2) -> Option<Pick<ScaleHandle>> {
+        if !inside_viewport(pixel, self.size) {
             return None;
         }
-        nearest_disabled(&self.disabled, pixel)
+        match self.hit_test(pixel) {
+            Some(handle) => Some(Pick::Handle(handle)),
+            None => nearest_disabled(&self.disabled, pixel).map(Pick::Disabled),
+        }
+    }
+
+    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
+        self.pick(pixel).and_then(Pick::disabled)
     }
 }
 

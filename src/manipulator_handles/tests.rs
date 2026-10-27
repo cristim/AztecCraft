@@ -1127,3 +1127,50 @@ fn handle_geometry_constants_are_pinned_exactly() {
     assert_eq!(VIEW_RING_FACTOR, 1.2);
     assert_eq!(EDGE_ON_LIMIT, 1e-3);
 }
+
+#[test]
+fn pick_layers_an_enabled_handle_over_a_disabled_one() {
+    let rotate = world_rings(&oblique_camera());
+    let origin = rotate.origin();
+    let (mut enabled, mut disabled) = (0, 0);
+    for degrees in 0..360 {
+        let angle = f64::from(degrees).to_radians();
+        for radius in [40.0, 79.0, 86.4, 100.0] {
+            let pixel = origin + DVec2::new(angle.cos(), angle.sin()) * radius;
+            let expected = match (rotate.hit_test(pixel), rotate.hit_disabled(pixel)) {
+                (Some(axis), None) => Some(Pick::Handle(axis)),
+                (None, Some(kind)) => Some(Pick::Disabled(kind)),
+                (None, None) => None,
+                both => panic!("hit_disabled must be empty under an enabled hit: {both:?}"),
+            };
+            enabled += i32::from(matches!(expected, Some(Pick::Handle(_))));
+            disabled += i32::from(matches!(expected, Some(Pick::Disabled(_))));
+            assert_eq!(rotate.pick(pixel), expected, "{pixel}");
+        }
+    }
+    assert!(enabled > 0 && disabled > 0, "{enabled} {disabled}");
+    assert_eq!(rotate.pick(DVec2::NAN), None);
+
+    let scale = ScaleHandles::new(&sized(&oblique_camera(), 0.1), &world_frame()).unwrap();
+    let corners: Vec<_> = scale
+        .disabled()
+        .iter()
+        .flat_map(|handle| handle.segments().iter().map(|segment| segment.start))
+        .collect();
+    let (mut enabled, mut disabled) = (0, 0);
+    for corner in corners {
+        let expected = match scale.hit_test(corner) {
+            Some(handle) => {
+                enabled += 1;
+                Some(Pick::Handle(handle))
+            }
+            None => scale.hit_disabled(corner).map(|kind| {
+                disabled += 1;
+                Pick::Disabled(kind)
+            }),
+        };
+        assert_eq!(scale.pick(corner), expected, "{corner}");
+    }
+    assert!(enabled > 0 && disabled > 0, "{enabled} {disabled}");
+    assert_eq!(scale.pick(DVec2::NAN), None);
+}
