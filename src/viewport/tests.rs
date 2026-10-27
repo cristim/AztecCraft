@@ -883,6 +883,9 @@ fn set_pose_with_negative_zero_is_numerically_equal_but_not_the_same_capture() {
 }
 
 /// The default view is a documented-by-us constant: any drift must be a conscious change.
+/// Near and far follow Create Camera Options: "The default setting for Near Clip Plane is 0.1
+/// and for Far Clip Plane is 10000." That page covers menu-created cameras; the persp camera's
+/// own default is undocumented (PROVISIONAL).
 #[test]
 fn default_camera_is_pinned_bit_for_bit() {
     let camera = Camera::default();
@@ -898,6 +901,50 @@ fn default_camera_is_pinned_bit_for_bit() {
         camera.near(),
         camera.far(),
     ];
-    let expected = [8.0, 0.6, 0.4, 45_f32.to_radians(), 0.01, 10_000.0];
+    let expected = [8.0, 0.6, 0.4, 45_f32.to_radians(), 0.1, 10_000.0];
     assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
+}
+
+#[test]
+fn default_camera_clips_a_target_closer_than_near_and_projects_it_just_beyond() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 0.09, 0.6, 0.4).unwrap();
+    assert_eq!(camera.project(Vec3::ZERO, 1.0).unwrap(), None);
+    camera.set_pose(Vec3::ZERO, 0.11, 0.6, 0.4).unwrap();
+    let ndc = camera.project(Vec3::ZERO, 1.0).unwrap().unwrap();
+    assert!(ndc.z > 0.0 && ndc.z < 1.0, "depth {}", ndc.z);
+}
+
+#[test]
+fn frame_floors_tiny_objects_at_twice_near() {
+    let mut camera = Camera::default();
+    let near = 0.1_f32;
+    let tiny = [Vec3::splat(-0.001), Vec3::splat(0.001)];
+    camera.frame_points(&tiny, 1.0).unwrap();
+    let radius = Vec3::splat(0.001).distance(Vec3::ZERO);
+    assert!(
+        (camera.distance() - near * 2.0 * 1.05).abs() < 1e-6,
+        "distance {}",
+        camera.distance()
+    );
+    assert!(camera.project(camera.target(), 1.0).unwrap().is_some());
+    assert!(camera.far() >= camera.distance() + radius + near);
+
+    let mut camera = Camera::default();
+    let big = [Vec3::new(-1.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0)];
+    camera.frame_points(&big, 1.0).unwrap();
+    let expected = 1.0 / (camera.fov_y() * 0.5).sin() * 1.05;
+    assert!((camera.distance() - expected).abs() < 1e-4);
+    assert!(camera.far() >= camera.distance() + 1.0 + camera.near());
+}
+
+#[test]
+fn dolly_does_not_change_near_or_far() {
+    let mut camera = Camera::default();
+    let (near, far) = (camera.near().to_bits(), camera.far().to_bits());
+    camera.dolly(0.001).unwrap();
+    camera.dolly(1000.0).unwrap();
+    assert_eq!(camera.near().to_bits(), near);
+    assert_eq!(camera.far().to_bits(), far);
+    assert_eq!(near, 0.1_f32.to_bits());
 }

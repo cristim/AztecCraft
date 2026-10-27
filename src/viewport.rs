@@ -94,7 +94,7 @@ impl Default for Camera {
             0.4,
             8.0,
             45_f32.to_radians(),
-            0.01,
+            0.1,
             10_000.0,
         )
         .expect("default camera is valid")
