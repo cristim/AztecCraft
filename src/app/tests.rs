@@ -10378,3 +10378,133 @@ fn hierarchy_mode_modified_click_modifies_the_root() {
     click_cube(&mut rig, 2, SHIFT_CTRL);
     assert_eq!(members(&rig), [ids[0], ids[2]]);
 }
+
+fn outliner_rig() -> (Editor, egui::Context, Vec<NodeId>) {
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let ids: Vec<NodeId> = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .iter()
+        .map(|t| t.node)
+        .collect();
+    editor.deselect_all();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    (editor, ctx, ids)
+}
+
+fn click_row(editor: &mut Editor, ctx: &egui::Context, index: usize, modifiers: egui::Modifiers) {
+    let output = frame(editor, ctx, vec![]);
+    let at = face_text_position(&output, &format!("◇  pCube{}", index + 1));
+    face_pointer_click(editor, ctx, at, modifiers, vec![]);
+}
+
+fn selected_nodes(editor: &Editor) -> Vec<NodeId> {
+    editor.selection.members().iter().map(|t| t.node).collect()
+}
+
+#[test]
+fn outliner_shift_adds_and_a_plain_click_replaces() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 2, egui::Modifiers::SHIFT);
+    assert_eq!(selected_nodes(&editor), [ids[0], ids[2]]);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::NONE);
+    assert_eq!(selected_nodes(&editor), [ids[1]]);
+}
+
+#[test]
+fn outliner_shift_on_existing_member_makes_it_lead() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::SHIFT);
+    assert_eq!(selected_nodes(&editor), [ids[1], ids[0]]);
+}
+
+#[test]
+fn outliner_ctrl_click_toggles_the_clicked_row_not_the_last() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[1]]);
+    let command = egui::Modifiers {
+        command: true,
+        mac_cmd: true,
+        ..egui::Modifiers::NONE
+    };
+    click_row(&mut editor, &ctx, 0, command);
+    assert_eq!(selected_nodes(&editor), [ids[1], ids[0]]);
+}
+
+#[test]
+fn outliner_ctrl_on_unselected_adds_it() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 2, egui::Modifiers::CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[2]]);
+}
+
+#[test]
+fn outliner_shift_ctrl_adds() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, SHIFT_CTRL);
+    click_row(&mut editor, &ctx, 1, SHIFT_CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[0], ids[1]]);
+}
+
+#[test]
+fn outliner_highlights_every_member_and_marks_only_the_lead_row() {
+    let (mut editor, ctx, _) = outliner_rig();
+    let selected_fill = ctx.global_style().visuals.selection.bg_fill;
+    let fills = |output: &egui::FullOutput| {
+        output
+            .shapes
+            .iter()
+            .filter(|shape| {
+                matches!(&shape.shape, egui::Shape::Rect(rect) if rect.fill == selected_fill)
+            })
+            .count()
+    };
+    let none = fills(&frame(&mut editor, &ctx, vec![]));
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    let output = frame(&mut editor, &ctx, vec![]);
+    let colour = |name: &str| -> Color32 {
+        output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.job.text == name => {
+                    Some(text.galley.job.sections[0].format.color)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("row {name}"))
+    };
+    // The lead row is drawn strong; the other member is not.
+    assert_ne!(colour("◇  pCube2"), colour("◇  pCube1"));
+    assert_eq!(fills(&output) - none, 2, "one highlighted row per member");
+}
+
+#[test]
+fn outliner_modified_clicks_are_refused_while_a_file_modal_is_open() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    for modifiers in [
+        egui::Modifiers::NONE,
+        egui::Modifiers::SHIFT,
+        egui::Modifiers::CTRL,
+    ] {
+        click_row(&mut editor, &ctx, 1, modifiers);
+        assert_eq!(selected_nodes(&editor), [ids[0]], "{modifiers:?}");
+    }
+}

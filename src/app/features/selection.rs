@@ -113,23 +113,44 @@ impl Editor {
                 };
                 ui.horizontal(|ui| {
                     ui.add_space((target.path.len() - 1) as f32 * 12.0);
-                    let (selected, path) = self.selection_presentation();
-                    if ui
-                        .selectable_label(
-                            selected == Some(target.node) && path == target.path,
-                            format!("◇  {}", node.name()),
-                        )
-                        .clicked()
+                    let label = format!("◇  {}", node.name());
+                    // With several selected, the lead row is bold (PROVISIONAL; the page gives
+                    // no Outliner colour for the key object).
+                    let text = if self.selection.len() > 1 && self.selection.lead() == Some(&target)
                     {
-                        choice = Some(target);
+                        RichText::new(label).strong()
+                    } else {
+                        RichText::new(label)
+                    };
+                    let row = ui.selectable_label(self.selection.contains(&target), text);
+                    if row.clicked() {
+                        choice = Some((target, ui.input(|input| input.modifiers)));
                     }
                 });
             }
         });
-        if let Some(target) = choice {
-            self.native_operation(Operation::Select {
-                node: Some(target.node),
-                instance_path: Some(target.path),
+        if let Some((target, modifiers)) = choice {
+            // The 2027 Outliner page: Shift adds to the selection and Ctrl toggles. Shift wins
+            // when both are held (PROVISIONAL). Unlike the viewport, Ctrl on an unselected row
+            // selects it.
+            let change = if modifiers.shift {
+                Some(SelectionChange::Add)
+            } else if modifiers.ctrl || modifiers.command {
+                Some(SelectionChange::Toggle)
+            } else {
+                None
+            };
+            let (node, instance_path) = (target.node, Some(target.path));
+            self.native_operation(match change {
+                Some(change) => Operation::ModifySelection {
+                    change,
+                    node,
+                    instance_path,
+                },
+                None => Operation::Select {
+                    node: Some(node),
+                    instance_path,
+                },
             });
         }
         if self.history.scene().nodes().is_empty() {

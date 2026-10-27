@@ -89,8 +89,8 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - While a file modal is open, `SetSelectionMode` to the mode already current returns `BusyEditing`,
   not `Unchanged`: the modal refusal (item 5 above) runs before the handler's same-mode check
   (test: `native_selection_changes_refuse_modal_before_committing_drafts`, `src/app/tests.rs`). The
-  Outliner row click (`Operation::Select` through `native_operation`) is refused the same way by the
-  dispatch rule (#141); no Outliner-specific test exists.
+  Outliner row click (`Operation::Select`, or `ModifySelection` with Shift or Ctrl, through `native_operation`) is refused the same way by the
+  dispatch rule (#141), pinned by `outliner_modified_clicks_are_refused_while_a_file_modal_is_open`.
 - Inspect: remote `inspect` is `Ok` in every state. Native `inspect` is `BusyManipulation` during
   a Move and `BusyEditing` while closing, and `Ok` under a modal.
 - Native mutations (`create`, `delete`, `rename`, `undo`) succeed under a modal pending file
