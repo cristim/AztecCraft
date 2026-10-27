@@ -1,21 +1,18 @@
 use super::*;
-use crate::app::features::move_tool::tests::{button, frame, key, raw, viewport};
+use crate::app::features::move_tool::tests::{
+    View, button, frame, key, oblique, raw, scale_plane_point, viewport,
+};
 use azteccraft::{
-    manipulator_handles::{DisabledKind, HandleFrame, Pick, RotateHandles},
+    manipulator_handles::{DisabledKind, HandleFrame, RotateHandles},
     move_handles::ManipulatorSize,
     native_scene::{NativeError, ScaleUnsupported},
     scene::Primitive,
-    viewport::Camera,
 };
-use eframe::egui::{self, Event, Key, Modifiers, Pos2, Rect, Shape};
+use eframe::egui::{self, Event, Key, Modifiers, Pos2, Shape};
 use glam::Vec3;
 use uuid::Uuid;
 
 const SIZE: egui::Vec2 = egui::vec2(1440.0, 900.0);
-
-fn oblique() -> Camera {
-    Camera::new(Vec3::ZERO, 0.6, 0.4, 10.0, 90_f32.to_radians(), 0.01, 100.0).unwrap()
-}
 
 fn key_up(key: Key) -> Event {
     Event::Key {
@@ -67,43 +64,6 @@ fn setup(tool_key: Key, scale: f32) -> (Editor, egui::Context, View) {
         scale,
     };
     (editor, context, view)
-}
-
-#[derive(Clone)]
-struct View {
-    camera: Camera,
-    aspect: f32,
-    rect: Rect,
-    scale: f32,
-}
-
-impl View {
-    fn screen(&self, world: Vec3) -> Pos2 {
-        let ndc = self.camera.project(world, self.aspect).unwrap().unwrap();
-        Pos2::new(
-            self.rect.left() + (ndc.x + 1.0) * self.rect.width() * 0.5,
-            self.rect.top() + (1.0 - ndc.y) * self.rect.height() * 0.5,
-        )
-    }
-
-    // World length of a 72 px handle at the origin: the 90 degree view spans 10 units up and down.
-    fn radius(&self) -> f32 {
-        72.0 / self.scale * 10.0 / (self.rect.height() * 0.5)
-    }
-
-    // The point of the ring about `axis` at `degrees` from the ring point nearest the eye.
-    fn ring(&self, axis: Vec3, degrees: f32) -> Pos2 {
-        self.ring_sized(axis, degrees, 1.0)
-    }
-
-    // The same point on a ring whose radius is `factor` times the default one.
-    fn ring_sized(&self, axis: Vec3, degrees: f32, factor: f32) -> Pos2 {
-        let eye = self.camera.eye();
-        let u = (eye - axis * eye.dot(axis)).normalize();
-        let v = axis.cross(u);
-        let angle = degrees.to_radians();
-        self.screen((u * angle.cos() + v * angle.sin()) * self.radius() * factor)
-    }
 }
 
 fn channels(editor: &Editor) -> [f64; 9] {
@@ -1852,22 +1812,8 @@ fn inspection_reports_the_scale_handle_under_the_pointer() {
         .apply_operation(Operation::SetManipulatorSize(size(0.1)))
         .unwrap();
     idle(&mut editor, &context, 1.0);
-    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
-    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
-    let handles = ScaleHandles::new(&capture, &frame).unwrap();
-    let pixel = handles
-        .disabled()
-        .iter()
-        .flat_map(|handle| handle.segments())
-        .map(|segment| (segment.start + segment.end) * 0.5)
-        .find(|pixel| handles.pick(*pixel) == Some(Pick::Disabled(DisabledKind::ScalePlane)))
-        .expect("a plane outline pixel that no shaft outranks");
-    moved(
-        &mut editor,
-        &context,
-        1.0,
-        view.rect.min + egui::vec2(pixel.x as f32, pixel.y as f32),
-    );
+    let plane = scale_plane_point(&editor, view.rect);
+    moved(&mut editor, &context, 1.0, plane);
     assert_eq!(pointer_pick(&editor), (None, Some("scale_plane")));
 }
 

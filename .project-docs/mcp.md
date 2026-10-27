@@ -491,6 +491,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
+| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled` | Active tool only; null during a manipulation |
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -567,10 +568,19 @@ with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
 (`translate`, `rotate` or `scale`) with the stored `baseline_channels` at begin
 and the live `current_channels`; and `refusal`, the reason the scene refused the
 last update of the active manipulation (the preview is unchanged), cleared by the
-next accepted update. Its optional `viewport` is Move-only and explicitly
-labelled `last_native_viewport_capture`. It separates visible axis geometry and
-unavailable reasons from the last captured pointer's optional hit. Missing or
-stale capture is unavailable. Visible geometry is not a global pickability or
+next accepted update. Its optional `viewport` is explicitly labelled
+`last_native_viewport_capture` and is absent without a current capture or in
+Face, Vertex and Edge selection. `axes` is Move-arrow geometry (visible axis
+geometry and unavailable reasons, with the Move frame's error when that frame is
+refused) whatever tool is active. `pointer_hit` is the active tool's enabled
+handle under the last captured pointer, picked by the same code as native hover
+and press: Move and Rotate `x`, `y` or `z`, Scale `x`, `y`, `z` or `uniform`,
+null for Select or no hit. `pointer_disabled` is `free_rotate`, `view_ring` or
+`scale_plane` when a drawn-but-unsupported handle is under the pointer and no
+enabled handle outranks it, else null. Both are null during an active
+manipulation, like native hover, and the geometric pick ignores per-handle
+refusals (those stay in `kinds`). Missing or stale capture is unavailable.
+Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.
 

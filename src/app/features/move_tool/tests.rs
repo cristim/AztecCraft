@@ -1,7 +1,12 @@
 use super::*;
 use crate::editor_operations::{SelectionMode, SidebarPanel};
-use azteccraft::native_scene::NativeError;
+use azteccraft::{
+    manipulator_handles::{DisabledKind, Pick, ScaleHandles},
+    native_scene::NativeError,
+    viewport::Camera,
+};
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, Shape};
+use glam::Vec3;
 
 const FACE_MODE_REFUSAL: &str = "Move is unavailable in Face selection; switch to Object selection";
 
@@ -69,6 +74,63 @@ pub(in crate::app) fn viewport(output: &egui::FullOutput) -> Rect {
             _ => None,
         })
         .expect("actual viewport callback")
+}
+
+pub(in crate::app) fn oblique() -> Camera {
+    Camera::new(Vec3::ZERO, 0.6, 0.4, 10.0, 90_f32.to_radians(), 0.01, 100.0).unwrap()
+}
+
+#[derive(Clone)]
+pub(in crate::app) struct View {
+    pub(in crate::app) camera: Camera,
+    pub(in crate::app) aspect: f32,
+    pub(in crate::app) rect: Rect,
+    pub(in crate::app) scale: f32,
+}
+
+impl View {
+    pub(in crate::app) fn screen(&self, world: Vec3) -> Pos2 {
+        let ndc = self.camera.project(world, self.aspect).unwrap().unwrap();
+        Pos2::new(
+            self.rect.left() + (ndc.x + 1.0) * self.rect.width() * 0.5,
+            self.rect.top() + (1.0 - ndc.y) * self.rect.height() * 0.5,
+        )
+    }
+
+    // World length of a 72 px handle at the origin: the 90 degree view spans 10 units up and down.
+    pub(in crate::app) fn radius(&self) -> f32 {
+        72.0 / self.scale * 10.0 / (self.rect.height() * 0.5)
+    }
+
+    // The point of the ring about `axis` at `degrees` from the ring point nearest the eye.
+    pub(in crate::app) fn ring(&self, axis: Vec3, degrees: f32) -> Pos2 {
+        self.ring_sized(axis, degrees, 1.0)
+    }
+
+    // The same point on a ring whose radius is `factor` times the default one.
+    pub(in crate::app) fn ring_sized(&self, axis: Vec3, degrees: f32, factor: f32) -> Pos2 {
+        let eye = self.camera.eye();
+        let u = (eye - axis * eye.dot(axis)).normalize();
+        let v = axis.cross(u);
+        let angle = degrees.to_radians();
+        self.screen((u * angle.cos() + v * angle.sin()) * self.radius() * factor)
+    }
+}
+
+// The midpoint of a Scale plane outline that no shaft outranks, as a logical pointer for a
+// viewport at `rect.min` and scale one. Needs the Scale tool at a small manipulator size.
+pub(in crate::app) fn scale_plane_point(editor: &Editor, rect: Rect) -> Pos2 {
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let handles = ScaleHandles::new(&capture, &frame).unwrap();
+    let pixel = handles
+        .disabled()
+        .iter()
+        .flat_map(|handle| handle.segments())
+        .map(|segment| (segment.start + segment.end) * 0.5)
+        .find(|pixel| handles.pick(*pixel) == Some(Pick::Disabled(DisabledKind::ScalePlane)))
+        .expect("a plane outline pixel that no shaft outranks");
+    rect.min + egui::vec2(pixel.x as f32, pixel.y as f32)
 }
 
 pub(in crate::app) fn setup(scale: f32) -> (Editor, egui::Context, Rect) {

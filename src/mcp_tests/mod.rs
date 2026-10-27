@@ -30,7 +30,11 @@ fn camera_operations() -> [Operation; 4] {
     ]
 }
 
-fn frame(editor: &mut Editor, context: &egui::Context, events: Vec<egui::Event>) {
+fn frame(
+    editor: &mut Editor,
+    context: &egui::Context,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
     let mut input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
@@ -49,6 +53,7 @@ fn frame(editor: &mut Editor, context: &egui::Context, events: Vec<egui::Event>)
         eframe::App::ui(editor, ui, &mut native_frame);
     });
     output.textures_delta.clear();
+    output
 }
 
 fn hidden_frame(
@@ -119,6 +124,7 @@ mod official_client {
     mod manipulator_size;
     mod material;
     mod node_edit;
+    mod pointer_hit;
     mod primitive_options;
     mod selection;
     mod session;
@@ -151,7 +157,7 @@ mod official_client {
                     let CallToolResponse::Complete(result) = result? else { panic!("expected complete tool result") };
                     return Ok(result);
                 }
-                _ = tokio::time::sleep(Duration::from_millis(1)) => frame(editor, context, vec![]),
+                _ = tokio::time::sleep(Duration::from_millis(1)) => { frame(editor, context, vec![]); }
                 _ = tokio::time::sleep_until(deadline) => panic!("protocol call did not complete"),
             }
         }
