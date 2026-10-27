@@ -680,7 +680,6 @@ impl Editor {
                 // select -cl, so it also leaves component and hierarchy modes.
                 let (selected, current_path) = self.selection_presentation();
                 let changed = selected.is_some()
-                    || self.selection.len() > 1
                     || !current_path.is_empty()
                     || self.selection_mode != SelectionMode::Object
                     || self.remembered_face.is_some()

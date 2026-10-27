@@ -99,6 +99,22 @@ fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
     ))
 }
 
+/// Parses an optional `instance_path` of at most 256 decimal NativeIds.
+fn parse_instance_path(path: Option<Vec<String>>) -> Result<Option<Vec<NativeId>>, ErrorData> {
+    path.map(|path| {
+        if path.len() > 256 {
+            return Err(ErrorData::invalid_params(
+                "instance_path exceeds 256 IDs",
+                None,
+            ));
+        }
+        path.into_iter()
+            .map(|value| native_id(&value))
+            .collect::<Result<Vec<_>, _>>()
+    })
+    .transpose()
+}
+
 fn parse_select_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: SelectArgs = decode(arguments)?;
     if args.node_id.is_none() && args.instance_path.is_some() {
@@ -107,20 +123,7 @@ fn parse_select_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
             None,
         ));
     }
-    let instance_path = args
-        .instance_path
-        .map(|path| {
-            if path.len() > 256 {
-                return Err(ErrorData::invalid_params(
-                    "instance_path exceeds 256 IDs",
-                    None,
-                ));
-            }
-            path.into_iter()
-                .map(|value| native_id(&value))
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()?;
+    let instance_path = parse_instance_path(args.instance_path)?;
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::Select {
@@ -132,20 +135,7 @@ fn parse_select_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
 
 fn parse_modify_selection(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: ModifySelectionArgs = decode(arguments)?;
-    let instance_path = args
-        .instance_path
-        .map(|path| {
-            if path.len() > 256 {
-                return Err(ErrorData::invalid_params(
-                    "instance_path exceeds 256 IDs",
-                    None,
-                ));
-            }
-            path.into_iter()
-                .map(|value| native_id(&value))
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()?;
+    let instance_path = parse_instance_path(args.instance_path)?;
     let change = match args.change {
         Change::Add => SelectionChange::Add,
         Change::Toggle => SelectionChange::Toggle,
