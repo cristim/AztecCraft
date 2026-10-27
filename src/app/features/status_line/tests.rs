@@ -949,7 +949,7 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
     );
     assert!(text_edit_focused(&context));
     let command = Modifiers::COMMAND;
-    let mut events = vec![
+    let events = vec![
         Event::ModifiersChanged(command),
         Event::Key {
             key: Key::A,
