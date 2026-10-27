@@ -2398,3 +2398,67 @@ fn a_refused_hit_with_the_longest_reason_stays_within_the_reserved_budget() {
         "{bytes}"
     );
 }
+
+// The Y ring hovered on the Rotate tool: status "Object Y Rotate: drag to turn".
+fn hovering_the_y_ring() -> (Editor, egui::Context, Pos2) {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let at = view.ring(Vec3::Y, 0.0);
+    moved(&mut editor, &context, 1.0, at);
+    assert_eq!(editor.status, "Object Y Rotate: drag to turn");
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+    (editor, context, at)
+}
+
+// Pinned, not gated: `pointer_hit` mirrors the painted highlight, which native paints whatever the
+// focus, popup or modal state; only the status text is gated by the hover admission.
+#[test]
+fn inspection_reports_the_pick_while_native_hover_status_is_suppressed() {
+    // The window loses focus: the status reverts, the pick stays.
+    let (mut editor, context, at) = hovering_the_y_ring();
+    let mut input = raw(SIZE, Pos2::ZERO, 1.0, vec![Event::PointerMoved(at)]);
+    input.focused = false;
+    frame(&mut editor, &context, input);
+    assert_eq!(editor.status, editor.tool_help());
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+
+    // A close modal is up: the pick stays.
+    let (mut editor, context, at) = hovering_the_y_ring();
+    editor.request_close();
+    assert!(editor.files.is_modal());
+    moved(&mut editor, &context, 1.0, at);
+    assert_ne!(editor.status, "Object Y Rotate: drag to turn");
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+
+    // The pointer leaves the window: nothing is available and nothing is picked.
+    let (mut editor, context, _) = hovering_the_y_ring();
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, vec![Event::PointerGone]),
+    );
+    let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+    assert!(!viewport.pointer_available);
+    assert_eq!(
+        (
+            viewport.pointer_hit,
+            viewport.pointer_disabled,
+            viewport.pointer_refusal
+        ),
+        (None, None, None)
+    );
+
+    // A hidden window has no viewport capture at all.
+    let (mut editor, context, _) = hovering_the_y_ring();
+    let mut input = raw(SIZE, Pos2::ZERO, 1.0, vec![]);
+    input
+        .viewports
+        .get_mut(&egui::ViewportId::ROOT)
+        .unwrap()
+        .minimized = Some(true);
+    eframe::App::raw_input_hook(&mut editor, &context, &mut input);
+    let mut native_frame = eframe::Frame::_new_kittest();
+    let _ = context.run_logic(&input, |ctx| {
+        eframe::App::logic(&mut editor, ctx, &mut native_frame)
+    });
+    assert!(editor.inspect_manipulation().unwrap().viewport.is_none());
+}

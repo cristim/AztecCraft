@@ -813,3 +813,19 @@ Set Camera Pose and `set_camera_pose` judge Changed/Unchanged numerically, so -0
 pitch) replies Unchanged while the stored sign bits flip; the view renders identically and inspect may show
 -0. Move-handle drag capture compares bits (`same_capture`), so the flip can only cancel a live drag
 conservatively, and the human-input guard keeps remote camera operations out of a held drag.
+
+## Manipulator highlight stays painted while the hover status is suppressed
+
+**Severity:** low
+**Area:** viewport manipulators, MCP inspection
+**Issue:** cristim/AztecCraft#306
+
+The Rotate and Scale hover status text is gated by the hover admission (no modal, not closing, window
+focused, pointer inside, no egui popup, renderer healthy), but the handle highlight is painted from the
+raw pointer every frame. With the window unfocused, a popup open or a file modal up, the handle under
+the cursor stays highlighted while the status reverts to the tool help. `inspect_scene`
+`pointer_hit`, `pointer_disabled` and `pointer_refusal` follow the highlight, so they keep reporting
+the pick in those states (pinned by `inspection_reports_the_pick_while_native_hover_status_is_suppressed`).
+They are null when the window is hidden or minimized, the pointer has left the window, or a
+manipulation is active. Not fixed: gating the highlight changes native behaviour and needs its own
+issue; the admission is an inline expression that needs the egui context for the popup check.

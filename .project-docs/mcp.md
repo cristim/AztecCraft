@@ -491,7 +491,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
-| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only |
+| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only; not gated by window focus, popups or file modals (painted highlight, not status text) |
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -588,7 +588,12 @@ reported only while the pointer is available. It is null for Move (native Move
 hover shows no reason; its refusals stay in `kinds` and `axes`), Select,
 disabled picks, accepted handles, no selection and an active manipulation. The
 text comes from fixed core messages and never carries a node name or path.
-Missing or stale capture is unavailable.
+The three pointer fields mirror the painted handle highlight, not the native
+hover status text. The highlight is not gated by window focus, an open popup
+or a file modal, so inspection is not either (the status text is, see
+`known-issues.md`); they are null only when the window is hidden or minimized
+(`viewport` is null), the pointer has left the window, or a manipulation is
+active. Missing or stale capture is unavailable.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.
