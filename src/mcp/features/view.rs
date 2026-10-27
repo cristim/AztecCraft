@@ -166,7 +166,7 @@ fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "frame_selected",
-        description: "Frame the selected object using the live camera",
+        description: "Frame the selected objects using the live camera: the union of all selected objects (with their descendants), the selected face corners, the remembered vertex or both endpoints of the remembered edge. Objects with no geometry add nothing; if none has any, the call is refused and the camera is unchanged",
         schema: schema::<MutationArgs>,
         parse: parse_frame_selected,
         idempotent: false,

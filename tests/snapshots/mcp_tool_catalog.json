@@ -1717,7 +1717,7 @@
   },
   {
     "name": "frame_selected",
-    "description": "Frame the selected object using the live camera",
+    "description": "Frame the selected objects using the live camera: the union of all selected objects (with their descendants), the selected face corners, the remembered vertex or both endpoints of the remembered edge. Objects with no geometry add nothing; if none has any, the call is refused and the camera is unchanged",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

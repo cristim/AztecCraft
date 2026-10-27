@@ -344,21 +344,45 @@ impl Camera {
         prefix: Option<&[crate::native_scene::NativeId]>,
         aspect: f32,
     ) -> Result<(), InvalidCameraInput> {
+        self.frame_matching(
+            scene,
+            move |path| prefix.is_none_or(|prefix| path.starts_with(prefix)),
+            aspect,
+        )
+    }
+
+    /// Frames the union of the instances below any of `prefixes` (descendants included, as
+    /// `frame_view` does). Members with no geometry add nothing; if none has any, it errors.
+    pub fn frame_view_many(
+        &mut self,
+        scene: &ViewScene,
+        prefixes: &[&[crate::native_scene::NativeId]],
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        self.frame_matching(
+            scene,
+            move |path| prefixes.iter().any(|prefix| path.starts_with(prefix)),
+            aspect,
+        )
+    }
+
+    fn frame_matching(
+        &mut self,
+        scene: &ViewScene,
+        keep: impl Fn(&[crate::native_scene::NativeId]) -> bool + Copy,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
         self.frame_iter(
             scene
                 .instances()
                 .iter()
-                .filter(move |instance| {
-                    prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
-                })
+                .filter(move |instance| keep(instance.path()))
                 .flat_map(|instance| instance.world_vertices().iter().copied())
                 .chain(
                     scene
                         .curve_instances()
                         .iter()
-                        .filter(move |instance| {
-                            prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
-                        })
+                        .filter(move |instance| keep(instance.path()))
                         .flat_map(|instance| {
                             let [low, high] = instance.bounds();
                             (0..8).map(move |corner| {

@@ -223,3 +223,13 @@ pub(crate) fn set_extras(scene: &mut NativeScene, node: NodeId, extras: Transfor
         .unwrap()
         .extras = extras;
 }
+
+/// Two root transforms: a cube and one with no shape at all.
+pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
+    let (mut scene, cube) = cube();
+    let empty = scene.create(Primitive::Cube, "empty").unwrap();
+    let discarded = scene.shapes.pop().unwrap().id;
+    scene.dag.retain(|edge| edge.child != discarded);
+    scene.validate().unwrap();
+    (scene, cube, empty)
+}

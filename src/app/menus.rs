@@ -497,18 +497,12 @@ impl Editor {
             {
                 self.history_step(true);
             }
-            let several = self.selection.len() > 1;
             let frame_button = crate::tool_icons::button(
                 ui,
                 "Frame selected  F",
                 UiIcon::FrameSelected,
-                self.single_target().is_ok(),
+                !self.selection.is_empty(),
             );
-            let frame_button = if several {
-                frame_button.on_disabled_hover_text(OperationError::MultipleSelection.to_string())
-            } else {
-                frame_button
-            };
             if frame_button.clicked() {
                 self.frame_selected();
             }

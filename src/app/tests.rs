@@ -9561,15 +9561,11 @@ fn several_selected_objects_refuse_single_target_and_present_the_lead() {
 }
 
 #[test]
-fn frame_and_move_refuse_several_selected_objects_and_keep_state() {
-    let mut editor = two_cube_editor();
+fn move_and_rotate_refuse_several_selected_objects_and_keep_state() {
+    let editor = two_cube_editor();
     let camera = editor.camera.clone();
     let scene = editor.history.scene().clone();
     let selection = editor.selection.clone();
-    assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
-        Err(OperationError::MultipleSelection)
-    ));
     assert!(matches!(
         editor.selected_move_target(),
         Err(OperationError::MultipleSelection)
@@ -9992,9 +9988,10 @@ fn channel_box_controls_are_disabled_with_the_reason_while_several_are_selected(
         !button_disabled(&output, "Delete selected"),
         "Delete acts on all"
     );
-    assert!(button_disabled(&output, "Frame selected  F"));
-    let at = face_text_position(&output2, "Frame selected  F");
-    assert!(hover_adds_the_reason(&mut editor, &ctx, at), "Frame");
+    assert!(
+        !button_disabled(&output, "Frame selected  F"),
+        "Frame acts on the union"
+    );
 }
 
 #[test]
@@ -10049,15 +10046,38 @@ fn edit_menu_delete_removes_every_selected_object() {
 }
 
 #[test]
-fn the_f_key_reports_the_refusal_with_several_selected() {
+fn the_f_key_frames_the_union_of_several_selected_objects() {
     let mut editor = two_cube_editor();
+    let far = editor.selection.lead().unwrap().node;
+    editor
+        .apply_operation(Operation::SetTransform {
+            id: far,
+            transform: TransformInput {
+                translation: [40.0, 0.0, 0.0],
+                rotation_degrees: [0.0; 3],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
-    let baseline = multi_baseline(&editor);
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    let paths: Vec<_> = editor
+        .selection
+        .members()
+        .iter()
+        .map(|t| t.path.clone())
+        .collect();
+    let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
+    let mut expected = editor.camera.clone();
+    expected
+        .frame_view_many(&view, &prefixes, editor.aspect)
+        .unwrap();
+    assert_ne!(expected, editor.camera);
     frame(&mut editor, &ctx, vec![key(Key::F)]);
-    assert!(editor.error, "{}", editor.status);
-    assert!(editor.status.contains(SEVERAL_REASON), "{}", editor.status);
-    assert_eq!(multi_baseline(&editor), baseline);
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(editor.camera, expected);
+    assert_eq!(editor.selection.len(), 2);
 }
 
 fn three_cube_editor() -> (Editor, Vec<TransformTarget>) {

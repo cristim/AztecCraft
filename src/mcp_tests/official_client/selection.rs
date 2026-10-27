@@ -675,6 +675,51 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
 }
 
 #[tokio::test]
+async fn sdk_frame_selected_frames_the_union_of_several_selected_objects() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let members = editor.history.scene().transform_paths().unwrap();
+    editor
+        .apply_operation(Operation::SetTransform {
+            id: members[1].node,
+            transform: TransformInput {
+                translation: [40.0, 0.0, 0.0],
+                rotation_degrees: [0.0; 3],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
+    editor.set_selection_members_for_test(members.clone());
+    editor.sync_fields();
+    frame(&mut editor, &context, vec![]);
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    let prefixes: Vec<&[NativeId]> = members.iter().map(|m| m.path.as_slice()).collect();
+    let mut expected = editor.camera.clone();
+    expected
+        .frame_view_many(&view, &prefixes, editor.aspect)
+        .unwrap();
+    let scene = editor.history.scene().clone();
+    let token = editor.scene_token.to_string();
+    let reply = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "frame_selected",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(reply.structured_content.unwrap()["outcome"], "changed");
+    assert_eq!(editor.camera, expected);
+    assert_eq!(editor.selection.members(), members);
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
 async fn sdk_actions_that_need_one_object_report_multiple_selection_and_keep_state() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
@@ -689,7 +734,6 @@ async fn sdk_actions_that_need_one_object_report_multiple_selection_and_keep_sta
     let lead = members[1].node.to_decimal();
     let path: Vec<_> = members[1].path.iter().map(|id| id.to_decimal()).collect();
     for (tool, args) in [
-        ("frame_selected", json!({"scene_token":token})),
         (
             "set_selection_mode",
             json!({"scene_token":token,"mode":"face"}),
