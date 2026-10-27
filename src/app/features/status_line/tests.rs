@@ -963,13 +963,7 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
     ];
     frame_with(&mut editor, &context, SIZE, 1.0, events);
     assert_eq!(editor.channels[0], "7");
-    frame_with(
-        &mut editor,
-        &context,
-        SIZE,
-        1.0,
-        press_release(at).into(),
-    );
+    frame_with(&mut editor, &context, SIZE, 1.0, press_release(at).into());
     assert_eq!(translate_x(&editor), 7.0);
     assert!(!editor.has_draft());
     assert_eq!(editor.channels[0], "7");
