@@ -79,7 +79,29 @@
         "distance": "cm",
         "factor": "unitless"
       },
-      "viewport": null
+      "viewport": {
+        "axes": [
+          {
+            "axis": "x",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          },
+          {
+            "axis": "y",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          },
+          {
+            "axis": "z",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          }
+        ],
+        "pointer_available": false,
+        "pointer_disabled": null,
+        "pointer_hit": null,
+        "provenance": "last_native_viewport_capture"
+      }
     },
     "modal": false,
     "native_input_pending": false,

@@ -539,7 +539,12 @@ pub struct ActiveManipulationInspection {
 pub struct MoveViewportInspection {
     pub provenance: &'static str,
     pub axes: Vec<MoveAxisInspection>,
+    /// The active tool's enabled handle under the last native pointer: Move and Rotate `x|y|z`,
+    /// Scale `x|y|z|uniform`; null for Select, no hit, or while a manipulation is active.
     pub pointer_hit: Option<&'static str>,
+    /// `free_rotate`, `view_ring` or `scale_plane` when a drawn-but-unsupported handle is under
+    /// the pointer and no enabled handle outranks it; null otherwise.
+    pub pointer_disabled: Option<&'static str>,
     pub pointer_available: bool,
 }
 

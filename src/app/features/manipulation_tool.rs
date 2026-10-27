@@ -415,7 +415,7 @@ impl Editor {
     }
 
     // Handle frame of the selected transform in the chosen space.
-    fn manipulation_frame(
+    pub(in crate::app) fn manipulation_frame(
         &self,
         tool: ActiveTool,
     ) -> Result<(TransformTarget, HandleFrame), OperationError> {

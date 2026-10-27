@@ -108,6 +108,7 @@
           }
         ],
         "pointer_available": false,
+        "pointer_disabled": null,
         "pointer_hit": null,
         "provenance": "last_native_viewport_capture"
       }
