@@ -881,6 +881,25 @@ const MIN_CURVE: &str = concat!(
 #[cfg(any(test, feature = "mcp"))]
 const MIN_SESSION_MATERIAL: &str =
     r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true}"#;
+/// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
+/// 4L + 1 bytes (the last element has no comma), so a member or target already counted with `[]`
+/// adds 4L - 1; a node's `instance_paths` entry is a whole array and is charged 4L.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_PATH_ELEMENT: usize = r#""1","#.len();
+/// A `null` that a present remembered target replaces.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_NULL: usize = "null".len();
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_SELECTION_MEMBER: &str = r#"{"node":"1","instance_path":[]}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_FACE_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"face_index":0}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_VERTEX_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"vertex_index":0}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_EDGE_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"edge_index":0}"#;
 /// Everything in `SceneInspection` except the four lists; nested fixed objects at their minimum.
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_FIXED: &str = concat!(
@@ -1079,6 +1098,45 @@ mod tests {
             serde_json::to_string(&material).unwrap(),
             MIN_SESSION_MATERIAL
         );
+    }
+
+    #[test]
+    fn path_minimum_constants_are_the_smallest_serialized_dtos() {
+        let member = SelectionMemberInspection {
+            node: "1".into(),
+            instance_path: Vec::new(),
+        };
+        assert_eq!(
+            serde_json::to_string(&member).unwrap(),
+            MIN_SELECTION_MEMBER
+        );
+        let face = FaceSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            face_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&face).unwrap(), MIN_FACE_TARGET);
+        let vertex = VertexSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            vertex_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&vertex).unwrap(), MIN_VERTEX_TARGET);
+        let edge = EdgeSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            edge_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&edge).unwrap(), MIN_EDGE_TARGET);
+        let path = SelectionMemberInspection {
+            node: "1".into(),
+            instance_path: vec!["1".into(); 5],
+        };
+        let with = serde_json::to_string(&path).unwrap().len();
+        assert_eq!(with - MIN_SELECTION_MEMBER.len(), 5 * MIN_PATH_ELEMENT - 1);
     }
 
     fn cubes(count: usize) -> NativeScene {
