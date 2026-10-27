@@ -105,8 +105,8 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
 | 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
-| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #29, #30, #32, #35, #36, #37, #38, #39, #41, #42, #47, #53, #58, #60, #66, #67, #68, #69, #105, #166, #178, #189, #272, #313, #325 |
-| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #292 |
+| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #29, #30, #32, #35, #36, #37, #38, #39, #41, #42, #47, #53, #58, #60, #66, #67, #68, #69, #105, #178, #189, #272, #313, #325 |
+| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #292 |
 | 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #47, #49, #51, #52, #53, #55, #64 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
@@ -114,7 +114,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
-| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300 |
+| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300 |
 | 12 | Scripting and extensions | [12-scripting-and-extensions.md](12-scripting-and-extensions.md) | SCR | #57 |
 | 13 | Dynamics and extended systems | [13-dynamics-and-extended-systems.md](13-dynamics-and-extended-systems.md) | DYN | #56 |
 | 14 | Pipeline and robustness | [14-pipeline-and-robustness.md](14-pipeline-and-robustness.md) | PIP | #8, #21, #58 |
