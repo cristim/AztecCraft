@@ -642,3 +642,466 @@ fn edge_pick_rejects_edges_clipped_by_the_border_and_the_far_plane() {
     let beyond = Fixture::new(vec![[0.0, 0.0, -150.0], [0.5, 0.0, -150.0]], &[], &[[0, 1]]);
     assert_eq!(beyond.edge_at(near(400.0, 300.0)), Ok(None));
 }
+
+fn pose_camera() -> Camera {
+    let mut camera = Camera::default();
+    camera.orbit(Vec2::new(1.0, -0.3)).unwrap();
+    camera.pan(Vec2::new(2.0, 1.0)).unwrap();
+    camera
+}
+
+#[test]
+fn set_pose_sets_the_pose_and_keeps_lens_and_clip() {
+    let mut camera = pose_camera();
+    let lens = Camera::default();
+    camera
+        .set_pose(Vec3::new(1.0, 2.0, 3.0), 4.5, 0.25, -0.5)
+        .unwrap();
+    assert_eq!(camera.target(), Vec3::new(1.0, 2.0, 3.0));
+    assert_eq!(camera.distance(), 4.5);
+    assert_eq!(camera.yaw(), 0.25);
+    assert_eq!(camera.pitch(), -0.5);
+    assert_eq!(
+        (camera.lens(), camera.near(), camera.far()),
+        (lens.lens(), lens.near(), lens.far())
+    );
+    assert_eq!(camera.lens(), Lens::Film);
+}
+
+#[test]
+fn set_pose_wraps_yaw_like_orbit() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, -0.5, 0.4).unwrap();
+    assert_eq!(camera.yaw(), (-0.5_f32).rem_euclid(std::f32::consts::TAU));
+    camera
+        .set_pose(Vec3::ZERO, 8.0, 7.0 * std::f32::consts::TAU + 0.5, 0.4)
+        .unwrap();
+    assert!((0.0..std::f32::consts::TAU).contains(&camera.yaw()));
+    assert!((camera.yaw() - 0.5).abs() < 1e-3);
+}
+
+#[test]
+fn set_pose_round_trips_the_default_and_an_orbit_to_the_pole_exactly() {
+    let mut camera = pose_camera();
+    let default = Camera::default();
+    camera
+        .set_pose(
+            default.target(),
+            default.distance(),
+            default.yaw(),
+            default.pitch(),
+        )
+        .unwrap();
+    assert!(camera.same_capture(&default));
+    let mut polar = pose_camera();
+    polar.orbit(Vec2::new(0.0, 10.0)).unwrap();
+    let mut restored = Camera::default();
+    restored
+        .set_pose(polar.target(), polar.distance(), polar.yaw(), polar.pitch())
+        .unwrap();
+    assert!(restored.same_capture(&polar));
+}
+
+#[test]
+fn yaw_stays_below_a_full_turn_and_its_pose_round_trips() {
+    let tau = std::f32::consts::TAU;
+    for steps in [&[-1e-9_f32][..], &[-0.6, -1e-9][..]] {
+        let mut camera = Camera::default();
+        camera.set_pose(Vec3::ZERO, 8.0, 0.0, 0.4).unwrap();
+        for step in steps {
+            camera.orbit(Vec2::new(*step, 0.0)).unwrap();
+        }
+        assert!((0.0..tau).contains(&camera.yaw()), "{steps:?}");
+        let mut restored = camera.clone();
+        let yaw = f64::from(camera.yaw()).to_degrees().to_radians() as f32;
+        restored
+            .set_pose(camera.target(), camera.distance(), yaw, camera.pitch())
+            .unwrap();
+        assert!(restored.same_capture(&camera), "{steps:?}");
+    }
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, -1e-9, 0.4).unwrap();
+    assert!((0.0..tau).contains(&camera.yaw()));
+}
+
+#[test]
+fn set_pose_rejects_each_invalid_field_and_leaves_the_camera_unchanged() {
+    use InvalidCameraPose as E;
+    let limit = MAX_PITCH;
+    let cases = [
+        (
+            Vec3::new(f32::NAN, 0.0, 0.0),
+            8.0,
+            0.0,
+            0.0,
+            E::TargetNotFinite,
+        ),
+        (
+            Vec3::new(0.0, f32::INFINITY, 0.0),
+            8.0,
+            0.0,
+            0.0,
+            E::TargetNotFinite,
+        ),
+        (Vec3::ZERO, f32::NAN, 0.0, 0.0, E::DistanceNotFinite),
+        (Vec3::ZERO, f32::INFINITY, 0.0, 0.0, E::DistanceNotFinite),
+        (Vec3::ZERO, 0.0, 0.0, 0.0, E::DistanceNotPositive),
+        (Vec3::ZERO, -1.0, 0.0, 0.0, E::DistanceNotPositive),
+        (Vec3::ZERO, 8.0, f32::NAN, 0.0, E::YawNotFinite),
+        (Vec3::ZERO, 8.0, f32::NEG_INFINITY, 0.0, E::YawNotFinite),
+        (Vec3::ZERO, 8.0, 0.0, f32::NAN, E::PitchNotFinite),
+        (Vec3::ZERO, 8.0, 0.0, f32::INFINITY, E::PitchNotFinite),
+        (
+            Vec3::ZERO,
+            8.0,
+            0.0,
+            std::f32::consts::FRAC_PI_2,
+            E::PitchOutOfRange,
+        ),
+        (Vec3::ZERO, 8.0, 0.0, limit.next_up(), E::PitchOutOfRange),
+        (Vec3::ZERO, 8.0, 0.0, -limit.next_up(), E::PitchOutOfRange),
+        (
+            Vec3::splat(f32::MAX),
+            f32::MAX,
+            0.0,
+            0.4,
+            E::Unrepresentable,
+        ),
+        // Finite eye (equal to the target) but a NaN view matrix.
+        (Vec3::splat(1e6), 1e-30, 0.0, 0.4, E::Unrepresentable),
+    ];
+    for (target, distance, yaw, pitch, expected) in cases {
+        let mut camera = pose_camera();
+        let before = camera.clone();
+        assert_eq!(camera.set_pose(target, distance, yaw, pitch), Err(expected));
+        assert!(
+            camera.same_capture(&before),
+            "{expected:?} changed the camera"
+        );
+    }
+}
+
+#[test]
+fn set_pose_accepts_the_pitch_limit_and_names_the_bound_in_the_error() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 8.0, 0.0, MAX_PITCH).unwrap();
+    camera.set_pose(Vec3::ZERO, 8.0, 0.0, -MAX_PITCH).unwrap();
+    let message = InvalidCameraPose::PitchOutOfRange.to_string();
+    assert!(
+        message.contains("pitch") && message.contains("89.9427"),
+        "{message}"
+    );
+}
+
+fn new_at(yaw: f32, pitch: f32) -> Result<Camera, InvalidCameraInput> {
+    Camera::new(
+        Vec3::ZERO,
+        yaw,
+        pitch,
+        8.0,
+        45_f32.to_radians(),
+        0.01,
+        100.0,
+    )
+}
+
+#[test]
+fn new_wraps_yaw_like_orbit_and_set_pose() {
+    for yaw in [-0.5, std::f32::consts::TAU + 0.25, 7.0, -1e-9] {
+        let built = new_at(yaw, 0.4).unwrap();
+        assert!((0.0..std::f32::consts::TAU).contains(&built.yaw()), "{yaw}");
+        let mut posed = Camera::default();
+        posed.set_pose(Vec3::ZERO, 8.0, yaw, 0.4).unwrap();
+        assert_eq!(built.yaw().to_bits(), posed.yaw().to_bits(), "{yaw}");
+    }
+    assert_eq!(new_at(f32::NAN, 0.0).err(), Some(InvalidCameraInput));
+    assert_eq!(new_at(f32::INFINITY, 0.0).err(), Some(InvalidCameraInput));
+}
+
+#[test]
+fn new_rejects_pitch_beyond_the_orbit_limit() {
+    for pitch in [MAX_PITCH + 1e-4, -MAX_PITCH - 1e-4, 1.5705] {
+        assert_eq!(
+            new_at(0.0, pitch).err(),
+            Some(InvalidCameraInput),
+            "{pitch}"
+        );
+    }
+    new_at(0.0, MAX_PITCH).unwrap();
+    new_at(0.0, -MAX_PITCH).unwrap();
+}
+
+#[test]
+fn new_keeps_an_in_range_yaw_and_negative_zero_bit_for_bit() {
+    for yaw in [0.0_f32, -0.0, 0.6, 3.0, std::f32::consts::TAU - 1e-6] {
+        assert_eq!(new_at(yaw, 0.0).unwrap().yaw().to_bits(), yaw.to_bits());
+    }
+}
+
+#[test]
+fn new_agrees_with_set_pose() {
+    let yaws = [-7.0, -0.5, 0.0, 0.6, 7.0, f32::NAN];
+    let pitches = [
+        -1.6,
+        -MAX_PITCH,
+        0.0,
+        0.4,
+        MAX_PITCH,
+        MAX_PITCH + 1e-4,
+        1.5705,
+    ];
+    for yaw in yaws {
+        for pitch in pitches {
+            let mut posed = Camera::default();
+            let set = posed.set_pose(Vec3::ZERO, 8.0, yaw, pitch);
+            match new_at(yaw, pitch) {
+                Ok(built) => {
+                    assert!(set.is_ok(), "{yaw} {pitch}");
+                    assert_eq!(built.yaw().to_bits(), posed.yaw().to_bits());
+                    assert_eq!(built.pitch().to_bits(), posed.pitch().to_bits());
+                }
+                Err(_) => assert!(set.is_err(), "{yaw} {pitch}"),
+            }
+        }
+    }
+}
+
+/// Changed/Unchanged is numeric, so a render-identical -0.0 pose is no change even though
+/// `same_capture`, which cancels a live drag, compares bits.
+#[test]
+fn set_pose_with_negative_zero_is_numerically_equal_but_not_the_same_capture() {
+    let zero = new_at(0.0, 0.0).unwrap();
+    let mut flipped = zero.clone();
+    flipped
+        .set_pose(Vec3::new(-0.0, -0.0, -0.0), 8.0, -0.0, -0.0)
+        .unwrap();
+    assert_eq!(flipped, zero);
+    assert_eq!(zero, flipped);
+    assert!(!flipped.same_capture(&zero));
+    assert!(!zero.same_capture(&flipped));
+    assert_eq!(flipped.yaw().to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(flipped.pitch().to_bits(), (-0.0_f32).to_bits());
+}
+
+/// The default view is a documented-by-us constant: any drift must be a conscious change.
+/// Near and far follow Create Camera Options: "The default setting for Near Clip Plane is 0.1
+/// and for Far Clip Plane is 10000." That page covers menu-created cameras; the persp camera's
+/// own default is undocumented (PROVISIONAL).
+#[test]
+fn default_camera_is_pinned_bit_for_bit() {
+    let camera = Camera::default();
+    assert_eq!(
+        camera.target().to_array().map(f32::to_bits),
+        [0.0_f32; 3].map(f32::to_bits)
+    );
+    let scalars = [
+        camera.distance(),
+        camera.yaw(),
+        camera.pitch(),
+        camera.near(),
+        camera.far(),
+    ];
+    let expected = [8.0, 0.6, 0.4, 0.1, 10_000.0];
+    assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
+    // Create Camera Options: Focal Length "The default value is 35." Film Aperture "The default
+    // values are 1.4173 and 0.9449." Film fit "The default setting is Fill." (PROVISIONAL for persp)
+    assert_eq!(camera.lens(), Lens::Film);
+}
+
+#[test]
+fn default_camera_clips_a_target_closer_than_near_and_projects_it_just_beyond() {
+    let mut camera = Camera::default();
+    camera.set_pose(Vec3::ZERO, 0.09, 0.6, 0.4).unwrap();
+    assert_eq!(camera.project(Vec3::ZERO, 1.0).unwrap(), None);
+    camera.set_pose(Vec3::ZERO, 0.11, 0.6, 0.4).unwrap();
+    let ndc = camera.project(Vec3::ZERO, 1.0).unwrap().unwrap();
+    assert!(ndc.z > 0.0 && ndc.z < 1.0, "depth {}", ndc.z);
+}
+
+#[test]
+fn frame_floors_tiny_objects_at_twice_near() {
+    let mut camera = Camera::default();
+    let near = 0.1_f32;
+    let tiny = [Vec3::splat(-0.001), Vec3::splat(0.001)];
+    camera.frame_points(&tiny, 1.0).unwrap();
+    let radius = Vec3::splat(0.001).distance(Vec3::ZERO);
+    assert!(
+        (camera.distance() - near * 2.0 * 1.05).abs() < 1e-6,
+        "distance {}",
+        camera.distance()
+    );
+    assert!(camera.project(camera.target(), 1.0).unwrap().is_some());
+    assert!(camera.far() >= camera.distance() + radius + near);
+
+    let mut camera = Camera::default();
+    let big = [Vec3::new(-1.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0)];
+    camera.frame_points(&big, 1.0).unwrap();
+    let expected = 1.0 / (camera.fov_y_for(1.0) * 0.5).sin() * 1.05;
+    assert!((camera.distance() - expected).abs() < 1e-4);
+    assert!(camera.far() >= camera.distance() + 1.0 + camera.near());
+}
+
+#[test]
+fn dolly_does_not_change_near_or_far() {
+    let mut camera =
+        Camera::new(Vec3::ZERO, 0.6, 0.4, 8.0, 45_f32.to_radians(), 0.5, 50.0).unwrap();
+    camera.dolly(0.5).unwrap();
+    camera.dolly(2.0).unwrap();
+    assert_eq!(camera.near().to_bits(), 0.5_f32.to_bits());
+    assert_eq!(camera.far().to_bits(), 50.0_f32.to_bits());
+}
+
+// Create Camera Options, Focal Length 35 and Film Aperture 1.4173 x 0.9449 inches. The relation
+// tan(half angle) = aperture * 25.4 / (2 * focal) is standard pinhole geometry (PROVISIONAL).
+fn film_tan_half(aperture_in: f32) -> f32 {
+    aperture_in * 25.4 / (2.0 * 35.0)
+}
+
+fn film_aspect() -> f32 {
+    1.4173 / 0.9449
+}
+
+/// Fill fits the resolution gate within the film gate (PROVISIONAL threshold: the viewport
+/// aspect is the resolution gate).
+fn expected_film_tan_half_y(aspect: f32) -> f32 {
+    if aspect >= film_aspect() {
+        film_tan_half(1.4173) / aspect
+    } else {
+        film_tan_half(0.9449)
+    }
+}
+
+const FILM_ASPECTS: [f32; 8] = [0.5, 1.0, 1.49, 1.5, 1.51, 16.0 / 9.0, 21.0 / 9.0, 4.0];
+
+#[test]
+fn vertical_fov_lens_projection_is_bit_identical_to_the_old_formula() {
+    let fov = 45_f32.to_radians();
+    let camera = Camera::new(Vec3::ZERO, 0.6, 0.4, 8.0, fov, 0.1, 100.0).unwrap();
+    for aspect in [0.5_f32, 1.0, 1.78, 3.0] {
+        let y = 1.0 / (fov * 0.5).tan();
+        let m = camera.projection_matrix(aspect).unwrap();
+        assert_eq!(m.x_axis.x.to_bits(), (y / aspect).to_bits());
+        assert_eq!(m.y_axis.y.to_bits(), y.to_bits());
+        assert_eq!(camera.fov_y_for(aspect).to_bits(), fov.to_bits());
+    }
+}
+
+#[test]
+fn same_capture_distinguishes_lenses() {
+    let film = Camera::default();
+    let mut fixed = film.clone();
+    fixed.lens = Lens::VerticalFov(45_f32.to_radians());
+    let mut other = fixed.clone();
+    other.lens = Lens::VerticalFov(46_f32.to_radians());
+    assert!(film.same_capture(&film.clone()));
+    assert!(!film.same_capture(&fixed));
+    assert!(!fixed.same_capture(&other));
+}
+
+#[test]
+fn film_lens_fill_matches_horizontal_at_or_above_film_aspect_and_vertical_below() {
+    for aspect in FILM_ASPECTS {
+        let expected = expected_film_tan_half_y(aspect);
+        let actual = Lens::Film.tan_half_y(aspect);
+        assert!(
+            (actual - expected).abs() <= expected * 1e-6,
+            "aspect {aspect}: {actual} vs {expected}"
+        );
+        let fov = Camera::default().fov_y_for(aspect);
+        assert!(
+            (fov - 2.0 * expected.atan()).abs() < 1e-6,
+            "aspect {aspect}"
+        );
+    }
+    // Horizontal match above the film aspect: the horizontal half angle stays constant.
+    let wide = [2.0_f32, 3.0];
+    let half_x = wide.map(|a| (Lens::Film.tan_half_y(a) * a).atan());
+    assert!((half_x[0] - half_x[1]).abs() < 1e-6);
+    // Vertical match below it: the vertical fov stays constant.
+    assert_eq!(
+        Lens::Film.tan_half_y(0.5).to_bits(),
+        Lens::Film.tan_half_y(1.0).to_bits()
+    );
+}
+
+#[test]
+fn fill_is_continuous_at_the_film_aspect() {
+    let camera = Camera::default();
+    let at = film_aspect();
+    let below = camera.fov_y_for(at * (1.0 - 1e-4));
+    let above = camera.fov_y_for(at * (1.0 + 1e-4));
+    assert!((below - above).abs().to_degrees() < 1e-2, "{below} {above}");
+}
+
+#[test]
+fn default_camera_projection_uses_the_film_fit_at_each_aspect() {
+    let camera = Camera::default();
+    for aspect in FILM_ASPECTS {
+        let y = 1.0 / expected_film_tan_half_y(aspect);
+        let m = camera.projection_matrix(aspect).unwrap();
+        assert!((m.y_axis.y - y).abs() <= y * 1e-6, "aspect {aspect} y");
+        assert!(
+            (m.x_axis.x - y / aspect).abs() <= (y / aspect) * 1e-6,
+            "aspect {aspect} x"
+        );
+    }
+}
+
+fn frame_unit_sphere_points() -> [Vec3; 6] {
+    [
+        Vec3::X,
+        Vec3::NEG_X,
+        Vec3::Y,
+        Vec3::NEG_Y,
+        Vec3::Z,
+        Vec3::NEG_Z,
+    ]
+}
+
+#[test]
+fn frame_all_distance_follows_the_effective_fov() {
+    for aspect in [0.5_f32, 1.0, 1.6, 16.0 / 9.0] {
+        let mut camera = Camera::default();
+        camera
+            .frame_points(&frame_unit_sphere_points(), aspect)
+            .unwrap();
+        let tan_y = expected_film_tan_half_y(aspect);
+        let half = tan_y.atan().min((tan_y * aspect).atan());
+        let expected = 1.0 / half.sin() * 1.05;
+        assert!(
+            (camera.distance() - expected).abs() <= expected * 1e-5,
+            "aspect {aspect}: {} vs {expected}",
+            camera.distance()
+        );
+    }
+}
+
+#[test]
+fn frame_keeps_every_vertex_inside_ndc() {
+    let cube: Vec<Vec3> = (0..8)
+        .map(|i| {
+            Vec3::new(
+                if i & 1 == 0 { -1.0 } else { 1.0 },
+                if i & 2 == 0 { -1.0 } else { 1.0 },
+                if i & 4 == 0 { -1.0 } else { 1.0 },
+            )
+        })
+        .collect();
+    for aspect in [0.5_f32, 1.0, 1.6, 16.0 / 9.0] {
+        let mut camera = Camera::default();
+        camera.frame_points(&cube, aspect).unwrap();
+        for v in &cube {
+            let ndc = camera.project(*v, aspect).unwrap().unwrap();
+            assert!(ndc.truncate().abs().max_element() < 1.0, "aspect {aspect}");
+        }
+    }
+}
+
+#[test]
+fn dolly_has_no_minimum_distance() {
+    let mut camera = Camera::default();
+    camera.dolly(1e-4).unwrap();
+    assert_eq!(camera.distance(), 8.0_f32 * 1e-4);
+    assert!(camera.distance() < camera.near());
+    assert_eq!(camera.project(camera.target(), 1.0).unwrap(), None);
+}

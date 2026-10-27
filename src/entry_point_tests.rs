@@ -222,6 +222,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native_operation(",
         &[
             "create",
+            "create_from_dialog",
+            "default_view",
             "file_actions",
             "frame_all",
             "frame_selected",
@@ -236,7 +238,31 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "request_close",
             "request_new",
             "save_as_dialog",
+            "step_manipulator_size",
         ],
+    );
+}
+
+#[test]
+fn tool_handle_setter_is_reached_only_through_dispatch() {
+    expect(
+        "tool handle setter",
+        ".set_tool_handle(",
+        &["apply_operation_guarded"],
+    );
+    expect(
+        "tool handle combos",
+        "native_operation(Operation::SetToolHandle(",
+        &["manipulation_options"],
+    );
+}
+
+#[test]
+fn manipulator_size_setter_is_reached_only_through_dispatch() {
+    expect(
+        "manipulator size setter",
+        ".set_manipulator_size(",
+        &["apply_operation_guarded"],
     );
 }
 

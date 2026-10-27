@@ -1,6 +1,6 @@
 use super::axis::orient;
 use super::*;
-use crate::primitive_options::Axis;
+use crate::primitive_options::{Axis, SINGLE_QUAD_PLANE};
 
 pub(super) fn points(mesh: &NativeMesh) -> Vec<[f32; 3]> {
     match &mesh.points {
@@ -54,9 +54,16 @@ pub(super) fn euler(mesh: &NativeMesh) -> i64 {
 }
 
 #[test]
-fn default_cube_and_plane_equal_the_legacy_meshes_bit_for_bit() {
-    for primitive in [Primitive::Cube, Primitive::Plane] {
-        let built = NativeMesh::primitive(primitive).unwrap();
+fn default_cube_and_single_quad_plane_equal_the_legacy_meshes_bit_for_bit() {
+    // The legacy plane is one quad; the default plane is 10x10 since #176.
+    for (primitive, options) in [
+        (
+            Primitive::Cube,
+            PrimitiveOptions::default_for(Primitive::Cube),
+        ),
+        (Primitive::Plane, SINGLE_QUAD_PLANE),
+    ] {
+        let built = NativeMesh::with_options(&options).unwrap();
         let legacy = NativeMesh::from_legacy(&Mesh::primitive(primitive).unwrap());
         assert_eq!(bits(&built), bits(&legacy), "{primitive:?} points");
         assert_eq!(built.edges, legacy.edges, "{primitive:?} edge order");

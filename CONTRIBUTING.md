@@ -17,6 +17,7 @@ Follow [Collaborating on issues](AGENTS.md#collaborating-on-issues) for claims, 
 - Look for the `good first issue` and `help wanted` labels.
 - Comment on the issue to claim it, branch `type/<issue-number>-short-slug`, and open a draft PR early with `Closes #<n>`.
 - Push each reviewed, atomic commit to the draft PR. Take it out of draft when CI is green, then wait for two approvals and maintainer sign-off (see AGENTS.md); never merge your own PR.
+- When CodeRabbit autofix runs on a PR, put documentation changes in their own `docs` commit, not inside the `perf` or `fix` commit it produces.
 - Bug fix: skip "Adding a feature"; find the code via the code map, add a regression test that fails before the fix, run `make check`.
 
 ## Code map

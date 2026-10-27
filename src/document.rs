@@ -27,9 +27,9 @@ pub struct SourceBaseline {
     parse_bytes: Arc<[u8]>,
     metadata: Metadata,
     link: LinkStatus,
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     file: Arc<std::fs::File>,
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     destination: Option<Arc<native_save::Destination>>,
 }
 impl fmt::Debug for SourceBaseline {
@@ -52,15 +52,15 @@ pub enum NativeOrigin {
 }
 impl NativeOrigin {
     pub fn active_save_available(&self) -> bool {
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         {
             matches!(self, Self::Binary(source) if matches!(source.link, LinkStatus::Direct) && source.destination.is_some())
         }
-        #[cfg(not(unix))]
+        #[cfg(not(any(unix, windows)))]
         false
     }
     pub fn save_as_available(&self) -> bool {
-        cfg!(unix) && matches!(self, Self::Binary(_))
+        cfg!(any(unix, windows)) && matches!(self, Self::Binary(_))
     }
     pub fn kind(&self) -> &'static str {
         match self {
@@ -101,10 +101,41 @@ pub fn verify_native_origin(path: &Path, origin: &NativeOrigin) -> Result<(), Na
         }
         Ok(())
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        let source = match origin {
+            NativeOrigin::Binary(source)
+            | NativeOrigin::Ascii(source)
+            | NativeOrigin::Legacy(source) => source,
+            NativeOrigin::Untitled => return Err(NativeSaveError::SourceChanged),
+        };
+        let (bytes, _, _, file) = read_bytes(path).map_err(|_| NativeSaveError::SourceChanged)?;
+        if !same_file(&file, &source.file) || bytes.as_slice() != source.bytes.as_ref() {
+            return Err(NativeSaveError::SourceChanged);
+        }
+        if let Some(destination) = &source.destination {
+            destination.verify(&source.file, &source.bytes)?;
+        }
+        Ok(())
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = (path, origin);
         Err(NativeSaveError::Unsupported)
+    }
+}
+
+/// Whether two handles name the same file (volume serial number and file index).
+#[cfg(windows)]
+fn same_file(a: &std::fs::File, b: &std::fs::File) -> bool {
+    match (
+        winapi_util::file::information(a),
+        winapi_util::file::information(b),
+    ) {
+        (Ok(a), Ok(b)) => {
+            a.volume_serial_number() == b.volume_serial_number() && a.file_index() == b.file_index()
+        }
+        _ => false,
     }
 }
 pub struct NativeDocument {
@@ -207,16 +238,25 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
     } else {
         None
     };
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    let destination = if matches!(link, LinkStatus::Direct) {
+        native_save::Destination::capture(path)
+            .ok()
+            .filter(|destination| destination.matches(&file).unwrap_or(false))
+            .map(Arc::new)
+    } else {
+        None
+    };
+    #[cfg(not(any(unix, windows)))]
     drop(file);
     let source = SourceBaseline {
         parse_bytes: bytes.clone(),
         bytes,
         metadata,
         link,
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         file: Arc::new(file),
-        #[cfg(unix)]
+        #[cfg(any(unix, windows))]
         destination,
     };
     Ok(NativeDocument {

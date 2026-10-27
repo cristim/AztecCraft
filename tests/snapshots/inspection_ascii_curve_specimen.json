@@ -3,17 +3,22 @@
     "appearance_incomplete": true,
     "attribute_editor_tab": null,
     "camera": {
-      "distance": 9.202924728393556,
+      "distance": 10.858717918395996,
       "eye": [
-        18.28616714477539,
-        3.583787679672241,
-        6.995919704437256
+        19.147294998168945,
+        4.228583812713623,
+        8.25462818145752
       ],
+      "far_clip": 10000.0,
+      "fov_y_degrees": 37.849961153583806,
+      "near_clip": 0.10000000149011612,
+      "pitch_degrees": 22.918312146742387,
       "target": [
         13.5,
         0.0,
         0.0
-      ]
+      ],
+      "yaw_degrees": 34.37746907388723
     },
     "can_redo": false,
     "can_undo": false,
@@ -63,15 +68,41 @@
           "unavailable_reason": "Select an object or face before framing"
         }
       ],
+      "manipulator_size": 1.0,
       "refusal": null,
+      "rotate_axis": "x",
       "rotate_space": "object",
+      "scale_handle": "uniform",
       "scale_space": "world",
       "units": {
         "angle": "deg",
         "distance": "cm",
         "factor": "unitless"
       },
-      "viewport": null
+      "viewport": {
+        "axes": [
+          {
+            "axis": "x",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          },
+          {
+            "axis": "y",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          },
+          {
+            "axis": "z",
+            "unavailable_reason": "Select an object or face before framing",
+            "visible": false
+          }
+        ],
+        "pointer_available": false,
+        "pointer_disabled": null,
+        "pointer_hit": null,
+        "pointer_refusal": null,
+        "provenance": "last_native_viewport_capture"
+      }
     },
     "modal": false,
     "native_input_pending": false,

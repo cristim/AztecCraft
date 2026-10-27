@@ -1,5 +1,92 @@
 # Native verification record
 
+## macOS quit guard: Command-Q (#11), Dock Quit, logout, shutdown and SIGTERM (#261), partly verified natively
+
+Command-Q, the Quit item, Dock Quit, logout and shutdown send `terminate:`, which exits inside AppKit
+and never produces a winit `CloseRequested`. `crates/macos-quit-menu` adds `applicationShouldTerminate:`
+to winit's application delegate; the hook returns "terminate later" and routes the request through the
+existing close guard. SIGTERM (macOS and Linux) starts the same guard (PROVISIONAL). The #259
+`performClose:` retarget of the Quit item was retired in #261, so Command-Q now reaches the hook. Headless
+tests cover the pure termination logic and the hook on a hand-built delegate; the checks below are native.
+
+Native runs (macOS, dirty scene made with the Cube shelf button, driven by an automation
+tool, 2026-10-25):
+
+| Check | Result |
+| --- | --- |
+| S0 spike case A: dirty scene, Dock-style quit (`NSRunningApplication terminate`), auto-Discard | passed: the prompt shows, the deferred reply runs during terminate-wait, `on_exit` runs exactly once, the process exits (no double exit) |
+| S0 spike case B: same, then Escape | passed: the prompt takes input while AppKit waits, the app stays alive with the scene dirty; a second Dock-style quit prompts again |
+| Real branch build (`53de50b`): the hook installs at startup | passed: no startup error |
+| Real build: dirty scene + Dock-style quit, then Escape | passed: the prompt shows, the app stays alive, the scene stays dirty |
+| Real build: first SIGTERM on a dirty scene | passed: the prompt shows and the app stays alive (before the change SIGTERM killed it) |
+| Real build: second SIGTERM while the prompt is up | passed: the process exits (forced-exit path, PROVISIONAL) |
+| Command-Q through the hook (build `b68054f`, after the retarget was removed) | passed: the prompt shows, Escape keeps the app alive |
+| AztecCraft > Quit menu click through the hook | pending |
+| Command-Q with no key window (no beep, the hook picks the window) | pending |
+| Discard and Save after a Dock quit with real clicks | pending (S0 covered Discard only with auto-Discard; the modal ignores synthetic pointer events) |
+| Clean scene + Command-Q or Dock Quit quits at once | pending |
+| Real logout or shutdown, including Save on the prompt (expected to abort the OS action) | pending |
+| A terminate arriving after a viewport close was sent (logout cancelled, the app still exits) | pending |
+| Open panel up, then Dock quit | passed (build 61c7a87): Dock quit with the Open panel up is declined (logged), the panel stays usable, no hang; a later Dock quit prompts |
+| Second Dock quit while the prompt is up, then Cancel | passed (main 2914585): no nested wait, the app stays responsive, a later quit prompts again |
+| Second Command-Q while the prompt is up, then Cancel | pending |
+| Quit menu click while the prompt is up, then Cancel | pending |
+| A decline followed at once by a new terminate (expected: declined while the earlier reply is queued; a later quit prompts) | pending natively; covered headlessly by the hook harness (#268) |
+| Save panel, pending text input or invalid draft (expected: decline, no hang) | pending (record the outcome; an unguarded exit or lost data is a finding) |
+| Panic in a frame while a terminate is owed (scratch-only forced panic; expected: panic message, process exits, no hang) | passed (build c1115e7 plus a scratch-only panic, Dock quit, no further input): the decline line and the panic message print, and the process is observed to exit about 2 s later through winit's normal panic propagation (no timer is involved); on main 7355130 the same steps hung (#270). A Dock quit on the plain c1115e7 build still prompts |
+| Minimized window | pending |
+| App hidden with Command-H | pending |
+| About, Hide, Hide Others, Show All, Services and the red close button still prompts | pending |
+| `--features mcp` build with a client attached, `request_close` and `resolve_file_action` during an owed terminate | pending |
+| SIGTERM on Linux | pending |
+| SIGINT and SIGHUP | out of scope (#261) |
+
+Maya reference (PROVISIONAL where silent): the 2026 Help File menu page
+(https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm)
+says Exit prompts to save when the scene was not recently saved and gives no hotkey; the MEL `quit` command
+page (https://help.autodesk.com/cloudhelp/2026/JPN/Maya-Tech-Docs/Commands/quit.html) covers
+`-force`/`-abort`. The dialog wording, Cancel button, Command-Q mapping and SIGTERM behavior are PROVISIONAL.
+
+## Cold verification of material Diffuse editing (2026-10-19)
+
+Verified source: `origin/main` commit [`7ca0ebf`](https://github.com/cristim/AztecCraft/commit/7ca0ebfd6709e3afd624d8fae057f93165fd517b), macOS (Darwin 25.1, Apple Silicon),
+Rust 1.99.0, one independent session that did not write the feature. CI for that
+commit ([Rust checks run 39319352346](https://github.com/cristim/AztecCraft/actions/runs/39319352346)) passed on all six jobs: macOS, Ubuntu and
+Windows checks, software Vulkan viewport, dependency security and the macOS x86_64
+cross-build. Fixtures are the synthetic in-test appearance specimens (one and two
+shading-group users); no private scene was used.
+
+| Command (filter `material diffuse`) | Result |
+| --- | --- |
+| `cargo test --locked` | lib 23, bin 15, `maya_ascii_framing` 1: all passed |
+| `cargo test --locked --no-default-features` | 23 and 1 passed |
+| `cargo test --locked --features mcp-test-client` | lib 23, bin 25 (includes `material_sdk_edit_inspect_history_and_repeated_save_share_the_native_word`), 1 passed |
+
+Read and exercised: finite and nonnegative validation (`NativeScene::set_material_diffuse`
+in `src/native_scene/appearance.rs`; `-1`, NaN and infinities refused with baseline
+unchanged, tested over source values including `-0.0`, a negative word and
+`1.0000000000000004`); eight-byte span patching in `src/native_scene/binary/encode.rs`
+(only replaced words are written, byte-identical output when unchanged); draft
+targeting, precise Enter/Escape, shared History and failed or cancelled Open in
+`src/app/tests.rs`; repeated Save and SDK Open of saved output in
+`src/mcp_tests/official_client/material.rs`; strict MCP arguments in
+`src/mcp/tools.rs`.
+
+Mutation (scratch worktree, removed): changing the negative check to
+`value < -1.0e300` failed 2 tests (`diffuse_edits_preserve_raw_zero_words_unusual_source_and_failure_baselines`,
+`material_history_noop_revert_and_save_snapshot_use_the_same_scene`); shifting the
+patch span start by one byte failed 4 tests in `native_scene::binary::appearance`.
+Both mutations were discarded and the baseline passes above were taken unmutated.
+
+Not verified: Save/NCRV/Face/Grid composition. No test combines a material edit
+with curves, Face mode and grid state in one saved scene, and none can today:
+`binary::encode` returns unsupported when the scene has curves, binary NCRV Open is
+refused, and ASCII Save is refused. Guard-matrix cells cover a material draft and Face
+mode separately. The ordinary pre-commit hooks (format, Clippy, tests, build, secrets) passed on
+this tree when this entry was committed. Also not run: a native visual or
+interactive re-check of this build, Windows/Linux interaction, and any rendered
+Phong fidelity or Maya parity. Issue #50 stays open.
+
 ## M1 material candidate, bounded macOS verification
 
 The current source adds a real Common Material Attributes/Diffuse draft and
@@ -10,7 +97,7 @@ SDK test also passed actual protocol Open of each saved output, changed document
 tokens, inspected exact effective words and another Active Save from the reopened
 origin; the retained independent verifier reproduced the corrected journey.
 The SDK edit/inspection/History assertions are portable; Save and protocol
-reopen assertions run only on Unix, where native binary writing is supported.
+reopen assertions ran only on Unix at the time; Windows writing was added later.
 The independent source-word oracle and three intended core mutation failures with
 exact restored positives are separately recorded. The production MCP build was
 copied and hashed under its build lock. Root operated that macOS package: select
@@ -19,8 +106,9 @@ toolbar Undo to a dirty baseline and Redo to saved/clean, then File Open the sav
 working file and inspect the retained value. An independent private byte check
 found changes only inside the authorized eight-byte diffuse envelope; all five
 original fixture hashes were unchanged. This proves that bounded native data
-journey, not rendered Phong fidelity or other platforms. Committed cold, ordinary
-hooks, CI and published combined-parent checks remain pending. Originals must
+journey, not rendered Phong fidelity or other platforms. Published combined-parent
+checks remain pending (cold verification and CI: see the 2026-10-19 entry
+above). Originals must
 never be Save destinations. Material rendering, assignment, textures and color
 processing stay unavailable. The historical record below is unchanged.
 
@@ -211,3 +299,9 @@ comparison; colours, sizes, marker shape and button order are provisional
 application choices. The screenshots are not committed. Windows, Linux, release builds
 and the hidden-corner margin at other distances or adapters are not covered (see
 known-issues.md).
+
+## Channel Box heading (#171)
+
+| Check | Result |
+| --- | --- |
+| IME composition, macOS text shortcuts (Cmd+A/C/V/Z in the name heading) and VoiceOver reading of the Channel Box heading and stubs | pending (needs a human) |

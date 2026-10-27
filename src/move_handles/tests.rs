@@ -46,10 +46,10 @@ fn front_axes_share_exact_physical_drawing_and_hit_geometry() {
         Some(WorldAxis::Y)
     );
     assert_eq!(
-        handles.hit_test(DVec2::new(436.0, 306.0)),
+        handles.hit_test(DVec2::new(436.0, 308.0)),
         Some(WorldAxis::X)
     );
-    assert_eq!(handles.hit_test(DVec2::new(436.0, 306.001)), None);
+    assert_eq!(handles.hit_test(DVec2::new(436.0, 308.001)), None);
     assert_eq!(handles.hit_test(DVec2::new(410.0, 300.0)), None);
     assert_eq!(
         handles.hit_test(DVec2::new(410.001, 300.0)),
@@ -538,4 +538,398 @@ fn an_end_on_axis_picks_only_where_it_is_drawn_and_never_steals_other_axes() {
         assert!((segment.start - handles.origin).length() < 4.0);
         assert!((segment.end - handles.origin).length() < 4.0);
     }
+}
+
+const SIZES: [f64; 3] = [0.1, 1.0, 10.0];
+
+fn sized(camera: &Camera, size: f64) -> ViewportCapture {
+    capture(camera, 1.0).with_manipulator_size(ManipulatorSize::new(size).unwrap())
+}
+
+fn oblique_camera() -> Camera {
+    Camera::new(Vec3::ZERO, 0.6, 0.4, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap()
+}
+
+fn shaft_of(handles: &WorldHandles, index: usize) -> ScreenSegment {
+    *handles.axes()[index]
+        .arrow()
+        .unwrap()
+        .segments()
+        .next()
+        .unwrap()
+}
+
+#[test]
+fn manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli() {
+    for value in [0.1, 10.0, 1.0] {
+        assert_eq!(ManipulatorSize::new(value).unwrap().get(), value);
+    }
+    for value in [0.0999, 10.0001, 0.0, -0.0, -1.0] {
+        assert_eq!(
+            ManipulatorSize::new(value),
+            Err(ManipulatorSizeError::OutOfRange),
+            "{value}"
+        );
+    }
+    for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            ManipulatorSize::new(value),
+            Err(ManipulatorSizeError::NotFinite)
+        );
+    }
+    assert_eq!(ManipulatorSize::new(2.123_49).unwrap().get(), 2.123);
+    assert_eq!(ManipulatorSize::default().get(), 1.0);
+}
+
+#[test]
+fn manipulator_size_steps_on_the_exponent_grid_and_saturate_at_its_ends() {
+    let one = ManipulatorSize::default();
+    assert_eq!(one.grown().unwrap().get(), 1.25);
+    assert_eq!(one.shrunk().unwrap().get(), 0.8);
+    let top = ManipulatorSize::new(10.0).unwrap();
+    assert_eq!(top.grown(), None);
+    assert_eq!(top.shrunk().unwrap().get(), 1.25_f64.powi(10));
+    assert_eq!(ManipulatorSize::new(0.1).unwrap().shrunk(), None);
+    assert_eq!(
+        ManipulatorSize::new(9.0).unwrap().grown().unwrap().get(),
+        1.25_f64.powi(10)
+    );
+    assert_eq!(ManipulatorSize(1.25_f64.powi(10)).grown(), None);
+    assert_eq!(ManipulatorSize(1.25_f64.powi(-10)).shrunk(), None);
+    let mut size = one;
+    for _ in 0..50 {
+        size = size.grown().unwrap_or(size);
+        assert!((0.1..=10.0).contains(&size.get()));
+    }
+    assert_eq!(size.get(), 1.25_f64.powi(10));
+    for _ in 0..50 {
+        size = size.shrunk().unwrap_or(size);
+        assert!((0.1..=10.0).contains(&size.get()));
+    }
+    assert_eq!(size.get(), 1.25_f64.powi(-10));
+}
+
+#[test]
+fn key_steps_from_any_grid_value_return_to_it_bit_exactly() {
+    for k in -GRID_LIMIT..=GRID_LIMIT {
+        let start = ManipulatorSize(1.25_f64.powi(k));
+        for n in 1..=20 {
+            let mut size = start;
+            let mut reachable = true;
+            for _ in 0..n {
+                match size.shrunk() {
+                    Some(next) => size = next,
+                    None => reachable = false,
+                }
+            }
+            if !reachable {
+                continue;
+            }
+            for _ in 0..n {
+                size = size.grown().unwrap();
+            }
+            assert_eq!(size.get().to_bits(), start.get().to_bits(), "k={k} n={n}");
+        }
+        for n in 1..=20 {
+            let mut size = start;
+            let mut reachable = true;
+            for _ in 0..n {
+                match size.grown() {
+                    Some(next) => size = next,
+                    None => reachable = false,
+                }
+            }
+            if !reachable {
+                continue;
+            }
+            for _ in 0..n {
+                size = size.shrunk().unwrap();
+            }
+            assert_eq!(size.get().to_bits(), start.get().to_bits(), "k={k} n={n}");
+        }
+    }
+}
+
+#[test]
+fn a_key_step_from_an_off_grid_value_moves_to_the_adjacent_grid_value() {
+    let off = ManipulatorSize::new(2.5).unwrap();
+    assert_eq!(off.grown().unwrap().get(), 1.25_f64.powi(5));
+    assert_eq!(off.shrunk().unwrap().get(), 1.25_f64.powi(4));
+    let low = ManipulatorSize::new(1.2).unwrap();
+    assert_eq!(low.grown().unwrap().get(), 1.25);
+}
+
+#[test]
+fn every_milli_size_steps_to_the_adjacent_visibly_different_grid_value() {
+    let grid: Vec<f64> = (-GRID_LIMIT..=GRID_LIMIT)
+        .map(|k| 1.25_f64.powi(k))
+        .collect();
+    let (mut skips, mut wrong_way, mut stuck, mut false_refusals) = (0, 0, 0, 0);
+    for milli in 100..=10_000 {
+        let size = ManipulatorSize::new(f64::from(milli) / 1000.0).unwrap();
+        let shown = round_milli(size.get());
+        let up = grid.iter().copied().find(|g| round_milli(*g) > shown);
+        let down = grid.iter().copied().rev().find(|g| round_milli(*g) < shown);
+        for (step, expected, upward) in [(size.grown(), up, true), (size.shrunk(), down, false)] {
+            match (step.map(ManipulatorSize::get), expected) {
+                (Some(next), _) if round_milli(next) == shown => stuck += 1,
+                (Some(next), _) if (round_milli(next) > shown) != upward => wrong_way += 1,
+                (Some(next), Some(want)) if next == want => {}
+                (Some(_), Some(_)) => skips += 1,
+                (Some(_), None) => wrong_way += 1,
+                (None, Some(_)) => false_refusals += 1,
+                (None, None) => {}
+            }
+        }
+    }
+    assert_eq!((skips, wrong_way, stuck, false_refusals), (0, 0, 0, 0));
+}
+
+#[test]
+fn an_exact_tie_steps_by_its_shown_value_and_keeps_the_raw_grid_value() {
+    let bits = |size: Option<ManipulatorSize>| size.unwrap().get().to_bits();
+    let tie = 1.25_f64.powi(2);
+    assert_eq!(tie, 1.5625);
+    assert_eq!(
+        bits(ManipulatorSize::new(1.562).unwrap().grown()),
+        tie.to_bits()
+    );
+    assert_eq!(bits(ManipulatorSize(tie).shrunk()), 1.25_f64.to_bits());
+    assert_eq!(
+        bits(ManipulatorSize::new(1.563).unwrap().shrunk()),
+        1.25_f64.to_bits()
+    );
+    assert_eq!(
+        bits(ManipulatorSize::new(1.563).unwrap().grown()),
+        1.25_f64.powi(3).to_bits()
+    );
+    assert_eq!(ManipulatorSize::new(tie).unwrap().get(), 1.563);
+}
+
+#[test]
+fn key_limits_are_the_ends_of_the_grid() {
+    assert_eq!(
+        ManipulatorSize::key_limits(),
+        (1.25_f64.powi(-10), 1.25_f64.powi(10))
+    );
+}
+
+#[test]
+fn a_size_just_below_a_grid_point_steps_past_it_and_the_top_refuses() {
+    let near = ManipulatorSize::new(1.953).unwrap();
+    assert_eq!(near.grown().unwrap().get(), 1.25_f64.powi(4));
+    assert_eq!(ManipulatorSize::new(9.313).unwrap().grown(), None);
+    assert_eq!(ManipulatorSize::new(0.107).unwrap().shrunk(), None);
+}
+
+#[test]
+fn move_axes_are_pickable_outside_the_centre_at_every_size() {
+    let camera = oblique_camera();
+    for size in SIZES {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        for (index, axis) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .into_iter()
+            .enumerate()
+        {
+            let shaft = shaft_of(&handles, index);
+            let point = shaft.start + (shaft.end - shaft.start) * 0.75;
+            assert!(point.distance(handles.origin) > CENTER_EXCLUSION);
+            assert_eq!(handles.hit_test(point), Some(axis), "{axis:?} at {size}");
+        }
+    }
+}
+
+#[test]
+fn the_move_pick_radius_stays_eight_pixels_at_every_size() {
+    assert_eq!(HIT_RADIUS, 8.0);
+    let camera = front_camera();
+    for size in [0.1, 10.0] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        let along = (shaft.end - shaft.start).normalize();
+        let normal = DVec2::new(-along.y, along.x);
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.35;
+        assert_eq!(
+            handles.hit_test(on_shaft + normal * (HIT_RADIUS - 0.1)),
+            Some(WorldAxis::X),
+            "inside at {size}"
+        );
+        assert_eq!(
+            handles.hit_test(on_shaft + normal * (HIT_RADIUS + 0.1)),
+            None,
+            "outside at {size}"
+        );
+    }
+}
+
+#[test]
+fn move_picks_at_seven_and_eight_pixels_and_misses_past_eight_at_every_size() {
+    // 7.0, 7.9 and 8.0 fail at the old 6 px radius; 8.1 and 9.0 pass there (not red).
+    let camera = front_camera();
+    for size in [0.1, 10.0] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        // The front X shaft is horizontal, so the offsets below are exact.
+        let on_shaft = shaft.start + (shaft.end - shaft.start) * 0.35;
+        for (offset, expected) in [
+            (7.0, Some(WorldAxis::X)),
+            (7.9, Some(WorldAxis::X)),
+            (8.0, Some(WorldAxis::X)),
+            (8.1, None),
+            (9.0, None),
+        ] {
+            for sign in [1.0, -1.0] {
+                assert_eq!(
+                    handles.hit_test(on_shaft + DVec2::new(0.0, sign * offset)),
+                    expected,
+                    "{offset} at {size}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn oblique_shaft_bands_overlap_and_the_nearer_axis_wins() {
+    // On the X/Y bisector just outside the centre exclusion both shafts are within 8 px; the
+    // nearer one wins and an exact tie goes to X (see the XYZ-order test).
+    // Yaw 0.2, pitch 0.5 puts X and Y about 95 degrees apart, so the band reaches 10.8 px.
+    let camera = Camera::new(Vec3::ZERO, 0.2, 0.5, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap();
+    let handles = WorldHandles::new(&capture(&camera, 1.0), DVec3::ZERO).unwrap();
+    let origin = handles.origin;
+    let (x, y) = (shaft_of(&handles, 0), shaft_of(&handles, 1));
+    let direction = |shaft: ScreenSegment| (shaft.end - shaft.start).normalize();
+    let bisector = (direction(x) + direction(y)).normalize();
+    let distance = |axis: usize, pixel: DVec2| {
+        handles.axes()[axis]
+            .arrow()
+            .unwrap()
+            .segments()
+            .map(|segment| segment_distance_squared(*segment, pixel).sqrt())
+            .fold(f64::INFINITY, f64::min)
+    };
+    let found = (0..40).find_map(|step| {
+        let pixel = origin + bisector * (10.05 + f64::from(step) * 0.05);
+        let both = distance(0, pixel) <= HIT_RADIUS && distance(1, pixel) <= HIT_RADIUS;
+        (both && distance(2, pixel) > HIT_RADIUS).then_some(pixel)
+    });
+    let pixel = found.expect("a pixel in the X/Y overlap band outside the centre exclusion");
+    let expected = if distance(0, pixel) <= distance(1, pixel) {
+        WorldAxis::X
+    } else {
+        WorldAxis::Y
+    };
+    assert_eq!(handles.hit_test(pixel), Some(expected));
+}
+
+#[test]
+fn move_length_scales_with_size_above_the_floor_and_sizes_below_it_draw_alike() {
+    let camera = front_camera();
+    let length = |size: f64| {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        let shaft = shaft_of(&handles, 0);
+        (shaft.end - shaft.start).length()
+    };
+    near(length(1.0), 72.0, 1e-5);
+    near(length(0.5), 36.0, 1e-5);
+    near(length(0.1), 36.0, 1e-5);
+    let segments = |size: f64| {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        handles.axes()[0]
+            .arrow()
+            .unwrap()
+            .segments()
+            .map(|segment| (segment.start, segment.end))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(segments(0.1), segments(0.5));
+    assert_ne!(segments(0.5), segments(1.0));
+}
+
+#[test]
+fn the_floor_applies_before_the_foreshortening() {
+    let camera = Camera::new(Vec3::ZERO, 1.2, 0.0, 10.0, 90_f32.to_radians(), 0.1, 100.0).unwrap();
+    let capture = sized(&camera, 0.1);
+    let fraction = capture.projected_fraction(DVec3::ZERO, DVec3::X).unwrap();
+    assert!((0.1..0.9).contains(&fraction), "{fraction}");
+    let handles = WorldHandles::new(&capture, DVec3::ZERO).unwrap();
+    let shaft = shaft_of(&handles, 0);
+    let drawn = (shaft.end - shaft.start).length();
+    assert!(drawn < 36.0, "{drawn}");
+    near(drawn, 36.0 * fraction, 1e-6);
+}
+
+#[test]
+fn the_move_centre_exclusion_stays_fixed_at_every_size() {
+    let camera = oblique_camera();
+    for (size, distance, picked) in [(0.1, 8.0, false), (10.0, 12.0, true), (0.1, 12.0, true)] {
+        let handles = WorldHandles::new(&sized(&camera, size), DVec3::ZERO).unwrap();
+        for (index, axis) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .into_iter()
+            .enumerate()
+        {
+            let shaft = shaft_of(&handles, index);
+            let direction = (shaft.end - shaft.start).normalize();
+            let hit = handles.hit_test(shaft.start + direction * distance);
+            assert_eq!(
+                hit,
+                picked.then_some(axis),
+                "{axis:?} at {size}, {distance}"
+            );
+        }
+    }
+}
+
+#[test]
+fn arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values() {
+    assert_eq!(ARROWHEAD_LENGTH, 12.0);
+    assert_eq!(ARROWHEAD_HALF_WIDTH, 4.0);
+}
+
+// InvalidProjection is shared by several guards, so each test also names what a mutant without the
+// guard would return instead. Not tested because no input reaches them: the non-finite-origin check in
+// `project_origin` (the clip check right after returns the same variant, and `HandleFrame::new`
+// already rejects such origins), the non-finite `fraction` in `projected_fraction` (the `max(0.0)`
+// maps NaN and -inf to zero), and the non-finite radius in `RotateHandles::new` (a successful
+// `project_origin` bounds depth and lateral offset by the finite clip planes).
+
+#[test]
+fn project_origin_reports_an_overflowing_clip_as_invalid_not_clipped() {
+    // A 60 degree field of view scales x by about 1.3, so a lone f64::MAX x overflows the clip (at
+    // 90 degrees the scale is 0.75 and it would not).
+    let camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 10.0, 60_f32.to_radians(), 0.1, 100.0).unwrap();
+    let capture = capture(&camera, 1.0);
+    // Finite origin, non-finite clip: without the guard NaN pixels would read as OriginClipped.
+    assert_eq!(
+        capture.project_origin(DVec3::new(f64::MAX, 0.0, 0.0)).err(),
+        Some(HandleError::InvalidProjection)
+    );
+    assert_eq!(
+        capture.project_origin(DVec3::new(1e6, 0.0, 0.0)).err(),
+        Some(HandleError::OriginClipped)
+    );
+}
+
+#[test]
+fn projected_fraction_refuses_an_origin_at_the_eye_instead_of_reporting_zero() {
+    let capture = capture(&front_camera(), 1.0);
+    // Without the guard the zero distance gives a NaN cosine, which `max(0.0)` turns into Ok(0.0).
+    assert_eq!(
+        capture.projected_fraction(capture.eye(), DVec3::X).err(),
+        Some(HandleError::InvalidProjection)
+    );
+    assert!(capture.projected_fraction(DVec3::ZERO, DVec3::X).is_ok());
+}
+
+#[test]
+fn screen_direction_refuses_an_overflowing_clip_depth_instead_of_a_degenerate_axis() {
+    let capture = capture(&front_camera(), 1.0);
+    // w * w overflows; without the guard the derivative is zero (a finite numerator over an infinite
+    // denominator) and ProjectedAxisDegenerate results.
+    assert_eq!(
+        capture
+            .screen_direction(DVec4::new(0.0, 0.0, 0.0, 1e200), DVec3::X)
+            .err(),
+        Some(HandleError::InvalidProjection)
+    );
 }

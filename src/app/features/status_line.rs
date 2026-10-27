@@ -1,3 +1,4 @@
+use crate::app::menus::CLOSING_REASON;
 use crate::app::{Editor, SelectionModeIntent};
 use crate::editor_operations::{SelectionMode, SidebarPanel};
 use crate::tool_icons::icon_button;
@@ -99,7 +100,7 @@ const SIDEBAR_TOGGLES: [StripButton; 5] = [
     StripButton {
         label: "Channel Box / Layer Editor",
         icon: UiIcon::SidebarChannelBox,
-        hover: "Show or hide the Channel Box / Layer Editor",
+        hover: "Show or hide the Channel Box (Layer Editor: not implemented yet)",
         panel: Some(SidebarPanel::ChannelBox),
     },
 ];
@@ -115,7 +116,7 @@ impl Editor {
     /// Enabled hover text, or the reason a live toggle is disabled.
     fn sidebar_toggle_hover(&self, button: &StripButton) -> String {
         let reason = if self.files.is_closing() {
-            "the window is closing"
+            CLOSING_REASON
         } else if self.files.is_modal() {
             "a dialog is open"
         } else if self.history.active_manipulation().is_some() {
@@ -136,7 +137,7 @@ impl Editor {
         ui.horizontal(|ui| {
             menu_set_selector(ui);
             ui.separator();
-            for action in self.file_actions() {
+            for action in self.file_actions().into_iter().filter(|a| a.strip) {
                 let response = icon_button(
                     ui,
                     action.label,

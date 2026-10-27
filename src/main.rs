@@ -29,9 +29,13 @@ fn main() -> eframe::Result {
             ..Default::default()
         },
         Box::new(move |cc| {
-            let editor = app::Editor::new(cc)?;
-            #[cfg(feature = "mcp")]
-            let mut editor = editor;
+            // Command-Q, the Quit item, Dock Quit and logout all send `terminate:`; the hook
+            // routes them through the close guard (#261). The call prints its own error; `?`
+            // aborts the launch if winit's delegate shape changed.
+            #[cfg(target_os = "macos")]
+            macos_quit_menu::install_terminate_guard()?;
+            let mut editor = app::Editor::new(cc)?;
+            editor.install_shutdown_signal(&cc.egui_ctx)?;
             #[cfg(feature = "mcp")]
             if mcp {
                 editor.start_mcp(&cc.egui_ctx)?;

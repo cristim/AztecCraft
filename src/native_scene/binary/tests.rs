@@ -5,6 +5,12 @@ pub(super) mod wire_fixture {
         "/tests/support/maya_binary.rs"
     ));
 }
+pub(super) mod site_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sites.rs"
+    ));
+}
 pub(super) mod appearance_fixture {
     use super::wire_fixture as wire;
     include!(concat!(
@@ -12,6 +18,7 @@ pub(super) mod appearance_fixture {
         "/tests/support/maya_appearance.rs"
     ));
 }
+mod sites;
 use crate::view_scene::ViewScene;
 use std::{fs::File, io::Read, path::Path};
 use wire_fixture::{chunk, creation, group, mesh_payload, scene, triple};
@@ -606,6 +613,17 @@ fn face_headers_and_leaf_overlap_work_are_real_admission_terms() {
         )
         .unwrap_err()
         .kind(),
+        ErrorKind::ResourceLimit
+    );
+    let many_sites = Counts {
+        transforms: 2000,
+        dag: 2000,
+        sites: 2000,
+        site_ancestors: 1_600_000,
+        ..Counts::default()
+    };
+    assert_eq!(
+        many_sites.admit_work().unwrap_err().kind(),
         ErrorKind::ResourceLimit
     );
     let many_leaves = Counts {

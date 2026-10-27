@@ -1,16 +1,20 @@
 use super::*;
+use azteccraft::move_handles::ManipulatorSize;
 
 pub(super) const SHADED_TEXTURED_NAME: &str = "Hardware Texturing (6)";
 const USE_ALL_LIGHTS_NAME: &str = "Use All Lights (7)";
 
 /// One reason string for the hotkey status and the disabled menu row.
 pub(super) fn unsupported_shading_reason(name: &str) -> String {
-    format!("{name} is not implemented in this build")
+    format!("{name} is not implemented yet")
 }
 
 impl Editor {
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) -> Option<ActiveTool> {
-        if ctx.egui_wants_keyboard_input() || egui::Popup::is_any_open(ctx) || self.files.is_modal()
+        if ctx.egui_wants_keyboard_input()
+            || egui::Popup::is_any_open(ctx)
+            || self.files.is_modal()
+            || self.files.is_closing()
         {
             return None;
         }
@@ -44,11 +48,46 @@ impl Editor {
                 _ => None,
             })
         });
-        let (undo, redo, frame, frame_all, save, save_as) = ctx.input(|i| {
+        // Shift is ignored for grow: Shift+= arrives as Plus on a US layout. Shift+- is "_".
+        // Key repeat steps again while held (PROVISIONAL, the docs do not say).
+        let size_key = ctx.input(|i| {
+            i.events.iter().find_map(|event| match event {
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if !modifiers.ctrl && !modifiers.alt && !modifiers.command => match key {
+                    Key::Plus | Key::Equals => Some(true),
+                    Key::Minus if !modifiers.shift => Some(false),
+                    _ => None,
+                },
+                _ => None,
+            })
+        });
+        // Maya's Alt+Home returns to the default view; Alt chords are otherwise camera navigation.
+        let default_view = ctx.input(|i| {
+            i.events.iter().any(|event| {
+                matches!(event, egui::Event::Key {
+                    key: Key::Home,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.ctrl && !modifiers.shift && !modifiers.command)
+            })
+        });
+        let (history, frame, frame_all) = ctx.input(|i| {
             (
-                i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::Z),
-                i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::Z),
-                i.modifiers.is_none() && i.key_pressed(Key::F),
+                history_chord(&i.events),
+                i.events.iter().any(|event| {
+                    matches!(event, egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.is_none())
+                }),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
                         key: Key::A,
@@ -58,8 +97,6 @@ impl Editor {
                         ..
                     } if modifiers.is_none())
                 }),
-                i.modifiers.command && !i.modifiers.shift && i.key_pressed(Key::S),
-                i.modifiers.command && i.modifiers.shift && i.key_pressed(Key::S),
             )
         });
         // Maya documents Ctrl+A on every platform, so the modifier is explicit Ctrl, never Command.
@@ -91,11 +128,13 @@ impl Editor {
             Some(Key::Num7) => self.unsupported_shading_status(USE_ALL_LIGHTS_NAME),
             _ => {}
         }
-        if undo {
-            self.history_step(false);
+        if self.active_tool != ActiveTool::Select
+            && let Some(grow) = size_key
+        {
+            self.step_manipulator_size(grow);
         }
-        if redo {
-            self.history_step(true);
+        if let Some(operation) = history {
+            self.native_operation(operation);
         }
         if frame {
             self.frame_selected();
@@ -103,13 +142,46 @@ impl Editor {
         if frame_all {
             self.frame_all();
         }
-        if save && self.files.save_available() {
-            self.native_operation(Operation::SaveScene);
+        if default_view {
+            self.default_view();
         }
-        if save_as && self.files.save_as_available() {
-            self.save_as_dialog();
+        if let Some(chord) = ctx.input(|i| menus::file_chord(&i.events)) {
+            let actions = self.file_actions();
+            if let Some(index) = menus::chord_entry(&actions, chord)
+                && actions[index].enabled
+            {
+                (actions[index].run)(self);
+            }
         }
         tool_intent
+    }
+    fn step_manipulator_size(&mut self, grow: bool) {
+        let current = self.manipulation.manipulator_size();
+        let next = if grow {
+            current.grown()
+        } else {
+            current.shrunk()
+        };
+        match next {
+            Some(size) => {
+                // A refusal below sets its own status; a success must not leave a stale bound message.
+                self.status.clear();
+                self.error = false;
+                self.native_operation(Operation::SetManipulatorSize(size));
+            }
+            None => {
+                let (lowest, highest) = ManipulatorSize::key_limits();
+                let (side, name, key_limit, mcp_limit) = if grow {
+                    ("above", "largest", highest, ManipulatorSize::MAX)
+                } else {
+                    ("below", "smallest", lowest, ManipulatorSize::MIN)
+                };
+                self.status = format!(
+                    "Manipulator size is at or {side} its {name} key step ({key_limit:.3}); set_manipulator_size reaches {mcp_limit}"
+                );
+                self.error = false;
+            }
+        }
     }
     fn unsupported_shading_status(&mut self, name: &str) {
         self.status = unsupported_shading_reason(name);
@@ -130,4 +202,30 @@ impl Editor {
             self.error = false;
         }
     }
+}
+
+/// The last history chord wins, so one frame steps once and never undoes then redoes its own step.
+/// Modifiers are per event because egui's `i.modifiers` keeps only the frame-final state; `repeat` is
+/// allowed so a held chord keeps stepping (once per frame).
+fn history_chord(events: &[egui::Event]) -> Option<Operation> {
+    events
+        .iter()
+        .filter_map(|event| match event {
+            egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } if modifiers.command && !modifiers.alt => {
+                // Alt chords belong to Maya camera and marking menus, as in file_chord.
+                // Ctrl/Cmd Y is the documented Redo; Shift+Z stays as an extra.
+                match (key, modifiers.shift) {
+                    (Key::Z, false) => Some(Operation::Undo),
+                    (Key::Z, true) | (Key::Y, false) => Some(Operation::Redo),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+        .next_back()
 }

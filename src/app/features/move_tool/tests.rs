@@ -1,7 +1,12 @@
 use super::*;
 use crate::editor_operations::{SelectionMode, SidebarPanel};
-use azteccraft::native_scene::NativeError;
+use azteccraft::{
+    manipulator_handles::{DisabledKind, Pick, ScaleHandles},
+    native_scene::NativeError,
+    viewport::Camera,
+};
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, Pos2, Rect, Shape};
+use glam::Vec3;
 
 const FACE_MODE_REFUSAL: &str = "Move is unavailable in Face selection; switch to Object selection";
 
@@ -69,6 +74,63 @@ pub(in crate::app) fn viewport(output: &egui::FullOutput) -> Rect {
             _ => None,
         })
         .expect("actual viewport callback")
+}
+
+pub(in crate::app) fn oblique() -> Camera {
+    Camera::new(Vec3::ZERO, 0.6, 0.4, 10.0, 90_f32.to_radians(), 0.01, 100.0).unwrap()
+}
+
+#[derive(Clone)]
+pub(in crate::app) struct View {
+    pub(in crate::app) camera: Camera,
+    pub(in crate::app) aspect: f32,
+    pub(in crate::app) rect: Rect,
+    pub(in crate::app) scale: f32,
+}
+
+impl View {
+    pub(in crate::app) fn screen(&self, world: Vec3) -> Pos2 {
+        let ndc = self.camera.project(world, self.aspect).unwrap().unwrap();
+        Pos2::new(
+            self.rect.left() + (ndc.x + 1.0) * self.rect.width() * 0.5,
+            self.rect.top() + (1.0 - ndc.y) * self.rect.height() * 0.5,
+        )
+    }
+
+    // World length of a 72 px handle at the origin: the 90 degree view spans 10 units up and down.
+    pub(in crate::app) fn radius(&self) -> f32 {
+        72.0 / self.scale * 10.0 / (self.rect.height() * 0.5)
+    }
+
+    // The point of the ring about `axis` at `degrees` from the ring point nearest the eye.
+    pub(in crate::app) fn ring(&self, axis: Vec3, degrees: f32) -> Pos2 {
+        self.ring_sized(axis, degrees, 1.0)
+    }
+
+    // The same point on a ring whose radius is `factor` times the default one.
+    pub(in crate::app) fn ring_sized(&self, axis: Vec3, degrees: f32, factor: f32) -> Pos2 {
+        let eye = self.camera.eye();
+        let u = (eye - axis * eye.dot(axis)).normalize();
+        let v = axis.cross(u);
+        let angle = degrees.to_radians();
+        self.screen((u * angle.cos() + v * angle.sin()) * self.radius() * factor)
+    }
+}
+
+// The midpoint of a Scale plane outline that no shaft outranks, as a logical pointer for a
+// viewport at `rect.min` and scale one. Needs the Scale tool at a small manipulator size.
+pub(in crate::app) fn scale_plane_point(editor: &Editor, rect: Rect) -> Pos2 {
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let handles = ScaleHandles::new(&capture, &frame).unwrap();
+    let pixel = handles
+        .disabled()
+        .iter()
+        .flat_map(|handle| handle.segments())
+        .map(|segment| (segment.start + segment.end) * 0.5)
+        .find(|pixel| handles.pick(*pixel) == Some(Pick::Disabled(DisabledKind::ScalePlane)))
+        .expect("a plane outline pixel that no shaft outranks");
+    rect.min + egui::vec2(pixel.x as f32, pixel.y as f32)
 }
 
 pub(in crate::app) fn setup(scale: f32) -> (Editor, egui::Context, Rect) {
@@ -1564,6 +1626,57 @@ fn hover_and_active_painter_states_use_the_same_actual_axis_hit() {
 }
 
 #[test]
+fn hover_and_press_use_the_same_eight_pixel_distance() {
+    // 7 px off the X shaft both highlight and grab (red at 6 px); 9 px does neither.
+    for (offset, grabbed) in [(7.0, true), (9.0, false)] {
+        let (mut editor, context, rect) = setup(1.0);
+        let point = rect.center() + egui::vec2(40.0, offset);
+        let shaft_is_white = |output: &egui::FullOutput| {
+            output.shapes.iter().any(|shape| {
+                matches!(&shape.shape, Shape::LineSegment { points, stroke }
+                    if points[0].distance(rect.center()) < 0.01
+                        && points[1].x > rect.center().x + 30.0
+                        && (points[1].y - rect.center().y).abs() < 0.01
+                        && stroke.color == egui::Color32::WHITE)
+            })
+        };
+        let hover = frame(
+            &mut editor,
+            &context,
+            raw(
+                egui::vec2(1440.0, 900.0),
+                Pos2::ZERO,
+                1.0,
+                vec![Event::PointerMoved(point)],
+            ),
+        );
+        assert_eq!(shaft_is_white(&hover), grabbed, "hover at {offset}");
+        let inspected = editor.inspect_manipulation().unwrap();
+        let pointer_hit = inspected.viewport.unwrap().pointer_hit;
+        assert_eq!(
+            pointer_hit,
+            grabbed.then_some("x"),
+            "inspection at {offset}"
+        );
+        frame(
+            &mut editor,
+            &context,
+            raw(
+                egui::vec2(1440.0, 900.0),
+                Pos2::ZERO,
+                1.0,
+                button(point, true),
+            ),
+        );
+        assert_eq!(
+            editor.history.active_manipulation().is_some(),
+            grabbed,
+            "press at {offset}"
+        );
+    }
+}
+
+#[test]
 fn actual_hidden_logic_cancels_native_pointer_capture() {
     let (mut editor, context, rect) = setup(1.0);
     let before = editor.history.scene().clone();
@@ -1753,6 +1866,34 @@ fn focused_label(output: &egui::FullOutput) -> Option<String> {
         .and_then(|(_, node)| node.label().map(str::to_owned))
 }
 
+// Opens the File menu with the keyboard: Tab to the "File" button, then Space.
+pub(in crate::app) fn open_file_menu(
+    editor: &mut Editor,
+    context: &egui::Context,
+    size: egui::Vec2,
+) {
+    context.enable_accesskit();
+    let mut reached = false;
+    for _ in 0..60 {
+        let output = frame(
+            editor,
+            context,
+            raw(size, Pos2::ZERO, 1.0, vec![key(Key::Tab)]),
+        );
+        if focused_label(&output).as_deref() == Some("File") {
+            reached = true;
+            break;
+        }
+    }
+    assert!(reached, "Tab reaches the File menu button");
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, vec![key(Key::Space)]),
+    );
+    assert!(egui::Popup::is_any_open(context), "File menu opens");
+}
+
 #[test]
 fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_cancels_it() {
     // A native pointer Move is already cancelled by an open popup, so the surviving case is a
@@ -1779,17 +1920,7 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
             raw(size, Pos2::ZERO, 1.0, vec![key(key_press)]),
         )
     };
-    let mut reached = false;
-    for _ in 0..60 {
-        let output = step(&mut editor, Key::Tab);
-        if focused_label(&output).as_deref() == Some("File") {
-            reached = true;
-            break;
-        }
-    }
-    assert!(reached, "Tab reaches the File menu button");
-    step(&mut editor, Key::Space);
-    assert!(egui::Popup::is_any_open(&context), "File menu opens");
+    open_file_menu(&mut editor, &context, size);
     assert!(editor.history.active_manipulation().is_some());
     let status = editor.status.clone();
     step(&mut editor, Key::Escape);
@@ -1806,4 +1937,185 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
     assert!(editor.history.active_manipulation().is_none());
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.status, "Edit cancelled");
+}
+
+#[test]
+fn editor_move_begins_on_a_sited_identity_node() {
+    // The specimen with Maya-style zero padding and its keys shifted (t to r, r to s): the
+    // transform has no translation leaf but the file records where one may go.
+    let mut bytes = wire::specimen();
+    let tree = azteccraft::maya_binary::container::inspect(bytes.clone().into()).unwrap();
+    for chunk in tree.chunks() {
+        bytes[chunk.padding_range()].fill(0);
+    }
+    for (from, to) in [(b't', b'r'), (b'r', b's')] {
+        let start = tree
+            .chunks()
+            .iter()
+            .find(|c| c.tag() == *b"DBL3" && tree.source()[c.payload_range()][0] == from)
+            .unwrap()
+            .payload_range()
+            .start;
+        bytes[start] = to;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("sited.mb");
+    std::fs::write(&path, &bytes).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(target.node),
+            instance_path: Some(target.path.clone()),
+        })
+        .unwrap();
+    assert!(
+        editor.history.scene().nodes()[0].transform().translation == [0.0; 3],
+        "the translation leaf is absent"
+    );
+    let kinds = editor.inspect_manipulation().unwrap().kinds;
+    let named = |name: &str| kinds.iter().find(|k| k.kind == name).unwrap();
+    assert!(named("move").available, "{:?}", named("move"));
+    assert_eq!(named("move").unavailable_reason, None);
+    let started = editor
+        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native)
+        .unwrap();
+    assert!(matches!(
+        started,
+        OperationReply::ManipulationStarted { .. }
+    ));
+    assert!(editor.history.active_manipulation().is_some());
+}
+
+const MARQUEE_STATUS: &str = "Marquee (drag) selection is not implemented yet; click to select";
+
+fn drag(editor: &mut Editor, context: &egui::Context, from: Pos2, to: Pos2) {
+    let size = egui::vec2(1440.0, 900.0);
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, button(from, true)),
+    );
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, vec![Event::PointerMoved(to)]),
+    );
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, button(to, false)),
+    );
+}
+
+#[test]
+fn drag_off_a_handle_shows_the_marquee_refusal_and_on_a_handle_does_not() {
+    let (mut editor, context, rect) = setup(1.0);
+    let from = rect.center() + egui::vec2(-300.0, 200.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 30.0));
+    assert_eq!(editor.status, MARQUEE_STATUS);
+
+    let (mut editor, context, rect) = setup(1.0);
+    let node = editor.selected.unwrap();
+    let from = rect.center() + egui::vec2(40.0, 0.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
+    assert_ne!(editor.status, MARQUEE_STATUS);
+    assert!(editor.history.active_manipulation().is_none());
+    let translation = editor
+        .history
+        .scene()
+        .node(node)
+        .unwrap()
+        .transform()
+        .translation;
+    assert!(translation[0] > 0.0, "{translation:?}");
+}
+
+#[test]
+fn face_mode_refusal_wins_over_marquee_for_a_manipulator_drag() {
+    let (mut editor, context, rect) = setup(1.0);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let from = rect.center() + egui::vec2(40.0, 0.0);
+    drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
+    assert_eq!(editor.status, FACE_MODE_REFUSAL);
+}
+
+fn drag_with(
+    editor: &mut Editor,
+    context: &egui::Context,
+    from: Pos2,
+    to: Pos2,
+    modifiers: Modifiers,
+) {
+    let size = egui::vec2(1440.0, 900.0);
+    let with = |mut events: Vec<Event>| {
+        events.insert(0, Event::ModifiersChanged(modifiers));
+        raw(size, Pos2::ZERO, 1.0, events)
+    };
+    let press = |position: Pos2, pressed: bool| Event::PointerButton {
+        pos: position,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers,
+    };
+    frame(
+        editor,
+        context,
+        with(vec![Event::PointerMoved(from), press(from, true)]),
+    );
+    frame(editor, context, with(vec![Event::PointerMoved(to)]));
+    frame(
+        editor,
+        context,
+        with(vec![Event::PointerMoved(to), press(to, false)]),
+    );
+}
+
+fn select_tool_editor() -> (Editor, egui::Context, Rect) {
+    let (mut editor, context, rect) = setup(1.0);
+    editor.native_operation(Operation::SetActiveTool(ActiveTool::Select));
+    frame(
+        &mut editor,
+        &context,
+        raw(egui::vec2(1440.0, 900.0), Pos2::ZERO, 1.0, vec![]),
+    );
+    (editor, context, rect)
+}
+
+#[test]
+fn a_plain_drag_after_an_orbit_drag_still_shows_the_marquee_refusal() {
+    let (mut editor, context, rect) = select_tool_editor();
+    let from = rect.center() + egui::vec2(-300.0, 200.0);
+    let to = from + egui::vec2(60.0, 30.0);
+    drag_with(&mut editor, &context, from, to, Modifiers::ALT);
+    assert_ne!(editor.status, MARQUEE_STATUS);
+    drag_with(&mut editor, &context, from, to, Modifiers::NONE);
+    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert!(!editor.error);
+}
+
+#[test]
+fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
+    let (mut editor, context, rect) = select_tool_editor();
+    let selected = editor.selected;
+    assert!(selected.is_some());
+    let dirty = editor.is_dirty();
+    let undo = editor.history.undo_label();
+    let redo = editor.history.can_redo();
+    let from = rect.center();
+    drag_with(
+        &mut editor,
+        &context,
+        from,
+        from + egui::vec2(60.0, 30.0),
+        Modifiers::NONE,
+    );
+    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert_eq!(editor.selected, selected);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.undo_label(), undo);
+    assert_eq!(editor.history.can_redo(), redo);
 }

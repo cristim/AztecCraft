@@ -344,6 +344,11 @@ fn is_dirty(history: &History, saved: &NativeScene) -> bool {
 }
 
 #[test]
+fn undo_limit_is_pinned_to_fifty() {
+    assert_eq!(UNDO_LIMIT, 50);
+}
+
+#[test]
 fn undo_keeps_only_the_newest_limit_entries_and_redo_is_intact() {
     let mut history = History::default();
     let id = create(&mut history, "cube");

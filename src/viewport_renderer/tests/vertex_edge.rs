@@ -321,7 +321,7 @@ fn edge_mode_draws_every_edge_instead_of_outlines_for_the_active_instance_only()
     let edges = scene.instance().edges().len();
     assert_eq!(edges, 12);
     let lines = vertices(&submission, &submission.lines);
-    assert_eq!(lines.len(), 84 + edges * 2 + 48);
+    assert_eq!(lines.len(), GRID_VERTICES + edges * 2 + 48);
     let edge_color = rgba(EDGE_RGB);
     let blue = lines.iter().filter(|vertex| color(vertex) == edge_color);
     assert_eq!(blue.count(), edges * 2);
@@ -346,7 +346,7 @@ fn edge_mode_draws_each_listed_edge_between_its_own_endpoints() {
     );
     let matrix = camera.projection_matrix(1.0).unwrap() * camera.view_matrix();
     let lines = vertices(&submission, &submission.lines);
-    let drawn = &lines[84..];
+    let drawn = &lines[GRID_VERTICES..];
     for (&[a, b], pair) in scene.instance().edges().iter().zip(drawn.chunks(2)) {
         for (vertex, end) in pair.iter().zip([a, b]) {
             let clip = matrix * scene.instance().world_vertices()[end].extend(1.0);
@@ -576,7 +576,8 @@ fn corner_failures(camera: &Camera, size: u32) -> Vec<String> {
 }
 
 // Readbacks ran on an Apple M1 Pro (Metal) with a side-2 cube at the origin, near 0.01 and far
-// 10000, yaw 0.6 and pitch 0.4 for the far cameras; see `known-issues.md` for the table.
+// 10000, yaw 0.6 and pitch 0.4 for the far cameras; see `known-issues.md` for the table. The
+// default-camera readbacks now run at near 0.1 and the film-fit lens.
 #[test]
 #[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_every_visible_corner_marker_is_whole_at_the_default_distance_and_1024_px() {
@@ -804,7 +805,11 @@ fn budget_scene(extrusions: usize, planes: usize) -> Scene {
     }
     for index in 0..planes {
         native
-            .create(Primitive::Plane, &format!("plane{index}"))
+            .create_with_options(
+                Primitive::Plane,
+                &SINGLE_QUAD_PLANE,
+                &format!("plane{index}"),
+            )
             .unwrap();
     }
     Scene::new(native)

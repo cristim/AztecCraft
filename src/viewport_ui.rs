@@ -1,7 +1,7 @@
 use crate::editor_operations::Operation;
 use crate::viewport_renderer::{RenderError, SelectionFeedback, ViewportRenderer};
 use azteccraft::{
-    move_handles::{HandleError, ViewportCapture},
+    move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
     view_scene::{ViewError, ViewScene},
@@ -14,6 +14,7 @@ use glam::Vec2;
 pub enum SelectionRefusal {
     ModifiedClick,
     AmbiguousPrimaryInput,
+    Marquee,
 }
 
 impl SelectionRefusal {
@@ -25,6 +26,7 @@ impl SelectionRefusal {
             Self::AmbiguousPrimaryInput => {
                 "Ambiguous coalesced primary input cannot select; retry with a single click"
             }
+            Self::Marquee => "Marquee (drag) selection is not implemented yet; click to select",
         }
     }
 }
@@ -89,8 +91,13 @@ pub fn capture(
     let (delta, modifiers, scroll) =
         ui.input(|i| (i.pointer.delta(), i.modifiers, i.smooth_scroll_delta.y));
     let alt = modifiers.alt;
+    let orbit_in_drag = response.id.with("orbit_in_drag");
+    if response.drag_started_by(PointerButton::Primary) {
+        ui.data_mut(|data| data.insert_temp(orbit_in_drag, false));
+    }
     let mut navigation = Vec::with_capacity(4);
     if response.dragged_by(PointerButton::Primary) && alt {
+        ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
         navigation.push(Operation::Orbit {
             radians: (Vec2::new(-delta.x, delta.y) * 0.007).to_array(),
         });
@@ -153,6 +160,15 @@ pub fn capture(
             unsupported_selection = Some(SelectionRefusal::ModifiedClick);
         }
     }
+    if unsupported_selection.is_none()
+        && response.drag_stopped_by(PointerButton::Primary)
+        && released.is_some_and(|(_, modifiers)| !modifiers.alt)
+        && !ui
+            .data(|data| data.get_temp::<bool>(orbit_in_drag))
+            .unwrap_or(false)
+    {
+        unsupported_selection = Some(SelectionRefusal::Marquee);
+    }
     let move_pointer = ui.input(|input| MovePointer {
         position: input
             .pointer
@@ -194,13 +210,18 @@ impl ViewportInput {
     pub fn aspect(&self) -> f32 {
         self.physical_size[0] as f32 / self.physical_size[1] as f32
     }
-    pub fn move_capture(&self, camera: &Camera) -> Result<ViewportCapture, HandleError> {
-        ViewportCapture::new(
+    pub fn move_capture(
+        &self,
+        camera: &Camera,
+        size: ManipulatorSize,
+    ) -> Result<ViewportCapture, HandleError> {
+        Ok(ViewportCapture::new(
             camera,
             self.physical_origin,
             self.physical_size,
             self.pixels_per_point,
-        )
+        )?
+        .with_manipulator_size(size))
     }
     pub fn move_pointer(&self) -> MovePointer {
         self.move_pointer

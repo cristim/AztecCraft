@@ -316,6 +316,11 @@ impl Editor {
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
                 distance: self.camera.distance(),
+                yaw_degrees: f64::from(self.camera.yaw()).to_degrees(),
+                pitch_degrees: f64::from(self.camera.pitch()).to_degrees(),
+                fov_y_degrees: f64::from(self.camera.fov_y_for(self.aspect)).to_degrees(),
+                near_clip: self.camera.near(),
+                far_clip: self.camera.far(),
             },
         })
     }

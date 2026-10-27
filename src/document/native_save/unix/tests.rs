@@ -8,6 +8,18 @@ mod wire {
     ));
 }
 
+#[allow(dead_code)]
+mod sited {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sites.rs"
+    ));
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary_sited.rs"
+    ));
+}
+
 fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let path = directory.join("scene.mb");
     std::fs::write(&path, wire::specimen()).unwrap();
@@ -19,6 +31,200 @@ fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
         SaveOutcome::Saved { origin, path } => (origin, path),
         other => panic!("expected confirmed installation: {other:?}"),
     }
+}
+
+/// A sited scene on disk: the `object` transform has no translate leaf, but its site is recorded.
+fn opened_sited(directory: &Path) -> (PathBuf, Vec<u8>, crate::document::NativeDocument) {
+    let path = directory.join("sited.mb");
+    let bytes = sited::sited_scene(&wire::mesh_payload(&[0, 1, 0x6000_0002]));
+    std::fs::write(&path, &bytes).unwrap();
+    let document = load_native(&path).unwrap();
+    (path, bytes, document)
+}
+
+fn has_record(bytes: &[u8], values: [f64; 3]) -> bool {
+    let record = sited::triple_aux(b"t", sited::SITE_AUX, values);
+    bytes.windows(record.len()).any(|window| window == record)
+}
+
+#[test]
+fn inserted_leaf_save_as_repeat_save_and_reopen_are_bit_equal() {
+    let directory = tempfile::tempdir().unwrap();
+    let (path, original, mut document) = opened_sited(directory.path());
+    let id = document
+        .scene
+        .nodes()
+        .iter()
+        .find(|node| node.name() == "object")
+        .unwrap()
+        .id();
+    assert_eq!(
+        document.scene.node(id).unwrap().transform().translation,
+        [0.0; 3]
+    );
+    // 16777217.125 needs more than f32 precision; -0.0 is a real edit that must survive.
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 16777217.125)
+        .unwrap();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateY, -0.0)
+        .unwrap();
+    let destination = directory.path().join("inserted.mb");
+    let (origin, installed) = saved(save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&destination),
+        &|| true,
+    ));
+    assert_eq!(installed, destination.canonicalize().unwrap());
+    let first = std::fs::read(&destination).unwrap();
+    assert_eq!(first.len(), original.len() + 48);
+    assert!(has_record(&first, [16777217.125, -0.0, 0.0]));
+    // Save As never touches the source.
+    assert!(std::fs::read(&path).unwrap() == original);
+    // A repeat Save of the same scene against the returned origin rewrites identical bytes.
+    let (origin, _) = saved(save_native(
+        &origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert!(std::fs::read(&destination).unwrap() == first);
+    // A later edit is derived from the same retained source, so the record is rewritten, not doubled.
+    document
+        .scene
+        .set_channel(id, Channel::TranslateZ, 2.5)
+        .unwrap();
+    saved(save_native(
+        &origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    let second = std::fs::read(&destination).unwrap();
+    assert_eq!(second.len(), original.len() + 48);
+    assert!(has_record(&second, [16777217.125, -0.0, 2.5]));
+    let reopened = load_native(&destination).unwrap();
+    let translation = reopened.scene.node(id).unwrap().transform().translation;
+    assert_eq!(
+        translation.map(f64::to_bits),
+        [
+            16777217.125f64.to_bits(),
+            (-0.0f64).to_bits(),
+            2.5f64.to_bits()
+        ]
+    );
+    // The reopened document now has the leaf, so a further edit changes words in place.
+    let mut again = reopened;
+    again
+        .scene
+        .set_channel(id, Channel::TranslateX, 1.0)
+        .unwrap();
+    saved(save_native(
+        &again.origin,
+        &again.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&destination).unwrap().len(), second.len());
+    let last = load_native(&destination).unwrap();
+    assert_eq!(
+        last.scene
+            .node(id)
+            .unwrap()
+            .transform()
+            .translation
+            .map(f64::to_bits),
+        [1.0f64.to_bits(), (-0.0f64).to_bits(), 2.5f64.to_bits()]
+    );
+}
+
+#[test]
+fn inserted_leaf_save_elides_positive_zero_and_writes_negative_zero() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, original, mut document) = opened_sited(directory.path());
+    let id = document.scene.nodes()[0].id();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 5.0)
+        .unwrap();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 0.0)
+        .unwrap();
+    let elided = directory.path().join("elided.mb");
+    saved(save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&elided),
+        &|| true,
+    ));
+    assert!(std::fs::read(&elided).unwrap() == original);
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, -0.0)
+        .unwrap();
+    let written = directory.path().join("negative-zero.mb");
+    saved(save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&written),
+        &|| true,
+    ));
+    let bytes = std::fs::read(&written).unwrap();
+    assert_eq!(bytes.len(), original.len() + 48);
+    assert!(has_record(&bytes, [-0.0, 0.0, 0.0]));
+    let reopened = load_native(&written).unwrap();
+    assert_eq!(
+        reopened
+            .scene
+            .node(id)
+            .unwrap()
+            .transform()
+            .translation
+            .map(f64::to_bits),
+        [(-0.0f64).to_bits(), 0, 0]
+    );
+}
+
+#[test]
+fn inserted_leaf_save_is_rejected_when_the_source_changed_on_disk() {
+    let directory = tempfile::tempdir().unwrap();
+    let (path, original, mut document) = opened_sited(directory.path());
+    let id = document.scene.nodes()[0].id();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 3.0)
+        .unwrap();
+    let mut replacement = original.clone();
+    let last = replacement.len() - 1;
+    replacement[last] ^= 1;
+    std::fs::write(&path, &replacement).unwrap();
+    assert!(matches!(
+        save_native(
+            &document.origin,
+            &document.scene,
+            SaveDestination::Active,
+            &|| true
+        ),
+        Err(Error::SourceChanged)
+    ));
+    assert!(std::fs::read(&path).unwrap() == replacement);
+    // Save As derives from the bytes parsed at Open, so it still succeeds and leaves the changed source alone.
+    let destination = directory.path().join("rescued.mb");
+    saved(save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&destination),
+        &|| true,
+    ));
+    assert!(has_record(
+        &std::fs::read(&destination).unwrap(),
+        [3.0, 0.0, 0.0]
+    ));
+    assert!(std::fs::read(&path).unwrap() == replacement);
 }
 
 #[test]

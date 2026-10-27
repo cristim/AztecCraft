@@ -9,11 +9,16 @@
         3.115346670150757,
         6.081475257873535
       ],
+      "far_clip": 10000.0,
+      "fov_y_degrees": 37.849961153583806,
+      "near_clip": 0.10000000149011612,
+      "pitch_degrees": 22.918312146742387,
       "target": [
         0.0,
         0.0,
         0.0
-      ]
+      ],
+      "yaw_degrees": 34.37746907388723
     },
     "can_redo": false,
     "can_undo": true,
@@ -73,8 +78,11 @@
           "unavailable_reason": null
         }
       ],
+      "manipulator_size": 1.0,
       "refusal": null,
+      "rotate_axis": "x",
       "rotate_space": "object",
+      "scale_handle": "uniform",
       "scale_space": "world",
       "units": {
         "angle": "deg",
@@ -100,7 +108,9 @@
           }
         ],
         "pointer_available": false,
+        "pointer_disabled": null,
         "pointer_hit": null,
+        "pointer_refusal": null,
         "provenance": "last_native_viewport_capture"
       }
     },
@@ -189,7 +199,7 @@
         ],
         "editable": false,
         "id": "0",
-        "name": "sessionDefault",
+        "name": "standardSurface1",
         "shading_group": "initialShadingGroup"
       }
     ],
@@ -200,7 +210,7 @@
         "faces": 6,
         "id": "2",
         "material": null,
-        "name": "pCube1Shape",
+        "name": "pCubeShape1",
         "points": 8,
         "session_material": "0",
         "smoothing_known": true,

@@ -1,4 +1,14 @@
 use super::*;
+use azteccraft::history::{ManipulationFinish, ManipulationKindState};
+
+/// Status-line feedback planned for one operation; see [`Editor::status_feedback`].
+struct StatusFeedback {
+    status: Option<&'static str>,
+    step_label: Option<&'static str>,
+    activated: bool,
+    /// Report `status` whatever the reply, as a native drag release or Esc does.
+    fixed: bool,
+}
 
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
@@ -44,16 +54,24 @@ impl Editor {
         Ok(())
     }
     pub(super) fn native_operation(&mut self, operation: Operation) {
+        let feedback = self.status_feedback(&operation);
+        let result = self.apply_operation(operation);
+        self.record_feedback(feedback, &result);
+    }
+    /// What the status line reports for an operation, decided before it runs (Undo/Redo labels
+    /// change once it does). Native and remote callers share it, as Maya's Command Line feedback
+    /// reports a command's result whatever issued it.
+    fn status_feedback(&self, operation: &Operation) -> StatusFeedback {
         let activated = matches!(
-            operation,
+            *operation,
             Operation::SetActiveTool(ActiveTool::Rotate | ActiveTool::Scale)
         );
-        let step_label = match operation {
+        let step_label = match *operation {
             Operation::Undo => self.history.undo_label(),
             Operation::Redo => self.history.redo_label(),
             _ => None,
         };
-        let status = match operation {
+        let status = match *operation {
             Operation::Select { .. }
             | Operation::SelectFace { .. }
             | Operation::SelectVertex { .. }
@@ -63,11 +81,35 @@ impl Editor {
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
+            | Operation::SetToolHandle(_)
+            | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. } => None,
-            Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => None,
+            Operation::Orbit { .. }
+            | Operation::Pan { .. }
+            | Operation::Dolly { .. }
+            | Operation::SetCameraPose { .. } => None,
+            // Native drags report their own live preview, which a remote preview does not drive.
+            Operation::BeginMove { .. }
+            | Operation::BeginRotate { .. }
+            | Operation::BeginScale { .. }
+            | Operation::UpdateMove { .. }
+            | Operation::UpdateManipulation { .. } => None,
+            Operation::FinishMove {
+                finish: ManipulationFinish::Cancel,
+                ..
+            } => Some("Edit cancelled"),
+            Operation::FinishMove { .. } => Some(
+                match self.history.active_manipulation().map(|active| active.kind) {
+                    Some(ManipulationKindState::Rotate { .. }) => "Rotate committed",
+                    Some(ManipulationKindState::Scale { .. }) => "Scale committed",
+                    _ => "Move committed",
+                },
+            ),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::SetMaterialDiffuse { .. } => Some("Material data edited"),
             Operation::Undo => Some("Undo"),
             Operation::Redo => Some("Redo"),
             Operation::OpenScene { .. } | Operation::NewScene => Some("Scene ready"),
@@ -77,9 +119,30 @@ impl Editor {
             | Operation::ResolveFileAction { .. } => None,
             _ => Some("Scene edited"),
         };
-        match self.apply_operation(operation) {
+        StatusFeedback {
+            status,
+            step_label,
+            activated,
+            fixed: matches!(*operation, Operation::FinishMove { .. }),
+        }
+    }
+    fn record_feedback(
+        &mut self,
+        feedback: StatusFeedback,
+        result: &Result<OperationReply, OperationError>,
+    ) {
+        let StatusFeedback {
+            status,
+            step_label,
+            activated,
+            fixed,
+        } = feedback;
+        match result {
             Ok(reply) => {
-                if let Some(status) = status {
+                if let (Some(status), true) = (status, fixed) {
+                    self.status = status.into();
+                    self.error = false;
+                } else if let Some(status) = status {
                     self.status = match reply {
                         OperationReply::Unchanged => "No change",
                         OperationReply::DocumentApplied { .. } => "Scene ready",
@@ -90,7 +153,7 @@ impl Editor {
                         _ => status,
                     }
                     .into();
-                    if let (OperationReply::Changed, Some(label)) = (&reply, step_label) {
+                    if let (OperationReply::Changed, Some(label)) = (reply, step_label) {
                         self.status = format!("{status} {label}");
                     }
                     self.error = false;
@@ -101,7 +164,7 @@ impl Editor {
                 }
             }
             Err(error) => {
-                self.set_error_status(&error);
+                self.set_error_status(error);
                 self.error = true;
             }
         }
@@ -150,11 +213,18 @@ impl Editor {
         {
             return Err(OperationError::BusyEditing);
         }
-        self.apply_operation_guarded(
+        // A remote success is reported on the status line like a native one. Refusals and
+        // failures go back to the caller only, preserving the native editor baseline.
+        let feedback = self.status_feedback(&request.operation);
+        let result = self.apply_operation_guarded(
             ManipulationProvenance::Remote,
             request.operation,
             may_install,
-        )
+        );
+        if result.is_ok() {
+            self.record_feedback(feedback, &result);
+        }
+        result
     }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn transform_input(
@@ -253,6 +323,8 @@ impl Editor {
                 operation,
                 Operation::SetActiveTool(_)
                     | Operation::SetToolSpace { .. }
+                    | Operation::SetToolHandle(_)
+                    | Operation::SetManipulatorSize(_)
                     | Operation::BeginMove { .. }
                     | Operation::BeginRotate { .. }
                     | Operation::BeginScale { .. }
@@ -334,6 +406,8 @@ impl Editor {
         let command = match operation {
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
+            Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
+            Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
             Operation::BeginMove { target, axis } => {
                 return self.begin_editor_move(&target, axis, provenance);
             }
@@ -417,33 +491,14 @@ impl Editor {
                 primitive,
                 options,
                 name,
-            } => {
-                let name = name.unwrap_or_else(|| {
-                    let base = match primitive {
-                        Primitive::Cube => "pCube",
-                        Primitive::Plane => "pPlane",
-                        Primitive::Sphere => "pSphere",
-                        Primitive::Cylinder => "pCylinder",
-                        Primitive::Cone => "pCone",
-                    };
-                    let mut suffix = 1;
-                    while self
-                        .history
-                        .scene()
-                        .nodes()
-                        .iter()
-                        .any(|node| node.name() == format!("{base}{suffix}"))
-                    {
-                        suffix += 1;
-                    }
-                    format!("{base}{suffix}")
-                });
-                Command::Create {
+            } => match name {
+                Some(name) => Command::Create {
                     primitive,
                     options,
                     name,
-                }
-            }
+                },
+                None => Command::CreateDefaultNamed { primitive, options },
+            },
             #[cfg(any(test, feature = "mcp"))]
             Operation::Rename { id, name } => Command::Rename { id, name },
             #[cfg(any(test, feature = "mcp"))]
@@ -670,6 +725,22 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                 }
                 .map_err(OperationError::Camera)?;
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
+                });
+            }
+            Operation::SetCameraPose {
+                target,
+                distance,
+                yaw,
+                pitch,
+            } => {
+                let before = self.camera.clone();
+                self.camera
+                    .set_pose(target.into(), distance, yaw, pitch)
+                    .map_err(OperationError::CameraPose)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
                 } else {

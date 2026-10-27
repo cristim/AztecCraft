@@ -1,8 +1,10 @@
 //! Session-only lambert materials assigned to whole authored shapes.
 //!
 //! The table is not saved and never touches source appearance: sourced scenes keep their
-//! `MaterialDiffuse` path and refuse session edits. The initial shading group's default shader
-//! is unverified for Maya 2026, so its colour is a placeholder equal to the viewport base fill.
+//! `MaterialDiffuse` path and refuse session edits. Names follow Maya 2025.1 (#177): the
+//! initial shading group's shader is `standardSurface1`, and new lamberts start at `lambert2`
+//! with `lambert2SG` because Maya's unconnected `lambert1` always exists. Maya 2026 is
+//! unverified, and the initial shader's colour is a placeholder equal to the viewport base fill.
 
 use super::{NativeError, NativeId, NativeMeshShape, NativeScene};
 use crate::shading::SURFACE_BASE_RGB;
@@ -80,7 +82,7 @@ impl Default for SessionMaterials {
     fn default() -> Self {
         Self {
             materials: vec![Lambert {
-                name: "sessionDefault".into(),
+                name: "standardSurface1".into(),
                 color: SURFACE_BASE_RGB.map(|channel| f64::from(channel) / 255.0),
             }],
             groups: vec![ShadingGroup {
@@ -90,6 +92,16 @@ impl Default for SessionMaterials {
             assignments: BTreeMap::new(),
         }
     }
+}
+
+/// `N` of a `lambert<N>` or `lambert<N>SG` name, with `N` a `u32` without leading zeros.
+fn lambert_number(name: &str) -> Option<u32> {
+    let digits = name.strip_prefix("lambert")?;
+    let digits = digits.strip_suffix("SG").unwrap_or(digits);
+    if digits.starts_with('0') || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 fn check_color(color: [f64; 3]) -> Result<(), NativeError> {
@@ -143,18 +155,33 @@ impl SessionMaterials {
         self.assignments.retain(|shape, _| known.contains(shape));
     }
 
-    pub(super) fn add(&mut self, color: [f64; 3]) -> Result<SessionMaterialId, NativeError> {
+    /// Adds `lambert<N>` with `lambert<N>SG`, where `N` is one above the highest `lambert<N>`
+    /// any material, group or name in `scene_names` (transforms and shapes) holds, and at least
+    /// 2 because Maya's `lambert1` always exists: Maya 2025.1 gave `lambert10` beside a
+    /// transform `lambert9`, and `lambert2` again after deleting `lambert2`. Counting
+    /// `lambert<N>SG` names too is PROVISIONAL. Both names are then free.
+    pub(super) fn add<'a>(
+        &mut self,
+        color: [f64; 3],
+        scene_names: impl Iterator<Item = &'a str>,
+    ) -> Result<SessionMaterialId, NativeError> {
         check_color(color)?;
         if self.materials.len() >= MAX_SESSION_MATERIALS {
             return Err(NativeError::ResourceLimit);
         }
+        let highest = (self.materials.iter().map(Lambert::name))
+            .chain(self.groups.iter().map(ShadingGroup::name))
+            .filter_map(lambert_number)
+            .chain(scene_names.filter_map(lambert_number))
+            .fold(1, u32::max);
+        let suffix = highest.checked_add(1).ok_or(NativeError::ResourceLimit)?;
         let id = SessionMaterialId(self.materials.len());
         self.materials.push(Lambert {
-            name: format!("sessionLambert{}", id.0),
+            name: format!("lambert{suffix}"),
             color,
         });
         self.groups.push(ShadingGroup {
-            name: format!("sessionLambert{}SG", id.0),
+            name: format!("lambert{suffix}SG"),
             material: id,
         });
         Ok(id)
@@ -199,7 +226,12 @@ impl NativeScene {
         color: [f64; 3],
     ) -> Result<SessionMaterialId, NativeError> {
         self.structural_edit()?;
-        self.session_materials.add(color)
+        let names = self
+            .nodes
+            .iter()
+            .map(|n| n.name())
+            .chain(self.shapes.iter().map(|s| s.name()));
+        self.session_materials.add(color, names)
     }
 
     /// Assigns the whole shape, so every instance of it changes.
@@ -212,12 +244,19 @@ impl NativeScene {
         if !self.shapes.iter().any(|candidate| candidate.id == shape) {
             return Err(NativeError::MissingShape(shape));
         }
+        // Field borrows rather than `authored::names(self)`, which would also borrow the
+        // material table taken mutably below.
+        let names = self
+            .nodes
+            .iter()
+            .map(|n| n.name())
+            .chain(self.shapes.iter().map(|s| s.name()));
         let materials = &mut self.session_materials;
         let (material, group) = match choice {
             MaterialChoice::Existing(material) => (material, materials.group_of(material)?),
             MaterialChoice::New { color } => {
                 check_color(color)?;
-                let material = materials.add(color)?;
+                let material = materials.add(color, names)?;
                 (material, materials.groups.len() - 1)
             }
         };

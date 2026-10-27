@@ -18,7 +18,35 @@ use eframe::egui::{self, Key};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-#[cfg(all(test, unix))]
+/// Open dialog filters, the first being the default. Maya 2025.1 lists "Maya Scenes (*.ma *.mb
+/// *.mlt)" first (`fileDialogFilterTypes.mel`); AztecCraft reads no `.mlt`, and the per-format
+/// rows keep saying how much of each format is read (#189).
+pub(super) const OPEN_FILTERS: [(&str, &[&str]); 4] = [
+    ("Maya Scenes", &["ma", "mb"]),
+    ("Maya static cubic ASCII scene", &["ma"]),
+    ("Maya binary scene", &["mb"]),
+    ("Legacy AztecCraft scene", &["aztec"]),
+];
+
+/// The unsaved-changes prompt, worded as Maya 2025.1's `saveChanges.mel`.
+pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String) {
+    match path {
+        Some(path) => (
+            "Save Changes",
+            format!("Save changes to {}?", path.display()),
+        ),
+        None => (
+            "Warning: Scene Not Saved",
+            "Save changes to untitled scene?".into(),
+        ),
+    }
+}
+
+/// Why the prompt's Save is disabled outside reconciliation.
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str =
+    "Not available: this build saves in place only an opened Maya Binary scene (#156, #15)";
+
+#[cfg(all(test, any(unix, windows)))]
 mod binary_fixture {
     include!("../tests/support/maya_binary.rs");
 }
@@ -31,6 +59,8 @@ pub(super) struct FileState {
     pending: Option<PendingAction>,
     close_approved: bool,
     close_sent: bool,
+    /// `finish(true)` went out: AppKit's deferred reply now owns the exit.
+    terminate_approved: bool,
     uncertain: Option<UncertainSave>,
 }
 struct UncertainSave {
@@ -111,8 +141,13 @@ impl Editor {
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled".into());
+        let read_only = if self.history.scene().authoring_read_only_reason().is_some() {
+            " (read-only)"
+        } else {
+            ""
+        };
         format!(
-            "AztecCraft | {name}{}",
+            "AztecCraft | {name}{read_only}{}",
             if self.is_dirty() { " *" } else { "" }
         )
     }
@@ -238,7 +273,19 @@ impl Editor {
     pub(super) fn close_document(&mut self) -> Result<OperationReply, OperationError> {
         self.request_file_action(FileAction::Close)
     }
+    /// Native dialogs bypass the disabled menu rows, so they refuse here like `native_operation` does.
+    fn refuse_while_closing(&mut self) -> bool {
+        let closing = self.files.is_closing();
+        if closing {
+            self.set_error_status(&OperationError::BusyEditing);
+            self.error = true;
+        }
+        closing
+    }
     pub(super) fn open_dialog(&mut self) {
+        if self.refuse_while_closing() {
+            return;
+        }
         if let Err(error) = self.cancel_move() {
             self.set_error_status(&error);
             self.error = true;
@@ -247,17 +294,18 @@ impl Editor {
         if self.files.is_modal() {
             return;
         }
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("Open Maya or legacy scene")
-            .add_filter("Maya static cubic ASCII scene", &["ma"])
-            .add_filter("Maya binary scene", &["mb"])
-            .add_filter("Legacy AztecCraft scene", &["aztec"])
-            .pick_file()
-        {
+        let dialog = OPEN_FILTERS.iter().fold(
+            rfd::FileDialog::new().set_title("Open Maya or legacy scene"),
+            |dialog, (label, extensions)| dialog.add_filter(*label, extensions),
+        );
+        if let Some(path) = dialog.pick_file() {
             self.open_path(&path);
         }
     }
     pub(super) fn save_as_dialog(&mut self) {
+        if self.refuse_while_closing() {
+            return;
+        }
         if self.history.active_manipulation().is_some() {
             self.status = OperationError::BusyManipulation.to_string();
             self.error = true;
@@ -389,8 +437,26 @@ impl Editor {
             return Err(OperationError::NativeSave(NativeSaveError::SourceChanged));
         }
         if matches!(decision, FileDecision::Save) {
-            let mut reply = self.save_document(SaveDestination::Active, may_install)?;
+            let closing = matches!(
+                self.files.pending,
+                Some(PendingAction {
+                    action: FileAction::Close,
+                    ..
+                })
+            );
+            let mut reply = match self.save_document(SaveDestination::Active, may_install) {
+                Ok(reply) => reply,
+                Err(error) => {
+                    if closing {
+                        self.decline_terminate();
+                    }
+                    return Err(error);
+                }
+            };
             if matches!(reply, OperationReply::SaveUncertain { .. }) {
+                if closing {
+                    self.decline_terminate();
+                }
                 return Ok(reply);
             }
             if let Some(PendingAction {
@@ -452,9 +518,14 @@ impl Editor {
             .take()
             .ok_or(OperationError::StalePendingAction)?;
         match decision {
-            FileDecision::Cancel => Ok(OperationReply::Cancelled {
-                scene_token: self.scene_token.to_string(),
-            }),
+            FileDecision::Cancel => {
+                if matches!(pending.action, FileAction::Close) {
+                    self.decline_terminate();
+                }
+                Ok(OperationReply::Cancelled {
+                    scene_token: self.scene_token.to_string(),
+                })
+            }
             FileDecision::Discard | FileDecision::Save => self.apply_file_action(pending.action),
         }
     }
@@ -470,8 +541,7 @@ impl Editor {
             match bridge.poll_close_delivery() {
                 Some(crate::mcp::CloseDelivery::Waiting) => return false,
                 Some(crate::mcp::CloseDelivery::Failed) => {
-                    self.files.close_approved = false;
-                    self.files.close_sent = false;
+                    self.decline_terminate();
                     self.status = "Close response was not delivered; the scene remains open. Inspect before retrying.".into();
                     self.error = true;
                     return false;
@@ -481,7 +551,69 @@ impl Editor {
         }
         self.files.close_approved
     }
+    /// Answers an owed OS termination with "keep running" and drops any approval, in the same
+    /// frame, so the per-frame owed branch cannot re-request a close that was already refused.
+    fn decline_terminate(&mut self) {
+        if self.terminate.owed() {
+            self.terminate.finish(false);
+        }
+        self.files.close_approved = false;
+        self.files.close_sent = false;
+        self.files.terminate_approved = false;
+        self.shutdown.reset();
+    }
+    /// Per-frame driver for a SIGTERM (#261, PROVISIONAL): starts the same close guard as the
+    /// window's close button once nothing else is waiting on the user.
+    fn drive_shutdown_signal(&mut self, ctx: &egui::Context) {
+        if !self.shutdown.requested() {
+            return;
+        }
+        ctx.request_repaint();
+        if self.files.is_modal() || self.files.close_approved || self.native_input_pending {
+            return;
+        }
+        self.shutdown.consume();
+        self.request_close();
+        if !self.files.is_modal() && !self.files.close_approved {
+            // Refused (invalid draft, active manipulation): not pending, so the next SIGTERM
+            // must prompt again instead of forcing the exit.
+            self.decline_terminate();
+        }
+    }
+    /// Per-frame driver for an owed OS termination. It does not wait for a `close_requested`
+    /// event, which AppKit's `performClose:` can lose or delay, and it keeps the loop ticking.
+    fn drive_owed_terminate(&mut self, ctx: &egui::Context, ready: bool) {
+        if !self.terminate.owed() {
+            return;
+        }
+        ctx.request_repaint();
+        if ready {
+            if self.files.close_sent {
+                // A viewport Close already went out and exits the app. Approving as well would
+                // run a second exit through `applicationWillTerminate:`, so refuse instead.
+                self.terminate.finish(false);
+            } else {
+                // The reply drives the exit through `applicationWillTerminate:`; `close_sent`
+                // keeps `send_close_when_ready` from also closing the viewport once the reply
+                // clears `owed`.
+                self.terminate.finish(true);
+                self.files.close_sent = true;
+                self.files.terminate_approved = true;
+            }
+        } else if !self.files.is_modal() && !self.files.close_approved && !self.native_input_pending
+        {
+            self.request_close();
+            if !self.files.is_modal() && !self.files.close_approved {
+                // The request was refused (invalid draft, active manipulation) and would be
+                // refused every frame: cancel the termination instead of hanging a logout.
+                self.decline_terminate();
+            }
+        }
+    }
     fn send_close_when_ready(&mut self, ctx: &egui::Context) {
+        if self.terminate.owed() {
+            return;
+        }
         if !self.files.close_sent && self.close_ready() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             self.files.close_sent = true;
@@ -489,12 +621,17 @@ impl Editor {
     }
     pub(super) fn handle_close(&mut self, ctx: &egui::Context) {
         let ready = self.close_ready();
-        if ctx.input(|i| i.viewport().close_requested()) && !ready {
+        // A late `performClose:` event must never let eframe close the viewport itself while the
+        // deferred AppKit reply owns the exit.
+        let guarded = self.terminate.owed() || self.files.terminate_approved;
+        if ctx.input(|i| i.viewport().close_requested()) && (!ready || guarded) {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             if !self.files.close_approved && !self.native_input_pending {
                 self.request_close();
             }
         }
+        self.drive_owed_terminate(ctx, ready);
+        self.drive_shutdown_signal(ctx);
         self.send_close_when_ready(ctx);
     }
     pub(super) fn file_modal(&mut self, ctx: &egui::Context) {
@@ -505,14 +642,16 @@ impl Editor {
         let mut decision = ctx
             .input(|i| i.key_pressed(Key::Escape))
             .then_some(FileDecision::Cancel);
+        let (heading, question) = save_changes_prompt(self.files.path.as_deref());
         egui::Modal::new(egui::Id::new("unsaved_scene")).show(ctx, |ui| {
-            ui.heading("Discard changes to this scene?");
+            ui.heading(heading);
+            ui.label(question);
             if let Some(uncertain) = &self.files.uncertain {
                 ui.label(format!(
                     "A destination may already have been written: {}",
                     uncertain.cause
                 ));
-                ui.label("Discard abandons reconciliation and the in-memory edits.");
+                ui.label("Don't Save abandons reconciliation and the in-memory edits.");
             }
             if self
                 .files
@@ -522,7 +661,7 @@ impl Editor {
             {
                 ui.label("The queued Open source changed. Cancel and reopen the file.");
             }
-            ui.label("Discarding changes cannot be undone.");
+            ui.label("Don't Save cannot be undone.");
             ui.horizontal(|ui| {
                 let source_changed = self
                     .files
@@ -534,12 +673,17 @@ impl Editor {
                         !source_changed && self.files.save_available(),
                         egui::Button::new("Save"),
                     )
+                    .on_disabled_hover_text(if source_changed {
+                        "The queued Open source changed. Cancel and reopen the file."
+                    } else {
+                        PROMPT_SAVE_UNAVAILABLE
+                    })
                     .clicked()
                 {
                     decision = Some(FileDecision::Save);
                 }
                 if ui
-                    .add_enabled(!source_changed, egui::Button::new("Discard"))
+                    .add_enabled(!source_changed, egui::Button::new("Don't Save"))
                     .clicked()
                 {
                     decision = Some(FileDecision::Discard);
@@ -586,8 +730,40 @@ mod tests {
     use azteccraft::native_scene::FaceTarget;
     use azteccraft::scene::Primitive;
 
+    #[test]
+    fn open_dialog_defaults_to_the_combined_maya_scenes_filter() {
+        let (label, extensions) = OPEN_FILTERS[0];
+        assert_eq!((label, extensions), ("Maya Scenes", &["ma", "mb"][..]));
+        let offered: Vec<&str> = OPEN_FILTERS
+            .iter()
+            .flat_map(|(_, ext)| ext.iter().copied())
+            .collect();
+        for extension in ["ma", "mb", "aztec"] {
+            assert!(offered.contains(&extension), "{extension}");
+        }
+    }
+
+    #[test]
+    fn save_changes_prompt_uses_mayas_wording() {
+        assert_eq!(
+            save_changes_prompt(None),
+            (
+                "Warning: Scene Not Saved",
+                "Save changes to untitled scene?".to_owned()
+            )
+        );
+        let path = Path::new("scenes").join("shot.mb");
+        assert_eq!(
+            save_changes_prompt(Some(&path)),
+            (
+                "Save Changes",
+                format!("Save changes to {}?", path.display())
+            )
+        );
+    }
+
     #[cfg(unix)]
-    fn relocate_completed_stage_once(
+    pub(super) fn relocate_completed_stage_once(
         parent: &Path,
         moved: &Path,
         expected: &[u8],
@@ -606,7 +782,7 @@ mod tests {
         true
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_active_save_and_history_use_one_live_document() {
         let directory = tempfile::tempdir().unwrap();
@@ -1115,7 +1291,7 @@ mod tests {
         }
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn save_acknowledges_s1_but_blocks_the_same_file_queued_open_s0() {
         let directory = tempfile::tempdir().unwrap();
@@ -1197,7 +1373,7 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn cancellation_after_install_acknowledges_save_without_consuming_pending_new() {
         let directory = tempfile::tempdir().unwrap();
@@ -1262,7 +1438,7 @@ mod tests {
         assert!(!editor.is_dirty());
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_from_read_through_symlink_preserves_original_and_verifies_origin() {
         let directory = tempfile::tempdir().unwrap();
@@ -1271,7 +1447,14 @@ mod tests {
         let destination = directory.path().join("fresh.mb");
         let original = binary_fixture::specimen();
         std::fs::write(&source, &original).unwrap();
+        #[cfg(unix)]
         std::os::unix::fs::symlink(&source, &link).unwrap();
+        // Windows symbolic links need Developer Mode or elevation; skip where unavailable.
+        #[cfg(windows)]
+        if std::os::windows::fs::symlink_file(&source, &link).is_err() {
+            eprintln!("SKIPPED: this account cannot create symbolic links");
+            return;
+        }
         let mut editor = Editor::default();
         editor
             .apply_operation(Operation::OpenScene { path: link.clone() })
@@ -1670,7 +1853,7 @@ mod tests {
         assert_eq!(std::fs::read(path).unwrap(), b"changed after staging");
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn save_acknowledges_binary_and_revalidates_queued_ascii_without_rewriting_it() {
         for changed in [false, true] {
@@ -1889,6 +2072,43 @@ mod tests {
     }
 
     #[test]
+    fn unsaved_prompt_names_the_current_scene_not_the_open_candidate() {
+        let directory = tempfile::tempdir().unwrap();
+        let current = directory.path().join("current.aztec");
+        let candidate = directory.path().join("candidate.aztec");
+        write_legacy_cube(&current, 0.0);
+        write_legacy_cube(&candidate, 1.0);
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::OpenScene {
+                path: current.clone(),
+            })
+            .unwrap();
+        editor.create(Primitive::Cube);
+        editor
+            .apply_operation(Operation::OpenScene { path: candidate })
+            .unwrap();
+        assert!(editor.files.is_modal());
+        let ctx = egui::Context::default();
+        let output = ui_frame(&mut editor, &ctx, egui::RawInput::default());
+        let texts: Vec<String> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) => Some(text.galley.job.text.clone()),
+                _ => None,
+            })
+            .collect();
+        let question = format!("Save changes to {}?", current.display());
+        for expected in ["Save Changes", question.as_str(), "Don't Save"] {
+            assert!(
+                texts.iter().any(|text| text == expected),
+                "{expected}: {texts:?}"
+            );
+        }
+    }
+
+    #[test]
     fn unavailable_save_preserves_files_and_malformed_open_preserves_editor() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("scene.aztec");
@@ -2062,3 +2282,11 @@ mod tests {
         assert!(editor.is_dirty());
     }
 }
+
+#[cfg(test)]
+#[path = "app/terminate_tests.rs"]
+mod terminate_tests;
+
+#[cfg(test)]
+#[path = "app/shutdown_tests.rs"]
+mod shutdown_tests;

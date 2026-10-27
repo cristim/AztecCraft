@@ -1,4 +1,5 @@
 use super::*;
+use crate::viewport_renderer::GRID_VERTICES;
 use crate::viewport_renderer::tests::{RecordedSubmission, recorded_submission, renderer_handle};
 use azteccraft::{
     native_scene::{NativeId, NativeScene, NativeTransform},
@@ -394,7 +395,7 @@ fn canonical_quad_instances_paint_only_selected_prefix_and_persistent_limitation
     let path = view.instances()[0].path();
     let submission = painted_submission(&view, &camera(), Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..72);
-    assert_eq!(submission.lines, 72..252);
+    assert_eq!(submission.lines, 72..72 + GRID_VERTICES as u32 + 96);
     assert_eq!(surface_color_count(&submission, true), 36);
     assert_eq!(surface_color_count(&submission, false), 36);
     assert_eq!(scene, before);
@@ -417,7 +418,7 @@ fn actual_binary_triangle_paints_source_corners_and_persistent_appearance_limit(
     camera.frame_view(&view, None, 4.0 / 3.0).unwrap();
     let submission = painted_submission(&view, &camera, Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..3);
-    assert_eq!(submission.lines, 3..93);
+    assert_eq!(submission.lines, 3..3 + GRID_VERTICES as u32 + 6);
     assert_eq!(surface_color_count(&submission, true), 3);
     let matrix = camera.projection_matrix(4.0 / 3.0).unwrap() * camera.view_matrix();
     for (vertex, index) in submission.vertices[..3]
@@ -485,7 +486,7 @@ fn actual_binary_group_prefix_highlights_child_geometry_and_excludes_outside_geo
     camera.frame_view(&view, None, 4.0 / 3.0).unwrap();
     let submission = painted_submission(&view, &camera, Some(&prefix));
     assert_eq!(submission.surfaces, 0..6);
-    assert_eq!(submission.lines, 6..102);
+    assert_eq!(submission.lines, 6..6 + GRID_VERTICES as u32 + 12);
     assert_eq!(surface_color_count(&submission, true), 3);
     assert_eq!(surface_color_count(&submission, false), 3);
     assert_eq!(scene, before);
@@ -508,10 +509,10 @@ fn acute_native_face_tessellation_stays_near_its_bounded_projected_geometry() {
     let camera = camera();
     let submission = painted_submission(&view, &camera, Some(&path[..path.len() - 1]));
     assert_eq!(submission.surfaces, 0..6);
-    assert_eq!(submission.lines, 6..98);
+    assert_eq!(submission.lines, 6..6 + GRID_VERTICES as u32 + 8);
     for vertex in submission.vertices[..6]
         .iter()
-        .chain(submission.vertices[90..].iter())
+        .chain(submission.vertices[6 + GRID_VERTICES..].iter())
     {
         assert!(vertex.iter().all(|v| v.is_finite()));
         let x = vertex[0] / vertex[3];
@@ -548,11 +549,11 @@ fn private_native_open_face_tessellation_preserves_prepared_frustum_bounds() {
     assert_eq!(submission.surfaces, 0..surfaces as u32);
     assert_eq!(
         submission.lines,
-        surfaces as u32..(surfaces + boundaries + 84) as u32
+        surfaces as u32..(surfaces + boundaries + GRID_VERTICES) as u32
     );
     for vertex in submission.vertices[..surfaces]
         .iter()
-        .chain(submission.vertices[surfaces + 84..].iter())
+        .chain(submission.vertices[surfaces + GRID_VERTICES..].iter())
     {
         assert!(vertex.iter().all(|v| v.is_finite()));
         assert!((vertex[0] / vertex[3]).abs() <= 1.001);
@@ -790,7 +791,9 @@ fn fractional_capture_click_handle_and_submission_share_the_same_physical_aspect
         let ndc = input.click_ndc().unwrap();
         assert!((ndc.x - 40.0 / size[0] as f32).abs() < 2e-6);
         assert!(ndc.y.abs() < 2e-6);
-        let capture = input.move_capture(&camera).unwrap();
+        let capture = input
+            .move_capture(&camera, ManipulatorSize::default())
+            .unwrap();
         let pixel = capture
             .pointer_pixel(Vec2::new(pointer.x, pointer.y))
             .unwrap();
@@ -958,4 +961,128 @@ fn plain_middle_and_right_drags_leave_the_camera_unbound_and_alt_still_navigates
             (true, _) => assert!(matches!(operations.as_slice(), [Operation::Dolly { .. }])),
         }
     }
+}
+
+fn primary(pos: Pos2, pressed: bool, modifiers: Modifiers) -> Event {
+    Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers,
+    }
+}
+
+/// Press, drag past the threshold, then release; returns the release frame's input and
+/// whether any frame of the drag emitted an Orbit.
+fn drag_release(
+    press: Modifiers,
+    during: Modifiers,
+    release: Modifiers,
+    move_distance: f32,
+) -> (ViewportInput, bool) {
+    let context = egui::Context::default();
+    let camera = camera();
+    let start = egui::pos2(64.0, 48.0);
+    let end = start + egui::vec2(move_distance, 0.0);
+    let clip = Rect::EVERYTHING;
+    capture_frame(
+        &context,
+        &camera,
+        raw(0.0, press, vec![Event::PointerMoved(start)]),
+        clip,
+    );
+    let mut orbited = false;
+    let mut step = |time, modifiers, events| {
+        let (mut input, _) = capture_frame(&context, &camera, raw(time, modifiers, events), clip);
+        orbited |= input
+            .take_navigation()
+            .iter()
+            .any(|operation| matches!(operation, Operation::Orbit { .. }));
+        input
+    };
+    step(0.1, press, vec![primary(start, true, press)]);
+    step(0.2, press, vec![Event::PointerMoved(end)]);
+    step(
+        0.25,
+        during,
+        vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))],
+    );
+    let input = step(0.3, release, vec![primary(end, false, release)]);
+    (input, orbited)
+}
+
+#[test]
+fn plain_drag_release_raises_marquee_but_a_quick_click_does_not() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 40.0);
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::Marquee)
+    );
+    assert!(!orbited && input.click_ndc().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);
+    assert!(input.click_ndc().is_some());
+    assert_eq!(input.unsupported_selection(), None);
+}
+
+#[test]
+fn alt_drag_orbits_without_marquee_even_when_alt_is_released_before_the_button() {
+    for release in [Modifiers::ALT, Modifiers::NONE] {
+        let (input, orbited) = drag_release(Modifiers::ALT, Modifiers::ALT, release, 40.0);
+        assert!(orbited);
+        assert_eq!(input.unsupported_selection(), None, "{release:?}");
+    }
+}
+
+#[test]
+fn shift_click_keeps_modified_click() {
+    let (input, _) = drag_release(Modifiers::SHIFT, Modifiers::SHIFT, Modifiers::SHIFT, 0.0);
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::ModifiedClick)
+    );
+}
+
+#[test]
+fn marquee_follows_the_release_event_modifiers_not_the_frame_modifiers() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::ALT, 40.0);
+    assert!(!orbited);
+    assert_eq!(input.unsupported_selection(), None);
+
+    let context = egui::Context::default();
+    let camera = camera();
+    let start = egui::pos2(64.0, 48.0);
+    let end = start + egui::vec2(40.0, 0.0);
+    let clip = Rect::EVERYTHING;
+    let none = Modifiers::NONE;
+    for (time, events) in [
+        (0.0, vec![Event::PointerMoved(start)]),
+        (0.1, vec![primary(start, true, none)]),
+        (0.2, vec![Event::PointerMoved(end)]),
+    ] {
+        capture_frame(&context, &camera, raw(time, none, events), clip);
+    }
+    let (input, _) = capture_frame(
+        &context,
+        &camera,
+        raw(
+            0.3,
+            none,
+            vec![
+                primary(end, false, none),
+                Event::ModifiersChanged(Modifiers::ALT),
+            ],
+        ),
+        clip,
+    );
+    assert_eq!(
+        input.unsupported_selection(),
+        Some(SelectionRefusal::Marquee)
+    );
+}
+
+#[test]
+fn alt_pressed_mid_drag_orbits_without_marquee() {
+    let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(orbited);
+    assert_eq!(input.unsupported_selection(), None);
 }

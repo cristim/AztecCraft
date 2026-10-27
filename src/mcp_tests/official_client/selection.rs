@@ -611,3 +611,62 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_without_mutation() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("grouped.mb");
+    std::fs::write(&source, grouped_scene_bytes()).unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let old_token = editor.scene_token.to_string();
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token":old_token,"path":source}),
+    )
+    .await;
+    let token = editor.scene_token.to_string();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let before = editor.history.scene().clone();
+    let state = |editor: &Editor| {
+        (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.is_dirty(),
+        )
+    };
+    let baseline = state(&editor);
+    for (index, message) in [
+        (0, "Deleting a node with children is not supported yet"),
+        (1, "Deleting a node that has a parent is not supported yet"),
+    ] {
+        let refused = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "delete_node",
+            json!({"scene_token":token,"node_id":paths[index].node.to_decimal()}),
+        )
+        .await;
+        let error = &refused.structured_content.unwrap()["error"];
+        assert_eq!(error["code"], "unsupported_delete");
+        assert_eq!(error["message"], message);
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.scene_token.to_string(), token);
+        assert_eq!(
+            state(&editor),
+            baseline,
+            "selection, history and dirty flag"
+        );
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

@@ -1,4 +1,6 @@
 use super::*;
+use crate::editor_operations::Operation;
+use azteccraft::primitive_options::SINGLE_QUAD_PLANE;
 
 #[tokio::test]
 async fn extrusion_moves_the_requested_cap_and_preserves_history_selection_and_other_nodes() {
@@ -166,7 +168,12 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
     let id = editor.selected.unwrap();
     let shape = editor.history.scene().shapes()[0].id();
     let transform = editor.history.scene().node(id).unwrap().transform_id();
-    editor.create(Primitive::Plane);
+    // A single-quad plane, so face 0 is every face and all-face extrusion is refused.
+    editor.native_operation(Operation::Create {
+        primitive: Primitive::Plane,
+        options: Some(SINGLE_QUAD_PLANE),
+        name: None,
+    });
     let other = editor.selected.unwrap();
     let other_shape = editor.history.scene().shapes()[1].id();
     let other_transform = editor.history.scene().node(other).unwrap().transform_id();

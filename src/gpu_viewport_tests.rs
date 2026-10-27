@@ -318,7 +318,7 @@ fn headless_gpu_native_discard_resolves_before_fresh_callback_for_new_and_open()
             .shapes
             .iter()
             .find_map(|s| match &s.shape {
-                egui::Shape::Text(t) if t.galley.job.text == "Discard" => {
+                egui::Shape::Text(t) if t.galley.job.text == "Don't Save" => {
                     Some(t.pos + t.galley.size() * 0.5)
                 }
                 _ => None,
@@ -408,7 +408,7 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
         changed.textures_delta.clear();
         assert_ne!(
             editor.scene_token, old,
-            "actual modal Discard must apply the staged candidate"
+            "actual modal Don't Save must apply the staged candidate"
         );
         assert!(!editor.files.is_modal());
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
@@ -416,7 +416,7 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
         expected.frame_view(&view, None, editor.aspect).unwrap();
         assert_eq!(
             editor.camera, expected,
-            "Discard must frame current aspect and discard old navigation"
+            "Don't Save must frame current aspect and discard old navigation"
         );
         let submission = recorded_submission(editor.renderer.as_ref().unwrap());
         for vertex in &submission.vertices[..submission.surfaces.end as usize] {

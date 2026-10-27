@@ -78,6 +78,32 @@ async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
             assert_eq!(actual, expected.to_array());
         }
         assert_eq!(camera["distance"].as_f64().unwrap() as f32, distance);
+        for (field, expected) in [
+            ("yaw_degrees", f64::from(editor.camera.yaw()).to_degrees()),
+            (
+                "pitch_degrees",
+                f64::from(editor.camera.pitch()).to_degrees(),
+            ),
+            (
+                "fov_y_degrees",
+                f64::from(editor.camera.fov_y_for(editor.aspect)).to_degrees(),
+            ),
+            ("near_clip", f64::from(editor.camera.near())),
+            ("far_clip", f64::from(editor.camera.far())),
+        ] {
+            assert_eq!(camera[field].as_f64().unwrap(), expected, "{field}");
+        }
+        // The reported pose reproduces the eye, so a client can verify a navigation result.
+        let (yaw, pitch) = (
+            camera["yaw_degrees"].as_f64().unwrap().to_radians(),
+            camera["pitch_degrees"].as_f64().unwrap().to_radians(),
+        );
+        let offset = Vec3::new(
+            (yaw.sin() * pitch.cos()) as f32,
+            pitch.sin() as f32,
+            (yaw.cos() * pitch.cos()) as f32,
+        ) * distance;
+        assert!((target + offset - eye).length() < 0.001);
         assert_eq!(editor.history.scene(), &before);
         assert!(!editor.history.can_undo());
         assert!(editor.history.can_redo());
@@ -348,6 +374,205 @@ async fn headless_gpu_sdk_hidden_inspection_reads_live_terminal_health_without_u
         );
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(editor.history.can_undo(), undo);
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+async fn inspected_camera(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::RunningService<RoleClient, ()>,
+) -> Value {
+    call(editor, context, client.peer(), "inspect_scene", json!({}))
+        .await
+        .structured_content
+        .unwrap()["inspection"]["camera"]
+        .clone()
+}
+
+fn pose_arguments(token: &str, camera: &Value) -> Value {
+    json!({
+        "scene_token": token,
+        "target": camera["target"],
+        "distance": camera["distance"],
+        "yaw_degrees": camera["yaw_degrees"],
+        "pitch_degrees": camera["pitch_degrees"],
+    })
+}
+
+#[tokio::test]
+async fn sdk_set_camera_pose_restores_an_inspected_pose_exactly() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    let (token, dirty, scene) = (
+        editor.scene_token,
+        editor.is_dirty(),
+        editor.history.scene().clone(),
+    );
+    let text = token.to_string();
+    editor.camera.set_pose(Vec3::ZERO, 8.0, 0.0, 0.4).unwrap();
+    for (tool, fields) in [
+        // From yaw 0 a tiny negative step must not wrap to a full turn.
+        ("orbit_camera", json!({"radians":[-1e-9,0.0]})),
+        ("orbit_camera", json!({"radians":[0.7,-0.2]})),
+        ("pan_camera", json!({"world_units":[1.3,-2.1]})),
+        ("dolly_camera", json!({"factor":0.37})),
+        ("orbit_camera", json!({"radians":[9.0,10.0]})),
+    ] {
+        let mut arguments = fields;
+        arguments["scene_token"] = json!(text);
+        call(&mut editor, &context, client.peer(), tool, arguments).await;
+        let saved = editor.camera.clone();
+        let read = inspected_camera(&mut editor, &context, &client).await;
+        let same = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_camera_pose",
+            pose_arguments(&text, &read),
+        )
+        .await;
+        assert_eq!(same.structured_content.unwrap()["outcome"], "unchanged");
+        assert!(editor.camera.same_capture(&saved), "{tool}");
+        editor.camera.orbit(glam::Vec2::new(1.0, 0.3)).unwrap();
+        editor.camera.dolly(3.0).unwrap();
+        let moved = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_camera_pose",
+            pose_arguments(&text, &read),
+        )
+        .await;
+        assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
+        assert!(editor.camera.same_capture(&saved), "{tool}");
+        assert_eq!(inspected_camera(&mut editor, &context, &client).await, read);
+    }
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_set_camera_pose_wraps_yaw_and_rejects_bad_input_without_mutation() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let valid = json!({
+        "scene_token": token,
+        "target": [1, 2, 3],
+        "distance": 4,
+        "yaw_degrees": -90,
+        "pitch_degrees": 10,
+    });
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_camera_pose",
+        valid.clone(),
+    )
+    .await;
+    assert!((editor.camera.yaw().to_degrees() - 270.0).abs() < 1e-3);
+    let camera = editor.camera.clone();
+    let status = editor.status.clone();
+    let with = |field: &str, value: Value| {
+        let mut args = valid.clone();
+        args[field] = value;
+        args
+    };
+    let mut missing = valid.clone();
+    missing.as_object_mut().unwrap().remove("distance");
+    let mut extra = valid.clone();
+    extra["fov_y_degrees"] = json!(30);
+    for (args, text) in [
+        (with("pitch_degrees", json!(90)), "pitch_degrees"),
+        (with("pitch_degrees", json!(-89.95)), "pitch_degrees"),
+        (with("distance", json!(0)), "distance"),
+        (with("distance", json!(-1)), "distance"),
+        (with("distance", json!(1e300)), "distance"),
+        (with("target", json!([1e300, 0, 0])), "target"),
+        (with("yaw_degrees", json!(1e300)), "yaw_degrees"),
+        (with("target", json!([0, 0])), ""),
+        (with("target", json!(["NaN", 0, 0])), ""),
+        (with("yaw_degrees", json!("NaN")), ""),
+        (with("distance", json!(null)), ""),
+        (missing, ""),
+        (extra, ""),
+    ] {
+        let error = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_camera_pose",
+            args,
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains(text), "{error}");
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.status, status);
+    }
+    let stale = with("scene_token", json!(uuid::Uuid::new_v4().to_string()));
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_camera_pose",
+        stale,
+    )
+    .await;
+    assert_eq!(
+        result.structured_content.unwrap()["error"]["code"],
+        "stale_scene"
+    );
+    assert_eq!(editor.camera, camera);
+    assert_eq!(editor.status, status);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_set_camera_pose_converts_degrees_in_double_precision() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    for step in 1..400 {
+        let degrees = f64::from(step) * 0.7311;
+        let pitch_degrees = degrees % 89.0;
+        let arguments = json!({
+            "scene_token": token,
+            "target": [0, 0, 0],
+            "distance": 3,
+            "yaw_degrees": degrees,
+            "pitch_degrees": pitch_degrees,
+        });
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_camera_pose",
+            arguments,
+        )
+        .await;
+        assert_eq!(
+            editor.camera.yaw().to_bits(),
+            (degrees.to_radians() as f32)
+                .rem_euclid(std::f32::consts::TAU)
+                .to_bits()
+        );
+        assert_eq!(
+            editor.camera.pitch().to_bits(),
+            (pitch_degrees.to_radians() as f32).to_bits()
+        );
     }
     client.cancel().await.unwrap();
     drop(editor);

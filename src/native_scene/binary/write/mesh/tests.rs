@@ -7,6 +7,7 @@ use crate::native_scene::{
         profile::ROOT_AUX,
     },
 };
+use crate::primitive_options::{PrimitiveOptions, SINGLE_QUAD_PLANE};
 use crate::scene::Primitive;
 
 const UUID: Uuid = Uuid::from_bytes([0x5a; 16]);
@@ -176,15 +177,22 @@ fn corner_words_carry_the_edge_the_reverse_bit_and_one_terminal_per_face() {
 #[test]
 fn bit31_is_set_on_boundary_edges_and_clear_on_interior_edges() {
     // PROVISIONAL rule from the private corpus (99.6% of boundary edges set).
-    let scene_mesh = |primitive| {
+    let scene_mesh = |options: PrimitiveOptions| {
         let mut scene = NativeScene::default();
-        scene.create(primitive, "m").unwrap();
+        scene
+            .create_with_options(options.primitive(), &options, "m")
+            .unwrap();
         scene.shapes()[0].mesh().clone()
     };
-    let plane = flags(&scene_mesh(Primitive::Plane));
+    let plane = flags(&scene_mesh(SINGLE_QUAD_PLANE));
     assert_eq!(plane.len(), 4);
     assert!(plane.iter().all(|set| *set));
-    assert!(flags(&scene_mesh(Primitive::Cube)).iter().all(|set| !set));
+    // The default 10x10 plane has both: 40 boundary edges set, 180 interior edges clear.
+    let grid = flags(&scene_mesh(PrimitiveOptions::default_for(Primitive::Plane)));
+    assert_eq!(grid.len(), 220);
+    assert_eq!(grid.iter().filter(|set| **set).count(), 40);
+    let cube_options = PrimitiveOptions::default_for(Primitive::Cube);
+    assert!(flags(&scene_mesh(cube_options)).iter().all(|set| !set));
     assert!(flags(&cube()).iter().all(|set| !set));
 }
 

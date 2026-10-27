@@ -251,6 +251,10 @@ impl TestIngress {
     pub(crate) fn close(&self) {
         self.shared.close();
     }
+
+    pub(crate) fn force_close_delivery(&self, delivery: CloseDelivery) {
+        self.shared.test_force_close_delivery(delivery);
+    }
 }
 
 #[cfg(test)]

@@ -2,12 +2,13 @@
 use azteccraft::native_scene::{NativeTransform, TransformAttributes};
 use azteccraft::{
     history::{ManipulationError, ManipulationFinish, ManipulationId},
+    move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, NativeError, NativeId, RotateAxis, RotateSpace, ScaleHandle,
         ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
-    viewport::InvalidCameraInput,
+    viewport::{InvalidCameraInput, InvalidCameraPose},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -166,6 +167,14 @@ pub enum MoveDistance {
     Declared(f64),
 }
 
+/// The persistent selection behind the Rotate axis and Scale handle controls. The sum type makes
+/// a Rotate "uniform" or a Scale axis-only choice unrepresentable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ToolHandle {
+    RotateAxis(RotateAxis),
+    ScaleHandle(ScaleHandle),
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
@@ -174,6 +183,10 @@ pub enum Operation {
         tool: ActiveTool,
         space: ManipulationSpace,
     },
+    /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
+    SetToolHandle(ToolHandle),
+    /// Sets the global manipulator size, a session-only tool setting.
+    SetManipulatorSize(ManipulatorSize),
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,
@@ -302,6 +315,14 @@ pub enum Operation {
     Dolly {
         factor: f32,
     },
+    /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched. Unchanged is
+    /// judged numerically, so a pose differing only in zero signs replies Unchanged.
+    SetCameraPose {
+        target: [f32; 3],
+        distance: f32,
+        yaw: f32,
+        pitch: f32,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -363,8 +384,9 @@ pub struct SceneInspection {
     pub manipulation: ManipulationInspection,
     pub nodes: Vec<NodeInspection>,
     pub shapes: Vec<ShapeInspection>,
-    /// Session-only lambert table, empty on sourced scenes. Ids are valid only at the current
-    /// history position.
+    /// Session-only material table, empty on sourced scenes: entry 0 is `standardSurface1` on
+    /// `initialShadingGroup`, modelled as a placeholder lambert colour (not a standardSurface),
+    /// and later entries are lamberts. Ids are valid only at the current history position.
     pub session_materials: Vec<SessionMaterialInspection>,
     pub curves: Vec<CurveInspection>,
     pub retained_source_bytes: usize,
@@ -459,6 +481,12 @@ pub struct ManipulationInspection {
     /// The Axis Orientation each tool uses for its next manipulation.
     pub rotate_space: ManipulationSpace,
     pub scale_space: ManipulationSpace,
+    /// The persistent Rotate axis ("x", "y", "z") and Scale handle ("x", "y", "z", "uniform")
+    /// that numeric entry uses, spelled as the tool arguments are.
+    pub rotate_axis: &'static str,
+    pub scale_handle: &'static str,
+    /// The global manipulator size, as set.
+    pub manipulator_size: f64,
     /// What each parameter of `update_manipulation` is measured in.
     pub units: ManipulationUnits,
     /// Whether a numeric manipulation of each kind could begin on the selection now.
@@ -511,7 +539,19 @@ pub struct ActiveManipulationInspection {
 pub struct MoveViewportInspection {
     pub provenance: &'static str,
     pub axes: Vec<MoveAxisInspection>,
+    /// The active tool's enabled handle under the last native pointer: Move and Rotate `x|y|z`,
+    /// Scale `x|y|z|uniform`; null for Select, no hit, or while a manipulation is active.
     pub pointer_hit: Option<&'static str>,
+    /// `free_rotate`, `view_ring` or `scale_plane` when a drawn-but-unsupported handle is under
+    /// the pointer and no enabled handle outranks it; null otherwise.
+    pub pointer_disabled: Option<&'static str>,
+    /// Why a press at the pointer would be refused, in the text native hover shows after
+    /// `{space} {handle} {tool}: ` (a handle) or `{tool} unavailable: ` (the whole tool). Non-null
+    /// with a `pointer_hit` means that handle's press is refused; non-null with a null
+    /// `pointer_hit` means Rotate or Scale is refused at every pixel (for example a mirrored
+    /// frame). Null for Move (its refusals stay in `kinds` and `axes`), Select, disabled handles,
+    /// an accepted handle, no selection, an unavailable pointer and an active manipulation.
+    pub pointer_refusal: Option<String>,
     pub pointer_available: bool,
 }
 
@@ -636,6 +676,11 @@ pub struct CameraInspection {
     pub target: [f32; 3],
     pub eye: [f32; 3],
     pub distance: f32,
+    pub yaw_degrees: f64,
+    pub pitch_degrees: f64,
+    pub fov_y_degrees: f64,
+    pub near_clip: f32,
+    pub far_clip: f32,
 }
 
 #[derive(Debug)]
@@ -663,6 +708,8 @@ pub enum OperationError {
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
+    /// A refused absolute pose; names the field.
+    CameraPose(InvalidCameraPose),
     /// An update parameter that does not belong to the active manipulation's kind.
     KindMismatch {
         parameter: &'static str,
@@ -704,6 +751,7 @@ impl fmt::Display for OperationError {
                 f.write_str("pending file action is absent or stale; inspect before deciding")
             }
             Self::Camera(error) => error.fmt(f),
+            Self::CameraPose(error) => error.fmt(f),
             Self::KindMismatch { parameter, active } => write!(
                 f,
                 "{} {parameter} does not apply to the active {active} manipulation",
@@ -740,7 +788,11 @@ pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withhe
 #[cfg(any(test, feature = "mcp"))]
 const STATUS_MESSAGE_MAX_BYTES: usize = STATUS_MESSAGE_MAX_CHARS * 6 + 32;
 #[cfg(any(test, feature = "mcp"))]
-const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
+pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
+/// Nine f32 values (at most 15 JSON bytes each), three f64 degree values (at most 24) and the
+/// field names: about 330 bytes in the worst case.
+#[cfg(any(test, feature = "mcp"))]
+const CAMERA_INSPECTION_MAX_BYTES: usize = 512;
 
 #[cfg(any(test, feature = "mcp"))]
 const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 192;
@@ -750,8 +802,10 @@ pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
     let limit = MAX_RESULT_BYTES / 2;
-    let mut estimated_bytes =
-        APPEARANCE_SUMMARY_MAX_BYTES + MOVE_INSPECTION_MAX_BYTES + STATUS_MESSAGE_MAX_BYTES;
+    let mut estimated_bytes = APPEARANCE_SUMMARY_MAX_BYTES
+        + MOVE_INSPECTION_MAX_BYTES
+        + STATUS_MESSAGE_MAX_BYTES
+        + CAMERA_INSPECTION_MAX_BYTES;
     for node in scene.nodes() {
         estimated_bytes = estimated_bytes
             .saturating_add(1024)
@@ -806,8 +860,9 @@ mod tests {
         assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_RESULT_BYTES / 2);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
-            name: format!("sessionLambert{}", materials - 1),
-            shading_group: format!("sessionLambert{}SG", materials - 1),
+            // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
+            name: format!("lambert{}", u32::MAX),
+            shading_group: format!("lambert{}SG", u32::MAX),
             color: [-1.2345678901234567e-308; 3],
             editable: true,
         };
@@ -947,6 +1002,23 @@ mod tests {
                 .unwrap()
                 .contains("\"visible\":null")
         );
+    }
+
+    #[test]
+    fn camera_inspection_preflight_bounds_the_longest_serialized_values() {
+        let worst = -f32::MIN_POSITIVE * 1.000_000_1;
+        let camera = CameraInspection {
+            target: [worst; 3],
+            eye: [f32::MIN; 3],
+            distance: worst,
+            yaw_degrees: f64::from(f32::MIN).to_degrees(),
+            // Unreachable for a valid camera, but the longest f64 text.
+            pitch_degrees: -f64::MIN_POSITIVE,
+            fov_y_degrees: f64::from(worst).to_degrees(),
+            near_clip: worst,
+            far_clip: worst,
+        };
+        assert!(serde_json::to_vec(&camera).unwrap().len() <= CAMERA_INSPECTION_MAX_BYTES);
     }
 
     #[test]

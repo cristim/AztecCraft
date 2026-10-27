@@ -12,7 +12,7 @@ mod ascii_fixture {
     ));
 }
 
-fn camera_operations() -> [Operation; 3] {
+fn camera_operations() -> [Operation; 4] {
     [
         Operation::Orbit {
             radians: [0.2, -0.1],
@@ -21,10 +21,20 @@ fn camera_operations() -> [Operation; 3] {
             world_units: [1.0, -2.0],
         },
         Operation::Dolly { factor: 0.5 },
+        Operation::SetCameraPose {
+            target: [1.0, 0.5, -2.0],
+            distance: 5.0,
+            yaw: 0.3,
+            pitch: 0.2,
+        },
     ]
 }
 
-fn frame(editor: &mut Editor, context: &egui::Context, events: Vec<egui::Event>) {
+fn frame(
+    editor: &mut Editor,
+    context: &egui::Context,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
     let mut input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
@@ -43,6 +53,7 @@ fn frame(editor: &mut Editor, context: &egui::Context, events: Vec<egui::Event>)
         eframe::App::ui(editor, ui, &mut native_frame);
     });
     output.textures_delta.clear();
+    output
 }
 
 fn hidden_frame(
@@ -110,16 +121,21 @@ mod official_client {
     mod frame_all;
     mod grid;
     mod manipulation_mcp_tests;
+    mod manipulator_size;
     mod material;
     mod node_edit;
+    mod pointer_hit;
     mod primitive_options;
     mod selection;
     mod session;
     mod session_material;
     mod shading;
+    mod shape_naming;
+    mod sited_leaf;
     mod snapshots;
     mod sphere;
     mod status_line;
+    mod tool_handle;
     mod tool_space;
     mod vertex_edge;
 
@@ -141,7 +157,7 @@ mod official_client {
                     let CallToolResponse::Complete(result) = result? else { panic!("expected complete tool result") };
                     return Ok(result);
                 }
-                _ = tokio::time::sleep(Duration::from_millis(1)) => frame(editor, context, vec![]),
+                _ = tokio::time::sleep(Duration::from_millis(1)) => { frame(editor, context, vec![]); }
                 _ = tokio::time::sleep_until(deadline) => panic!("protocol call did not complete"),
             }
         }

@@ -23,6 +23,10 @@ pub(super) enum Storage {
     Unitless,
 }
 
+/// Fields whose absent leaf may be inserted when an opened Maya Binary is saved. Rotation and scale
+/// need their own guard work first and keep their refusal. PROVISIONAL.
+pub(super) const INSERTABLE: &[TransformField] = &[TransformField::Translation];
+
 impl TransformField {
     pub(super) fn storage(self) -> Storage {
         match self {
@@ -70,12 +74,28 @@ pub(super) struct SourceLeaf {
     pub(super) storage: Storage,
 }
 
+/// Where an absent default leaf of `owner` may be spliced into the source bytes.
+///
+/// `at` is the byte offset of the new record and `aux` the header word every `DBL3` of the file
+/// shares, which the record copies. `ancestors` holds the header start of every
+/// enclosing group, innermost first and the root last, whose size words grow with the record.
+/// PROVISIONAL: see `.project-docs/binary-leaf-insertion.md`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct InsertSite {
+    pub(super) owner: NativeId,
+    pub(super) field: TransformField,
+    pub(super) at: usize,
+    pub(super) aux: u32,
+    pub(super) ancestors: Vec<usize>,
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct SourceRetention {
     pub(super) bytes: Arc<[u8]>,
     pub(super) format: SourceFormat,
     pub(super) records: Vec<Range<usize>>,
     pub(super) leaves: Vec<SourceLeaf>,
+    pub(super) sites: Vec<InsertSite>,
     pub(super) appearance: Option<Arc<super::appearance::SourceAppearance>>,
 }
 
@@ -118,7 +138,68 @@ impl SourceRetention {
                 return Err(NativeError::InvalidRetention);
             }
         }
+        self.validate_sites()
+    }
+
+    fn validate_sites(&self) -> Result<(), NativeError> {
+        let group_end = |start: usize| -> Option<usize> {
+            let header = self.bytes.get(start..start.checked_add(16)?)?;
+            if !matches!(&header[..4], b"FOR8" | b"LIS8") {
+                return None;
+            }
+            let size = u64::from_be_bytes(header[8..].try_into().ok()?);
+            start
+                .checked_add(16)?
+                .checked_add(usize::try_from(size).ok()?)
+        };
+        let is_atom = |offset: usize| {
+            offset == self.bytes.len()
+                || self
+                    .records
+                    .binary_search_by_key(&offset, |atom| atom.start)
+                    .is_ok()
+        };
+        for (index, site) in self.sites.iter().enumerate() {
+            let mut inside = site.at;
+            let mut limit = None;
+            let valid = site.field == TransformField::Translation
+                && self.format == SourceFormat::Binary
+                && is_atom(site.at)
+                && (index == 0 || self.sites[index - 1].owner < site.owner)
+                && site.ancestors.last() == Some(&0)
+                && site.ancestors.iter().all(|&start| {
+                    let Some(end) = group_end(start) else {
+                        return false;
+                    };
+                    let nested = start.checked_add(20).is_some_and(|body| body <= inside)
+                        && inside <= end
+                        && limit.is_none_or(|inner| end >= inner)
+                        && is_atom(start);
+                    inside = start;
+                    limit = Some(end);
+                    nested
+                });
+            if !valid {
+                return Err(NativeError::InvalidRetention);
+            }
+        }
         Ok(())
+    }
+    /// The recorded site for `owner`'s absent `field` leaf, if the grammar allowed one.
+    pub(super) fn insert_site(
+        &self,
+        owner: NativeId,
+        field: TransformField,
+    ) -> Option<&InsertSite> {
+        let index = self
+            .sites
+            .binary_search_by_key(&owner, |site| site.owner)
+            .ok()?;
+        self.sites.get(index).filter(|site| site.field == field)
+    }
+    /// Whether an edit of `owner`'s absent `field` leaf can be saved by inserting a record.
+    pub(super) fn can_insert(&self, owner: NativeId, field: TransformField) -> bool {
+        INSERTABLE.contains(&field) && self.insert_site(owner, field).is_some()
     }
     pub(super) fn binary_leaf(
         &self,

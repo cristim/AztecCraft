@@ -1,7 +1,13 @@
 use super::{
     BinaryError, ErrorKind, admission::Budget, canonical, decode_with_retained_bytes, resource,
 };
-use crate::native_scene::{NativeScene, NativeTransformNode, source::SourceFormat};
+use crate::maya_binary::container;
+use crate::native_scene::{
+    NativeId, NativeScene, NativeTransformNode,
+    appearance::SourceAppearance,
+    source::{SourceFormat, TransformField},
+};
+use insert::{Insertion, check_inverse, splice};
 use std::sync::Arc;
 
 const FIELDS: [super::super::TransformField; 5] = [
@@ -61,6 +67,31 @@ fn check_appearance_metadata(
     Ok(())
 }
 
+/// Appearance facts that hold in any byte or chunk coordinates, for a reparse of spliced bytes.
+fn same_appearance_shape(a: Option<&SourceAppearance>, b: Option<&SourceAppearance>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.shapes.len() == b.shapes.len()
+                && a.materials.len() == b.materials.len()
+                && a.diffuse.len() == b.diffuse.len()
+                && a.shapes.iter().zip(&b.shapes).all(|(x, y)| {
+                    x.shape == y.shape
+                        && match (&x.binding, &y.binding) {
+                            (Ok(x), Ok(y)) => {
+                                x.faces == y.faces
+                                    && x.instance_parent == y.instance_parent
+                                    && x.material == y.material
+                            }
+                            (Err(x), Err(y)) => x == y,
+                            _ => false,
+                        }
+                })
+        }
+        _ => false,
+    }
+}
+
 fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError> {
     let appearance = scene
         .source
@@ -80,6 +111,25 @@ fn retained_material_metadata(scene: &NativeScene) -> Result<usize, BinaryError>
 }
 
 pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
+    // Without a binary source `encode_with` reports the refusal.
+    let planned = match scene
+        .source
+        .as_ref()
+        .filter(|source| source.format == SourceFormat::Binary)
+    {
+        Some(source) => plan::plan(scene, source, plan::INSERTABLE)?,
+        None => plan::Planned::default(),
+    };
+    encode_with(scene, &planned.insertions, &planned.elided)
+}
+
+/// `plan` lists default leaves to splice in after the word patches. Production plans come from
+/// `plan::plan` over the `INSERTABLE` gate; tests hand-build plans.
+fn encode_with(
+    scene: &NativeScene,
+    plan: &[Insertion],
+    elided: &[(NativeId, TransformField)],
+) -> Result<Vec<u8>, BinaryError> {
     if !scene.curves.is_empty() {
         return Err(unsupported());
     }
@@ -112,12 +162,28 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
             .checked_add(retained_material_metadata(scene)?)
             .ok_or_else(resource)?,
     )?;
+    // Edited leaves the file does not have: inserted below, or elided because every word is +0.0.
+    // The word patches have no leaf for either. The patched copy still lacks the inserted ones.
+    let mut planned = budget.vector::<(NativeId, TransformField)>(plan.len())?;
+    planned.extend(plan.iter().map(|i| (i.owner, i.field)));
+    // Believed unreachable: `plan::plan` walks `scene.nodes` in decode order (ascending owner)
+    // and the splice requires strictly ascending positions.
+    planned.sort_unstable_by_key(|entry| entry.0);
+    let mut elided_fields = budget.vector::<(NativeId, TransformField)>(elided.len())?;
+    elided_fields.extend_from_slice(elided);
+    elided_fields.sort_unstable_by_key(|entry| entry.0);
     let mut output = budget.vector::<u8>(source.bytes.len())?;
     output.extend_from_slice(&source.bytes);
     for node in &scene.nodes {
         for field in FIELDS {
             for (component, scalar) in node.field(field).iter().enumerate() {
                 if !scalar.replaced {
+                    continue;
+                }
+                if scalar.origin.is_none()
+                    && (has_field(&planned, node.transform_id, field)
+                        || has_field(&elided_fields, node.transform_id, field))
+                {
                     continue;
                 }
                 let origin = scalar.origin.as_ref().ok_or_else(unsupported)?;
@@ -176,10 +242,86 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     let retained_appearance = retained_material_metadata(scene)?;
     let parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
-    if !same_structure(scene, &parsed) {
+    verify(scene, source, &parsed, &planned, Appearance::Exact)?;
+    // Its Arc copy of `output` is not counted in `retained` below, so release it first.
+    drop(parsed);
+    if plan.is_empty() {
+        return Ok(output);
+    }
+    let spliced = splice(&output, plan, &mut budget)?;
+    check_inverse(&spliced, &output, plan, &mut budget)?;
+    let retained = retained
+        .checked_add(spliced.capacity())
+        .filter(|retained| *retained <= 2 * crate::maya_binary::container::MAX_BYTES)
+        .ok_or_else(resource)?;
+    budget.charge(spliced.len())?;
+    let reparsed =
+        decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
+    verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
+    drop(reparsed);
+    // Live here: source, output, spliced and an Arc copy of the last two. The 2 * MAX_BYTES check
+    // above bounds source + output + spliced, so the total stays under 4 * MAX_BYTES.
+    budget.charge(output.len())?;
+    budget.charge(spliced.len())?;
+    let before = container::inspect(Arc::from(output.as_slice()))?;
+    budget.charge(before.metadata_bytes().ok_or_else(resource)?)?;
+    let after = container::inspect(Arc::from(spliced.as_slice()))?;
+    budget.charge(after.metadata_bytes().ok_or_else(resource)?)?;
+    place::check(scene, &before, &after, plan, &mut budget).map_err(
+        |violation| match violation {
+            place::Violation::Resource => resource(),
+            _ => unsupported(),
+        },
+    )?;
+    Ok(spliced)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Appearance {
+    /// Same bytes and chunk indices as the original decode: compare the whole metadata.
+    Exact,
+    /// Spliced bytes shift offsets and chunk indices: compare coordinate-free facts only.
+    Relocated,
+}
+
+/// Owner-sorted membership; hand-built plans can name more than one field of an owner.
+fn has_field(
+    fields: &[(NativeId, TransformField)],
+    owner: NativeId,
+    field: TransformField,
+) -> bool {
+    let start = fields.partition_point(|entry| entry.0 < owner);
+    fields[start..]
+        .iter()
+        .take_while(|entry| entry.0 == owner)
+        .any(|entry| entry.1 == field)
+}
+
+/// Compares a reparse with the scene. Fields named in owner-sorted `skip` are still absent in `parsed`.
+fn verify(
+    scene: &NativeScene,
+    source: &crate::native_scene::source::SourceRetention,
+    parsed: &NativeScene,
+    skip: &[(NativeId, TransformField)],
+    appearance: Appearance,
+) -> Result<(), BinaryError> {
+    if !same_structure(scene, parsed) {
         return Err(unsupported());
     }
-    check_appearance_metadata(scene, &parsed)?;
+    if appearance == Appearance::Exact {
+        check_appearance_metadata(scene, parsed)?;
+    } else if !same_appearance_shape(
+        scene
+            .source
+            .as_ref()
+            .and_then(|source| source.appearance.as_deref()),
+        parsed
+            .source
+            .as_ref()
+            .and_then(|source| source.appearance.as_deref()),
+    ) {
+        return Err(unsupported());
+    }
     if scene.materials.len() != parsed.materials.len()
         || scene
             .materials
@@ -194,6 +336,9 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
     }
     for (node, decoded) in scene.nodes.iter().zip(&parsed.nodes) {
         for field in FIELDS {
+            if has_field(skip, node.transform_id, field) {
+                continue;
+            }
             for (component, (value, after)) in node
                 .field(field)
                 .iter()
@@ -224,8 +369,11 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
             }
         }
     }
-    Ok(output)
+    Ok(())
 }
 
+mod insert;
+mod place;
+mod plan;
 #[cfg(test)]
 mod tests;

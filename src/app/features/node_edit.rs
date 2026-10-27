@@ -92,7 +92,7 @@ impl Editor {
     pub(in crate::app) fn create(&mut self, primitive: Primitive) {
         self.native_operation(Operation::Create {
             primitive,
-            options: None,
+            options: Some(self.remembered_options(primitive)),
             name: None,
         });
     }
@@ -154,19 +154,57 @@ impl Editor {
             .wrap(),
         );
     }
-    /// Name, the nine transform channels and the read-only Visibility row, shared by the Channel
-    /// Box and the Attribute Editor Transform tab so both edit the same drafts and widget ids.
-    pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) {
-        ui.label("Object name");
-        let response = ui.add_enabled(
-            authoring,
-            egui::TextEdit::singleline(&mut self.name)
-                .interactive(authoring)
-                .id(name_edit_id()),
-        );
+    /// The object-name draft field. `Heading` is the Channel Box section heading; `Plain` is the
+    /// labelled form row. Both share one widget id and draft. Returns `lost_focus` so the caller
+    /// folds it into its single blur commit.
+    pub(in crate::app) fn name_field(
+        &mut self,
+        ui: &mut egui::Ui,
+        authoring: bool,
+        style: NameStyle,
+    ) -> bool {
+        let reason = self.read_only_reason();
+        let edit = egui::TextEdit::singleline(&mut self.name)
+            .interactive(authoring)
+            .id(name_edit_id());
+        let response = match style {
+            NameStyle::Plain => {
+                ui.label("Object name");
+                ui.add_enabled(authoring, edit)
+            }
+            NameStyle::Heading => {
+                let response = ui.add_enabled(
+                    authoring,
+                    edit.font(egui::TextStyle::Heading)
+                        .frame(egui::Frame::NONE)
+                        .desired_width(f32::INFINITY),
+                );
+                ui.ctx().accesskit_node_builder(response.id, |node| {
+                    node.set_label("Object name");
+                });
+                response
+            }
+        };
+        let response = match &reason {
+            Some(reason) => response.on_disabled_hover_text(reason),
+            None => response,
+        };
         self.name_intent |= response.changed();
-        let mut apply = response.lost_focus();
         ui.separator();
+        response.lost_focus()
+    }
+    /// One blur commit per frame, shared by the name field and the channel fields.
+    pub(in crate::app) fn commit_on_blur(&mut self, apply: bool) {
+        if apply && self.blur_commit_skip_frames == 0 {
+            self.commit_pending();
+        }
+    }
+    /// The nine transform channels and the read-only Visibility row, shared by the Channel Box and
+    /// the Attribute Editor Transform tab so both edit the same drafts and widget ids. Returns
+    /// whether a channel field lost focus.
+    pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) -> bool {
+        let reason = self.read_only_reason();
+        let mut apply = false;
         let visibility = self
             .selection_presentation()
             .0
@@ -199,6 +237,10 @@ impl Editor {
                             .id(channel_edit_id(index))
                             .desired_width(100.0),
                     );
+                    let response = match &reason {
+                        Some(reason) => response.on_disabled_hover_text(reason),
+                        None => response,
+                    };
                     self.channel_intents[index] |= response.changed();
                     apply |= response.lost_focus();
                     ui.end_row();
@@ -214,31 +256,50 @@ impl Editor {
             AngularUnit::Unsupported(unit) => unit,
         };
         ui.weak(format!("Rotation in {angular} | XYZ"));
-        if apply && self.blur_commit_skip_frames == 0 {
-            self.commit_pending();
-        }
+        apply
     }
-    pub(in crate::app) fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
-        ui.label(RichText::new("Channel Box").strong());
-        let read_only_reason = self
-            .history
+    pub(in crate::app) fn read_only_reason(&self) -> Option<String> {
+        self.history
             .scene()
             .authoring_read_only_reason()
-            .map(|reason| reason.to_string());
-        let authoring = read_only_reason.is_none();
-        if let Some(reason) = &read_only_reason {
+            .map(|reason| reason.to_string())
+    }
+    /// Help Line row under the time slider: the read-only reason and curves note that the blank
+    /// Channel Box no longer carries, and the appearance summary behind a closed header.
+    pub(in crate::app) fn help_line(&self, ui: &mut egui::Ui) {
+        if let Some(reason) = self.read_only_reason() {
             ui.weak(reason);
         }
         if !self.history.scene().curves().is_empty() {
             ui.weak("Curves: select in the Outliner and frame with F. Viewport curve picking and CV editing are unavailable.");
         }
-        self.appearance_summary(ui);
+        egui::CollapsingHeader::new("Scene diagnostics")
+            .id_salt("scene_diagnostics")
+            .default_open(false)
+            .show(ui, |ui| self.appearance_summary(ui));
+    }
+    pub(in crate::app) fn channels(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
+        ui.label(RichText::new("Channel Box").strong());
         ui.separator();
+        egui::ScrollArea::vertical()
+            .id_salt("channel_box_scroll")
+            .auto_shrink([false, false])
+            .show(ui, |ui| self.channel_sections(ui, delete_intent));
+    }
+
+    fn channel_sections(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
         if self.single_target().is_err() {
-            ui.weak("Select an object to edit its channels.");
+            unsupported_section(ui, "Layers");
             return;
         }
-        self.transform_section(ui, authoring);
+        let read_only_reason = self.read_only_reason();
+        let authoring = read_only_reason.is_none();
+        let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
+        let channel_blur = self.transform_section(ui, authoring);
+        self.commit_on_blur(name_blur | channel_blur);
+        for heading in ["SHAPES", "INPUTS", "OUTPUTS"] {
+            unsupported_section(ui, heading);
+        }
         self.material_controls(ui);
         ui.separator();
         if ui
@@ -252,9 +313,22 @@ impl Editor {
             *delete_intent = true;
         }
         ui.separator();
-        ui.weak("Inputs / construction history");
-        unsupported(ui, "Not implemented yet");
+        unsupported_section(ui, "Layers");
     }
+}
+
+fn unsupported_section(ui: &mut egui::Ui, heading: &str) {
+    ui.label(RichText::new(heading).strong());
+    let response = unsupported(ui, NOT_IMPLEMENTED_YET);
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_label(format!("{heading}: not implemented yet"));
+    });
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::app) enum NameStyle {
+    Heading,
+    Plain,
 }
 
 fn visibility_text(visibility: Option<bool>) -> &'static str {

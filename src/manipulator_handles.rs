@@ -7,8 +7,8 @@
 
 use crate::{
     move_handles::{
-        ARROW_LENGTH, HIT_RADIUS, HandleError, ScreenSegment, ViewportCapture,
-        axis_parameter_along, clip_segment, segment_distance_squared,
+        HIT_RADIUS, HandleError, ScreenSegment, ViewportCapture, axis_parameter_along,
+        clip_segment, segment_distance_squared,
     },
     native_scene::{RotateAxis, ScaleHandle},
 };
@@ -91,6 +91,30 @@ impl fmt::Display for DisabledKind {
     }
 }
 
+/// What lies under the pointer: an enabled handle, or a drawn-but-unsupported one that no enabled
+/// handle outranks.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick<H> {
+    Handle(H),
+    Disabled(DisabledKind),
+}
+
+impl<H> Pick<H> {
+    pub fn handle(self) -> Option<H> {
+        match self {
+            Self::Handle(handle) => Some(handle),
+            Self::Disabled(_) => None,
+        }
+    }
+
+    pub fn disabled(self) -> Option<DisabledKind> {
+        match self {
+            Self::Handle(_) => None,
+            Self::Disabled(kind) => Some(kind),
+        }
+    }
+}
+
 pub struct DisabledHandle {
     pub kind: DisabledKind,
     segments: Vec<ScreenSegment>,
@@ -106,13 +130,15 @@ fn inside_viewport(pixel: DVec2, size: DVec2) -> bool {
     pixel.is_finite() && !pixel.cmplt(DVec2::ZERO).any() && !pixel.cmpgt(size).any()
 }
 
+/// The disabled handle with the nearest segment inside the pick threshold; ties go to the earlier
+/// handle, like the enabled handles.
 fn nearest_disabled(handles: &[DisabledHandle], pixel: DVec2) -> Option<DisabledKind> {
     let mut closest = HIT_RADIUS * HIT_RADIUS;
     let mut selected = None;
     for handle in handles {
         for segment in &handle.segments {
             let distance = segment_distance_squared(*segment, pixel);
-            if distance <= closest {
+            if distance <= closest && (selected.is_none() || distance < closest) {
                 closest = distance;
                 selected = Some(handle.kind);
             }
@@ -186,7 +212,7 @@ impl RotateHandles {
     pub fn new(capture: &ViewportCapture, frame: &HandleFrame) -> Result<Self, HandleError> {
         let (clip, origin) = capture.project_origin(frame.origin)?;
         let size = capture.size();
-        let radius = capture.world_length(ARROW_LENGTH, clip.w);
+        let radius = capture.world_length(capture.handle_length(), clip.w);
         let to_eye = capture.eye() - frame.origin;
         if !radius.is_finite() || !to_eye.is_finite() {
             return Err(HandleError::InvalidProjection);
@@ -216,11 +242,11 @@ impl RotateHandles {
         let disabled = vec![
             DisabledHandle {
                 kind: DisabledKind::FreeRotate,
-                segments: screen_circle(origin, ARROW_LENGTH, size),
+                segments: screen_circle(origin, capture.handle_length(), size),
             },
             DisabledHandle {
                 kind: DisabledKind::ViewRing,
-                segments: screen_circle(origin, ARROW_LENGTH * VIEW_RING_FACTOR, size),
+                segments: screen_circle(origin, capture.handle_length() * VIEW_RING_FACTOR, size),
             },
         ];
         Ok(Self {
@@ -262,12 +288,20 @@ impl RotateHandles {
         selected
     }
 
-    /// A drawn-but-unsupported handle under the pointer, for the status line.
-    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
-        if !inside_viewport(pixel, self.size) || self.hit_test(pixel).is_some() {
+    /// The one pick for hover, press and inspection: an enabled ring wins, else a disabled handle.
+    pub fn pick(&self, pixel: DVec2) -> Option<Pick<RotateAxis>> {
+        if !inside_viewport(pixel, self.size) {
             return None;
         }
-        nearest_disabled(&self.disabled, pixel)
+        match self.hit_test(pixel) {
+            Some(axis) => Some(Pick::Handle(axis)),
+            None => nearest_disabled(&self.disabled, pixel).map(Pick::Disabled),
+        }
+    }
+
+    /// A drawn-but-unsupported handle under the pointer, for the status line.
+    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
+        self.pick(pixel).and_then(Pick::disabled)
     }
 }
 
@@ -446,7 +480,7 @@ impl ScaleHandles {
             .into_iter()
             .filter_map(|(a, b)| {
                 let (da, db) = (directions[a].ok()?.0, directions[b].ok()?.0);
-                let corner = |s: f64, t: f64| origin + (da * s + db * t) * ARROW_LENGTH;
+                let corner = |s: f64, t: f64| origin + (da * s + db * t) * capture.handle_length();
                 let points = [
                     corner(PLANE_NEAR, PLANE_NEAR),
                     corner(PLANE_FAR, PLANE_NEAR),
@@ -505,11 +539,19 @@ impl ScaleHandles {
         selected
     }
 
-    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
-        if !inside_viewport(pixel, self.size) || self.hit_test(pixel).is_some() {
+    /// The one pick for hover, press and inspection: an enabled handle wins, else a disabled one.
+    pub fn pick(&self, pixel: DVec2) -> Option<Pick<ScaleHandle>> {
+        if !inside_viewport(pixel, self.size) {
             return None;
         }
-        nearest_disabled(&self.disabled, pixel)
+        match self.hit_test(pixel) {
+            Some(handle) => Some(Pick::Handle(handle)),
+            None => nearest_disabled(&self.disabled, pixel).map(Pick::Disabled),
+        }
+    }
+
+    pub fn hit_disabled(&self, pixel: DVec2) -> Option<DisabledKind> {
+        self.pick(pixel).and_then(Pick::disabled)
     }
 }
 

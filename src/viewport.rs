@@ -9,6 +9,9 @@ use crate::{
 use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
 
+mod lens;
+pub use lens::Lens;
+
 const MAX_FACE_CENTER_INTERSECTIONS: usize = 1_000_000;
 
 /// Relative view-depth slack for a face center against its own surface hit (f32 rounding).
@@ -17,7 +20,7 @@ pub const FACE_CENTER_DEPTH_TOLERANCE: f32 = 1e-4;
 /// on. Vertex markers and the selected-edge strip are biased toward the eye by it and vertex and
 /// edge picks test occlusion with it, so what is drawn and what is picked agree. Kept apart from
 /// the face constant so loosening one never moves the other. A flat provisional policy value,
-/// see `known-issues.md`.
+/// see the policy constants table in `.project-docs/development.md`.
 pub const VERTEX_MARKER_DEPTH_TOLERANCE: f32 = 6e-3;
 
 // Right-handed, Y-up; yaw zero looks from +Z. NDC uses X/Y [-1, 1], Y up, Z [0, 1].
@@ -28,7 +31,7 @@ pub struct Camera {
     yaw: f32,
     pitch: f32,
     distance: f32,
-    fov_y: f32,
+    lens: Lens,
     near: f32,
     far: f32,
 }
@@ -49,44 +52,87 @@ impl fmt::Display for InvalidCameraInput {
 }
 impl std::error::Error for InvalidCameraInput {}
 
+/// Why `Camera::set_pose` refused a pose; names the field so callers can report it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InvalidCameraPose {
+    TargetNotFinite,
+    YawNotFinite,
+    PitchNotFinite,
+    PitchOutOfRange,
+    DistanceNotFinite,
+    DistanceNotPositive,
+    /// Every field is valid alone but the eye or view matrix overflows.
+    Unrepresentable,
+}
+
+impl fmt::Display for InvalidCameraPose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TargetNotFinite => f.write_str("camera target must be finite"),
+            Self::YawNotFinite => f.write_str("camera yaw must be finite"),
+            Self::PitchNotFinite => f.write_str("camera pitch must be finite"),
+            Self::PitchOutOfRange => write!(
+                f,
+                "camera pitch must be within \u{b1}{} degrees",
+                MAX_PITCH.to_degrees()
+            ),
+            Self::DistanceNotFinite => f.write_str("camera distance must be finite"),
+            Self::DistanceNotPositive => f.write_str("camera distance must be greater than zero"),
+            Self::Unrepresentable => f.write_str(
+                "camera pose is not representable (distance too small or values too large)",
+            ),
+        }
+    }
+}
+impl std::error::Error for InvalidCameraPose {}
+
+/// Pitch limit shared by `new`, `set_pose` and `orbit`, just short of the poles so the view never flips.
+pub const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.001;
+
 impl Default for Camera {
     fn default() -> Self {
-        Self::new(
-            Vec3::ZERO,
-            0.6,
-            0.4,
-            8.0,
-            45_f32.to_radians(),
-            0.01,
-            10_000.0,
-        )
-        .expect("default camera is valid")
+        let camera = Self {
+            target: Vec3::ZERO,
+            yaw: 0.6,
+            pitch: 0.4,
+            distance: 8.0,
+            lens: Lens::Film,
+            near: 0.1,
+            far: 10_000.0,
+        };
+        camera.validate().expect("default camera is valid");
+        camera
+    }
+}
+
+/// Wraps yaw into `[0, TAU)`. In f32 `rem_euclid` rounds a tiny negative input up to exactly
+/// `TAU`, which would report 360 degrees and not round-trip through a pose.
+fn wrap_yaw(yaw: f32) -> f32 {
+    let wrapped = yaw.rem_euclid(std::f32::consts::TAU);
+    if wrapped >= std::f32::consts::TAU {
+        0.0
+    } else {
+        wrapped
     }
 }
 
 impl Camera {
     pub fn same_capture(&self, other: &Self) -> bool {
         self.target.to_array().map(f32::to_bits) == other.target.to_array().map(f32::to_bits)
-            && [
-                self.yaw,
-                self.pitch,
-                self.distance,
-                self.fov_y,
-                self.near,
-                self.far,
-            ]
-            .map(f32::to_bits)
+            && [self.yaw, self.pitch, self.distance, self.near, self.far].map(f32::to_bits)
                 == [
                     other.yaw,
                     other.pitch,
                     other.distance,
-                    other.fov_y,
                     other.near,
                     other.far,
                 ]
                 .map(f32::to_bits)
+            && self.lens.capture_bits() == other.lens.capture_bits()
     }
 
+    /// Builds a camera in the same normal form `orbit` and `set_pose` keep: yaw wraps into
+    /// `[0, TAU)` and a pitch beyond `MAX_PITCH` is rejected, not clamped.
     pub fn new(
         target: Vec3,
         yaw: f32,
@@ -98,10 +144,10 @@ impl Camera {
     ) -> Result<Self, InvalidCameraInput> {
         let camera = Self {
             target,
-            yaw,
+            yaw: wrap_yaw(yaw),
             pitch,
             distance,
-            fov_y,
+            lens: Lens::VerticalFov(fov_y),
             near,
             far,
         };
@@ -113,12 +159,10 @@ impl Camera {
         if !self.target.is_finite()
             || !self.yaw.is_finite()
             || !self.pitch.is_finite()
-            || self.pitch.abs() >= std::f32::consts::FRAC_PI_2
+            || self.pitch.abs() > MAX_PITCH
             || !self.distance.is_finite()
             || self.distance <= 0.0
-            || !self.fov_y.is_finite()
-            || self.fov_y <= 0.0
-            || self.fov_y >= std::f32::consts::PI
+            || !self.lens.is_valid()
             || !self.near.is_finite()
             || self.near <= 0.0
             || !self.far.is_finite()
@@ -136,6 +180,28 @@ impl Camera {
     }
     pub fn distance(&self) -> f32 {
         self.distance
+    }
+    /// Orbit angle about world Y in radians; zero looks from +Z toward the target.
+    pub fn yaw(&self) -> f32 {
+        self.yaw
+    }
+    /// Elevation in radians, positive above the target, within ±`MAX_PITCH`.
+    pub fn pitch(&self) -> f32 {
+        self.pitch
+    }
+    pub fn lens(&self) -> Lens {
+        self.lens
+    }
+    /// Vertical field of view in radians at the viewport `aspect`; the film lens narrows it as
+    /// the viewport widens beyond the film aspect.
+    pub fn fov_y_for(&self, aspect: f32) -> f32 {
+        self.lens.half_angle_y(aspect) * 2.0
+    }
+    pub fn near(&self) -> f32 {
+        self.near
+    }
+    pub fn far(&self) -> f32 {
+        self.far
     }
     pub fn eye(&self) -> Vec3 {
         self.target
@@ -170,7 +236,7 @@ impl Camera {
         if !aspect.is_finite() || aspect <= 0.0 {
             return Err(InvalidCameraInput);
         }
-        let y = 1.0 / (self.fov_y * 0.5).tan();
+        let y = 1.0 / self.lens.tan_half_y(aspect);
         let z = self.far / (self.near - self.far);
         let matrix = Mat4::from_cols(
             Vec4::new(y / aspect, 0.0, 0.0, 0.0),
@@ -189,10 +255,50 @@ impl Camera {
             return Err(InvalidCameraInput);
         }
         let mut next = self.clone();
-        next.yaw = (next.yaw + radians.x).rem_euclid(std::f32::consts::TAU);
-        let limit = std::f32::consts::FRAC_PI_2 - 0.001;
-        next.pitch = (next.pitch + radians.y).clamp(-limit, limit);
+        next.yaw = wrap_yaw(next.yaw + radians.x);
+        next.pitch = (next.pitch + radians.y).clamp(-MAX_PITCH, MAX_PITCH);
         next.validate()?;
+        *self = next;
+        Ok(())
+    }
+
+    /// Restores an absolute view. Yaw wraps like `orbit`; a pitch beyond orbit's limit is
+    /// rejected rather than clamped so a pose that was read back never changes silently.
+    /// The lens and clip planes are untouched. The camera is unchanged on error.
+    /// Changed/Unchanged is numeric: -0.0 equals 0.0, so a pose differing only in zero signs is
+    /// no change although the stored bits may flip; `same_capture` compares bits.
+    pub fn set_pose(
+        &mut self,
+        target: Vec3,
+        distance: f32,
+        yaw: f32,
+        pitch: f32,
+    ) -> Result<(), InvalidCameraPose> {
+        if !target.is_finite() {
+            return Err(InvalidCameraPose::TargetNotFinite);
+        }
+        if !distance.is_finite() {
+            return Err(InvalidCameraPose::DistanceNotFinite);
+        }
+        if distance <= 0.0 {
+            return Err(InvalidCameraPose::DistanceNotPositive);
+        }
+        if !yaw.is_finite() {
+            return Err(InvalidCameraPose::YawNotFinite);
+        }
+        if !pitch.is_finite() {
+            return Err(InvalidCameraPose::PitchNotFinite);
+        }
+        if pitch.abs() > MAX_PITCH {
+            return Err(InvalidCameraPose::PitchOutOfRange);
+        }
+        let mut next = self.clone();
+        next.target = target;
+        next.distance = distance;
+        next.yaw = wrap_yaw(yaw);
+        next.pitch = pitch;
+        next.validate()
+            .map_err(|InvalidCameraInput| InvalidCameraPose::Unrepresentable)?;
         *self = next;
         Ok(())
     }
@@ -350,7 +456,10 @@ impl Camera {
         }
         let target = min * 0.5 + max * 0.5;
         let radius = vertices.map(|v| v.distance(target)).fold(0.0_f32, f32::max);
-        let half_angle = (self.fov_y * 0.5).min(((self.fov_y * 0.5).tan() * aspect).atan());
+        let half_angle = self
+            .lens
+            .half_angle_y(aspect)
+            .min((self.lens.tan_half_y(aspect) * aspect).atan());
         let mut next = self.clone();
         next.target = target;
         next.distance = (radius / half_angle.sin())

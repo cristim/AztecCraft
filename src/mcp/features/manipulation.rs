@@ -1,6 +1,7 @@
 use crate::{
     editor_operations::{
         ActiveTool, ManipulationSpace, ManipulationValue, MoveDistance, Operation, RemoteRequest,
+        ToolHandle,
     },
     mcp::{
         args::{decode, manipulation_id, native_id, node_id, schema, scoped, token},
@@ -9,6 +10,7 @@ use crate::{
 };
 use azteccraft::{
     history::ManipulationFinish,
+    move_handles::ManipulatorSize,
     native_scene::{RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
 };
 use rmcp::{
@@ -64,6 +66,31 @@ struct ToolSpaceArgs {
     scene_token: String,
     tool: SpaceToolInput,
     space: SpaceInput,
+}
+
+/// `tool` selects which persistent selection is set: the Rotate axis or the Scale handle. Each
+/// takes its own field and nothing else.
+#[derive(Deserialize, JsonSchema)]
+#[serde(tag = "tool", rename_all = "snake_case", deny_unknown_fields)]
+enum ToolHandleArgs {
+    Rotate {
+        scene_token: String,
+        axis: AxisInput,
+    },
+    Scale {
+        scene_token: String,
+        handle: HandleInput,
+    },
+}
+
+/// Sets the global manipulator size. The value is rounded to three decimals.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ManipulatorSizeArgs {
+    scene_token: String,
+    /// Between 0.1 and 10.0 inclusive; 2.5555 is stored and read back as 2.556.
+    #[schemars(range(min = 0.1, max = 10.0))]
+    size: f64,
 }
 
 /// `kind` selects the manipulation; each kind takes its own handle fields and nothing else. Move
@@ -144,6 +171,32 @@ fn parse_set_tool_space(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
     ))
 }
 
+fn parse_set_tool_handle(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let (scene_token, handle) = match decode(arguments)? {
+        ToolHandleArgs::Rotate { scene_token, axis } => {
+            (scene_token, ToolHandle::RotateAxis(rotate_axis(axis)))
+        }
+        ToolHandleArgs::Scale {
+            scene_token,
+            handle,
+        } => (scene_token, ToolHandle::ScaleHandle(scale_handle(handle))),
+    };
+    Ok(scoped(
+        token(&scene_token)?,
+        Operation::SetToolHandle(handle),
+    ))
+}
+
+fn parse_set_manipulator_size(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ManipulatorSizeArgs = decode(arguments)?;
+    let size = ManipulatorSize::new(args.size)
+        .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetManipulatorSize(size),
+    ))
+}
+
 fn target(node: &str, instance_path: Vec<String>) -> Result<TransformTarget, ErrorData> {
     if !(1..=256).contains(&instance_path.len()) {
         return Err(ErrorData::invalid_params(
@@ -165,6 +218,23 @@ fn world_axis(axis: AxisInput) -> WorldAxis {
         AxisInput::X => WorldAxis::X,
         AxisInput::Y => WorldAxis::Y,
         AxisInput::Z => WorldAxis::Z,
+    }
+}
+
+fn rotate_axis(axis: AxisInput) -> RotateAxis {
+    match axis {
+        AxisInput::X => RotateAxis::X,
+        AxisInput::Y => RotateAxis::Y,
+        AxisInput::Z => RotateAxis::Z,
+    }
+}
+
+fn scale_handle(handle: HandleInput) -> ScaleHandle {
+    match handle {
+        HandleInput::X => ScaleHandle::X,
+        HandleInput::Y => ScaleHandle::Y,
+        HandleInput::Z => ScaleHandle::Z,
+        HandleInput::Uniform => ScaleHandle::Uniform,
     }
 }
 
@@ -199,11 +269,7 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             scene_token,
             Operation::BeginRotate {
                 target: target(&node_id, instance_path)?,
-                axis: match axis {
-                    AxisInput::X => RotateAxis::X,
-                    AxisInput::Y => RotateAxis::Y,
-                    AxisInput::Z => RotateAxis::Z,
-                },
+                axis: rotate_axis(axis),
                 space: space(input),
             },
         ),
@@ -217,12 +283,7 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             scene_token,
             Operation::BeginScale {
                 target: target(&node_id, instance_path)?,
-                handle: match handle {
-                    HandleInput::X => ScaleHandle::X,
-                    HandleInput::Y => ScaleHandle::Y,
-                    HandleInput::Z => ScaleHandle::Z,
-                    HandleInput::Uniform => ScaleHandle::Uniform,
-                },
+                handle: scale_handle(handle),
                 space: space(input),
             },
         ),
@@ -346,6 +407,22 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
     ToolSpec {
+        name: "set_tool_handle",
+        description: "Set the persistent Rotate axis (x, y, z) or Scale handle (x, y, z, uniform) that the native Tool Settings selectors use for numeric entry; read them from inspect_scene manipulation.rotate_axis and scale_handle. begin_manipulation always names its own axis or handle and ignores this setting. Does not change the active tool or space",
+        schema: schema::<ToolHandleArgs>,
+        parse: parse_set_tool_handle,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_manipulator_size",
+        description: "Set the global size of the Move, Rotate and Scale manipulators, the same setting as the native + and - keys, from 0.1 to 10.0 (default 1.0); a value set here is rounded to three decimals, so 2.5555 reads back as 2.556. The keys step on the 1.25^k grid (k from -10 to 10, about 0.107 to 9.313) and store the exact grid value, so after a key step inspect_scene may report more decimals (for example 1.5625); a step from an off-grid value moves to the next grid value in that direction that changes the three-decimal value. Session-only: it never dirties the scene or enters undo history. Read it from inspect_scene manipulation.manipulator_size. Below 0.5 the drawn manipulator stops shrinking. Does not change the active tool",
+        schema: schema::<ManipulatorSizeArgs>,
+        parse: parse_set_manipulator_size,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "begin_manipulation",
         description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools",
         schema: schema::<BeginManipulationArgs>,
@@ -403,6 +480,73 @@ mod schema_drift_tests {
                 .map(|name| name.as_str().unwrap().to_owned())
                 .collect();
             assert_eq!(required, own);
+        }
+    }
+}
+
+#[cfg(test)]
+mod parse_tool_handle_tests {
+    use super::*;
+
+    fn parsed(arguments: Value) -> Operation {
+        let Value::Object(arguments) = arguments else {
+            unreachable!()
+        };
+        parse_set_tool_handle(arguments).ok().unwrap().operation
+    }
+
+    #[test]
+    fn every_axis_and_handle_maps_to_its_own_core_value() {
+        let token = uuid::Uuid::new_v4().to_string();
+        for (text, axis) in [
+            ("x", RotateAxis::X),
+            ("y", RotateAxis::Y),
+            ("z", RotateAxis::Z),
+        ] {
+            let operation = parsed(json!({"scene_token":token,"tool":"rotate","axis":text}));
+            assert!(matches!(
+                operation,
+                Operation::SetToolHandle(ToolHandle::RotateAxis(got)) if got == axis
+            ));
+        }
+        for (text, handle) in [
+            ("x", ScaleHandle::X),
+            ("y", ScaleHandle::Y),
+            ("z", ScaleHandle::Z),
+            ("uniform", ScaleHandle::Uniform),
+        ] {
+            let operation = parsed(json!({"scene_token":token,"tool":"scale","handle":text}));
+            assert!(matches!(
+                operation,
+                Operation::SetToolHandle(ToolHandle::ScaleHandle(got)) if got == handle
+            ));
+        }
+    }
+}
+
+#[cfg(test)]
+mod parse_manipulator_size_tests {
+    use super::*;
+
+    fn parsed(size: Value) -> Result<RemoteRequest, ErrorData> {
+        let token = uuid::Uuid::new_v4().to_string();
+        let Value::Object(arguments) = json!({"scene_token":token,"size":size}) else {
+            unreachable!()
+        };
+        parse_set_manipulator_size(arguments)
+    }
+
+    #[test]
+    fn bounds_are_inclusive_and_values_round_to_three_decimals() {
+        for (given, stored) in [(0.1, 0.1), (10.0, 10.0), (2.5555, 2.556)] {
+            let operation = parsed(json!(given)).ok().unwrap().operation;
+            assert!(matches!(
+                operation,
+                Operation::SetManipulatorSize(size) if size.get() == stored
+            ));
+        }
+        for given in [0.0999, 10.0001, 0.0, -0.0, 1e300] {
+            assert!(parsed(json!(given)).is_err(), "{given}");
         }
     }
 }

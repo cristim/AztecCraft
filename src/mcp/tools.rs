@@ -90,8 +90,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::Legacy(
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
+                OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
                 OperationError::Scene(_) => "scene_error",
-                OperationError::Camera(_) => "camera_error",
+                OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
@@ -327,6 +328,93 @@ mod tests {
                 "set_tool_space",
                 json!({"scene_token":token,"tool":"rotate"}),
             ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"move","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"select","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","handle":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","axis":"x"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"w"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"uniform"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","handle":"xy"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"rotate","axis":"x","space":"world"}),
+            ),
+            (
+                "set_tool_handle",
+                json!({"scene_token":token,"tool":"scale","handle":"x","axis":"x"}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":"1"}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":"NaN"}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":0.05}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":0.0999}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":10.0001}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":11}),
+            ),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":-1}),
+            ),
+            ("set_manipulator_size", json!({"scene_token":token})),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":token,"size":1,"extra":1}),
+            ),
+            ("set_manipulator_size", json!({"size":1})),
+            (
+                "set_manipulator_size",
+                json!({"scene_token":"not-a-uuid","size":1}),
+            ),
+            ("set_tool_handle", json!({"tool":"rotate","axis":"x"})),
+            (
+                "set_tool_handle",
+                json!({"scene_token":"not-a-uuid","tool":"rotate","axis":"x"}),
+            ),
             ("begin_manipulation", move_args(json!({"instance_path":[]}))),
             ("begin_manipulation", move_args(json!({"axis":"xy"}))),
             (
@@ -533,6 +621,10 @@ mod tests {
                 "set_tool_space" => {
                     json!({"scene_token":token,"tool":"scale","space":"object"})
                 }
+                "set_tool_handle" => {
+                    json!({"scene_token":token,"tool":"scale","handle":"uniform"})
+                }
+                "set_manipulator_size" => json!({"scene_token":token,"size":2.5}),
                 "begin_manipulation" => {
                     json!({"scene_token":token,"kind":"move","node_id":"1","instance_path":["1"],"axis":"x"})
                 }
@@ -570,6 +662,9 @@ mod tests {
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
+                "set_camera_pose" => {
+                    json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
+                }
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "set_shading_mode" => json!({"scene_token":token,"mode":"wireframe"}),
                 "set_sidebar_panel_visibility" => {
@@ -663,12 +758,15 @@ mod tests {
                     | "select_attribute_editor_tab"
                     | "set_active_tool"
                     | "set_tool_space"
+                    | "set_tool_handle"
+                    | "set_manipulator_size"
                     | "select_node"
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
                     | "select_vertex"
                     | "select_edge"
+                    | "set_camera_pose"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),

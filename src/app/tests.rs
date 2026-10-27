@@ -1235,6 +1235,49 @@ fn face_mode_on_a_curves_only_ascii_scene_refuses_face_targets_and_preserves_sta
     assert_eq!(inspection.curves.len(), 1);
 }
 
+fn channel_text(output: &egui::FullOutput) -> String {
+    output
+        .shapes
+        .iter()
+        .filter_map(|shape| match &shape.shape {
+            egui::Shape::Text(text) => Some(text.galley.job.text.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+fn help_line_text(editor: &mut Editor) -> String {
+    let context = egui::Context::default();
+    let mut output = context.run_ui(egui::RawInput::default(), |ui| editor.help_line(ui));
+    output.textures_delta.clear();
+    channel_text(&output)
+}
+
+/// Channel Box text while the pointer rests on `field`, so tooltips are included.
+fn hover_texts(editor: &mut Editor, context: &egui::Context, field: egui::Id) -> String {
+    context.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(420.0, 900.0));
+    let mut text = String::new();
+    for step in 0..8 {
+        let at = context
+            .read_response(field)
+            .map_or(egui::pos2(60.0, 60.0), |response| response.rect.center());
+        let mut output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(screen),
+                time: Some(10.0 + f64::from(step) * 0.25),
+                events: vec![egui::Event::PointerMoved(at)],
+                ..Default::default()
+            },
+            |ui| editor.channels(ui, &mut false),
+        );
+        output.textures_delta.clear();
+        text = channel_text(&output);
+    }
+    text
+}
+
 #[test]
 fn ascii_channel_controls_are_disabled_and_show_the_shared_core_reason() {
     let directory = tempfile::tempdir().unwrap();
@@ -1272,12 +1315,101 @@ fn ascii_channel_controls_are_disabled_and_show_the_shared_core_reason() {
             .authoring_read_only_reason()
             .unwrap()
             .to_string();
-        assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,egui::Shape::Text(text) if text.galley.job.text.contains(&reason))));
+        assert!(
+            !channel_text(&output).contains(&reason),
+            "the panel no longer prints the reason"
+        );
+        let help = help_line_text(&mut editor);
+        assert!(help.contains(&reason), "{help}");
+        assert!(
+            hover_texts(&mut editor, &context, text_id).contains(&reason),
+            "no reason tooltip on the disabled field"
+        );
         assert_eq!((&editor.name, &editor.channels), (&fields.0, &fields.1));
         assert!(!context.memory(|memory| memory.has_focus(text_id)));
         assert!(!editor.has_draft());
         assert_eq!(editor.history.scene(), &before);
     }
+}
+
+#[test]
+fn read_only_scene_disables_creation_and_history_controls_with_the_core_reason() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    assert!(editor.history.can_redo());
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    // Open replaces the history, so nothing from the previous scene can be undone or redone.
+    assert!(!editor.history.can_undo() && !editor.history.can_redo());
+    let reason = editor
+        .history
+        .scene()
+        .authoring_read_only_reason()
+        .unwrap()
+        .to_string();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let output = frame(&mut editor, &ctx, vec![]);
+    for label in ["Cube", "Plane", "Undo", "Redo"] {
+        assert!(button_disabled(&output, label), "{label} enabled");
+    }
+    for label in ["Cube", "Plane"] {
+        let ctx = egui::Context::default();
+        ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        frame(&mut editor, &ctx, vec![]);
+        let output = frame(&mut editor, &ctx, vec![]);
+        let at = face_text_position(&output, label);
+        // The Channel Box already prints the reason; the hover must add a tooltip copy.
+        let count = |output: &egui::FullOutput| {
+            output
+                .shapes
+                .iter()
+                .filter(|shape| {
+                    matches!(&shape.shape, egui::Shape::Text(text) if text.galley.job.text == reason)
+                })
+                .count()
+        };
+        let baseline = count(&output);
+        let mut hovered = output;
+        for step in 1..=8 {
+            let mut input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1440.0, 900.0),
+                )),
+                time: Some(10.0 + f64::from(step) * 0.25),
+                events: vec![egui::Event::PointerMoved(at)],
+                ..Default::default()
+            };
+            input.viewports.entry(egui::ViewportId::ROOT).or_default();
+            hovered = ctx.run_ui(input, |ui| editor.render(ui));
+            hovered.textures_delta.clear();
+        }
+        assert_eq!(
+            count(&hovered),
+            baseline + 1,
+            "{label} has no reason tooltip"
+        );
+    }
+    let before = editor.history.scene().clone();
+    let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
+        assert!(submenu_item(&output, label).disabled, "{label} enabled");
+        if primitive.is_some() {
+            let option_box = format!("{label} option box");
+            assert!(
+                submenu_item(&output, &option_box).disabled,
+                "{option_box} enabled"
+            );
+        }
+    }
+    assert_eq!(editor.history.scene(), &before);
 }
 
 #[test]
@@ -1339,7 +1471,7 @@ fn ascii_outliner_selection_and_frame_use_actual_curve_owner_without_authoring()
 }
 
 #[test]
-fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() {
+fn channel_box_keeps_human_state_and_leaves_diagnostics_to_the_help_line() {
     for width in [240.0, 420.0] {
         let context = egui::Context::default();
         let mut editor = Editor::default();
@@ -1364,29 +1496,9 @@ fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() 
             frame.textures_delta.clear();
             output = Some(frame);
         }
-        let output = output.unwrap();
-        let labels: Vec<_> = output
-            .shapes
-            .iter()
-            .filter_map(|shape| match &shape.shape {
-                egui::Shape::Text(text) => Some((text.galley.job.text.as_str(), text.pos.y)),
-                _ => None,
-            })
-            .collect();
-        let summary = labels
-            .iter()
-            .find(|(text, _)| *text == "Direct shapes (1)")
-            .unwrap();
-        let controls = labels
-            .iter()
-            .find(|(text, _)| *text == "Object name")
-            .unwrap();
-        assert!(summary.1 < controls.1);
-        assert!(
-            labels
-                .iter()
-                .any(|(text, _)| text.contains("Evaluation unavailable"))
-        );
+        let text = channel_text(&output.unwrap());
+        assert!(text.contains("Translate X"), "{text}");
+        assert!(!text.contains("Direct shapes") && !text.contains("Evaluation unavailable"));
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(editor.selection_presentation().0, selected);
         assert_eq!(editor.selection_presentation().1, path);
@@ -1394,6 +1506,311 @@ fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() 
         assert_eq!(editor.name, "pending human draft");
         assert!(context.memory(|memory| memory.has_focus(name_edit_id())));
     }
+}
+
+#[test]
+fn help_line_summary_is_closed_until_the_scene_diagnostics_header_opens() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let output = frame(&mut editor, &ctx, vec![]);
+    let text = channel_text(&output);
+    assert!(text.contains("Scene diagnostics"), "{text}");
+    assert!(!text.contains("Direct shapes") && !text.contains("Evaluation unavailable"));
+    let header = face_text_position(&output, "Scene diagnostics");
+    face_pointer_click(&mut editor, &ctx, header, egui::Modifiers::NONE, vec![]);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let text = channel_text(&frame(&mut editor, &ctx, vec![]));
+    assert!(text.contains("Direct shapes (1)"), "{text}");
+    assert!(text.contains("Evaluation unavailable"), "{text}");
+}
+
+#[test]
+fn channel_box_lists_unsupported_sections_in_maya_order_without_changing_state() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let scene = editor.history.scene().clone();
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let mut output = context.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(420.0, 1200.0),
+            )),
+            ..Default::default()
+        },
+        |ui| editor.channels(ui, &mut false),
+    );
+    output.textures_delta.clear();
+    let y = |label: &str| face_text_position(&output, label).y;
+    let order = [
+        "Translate X",
+        "SHAPES",
+        "INPUTS",
+        "OUTPUTS",
+        "Materials",
+        "Layers",
+    ];
+    for pair in order.windows(2) {
+        assert!(y(pair[0]) < y(pair[1]), "{} before {}", pair[0], pair[1]);
+    }
+    let stubs = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .filter(|(_, node)| {
+            node.label()
+                .is_some_and(|label| label.ends_with(": not implemented yet"))
+        })
+        .collect::<Vec<_>>();
+    let mut names = stubs
+        .iter()
+        .map(|(_, node)| node.label().unwrap())
+        .collect::<Vec<_>>();
+    names.sort_unstable();
+    assert_eq!(
+        names,
+        [
+            "INPUTS: not implemented yet",
+            "Layers: not implemented yet",
+            "OUTPUTS: not implemented yet",
+            "SHAPES: not implemented yet",
+        ]
+    );
+    assert!(stubs.iter().all(|(_, node)| node.is_disabled()));
+    assert_eq!(editor.history.scene(), &scene);
+    assert!(!editor.has_draft());
+}
+
+/// Rects of every `text` paint whose whole galley lies inside the clip it was painted with.
+pub(in crate::app) fn visible_text_rects(output: &egui::FullOutput, text: &str) -> Vec<egui::Rect> {
+    output
+        .shapes
+        .iter()
+        .filter_map(|clipped| match &clipped.shape {
+            egui::Shape::Text(t) if t.galley.job.text == text => {
+                let rect = egui::Rect::from_min_size(t.pos, t.galley.size());
+                clipped.clip_rect.contains_rect(rect).then_some(rect)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+pub(in crate::app) fn wheel_frames(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    over: egui::Pos2,
+    frames: usize,
+) -> egui::FullOutput {
+    let mut events = vec![egui::Event::PointerMoved(over)];
+    let mut output = egui::FullOutput::default();
+    for _ in 0..frames {
+        events.push(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Point,
+            delta: egui::vec2(0.0, -200.0),
+            phase: egui::TouchPhase::Move,
+            modifiers: egui::Modifiers::NONE,
+        });
+        output = frame_with(editor, ctx, size, 1.0, std::mem::take(&mut events));
+    }
+    output
+}
+
+#[test]
+fn channel_box_reaches_delete_and_layers_at_the_minimum_window_size() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    ctx.enable_accesskit();
+    let size = egui::vec2(960.0, 640.0);
+    let output = frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(!visible_text_rects(&output, "Translate X").is_empty());
+    assert!(
+        visible_text_rects(&output, "Delete selected").is_empty(),
+        "scroll not exercised"
+    );
+    let camera = editor.camera.clone();
+    // Pointer over the right-hand Channel Box panel, below its heading.
+    let over_panel = egui::pos2(size.x - 100.0, 300.0);
+    let output = wheel_frames(&mut editor, &ctx, size, over_panel, 10);
+    assert_eq!(editor.camera, camera, "wheel reached the viewport");
+    let delete = visible_text_rects(&output, "Delete selected");
+    assert!(!delete.is_empty(), "Delete unreachable");
+    assert!(
+        !visible_text_rects(&output, "Layers").is_empty(),
+        "Layers unreachable"
+    );
+    let stub = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Layers: not implemented yet"))
+        .and_then(|(_, node)| node.bounds())
+        .map(|b| {
+            egui::Rect::from_min_max(
+                egui::pos2(b.x0 as f32, b.y0 as f32),
+                egui::pos2(b.x1 as f32, b.y1 as f32),
+            )
+        })
+        .expect("Layers stub");
+    // The stub's own label reads the same, so the tooltip is the extra copy that appears on hover.
+    let label_copies = visible_text_rects(&output, "Not implemented yet").len();
+    let mut tooltip = false;
+    for step in 0..8 {
+        let mut input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(10.0 + f64::from(step) * 0.25),
+            events: vec![egui::Event::PointerMoved(stub.center())],
+            ..Default::default()
+        };
+        if let Some(viewport) = input.viewports.get_mut(&egui::ViewportId::ROOT) {
+            viewport.native_pixels_per_point = Some(1.0);
+        }
+        let hovered = ctx.run_ui(input, |ui| editor.render(ui));
+        tooltip |= visible_text_rects(&hovered, "Not implemented yet").len() > label_copies;
+    }
+    assert!(tooltip, "Layers stub tooltip not painted");
+    let at = delete[0].center();
+    frame_with(
+        &mut editor,
+        &ctx,
+        size,
+        1.0,
+        vec![egui::Event::PointerMoved(at)],
+    );
+    for pressed in [true, false] {
+        frame_with(
+            &mut editor,
+            &ctx,
+            size,
+            1.0,
+            vec![egui::Event::PointerButton {
+                pos: at,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+    }
+    assert!(editor.history.scene().nodes().is_empty(), "Delete click");
+}
+
+#[test]
+fn channel_box_is_blank_with_nothing_selected() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.select(None);
+    assert!(editor.single_target().is_err());
+    let (text, _) = channel_box_text(&mut editor);
+    assert_eq!(text, "Channel Box|Layers|Not implemented yet");
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    editor.select(None);
+    let (text, _) = channel_box_text(&mut editor);
+    for absent in ["Select an object", "Direct shapes", "Curves:", "read-only"] {
+        assert!(!text.contains(absent), "{text}");
+    }
+}
+
+#[test]
+fn read_only_scene_is_marked_in_the_title_and_file_menu() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert_eq!(editor.document_title(), "AztecCraft | curve.ma (read-only)");
+    let reason = editor.read_only_reason().unwrap();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let file = face_text_position(&output, "File");
+    let output = face_pointer_click(&mut editor, &ctx, file, egui::Modifiers::NONE, vec![]);
+    let marker = face_text_position(&output, &format!("Read-only scene: {reason}"));
+    assert!(marker.y < face_text_position(&output, "Close").y);
+
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    assert_eq!(editor.document_title(), "AztecCraft | Untitled *");
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let file = face_text_position(&output, "File");
+    let output = face_pointer_click(&mut editor, &ctx, file, egui::Modifiers::NONE, vec![]);
+    face_text_position(&output, "Close");
+    assert!(!output.shapes.iter().any(|shape| matches!(
+        &shape.shape,
+        egui::Shape::Text(text) if text.galley.job.text.starts_with("Read-only scene")
+    )));
+}
+
+#[test]
+fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    for text in [
+        "Warning: Scene Not Saved",
+        "Save changes to untitled scene?",
+    ] {
+        face_text_position(&output, text);
+    }
+    let buttons: Vec<f32> = ["Save", "Don't Save", "Cancel"]
+        .iter()
+        .map(|label| face_text_position(&output, label).x)
+        .collect();
+    assert!(
+        buttons.windows(2).all(|pair| pair[0] < pair[1]),
+        "{buttons:?}"
+    );
+    // An untitled scene cannot be saved in place yet (Maya would Save As), so Save is inert.
+    let before = editor.history.scene().clone();
+    let save = face_text_position(&output, "Save");
+    face_pointer_click(&mut editor, &ctx, save, egui::Modifiers::NONE, vec![]);
+    assert!(editor.files.is_modal());
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn help_line_carries_the_read_only_reason_and_curves_note() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let reason = editor.read_only_reason().unwrap();
+    let text = help_line_text(&mut editor);
+    assert!(text.contains(&reason) && text.contains("Curves:"), "{text}");
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let text = help_line_text(&mut editor);
+    assert!(
+        !text.contains("Curves:") && text.contains("Scene diagnostics"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -1492,6 +1909,115 @@ pub(in crate::app) fn remote(
         },
         &egui::Context::default(),
     )
+}
+
+#[test]
+fn remote_successes_report_on_the_status_line_like_native_ones() {
+    let mut native = Editor::default();
+    let mut remote_editor = Editor::default();
+    let initial = native.status.clone();
+    assert_eq!(remote_editor.status, initial);
+    let steps: Vec<fn(&Editor) -> Operation> = vec![
+        |_| Operation::Create {
+            primitive: Primitive::Cube,
+            options: None,
+            name: None,
+        },
+        |editor| Operation::Rename {
+            id: editor.selected.unwrap(),
+            name: "renamed".into(),
+        },
+        |editor| Operation::Rename {
+            id: editor.selected.unwrap(),
+            name: "renamed".into(),
+        },
+        |editor| Operation::Rename {
+            id: editor.selected.unwrap(),
+            name: String::new(),
+        },
+        |_| Operation::Undo,
+        |_| Operation::Redo,
+        |_| Operation::SetGridVisible { visible: false },
+        |_| Operation::SetActiveTool(ActiveTool::Rotate),
+    ];
+    let mut failures = 0;
+    for step in steps {
+        let operation = step(&native);
+        native.native_operation(operation);
+        let operation = step(&remote_editor);
+        let before = (remote_editor.status.clone(), remote_editor.error);
+        if remote(&mut remote_editor, operation).is_ok() {
+            assert!(!native.error);
+            assert_eq!(
+                (&remote_editor.status, remote_editor.error),
+                (&native.status, native.error)
+            );
+        } else {
+            // The caller gets the error; the native status line keeps its baseline.
+            assert!(native.error);
+            assert_eq!((remote_editor.status.clone(), remote_editor.error), before);
+            failures += 1;
+        }
+    }
+    assert_eq!(
+        failures, 1,
+        "the empty rename must exercise the failure path"
+    );
+    assert_ne!(native.status, initial);
+    // Remote manipulations leave the preview status to native drags and report the result with
+    // the native release and Esc wording.
+    remote(
+        &mut remote_editor,
+        Operation::SetActiveTool(ActiveTool::Move),
+    )
+    .unwrap();
+    for (finish, expected) in [
+        (
+            azteccraft::history::ManipulationFinish::Cancel,
+            "Edit cancelled",
+        ),
+        (
+            azteccraft::history::ManipulationFinish::Commit,
+            "Move committed",
+        ),
+    ] {
+        let before = remote_editor.status.clone();
+        let target = remote_editor.selected_move_target().unwrap();
+        remote(
+            &mut remote_editor,
+            Operation::BeginMove {
+                target,
+                axis: azteccraft::native_scene::WorldAxis::X,
+            },
+        )
+        .unwrap();
+        let id = remote_editor.history.active_manipulation().unwrap().id;
+        remote(
+            &mut remote_editor,
+            Operation::UpdateMove {
+                id,
+                distance: crate::editor_operations::MoveDistance::Centimeters(2.0),
+            },
+        )
+        .unwrap();
+        assert_eq!(remote_editor.status, before);
+        remote(&mut remote_editor, Operation::FinishMove { id, finish }).unwrap();
+        assert_eq!(
+            (remote_editor.status.as_str(), remote_editor.error),
+            (expected, false)
+        );
+    }
+    // A request refused by the remote guards never reaches the scene or the status line.
+    let before = (remote_editor.status.clone(), remote_editor.error);
+    let refused = remote_editor.remote_operation(
+        RemoteRequest {
+            expected_scene_token: Some(uuid::Uuid::new_v4()),
+            operation: Operation::Undo,
+        },
+        &egui::Context::default(),
+    );
+    assert!(matches!(refused, Err(OperationError::StaleScene)));
+    assert_eq!((remote_editor.status, remote_editor.error), before);
 }
 
 #[test]
@@ -1613,15 +2139,12 @@ fn num4_and_num5_select_shading_and_num6_num7_only_set_status() {
     frame(&mut editor, &ctx, vec![shifted, released]);
     assert_eq!(editor.shading, ShadingMode::Wireframe);
     for (pressed, name) in [
-        (
-            Key::Num6,
-            "Hardware Texturing (6) is not implemented in this build",
-        ),
-        (Key::Num7, "Use All Lights"),
+        (Key::Num6, "Hardware Texturing (6) is not implemented yet"),
+        (Key::Num7, "Use All Lights (7) is not implemented yet"),
     ] {
         frame(&mut editor, &ctx, vec![key(pressed)]);
         assert_eq!(editor.shading, ShadingMode::Wireframe);
-        assert!(editor.status.contains(name) && editor.status.contains("not implemented"));
+        assert_eq!(editor.status, name);
         assert!(!editor.error && !editor.is_dirty());
         assert_eq!(editor.scene_token, token);
     }
@@ -1665,10 +2188,7 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
         hovered = ctx.run_ui(input, |ui| editor.render(ui));
         hovered.textures_delta.clear();
     }
-    face_text_position(
-        &hovered,
-        "Hardware Texturing (6) is not implemented in this build",
-    );
+    face_text_position(&hovered, "Hardware Texturing (6) is not implemented yet");
     face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
     assert_eq!(
         before,
@@ -1679,6 +2199,38 @@ fn shading_menu_textured_row_is_disabled_with_the_hotkey_reason_and_inert() {
             editor.history.can_undo()
         )
     );
+}
+
+#[test]
+fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "Display");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let row = face_text_position(&output, "Grid Options");
+    // The Channel Box on the right also carries unsupported stubs; the menu row is the left one.
+    let stub = output
+        .shapes
+        .iter()
+        .find_map(|shape| match &shape.shape {
+            egui::Shape::Text(text)
+                if text.galley.job.text == "Not implemented yet" && text.pos.x < 1100.0 =>
+            {
+                Some(text.pos)
+            }
+            _ => None,
+        })
+        .expect("menu stub row");
+    assert!(stub.y < row.y);
+    let before = (editor.grid_visible, editor.history.scene().clone());
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    assert_eq!(
+        (editor.grid_visible, editor.history.scene().clone()),
+        before
+    );
+    assert!(super::menus::GRID_OPTIONS_REASON.contains("+/-12 units (PROVISIONAL)"));
 }
 
 #[test]
@@ -2575,6 +3127,152 @@ pub(in crate::app) fn frame_with(
     output
 }
 
+/// A control inside the Create > Polygon Primitives popup, of any role (checkboxes included).
+pub(in crate::app) struct SubmenuItem {
+    pub(in crate::app) label: String,
+    pub(in crate::app) rect: egui::Rect,
+    pub(in crate::app) disabled: bool,
+}
+
+/// Controls to the right of the "Polygon Primitives" button, so the shelf's Cube and Plane never match.
+pub(in crate::app) fn polygon_submenu_items(output: &egui::FullOutput) -> Vec<SubmenuItem> {
+    let update = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .expect("accesskit enabled");
+    let nodes: Vec<SubmenuItem> = update
+        .nodes
+        .iter()
+        .filter_map(|(_, node)| {
+            let bounds = node.bounds()?;
+            Some(SubmenuItem {
+                label: node.label()?.to_owned(),
+                rect: egui::Rect::from_min_max(
+                    egui::pos2(bounds.x0 as f32, bounds.y0 as f32),
+                    egui::pos2(bounds.x1 as f32, bounds.y1 as f32),
+                ),
+                disabled: node.is_disabled(),
+            })
+        })
+        .collect();
+    let Some(parent) = nodes
+        .iter()
+        .find(|item| is_polygon_primitives_button(&item.label))
+    else {
+        return Vec::new();
+    };
+    let right = parent.rect.right();
+    // The popup's rows share one left edge, which no panel control shares; option boxes sit to their right.
+    let Some(anchor) = nodes
+        .iter()
+        .find(|item| item.label == "Sphere" && item.rect.left() >= right)
+    else {
+        return Vec::new();
+    };
+    let left = anchor.rect.left();
+    let in_popup = |item: &SubmenuItem| {
+        (item.rect.left() - left).abs() < 2.0
+            || (item.label.ends_with("option box") && item.rect.left() > left)
+    };
+    nodes.into_iter().filter(in_popup).collect()
+}
+
+/// True once the whole Create popup chain is gone: neither the submenu button nor its rows remain.
+pub(in crate::app) fn create_menu_closed(output: &egui::FullOutput) -> bool {
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    polygon_submenu_items(output).is_empty()
+        && !update
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label().is_some_and(is_polygon_primitives_button))
+}
+
+/// egui appends a submenu arrow to the button's accessible label.
+fn is_polygon_primitives_button(label: &str) -> bool {
+    label.starts_with(menus::POLYGON_PRIMITIVES_MENU)
+}
+
+pub(in crate::app) fn submenu_item(output: &egui::FullOutput, label: &str) -> SubmenuItem {
+    let mut found: Vec<SubmenuItem> = polygon_submenu_items(output)
+        .into_iter()
+        .filter(|item| item.label == label)
+        .collect();
+    assert_eq!(found.len(), 1, "submenu control {label:?}");
+    found.remove(0)
+}
+
+fn pointer_click_events(at: egui::Pos2) -> [egui::Event; 2] {
+    [true, false].map(|pressed| egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    })
+}
+
+/// Opens Create, then hovers "Polygon Primitives" (it opens on hover) and returns the open frame.
+pub(in crate::app) fn open_polygon_primitives(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+) -> egui::FullOutput {
+    ctx.enable_accesskit();
+    let run = |editor: &mut Editor, events| frame_with(editor, ctx, size, 1.0, events);
+    let output = run(editor, vec![]);
+    let create = {
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        update
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.label() == Some("Create"))
+            .filter_map(|(_, node)| node.bounds())
+            .min_by(|a, b| a.y0.total_cmp(&b.y0))
+            .map(|b| egui::pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32))
+            .expect("Create menu")
+    };
+    run(editor, vec![egui::Event::PointerMoved(create)]);
+    for event in pointer_click_events(create) {
+        run(editor, vec![event]);
+    }
+    let output = run(editor, vec![]);
+    // With Create open but the submenu not hovered, the item-only check would wrongly report closed.
+    assert!(polygon_submenu_items(&output).is_empty() && !create_menu_closed(&output));
+    let parent = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.label().is_some_and(is_polygon_primitives_button))
+        .find_map(|(_, node)| node.bounds())
+        .expect("Polygon Primitives submenu button");
+    let at = egui::pos2(
+        ((parent.x0 + parent.x1) / 2.0) as f32,
+        ((parent.y0 + parent.y1) / 2.0) as f32,
+    );
+    let mut output = run(editor, vec![egui::Event::PointerMoved(at)]);
+    for _ in 0..3 {
+        output = run(editor, vec![]);
+    }
+    output
+}
+
+/// Moves to a submenu control and clicks it, then returns the frame after the click.
+pub(in crate::app) fn click_at(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    at: egui::Pos2,
+) -> egui::FullOutput {
+    frame_with(editor, ctx, size, 1.0, vec![egui::Event::PointerMoved(at)]);
+    for event in pointer_click_events(at) {
+        frame_with(editor, ctx, size, 1.0, vec![event]);
+    }
+    frame_with(editor, ctx, size, 1.0, vec![])
+}
+
 fn face_viewport_rect(output: &egui::FullOutput) -> egui::Rect {
     output
         .shapes
@@ -2800,6 +3498,667 @@ fn face_native_closing_editor_refuses_mode_intents_without_selection_changes() {
     assert_eq!(editor.remembered_face, None);
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.scene_token, token);
+}
+
+/// Drives `shortcuts` directly with a held modifier, returning the tool intent it produced.
+fn shortcuts_with(
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    keys: &[Key],
+) -> Option<ActiveTool> {
+    let events = keys
+        .iter()
+        .map(|&key| key_event(key, modifiers, false))
+        .collect();
+    shortcuts_events(editor, modifiers, events)
+}
+
+fn key_event(key: Key, modifiers: egui::Modifiers, repeat: bool) -> egui::Event {
+    egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat,
+        modifiers,
+    }
+}
+
+fn shortcuts_events(
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    events: Vec<egui::Event>,
+) -> Option<ActiveTool> {
+    shortcuts_in(&egui::Context::default(), editor, modifiers, events)
+}
+
+/// egui derives `repeat` from whether the key was already down in this context.
+fn shortcuts_in(
+    ctx: &egui::Context,
+    editor: &mut Editor,
+    modifiers: egui::Modifiers,
+    events: Vec<egui::Event>,
+) -> Option<ActiveTool> {
+    let events = std::iter::once(egui::Event::ModifiersChanged(modifiers))
+        .chain(events)
+        .collect();
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1440.0, 900.0),
+        )),
+        events,
+        ..Default::default()
+    };
+    let mut intent = None;
+    let mut output = ctx.run_ui(input, |ui| intent = editor.shortcuts(ui.ctx()));
+    output.textures_delta.clear();
+    intent
+}
+
+#[test]
+fn closing_editor_ignores_file_and_tool_shortcuts() {
+    let mut editor = Editor {
+        active_tool: ActiveTool::Move,
+        ..Editor::default()
+    };
+    editor.close_document().unwrap();
+    assert!(editor.files.is_closing() && !editor.files.is_modal());
+    let (status, error, token) = (editor.status.clone(), editor.error, editor.scene_token);
+    let scene = editor.history.scene().clone();
+    let mode = editor.selection_mode;
+    let tool = editor.active_tool;
+    // Cmd+S needs Save available to bite; Cmd+Z reaches history_step and BusyEditing without the
+    // gate. Cmd+Shift+S is not driven: it would open a native dialog where Save As is available.
+    let command = egui::Modifiers::COMMAND;
+    for (modifiers, key) in [
+        (command, Key::S),
+        (command, Key::N),
+        (command, Key::Z),
+        (command | egui::Modifiers::SHIFT, Key::Z),
+        (command, Key::Y),
+    ] {
+        let intent = shortcuts_with(&mut editor, modifiers, &[key]);
+        assert_eq!(intent, None);
+    }
+    for key in [Key::W, Key::Num5, Key::Plus] {
+        let intent = shortcuts_with(&mut editor, egui::Modifiers::NONE, &[key]);
+        assert_eq!(intent, None);
+    }
+    assert_eq!(editor.status, status);
+    assert_eq!(editor.error, error);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.selection_mode, mode);
+    assert_eq!(editor.active_tool, tool);
+    assert_eq!(editor.active_tool, ActiveTool::Move);
+    assert!(editor.files.pending_inspection().is_none());
+    assert!(editor.files.is_closing() && !editor.files.is_modal());
+}
+
+#[test]
+fn file_chords_map_to_the_table_row_with_that_label() {
+    let actions = Editor::default().file_actions();
+    for (key, shift, label) in [
+        (Key::N, false, "New Scene"),
+        (Key::O, false, "Open Scene"),
+        (Key::S, false, "Save Scene"),
+        (Key::S, true, "Save Scene As"),
+    ] {
+        let index = menus::chord_entry(&actions, (key, shift)).expect("a row for the chord");
+        assert_eq!(actions[index].label, label);
+    }
+    assert_eq!(menus::chord_entry(&actions, (Key::N, true)), None);
+    let command = egui::Modifiers::COMMAND;
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::N, command, false)]),
+        Some((Key::N, false))
+    );
+    assert_eq!(menus::file_chord(&[key_event(Key::N, command, true)]), None);
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::N, egui::Modifiers::NONE, false)]),
+        None
+    );
+    assert_eq!(
+        menus::file_chord(&[key_event(Key::Z, command, false)]),
+        None
+    );
+    let alt = command | egui::Modifiers::ALT;
+    for key in [Key::N, Key::O, Key::S] {
+        assert_eq!(menus::file_chord(&[key_event(key, alt, false)]), None);
+    }
+}
+
+fn file_outcome(editor: &Editor) -> (String, bool, bool, bool, Uuid, Option<String>) {
+    (
+        editor.status.clone(),
+        editor.error,
+        editor.is_dirty(),
+        editor.files.is_modal(),
+        editor.scene_token,
+        editor
+            .files
+            .pending_inspection()
+            .map(|p| format!("{:?}", p.kind)),
+    )
+}
+
+#[test]
+fn cmd_n_runs_the_same_new_scene_path_as_the_menu() {
+    for dirty in [false, true] {
+        let make = || {
+            let mut editor = Editor::default();
+            if dirty {
+                editor.create(Primitive::Cube);
+            }
+            editor
+        };
+        let (mut by_key, mut by_menu) = (make(), make());
+        assert_eq!(by_key.is_dirty(), dirty);
+        let before = file_outcome(&by_key);
+        shortcuts_with(&mut by_key, egui::Modifiers::COMMAND, &[Key::N]);
+        by_menu.request_new();
+        let after = file_outcome(&by_key);
+        assert_ne!(after, before, "dirty={dirty}: the key must act");
+        assert_eq!(
+            after.4 != before.4,
+            !dirty,
+            "a clean New replaces the document; a dirty one only asks"
+        );
+        // The token is a fresh random id per New, so it is compared above, not here.
+        let without_token =
+            |o: (String, bool, bool, bool, Uuid, Option<String>)| (o.0, o.1, o.2, o.3, o.5);
+        assert_eq!(without_token(after), without_token(file_outcome(&by_menu)));
+    }
+}
+
+#[test]
+fn new_chord_ignores_shift_repeat_and_missing_command() {
+    let command = egui::Modifiers::COMMAND;
+    let shifted = command | egui::Modifiers::SHIFT;
+    let fresh = || {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor
+    };
+    let mut editors = [fresh(), fresh(), fresh()];
+    let before = editors.each_ref().map(file_outcome);
+    let [shift, bare, repeat] = &mut editors;
+    let _ = shortcuts_with(shift, shifted, &[Key::N]);
+    let _ = shortcuts_with(bare, egui::Modifiers::NONE, &[Key::N]);
+    // The first press runs on a throwaway editor so the context holds N down.
+    let ctx = egui::Context::default();
+    let press = || vec![key_event(Key::N, command, false)];
+    let _ = shortcuts_in(&ctx, &mut Editor::default(), command, press());
+    let _ = shortcuts_in(&ctx, repeat, command, press());
+    for (i, name) in ["shift", "no command", "repeat"].into_iter().enumerate() {
+        assert_eq!(file_outcome(&editors[i]), before[i], "{name}");
+    }
+}
+
+/// A selected cube and a camera panned off it, so framing visibly moves the camera.
+fn frame_key_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    assert!(editor.selected_move_target().is_ok());
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    editor
+}
+
+/// egui keeps only the frame-final modifiers, so F must be judged by its own event.
+#[test]
+fn frame_selected_pressed_with_a_modifier_is_not_rescued_by_a_same_frame_release() {
+    for held in [
+        egui::Modifiers::CTRL,
+        egui::Modifiers::SHIFT,
+        egui::Modifiers::ALT,
+        egui::Modifiers::COMMAND,
+    ] {
+        let mut editor = frame_key_editor();
+        let before = editor.camera.clone();
+        let events = vec![
+            key_event(Key::F, held, false),
+            egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+        assert!(editor.camera.same_capture(&before), "{held:?}");
+    }
+}
+
+#[test]
+fn frame_selected_pressed_bare_is_not_cancelled_by_a_modifier_arriving_later() {
+    let mut editor = frame_key_editor();
+    let before = editor.camera.clone();
+    let events = vec![
+        key_event(Key::F, egui::Modifiers::NONE, false),
+        egui::Event::ModifiersChanged(egui::Modifiers::CTRL),
+    ];
+    let none = egui::Modifiers::NONE;
+    shortcuts_in(&egui::Context::default(), &mut editor, none, events);
+    assert!(!editor.camera.same_capture(&before));
+}
+
+/// Held F repeats (PROVISIONAL, known-issues.md): the second frame on one context, with no
+/// release between, carries an OS repeat event and frames again.
+#[test]
+fn frame_selected_repeats_while_f_is_held() {
+    let mut editor = frame_key_editor();
+    let ctx = egui::Context::default();
+    let none = egui::Modifiers::NONE;
+    shortcuts_in(
+        &ctx,
+        &mut editor,
+        none,
+        vec![key_event(Key::F, none, false)],
+    );
+    let first = editor.camera.clone();
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    let panned = editor.camera.clone();
+    assert!(!panned.same_capture(&first));
+    shortcuts_in(&ctx, &mut editor, none, vec![key_event(Key::F, none, true)]);
+    let repeated = ctx.input(|i| {
+        i.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Key {
+                    key: Key::F,
+                    repeat: true,
+                    ..
+                }
+            )
+        })
+    });
+    assert!(repeated, "the second frame must carry a repeat event");
+    assert!(!editor.camera.same_capture(&panned));
+}
+
+/// Only the press frames: a release, in the same frame or a later one, must not frame again.
+#[test]
+fn frame_selected_counts_the_f_press_and_not_the_release() {
+    let none = egui::Modifiers::NONE;
+    let release = || egui::Event::Key {
+        key: Key::F,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: none,
+    };
+    let mut editor = frame_key_editor();
+    let ctx = egui::Context::default();
+    let both = vec![key_event(Key::F, none, false), release()];
+    shortcuts_in(&ctx, &mut editor, none, both);
+    let framed = editor.camera.clone();
+    editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+    let panned = editor.camera.clone();
+    assert!(!panned.same_capture(&framed));
+    shortcuts_in(&ctx, &mut editor, none, vec![release()]);
+    assert!(editor.camera.same_capture(&panned));
+    let mut lone = frame_key_editor();
+    let before = lone.camera.clone();
+    shortcuts_in(&ctx, &mut lone, none, vec![release()]);
+    assert!(lone.camera.same_capture(&before));
+}
+
+/// Held Undo and Redo repeat; Maya's hotkeys page does not say (PROVISIONAL, known-issues.md).
+#[test]
+fn held_undo_and_redo_chords_repeat() {
+    let command = egui::Modifiers::COMMAND;
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let full = editor.history.scene().clone();
+    editor.history_step(false);
+    editor.history_step(false);
+    let two_undone = editor.history.scene().clone();
+    assert_ne!(two_undone, full);
+    // Redo twice by hand, then hold the chords: the second event of each is a real repeat.
+    editor.history_step(true);
+    editor.history_step(true);
+    let hold = |editor: &mut Editor, key: Key| {
+        let ctx = egui::Context::default();
+        for repeat in [false, true] {
+            let events = vec![key_event(key, command, repeat)];
+            let _ = shortcuts_in(&ctx, editor, command, events);
+        }
+    };
+    hold(&mut editor, Key::Z);
+    assert_eq!(editor.history.scene(), &two_undone);
+    hold(&mut editor, Key::Y);
+    assert_eq!(editor.history.scene(), &full);
+}
+
+#[test]
+fn alt_modified_file_chords_do_nothing() {
+    let alt = egui::Modifiers::COMMAND | egui::Modifiers::ALT;
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let before = file_outcome(&editor);
+    for key in [Key::N, Key::S] {
+        let _ = shortcuts_with(&mut editor, alt, &[key]);
+    }
+    assert_eq!(file_outcome(&editor), before);
+}
+
+#[test]
+fn alt_modified_undo_and_redo_do_nothing() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    let outcome = |editor: &Editor| {
+        (
+            editor.history.scene().clone(),
+            editor.status.clone(),
+            editor.error,
+            editor.scene_token,
+        )
+    };
+    let before = outcome(&editor);
+    let alt = egui::Modifiers::COMMAND | egui::Modifiers::ALT;
+    for (modifiers, key) in [
+        (alt, Key::Z),
+        (alt | egui::Modifiers::SHIFT, Key::Z),
+        (alt, Key::Y),
+    ] {
+        shortcuts_with(&mut editor, modifiers, &[key]);
+        assert_eq!(outcome(&editor), before, "{modifiers:?} {key:?}");
+    }
+}
+
+/// An editor with both Undo and Redo available.
+fn history_chord_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.history_step(false);
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    editor
+}
+
+/// What a refused history chord must leave untouched.
+fn history_outcome(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
+    (
+        editor.history.scene().clone(),
+        editor.status.clone(),
+        editor.error,
+        editor.scene_token,
+    )
+}
+
+/// egui keeps only the frame-final modifiers, so the press must be judged by its own snapshot.
+#[test]
+fn history_chord_pressed_with_alt_is_not_rescued_by_a_same_frame_alt_release() {
+    let (command, shift) = (egui::Modifiers::COMMAND, egui::Modifiers::SHIFT);
+    let alt = command | egui::Modifiers::ALT;
+    for (pressed, key) in [(alt, Key::Z), (alt | shift, Key::Z), (alt, Key::Y)] {
+        let mut editor = history_chord_editor();
+        let before = history_outcome(&editor);
+        let events = vec![
+            key_event(key, pressed, false),
+            egui::Event::ModifiersChanged(command),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, pressed, events);
+        assert_eq!(history_outcome(&editor), before, "{pressed:?} {key:?}");
+    }
+}
+
+#[test]
+fn history_chord_pressed_with_alt_is_not_rescued_through_the_frame() {
+    let mut editor = history_chord_editor();
+    let before = history_outcome(&editor);
+    let command = egui::Modifiers::COMMAND;
+    let events = vec![
+        egui::Event::ModifiersChanged(command | egui::Modifiers::ALT),
+        key_event(Key::Z, command | egui::Modifiers::ALT, false),
+        egui::Event::ModifiersChanged(command),
+    ];
+    frame(&mut editor, &egui::Context::default(), events);
+    assert_eq!(history_outcome(&editor), before);
+}
+
+#[test]
+fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
+    let mut editor = history_chord_editor();
+    let undone = editor.history.scene().clone();
+    let command = egui::Modifiers::COMMAND;
+    let events = vec![
+        key_event(Key::Z, command, false),
+        egui::Event::ModifiersChanged(command | egui::Modifiers::ALT),
+    ];
+    shortcuts_in(&egui::Context::default(), &mut editor, command, events);
+    assert_ne!(editor.history.scene(), &undone);
+    assert!(editor.status.starts_with("Undo"), "{}", editor.status);
+}
+
+/// The assertions before each dialog call make a broken setup panic instead of reaching rfd.
+#[test]
+fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let Ok(OperationReply::PendingConfirmation {
+        pending_action_id, ..
+    }) = editor.close_document()
+    else {
+        panic!("a dirty scene must ask before closing");
+    };
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: Uuid::parse_str(&pending_action_id).unwrap(),
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .history
+        .begin_move(
+            &target,
+            azteccraft::native_scene::WorldAxis::X,
+            editor.scene_token,
+            ManipulationProvenance::Remote,
+            1 << 20,
+        )
+        .unwrap();
+    // Without the guard the move yields BusyManipulation, a different status, so this fails
+    // instead of reaching rfd.
+    assert!(
+        editor.files.is_closing()
+            && !editor.files.save_as_available()
+            && editor.history.active_manipulation().is_some()
+    );
+    editor.save_as_dialog();
+    assert_eq!(editor.status, OperationError::BusyEditing.to_string());
+    assert!(editor.error);
+    assert!(editor.history.active_manipulation().is_some());
+}
+
+#[test]
+fn open_dialog_refuses_while_closing_and_keeps_the_active_move() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let Ok(OperationReply::PendingConfirmation {
+        pending_action_id, ..
+    }) = editor.close_document()
+    else {
+        panic!("a dirty scene must ask before closing");
+    };
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: Uuid::parse_str(&pending_action_id).unwrap(),
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    editor.new_document().unwrap();
+    let target = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor
+        .history
+        .begin_move(
+            &target,
+            azteccraft::native_scene::WorldAxis::X,
+            editor.scene_token,
+            ManipulationProvenance::Remote,
+            1 << 20,
+        )
+        .unwrap();
+    assert!(
+        editor.files.is_closing()
+            && editor.files.is_modal()
+            && editor.history.active_manipulation().is_some()
+    );
+    editor.open_dialog();
+    assert_eq!(editor.status, OperationError::BusyEditing.to_string());
+    assert!(editor.error);
+    assert!(editor.history.active_manipulation().is_some());
+}
+
+/// egui-winit stamps a key release with the held modifiers, so only the press may step history.
+#[test]
+fn undo_and_redo_step_once_per_keystroke_not_on_release() {
+    let command = egui::Modifiers::COMMAND;
+    let release = |key| egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: command,
+    };
+    for key in [Key::Z, Key::Y] {
+        for same_frame in [true, false] {
+            let mut editor = Editor::default();
+            for _ in 0..3 {
+                editor.create(Primitive::Cube);
+            }
+            let one_object_more = editor.history.scene().clone();
+            editor.history_step(false);
+            let middle = editor.history.scene().clone();
+            editor.history_step(false);
+            let two_undone = editor.history.scene().clone();
+            // Z starts from the full scene, Y from the doubly undone one; one step reaches `middle`.
+            if key == Key::Z {
+                editor.history_step(true);
+                editor.history_step(true);
+            }
+            assert_ne!(middle, one_object_more);
+            assert_ne!(middle, two_undone);
+            let ctx = egui::Context::default();
+            if same_frame {
+                let events = vec![key_event(key, command, false), release(key)];
+                shortcuts_in(&ctx, &mut editor, command, events);
+            } else {
+                let press = vec![key_event(key, command, false)];
+                shortcuts_in(&ctx, &mut editor, command, press);
+                shortcuts_in(&ctx, &mut editor, command, vec![release(key)]);
+            }
+            assert_eq!(
+                editor.history.scene(),
+                &middle,
+                "{key:?} same_frame={same_frame}"
+            );
+        }
+    }
+}
+
+/// Undo and Redo take one step per frame, and the last history chord in the frame wins.
+#[test]
+fn history_chords_step_once_per_frame_and_the_last_one_wins() {
+    let command = egui::Modifiers::COMMAND;
+    let redo_chord = command | egui::Modifiers::SHIFT;
+    let release = || egui::Event::Key {
+        key: Key::Z,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: command,
+    };
+    let steps = |events: Vec<egui::Event>, redo_available: bool| {
+        let mut editor = Editor::default();
+        for _ in 0..3 {
+            editor.create(Primitive::Cube);
+        }
+        let full = editor.history.scene().clone();
+        editor.history_step(false);
+        let one_undone = editor.history.scene().clone();
+        editor.history_step(false);
+        let two_undone = editor.history.scene().clone();
+        if !redo_available {
+            editor.history_step(true);
+            editor.history_step(true);
+        }
+        let start = editor.history.scene().clone();
+        shortcuts_in(&egui::Context::default(), &mut editor, command, events);
+        (
+            full,
+            one_undone,
+            two_undone,
+            start,
+            editor.history.scene().clone(),
+        )
+    };
+    // Two Undo presses with a release between: one step, not one per press.
+    let events = vec![
+        key_event(Key::Z, command, false),
+        release(),
+        key_event(Key::Z, command, false),
+    ];
+    let (full, one_undone, _, start, after) = steps(events, false);
+    assert_eq!(start, full);
+    assert_eq!(after, one_undone);
+    // Redo chord then Undo chord: Undo wins. With the redo stack empty a leaked Redo would re-apply it.
+    let events = vec![
+        key_event(Key::Z, redo_chord, false),
+        egui::Event::ModifiersChanged(command),
+        key_event(Key::Z, command, false),
+    ];
+    let (full, one_undone, _, start, after) = steps(events, false);
+    assert_eq!(start, full);
+    assert_eq!(after, one_undone);
+    // Undo chord then Redo chord: Redo wins and takes exactly one step.
+    let events = vec![
+        key_event(Key::Z, command, false),
+        key_event(Key::Z, redo_chord, false),
+    ];
+    let (_, one_undone, two_undone, start, after) = steps(events, true);
+    assert_eq!(start, two_undone);
+    assert_eq!(after, one_undone);
+}
+
+#[test]
+fn save_chord_does_nothing_while_save_is_unavailable() {
+    let mut editor = Editor::default();
+    assert!(!editor.files.save_available());
+    let before = file_outcome(&editor);
+    shortcuts_with(&mut editor, egui::Modifiers::COMMAND, &[Key::S]);
+    assert_eq!(file_outcome(&editor), before);
+}
+
+#[test]
+fn cmd_y_redoes_after_undo_and_shift_y_does_not() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let created = editor.history.scene().clone();
+    editor.history_step(false);
+    let undone = editor.history.scene().clone();
+    assert_ne!(undone, created);
+    let command = egui::Modifiers::COMMAND;
+    shortcuts_with(&mut editor, command | egui::Modifiers::SHIFT, &[Key::Y]);
+    assert_eq!(editor.history.scene(), &undone);
+    shortcuts_with(&mut editor, command, &[Key::Y]);
+    assert_eq!(editor.history.scene(), &created);
+    assert!(editor.status.starts_with("Redo"), "{}", editor.status);
+}
+
+/// Two creates so an Undo that also fires in the same frame as the Redo leaves one object, not two.
+#[test]
+fn cmd_shift_z_still_redoes() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let full = editor.history.scene().clone();
+    editor.history_step(false);
+    assert_ne!(editor.history.scene(), &full);
+    let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+    shortcuts_with(&mut editor, chord, &[Key::Z]);
+    assert_eq!(editor.history.scene(), &full);
 }
 
 #[test]
@@ -3152,7 +4511,7 @@ fn face_native_menu_explicit_face_beats_toggle_and_modal_replacement_drops_inten
     assert!(editor.files.is_modal());
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     let output = frame(&mut editor, &ctx, vec![]);
-    let discard = face_text_position(&output, "Discard");
+    let discard = face_text_position(&output, "Don't Save");
     face_pointer_click(
         &mut editor,
         &ctx,
@@ -4031,8 +5390,8 @@ mod menu_bar_wire {
         let row_bottom = found.iter().map(|c| c.rect.bottom()).fold(0.0, f32::max);
         let status = controls(&output)
             .into_iter()
-            .find(|c| c.label == "New scene")
-            .expect("Status Line New scene button");
+            .find(|c| c.label == "New Scene")
+            .expect("Status Line New Scene button");
         assert!(status.rect.top() > row_bottom, "menu overlaps Status Line");
         let wheel_at = egui::pos2(size.x / 2.0, first.rect.center().y);
         let scroll = |delta| {
@@ -4109,10 +5468,13 @@ mod menu_bar_wire {
             render(vec![event]);
         }
         let opened = render(vec![]);
-        let cube = controls(&opened)
+        let parent = controls(&opened)
             .into_iter()
-            .find(|c| c.label == "Polygon cube")
+            .find(|c| is_polygon_primitives_button(&c.label))
             .unwrap();
+        render(vec![egui::Event::PointerMoved(parent.rect.center())]);
+        let hovered = (0..3).map(|_| render(vec![])).last().unwrap();
+        let cube = submenu_item(&hovered, "Cube");
         assert!(!cube.disabled);
         render(vec![egui::Event::PointerMoved(cube.rect.center())]);
         for event in click_events(cube.rect.center()) {
@@ -4150,7 +5512,11 @@ mod menu_bar_wire {
             let opened = frame(&mut editor, &context, vec![]);
             let rows: Vec<Control> = controls(&opened)
                 .into_iter()
-                .filter(|c| c.rect.top() > 30.0 && c.label == "Not implemented yet")
+                .filter(|c| {
+                    c.rect.top() > 20.0
+                        && c.rect.left() < 1100.0
+                        && c.label == "Not implemented yet"
+                })
                 .collect();
             assert_eq!(rows.len(), 1, "{label}");
             assert!(rows[0].disabled, "{label} row must be disabled");
@@ -4482,12 +5848,9 @@ fn startup_status_names_every_creatable_primitive() {
 fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() {
     let mut editor = Editor::default();
     let ctx = egui::Context::default();
-    let output = frame(&mut editor, &ctx, vec![]);
-    let create = face_text_position(&output, "Create");
-    let output = face_pointer_click(&mut editor, &ctx, create, egui::Modifiers::NONE, vec![]);
-    face_text_position(&output, "Other primitives");
-    let sphere = face_text_position(&output, "Polygon sphere");
-    face_pointer_click(&mut editor, &ctx, sphere, egui::Modifiers::NONE, vec![]);
+    let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+    let sphere = submenu_item(&output, "Sphere").rect.center();
+    click_at(&mut editor, &ctx, egui::vec2(1440.0, 900.0), sphere);
     let id = editor
         .single_target()
         .expect("menu item selects the new sphere")
@@ -5011,9 +6374,96 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         node: Some(root),
         instance_path: None,
     });
+    let child = editor.history.scene().transform_paths().unwrap()[1].node;
     let scene = editor.history.scene().clone();
-    assert!(remote(&mut editor, Operation::Delete(root)).is_err());
-    assert_eq!(editor.history.scene(), &scene);
+    let state = |editor: &Editor| {
+        (
+            editor.selected,
+            editor.selected_path.clone(),
+            editor.history.can_undo(),
+            editor.history.can_redo(),
+            editor.history.undo_label(),
+            editor.history.redo_label(),
+            editor.is_dirty(),
+        )
+    };
+    let baseline = state(&editor);
+    for (node, message) in [
+        (root, "Deleting a node with children is not supported yet"),
+        (
+            child,
+            "Deleting a node that has a parent is not supported yet",
+        ),
+    ] {
+        let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
+        assert!(matches!(
+            error,
+            OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
+        ));
+        assert_eq!(error.to_string(), message);
+        editor.native_operation(Operation::Delete(node));
+        assert_eq!(editor.status, message);
+        assert!(editor.error);
+        assert_eq!(
+            state(&editor),
+            baseline,
+            "selection, history and dirty flag"
+        );
+        assert_eq!(editor.history.scene(), &scene);
+    }
+}
+
+#[test]
+fn edit_menu_lists_delete_by_type_rows_as_disabled_and_inert() {
+    for (turn, label) in ["Delete by Type", "Delete All by Type"]
+        .into_iter()
+        .enumerate()
+    {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let before = editor.history.scene().clone();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        let output = frame(&mut editor, &ctx, vec![]);
+        let edit = face_text_position(&output, "Edit");
+        let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+        assert!(button_disabled(&output, label), "{label} enabled");
+        let row = face_text_position(&output, label);
+        let reason_texts = |output: &egui::FullOutput| {
+            output
+                .shapes
+                .iter()
+                .filter(|shape| {
+                    matches!(&shape.shape, egui::Shape::Text(text)
+                        if text.galley.job.text == super::menus::DELETE_BY_TYPE_REASON)
+                })
+                .count()
+        };
+        assert_eq!(
+            reason_texts(&output),
+            0,
+            "{label}: reason shown before hover"
+        );
+        let mut hovered = output;
+        for step in 1..=8 {
+            let mut input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1440.0, 900.0),
+                )),
+                time: Some(10.0 + (turn * 10 + step) as f64 * 0.25),
+                events: vec![egui::Event::PointerMoved(row)],
+                ..Default::default()
+            };
+            input.viewports.entry(egui::ViewportId::ROOT).or_default();
+            hovered = ctx.run_ui(input, |ui| editor.render(ui));
+            hovered.textures_delta.clear();
+        }
+        assert_eq!(reason_texts(&hovered), 1, "{label}: hover reason");
+        face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+        assert_eq!(editor.history.scene(), &before, "{label}");
+    }
 }
 
 #[test]
@@ -5101,17 +6551,14 @@ fn delete_controls_are_enabled_in_hierarchy_mode_and_disabled_in_component_modes
 #[test]
 fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids() {
     for (label, name, faces, cap) in [
-        ("Polygon cylinder", "pCylinder1", 22, 20),
-        ("Polygon cone", "pCone1", 21, 20),
+        ("Cylinder", "pCylinder1", 22, 20),
+        ("Cone", "pCone1", 21, 20),
     ] {
         let mut editor = Editor::default();
         let ctx = egui::Context::default();
-        let output = frame(&mut editor, &ctx, vec![]);
-        let create = face_text_position(&output, "Create");
-        let output = face_pointer_click(&mut editor, &ctx, create, egui::Modifiers::NONE, vec![]);
-        face_text_position(&output, "Other primitives");
-        let item = face_text_position(&output, label);
-        face_pointer_click(&mut editor, &ctx, item, egui::Modifiers::NONE, vec![]);
+        let output = open_polygon_primitives(&mut editor, &ctx, egui::vec2(1440.0, 900.0));
+        let item = submenu_item(&output, label).rect.center();
+        click_at(&mut editor, &ctx, egui::vec2(1440.0, 900.0), item);
         let id = editor
             .single_target()
             .expect("menu item selects the new solid")
@@ -5845,7 +7292,7 @@ fn undo_clears_only_the_stale_pick_and_keeps_valid_ones() {
 }
 
 #[test]
-fn delete_hover_text_names_the_component_only_in_component_modes() {
+fn delete_hover_text_prefers_read_only_then_names_the_component_in_component_modes() {
     let mut editor = Editor::default();
     for (mode, menu, button) in [
         (
@@ -5865,8 +7312,17 @@ fn delete_hover_text_names_the_component_only_in_component_modes() {
         ),
     ] {
         editor.selection_mode = mode;
-        assert_eq!(editor.delete_disabled_hover(Some("read only"), true), menu);
+        assert_eq!(editor.delete_disabled_hover(None, true), menu);
         assert_eq!(editor.delete_disabled_hover(None, false), button);
+        // Object mode would not enable Delete on a read-only scene, so that reason wins.
+        assert_eq!(
+            editor.delete_disabled_hover(Some("read only"), true),
+            "read only"
+        );
+        assert_eq!(
+            editor.delete_disabled_hover(Some("read only"), false),
+            "read only"
+        );
     }
     for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
         editor.selection_mode = mode;
@@ -6499,9 +7955,16 @@ fn modified_clicks_in_vertex_and_edge_modes_are_refused_without_changes() {
 fn a_mode_intent_in_the_click_frame_makes_the_click_use_the_new_mode() {
     for (key_code, vertex) in [(Key::F9, true), (Key::F10, false)] {
         let (mut editor, ctx, rect) = component_click_editor();
+        assert_eq!(
+            face_viewport_rect(&frame(&mut editor, &ctx, vec![])),
+            rect,
+            "stale viewport rect"
+        );
         let (front, points) = front_vertices(&editor);
         let at = screen_point(&editor, rect, points[front[0]]);
-        face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
+        let center = screen_point(&editor, rect, glam::Vec3::ZERO);
+        // The vertex sits on the silhouette; a click there can miss the cube and deselect it.
+        face_pointer_click(&mut editor, &ctx, center, egui::Modifiers::NONE, vec![]);
         assert_eq!(editor.selection_mode, SelectionMode::Object);
         face_pointer_click(
             &mut editor,
@@ -7121,6 +8584,123 @@ fn release_click_and_tab_after_a_first_click_defer_the_blur_commit_once() {
     assert!(!editor.has_draft());
 }
 
+fn type_into_name(editor: &mut Editor, ctx: &egui::Context, text: &str) {
+    ctx.memory_mut(|memory| memory.request_focus(name_edit_id()));
+    frame(editor, ctx, vec![]);
+    frame(editor, ctx, vec![egui::Event::Text(text.into())]);
+}
+
+fn node_name(editor: &Editor) -> String {
+    editor.history.scene().nodes()[0].name().to_string()
+}
+
+#[test]
+fn heading_name_enter_commits_one_rename() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    assert!(editor.name.ends_with("Boxy") && editor.has_draft());
+    frame(&mut editor, &ctx, vec![key(Key::Enter)]);
+    assert!(node_name(&editor).ends_with("Boxy"));
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+    assert!(!editor.has_draft());
+}
+
+#[test]
+fn heading_name_tab_blur_commits_exactly_once() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    frame(&mut editor, &ctx, vec![key(Key::Tab)]);
+    for _ in 0..4 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert!(node_name(&editor).ends_with("Boxy"));
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+}
+
+#[test]
+fn heading_name_blur_honours_the_skip_frames_and_the_kept_draft_commits_after() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let original = node_name(&editor);
+    let undo_before = undo_entries(&mut editor);
+    type_into_name(&mut editor, &ctx, "Boxy");
+    editor.blur_commit_skip_frames = 3;
+    frame(&mut editor, &ctx, vec![key(Key::Tab)]);
+    assert_eq!(node_name(&editor), original);
+    assert!(editor.has_draft());
+    assert_eq!(undo_entries(&mut editor), undo_before);
+    // The blur was swallowed, so the draft stays until a later commit trigger.
+    editor.blur_commit_skip_frames = 0;
+    editor.commit_pending();
+    assert!(node_name(&editor).ends_with("Boxy"));
+    assert_eq!(undo_entries(&mut editor), undo_before + 1);
+}
+
+#[test]
+fn heading_name_rejected_rename_keeps_the_draft() {
+    let (mut editor, ctx) = unfocused_cube_editor();
+    let original = node_name(&editor);
+    let undo_before = undo_entries(&mut editor);
+    ctx.memory_mut(|memory| memory.request_focus(name_edit_id()));
+    frame(&mut editor, &ctx, vec![]);
+    editor.name.clear();
+    editor.name_intent = true;
+    frame(&mut editor, &ctx, vec![key(Key::Enter)]);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert_eq!(node_name(&editor), original);
+    assert_eq!(editor.name, "");
+    assert!(editor.name_intent && editor.error);
+    assert_eq!(undo_entries(&mut editor), undo_before);
+}
+
+#[test]
+fn read_only_heading_still_exposes_the_object_name_label() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let id = editor.history.scene().nodes()[0].id();
+    editor.select(Some(id));
+    let context = egui::Context::default();
+    context.enable_accesskit();
+    let mut output = context.run_ui(egui::RawInput::default(), |ui| {
+        editor.channels(ui, &mut false)
+    });
+    output.textures_delta.clear();
+    let node = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find(|(_, node)| node.label() == Some("Object name"))
+        .expect("heading label");
+    assert!(node.1.is_disabled());
+}
+
+#[test]
+fn attribute_editor_keeps_the_labelled_object_name_row() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| editor.attribute_editor(ui));
+    output.textures_delta.clear();
+    assert!(output.shapes.iter().any(|shape| matches!(
+        &shape.shape,
+        egui::Shape::Text(text) if text.galley.job.text == "Object name"
+    )));
+}
+
 mod primitive_options_create {
     use super::*;
     use azteccraft::primitive_options::{Axis, PrimitiveOptions};
@@ -7231,5 +8811,469 @@ mod primitive_options_create {
             let projected = camera.project(*vertex, editor.aspect).unwrap();
             assert!(projected.is_some(), "{vertex:?} is clipped");
         }
+    }
+}
+
+fn hover_reason_shown(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    size: egui::Vec2,
+    at: egui::Pos2,
+    reason: &str,
+) -> bool {
+    let mut shown = false;
+    let start = ctx.input(|input| input.time);
+    for step in 1..=8 {
+        let mut input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+            time: Some(start + f64::from(step) * 0.25),
+            events: vec![egui::Event::PointerMoved(at)],
+            ..Default::default()
+        };
+        input.viewports.entry(egui::ViewportId::ROOT).or_default();
+        let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+        output.textures_delta.clear();
+        shown = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(text) if text.galley.job.text == reason)
+        });
+    }
+    shown
+}
+
+#[test]
+fn polygon_primitives_submenu_lists_the_maya_labels_in_docs_order() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    let output = open_polygon_primitives(&mut editor, &ctx, size);
+    let mut items = polygon_submenu_items(&output);
+    items.sort_by(|a, b| a.rect.top().total_cmp(&b.rect.top()));
+    let rows: Vec<&str> = items
+        .iter()
+        .map(|item| item.label.as_str())
+        .filter(|label| !label.ends_with("option box"))
+        .collect();
+    // Maya 2027 order for the 15 primitives (the toggles' place is PROVISIONAL):
+    // https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-45D2EAD4-5BCF-42DA-A1AB-EC6EE09FE705.htm
+    let expected = [
+        "Interactive Creation",
+        "Exit on Completion",
+        "Sphere",
+        "Cube",
+        "Cylinder",
+        "Cone",
+        "Torus",
+        "Plane",
+        "Disc",
+        "Platonic Solid",
+        "Pyramid",
+        "Prism",
+        "Pipe",
+        "Helix",
+        "Gear",
+        "Soccer Ball",
+        "Super Shapes",
+    ];
+    assert_eq!(rows, expected);
+    assert_eq!(menus::POLYGON_PRIMITIVES.len(), 15);
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
+        let option_box = format!("{label} option box");
+        let found = items.iter().find(|item| item.label == option_box);
+        assert_eq!(found.is_some(), primitive.is_some(), "{option_box}");
+        if let Some(found) = found {
+            assert!(!found.disabled, "{option_box} disabled");
+        }
+    }
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    assert!(update.nodes.iter().all(|(_, node)| {
+        node.label()
+            .is_none_or(|label| !label.starts_with("Polygon c") && label != "Other primitives")
+    }));
+}
+
+#[test]
+fn every_primitive_variant_is_in_the_create_menu() {
+    let listed = |primitive: Primitive| {
+        menus::POLYGON_PRIMITIVES
+            .iter()
+            .any(|(_, built)| *built == Some(primitive))
+    };
+    // A new variant fails to compile here until it is placed in the menu list.
+    for primitive in [
+        Primitive::Cube,
+        Primitive::Plane,
+        Primitive::Sphere,
+        Primitive::Cylinder,
+        Primitive::Cone,
+    ] {
+        match primitive {
+            Primitive::Cube
+            | Primitive::Plane
+            | Primitive::Sphere
+            | Primitive::Cylinder
+            | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
+        }
+    }
+    let built = menus::POLYGON_PRIMITIVES
+        .iter()
+        .filter(|(_, primitive)| primitive.is_some())
+        .count();
+    assert_eq!(built, 5);
+}
+
+#[test]
+fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reasons() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    let output = open_polygon_primitives(&mut editor, &ctx, size);
+    let before = editor.history.scene().clone();
+    let mut rows: Vec<(String, String)> = vec![
+        (
+            "Interactive Creation".into(),
+            menus::INTERACTIVE_CREATION_REASON.into(),
+        ),
+        (
+            "Exit on Completion".into(),
+            menus::EXIT_ON_COMPLETION_REASON.into(),
+        ),
+    ];
+    for (label, primitive) in menus::POLYGON_PRIMITIVES {
+        if primitive.is_none() {
+            rows.push((
+                label.into(),
+                format!(
+                    "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
+                ),
+            ));
+        }
+    }
+    assert_eq!(rows.len(), 12);
+    for (label, reason) in rows {
+        let item = submenu_item(&output, &label);
+        assert!(item.disabled, "{label} enabled");
+        assert!(
+            hover_reason_shown(&mut editor, &ctx, size, item.rect.center(), &reason),
+            "{label} shows no specific reason"
+        );
+        click_at(&mut editor, &ctx, size, item.rect.center());
+        assert_eq!(editor.history.scene(), &before, "{label} changed the scene");
+        assert!(!editor.history.can_undo(), "{label} added history");
+        open_polygon_primitives(&mut editor, &ctx, size);
+    }
+}
+
+fn pose_op(yaw: f32, pitch: f32, distance: f32) -> Operation {
+    Operation::SetCameraPose {
+        target: [1.0, 0.5, -2.0],
+        distance,
+        yaw,
+        pitch,
+    }
+}
+
+fn remote_pose(
+    editor: &mut Editor,
+    token: Uuid,
+    operation: Operation,
+) -> Result<OperationReply, OperationError> {
+    editor.remote_operation(
+        RemoteRequest {
+            expected_scene_token: Some(token),
+            operation,
+        },
+        &egui::Context::default(),
+    )
+}
+
+/// The reply is numeric, so -0.0 over 0.0 is `Unchanged` although the stored sign bits flip.
+#[test]
+fn set_camera_pose_negative_zero_over_zero_replies_unchanged_and_flips_the_stored_bits() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token;
+    let pose = |zero: f32| Operation::SetCameraPose {
+        target: [zero; 3],
+        distance: 5.0,
+        yaw: zero,
+        pitch: zero,
+    };
+    let reply = remote_pose(&mut editor, token, pose(0.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Changed));
+    let (dirty, scene, undoable) = (
+        editor.is_dirty(),
+        editor.history.scene().clone(),
+        editor.history.can_undo(),
+    );
+    let reply = remote_pose(&mut editor, token, pose(-0.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Unchanged));
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.history.can_undo(), undoable);
+    let negative = (-0.0_f32).to_bits();
+    assert_eq!(editor.camera.yaw().to_bits(), negative);
+    assert_eq!(editor.camera.pitch().to_bits(), negative);
+    assert_eq!(editor.camera.target().x.to_bits(), negative);
+}
+
+#[test]
+fn set_camera_pose_changes_only_the_camera_and_reports_unchanged_on_repeat() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let (token, dirty, scene, undoable) = (
+        editor.scene_token,
+        editor.is_dirty(),
+        editor.history.scene().clone(),
+        editor.history.can_undo(),
+    );
+    let lens = editor.camera.clone();
+    let reply = remote_pose(&mut editor, token, pose_op(7.0, 0.2, 5.0)).unwrap();
+    assert!(matches!(reply, OperationReply::Changed));
+    assert_eq!(editor.camera.target(), Vec3::new(1.0, 0.5, -2.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert_eq!(editor.camera.pitch(), 0.2);
+    assert_eq!(
+        editor.camera.yaw(),
+        7.0_f32.rem_euclid(std::f32::consts::TAU)
+    );
+    assert_eq!(
+        (
+            editor.camera.lens(),
+            editor.camera.near(),
+            editor.camera.far()
+        ),
+        (lens.lens(), lens.near(), lens.far())
+    );
+    let again = remote_pose(&mut editor, token, pose_op(7.0, 0.2, 5.0)).unwrap();
+    assert!(matches!(again, OperationReply::Unchanged));
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.is_dirty(), dirty);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.history.can_undo(), undoable);
+}
+
+#[test]
+fn inspect_fov_tracks_the_viewport_aspect() {
+    let mut editor = Editor::default();
+    for aspect in [1.0_f32, 2.0] {
+        editor.aspect = aspect;
+        let tan_y = if aspect >= 1.4173 / 0.9449 {
+            1.4173_f32 * 25.4 / 70.0 / aspect
+        } else {
+            0.9449_f32 * 25.4 / 70.0
+        };
+        let expected = f64::from(2.0 * tan_y.atan()).to_degrees();
+        let actual = editor.inspect(false).unwrap().camera.fov_y_degrees;
+        assert!(
+            (actual - expected).abs() < 1e-4,
+            "aspect {aspect}: {actual}"
+        );
+    }
+}
+
+#[test]
+fn set_camera_pose_rejects_invalid_fields_with_a_named_error_and_keeps_the_camera() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let token = editor.scene_token;
+    let camera = editor.camera.clone();
+    let status = editor.status.clone();
+    for (operation, text) in [
+        (pose_op(0.0, 1.6, 5.0), "pitch"),
+        (pose_op(f32::NAN, 0.2, 5.0), "yaw"),
+        (pose_op(0.0, 0.2, 0.0), "distance"),
+        (pose_op(0.0, 0.2, f32::INFINITY), "distance"),
+    ] {
+        let error = remote_pose(&mut editor, token, operation).unwrap_err();
+        assert!(matches!(error, OperationError::CameraPose(_)), "{error}");
+        assert!(error.to_string().contains(text), "{error}");
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.scene_token, token);
+        assert_eq!(editor.status, status);
+    }
+}
+
+#[test]
+fn set_camera_pose_rejects_a_stale_token_and_native_dispatch_matches_remote() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let camera = editor.camera.clone();
+    let error = remote_pose(&mut editor, Uuid::new_v4(), pose_op(0.3, 0.2, 5.0)).unwrap_err();
+    assert!(matches!(error, OperationError::StaleScene));
+    assert_eq!(editor.camera, camera);
+    editor.native_operation(pose_op(0.3, 0.2, 5.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert!(!editor.error);
+    editor.native_operation(pose_op(0.3, 0.2, -1.0));
+    assert_eq!(editor.camera.distance(), 5.0);
+    assert!(editor.error);
+}
+
+fn disturb_camera(editor: &mut Editor) {
+    editor.camera.orbit(glam::Vec2::new(1.2, -0.7)).unwrap();
+    editor.camera.pan(glam::Vec2::new(2.0, -1.0)).unwrap();
+    editor.camera.dolly(2.5).unwrap();
+    assert_ne!(editor.camera, Camera::default());
+}
+
+fn disturbed_camera_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    disturb_camera(&mut editor);
+    editor
+}
+
+/// Presses and releases Home so egui does not mark the next press as a repeat.
+fn press_alt_home(editor: &mut Editor, ctx: &egui::Context, modifiers: egui::Modifiers) {
+    frame(editor, ctx, vec![key_with(Key::Home, modifiers)]);
+    frame(
+        editor,
+        ctx,
+        vec![egui::Event::Key {
+            key: Key::Home,
+            physical_key: None,
+            pressed: false,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+}
+
+#[test]
+fn view_menu_default_view_row_restores_the_default_pose() {
+    let mut editor = disturbed_camera_editor();
+    let (token, scene) = (editor.scene_token, editor.history.scene().clone());
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "View");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let row = face_text_position(&output, "Default View (Alt+Home)");
+    face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+    assert_eq!(editor.camera, Camera::default());
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.scene(), &scene);
+}
+
+#[test]
+fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let transform = NativeTransform {
+        translation: [500000.0, 0.0, 0.0],
+        ..Default::default()
+    };
+    let input = editor.transform_input(transform).unwrap();
+    let id = editor.selected.unwrap();
+    remote(
+        &mut editor,
+        Operation::SetTransform {
+            id,
+            transform: input,
+        },
+    )
+    .unwrap();
+    let default = Camera::default();
+    remote(&mut editor, Operation::FrameAll).unwrap();
+    assert!(editor.camera.far() > default.far());
+    let grown = editor.camera.far();
+    editor.default_view();
+    let camera = &editor.camera;
+    assert_eq!(camera.target(), default.target());
+    assert_eq!(camera.distance(), default.distance());
+    assert_eq!(camera.yaw(), default.yaw());
+    assert_eq!(camera.pitch(), default.pitch());
+    assert_eq!(camera.far(), grown);
+}
+
+#[test]
+fn alt_home_restores_the_default_pose_and_other_modifiers_do_not() {
+    let mut editor = disturbed_camera_editor();
+    let disturbed = editor.camera.clone();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    for modifiers in [
+        egui::Modifiers::NONE,
+        egui::Modifiers::SHIFT | egui::Modifiers::ALT,
+        egui::Modifiers::CTRL | egui::Modifiers::ALT,
+        egui::Modifiers::COMMAND | egui::Modifiers::ALT,
+    ] {
+        press_alt_home(&mut editor, &ctx, modifiers);
+        assert_eq!(editor.camera, disturbed, "{modifiers:?}");
+    }
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, Camera::default());
+}
+
+#[test]
+fn alt_home_and_default_view_are_refused_while_modal_or_closing() {
+    let ctx = egui::Context::default();
+    let mut editor = disturbed_camera_editor();
+    editor.new_document().unwrap();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![]);
+    assert!(editor.files.is_modal());
+    let disturbed = editor.camera.clone();
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, disturbed, "modal");
+
+    let mut editor = Editor::default();
+    editor.close_document().unwrap();
+    disturb_camera(&mut editor);
+    assert!(editor.files.is_closing());
+    let disturbed = editor.camera.clone();
+    press_alt_home(&mut editor, &ctx, egui::Modifiers::ALT);
+    assert_eq!(editor.camera, disturbed, "closing");
+    assert!(!editor.error, "the shortcut gate stops it before dispatch");
+    editor.default_view();
+    assert_eq!(editor.camera, disturbed, "menu path while closing");
+    assert!(editor.error);
+}
+
+#[test]
+fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.single_target().unwrap().0;
+    remote(
+        &mut editor,
+        Operation::Rename {
+            id,
+            name: "renamed".into(),
+        },
+    )
+    .unwrap();
+    remote(&mut editor, Operation::Undo).unwrap();
+    let undo = editor.history.undo_label();
+    let redo = editor.history.redo_label();
+    assert!(redo.is_some());
+    for operation in [
+        Operation::Select {
+            node: None,
+            instance_path: None,
+        },
+        Operation::Select {
+            node: Some(id),
+            instance_path: None,
+        },
+        Operation::SetSelectionMode(SelectionMode::Hierarchy),
+        Operation::SetSelectionMode(SelectionMode::Object),
+        Operation::Orbit {
+            radians: [0.1, 0.1],
+        },
+        Operation::Pan {
+            world_units: [0.5, 0.5],
+        },
+        Operation::Dolly { factor: 1.5 },
+        Operation::FrameSelected,
+        Operation::SetActiveTool(ActiveTool::Move),
+        Operation::SetGridVisible { visible: false },
+    ] {
+        remote(&mut editor, operation).unwrap();
+        assert_eq!(editor.history.undo_label(), undo);
+        assert_eq!(editor.history.redo_label(), redo);
     }
 }

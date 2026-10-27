@@ -1,10 +1,10 @@
 //! Rotate and Scale: Tool Box state, Object/World selector, numeric entry, handle hover, pick and
 //! paint. The drag samples, guards and history entry are shared with Move (`move_tool.rs`).
 
-use crate::app::Editor;
+use crate::app::{Editor, NOT_IMPLEMENTED_YET};
 use crate::editor_operations::{
     ActiveTool, ManipulationSpace, ManipulationValue, Operation, OperationError, OperationReply,
-    SelectionMode,
+    SelectionMode, ToolHandle,
 };
 use azteccraft::{
     history::{
@@ -12,14 +12,21 @@ use azteccraft::{
         ManipulationProvenance,
     },
     manipulator_handles::{
-        HandleFrame, RotateDrag, RotateHandles, ScaleDrag, ScaleHandles,
+        DisabledKind, HandleFrame, Pick, RotateDrag, RotateHandles, ScaleDrag, ScaleHandles,
         paint::{paint_rotate, paint_scale},
     },
-    move_handles::{HandleError, ViewportCapture},
+    move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{RotateAxis, ScaleHandle, TransformTarget},
 };
 use eframe::egui;
 use glam::{DVec3, Vec2};
+
+/// The Rotate or Scale handle under a pixel, as the active tool sees it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) enum ToolPick {
+    Rotate(Pick<RotateAxis>),
+    Scale(Pick<ScaleHandle>),
+}
 
 const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 
@@ -30,6 +37,8 @@ pub(in crate::app) struct ManipulationOptions {
     scale_space: ManipulationSpace,
     rotate_axis: RotateAxis,
     scale_handle: ScaleHandle,
+    // Global and session-only: it never enters the scene, the history or the dirty state.
+    manipulator_size: ManipulatorSize,
     numeric: String,
     // The status text last written for the handle under the pointer, and whether it is a refusal.
     hover: Option<(String, bool)>,
@@ -51,6 +60,7 @@ impl Default for ManipulationOptions {
             scale_space: ManipulationSpace::World,
             rotate_axis: RotateAxis::X,
             scale_handle: ScaleHandle::Uniform,
+            manipulator_size: ManipulatorSize::default(),
             numeric: String::new(),
             hover: None,
             quiet: false,
@@ -66,6 +76,18 @@ impl ManipulationOptions {
             ActiveTool::Scale => self.scale_space,
             _ => self.rotate_space,
         }
+    }
+
+    pub(in crate::app) fn rotate_axis(&self) -> RotateAxis {
+        self.rotate_axis
+    }
+
+    pub(in crate::app) fn scale_handle(&self) -> ScaleHandle {
+        self.scale_handle
+    }
+
+    pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
+        self.manipulator_size
     }
 }
 
@@ -92,6 +114,34 @@ impl Editor {
         } else {
             OperationReply::Unchanged
         })
+    }
+}
+
+impl Editor {
+    pub(in crate::app) fn set_tool_handle(&mut self, handle: ToolHandle) -> OperationReply {
+        let changed = match handle {
+            ToolHandle::RotateAxis(axis) => {
+                std::mem::replace(&mut self.manipulation.rotate_axis, axis) != axis
+            }
+            ToolHandle::ScaleHandle(handle) => {
+                std::mem::replace(&mut self.manipulation.scale_handle, handle) != handle
+            }
+        };
+        if changed {
+            OperationReply::Changed
+        } else {
+            OperationReply::Unchanged
+        }
+    }
+}
+
+impl Editor {
+    pub(in crate::app) fn set_manipulator_size(&mut self, size: ManipulatorSize) -> OperationReply {
+        if std::mem::replace(&mut self.manipulation.manipulator_size, size) == size {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
+        }
     }
 }
 
@@ -149,6 +199,17 @@ fn scale_handle_name(handle: ScaleHandle) -> &'static str {
 
 // Maya's other modes for these tools. Each is drawn disabled in the selector.
 const UNSUPPORTED_SPACES: [&str; 5] = ["Gimbal", "Parent", "Normal", "Custom", "Component"];
+/// Maya 2026 Move Tool Axis Orientation entries in documented order; only World is implemented.
+const MOVE_ORIENTATIONS: [&str; 8] = [
+    "Object",
+    "World",
+    "Component",
+    "Parent",
+    "Normal",
+    "Along Rotation Axis",
+    "Along Live Object Axis",
+    "Custom",
+];
 
 pub(in crate::app) fn mode_refusal(tool: &str, mode: SelectionMode) -> Option<String> {
     let name = match mode {
@@ -171,8 +232,72 @@ pub(in crate::app) fn begin_error(error: ManipulationError) -> OperationError {
     }
 }
 
+/// The handle a drag begins on: the enabled picks, never a disabled one.
+#[derive(Clone, Copy)]
+enum DragHandle {
+    Rotate(RotateAxis),
+    Scale(ScaleHandle),
+}
+
+impl DragHandle {
+    fn of(pick: ToolPick) -> Result<Self, DisabledKind> {
+        match pick {
+            ToolPick::Rotate(Pick::Handle(axis)) => Ok(Self::Rotate(axis)),
+            ToolPick::Scale(Pick::Handle(handle)) => Ok(Self::Scale(handle)),
+            ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
+                Err(kind)
+            }
+        }
+    }
+}
+
+/// The drag a press at `pointer` begins on `handle`, or the reason it cannot. Press, hover and
+/// inspection all go through this function; it must not apply an operation.
+fn start_drag(
+    capture: ViewportCapture,
+    frame: &HandleFrame,
+    handle: DragHandle,
+    pointer: Vec2,
+) -> Result<crate::app::features::move_tool::NativeDrag, HandleError> {
+    use crate::app::features::move_tool::NativeDrag;
+    Ok(match handle {
+        DragHandle::Rotate(axis) => {
+            NativeDrag::Rotate(RotateDrag::begin(capture, frame, axis, pointer)?)
+        }
+        DragHandle::Scale(handle) => {
+            NativeDrag::Scale(ScaleDrag::begin(capture, frame, handle, pointer)?)
+        }
+    })
+}
+
 fn handle_error(tool: ActiveTool, error: HandleError) -> OperationError {
     OperationError::InvalidInput(error.describe_for(tool_name(tool)))
+}
+
+/// Why a tool has no handle frame. The cause stays typed so a reason is built only from fixed
+/// core text, never from an arbitrary `InvalidInput` string.
+pub(in crate::app) enum FrameFailure {
+    Operation(OperationError),
+    Handle(HandleError),
+}
+
+impl FrameFailure {
+    /// The text native shows after "{tool} unavailable: ". None when the tool is simply idle (no
+    /// selection) or the cause is not one the handles report.
+    pub(in crate::app) fn reason(&self, tool: ActiveTool) -> Option<String> {
+        match self {
+            Self::Handle(error) => Some(error.describe_for(tool_name(tool))),
+            Self::Operation(OperationError::Scene(error)) => Some(error.to_string()),
+            Self::Operation(_) => None,
+        }
+    }
+
+    fn into_operation(self, tool: ActiveTool) -> OperationError {
+        match self {
+            Self::Operation(error) => error,
+            Self::Handle(error) => handle_error(tool, error),
+        }
+    }
 }
 
 impl Editor {
@@ -354,20 +479,33 @@ impl Editor {
     }
 
     // Handle frame of the selected transform in the chosen space.
-    fn manipulation_frame(
+    pub(in crate::app) fn manipulation_frame(
         &self,
         tool: ActiveTool,
     ) -> Result<(TransformTarget, HandleFrame), OperationError> {
+        self.manipulation_frame_or_reason(tool)
+            .map_err(|failure| failure.into_operation(tool))
+    }
+
+    // `manipulation_frame` with the typed cause kept, for callers that report the reason.
+    pub(in crate::app) fn manipulation_frame_or_reason(
+        &self,
+        tool: ActiveTool,
+    ) -> Result<(TransformTarget, HandleFrame), FrameFailure> {
         let name = tool_name(tool);
         if let Some(refusal) = mode_refusal(name, self.selection_mode) {
-            return Err(OperationError::InvalidInput(refusal));
+            return Err(FrameFailure::Operation(OperationError::InvalidInput(
+                refusal,
+            )));
         }
-        let target = self.selected_move_target()?;
+        let target = self
+            .selected_move_target()
+            .map_err(FrameFailure::Operation)?;
         let frame = self
             .history
             .scene()
             .manipulator_frame(&target)
-            .map_err(OperationError::Scene)?;
+            .map_err(|error| FrameFailure::Operation(OperationError::Scene(error)))?;
         let axes = match self.manipulation.space(tool) {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
@@ -377,8 +515,36 @@ impl Editor {
         } else {
             frame.origin_cm
         };
-        let handle = HandleFrame::new(origin, axes).map_err(|e| handle_error(tool, e))?;
+        let handle = HandleFrame::new(origin, axes).map_err(FrameFailure::Handle)?;
         Ok((target, handle))
+    }
+
+    /// Why a press at `pointer` on `pick` would be refused, in the words native hover shows after
+    /// "{space} {handle} {tool}: ". The drag-begin refusal comes first, as in the press, then the
+    /// scene's. None for an accepted handle and for a disabled one, whose reason is the kind itself.
+    pub(in crate::app) fn pick_refusal(
+        &self,
+        capture: &ViewportCapture,
+        frame: &HandleFrame,
+        target: &TransformTarget,
+        tool: ActiveTool,
+        pick: ToolPick,
+        pointer: Vec2,
+    ) -> Option<String> {
+        let handle = DragHandle::of(pick).ok()?;
+        if let Err(error) = start_drag(capture.clone(), frame, handle, pointer) {
+            return Some(error.describe_for(tool_name(tool)));
+        }
+        let space = self.manipulation.space(tool);
+        let scene = self.history.scene();
+        match handle {
+            DragHandle::Rotate(axis) => scene
+                .rotation_refusal(target, axis, space.rotate())
+                .map(|error| error.to_string()),
+            DragHandle::Scale(handle) => scene
+                .scale_refusal(target, handle, space.scale())
+                .map(|error| error.to_string()),
+        }
     }
 
     // A refused hover shows the core's own reason before any press.
@@ -388,60 +554,62 @@ impl Editor {
         pointer: Option<Vec2>,
     ) -> Option<(String, bool)> {
         let tool = self.active_tool;
-        let pixel = capture.pointer_pixel(pointer?).ok()?;
+        let pointer = pointer?;
+        let pixel = capture.pointer_pixel(pointer).ok()?;
         if mode_refusal("", self.selection_mode).is_some() {
             return None;
         }
-        let (target, frame) = match self.manipulation_frame(tool) {
+        let (target, frame) = match self.manipulation_frame_or_reason(tool) {
             Ok(found) => found,
-            Err(OperationError::NoSelection) => return None,
             // A frame the handles refuse (for example a mirrored one) is named for as long as the
             // pointer is over the viewport.
-            Err(error) => return Some((format!("{} unavailable: {error}", tool_name(tool)), true)),
+            Err(failure) => {
+                return failure
+                    .reason(tool)
+                    .map(|reason| (format!("{} unavailable: {reason}", tool_name(tool)), true));
+            }
         };
         let space = self.manipulation.space(tool);
-        let scene = self.history.scene();
+        let picked = self.pick_handle(tool, capture, &frame, pixel)?;
+        Some(match picked {
+            ToolPick::Rotate(Pick::Handle(axis)) => {
+                let label = format!("{} {} Rotate", space_name(space), rotate_axis_name(axis));
+                match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
+                    Some(refusal) => (format!("{label}: {refusal}"), true),
+                    None => (format!("{label}: drag to turn"), false),
+                }
+            }
+            ToolPick::Scale(Pick::Handle(handle)) => {
+                let label = format!("{} {} Scale", space_name(space), scale_handle_name(handle));
+                match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
+                    Some(refusal) => (format!("{label}: {refusal}"), true),
+                    None => (format!("{label}: drag to scale"), false),
+                }
+            }
+            ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
+                (kind.to_string(), true)
+            }
+        })
+    }
+
+    /// The one handle pick for hover, press and inspection; paint calls `handles.pick` on the
+    /// handles it already builds. None for Select, Move, or a frame the handles refuse.
+    pub(in crate::app) fn pick_handle(
+        &self,
+        tool: ActiveTool,
+        capture: &ViewportCapture,
+        frame: &HandleFrame,
+        pixel: glam::DVec2,
+    ) -> Option<ToolPick> {
         match tool {
-            ActiveTool::Rotate => {
-                let handles = RotateHandles::new(capture, &frame).ok()?;
-                if let Some(axis) = handles.hit_test(pixel) {
-                    let name = rotate_axis_name(axis);
-                    return Some(
-                        match scene.rotation_refusal(&target, axis, space.rotate()) {
-                            Some(refusal) => (
-                                format!("{} {name} Rotate: {refusal}", space_name(space)),
-                                true,
-                            ),
-                            None => (
-                                format!("{} {name} Rotate: drag to turn", space_name(space)),
-                                false,
-                            ),
-                        },
-                    );
-                }
-                handles
-                    .hit_disabled(pixel)
-                    .map(|kind| (kind.to_string(), true))
-            }
-            ActiveTool::Scale => {
-                let handles = ScaleHandles::new(capture, &frame).ok()?;
-                if let Some(handle) = handles.hit_test(pixel) {
-                    let name = scale_handle_name(handle);
-                    return Some(match scene.scale_refusal(&target, handle, space.scale()) {
-                        Some(refusal) => (
-                            format!("{} {name} Scale: {refusal}", space_name(space)),
-                            true,
-                        ),
-                        None => (
-                            format!("{} {name} Scale: drag to scale", space_name(space)),
-                            false,
-                        ),
-                    });
-                }
-                handles
-                    .hit_disabled(pixel)
-                    .map(|kind| (kind.to_string(), true))
-            }
+            ActiveTool::Rotate => RotateHandles::new(capture, frame)
+                .ok()?
+                .pick(pixel)
+                .map(ToolPick::Rotate),
+            ActiveTool::Scale => ScaleHandles::new(capture, frame)
+                .ok()?
+                .pick(pixel)
+                .map(ToolPick::Scale),
             ActiveTool::Select | ActiveTool::Move => None,
         }
     }
@@ -501,53 +669,37 @@ impl Editor {
             .pointer_pixel(position)
             .map_err(|error| handle_error(tool, error))?;
         let space = self.manipulation.space(tool);
-        let (drag, operation, label) = match tool {
-            ActiveTool::Rotate => {
-                let Ok(handles) = RotateHandles::new(&capture, &frame) else {
-                    return Ok(false);
-                };
-                let Some(axis) = handles.hit_test(pixel) else {
-                    return self.refuse_disabled(handles.hit_disabled(pixel));
-                };
-                let drag = match RotateDrag::begin(capture, &frame, axis, position) {
-                    Ok(drag) => drag,
-                    Err(error) => return self.refuse_drag(tool, error),
-                };
-                (
-                    crate::app::features::move_tool::NativeDrag::Rotate(drag),
-                    Operation::BeginRotate {
-                        target,
-                        axis,
-                        space,
-                    },
-                    format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
-                )
-            }
-            ActiveTool::Scale => {
-                let Ok(handles) = ScaleHandles::new(&capture, &frame) else {
-                    return Ok(false);
-                };
-                let Some(handle) = handles.hit_test(pixel) else {
-                    return self.refuse_disabled(handles.hit_disabled(pixel));
-                };
-                let drag = match ScaleDrag::begin(capture, &frame, handle, position) {
-                    Ok(drag) => drag,
-                    Err(error) => return self.refuse_drag(tool, error),
-                };
-                (
-                    crate::app::features::move_tool::NativeDrag::Scale(drag),
-                    Operation::BeginScale {
-                        target,
-                        handle,
-                        space,
-                    },
-                    match handle {
-                        ScaleHandle::Uniform => "Uniform Scale".to_string(),
-                        _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
-                    },
-                )
-            }
-            ActiveTool::Select | ActiveTool::Move => return Ok(false),
+        let Some(picked) = self.pick_handle(tool, &capture, &frame, pixel) else {
+            return Ok(false);
+        };
+        let handle = match DragHandle::of(picked) {
+            Ok(handle) => handle,
+            Err(kind) => return self.refuse_disabled(kind),
+        };
+        let (operation, label) = match handle {
+            DragHandle::Rotate(axis) => (
+                Operation::BeginRotate {
+                    target,
+                    axis,
+                    space,
+                },
+                format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
+            ),
+            DragHandle::Scale(handle) => (
+                Operation::BeginScale {
+                    target,
+                    handle,
+                    space,
+                },
+                match handle {
+                    ScaleHandle::Uniform => "Uniform Scale".to_string(),
+                    _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
+                },
+            ),
+        };
+        let drag = match start_drag(capture, &frame, handle, position) {
+            Ok(drag) => drag,
+            Err(error) => return self.refuse_drag(tool, error),
         };
         self.clear_manipulation_hover();
         if let Err(error) = self.apply_operation(operation) {
@@ -573,13 +725,7 @@ impl Editor {
         Ok(true)
     }
 
-    fn refuse_disabled(
-        &mut self,
-        disabled: Option<azteccraft::manipulator_handles::DisabledKind>,
-    ) -> Result<bool, OperationError> {
-        let Some(kind) = disabled else {
-            return Ok(false);
-        };
+    fn refuse_disabled(&mut self, kind: DisabledKind) -> Result<bool, OperationError> {
         self.consume_pointer_sequence();
         self.status = kind.to_string();
         self.error = true;
@@ -600,7 +746,7 @@ impl Editor {
         let drawn = (|| {
             let (_, frame) = self.manipulation_frame(tool)?;
             let capture = input
-                .move_capture(&self.camera)
+                .move_capture(&self.camera, self.manipulation.manipulator_size())
                 .map_err(|error| handle_error(tool, error))?;
             let pointer = input
                 .move_pointer()
@@ -617,7 +763,8 @@ impl Editor {
                     };
                     let hover = pointer
                         .filter(|_| active.is_none())
-                        .and_then(|pixel| handles.hit_test(pixel));
+                        .and_then(|pixel| handles.pick(pixel))
+                        .and_then(Pick::handle);
                     paint_rotate(
                         &painter,
                         input.rect().min,
@@ -636,7 +783,8 @@ impl Editor {
                     };
                     let hover = pointer
                         .filter(|_| active.is_none())
-                        .and_then(|pixel| handles.hit_test(pixel));
+                        .and_then(|pixel| handles.pick(pixel))
+                        .and_then(Pick::handle);
                     paint_scale(
                         &painter,
                         input.rect().min,
@@ -663,14 +811,39 @@ impl Editor {
     // The Object/World selector, axis choice and numeric field of the active tool.
     pub(in crate::app) fn manipulation_options(&mut self, ui: &mut egui::Ui) {
         let tool = self.active_tool;
-        if !matches!(tool, ActiveTool::Rotate | ActiveTool::Scale) {
-            return;
-        }
         let enabled = !self.files.is_modal()
             && !self.files.is_closing()
             && self.history.active_manipulation().is_none();
+        if tool == ActiveTool::Move {
+            // Move drags along World axes only (Maya's default); the other orientations are shown
+            // so their absence is visible.
+            ui.horizontal(|ui| {
+                ui.label("Move tool");
+                ui.add_enabled_ui(enabled, |ui| {
+                    egui::ComboBox::from_id_salt("move_axis_orientation")
+                        .selected_text("World")
+                        .show_ui(ui, |ui| {
+                            for name in MOVE_ORIENTATIONS {
+                                if name == "World" {
+                                    let _ = ui.selectable_label(true, name);
+                                } else {
+                                    ui.add_enabled(false, egui::Button::selectable(false, name))
+                                        .on_disabled_hover_text(
+                                            "unsupported: Move uses World axes only",
+                                        );
+                                }
+                            }
+                        });
+                });
+            });
+            return;
+        }
+        if !matches!(tool, ActiveTool::Rotate | ActiveTool::Scale) {
+            return;
+        }
         let mut apply = false;
         let mut chosen = None;
+        let mut chosen_handle = None;
         ui.horizontal(|ui| {
             ui.label(format!("{} tool", tool_name(tool)));
             ui.add_enabled_ui(enabled, |ui| {
@@ -688,24 +861,28 @@ impl Editor {
                         }
                         for name in UNSUPPORTED_SPACES {
                             ui.add_enabled(false, egui::Button::selectable(false, name))
-                                .on_disabled_hover_text("unsupported");
+                                .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
                         }
                     });
                 if tool == ActiveTool::Rotate {
                     egui::ComboBox::from_id_salt("manipulation_axis")
-                        .selected_text(rotate_axis_name(self.manipulation.rotate_axis))
+                        .selected_text(rotate_axis_name(self.manipulation.rotate_axis()))
                         .show_ui(ui, |ui| {
                             for axis in [RotateAxis::X, RotateAxis::Y, RotateAxis::Z] {
-                                ui.selectable_value(
-                                    &mut self.manipulation.rotate_axis,
-                                    axis,
-                                    rotate_axis_name(axis),
-                                );
+                                if ui
+                                    .selectable_label(
+                                        self.manipulation.rotate_axis() == axis,
+                                        rotate_axis_name(axis),
+                                    )
+                                    .clicked()
+                                {
+                                    chosen_handle = Some(ToolHandle::RotateAxis(axis));
+                                }
                             }
                         });
                 } else {
                     egui::ComboBox::from_id_salt("manipulation_axis")
-                        .selected_text(scale_handle_name(self.manipulation.scale_handle))
+                        .selected_text(scale_handle_name(self.manipulation.scale_handle()))
                         .show_ui(ui, |ui| {
                             for handle in [
                                 ScaleHandle::X,
@@ -713,11 +890,15 @@ impl Editor {
                                 ScaleHandle::Z,
                                 ScaleHandle::Uniform,
                             ] {
-                                ui.selectable_value(
-                                    &mut self.manipulation.scale_handle,
-                                    handle,
-                                    scale_handle_name(handle),
-                                );
+                                if ui
+                                    .selectable_label(
+                                        self.manipulation.scale_handle() == handle,
+                                        scale_handle_name(handle),
+                                    )
+                                    .clicked()
+                                {
+                                    chosen_handle = Some(ToolHandle::ScaleHandle(handle));
+                                }
                             }
                         });
                 }
@@ -740,6 +921,9 @@ impl Editor {
         });
         if let Some(space) = chosen {
             self.native_operation(Operation::SetToolSpace { tool, space });
+        }
+        if let Some(handle) = chosen_handle {
+            self.native_operation(Operation::SetToolHandle(handle));
         }
         if apply {
             self.apply_numeric_manipulation();
@@ -778,7 +962,7 @@ impl Editor {
             ActiveTool::Rotate => (
                 Operation::BeginRotate {
                     target,
-                    axis: self.manipulation.rotate_axis,
+                    axis: self.manipulation.rotate_axis(),
                     space,
                 },
                 ManipulationValue::Angle(number),
@@ -786,7 +970,7 @@ impl Editor {
             ActiveTool::Scale => (
                 Operation::BeginScale {
                     target,
-                    handle: self.manipulation.scale_handle,
+                    handle: self.manipulation.scale_handle(),
                     space,
                 },
                 ManipulationValue::Factor(number),
