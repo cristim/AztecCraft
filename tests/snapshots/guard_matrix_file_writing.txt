@@ -580,6 +580,8 @@
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## sited_binary_dirty / remote
