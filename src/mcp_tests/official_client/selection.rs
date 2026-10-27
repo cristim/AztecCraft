@@ -673,3 +673,73 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_actions_that_need_one_object_report_multiple_selection_and_keep_state() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let members = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(members.clone());
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let scene = editor.history.scene().clone();
+    let camera = editor.camera.clone();
+    let lead = members[1].node.to_decimal();
+    let path: Vec<_> = members[1].path.iter().map(|id| id.to_decimal()).collect();
+    for (tool, args) in [
+        ("frame_selected", json!({"scene_token":token})),
+        (
+            "set_selection_mode",
+            json!({"scene_token":token,"mode":"face"}),
+        ),
+        (
+            "begin_manipulation",
+            json!({"scene_token":token,"kind":"move","node_id":lead,
+                   "instance_path":path,"axis":"x"}),
+        ),
+    ] {
+        let result = call(&mut editor, &context, client.peer(), tool, args).await;
+        let error = &result.structured_content.unwrap()["error"];
+        assert_eq!(error["code"], "multiple_selection", "{tool}");
+        assert_eq!(
+            error["message"],
+            "Several objects are selected; select one object"
+        );
+        assert_eq!(editor.selection.members(), members, "{tool}");
+        assert_eq!(editor.history.scene(), &scene, "{tool}");
+        assert_eq!(editor.camera, camera, "{tool}");
+        assert_eq!(editor.scene_token.to_string(), token, "{tool}");
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_delete_node_of_a_non_lead_member_keeps_the_other_selected_and_the_lead() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let members = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(members.clone());
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "delete_node",
+        json!({"scene_token":token,"node_id":members[0].node.to_decimal()}),
+    )
+    .await;
+    assert_ne!(result.is_error, Some(true));
+    assert_eq!(editor.history.scene().nodes().len(), 1);
+    assert_eq!(editor.selection.members(), &members[1..]);
+    assert_eq!(editor.selected(), Some(members[1].node));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

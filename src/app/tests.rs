@@ -9717,3 +9717,206 @@ fn by_id_edits_of_a_non_lead_member_keep_the_selection_ordered() {
     assert_eq!(editor.selection.members(), &members[1..]);
     assert_eq!(editor.lead_target().unwrap().0, members[1].node);
 }
+
+const SEVERAL_REASON: &str = "Several objects are selected; select one object";
+
+fn count_text(output: &egui::FullOutput, text: &str) -> usize {
+    output
+        .shapes
+        .iter()
+        .filter(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(shape) if shape.galley.job.text == text)
+        })
+        .count()
+}
+
+/// One full-UI frame a quarter second after the previous one, so tooltips and the Grid sizing
+/// pass settle after a few calls.
+fn render_at(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
+    let time = ctx.input(|input| input.time) + 0.25;
+    let mut input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1440.0, 900.0),
+        )),
+        time: Some(time),
+        events,
+        ..Default::default()
+    };
+    input.viewports.entry(egui::ViewportId::ROOT).or_default();
+    let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+    output.textures_delta.clear();
+    output
+}
+
+fn settle(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+    let mut output = render_at(editor, ctx, vec![]);
+    for _ in 0..3 {
+        output = render_at(editor, ctx, vec![]);
+    }
+    output
+}
+
+/// True when resting the pointer on `at` adds a tooltip carrying `SEVERAL_REASON`.
+fn hover_adds_the_reason(editor: &mut Editor, ctx: &egui::Context, at: egui::Pos2) -> bool {
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    // Take the pointer off the window so an earlier tooltip is gone.
+    for _ in 0..4 {
+        render_at(editor, ctx, vec![egui::Event::PointerGone]);
+    }
+    let baseline = count_text(&render_at(editor, ctx, vec![]), SEVERAL_REASON);
+    let mut hovered = render_at(editor, ctx, vec![]);
+    for _ in 0..8 {
+        hovered = render_at(editor, ctx, vec![egui::Event::PointerMoved(at)]);
+    }
+    count_text(&hovered, SEVERAL_REASON) > baseline
+}
+
+fn widget_enabled(ctx: &egui::Context, id: egui::Id) -> bool {
+    ctx.read_response(id)
+        .unwrap_or_else(|| panic!("{id:?} was not drawn"))
+        .enabled()
+}
+
+fn widget_center(ctx: &egui::Context, id: egui::Id) -> egui::Pos2 {
+    ctx.read_response(id).expect("drawn").rect.center()
+}
+
+fn role_states(output: &egui::FullOutput, role: eframe::egui::accesskit::Role) -> Vec<bool> {
+    output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .expect("accesskit enabled")
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.role() == role)
+        .map(|(_, node)| node.is_disabled())
+        .collect()
+}
+
+fn editing_ctx() -> egui::Context {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx
+}
+
+/// The material fixture's two nodes selected, the node whose shapes carry the editable material
+/// last (the lead).
+fn multi_material_editor() -> Editor {
+    let mut editor = material_editor();
+    let lead = editor.selection.lead().unwrap().clone();
+    let other = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|target| target.node != lead.node)
+        .unwrap();
+    editor.set_selection_members_for_test(vec![other, lead]);
+    editor
+}
+
+#[test]
+fn channel_box_controls_are_disabled_with_the_reason_while_several_are_selected() {
+    let ctx = editing_ctx();
+    let mut single = multi_material_editor();
+    let lead = single.selection.lead().unwrap().clone();
+    single.set_selection_members_for_test(vec![lead]);
+    let output = settle(&mut single, &ctx);
+    assert!(widget_enabled(&ctx, name_edit_id()), "control: one object");
+    assert!(widget_enabled(&ctx, channel_edit_id(0)));
+    assert!(widget_enabled(&ctx, material_edit_id()));
+    assert!(!button_disabled(&output, "Delete selected"));
+    assert!(role_states(&output, eframe::egui::accesskit::Role::Slider).contains(&false));
+
+    let ctx = editing_ctx();
+    let mut editor = multi_material_editor();
+    let output = settle(&mut editor, &ctx);
+    for id in [name_edit_id(), channel_edit_id(0), channel_edit_id(8)] {
+        assert!(!widget_enabled(&ctx, id), "{id:?}");
+        let at = widget_center(&ctx, id);
+        assert!(hover_adds_the_reason(&mut editor, &ctx, at), "{id:?}");
+    }
+    assert!(!widget_enabled(&ctx, material_edit_id()), "Diffuse text");
+    let output2 = settle(&mut editor, &ctx);
+    assert!(
+        role_states(&output2, eframe::egui::accesskit::Role::Slider)
+            .iter()
+            .all(|disabled| *disabled),
+        "Diffuse slider"
+    );
+    assert!(count_text(&output2, SEVERAL_REASON) > 0, "Diffuse reason");
+    assert!(button_disabled(&output, "Delete selected"));
+    assert!(button_disabled(&output, "Frame selected  F"));
+    let at = face_text_position(&output2, "Delete selected");
+    assert!(hover_adds_the_reason(&mut editor, &ctx, at), "Delete");
+    let at = face_text_position(&output2, "Frame selected  F");
+    assert!(hover_adds_the_reason(&mut editor, &ctx, at), "Frame");
+}
+
+#[test]
+fn attribute_editor_controls_are_disabled_with_the_reason_while_several_are_selected() {
+    let ctx = editing_ctx();
+    let mut editor = multi_material_editor();
+    remote(
+        &mut editor,
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+    )
+    .unwrap();
+    settle(&mut editor, &ctx);
+    for id in [name_edit_id(), channel_edit_id(0), channel_edit_id(8)] {
+        assert!(!widget_enabled(&ctx, id), "{id:?}");
+        let at = widget_center(&ctx, id);
+        assert!(hover_adds_the_reason(&mut editor, &ctx, at), "{id:?}");
+    }
+    let shape = editor.material_shape.expect("a direct mesh shape");
+    remote(
+        &mut editor,
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Material(shape),
+        },
+    )
+    .unwrap();
+    let output = settle(&mut editor, &ctx);
+    assert!(!widget_enabled(&ctx, material_edit_id()), "Diffuse text");
+    assert!(
+        role_states(&output, eframe::egui::accesskit::Role::Slider)
+            .iter()
+            .all(|disabled| *disabled),
+        "Diffuse slider"
+    );
+    assert!(count_text(&output, SEVERAL_REASON) > 0);
+}
+
+#[test]
+fn edit_menu_delete_is_disabled_with_the_reason_while_several_are_selected() {
+    let ctx = editing_ctx();
+    let mut editor = multi_material_editor();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let edit = face_text_position(&output, "Edit");
+    let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+    assert!(button_disabled(&output, "Delete"), "edit menu Delete");
+    let at = face_text_position(&output, "Delete");
+    assert!(hover_adds_the_reason(&mut editor, &ctx, at));
+}
+
+#[test]
+fn the_f_key_reports_the_refusal_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let baseline = multi_baseline(&editor);
+    frame(&mut editor, &ctx, vec![key(Key::F)]);
+    assert!(editor.error, "{}", editor.status);
+    assert!(editor.status.contains(SEVERAL_REASON), "{}", editor.status);
+    assert_eq!(multi_baseline(&editor), baseline);
+}
