@@ -259,6 +259,8 @@ impl eframe::App for Editor {
             | egui::Event::PointerGone => false,
             egui::Event::Cut
             | egui::Event::Paste(_)
+            | egui::Event::PasteImage(_)
+            | egui::Event::MiddleClickPaste { .. }
             | egui::Event::Text(_)
             | egui::Event::PointerButton { .. }
             | egui::Event::Zoom(_)
