@@ -1,6 +1,6 @@
 # Maya parity inventory (framework)
 
-Status: framework plus the expanded families listed in the family files (Interchange has rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
+Status: framework plus the expanded families listed in the family files (Interchange and Polygon modeling have rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
 
 This inventory replaces the provisional [workflow seed](../inventory-seed.md) as the candidate denominator once all 14 family files are expanded and frozen. It never says AztecCraft matches Maya. Exact parity needs comparison against the pinned reference and remains an open acceptance requirement (see [parity.md](../parity.md)).
 
@@ -107,7 +107,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
 | 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #189 |
 | 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #167, #292, #295 |
-| 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #43, #44, #45, #46 |
+| 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #49, #64 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
 | 7 | Animation | [07-animation.md](07-animation.md) | ANM | #52, #62 |
@@ -133,7 +133,7 @@ Documented menus and the family that owns their content. The always-available me
 | Modify > Align, Naming, Attributes, Objects, Asset | SCN | Align Tool and Snap Align place objects; Naming renames nodes; Attributes adds, edits and deletes custom attributes; Replace Objects edits the scene graph; Asset is a node container. Make Live (snap target) is VPT |
 | Modify > Rotate Order | ANM | Reorder Rotation keeps animation unchanged while changing the order, so it works on animated channels |
 | Modify > Nodes | PIP | Evaluate Nodes turns node evaluation off for performance |
-| Modify > Objects > Convert | MOD (Polygons to Subdiv, Subdiv to Polygons, Smooth Mesh Preview to Polygons, Geometry to Bounding Box), CRV (NURBS to Polygons, NURBS to Subdiv, Subdiv to NURBS, Polygon Edges to Curve, Bezier conversions), DYN (Paint Effects, Fluid, nParticle, XGen Primitives), MAT (Displacement to Polygons, Texture to Geometry; PROVISIONAL), SCN (Instance to Object) | on the page Convert sits inside the Objects group (Make Live, Replace Objects, Convert) |
+| Modify > Objects > Convert | MOD (Polygons to Subdiv, Subdiv to Polygons, Smooth Mesh Preview to Polygons, Geometry to Bounding Box), CRV (NURBS to Polygons, NURBS to Subdiv, Subdiv to NURBS, Polygon Edges to Curve, Bezier conversions), DYN (Paint Effects, Fluid, nParticle, XGen Primitives), MAT (Displacement to Polygons, Texture to Geometry; PROVISIONAL), SCN (Instance to Object); MOD items are MOD-020 to 023, the others are in [the pointer table](04-polygon-modeling.md#cross-family-pointer-rows-not-scored-in-mod) | on the page Convert sits inside the Objects group (Make Live, Replace Objects, Convert) |
 | Modify > Paint Tool | SCR (Paint Scripts Tool, paints MEL scripts), RIG (Paint Attributes Tool, an Artisan brush) | PROVISIONAL placement of the Paint Attributes Tool |
 | Display | VPT | HUD items also VPT |
 | Windows | SHL; each editor to the family that owns its content (Outliner SCN, Time Slider ANM, Render View RND) | |
