@@ -479,7 +479,7 @@ fn create_commits_a_valid_human_draft_first_and_reports_an_invalid_one() {
         "the valid draft was committed by the create"
     );
     editor.channels[0] = "nope".into();
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     run(&mut editor, &ctx, vec![]);
     editor.channels[0] = "nope".into();
     press(&mut editor, &ctx, "Create");

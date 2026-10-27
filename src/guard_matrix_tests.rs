@@ -337,8 +337,10 @@ fn material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
-    editor.selected_path = vec![editor.history.scene().nodes()[0].transform_id()];
+    editor.set_selection_for_test(
+        Some(editor.history.scene().nodes()[0].id()),
+        vec![editor.history.scene().nodes()[0].transform_id()],
+    );
     editor.sync_fields();
     editor
 }

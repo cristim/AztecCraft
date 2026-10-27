@@ -23,8 +23,10 @@ pub(in crate::app) fn material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
-    editor.selected_path = vec![editor.history.scene().nodes()[0].transform_id()];
+    editor.set_selection_for_test(
+        Some(editor.history.scene().nodes()[0].id()),
+        vec![editor.history.scene().nodes()[0].transform_id()],
+    );
     editor.sync_fields();
     editor
 }
@@ -89,7 +91,7 @@ fn independent_material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     editor
 }
@@ -480,7 +482,7 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     let before = editor.history.scene().clone();
     let context = egui::Context::default();
@@ -542,8 +544,7 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
         ("material/no-owner", None, Vec::new(), false),
         ("material/stale-owner", Some(stale), Vec::new(), false),
     ] {
-        editor.selected = selected;
-        editor.selected_path = path.clone();
+        editor.set_selection_for_test(selected, path.clone());
         let baseline = state(&editor);
         assert_eq!(baseline.4, (false, false, None, None, false), "{phase}");
         for _ in 0..2 {
@@ -615,7 +616,7 @@ fn material_multiple_direct_shapes_require_an_explicit_choice_without_guessing()
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     assert!(editor.material_shape.is_none());
     assert!(editor.material_draft.is_none());
@@ -5116,7 +5117,7 @@ fn first_click_on_a_field_keeps_same_frame_delete_and_selection_keys_suppressed(
 #[test]
 fn first_click_on_a_field_that_just_disappeared_leaves_no_stale_focus() {
     let (mut editor, ctx) = unfocused_cube_editor();
-    editor.selected = None;
+    editor.set_selection_for_test(None, Vec::new());
     click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
     frame(&mut editor, &ctx, vec![]);
     frame(&mut editor, &ctx, vec![]);
@@ -6154,8 +6155,7 @@ fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
         .unwrap()
         .pop()
         .unwrap();
-    editor.selected = None;
-    editor.selected_path = leaf.path.clone();
+    editor.set_selection_for_test(None, leaf.path.clone());
     let before = (
         click_baseline(&editor),
         editor.history.can_undo(),
@@ -6300,11 +6300,14 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
     let full_path_baseline = click_baseline(&editor);
     for defensive_empty_path in [false, true] {
         editor.camera = unframed.clone();
-        editor.selected_path = if defensive_empty_path {
-            Vec::new()
-        } else {
-            target.path.clone()
-        };
+        editor.set_selection_for_test(
+            editor.selected(),
+            if defensive_empty_path {
+                Vec::new()
+            } else {
+                target.path.clone()
+            },
+        );
         assert_eq!(
             click_baseline(&editor) == full_path_baseline,
             !defensive_empty_path
@@ -7116,7 +7119,7 @@ fn undoing_the_creation_clears_vertex_and_edge_picks() {
     assert_eq!(editor.remembered_vertex, None);
     remote(&mut editor, Operation::Redo).unwrap();
     assert_eq!(editor.remembered_vertex, None);
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, 2);
@@ -8228,7 +8231,7 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
         ("outliner/stale-path", true, Some(false)),
     ] {
         if stale_path {
-            editor.selected_path = leaf.path[1..].to_vec();
+            editor.set_selection_for_test(editor.selected(), leaf.path[1..].to_vec());
         }
         let expected_path = if stale_path {
             &leaf.path[1..]

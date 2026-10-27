@@ -10,6 +10,22 @@ impl Editor {
         Ok((selected.ok_or(OperationError::NoSelection)?, path))
     }
 
+    #[cfg(test)]
+    pub(in crate::app) fn selected(&self) -> Option<NodeId> {
+        self.selection_presentation().0
+    }
+
+    /// Fixture setter: the one test entry for building a selection without dispatching `Select`.
+    #[cfg(test)]
+    pub(in crate::app) fn set_selection_for_test(
+        &mut self,
+        node: Option<NodeId>,
+        path: Vec<NativeId>,
+    ) {
+        self.selected = node;
+        self.selected_path = path;
+    }
+
     /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll` (#167).
     pub(in crate::app) fn deselect_all(&mut self) {
         self.native_operation(Operation::DeselectAll);
