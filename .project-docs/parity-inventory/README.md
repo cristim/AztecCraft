@@ -47,7 +47,7 @@ The application policy constants table proposed in PR #294 (development.md once 
 | Workflow | One user task in imperative form with a short, testable action and assertion. A documented menu command plus its option box is one row. True variant families (for example Booleans, the Send to items, Clipboard Actions) are grouped into one row; so are the items of one submenu that manage the same set or sharing relation (create, assign, edit, delete, rename) and directional pairs such as Spin Edge Backward/Forward. Also one row: a toggle with its dependent sub-option (MOD-016), the import and export or all and selection entries of one format or workflow (INT-017, INT-027, INT-028, INT-032), and the items of one project or panel menu that act on the same object (INT-013, MOD-106). Otherwise, commands with their own menu entry are separate rows. |
 | Doc | 2027 documentation URL, with `2026 FALLBACK` or `2026-only` / `2027-new` tags where they apply. |
 | Component | Maya core, or the named component with its pinned version. |
-| Status | One value from the vocabulary above, plus the tags `runtime-only` where they apply. |
+| Status | One value from the vocabulary above, plus the tags `runtime-only` and `feature-gated: <feature>` where they apply. |
 | Evidence | Anchored `path "symbol"` code cite, test name and the dimensions checked. Missing rows say what was checked. |
 | MCP | MCP tool name, or `none`. Feeds the MCP coverage inventory; does not define coverage. |
 | Owner / out-of-scope | An open issue number, or `OOS: <reason>`. |
@@ -61,7 +61,7 @@ Each family file carries a header with the fields below, filled when it is expan
 - Documentation pin: Maya 2027.2 help, with the fetch date per file.
 - Repository SHA at which the Evidence column was checked.
 - Test platform or CI job for each cited test.
-- A capability reachable only in a feature-gated build (for example `--features mcp`) is classed Partial at best, and its Evidence cell names the build that reaches it and says the default build has no user path.
+- A capability reachable only in a feature-gated build (for example `--features mcp`) is classed Partial at best, carries the tag `feature-gated: <feature>` (for example `feature-gated: mcp`), and its Evidence cell names the build that reaches it and says the default build has no user path.
 - No Maya build, GPU, locale or OCIO is involved (documentation-only). AztecCraft test evidence records its platform or CI job (above).
 - Fixtures: the repository's synthetic fixtures, by path and hash where a row cites one. None for Missing rows.
 - Scope: the documented behaviour of the cited page. Nothing is generalized to other versions, options or Maya runtime behaviour.
@@ -107,7 +107,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
 | 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #167, #189 |
 | 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #292, #295 |
-| 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #49, #64 |
+| 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #47, #49, #51, #52, #53, #55, #64 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
 | 7 | Animation | [07-animation.md](07-animation.md) | ANM | #52, #62 |
