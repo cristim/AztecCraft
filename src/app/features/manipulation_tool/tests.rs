@@ -2683,10 +2683,9 @@ fn a_scale_grab_too_close_to_the_pivot_reports_the_drag_refusal() {
     let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
     let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     let centre = view.screen(Vec3::ZERO);
-    let refused: Vec<f32> = (-400..=400)
-        .map(|step| step as f32 * 0.05)
-        .filter(|dx| {
-            let at = centre + egui::vec2(*dx, 8.0);
+    let refused: Vec<i32> = (-400..=400)
+        .filter(|step| {
+            let at = centre + egui::vec2(*step as f32 * 0.05, 8.0);
             azteccraft::manipulator_handles::ScaleDrag::begin(
                 capture.clone(),
                 &frame,
@@ -2701,7 +2700,13 @@ fn a_scale_grab_too_close_to_the_pivot_reports_the_drag_refusal() {
         !refused.is_empty(),
         "no pointer 8 px beside the pivot is refused as too close; the camera no longer produces the case"
     );
-    let dx = (refused[0] + refused[refused.len() - 1]) / 2.0;
+    let (first, last) = (refused[0], refused[refused.len() - 1]);
+    assert_eq!(
+        last - first + 1,
+        refused.len() as i32,
+        "the refused offsets must form one consecutive run"
+    );
+    let dx = (first as f32 * 0.05 + last as f32 * 0.05) / 2.0;
     let at = centre + egui::vec2(dx, 8.0);
     assert_drag_refusal_everywhere(
         &mut editor,
