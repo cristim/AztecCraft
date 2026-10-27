@@ -1,5 +1,8 @@
 use super::*;
-use crate::{document::load_native, native_scene::Channel};
+use crate::{
+    document::{Retention, load_native},
+    native_scene::Channel,
+};
 use std::cell::Cell;
 mod wire {
     include!(concat!(
