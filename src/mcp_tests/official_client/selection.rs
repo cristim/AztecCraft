@@ -233,7 +233,7 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
 }
 
 // Mirrors `group_editor()` in src/app/tests.rs; those tests build without the mcp feature, so the builder cannot be shared.
-fn grouped_scene_bytes() -> std::sync::Arc<[u8]> {
+pub(super) fn grouped_scene_bytes() -> std::sync::Arc<[u8]> {
     use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
     scene(
         &[

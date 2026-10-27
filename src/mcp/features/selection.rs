@@ -1,8 +1,8 @@
 use super::primitive_args::CreateArgs;
 use crate::{
     editor_operations::{
-        EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest, SelectionChange,
-        SelectionMode as EditorMode, VertexSelectionTarget,
+        EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest, SelectRule,
+        SelectionChange, SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
         args::{MutationArgs, decode, mutation, native_id, node_id, schema, scoped, token},
@@ -46,6 +46,22 @@ struct ModifySelectionArgs {
     node_id: String,
     #[schemars(length(max = 256))]
     instance_path: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "SelectRule")]
+enum Rule {
+    All,
+    Hierarchy,
+    Inverse,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SelectByRuleArgs {
+    scene_token: String,
+    rule: Rule,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -148,6 +164,19 @@ fn parse_modify_selection(arguments: JsonObject) -> Result<RemoteRequest, ErrorD
             node: node_id(&args.node_id)?,
             instance_path,
         },
+    ))
+}
+
+fn parse_select_by_rule(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SelectByRuleArgs = decode(arguments)?;
+    let rule = match args.rule {
+        Rule::All => SelectRule::All,
+        Rule::Hierarchy => SelectRule::Hierarchy,
+        Rule::Inverse => SelectRule::Inverse,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SelectByRule(rule),
     ))
 }
 
@@ -332,6 +361,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Add, toggle or remove one object instance in the ordered object selection (Shift, Ctrl and Shift+Ctrl clicks); the last member is the lead. add appends an absent instance as the lead or moves a present one to the end, toggle flips membership, remove drops a member and leaves an absent one unchanged; removing the lead promotes the previous member. Ambiguous objects require a full instance_path; Object and Hierarchy modes only. Not idempotent; does not edit the scene",
         schema: schema::<ModifySelectionArgs>,
         parse: parse_modify_selection,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "select_by_rule",
+        description: "Select > All, Hierarchy or Inverse by rule. all selects every transform instance, nested ones included, with the last as the lead (only the roots in Hierarchy selection mode); hierarchy adds every descendant of the selected objects and keeps the lead (no change in Hierarchy selection mode); inverse selects the unselected instances (roots only in Hierarchy selection mode; an empty selection selects all). Object and Hierarchy modes only. Not idempotent because inverse flips; does not edit the scene",
+        schema: schema::<SelectByRuleArgs>,
+        parse: parse_select_by_rule,
         idempotent: false,
         read_only: false,
     },

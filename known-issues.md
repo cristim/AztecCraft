@@ -956,7 +956,7 @@ in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selec
 not act on several objects: Move, Rotate, Scale, the native Delete (menu, Channel Box and key), Frame Selected
 and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP tools `delete_node`,
 `rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
-(#30) is absent (Select All, Hierarchy and Inverse exist in the native UI only; MCP `select_by_rule` is pending). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+(#30) is absent (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
 pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
@@ -977,9 +977,8 @@ covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
 The selection set is charged against the inspection size budget like the node paths, so with
 every object selected `inspect_scene` reports `too_large` from about 1450 objects, where it
-managed about 2900 before the selection list existed. Native Select All now builds such a
-selection in one step; MCP has no `select_by_rule` yet (#325), so over MCP it still needs that many
-`modify_selection` calls. A client holding the document token
+managed about 2900 before the selection list existed. Select All (native, and MCP `select_by_rule`) now builds such a
+selection in one call (#325). A client holding the document token
 recovers with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
 token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
 (a plain click on empty space, or Alt+D). The limit is by design and pinned

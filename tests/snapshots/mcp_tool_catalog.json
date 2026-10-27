@@ -947,6 +947,43 @@
     }
   },
   {
+    "name": "select_by_rule",
+    "description": "Select > All, Hierarchy or Inverse by rule. all selects every transform instance, nested ones included, with the last as the lead (only the roots in Hierarchy selection mode); hierarchy adds every descendant of the selected objects and keeps the lead (no change in Hierarchy selection mode); inverse selects the unselected instances (roots only in Hierarchy selection mode; an empty selection selects all). Object and Hierarchy modes only. Not idempotent because inverse flips; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "SelectRule": {
+          "enum": [
+            "all",
+            "hierarchy",
+            "inverse"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "$ref": "#/$defs/SelectRule"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "rule"
+      ],
+      "title": "SelectByRuleArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "deselect_all",
     "description": "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
     "inputSchema": {
