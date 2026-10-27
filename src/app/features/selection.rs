@@ -55,21 +55,47 @@ impl Editor {
 
     /// Replaces the object selection by `rule`. Hierarchy mode (Root submask) only ever holds
     /// roots, so its rules see only the root transforms. PROVISIONAL, pinned by
-    /// `select_all_in_hierarchy_mode_selects_roots_only`.
+    /// `select_all_in_hierarchy_mode_selects_roots_only` and its Inverse and Hierarchy twins.
     pub(in crate::app) fn select_by_rule(
         &mut self,
         rule: SelectRule,
     ) -> Result<OperationReply, OperationError> {
-        let mut candidates = self
-            .history
-            .scene()
-            .transform_paths()
-            .map_err(OperationError::Scene)?;
-        if self.selection_mode == SelectionMode::Hierarchy {
+        let scene = self.history.scene();
+        let roots_only = self.selection_mode == SelectionMode::Hierarchy;
+        let mut candidates = scene.transform_paths().map_err(OperationError::Scene)?;
+        if roots_only {
             candidates.retain(|target| target.path.len() == 1);
         }
         let members = match rule {
             SelectRule::All => candidates,
+            SelectRule::Inverse => {
+                candidates.retain(|target| !self.selection.contains(target));
+                candidates
+            }
+            // Added nodes sit before the lead so it stays the lead. Roots have no descendants
+            // to add in Hierarchy mode.
+            SelectRule::Hierarchy => {
+                let current = self.selection.members();
+                let added = if roots_only {
+                    Vec::new()
+                } else {
+                    scene
+                        .descendant_targets(current)
+                        .map_err(OperationError::Scene)?
+                        .into_iter()
+                        .filter(|target| !self.selection.contains(target))
+                        .collect()
+                };
+                match current.split_last() {
+                    Some((lead, rest)) => rest
+                        .iter()
+                        .cloned()
+                        .chain(added)
+                        .chain(std::iter::once(lead.clone()))
+                        .collect(),
+                    None => Vec::new(),
+                }
+            }
         };
         let mut next = self.selection.clone();
         next.replace_with(members)

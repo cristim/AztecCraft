@@ -1045,6 +1045,22 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::SelectByRule(SelectRule::All),
                 )
             },
+            sample(
+                "select_hierarchy",
+                Operation::SelectByRule(SelectRule::Hierarchy),
+            ),
+            sample(
+                "select_inverse",
+                Operation::SelectByRule(SelectRule::Inverse),
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "select_inverse(multi_selection)",
+                    Operation::SelectByRule(SelectRule::Inverse),
+                )
+            },
         ],
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
