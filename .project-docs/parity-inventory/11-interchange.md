@@ -2,7 +2,7 @@
 
 Status: expanded. ID prefix `INT`. Framework and rules: [README.md](README.md).
 
-Owner issues (open feature, epic or verification issues): #9, #14, #15, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300. #156 and #189 are also SCN owners, #21 and #58 PIP owners; shared ownership is allowed.
+Owner issues (open feature, epic or verification issues): #9, #14, #15, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300. #58, #189 and #272 are also SCN owners, #21 and #58 PIP owners; shared ownership is allowed.
 
 ## Evidence record
 
@@ -75,7 +75,7 @@ Formats and File-menu items whose home is another family. They are recorded here
 | View Image, View Sequence | File menu | RND | counted in RND |
 | Save Preferences | File menu | SHL | counted in SHL |
 | ATOM menu (Export Animation, Import Animation, Create ATOM Template) and `anim` import and export | [ATOM menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-42545D4B-EBBD-4EFF-A81A-6874D0AFA185.htm) and the format tables | ANM (#52) | counted in ANM |
-| New Scene | [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) and [New Scene Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8F961875-1D41-4C52-9CD5-B90DE75C546C.htm) | SCN | counted in SCN |
+| New Scene | [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) and [New Scene Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8F961875-1D41-4C52-9CD5-B90DE75C546C.htm) | SCN (now SCN-001) | counted in SCN |
 | Exit | File menu | SHL | counted in SHL |
 | MEL scene import and export | [export formats](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-ManagingScenes/files/GUID-864BD203-C437-4481-8BFC-3A6C1D2C824C.htm) and [import formats](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-ManagingScenes/files/GUID-69BC066D-D4D8-4B12-900C-CF42E798A5D6.htm) | SCR (#57) | counted in SCR; imported scripts are inert data and are never executed |
 
