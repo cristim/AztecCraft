@@ -15,8 +15,10 @@ The size is session-only (no preferences store; it never dirties the scene or en
   manipulator stops shrinking on screen. A foreshortened axis (#155) can still become hard to pick.
 - The arrowhead, boxes, centre zones and pick radius (8 px, Maya Pick Range) stay fixed in pixels.
 - Since the pick radius became 8 px (#295), a click within 8 px of a manipulator handle grabs it
-  instead of selecting the object behind. The disabled handles (the free-rotate circle, the view ring
-  and the Scale planes) consume clicks in that band with an unsupported status.
+  instead of selecting the object behind. A disabled handle (the free-rotate circle, the view ring or a
+  Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
+  within the radius; an enabled handle wins the overlap
+  (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
 - An end-on Scale axis keeps its 5 px tip box next to the origin (about 1.4 px away in the test
   camera), so it wins pixels just outside the 7 px centre box, out to about 16 px from the origin at
   the 8 px radius. This pre-existing defect is tracked in #297.
