@@ -1294,7 +1294,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 ..sample("delete(edge_mode)", Operation::Delete(t.node))
             },
         ],
-        Operation::DeleteSelection => vec![sample("delete_selection", Operation::DeleteSelection)],
+        Operation::DeleteSelection => vec![
+            sample("delete_selection", Operation::DeleteSelection),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample("delete_selection(face_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::VertexMode,
+                ..sample("delete_selection(vertex_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::EdgeMode,
+                ..sample("delete_selection(edge_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "delete_selection(multi_selection)",
+                    Operation::DeleteSelection,
+                )
+            },
+        ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
         Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],
