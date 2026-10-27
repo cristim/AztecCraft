@@ -564,7 +564,9 @@ impl Editor {
                     .and_then(|pointer| feedback.capture.pointer_pixel(pointer).ok());
                 let pick = self.pointer_pick(
                     &feedback.capture,
-                    pointer.filter(|_| self.history.active_manipulation().is_none()),
+                    feedback
+                        .pointer
+                        .filter(|_| self.history.active_manipulation().is_none()),
                     geometry.as_ref().ok(),
                 );
                 let axes = match &geometry {
@@ -624,11 +626,13 @@ impl Editor {
     fn pointer_pick(
         &self,
         capture: &ViewportCapture,
-        pixel: Option<glam::DVec2>,
+        pointer: Option<Vec2>,
         move_handles: Option<&WorldHandles>,
     ) -> PointerPick {
         let none = PointerPick::default();
-        let Some(pixel) = pixel else {
+        let Some((pointer, pixel)) =
+            pointer.and_then(|pointer| Some((pointer, capture.pointer_pixel(pointer).ok()?)))
+        else {
             return none;
         };
         let tool = self.active_tool;
@@ -653,12 +657,12 @@ impl Editor {
                 match self.pick_handle(tool, capture, &frame, pixel) {
                     Some(picked @ ToolPick::Rotate(Pick::Handle(axis))) => PointerPick {
                         hit: Some(rotate_axis_id(axis)),
-                        refusal: self.pick_refusal(&target, tool, picked),
+                        refusal: self.pick_refusal(capture, &frame, &target, tool, picked, pointer),
                         ..none
                     },
                     Some(picked @ ToolPick::Scale(Pick::Handle(handle))) => PointerPick {
                         hit: Some(scale_handle_id(handle)),
-                        refusal: self.pick_refusal(&target, tool, picked),
+                        refusal: self.pick_refusal(capture, &frame, &target, tool, picked, pointer),
                         ..none
                     },
                     Some(ToolPick::Rotate(Pick::Disabled(kind)))

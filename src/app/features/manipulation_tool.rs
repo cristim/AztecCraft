@@ -239,8 +239,18 @@ enum DragHandle {
     Scale(ScaleHandle),
 }
 
-/// The drag a press at `pointer` begins on `handle`, or the reason it cannot. Press goes through
-/// this function; it must not apply an operation.
+impl DragHandle {
+    fn of(pick: ToolPick) -> Option<Self> {
+        match pick {
+            ToolPick::Rotate(Pick::Handle(axis)) => Some(Self::Rotate(axis)),
+            ToolPick::Scale(Pick::Handle(handle)) => Some(Self::Scale(handle)),
+            ToolPick::Rotate(Pick::Disabled(_)) | ToolPick::Scale(Pick::Disabled(_)) => None,
+        }
+    }
+}
+
+/// The drag a press at `pointer` begins on `handle`, or the reason it cannot. Press, hover and
+/// inspection all go through this function; it must not apply an operation.
 fn start_drag(
     capture: ViewportCapture,
     frame: &HandleFrame,
@@ -507,15 +517,23 @@ impl Editor {
         Ok((target, handle))
     }
 
-    /// Why a press on `pick` would be refused, in the words native hover shows after
-    /// "{space} {handle} {tool}: ". None for an accepted handle and for a disabled one, whose
-    /// reason is the kind itself.
+    /// Why a press at `pointer` on `pick` would be refused, in the words native hover shows after
+    /// "{space} {handle} {tool}: ". The drag-begin refusal comes first, as in the press, then the
+    /// scene's. None for an accepted handle and for a disabled one, whose reason is the kind itself.
     pub(in crate::app) fn pick_refusal(
         &self,
+        capture: &ViewportCapture,
+        frame: &HandleFrame,
         target: &TransformTarget,
         tool: ActiveTool,
         pick: ToolPick,
+        pointer: Vec2,
     ) -> Option<String> {
+        if let Some(handle) = DragHandle::of(pick)
+            && let Err(error) = start_drag(capture.clone(), frame, handle, pointer)
+        {
+            return Some(error.describe_for(tool_name(tool)));
+        }
         let space = self.manipulation.space(tool);
         let scene = self.history.scene();
         match pick {
@@ -536,7 +554,8 @@ impl Editor {
         pointer: Option<Vec2>,
     ) -> Option<(String, bool)> {
         let tool = self.active_tool;
-        let pixel = capture.pointer_pixel(pointer?).ok()?;
+        let pointer = pointer?;
+        let pixel = capture.pointer_pixel(pointer).ok()?;
         if mode_refusal("", self.selection_mode).is_some() {
             return None;
         }
@@ -555,14 +574,14 @@ impl Editor {
         Some(match picked {
             ToolPick::Rotate(Pick::Handle(axis)) => {
                 let label = format!("{} {} Rotate", space_name(space), rotate_axis_name(axis));
-                match self.pick_refusal(&target, tool, picked) {
+                match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
                     Some(refusal) => (format!("{label}: {refusal}"), true),
                     None => (format!("{label}: drag to turn"), false),
                 }
             }
             ToolPick::Scale(Pick::Handle(handle)) => {
                 let label = format!("{} {} Scale", space_name(space), scale_handle_name(handle));
-                match self.pick_refusal(&target, tool, picked) {
+                match self.pick_refusal(capture, &frame, &target, tool, picked, pointer) {
                     Some(refusal) => (format!("{label}: {refusal}"), true),
                     None => (format!("{label}: drag to scale"), false),
                 }

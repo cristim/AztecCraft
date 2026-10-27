@@ -491,7 +491,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
-| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only; not gated by window focus, popups or file modals (painted highlight, not status text) |
+| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only and includes drag-begin refusals; the null list is not exhaustive (see the pointer fields paragraph); not gated by window focus, popups or file modals (painted highlight, not status text) |
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -581,7 +581,7 @@ enabled handle outranks it, else null. Both are null during an active
 manipulation, like native hover, and the geometric pick ignores per-handle
 refusals (those stay in `kinds`). `pointer_refusal` says why a press there
 would be refused, in the text native hover shows. With a `pointer_hit` it is
-that handle's refusal (the suffix after "{space} {handle} {tool}: "); with a
+that handle's refusal, drag-begin first (the suffix after "{space} {handle} {tool}: "); with a
 null `pointer_hit` it is the whole Rotate or Scale tool's refusal at every
 pixel (for example a mirrored frame; the suffix after "{tool} unavailable: "),
 reported only while the pointer is available. It is null for Move (native Move
@@ -599,11 +599,11 @@ until the next viewport capture. With a `viewport` present, the pointer fields
 are null when the pointer has left the window, a manipulation is active, or the
 Select tool is active. Press-time guards that depend on window state (for
 example modal, popup, focus, modifier keys, file closing, stale scene token,
-pending draft) are never reflected. Refusals raised only when a Rotate or Scale
-drag begins are not reported by `pointer_refusal`; the press shows them
-instead. Examples are an edge-on Rotate ring, a ring plane that lies behind the
-camera along the press ray, and a Scale grab whose along-axis component is
-under 1 px of world length.
+pending draft) are never reflected. Refusals raised when a Rotate or Scale drag
+begins are included, and win over the scene's refusal as they do on press, for
+example an edge-on Rotate ring, a ring plane that lies behind the camera along
+the press ray, or a Scale grab whose along-axis component is under 1 px of
+world length. Native hover shows the same text with the handle label.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.

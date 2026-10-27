@@ -39,9 +39,17 @@ fn idle(editor: &mut Editor, context: &egui::Context, scale: f32) -> egui::FullO
 // A cube at the origin seen obliquely, with the tool of `tool_key` active. The viewport rect is
 // taken after the tool options row has appeared.
 fn setup(tool_key: Key, scale: f32) -> (Editor, egui::Context, View) {
+    setup_with_camera(tool_key, scale, oblique())
+}
+
+fn setup_with_camera(
+    tool_key: Key,
+    scale: f32,
+    camera: azteccraft::viewport::Camera,
+) -> (Editor, egui::Context, View) {
     let mut editor = Editor {
         renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
-        camera: oblique(),
+        camera,
         ..Editor::default()
     };
     editor.create(Primitive::Cube);
@@ -2603,4 +2611,104 @@ fn inspection_reports_the_pick_while_native_hover_status_is_suppressed() {
         eframe::App::logic(&mut editor, ctx, &mut native_frame)
     });
     assert!(editor.inspect_manipulation().unwrap().viewport.is_none());
+}
+
+fn camera_at(yaw: f32, pitch: f32) -> azteccraft::viewport::Camera {
+    azteccraft::viewport::Camera::new(
+        Vec3::ZERO,
+        yaw,
+        pitch,
+        10.0,
+        90_f32.to_radians(),
+        0.01,
+        100.0,
+    )
+    .unwrap()
+}
+
+// Hover suffix, press status and inspection must all say `expected` at `at`.
+fn assert_drag_refusal_everywhere(
+    editor: &mut Editor,
+    context: &egui::Context,
+    at: Pos2,
+    hit: &'static str,
+    label: &str,
+    expected: &str,
+) {
+    moved(editor, context, 1.0, at);
+    let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+    assert_eq!(viewport.pointer_hit, Some(hit), "precondition");
+    assert_eq!(viewport.pointer_refusal.as_deref(), Some(expected));
+    assert_eq!(editor.status, format!("{label}: {expected}"), "hover");
+    assert!(editor.error);
+    press(editor, context, 1.0, at);
+    assert_eq!(editor.status, expected, "press");
+    assert!(editor.error);
+    assert!(editor.history.active_manipulation().is_none());
+}
+
+// Pitch 0 and yaw 0 put the camera in the Y ring's plane, so the ring is edge-on along the
+// horizontal line through the pivot. The drag-begin refusal wins over the read-only scene refusal,
+// as it does on press.
+#[test]
+fn an_edge_on_rotate_ring_reports_the_drag_refusal_before_the_scene_refusal() {
+    let (mut editor, context, view) =
+        ascii_editor("createNode transform -n \"a\";\n", "a", ActiveTool::Rotate);
+    editor.camera = camera_at(0.0, 0.0);
+    let view = View {
+        camera: editor.camera.clone(),
+        rect: viewport(&idle(&mut editor, &context, 1.0)),
+        ..view
+    };
+    // Half the ring radius along the edge-on line.
+    let at = view.ring(Vec3::Y, 30.0);
+    assert_eq!(at.y, view.screen(Vec3::ZERO).y);
+    assert_drag_refusal_everywhere(
+        &mut editor,
+        &context,
+        at,
+        "y",
+        "Object Y Rotate",
+        "Rotate ring is edge-on to the camera",
+    );
+}
+
+// A Z shaft seen almost end-on, grabbed 8 px beside the pivot. The along-axis parameter of the
+// press ray changes sign across a short run of pointers, and the grab is refused wherever it is under
+// 1 px of world length, so the test scans the real drag-begin for that run and takes its middle (the
+// zero crossing) instead of hard-coding a pixel.
+#[test]
+fn a_scale_grab_too_close_to_the_pivot_reports_the_drag_refusal() {
+    let (mut editor, context, view) = setup_with_camera(Key::R, 1.0, camera_at(0.1, 0.0));
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let centre = view.screen(Vec3::ZERO);
+    let refused: Vec<f32> = (-400..=400)
+        .map(|step| step as f32 * 0.05)
+        .filter(|dx| {
+            let at = centre + egui::vec2(*dx, 8.0);
+            azteccraft::manipulator_handles::ScaleDrag::begin(
+                capture.clone(),
+                &frame,
+                ScaleHandle::Z,
+                glam::Vec2::new(at.x, at.y),
+            )
+            .err()
+                == Some(azteccraft::move_handles::HandleError::ZeroBeginParameter)
+        })
+        .collect();
+    assert!(
+        !refused.is_empty(),
+        "no pointer 8 px beside the pivot is refused as too close; the camera no longer produces the case"
+    );
+    let dx = (refused[0] + refused[refused.len() - 1]) / 2.0;
+    let at = centre + egui::vec2(dx, 8.0);
+    assert_drag_refusal_everywhere(
+        &mut editor,
+        &context,
+        at,
+        "z",
+        "World Z Scale",
+        "Scale handle was grabbed too close to the pivot",
+    );
 }
