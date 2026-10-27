@@ -2,7 +2,7 @@
 
 Status: expanded. ID prefix `MOD`. Framework and rules: [README.md](README.md).
 
-Owner issues (open feature, epic or verification issues): #29, #41, #43, #44, #45, #46, #47, #49, #51, #52, #53, #55, #64. #29, #41 and #49 are also VPT owners, #64 an SHL owner, and #47 (CRV), #51 (MAT), #52 (ANM), #53 (UVE) and #55 (RND) are owned by those families and listed here for the MOD rows that depend on them; shared ownership is allowed. #29, #47 and #53 also own SCN rows.
+Owner issues (open feature, epic or verification issues): #29, #41, #43, #44, #45, #46, #47, #49, #51, #52, #53, #55, #64. #29, #41 and #49 are also VPT owners, #64 an SHL owner, and #47 (CRV), #51 (MAT), #52 (ANM), #53 (UVE) and #55 (RND) are owned by those families and listed here for the MOD rows that depend on them; shared ownership is allowed. #29, #41, #47 and #53 also own SCN rows.
 
 ## Evidence record
 
@@ -143,7 +143,7 @@ Items the Modeling pages or menus show whose home is another family. They carry 
 
 | Item | Doc | Home family | Note |
 | --- | --- | --- | --- |
-| Component selection modes that work today: Select > Components (Object/Component, Vertex, Edge, Face), F8 to F11, the Status Line mode buttons and MCP `set_selection_mode`. UV is a disabled row (`src/app/menus.rs`, `unsupported(ui, "UVs")`) and there is no Multi-Component mode (MOD-107) | [Modeling Toolkit selection modes](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-5278D52E-2F48-448E-B975-925A9B2C2A04.htm) | SCN (SCN-033 to SCN-036, SCN-038, SCN-040; owners #29, #30, #167) | the Toolkit's own buttons and hotkeys are MOD-107 and MOD-115 (Missing) |
+| Component selection modes that work today: Select > Components (Object/Component, Vertex, Edge, Face), F8 to F11, the Status Line mode buttons and MCP `set_selection_mode`. UV is a disabled row (`src/app/menus.rs`, `unsupported(ui, "UVs")`) and there is no Multi-Component mode (MOD-107) | [Modeling Toolkit selection modes](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-5278D52E-2F48-448E-B975-925A9B2C2A04.htm) | SCN (SCN-033 to SCN-036, SCN-038, SCN-040; owners #29, #30, #53, #167) | the Toolkit's own buttons and hotkeys are MOD-107 and MOD-115 (Missing) |
 | Status Line selection masks (UI) | n/a: row "Selection mask buttons (per object or component type)" in the [UI inventory](../ui-parity-inventory.md) | SHL (#59) | the Modeling Toolkit toggle is MOD-105, not a pointer |
 | Move, Rotate and Scale tools and their settings | [Modeling Toolkit transform tool settings](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-472DBBDE-8D20-499C-B9B2-AE6836FC5988.htm) and [Modeling Toolkit transform constraints](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-56D8E073-AE6A-4375-8D9A-2FC7FEB4F4B9.htm) | VPT (#35, #41) | component-mode transforms are MOD-057 and MOD-111 only where the page is Edit Mesh or Toolkit |
 | Make Live and Snap to a live surface | [Snap to a live surface](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-FF6DDE20-B1BF-4A78-8232-948665F3A904.htm) | VPT | needed by Quad Draw and Surface Slide |
