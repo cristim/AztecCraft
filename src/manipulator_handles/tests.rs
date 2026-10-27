@@ -1045,12 +1045,19 @@ fn scale_picks_x_on_the_diagonal_and_the_dead_zone_corner_stays_empty() {
     // The front camera has no Z axis, so the X and Y shafts are the only candidates.
     let handles = world_scale(&front_camera());
     let origin = DVec2::new(400.0, 300.0);
-    // 7.5 px from the X shaft (10.6 px from the upward Y shaft): X wins. Fails at 6 px.
+    // Y points up, so (+7.5, -7.5) is exactly 7.5 px from the X shaft (y = 0) and from the Y shaft
+    // (x = 0), outside the 7 px centre box: a true tie that goes to X. Fails at 6 px.
+    assert_eq!(
+        handles.hit_test(origin + DVec2::new(7.5, -7.5)),
+        Some(ScaleHandle::X)
+    );
+    // Below the origin only the X shaft is near (10.6 px from the upward Y shaft): X wins.
     assert_eq!(
         handles.hit_test(origin + DVec2::new(7.5, 7.5)),
         Some(ScaleHandle::X)
     );
-    // 8.5 px from the X shaft is outside the radius. Passes at 6 px too (not red).
+    // 8.5 px from both shafts is outside the radius. Passes at 6 px too (not red).
+    assert_eq!(handles.hit_test(origin + DVec2::new(8.5, -8.5)), None);
     assert_eq!(handles.hit_test(origin + DVec2::new(8.5, 8.5)), None);
     // Just past the centre box and on the shaft. Passes at 6 px too (not red).
     assert_eq!(
