@@ -591,9 +591,19 @@ text comes from fixed core messages and never carries a node name or path.
 The three pointer fields mirror the painted handle highlight, not the native
 hover status text. The highlight is not gated by window focus, an open popup
 or a file modal, so inspection is not either (the status text is, see
-`known-issues.md`); they are null only when the window is hidden or minimized
-(`viewport` is null), the pointer has left the window, or a manipulation is
-active. Missing or stale capture is unavailable.
+`known-issues.md`). The null list is not exhaustive. `viewport` itself is
+null, for example, when the window is hidden or minimized, in Face, Vertex and
+Edge selection, and after a renderer terminal error. It is also null with no
+valid capture yet, after a scene load and after a camera change, the last two
+until the next viewport capture. With a `viewport` present, the pointer fields
+are null when the pointer has left the window, a manipulation is active, or the
+Select tool is active. Press-time guards that depend on window state (for
+example modal, popup, focus, modifier keys, file closing, stale scene token,
+pending draft) are never reflected. Refusals raised only when a Rotate or Scale
+drag begins are not reported by `pointer_refusal`; the press shows them
+instead. Examples are an edge-on Rotate ring, a ring plane that lies behind the
+camera along the press ray, and a Scale grab whose along-axis component is
+under 1 px of world length.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.

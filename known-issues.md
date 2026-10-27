@@ -826,6 +826,11 @@ raw pointer every frame. With the window unfocused, a popup open or a file modal
 the cursor stays highlighted while the status reverts to the tool help. `inspect_scene`
 `pointer_hit`, `pointer_disabled` and `pointer_refusal` follow the highlight, so they keep reporting
 the pick in those states (pinned by `inspection_reports_the_pick_while_native_hover_status_is_suppressed`).
-They are null when the window is hidden or minimized, the pointer has left the window, or a
-manipulation is active. Not fixed: gating the highlight changes native behaviour and needs its own
-issue; the admission is an inline expression that needs the egui context for the popup check.
+They are null in other states too (for example, `viewport` is null when the window is hidden or
+minimized, in component selection modes and after a renderer terminal error; it is also null with no
+valid capture, after a scene load and after a camera change, the last two until the next viewport
+capture; the pointer fields are null when the pointer has left the window, a manipulation is active
+or Select is the tool). They do not reflect refusals raised only when a Rotate or Scale drag begins,
+for example an edge-on ring, a ring plane behind the camera along the press ray, or a Scale grab
+under 1 px along the axis; the press shows those. Not fixed: gating the highlight changes native
+behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
