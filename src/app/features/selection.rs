@@ -86,20 +86,13 @@ impl Editor {
                 .map_err(OperationError::Scene)?;
             return Ok(path);
         }
-        let mut matches = self
-            .history
-            .scene()
-            .transform_paths()
-            .map_err(OperationError::Scene)?
-            .into_iter()
-            .filter(|target| target.node == id);
-        let first = matches
-            .next()
-            .ok_or_else(|| OperationError::InvalidInput("Object has no instance path".into()))?;
-        if matches.next().is_some() {
-            return Err(OperationError::AmbiguousSelection);
-        }
-        Ok(first.path)
+        only_instance_path(
+            id,
+            self.history
+                .scene()
+                .transform_paths()
+                .map_err(OperationError::Scene)?,
+        )
     }
     pub(in crate::app) fn outliner(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Outliner").strong());
@@ -141,6 +134,84 @@ impl Editor {
         }
         if self.history.scene().nodes().is_empty() {
             ui.weak("No objects. Create a primitive above.");
+        }
+    }
+}
+
+/// The one instance path of `id` among `targets`; several paths need the caller to pick one.
+pub(in crate::app) fn only_instance_path(
+    id: NodeId,
+    targets: Vec<TransformTarget>,
+) -> Result<Vec<NativeId>, OperationError> {
+    let mut matches = targets.into_iter().filter(|target| target.node == id);
+    let first = matches
+        .next()
+        .ok_or_else(|| OperationError::InvalidInput("Object has no instance path".into()))?;
+    if matches.next().is_some() {
+        return Err(OperationError::AmbiguousSelection);
+    }
+    Ok(first.path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// No decoder or constructor yields one transform under two parents, so the instanced
+    /// transform is fabricated here: a second target with the same node and another path.
+    #[test]
+    fn an_object_with_two_instance_paths_needs_an_explicit_path() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.create(Primitive::Cube);
+        let targets = editor.history.scene().transform_paths().unwrap();
+        let (first, second) = (targets[0].clone(), targets[1].clone());
+        let instanced = vec![
+            first.clone(),
+            TransformTarget {
+                node: first.node,
+                path: second.path.clone(),
+            },
+            second.clone(),
+        ];
+        assert!(matches!(
+            only_instance_path(first.node, instanced.clone()),
+            Err(OperationError::AmbiguousSelection)
+        ));
+        assert_eq!(
+            only_instance_path(second.node, instanced.clone()).unwrap(),
+            second.path
+        );
+        assert!(matches!(
+            only_instance_path(first.node, vec![first.clone()]),
+            Ok(path) if path == first.path
+        ));
+        assert!(matches!(
+            only_instance_path(first.node, Vec::new()),
+            Err(OperationError::InvalidInput(_))
+        ));
+    }
+
+    #[test]
+    fn select_and_modify_selection_without_a_path_resolve_a_single_instance() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let target = editor.history.scene().transform_paths().unwrap().remove(0);
+        editor.deselect_all();
+        for operation in [
+            Operation::Select {
+                node: Some(target.node),
+                instance_path: None,
+            },
+            Operation::ModifySelection {
+                change: SelectionChange::Toggle,
+                node: target.node,
+                instance_path: None,
+            },
+        ] {
+            editor.apply_operation(operation).unwrap();
+            assert_eq!(editor.selection.members().len(), 1);
+            editor.deselect_all();
         }
     }
 }

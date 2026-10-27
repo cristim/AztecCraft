@@ -939,3 +939,11 @@ renderer matches by instance-path prefix, so an object below the lead's path is 
 colour and an object below another member in the member colour, whichever member is listed
 first. Whether Maya draws descendants of a selected group that way is unconfirmed. Pinned by
 `descendants_take_the_colour_of_the_selected_ancestor_they_sit_below`.
+
+## Ambiguous selection is unreachable today
+
+`OperationError::AmbiguousSelection` (an object with several instance paths selected without a
+path) cannot occur in a running editor: no decoder or runtime operation gives a transform two
+parents, so every node has one path. Only the unit test
+`an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
+covers `only_instance_path`; there is no end-to-end test through a loaded scene.
