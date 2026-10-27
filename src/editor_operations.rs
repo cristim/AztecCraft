@@ -34,6 +34,17 @@ pub enum AttributeEditorTab {
     Material(NativeId),
 }
 
+/// How `Operation::ModifySelection` changes the object selection. Add appends an absent instance
+/// as the lead, or moves a present one to the end; Toggle flips membership; Remove drops a member
+/// and leaves an absent instance alone. Removing the lead promotes the previous member.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub enum SelectionChange {
+    Add,
+    Toggle,
+    Remove,
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct TransformInput {
@@ -242,6 +253,14 @@ pub enum Operation {
     },
     Select {
         node: Option<NodeId>,
+        instance_path: Option<Vec<NativeId>>,
+    },
+    /// Adds, toggles or removes one object instance in the ordered object selection; the last
+    /// member is the lead. Object and Hierarchy modes only.
+    #[cfg_attr(not(test), allow(dead_code))]
+    ModifySelection {
+        change: SelectionChange,
+        node: NodeId,
         instance_path: Option<Vec<NativeId>>,
     },
     SetSelectionMode(SelectionMode),

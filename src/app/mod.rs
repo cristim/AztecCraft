@@ -1,6 +1,6 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectionMode,
-    ShadingMode, SidebarPanel,
+    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectionChange,
+    SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{

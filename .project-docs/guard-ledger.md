@@ -23,7 +23,7 @@ provenance Native and no token or draft checks. In order:
 
 1. A Delete in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
-   `SetActiveTool`, `Select`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
+   `SetActiveTool`, `Select`, `ModifySelection`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
    and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
    pointer sequence only on a real tool change that cancelled nothing
    (`src/app/features/move_tool.rs "self.consume_pointer_sequence()"`). Other operations during a Move are `BusyManipulation` except
@@ -37,13 +37,13 @@ provenance Native and no token or draft checks. In order:
    modal (`src/app/dispatch.rs "SaveDestination::As(path)"`, preceded by the modal check) and `SaveScene` likewise (`src/app/dispatch.rs "Operation::SaveScene => {"`). `NewScene`,
    `RequestClose` and `ResolveFileAction` decide internally (`src/app/dispatch.rs "Operation::NewScene => return self.new_document()"` and the two arms after it).
 5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
-   `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
+   `ModifySelection`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
    (the modal `matches!` after the file-operation match in `apply_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never
    commits a draft (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
    resolve path dispatches a selection operation. Create, Delete and Undo/Redo also move the selection as a side
    effect but stay allowed under a modal (see Observed behavior).
-6. Validation before the draft commit: `selection_path` and Select-clear-with-path
+6. Validation before the draft commit: `selection_path` (also for `ModifySelection`, which additionally needs Object or Hierarchy mode) and Select-clear-with-path
    (`src/app/dispatch.rs "Clearing selection cannot include an instance path"`), Face mode and face-target resolution for `SelectFace` (`src/app/dispatch.rs "fn require_component_selection"`, `src/app/dispatch.rs "SelectionMode::Face,"`).
 7. `commit_pending` (`src/app/dispatch.rs "fn commit_pending"`) commits a valid human draft first, except for `UpdateMove`,
    `UpdateManipulation` and `FinishMove` (`src/app/dispatch.rs "&& !self.commit_pending()"`). On failure the operation returns `InvalidInput(status)`

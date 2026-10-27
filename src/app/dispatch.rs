@@ -75,6 +75,7 @@ impl Editor {
         };
         let status = match *operation {
             Operation::Select { .. }
+            | Operation::ModifySelection { .. }
             | Operation::DeselectAll
             | Operation::SelectFace { .. }
             | Operation::SelectVertex { .. }
@@ -335,6 +336,7 @@ impl Editor {
                     | Operation::UpdateManipulation { .. }
                     | Operation::FinishMove { .. }
                     | Operation::Select { .. }
+                    | Operation::ModifySelection { .. }
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }
@@ -356,6 +358,18 @@ impl Editor {
                 return Err(OperationError::InvalidInput(
                     "Clearing selection cannot include an instance path".into(),
                 ));
+            }
+            Operation::ModifySelection {
+                node,
+                instance_path,
+                ..
+            } => {
+                if self.selection_mode.is_component() {
+                    return Err(OperationError::InvalidInput(
+                        "Selection changes need Object or Hierarchy selection mode".into(),
+                    ));
+                }
+                Some(self.selection_path(*node, instance_path.clone())?)
             }
             _ => None,
         };
@@ -694,6 +708,36 @@ impl Editor {
                     None => self.selection.clear(),
                 }
                 self.sync_fields();
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::ModifySelection { change, node, .. } => {
+                let target = TransformTarget {
+                    node,
+                    path: selected_path.unwrap_or_default(),
+                };
+                let full = |error: azteccraft::selection::SelectionFull| {
+                    OperationError::InvalidInput(error.to_string())
+                };
+                let changed = match change {
+                    SelectionChange::Add => {
+                        let leads = self.selection.lead() == Some(&target);
+                        self.selection.add(target).map_err(full)?;
+                        !leads
+                    }
+                    SelectionChange::Toggle => {
+                        self.selection.toggle(target).map_err(full)?;
+                        true
+                    }
+                    SelectionChange::Remove => self.selection.remove(&target),
+                };
+                if changed {
+                    self.clear_remembered_components();
+                    self.sync_fields();
+                }
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {

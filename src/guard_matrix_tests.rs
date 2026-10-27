@@ -578,6 +578,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             node: Some(t.node),
             instance_path: Some(t.path.clone()),
         },
+        Operation::ModifySelection {
+            change: SelectionChange::Add,
+            node: t.node,
+            instance_path: Some(t.path.clone()),
+        },
         Operation::SetSelectionMode(SelectionMode::Face),
         Operation::DeselectAll,
         Operation::SelectFace {
@@ -976,6 +981,14 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
+        Operation::ModifySelection { .. } => vec![sample(
+            "modify_selection(add)",
+            Operation::ModifySelection {
+                change: SelectionChange::Add,
+                node: t.node,
+                instance_path: Some(t.path.clone()),
+            },
+        )],
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),

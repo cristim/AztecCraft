@@ -9926,3 +9926,229 @@ fn the_f_key_reports_the_refusal_with_several_selected() {
     assert!(editor.status.contains(SEVERAL_REASON), "{}", editor.status);
     assert_eq!(multi_baseline(&editor), baseline);
 }
+
+fn three_cube_editor() -> (Editor, Vec<TransformTarget>) {
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let targets = editor.history.scene().transform_paths().unwrap();
+    assert_eq!(targets.len(), 3);
+    editor.deselect_all();
+    (editor, targets)
+}
+
+fn modify(
+    editor: &mut Editor,
+    change: SelectionChange,
+    target: &TransformTarget,
+) -> Result<OperationReply, OperationError> {
+    editor.apply_operation(Operation::ModifySelection {
+        change,
+        node: target.node,
+        instance_path: Some(target.path.clone()),
+    })
+}
+
+#[test]
+fn modify_selection_add_appends_leads_and_moves_an_existing_member_to_the_end() {
+    let (mut editor, t) = three_cube_editor();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[0]),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone(), t[1].clone()]);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[0]),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.selection.members(), [t[1].clone(), t[0].clone()]);
+    assert_eq!(editor.lead_target().unwrap().0, t[0].node);
+}
+
+#[test]
+fn modify_selection_toggle_flips_membership_and_promotes_the_previous_lead() {
+    let (mut editor, t) = three_cube_editor();
+    for target in &t {
+        assert!(matches!(
+            modify(&mut editor, SelectionChange::Toggle, target),
+            Ok(OperationReply::Changed)
+        ));
+    }
+    assert_eq!(editor.selection.len(), 3);
+    modify(&mut editor, SelectionChange::Toggle, &t[2]).unwrap();
+    assert_eq!(editor.lead_target().unwrap().0, t[1].node);
+    modify(&mut editor, SelectionChange::Toggle, &t[0]).unwrap();
+    assert_eq!(editor.selection.members(), [t[1].clone()]);
+    modify(&mut editor, SelectionChange::Toggle, &t[1]).unwrap();
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn modify_selection_remove_drops_a_member_and_ignores_an_absent_one() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    modify(&mut editor, SelectionChange::Add, &t[1]).unwrap();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Remove, &t[2]),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(editor.selection.len(), 2);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Remove, &t[1]),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+    assert_eq!(editor.lead_target().unwrap().0, t[0].node);
+}
+
+#[test]
+fn modify_selection_rejects_unknown_nodes_and_paths_without_changing_the_set() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    let baseline = multi_baseline(&editor);
+    let missing = NodeId::from_decimal("999999").unwrap();
+    for change in [
+        SelectionChange::Add,
+        SelectionChange::Toggle,
+        SelectionChange::Remove,
+    ] {
+        assert!(matches!(
+            editor.apply_operation(Operation::ModifySelection {
+                change,
+                node: missing,
+                instance_path: None,
+            }),
+            Err(OperationError::Scene(_))
+        ));
+        assert!(matches!(
+            editor.apply_operation(Operation::ModifySelection {
+                change,
+                node: t[1].node,
+                instance_path: Some(t[2].path.clone()),
+            }),
+            Err(OperationError::Scene(_))
+        ));
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+}
+
+#[test]
+fn modify_selection_without_a_path_resolves_the_single_instance() {
+    let (mut editor, t) = three_cube_editor();
+    editor
+        .apply_operation(Operation::ModifySelection {
+            change: SelectionChange::Add,
+            node: t[1].node,
+            instance_path: None,
+        })
+        .unwrap();
+    assert_eq!(editor.selection.members(), [t[1].clone()]);
+}
+
+#[test]
+fn modify_selection_is_refused_in_component_modes_modal_and_closing() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let baseline = multi_baseline(&editor);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(multi_baseline(&editor), baseline);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Object));
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let baseline = multi_baseline(&editor);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(multi_baseline(&editor), baseline);
+    let mut closing = Editor::default();
+    closing.create(Primitive::Cube);
+    let target = closing.history.scene().transform_paths().unwrap().remove(0);
+    closing.close_document().unwrap();
+    assert!(matches!(
+        modify(&mut closing, SelectionChange::Remove, &target),
+        Err(OperationError::BusyEditing)
+    ));
+}
+
+#[test]
+fn modify_selection_commits_a_valid_draft_and_keeps_an_invalid_one() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    editor.channels[0] = "abc".into();
+    editor.channel_intents[0] = true;
+    let before = editor.history.scene().clone();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+    assert_eq!(editor.channels[0], "abc");
+    assert_eq!(editor.history.scene(), &before);
+    editor.channels[0] = "5".into();
+    modify(&mut editor, SelectionChange::Add, &t[1]).unwrap();
+    let x = editor
+        .history
+        .scene()
+        .node(t[0].node)
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, 5.0);
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn modify_selection_reports_nothing_on_the_status_line() {
+    let (mut editor, t) = three_cube_editor();
+    editor.status = "sentinel".into();
+    editor.error = false;
+    for (change, target) in [
+        (SelectionChange::Add, &t[0]),
+        (SelectionChange::Add, &t[0]),
+        (SelectionChange::Toggle, &t[1]),
+        (SelectionChange::Remove, &t[2]),
+    ] {
+        editor.native_operation(Operation::ModifySelection {
+            change,
+            node: target.node,
+            instance_path: Some(target.path.clone()),
+        });
+        assert_eq!((editor.status.as_str(), editor.error), ("sentinel", false));
+    }
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn remote_modify_selection_follows_the_same_guards() {
+    let (mut editor, t) = three_cube_editor();
+    let operation = |target: &TransformTarget| Operation::ModifySelection {
+        change: SelectionChange::Add,
+        node: target.node,
+        instance_path: Some(target.path.clone()),
+    };
+    assert!(matches!(
+        remote(&mut editor, operation(&t[0])),
+        Ok(OperationReply::Changed)
+    ));
+    editor.channels[0] = "7".into();
+    editor.channel_intents[0] = true;
+    assert!(matches!(
+        remote(&mut editor, operation(&t[1])),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+}
