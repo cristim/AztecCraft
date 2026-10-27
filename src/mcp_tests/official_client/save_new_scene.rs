@@ -1,5 +1,6 @@
 //! Save As for a new (Untitled) scene over the official MCP client. Test A is the maintainer's
 //! acceptance flow and stays one uninterrupted sequence; the extras are separate tests.
+#[cfg(unix)]
 use super::*;
 
 #[cfg(unix)]
