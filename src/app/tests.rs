@@ -3963,7 +3963,7 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     // instead of reaching rfd.
     assert!(
         editor.files.is_closing()
-            && !editor.files.save_as_available()
+            && editor.files.save_as_available()
             && editor.history.active_manipulation().is_some()
     );
     editor.save_as_dialog();

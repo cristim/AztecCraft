@@ -563,7 +563,10 @@ fn prepare<'a>(
     let NativeOrigin::Binary(source) = origin else {
         return Err(Error::Unsupported);
     };
-    if !scene.has_binary_source(&source.parse_bytes) {
+    let Retention::Source { parse_bytes } = &source.retention else {
+        return Err(Error::SourceChanged);
+    };
+    if !scene.has_binary_source(parse_bytes) {
         return Err(Error::SourceChanged);
     }
     let (destination, baseline) = match destination {
@@ -603,7 +606,7 @@ fn prepare<'a>(
         destination,
         baseline,
         bytes,
-        parse_bytes: source.parse_bytes.clone(),
+        parse_bytes: parse_bytes.clone(),
         may_install,
         state: RefCell::new(State::default()),
     })
