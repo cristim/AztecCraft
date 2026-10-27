@@ -601,9 +601,9 @@ Select tool is active. Press-time guards that depend on window state (for
 example modal, popup, focus, modifier keys, file closing, stale scene token,
 pending draft) are never reflected. Refusals raised when a Rotate or Scale drag
 begins are included, and win over the scene's refusal as they do on press, for
-example an edge-on Rotate ring, a ring plane that lies behind the camera along
-the press ray, or a Scale grab whose along-axis component is under 1 px of
-world length. Native hover shows the same text with the handle label.
+example an edge-on Rotate ring or a Scale grab whose along-axis component is
+under 1 px of world length (a ring plane behind the camera along the press ray
+is expected from `HandleError::BehindRay` but not yet reproduced). Native hover shows the same text with the handle label.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.
