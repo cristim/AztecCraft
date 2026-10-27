@@ -2,7 +2,7 @@ use super::*;
 use crate::native_scene::NativeTransform;
 use crate::native_scene::test_fixtures;
 use crate::scene::Primitive;
-use crate::viewport::Camera;
+use crate::viewport::{Camera, FrameChildren};
 use glam::Vec2;
 
 const VIEW_BUDGET: usize = 256 * 1024 * 1024;
@@ -164,6 +164,26 @@ fn curve_only_camera_frames_conservative_hull_and_exact_selected_prefix() {
 }
 
 #[test]
+fn frame_exclude_of_a_curve_parent_frames_its_direct_curve() {
+    let scene = shared_curve(false);
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let prefix = &view.curve_instances()[0].path()[..1];
+    let mut excluded = front_camera();
+    excluded
+        .frame_view_many(&view, &[prefix], FrameChildren::Exclude, 1.0)
+        .unwrap();
+    let mut included = front_camera();
+    included.frame_view(&view, Some(prefix), 1.0).unwrap();
+    assert_eq!(excluded, included);
+    let mut wrong = front_camera();
+    assert!(
+        wrong
+            .frame_view_many(&view, &[&prefix[..0]], FrameChildren::Exclude, 1.0)
+            .is_err()
+    );
+}
+
+#[test]
 fn frame_view_many_includes_curve_members_in_the_union() {
     let scene = shared_curve(false);
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
@@ -174,7 +194,9 @@ fn frame_view_many_includes_curve_members_in_the_union() {
         .collect();
     assert_eq!(prefixes.len(), 2);
     let mut union = front_camera();
-    union.frame_view_many(&view, &prefixes, 1.0).unwrap();
+    union
+        .frame_view_many(&view, &prefixes, FrameChildren::Include, 1.0)
+        .unwrap();
     let mut all = front_camera();
     all.frame_view(&view, None, 1.0).unwrap();
     assert_eq!(union, all);

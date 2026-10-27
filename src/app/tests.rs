@@ -10071,7 +10071,7 @@ fn the_f_key_frames_the_union_of_several_selected_objects() {
     let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
     let mut expected = editor.camera.clone();
     expected
-        .frame_view_many(&view, &prefixes, editor.aspect)
+        .frame_view_many(&view, &prefixes, FrameChildren::Include, editor.aspect)
         .unwrap();
     assert_ne!(expected, editor.camera);
     frame(&mut editor, &ctx, vec![key(Key::F)]);

@@ -351,7 +351,7 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 group also frames everything below it. Maya's F frames the selected objects and excludes children
 unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
 union framing; no with-Children variant exists (Ctrl+F, and Shift+F / Ctrl+Shift+F for all views, are absent). Per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm), aligning F with Maya is tracked in #335. Pinned by
-`frame_view_of_a_group_frames_the_geometry_of_its_children`.
+`frame_view_include_of_a_group_frames_the_geometry_of_its_children`.
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 

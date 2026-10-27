@@ -794,7 +794,12 @@ impl Editor {
                 let before = self.camera.clone();
                 if let Some(paths) = paths {
                     let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
-                    self.camera.frame_view_many(&view, &prefixes, self.aspect)
+                    self.camera.frame_view_many(
+                        &view,
+                        &prefixes,
+                        FrameChildren::Include,
+                        self.aspect,
+                    )
                 } else {
                     match self.selection_mode {
                         SelectionMode::Face => self
