@@ -1,6 +1,14 @@
 use super::*;
 use azteccraft::ui_icons::UiIcon;
 
+/// Select > All, All by Type, Hierarchy and Inverse select several objects, which needs
+/// multi-selection.
+pub(super) const MULTI_SELECTION_REASON: &str =
+    "Not implemented: selecting several objects needs multi-selection (#166)";
+/// Status for Ctrl/Cmd+Shift+A, Maya's Select All hotkey, which is bound but unsupported.
+pub(super) const SELECT_ALL_STATUS: &str =
+    "Select All is not implemented: selecting several objects needs multi-selection (#166)";
+
 /// One File menu entry that the Status Line also draws, so the two cannot diverge.
 pub(super) struct FileAction {
     pub(super) label: &'static str,
@@ -293,9 +301,12 @@ impl Editor {
                 if ui
                     .add_enabled(
                         self.history.can_undo(),
-                        egui::Button::new("Undo   Ctrl/Cmd Z"),
+                        egui::Button::new(match self.history.undo_label() {
+                            Some(label) => format!("Undo {}   Ctrl/Cmd Z", label),
+                            None => "Undo   Ctrl/Cmd Z".to_string(),
+                        }),
                     )
-                    .on_hover_text(history_hover("Undo", self.history.undo_label()))
+                    .on_hover_text(history_hover("Undo", self.history.undo_label().as_deref()))
                     .clicked()
                 {
                     self.history_step(false);
@@ -304,9 +315,12 @@ impl Editor {
                 if ui
                     .add_enabled(
                         self.history.can_redo(),
-                        egui::Button::new("Redo   Ctrl/Cmd Y"),
+                        egui::Button::new(match self.history.redo_label() {
+                            Some(label) => format!("Redo {}   Ctrl/Cmd Y", label),
+                            None => "Redo   Ctrl/Cmd Y".to_string(),
+                        }),
                     )
-                    .on_hover_text(history_hover("Redo", self.history.redo_label()))
+                    .on_hover_text(history_hover("Redo", self.history.redo_label().as_deref()))
                     .clicked()
                 {
                     self.history_step(true);
@@ -356,6 +370,20 @@ impl Editor {
                 });
             });
             ui.menu_button("Select", |ui| {
+                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel), #167.
+                ui.add_enabled(false, egui::Button::new("All   Ctrl/Cmd Shift A"))
+                    .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                ui.add_enabled(false, egui::Button::new("All by Type"))
+                    .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                if ui.button("Deselect All   Alt D").clicked() {
+                    self.deselect_all();
+                    ui.close();
+                }
+                for label in ["Hierarchy", "Inverse"] {
+                    ui.add_enabled(false, egui::Button::new(label))
+                        .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                }
+                ui.separator();
                 if ui.button("Object / Component   F8").clicked() {
                     selection_intent.get_or_insert(SelectionModeIntent::Toggle);
                     ui.close();
@@ -443,13 +471,13 @@ impl Editor {
             }
             ui.separator();
             if crate::tool_icons::button(ui, "Undo", UiIcon::Undo, self.history.can_undo())
-                .on_hover_text(history_hover("Undo", self.history.undo_label()))
+                .on_hover_text(history_hover("Undo", self.history.undo_label().as_deref()))
                 .clicked()
             {
                 self.history_step(false);
             }
             if crate::tool_icons::button(ui, "Redo", UiIcon::Redo, self.history.can_redo())
-                .on_hover_text(history_hover("Redo", self.history.redo_label()))
+                .on_hover_text(history_hover("Redo", self.history.redo_label().as_deref()))
                 .clicked()
             {
                 self.history_step(true);

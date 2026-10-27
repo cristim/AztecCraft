@@ -10,6 +10,11 @@ impl Editor {
         Ok((selected.ok_or(OperationError::NoSelection)?, path))
     }
 
+    /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll` (#167).
+    pub(in crate::app) fn deselect_all(&mut self) {
+        self.native_operation(Operation::DeselectAll);
+    }
+
     #[cfg(test)]
     pub(in crate::app) fn select(&mut self, selected: Option<NodeId>) {
         self.native_operation(Operation::Select {

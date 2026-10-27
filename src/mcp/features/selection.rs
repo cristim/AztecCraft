@@ -5,7 +5,7 @@ use crate::{
         SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
-        args::{decode, native_id, node_id, schema, scoped, token},
+        args::{MutationArgs, decode, mutation, native_id, node_id, schema, scoped, token},
         registry::ToolSpec,
     },
 };
@@ -109,6 +109,10 @@ fn parse_select_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
             instance_path,
         },
     ))
+}
+
+fn parse_deselect_all(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    mutation(arguments, Operation::DeselectAll)
 }
 
 fn parse_set_selection_mode(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -280,6 +284,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Select an object using an optional full transform instance_path; ambiguous objects require a path. Null node_id clears selection without a path",
         schema: schema::<SelectArgs>,
         parse: parse_select_node,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "deselect_all",
+        description: "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
+        schema: schema::<MutationArgs>,
+        parse: parse_deselect_all,
         idempotent: true,
         read_only: false,
     },

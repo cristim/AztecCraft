@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-41 tools.
+42 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -16,6 +16,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `finish_manipulation` | mutating | no | Commit one undoable Move, Rotate or Scale edit or cancel to the exact begin authoring state. Only the matching remote-owned manipulation ID may finish |
 | `create_primitive` | mutating | no | Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params |
 | `select_node` | mutating | yes | Select an object using an optional full transform instance_path; ambiguous objects require a path. Null node_id clears selection without a path |
+| `deselect_all` | mutating | yes | Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene |
 | `set_selection_mode` | mutating | yes | Set Object, Face, Vertex, Edge or Hierarchy (Root sub-mask only) selection mode without editing the scene; a valid remembered face, vertex or edge stays inactive outside its own mode |
 | `select_face` | mutating | yes | Select a complete canonical face target in Face mode, or clear it with null; explicit targets need not be visible and select their owning instance |
 | `select_vertex` | mutating | yes | Select a complete canonical vertex target in Vertex mode, or clear it with null; explicit targets need not be visible and select their owning instance |

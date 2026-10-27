@@ -182,14 +182,16 @@ fn a_ring_drag_turns_about_the_picked_axis_and_is_one_rotate_history_entry() {
             );
             assert!(!editor.error);
         }
-        assert!(!editor.history.can_undo() || editor.history.undo_label() == Some("Create"));
+        assert!(
+            !editor.history.can_undo() || editor.history.undo_label() == Some("Create".to_string())
+        );
         release(&mut editor, &context, scale, view.ring(y, 40.0));
         assert!(editor.history.active_manipulation().is_none());
         assert!(editor.native_move.is_none());
         assert_eq!(editor.status, "Rotate committed");
         near(channels(&editor)[4], 40.0, 0.05);
         let after = editor.history.scene().clone();
-        assert_eq!(editor.history.undo_label(), Some("Rotate"));
+        assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
         editor.native_operation(Operation::Undo);
         assert_eq!(editor.status, "Undo Rotate");
         assert_eq!(channels(&editor)[4], 0.0);
@@ -213,7 +215,7 @@ fn world_space_rings_turn_the_selected_object_about_the_world_axis() {
     moved(&mut editor, &context, 1.0, view.ring(x, 30.0));
     near(channels(&editor)[3], 30.0, 0.05);
     release(&mut editor, &context, 1.0, view.ring(x, 30.0));
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
 }
 
 #[test]
@@ -245,7 +247,7 @@ fn an_axis_box_drag_scales_by_the_parameter_ratio_in_one_scale_history_entry() {
         view.screen(Vec3::X * radius * 0.5),
     );
     assert_eq!(editor.status, "Scale committed");
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
     editor.native_operation(Operation::Undo);
     assert_eq!(channels(&editor)[6], 1.0);
 }
@@ -321,7 +323,7 @@ fn a_drag_through_the_pivot_shows_the_scale_refusal_and_keeps_the_last_valid_pre
         "{}",
         editor.status
     );
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
 }
 
 #[test]
@@ -335,7 +337,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     near(values[6], 2.0, 1e-6);
     assert_eq!(values[6..], [values[6]; 3]);
     release(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
 }
 
 #[test]
@@ -558,7 +560,7 @@ fn numeric_entry_applies_one_labelled_edit_and_shows_core_refusals() {
     assert_eq!(editor.status, "Rotate applied");
     assert!(editor.manipulation.numeric.is_empty());
     near(channels(&editor)[5], 45.0, 1e-9);
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
     editor.native_operation(Operation::Undo);
     assert_eq!(channels(&editor)[5], 0.0);
 
@@ -568,7 +570,7 @@ fn numeric_entry_applies_one_labelled_edit_and_shows_core_refusals() {
     editor.apply_numeric_manipulation();
     assert_eq!(editor.status, "Scale applied");
     assert_eq!(channels(&editor)[6..], [2.0; 3]);
-    assert_eq!(editor.history.undo_label(), Some("Scale"));
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
     let scene = editor.history.scene().clone();
     let entries = undo_depth(&mut editor);
     for refused in ["0", "-1"] {
@@ -613,7 +615,7 @@ fn numeric_entry_through_the_text_field_commits_on_enter_and_blocks_remote_edits
         raw(SIZE, Pos2::ZERO, 1.0, vec![key(Key::Enter)]),
     );
     near(channels(&editor)[3], 30.0, 1e-9);
-    assert_eq!(editor.history.undo_label(), Some("Rotate"));
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
 }
 
 #[test]
@@ -1171,7 +1173,7 @@ fn rotate_and_scale_owner_busy_cancel_and_close_follow_move() {
             azteccraft::native_scene::binary::encode(editor.history.scene()),
             bytes
         );
-        assert_eq!(editor.history.undo_label(), Some("Create"));
+        assert_eq!(editor.history.undo_label(), Some("Create".to_string()));
         assert!(!editor.history.can_redo());
     }
 }
@@ -2034,6 +2036,10 @@ const SCALE_ORIGIN: DVec3 = DVec3::new(1.0, 2.0, 0.0);
 // T=(1,0,0), Rz(90), scalePivotTranslate=(2,0,0): the Rotate origin is (1,0,0) and the Scale
 // origin (1,2,0).
 fn offset_pivot_scene() -> (Editor, egui::Context, View) {
+    offset_pivot_scene_for(ActiveTool::Scale)
+}
+
+fn offset_pivot_scene_for(tool: ActiveTool) -> (Editor, egui::Context, View) {
     ascii_editor(
         concat!(
             "createNode transform -n \"a\";\n",
@@ -2042,7 +2048,7 @@ fn offset_pivot_scene() -> (Editor, egui::Context, View) {
             "setAttr \".spt\" -type \"double3\" 2 0 0;\n"
         ),
         "a",
-        ActiveTool::Scale,
+        tool,
     )
 }
 
@@ -2670,6 +2676,26 @@ fn an_edge_on_rotate_ring_reports_the_drag_refusal_before_the_scene_refusal() {
         "y",
         "Object Y Rotate",
         "Rotate ring is edge-on to the camera",
+    );
+}
+
+// With the camera level (yaw 0, pitch 0) the offset-pivot scene's Object X ring is seen nearly
+// edge-on, and a press ray through its right-hand arc meets the ring plane behind the eye. The
+// pixel is on that arc in the 1.0-scale test window (at x 800 rows 471..478 are BehindRay,
+// between the edge-on row 470 and the ring's lower edge; 475 is at least 3 px inside); the hit-id
+// precondition fails loudly if the layout or camera moves it off the ring.
+#[test]
+fn a_rotate_ring_plane_behind_the_eye_reports_the_drag_refusal() {
+    let (mut editor, context, _) = offset_pivot_scene_for(ActiveTool::Rotate);
+    editor.camera = camera_at(0.0, 0.0);
+    idle(&mut editor, &context, 1.0);
+    assert_drag_refusal_everywhere(
+        &mut editor,
+        &context,
+        Pos2::new(800.0, 475.0),
+        "x",
+        "Object X Rotate",
+        "Rotate closest point lies behind the camera ray origin",
     );
 }
 

@@ -933,7 +933,7 @@ async fn every_kind_sdk_shares_guards_busy_tokens_cancel_undo_and_typed_mismatch
         .await;
         let after = editor.history.scene().clone();
         assert_ne!(after, committed);
-        assert_eq!(editor.history.undo_label(), Some(label));
+        assert_eq!(editor.history.undo_label(), Some(label.to_string()));
         call(
             &mut editor,
             &context,

@@ -224,7 +224,7 @@ async fn move_over_mcp_inserts_the_translate_leaf_on_save_and_reopens_bit_equal(
         .await;
     assert!(!committed.is_error.unwrap_or(false));
     assert!(rig.editor.is_dirty());
-    assert_eq!(rig.editor.history.undo_label(), Some("Move"));
+    assert_eq!(rig.editor.history.undo_label(), Some("Move".to_string()));
     #[cfg(unix)]
     {
         let first = rig.source.parent().unwrap().join("first.mb");

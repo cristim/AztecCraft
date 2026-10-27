@@ -203,6 +203,7 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
         Command::SetTransform {
             id: node,
             transform: NativeTransform::default(),
+            label: None,
         },
         Command::EditNode {
             id: node,
@@ -1014,7 +1015,7 @@ fn each_manipulation_kind_names_its_undo_and_redo_entry() {
     };
     let id = start(&mut history, token);
     commit(&mut history, id, 2.0);
-    assert_eq!(history.undo_label(), Some("Move"));
+    assert_eq!(history.undo_label(), Some("Move".to_string()));
     let id = history
         .begin_rotate(
             &target(&history),
@@ -1026,7 +1027,7 @@ fn each_manipulation_kind_names_its_undo_and_redo_entry() {
         )
         .unwrap();
     commit(&mut history, id, 30.0);
-    assert_eq!(history.undo_label(), Some("Rotate"));
+    assert_eq!(history.undo_label(), Some("Rotate".to_string()));
     let id = history
         .begin_scale(
             &target(&history),
@@ -1038,24 +1039,24 @@ fn each_manipulation_kind_names_its_undo_and_redo_entry() {
         )
         .unwrap();
     commit(&mut history, id, 2.0);
-    assert_eq!(history.undo_label(), Some("Scale"));
+    assert_eq!(history.undo_label(), Some("Scale".to_string()));
     history
         .execute(Command::Rename {
             id: node,
             name: "renamed".into(),
         })
         .unwrap();
-    assert_eq!(history.undo_label(), Some("Rename"));
+    assert_eq!(history.undo_label(), Some("Rename".to_string()));
     // Undo names the edit it reverts and Redo the one it reapplies, in the same order.
     for expected in ["Rename", "Scale", "Rotate", "Move"] {
-        assert_eq!(history.undo_label(), Some(expected));
+        assert_eq!(history.undo_label(), Some(expected.to_string()));
         assert!(history.undo());
-        assert_eq!(history.redo_label(), Some(expected));
+        assert_eq!(history.redo_label(), Some(expected.to_string()));
     }
     assert_eq!(history.undo_label(), None);
     for expected in ["Move", "Rotate"] {
         assert!(history.redo());
-        assert_eq!(history.undo_label(), Some(expected));
+        assert_eq!(history.undo_label(), Some(expected.to_string()));
     }
 }
 

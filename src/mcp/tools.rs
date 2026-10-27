@@ -761,6 +761,7 @@ mod tests {
                     | "set_tool_handle"
                     | "set_manipulator_size"
                     | "select_node"
+                    | "deselect_all"
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"

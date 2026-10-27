@@ -147,6 +147,7 @@
       "source_changed": false
     },
     "read_only_reason": null,
+    "redo_label": null,
     "remembered_edge": null,
     "remembered_face": null,
     "remembered_vertex": null,
@@ -233,6 +234,7 @@
     },
     "status_message": "Scene edited",
     "text_focused": false,
+    "undo_label": "Create",
     "units": {
       "angular": "deg",
       "linear": "cm",
