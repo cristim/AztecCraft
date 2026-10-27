@@ -44,7 +44,7 @@ The application policy constants table proposed in PR #294 (development.md once 
 | Column | Content |
 | --- | --- |
 | ID | `<PREFIX>-NNN`, stable, never reused or renumbered. A retired row is marked `retired`. |
-| Workflow | One user task in imperative form with a short, testable action and assertion. A documented menu command plus its option box is one row. True variant families (for example Booleans, the Send to items, Clipboard Actions) are grouped into one row. Commands with their own menu entry are not merged. |
+| Workflow | One user task in imperative form with a short, testable action and assertion. A documented menu command plus its option box is one row. True variant families (for example Booleans, the Send to items, Clipboard Actions) are grouped into one row; so are the items of one submenu that manage the same set or sharing relation (create, assign, edit, delete, rename) and directional pairs such as Spin Edge Backward/Forward. Also one row: a toggle with its dependent sub-option (MOD-016), the import and export or all and selection entries of one format or workflow (INT-017, INT-027, INT-028, INT-032), and the items of one project or panel menu that act on the same object (INT-013, MOD-106). Otherwise, commands with their own menu entry are separate rows. |
 | Doc | 2027 documentation URL, with `2026 FALLBACK` or `2026-only` / `2027-new` tags where they apply. |
 | Component | Maya core, or the named component with its pinned version. |
 | Status | One value from the vocabulary above, plus the tags `runtime-only` where they apply. |
@@ -105,8 +105,8 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
 | 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
-| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #189 |
-| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #167, #292, #295 |
+| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #167, #189 |
+| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #292, #295 |
 | 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #49, #64 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
