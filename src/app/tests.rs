@@ -5167,7 +5167,6 @@ fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
                 translation: [0.0, 1.0000000000000004, 0.0],
                 ..Default::default()
             },
-            label: None,
         })
         .unwrap();
     editor.sync_fields();
@@ -8459,6 +8458,53 @@ fn camera_after_frame_all(editor: &Editor) -> Camera {
     let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
     expected.frame_view(&view, None, editor.aspect).unwrap();
     expected
+}
+
+#[test]
+fn set_transform_moving_a_rotated_node_reports_undo_move() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    let apply = |editor: &mut Editor, transform: NativeTransform| {
+        let input = editor.transform_input(transform).unwrap();
+        remote(
+            editor,
+            Operation::SetTransform {
+                id,
+                transform: input,
+            },
+        )
+        .unwrap();
+    };
+    let rotated = NativeTransform {
+        rotation: [0.0, 45.0, 0.0],
+        ..Default::default()
+    };
+    apply(&mut editor, rotated);
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Rotate")
+    );
+    apply(
+        &mut editor,
+        NativeTransform {
+            translation: [3.0, 0.0, 0.0],
+            ..rotated
+        },
+    );
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Move")
+    );
+    remote(&mut editor, Operation::Undo).unwrap();
+    assert_eq!(
+        editor.inspect(false).unwrap().redo_label.as_deref(),
+        Some("Move")
+    );
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Rotate")
+    );
 }
 
 #[test]

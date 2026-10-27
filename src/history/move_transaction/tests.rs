@@ -203,7 +203,6 @@ fn active_move_blocks_every_history_mutation_before_state_or_stack_changes() {
         Command::SetTransform {
             id: node,
             transform: NativeTransform::default(),
-            label: None,
         },
         Command::EditNode {
             id: node,

@@ -33,7 +33,6 @@ pub enum Command {
     SetTransform {
         id: NodeId,
         transform: NativeTransform,
-        label: Option<String>,
     },
     EditNode {
         id: NodeId,
@@ -69,18 +68,8 @@ impl Command {
             Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create".to_string(),
             Self::Remove(_) => "Delete".to_string(),
             Self::Rename { .. } => "Rename".to_string(),
-            Self::SetTransform { transform, .. } => {
-                // Compare with default values to guess the action.
-                if transform.rotation.iter().any(|&v| v != 0.0)
-                    && transform.scale == [1.0, 1.0, 1.0]
-                {
-                    "Rotate".to_string()
-                } else if transform.scale.iter().any(|&v| v != 1.0) {
-                    "Scale".to_string()
-                } else {
-                    "Move".to_string()
-                }
-            }
+            // execute_labeled names it from the stored before/after values.
+            Self::SetTransform { .. } => "Transform".to_string(),
             Self::EditNode { .. } => "Edit".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
@@ -89,6 +78,24 @@ impl Command {
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
         }
+    }
+}
+
+/// Names a transform edit by the one value group it changed. Groups compare
+/// bitwise, like `NativeTransform` equality. Several changed groups, or none
+/// (a scene-only difference), read "Transform". PROVISIONAL: Maya's docs name
+/// no undo entries.
+fn transform_label(before: &NativeTransform, after: &NativeTransform) -> &'static str {
+    let differs = |a: [f64; 3], b: [f64; 3]| a.map(f64::to_bits) != b.map(f64::to_bits);
+    let groups = [
+        (differs(before.translation, after.translation), "Move"),
+        (differs(before.rotation, after.rotation), "Rotate"),
+        (differs(before.scale, after.scale), "Scale"),
+    ];
+    let mut changed = groups.iter().filter(|(changed, _)| *changed);
+    match (changed.next(), changed.next()) {
+        (Some((_, name)), None) => name,
+        _ => "Transform",
     }
 }
 
@@ -163,6 +170,10 @@ impl History {
             return Err(NativeError::BusyManipulation);
         }
         let mut candidate = self.scene.clone();
+        let transform_target = match &command {
+            Command::SetTransform { id, .. } => Some(*id),
+            _ => None,
+        };
         let outcome = match command {
             Command::Create {
                 primitive,
@@ -218,6 +229,15 @@ impl History {
         if self.scene == candidate {
             return Ok(EditOutcome::Unchanged);
         }
+        let label = match transform_target {
+            Some(id) => match (self.scene.node(id), candidate.node(id)) {
+                (Ok(before), Ok(after)) => {
+                    transform_label(&before.transform(), &after.transform()).to_string()
+                }
+                _ => label,
+            },
+            None => label,
+        };
         if self.undo.len() == UNDO_LIMIT {
             self.undo.pop_front();
         }
@@ -257,5 +277,77 @@ impl History {
         });
         self.scene.restore_authoring(next.scene);
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn identical_transforms_read_transform() {
+        let same = NativeTransform::default();
+        assert_eq!(transform_label(&same, &same), "Transform");
+    }
+
+    #[test]
+    fn one_changed_group_names_it_and_several_read_transform() {
+        let base = NativeTransform::default();
+        let moved = NativeTransform {
+            translation: [1.0, 0.0, 0.0],
+            ..base
+        };
+        let rotated = NativeTransform {
+            rotation: [0.0, 5.0, 0.0],
+            ..base
+        };
+        let scaled = NativeTransform {
+            scale: [2.0, 1.0, 1.0],
+            ..base
+        };
+        assert_eq!(transform_label(&base, &moved), "Move");
+        assert_eq!(transform_label(&base, &rotated), "Rotate");
+        assert_eq!(transform_label(&base, &scaled), "Scale");
+        assert_eq!(transform_label(&moved, &rotated), "Transform");
+        assert_eq!(
+            transform_label(
+                &base,
+                &NativeTransform {
+                    scale: [2.0; 3],
+                    ..moved
+                }
+            ),
+            "Transform"
+        );
+    }
+
+    #[test]
+    fn a_labelled_non_transform_command_keeps_its_label() {
+        let mut history = History::default();
+        let id = match history
+            .execute(Command::Create {
+                primitive: crate::scene::Primitive::Cube,
+                options: None,
+                name: "cube".into(),
+            })
+            .unwrap()
+        {
+            EditOutcome::Created(id) => id,
+            other => panic!("unexpected outcome: {other:?}"),
+        };
+        let mut channels = [None; 9];
+        channels[0] = Some(1.0);
+        channels[4] = Some(30.0);
+        history
+            .execute_labeled(
+                Command::EditNode {
+                    id,
+                    name: None,
+                    channels,
+                },
+                "Rotate".to_string(),
+            )
+            .unwrap();
+        assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
     }
 }
