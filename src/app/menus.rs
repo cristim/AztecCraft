@@ -369,7 +369,8 @@ impl Editor {
                 });
             });
             ui.menu_button("Select", |ui| {
-                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel).
+                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel), confirmed by the
+                // 2027 Select menu page. All by Type is a submenu in Maya; here a plain disabled row.
                 ui.add_enabled(false, egui::Button::new("All   Ctrl/Cmd Shift A"))
                     .on_disabled_hover_text(MULTI_SELECTION_REASON);
                 ui.add_enabled(false, egui::Button::new("All by Type"))
@@ -378,7 +379,8 @@ impl Editor {
                     self.deselect_all();
                     ui.close();
                 }
-                for label in ["Hierarchy", "Inverse"] {
+                // Hint only: the row stays disabled until it is built (#325).
+                for label in ["Hierarchy", "Inverse   Ctrl/Cmd Shift I"] {
                     ui.add_enabled(false, egui::Button::new(label))
                         .on_disabled_hover_text(MULTI_SELECTION_REASON);
                 }

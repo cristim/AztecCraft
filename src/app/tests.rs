@@ -2326,13 +2326,19 @@ fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
     ctx.enable_accesskit();
     let output = frame(&mut editor, &ctx, vec![]);
     let menu = face_text_position(&output, "Select");
-    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let mut output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let menu_is_open = |output: &egui::FullOutput| {
+        output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(text)
+                if text.galley.job.text == "Deselect All   Alt D")
+        })
+    };
     let rows = [
         "All   Ctrl/Cmd Shift A",
         "All by Type",
         "Deselect All   Alt D",
         "Hierarchy",
-        "Inverse",
+        "Inverse   Ctrl/Cmd Shift I",
         "Object / Component   F8",
     ];
     let ys: Vec<f32> = rows
@@ -2347,12 +2353,21 @@ fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
         "All   Ctrl/Cmd Shift A",
         "All by Type",
         "Hierarchy",
-        "Inverse",
+        "Inverse   Ctrl/Cmd Shift I",
     ] {
         assert!(button_disabled(&output, label), "{label} must be disabled");
     }
-    for label in ["All   Ctrl/Cmd Shift A", "Hierarchy", "Inverse"] {
-        face_pointer_click(
+    for label in [
+        "All   Ctrl/Cmd Shift A",
+        "All by Type",
+        "Hierarchy",
+        "Inverse   Ctrl/Cmd Shift I",
+    ] {
+        if !menu_is_open(&output) {
+            let menu = face_text_position(&output, "Select");
+            output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+        }
+        output = face_pointer_click(
             &mut editor,
             &ctx,
             face_text_position(&output, label),
@@ -2360,6 +2375,10 @@ fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
             vec![],
         );
         assert!(editor.selection_presentation().0.is_some(), "{label}");
+    }
+    if !menu_is_open(&output) {
+        let menu = face_text_position(&output, "Select");
+        output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
     }
     let deselect = face_text_position(&output, "Deselect All   Alt D");
     face_pointer_click(&mut editor, &ctx, deselect, egui::Modifiers::NONE, vec![]);
