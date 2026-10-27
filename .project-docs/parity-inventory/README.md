@@ -89,7 +89,7 @@ Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in
 
 ## Families
 
-Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners (#202 is a custom path tracer, not a Maya workflow). Each file lists its own owners. An issue may own rows in two families (for example #156 and #189 under SCN and INT, #21 and #58 under PIP and INT, #52 under ANM and INT); each row cites it independently.
+Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners (#202 is a custom path tracer, not a Maya workflow). Each file lists its own owners. An issue may own rows in two families (for example #156 and #189 under SCN and INT and #21 and #58 under PIP and INT); each row cites it independently.
 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
-| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #21, #22, #23, #52, #58, #156, #189, #272, #300 |
+| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300 |
 | 12 | Scripting and extensions | [12-scripting-and-extensions.md](12-scripting-and-extensions.md) | SCR | #57 |
 | 13 | Dynamics and extended systems | [13-dynamics-and-extended-systems.md](13-dynamics-and-extended-systems.md) | DYN | #56 |
 | 14 | Pipeline and robustness | [14-pipeline-and-robustness.md](14-pipeline-and-robustness.md) | PIP | #8, #21, #58 |
@@ -118,13 +118,18 @@ Documented menus and the family that owns their content. The always-available me
 | Edit | SCN (undo, redo, duplicate, group, parent, delete) | per-item split when SCN expands |
 | Create | MOD (Polygon Primitives), CRV (NURBS, curve tools), MAT (Lights), VPT (Cameras, image planes), SCN (Empty Group, Sets) | split per submenu when those families expand |
 | Select | SCN | |
-| Modify | SCN (transform tools, freeze, pivot), VPT (tool settings) | |
+| Modify > Transform, Pivot | SCN (transform tools, freeze, pivot); VPT (tool settings) | [Modify menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-378D7FF6-492F-4DA4-A468-507E6ABF8B58.htm) (fetched 2026-10-27, groups Transform, Pivot, Align, Rotate Order, Nodes, Naming, Attributes, Objects, Convert, Paint Tool, Asset) |
+| Modify > Align, Naming, Attributes, Objects, Asset | SCN | Align Tool and Snap Align place objects; Naming renames nodes; Attributes adds, edits and deletes custom attributes; Replace Objects edits the scene graph; Asset is a node container. Make Live (snap target) is VPT |
+| Modify > Rotate Order | ANM | Reorder Rotation keeps animation unchanged while changing the order, so it works on animated channels |
+| Modify > Nodes | PIP | Evaluate Nodes turns node evaluation off for performance |
+| Modify > Objects > Convert | MOD (polygon, subdiv), CRV (NURBS, curves), DYN (Paint Effects, fluids) | on the page Convert sits inside the Objects group (Make Live, Replace Objects, Convert); split per Convert submenu when those families expand |
+| Modify > Paint Tool | SCR (Paint Scripts Tool, paints MEL scripts), RIG (Paint Attributes Tool, an Artisan brush) | PROVISIONAL placement of the Paint Attributes Tool |
 | Display | VPT | HUD items also VPT |
 | Windows | SHL; each editor to the family that owns its content (Outliner SCN, Time Slider ANM, Render View RND) | |
 | Mesh, Edit Mesh, Mesh Tools, Mesh Display (Modeling) | MOD | [Modeling menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm) |
 | Curves, Surfaces (Modeling) | CRV | same page |
 | UV (Modeling) | UVE | same page |
-| Generate (Modeling) | MOD | same page; contents not confirmed, PROVISIONAL |
+| Generate (Modeling) | DYN (XGen, Paint Effects); Cloud Services (Character Generator and ReCap web launchers) are OOS: other Autodesk web products | [Generate menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-3BAFC1CC-9BF8-4BA3-990B-BA57CF30CC10.htm) (fetched 2026-10-27); it holds XGen, Cloud Services and Paint Effects, no polygon modeling |
 | Deform (Modeling, Rigging, Animation) | RIG | one owner for all three sets |
 | Skeleton, Skin, Constrain, Control (Rigging); Constrain (Animation) | RIG | [Rigging menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-CharacterAnimation/files/GUID-E8BE786A-AA88-46FD-A402-FBCD8855368B.htm) |
 | Key, Playback, Audio, Visualize (Animation) | ANM | [Animation menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-3CCAA3C8-A480-4CB7-A85E-F5AB17D3FB1F.htm) |
