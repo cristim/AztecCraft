@@ -12,8 +12,9 @@ use crate::editor_operations::{
 use azteccraft::native_scene::{LinearUnit, NativeTransform};
 use azteccraft::{
     history::{Command, EditOutcome, History, ManipulationProvenance},
-    native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, VertexTarget},
+    native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
     scene::{NodeId, Primitive},
+    selection::ObjectSelection,
     view_scene::ViewScene,
     viewport::Camera,
 };
@@ -65,8 +66,7 @@ pub struct Editor {
     mcp: Option<crate::mcp::UiBridge>,
     scene_token: Uuid,
     history: History,
-    selected: Option<NodeId>,
-    selected_path: Vec<NativeId>,
+    selection: ObjectSelection,
     selection_mode: SelectionMode,
     remembered_face: Option<FaceTarget>,
     remembered_vertex: Option<VertexTarget>,
@@ -119,8 +119,7 @@ impl Default for Editor {
             mcp: None,
             scene_token: Uuid::new_v4(),
             history: History::default(),
-            selected: None,
-            selected_path: Vec::new(),
+            selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             remembered_face: None,
             remembered_vertex: None,

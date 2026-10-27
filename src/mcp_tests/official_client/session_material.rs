@@ -337,7 +337,7 @@ async fn session_material_sdk_guards_stale_token_draft_modal_close_and_active_mo
     // Active move.
     let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

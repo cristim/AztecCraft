@@ -2,12 +2,23 @@ use crate::app::*;
 
 impl Editor {
     pub(in crate::app) fn selection_presentation(&self) -> (Option<NodeId>, &[NativeId]) {
-        (self.selected, self.selected_path.as_slice())
+        self.selection.lead().map_or((None, &[][..]), |lead| {
+            (Some(lead.node), lead.path.as_slice())
+        })
     }
 
-    pub(in crate::app) fn single_target(&self) -> Result<(NodeId, &[NativeId]), OperationError> {
+    /// The lead, for display and drafts; with several objects selected it is still the lead.
+    pub(in crate::app) fn lead_target(&self) -> Result<(NodeId, &[NativeId]), OperationError> {
         let (selected, path) = self.selection_presentation();
         Ok((selected.ok_or(OperationError::NoSelection)?, path))
+    }
+
+    /// The one selected object; refuses an empty or a multiple selection.
+    pub(in crate::app) fn single_target(&self) -> Result<(NodeId, &[NativeId]), OperationError> {
+        if self.selection.len() > 1 {
+            return Err(OperationError::MultipleSelection);
+        }
+        self.lead_target()
     }
 
     #[cfg(test)]
@@ -27,8 +38,19 @@ impl Editor {
         node: Option<NodeId>,
         path: Vec<NativeId>,
     ) {
-        self.selected = node;
-        self.selected_path = path;
+        match node {
+            Some(node) => self.selection.replace(TransformTarget { node, path }),
+            None => self.selection.clear(),
+        }
+    }
+
+    /// Fixture setter for a multi-object selection; the last target is the lead.
+    #[cfg(test)]
+    pub(in crate::app) fn set_selection_members_for_test(&mut self, members: Vec<TransformTarget>) {
+        self.selection.clear();
+        for member in members {
+            self.selection.add(member).unwrap();
+        }
     }
 
     /// Select > Deselect All and Alt+D share this one native caller of `DeselectAll` (#167).

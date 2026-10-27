@@ -346,7 +346,7 @@ async fn sdk_attribute_editor_operations_are_busy_during_an_active_move() {
     .unwrap();
     editor.sidebar_dock = Some(AE);
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

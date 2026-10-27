@@ -81,7 +81,7 @@ async fn ascii_open_inspect_select_frame(path: &std::path::Path, expected_counts
     )
     .await;
     assert_eq!(selected.is_error, Some(false));
-    assert_eq!(editor.selected.unwrap().to_decimal(), id);
+    assert_eq!(editor.selected().unwrap().to_decimal(), id);
     let baseline = editor.history.scene().clone();
     let pan = call(
         &mut editor,
@@ -138,7 +138,7 @@ async fn ascii_open_inspect_select_frame(path: &std::path::Path, expected_counts
                 .contains("read-only")
         );
         assert_eq!(editor.history.scene(), &baseline);
-        assert_eq!(editor.selected.unwrap().to_decimal(), id);
+        assert_eq!(editor.selected().unwrap().to_decimal(), id);
         assert!(!editor.is_dirty() && !editor.history.can_undo());
     }
     let destination_directory = tempfile::tempdir().unwrap();
@@ -209,7 +209,7 @@ async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_sele
         json!({"scene_token":token,"primitive":"cube"}),
     )
     .await;
-    let id = editor.selected.unwrap().to_decimal();
+    let id = editor.selected().unwrap().to_decimal();
     call(
         &mut editor,
         &context,
@@ -239,7 +239,7 @@ async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_sele
     .structured_content
     .unwrap();
     let camera = editor.camera.clone();
-    let selected = (editor.selected, editor.selected_path.clone());
+    let selected = (editor.selected(), editor.selected_path().to_vec());
     let valid = String::from_utf8(ascii_fixture::specimen()).unwrap();
     for (index, source) in [
         String::from("//Maya ASCII 2016 scene\ncreateNode"),
@@ -281,7 +281,10 @@ async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_sele
         assert_eq!(after, before);
         assert_eq!(editor.history.scene(), &baseline);
         assert_eq!(editor.camera, camera);
-        assert_eq!((editor.selected, editor.selected_path.clone()), selected);
+        assert_eq!(
+            (editor.selected(), editor.selected_path().to_vec()),
+            selected
+        );
         assert!(editor.history.can_undo() && editor.history.can_redo());
         assert_eq!(std::fs::read(path).unwrap(), source.as_bytes());
     }
@@ -322,8 +325,8 @@ async fn ncrv_sdk_open_refusal_preserves_the_complete_editor_baseline() {
     )
     .await;
     assert!(selected.structured_content.unwrap().get("error").is_none());
-    assert_eq!(editor.selected, Some(id));
-    assert!(!editor.selected_path.is_empty());
+    assert_eq!(editor.selected(), Some(id));
+    assert!(!editor.selected_path().is_empty());
     let changed = call(
         &mut editor,
         &context,
@@ -356,7 +359,7 @@ async fn ncrv_sdk_open_refusal_preserves_the_complete_editor_baseline() {
     .unwrap();
     let original = editor.history.scene().clone();
     let camera = editor.camera.clone();
-    let selection = (editor.selected, editor.selected_path.clone());
+    let selection = (editor.selected(), editor.selected_path().to_vec());
     let title = editor.document_title();
     for children in [
         Vec::new(),
@@ -399,8 +402,8 @@ async fn ncrv_sdk_open_refusal_preserves_the_complete_editor_baseline() {
         assert_eq!(editor.history.scene(), &original);
         assert_eq!(editor.camera, camera);
         assert_eq!(
-            (editor.selected, &editor.selected_path),
-            (selection.0, &selection.1)
+            (editor.selected(), editor.selected_path()),
+            (selection.0, selection.1.as_slice())
         );
         assert_eq!(editor.scene_token.to_string(), token);
         assert_eq!(editor.document_title(), title);

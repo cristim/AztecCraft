@@ -20,13 +20,14 @@ impl Editor {
         self.channel_intents = [false; 9];
         self.name_intent = false;
         self.normalize_attribute_editor_tab();
+        let scene = self.history.scene();
+        self.selection
+            .retain(|member| scene.node(member.node).is_ok());
         let Some(node) = self
             .selection_presentation()
             .0
             .and_then(|id| self.history.scene().node(id).ok())
         else {
-            self.selected = None;
-            self.selected_path.clear();
             self.clear_remembered_components();
             self.name.clear();
             self.channels = Default::default();
@@ -288,7 +289,7 @@ impl Editor {
     }
 
     fn channel_sections(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
-        if self.single_target().is_err() {
+        if self.lead_target().is_err() {
             unsupported_section(ui, "Layers");
             return;
         }

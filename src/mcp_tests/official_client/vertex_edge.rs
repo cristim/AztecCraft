@@ -510,7 +510,7 @@ async fn refuses_stale_token_draft_modal_and_active_move(kind: Kind) {
     // Move refuses component modes, so it starts in Object mode; the busy guard
     // must still win over the wrong-mode validation.
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -547,7 +547,7 @@ async fn sdk_begin_manipulation_refuses_every_kind_in_vertex_and_edge_modes() {
     let (token, id, _) = cube_with_target(VERTEX, &mut editor, &context, client.peer()).await;
     let peer = client.peer();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

@@ -392,8 +392,7 @@ impl Editor {
         self.move_viewport = None;
         self.manipulation.declared = None;
         self.clear_manipulation_hover();
-        self.selected = None;
-        self.selected_path.clear();
+        self.selection.clear();
         self.clear_remembered_components();
         self.name.clear();
         self.channels = Default::default();

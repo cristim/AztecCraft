@@ -123,7 +123,7 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
 
     let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

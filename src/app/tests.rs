@@ -6146,7 +6146,7 @@ fn borrowed_selection_readers_preserve_exact_paths_and_operation_baselines() {
 }
 
 #[test]
-fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
+fn selection_presentation_has_no_path_without_a_node() {
     let mut editor = deep_group_editor();
     let leaf = editor
         .history
@@ -6167,17 +6167,8 @@ fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
     );
     let inspection = editor.inspect(false).unwrap();
     assert_eq!(inspection.selected_node, None);
-    assert_eq!(
-        inspection.selected_instance_path,
-        leaf.path
-            .iter()
-            .map(|id| id.to_decimal())
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(
-        editor.selection_presentation(),
-        (None, leaf.path.as_slice())
-    );
+    assert!(inspection.selected_instance_path.is_empty());
+    assert_eq!(editor.selection_presentation(), (None, &[][..]));
     assert!(matches!(
         editor.single_target(),
         Err(OperationError::NoSelection)
@@ -9401,4 +9392,133 @@ fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
         assert_eq!(editor.history.undo_label(), undo);
         assert_eq!(editor.history.redo_label(), redo);
     }
+}
+
+fn two_cube_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    assert_eq!(paths.len(), 2);
+    editor.set_selection_members_for_test(paths);
+    editor
+}
+
+#[test]
+fn several_selected_objects_refuse_single_target_and_present_the_lead() {
+    let editor = two_cube_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    assert!(matches!(
+        editor.single_target(),
+        Err(OperationError::MultipleSelection)
+    ));
+    assert_eq!(
+        OperationError::MultipleSelection.to_string(),
+        "Several objects are selected; select one object"
+    );
+    let lead = paths.last().unwrap();
+    assert_eq!(
+        editor.selection_presentation(),
+        (Some(lead.node), lead.path.as_slice())
+    );
+    assert_eq!(
+        editor.lead_target().unwrap(),
+        (lead.node, lead.path.as_slice())
+    );
+}
+
+#[test]
+fn frame_and_move_refuse_several_selected_objects_and_keep_state() {
+    let mut editor = two_cube_editor();
+    let camera = editor.camera.clone();
+    let scene = editor.history.scene().clone();
+    let selection = editor.selection.clone();
+    assert!(matches!(
+        remote(&mut editor, Operation::FrameSelected),
+        Err(OperationError::MultipleSelection)
+    ));
+    assert!(matches!(
+        editor.selected_move_target(),
+        Err(OperationError::MultipleSelection)
+    ));
+    let lead = selection.lead().unwrap().clone();
+    assert!(matches!(
+        editor.check_manipulation_target("Rotate", &lead),
+        Err(OperationError::MultipleSelection)
+    ));
+    assert_eq!(editor.camera, camera);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.selection, selection);
+}
+
+#[test]
+fn undo_of_a_creation_prunes_only_that_member() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let first = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(vec![first.clone(), paths[1].clone()]);
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.selection.members(), std::slice::from_ref(&first));
+    assert_eq!(editor.lead_target().unwrap().0, first.node);
+}
+
+#[test]
+fn undo_that_removes_every_member_clears_the_selection() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.native_operation(Operation::Undo);
+    editor.native_operation(Operation::Undo);
+    assert!(editor.selection.is_empty());
+    assert!(matches!(
+        editor.single_target(),
+        Err(OperationError::NoSelection)
+    ));
+}
+
+#[test]
+fn create_and_select_replace_the_whole_set() {
+    let mut editor = two_cube_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.native_operation(Operation::Select {
+        node: Some(paths[1].node),
+        instance_path: None,
+    });
+    assert_eq!(editor.selection.members(), [paths[1].clone()]);
+    editor.set_selection_members_for_test(paths);
+    editor.create(Primitive::Cube);
+    assert_eq!(editor.selection.len(), 1);
+}
+
+#[test]
+fn deselect_all_and_new_document_clear_several_selected_objects() {
+    let mut editor = two_cube_editor();
+    editor.deselect_all();
+    assert!(editor.selection.is_empty());
+    let members = two_cube_editor().selection.members().to_vec();
+    let mut editor = Editor::default();
+    editor.set_selection_members_for_test(members);
+    assert_eq!(editor.selection.len(), 2);
+    editor.new_document().unwrap();
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn a_draft_on_the_lead_is_committed_through_the_lead_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let lead = editor.lead_target().unwrap().0;
+    editor.channels[0] = "5".into();
+    editor.channel_intents[0] = true;
+    assert!(editor.commit_pending());
+    let x = editor
+        .history
+        .scene()
+        .node(lead)
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, 5.0);
+    assert_eq!(editor.selection.len(), 2);
 }

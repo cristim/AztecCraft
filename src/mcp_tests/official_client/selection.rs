@@ -332,7 +332,7 @@ async fn sdk_hierarchy_mode_is_idempotent_refuses_faces_and_keeps_select_node_ex
     assert_eq!(editor.selected().unwrap().to_decimal(), child_node);
     assert_eq!(
         editor
-            .selected_path
+            .selected_path()
             .iter()
             .map(|id| id.to_decimal())
             .collect::<Vec<_>>(),
@@ -488,7 +488,7 @@ async fn sdk_hierarchy_mode_is_busy_during_an_active_move() {
     .structured_content
     .unwrap();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

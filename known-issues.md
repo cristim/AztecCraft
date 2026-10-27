@@ -239,7 +239,7 @@ original RGB values. In Vertex and Edge modes component
 feedback replaces Object feedback, so the selected object's faces are not tinted and
 selected curves are not highlighted.
 
-Test limits for this slice: the `sync_fields` owner-path test fakes `selected_path`
+Test limits for this slice: the `sync_fields` owner-path test fakes the selected path through `set_selection_for_test`
 because no real instanced scene can be built from the bin crate, so it proves the
 clearing rule, not a live instance. The `remembered_face` term in the MCP test
 `baseline()` (`src/mcp_tests/official_client/vertex_edge.rs`) is defensive; no SDK test

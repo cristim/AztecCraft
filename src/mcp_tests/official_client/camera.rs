@@ -188,7 +188,7 @@ async fn headless_gpu_sdk_camera_selection_and_grid_changes_enter_the_next_fresh
     frame(&mut editor, &context, vec![]);
     let id = editor.selected().unwrap().to_decimal();
     let path = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect::<Vec<_>>();
