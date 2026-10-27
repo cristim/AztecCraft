@@ -59,7 +59,6 @@ pub(crate) fn creation_context(context: egui::Context) -> eframe::CreationContex
         queue,
         target_format: FORMAT,
         renderer: Arc::new(egui::epaint::mutex::RwLock::new(renderer)),
-        surface_config: egui_wgpu::SurfaceConfig::LOW_LATENCY,
     });
     context
 }

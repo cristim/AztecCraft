@@ -643,7 +643,7 @@ impl Editor {
             .input(|i| i.key_pressed(Key::Escape))
             .then_some(FileDecision::Cancel);
         let (heading, question) = save_changes_prompt(self.files.path.as_deref());
-        egui::Modal::new(egui::Id::new("unsaved_scene")).show(ctx, |ui| {
+        egui::Modal::new(egui::Id::unique("unsaved_scene")).show(ctx, |ui| {
             ui.heading(heading);
             ui.label(question);
             if let Some(uncertain) = &self.files.uncertain {

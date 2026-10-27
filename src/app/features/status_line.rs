@@ -230,9 +230,9 @@ fn menu_set_selector(ui: &mut egui::Ui) {
             }
         });
     let enabled = combo.response.enabled();
-    combo.response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, enabled, MENU_SET_LABEL)
-    });
+    combo
+        .response
+        .widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, enabled, MENU_SET_LABEL));
 }
 
 /// Presets need mask state (not implemented), so the control is disabled, stateless and empty.
@@ -247,11 +247,7 @@ fn selection_mode_menu(ui: &mut egui::Ui) {
         .response;
     let enabled = combo.enabled();
     combo.widget_info(|| {
-        egui::WidgetInfo::labeled(
-            egui::WidgetType::ComboBox,
-            enabled,
-            SELECTION_MODE_MENU_LABEL,
-        )
+        egui::WidgetInfo::labeled(egui::Role::ComboBox, enabled, SELECTION_MODE_MENU_LABEL)
     });
     combo.on_disabled_hover_text(SELECTION_MODE_MENU_HOVER);
 }

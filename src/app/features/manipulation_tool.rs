@@ -154,7 +154,7 @@ pub(in crate::app) fn kind_name(kind: ManipulationKindState) -> &'static str {
 }
 
 pub(in crate::app) fn manipulation_value_id() -> egui::Id {
-    egui::Id::new("manipulation_value")
+    egui::Id::unique("manipulation_value")
 }
 
 pub(in crate::app) fn tool_name(tool: ActiveTool) -> &'static str {

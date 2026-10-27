@@ -1,12 +1,12 @@
 use azteccraft::ui_icons::{self, UiIcon};
-use eframe::egui::{self, Response, Ui, WidgetInfo, WidgetType};
+use eframe::egui::{self, Response, Role, Ui, WidgetInfo};
 
 const SHELF_ICON: f32 = 20.0;
 const TOOL_ICON: f32 = 24.0;
 
 pub fn button(ui: &mut Ui, label: &str, icon: UiIcon, enabled: bool) -> Response {
     ui.add_enabled_ui(enabled, |ui| {
-        let id = ui.make_persistent_id(("tool_icon", label));
+        let id = egui::IdSalt::new(("tool_icon", label));
         let atom = egui::Atom::custom(id, egui::vec2(SHELF_ICON, SHELF_ICON));
         let output = egui::Button::new((atom, label))
             .gap(6.0)
@@ -31,14 +31,14 @@ pub fn icon_button(
     hover: &str,
 ) -> Response {
     ui.add_enabled_ui(enabled, |ui| {
-        let id = ui.make_persistent_id(("tool_icon_only", label));
+        let id = egui::IdSalt::new(("tool_icon_only", label));
         let atom = egui::Atom::custom(id, egui::vec2(TOOL_ICON, TOOL_ICON));
         let output = egui::Button::new(atom).selected(selected).atom_ui(ui);
         if let Some(rect) = output.rect(id) {
             ui_icons::paint(&ui.painter_at(rect), rect, icon);
         }
         let response = output.response;
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Button, enabled, selected, label));
+        response.widget_info(|| WidgetInfo::selected(Role::Button, enabled, selected, label));
         if enabled {
             response.on_hover_text(hover)
         } else {
@@ -50,13 +50,13 @@ pub fn icon_button(
 
 /// Width of an icon-only column (icon plus button and panel margins), measured from the live style.
 pub fn toolbox_width(ui: &Ui) -> f32 {
-    let style = ui.style().button_style(
-        &Default::default(),
-        egui::widget_style::WidgetState::Noninteractive,
-    );
+    let style = ui.style();
+    let button_margin = style.spacing.button_padding.x * 2.0
+        + style.visuals.widgets.noninteractive.bg_stroke.width * 2.0
+        + style.visuals.widgets.noninteractive.expansion * 2.0;
     let panel = egui::Frame::side_top_panel(ui.style());
     (TOOL_ICON
-        + style.frame.total_margin().sum().x
+        + button_margin
         + panel.total_margin().sum().x
         + ui.visuals().widgets.noninteractive.bg_stroke.width)
         .ceil()

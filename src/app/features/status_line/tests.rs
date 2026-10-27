@@ -949,7 +949,7 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
     );
     assert!(text_edit_focused(&context));
     let command = Modifiers::COMMAND;
-    let mut events = vec![
+    let events = vec![
         Event::ModifiersChanged(command),
         Event::Key {
             key: Key::A,
@@ -961,8 +961,9 @@ fn same_frame_click_then_text_commits_the_draft_before_the_panel_hides() {
         Event::ModifiersChanged(Modifiers::NONE),
         Event::Text("7".into()),
     ];
-    events.extend(press_release(at));
     frame_with(&mut editor, &context, SIZE, 1.0, events);
+    assert_eq!(editor.channels[0], "7");
+    frame_with(&mut editor, &context, SIZE, 1.0, press_release(at).into());
     assert_eq!(translate_x(&editor), 7.0);
     assert!(!editor.has_draft());
     assert_eq!(editor.channels[0], "7");
