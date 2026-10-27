@@ -834,3 +834,16 @@ or Select is the tool). They do not reflect refusals raised only when a Rotate o
 for example an edge-on ring, a ring plane behind the camera along the press ray, or a Scale grab
 under 1 px along the axis; the press shows those. Not fixed: gating the highlight changes native
 behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
+
+## Inspection keeps reporting a pick after a view build error
+
+**Severity:** low
+**Area:** viewport manipulators, MCP inspection
+**Issue:** tracked in #310
+
+After a view build error (for example ancestors whose scales overflow), `move_viewport` survives, so
+`inspect_scene` pointer fields still report a pick from the surviving capture although the viewport
+paints nothing. This contradicts the "mirrors the painted highlight" wording in
+`.project-docs/mcp.md` (the pointer fields paragraph). The tests
+`a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
+`sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.

@@ -212,6 +212,68 @@ async fn sdk_pointer_refusal_reports_a_refused_handle_and_a_refused_tool() {
     }
 }
 
+fn chain_scene(scale: &str) -> azteccraft::native_scene::NativeScene {
+    let source = format!(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; \
+         currentUnit -l centimeter -a degree -t film;\n\
+         createNode transform -n \"a\"; setAttr \".s\" -type \"double3\" {scale} {scale} {scale};\n\
+         createNode transform -n \"b\" -p \"a\"; setAttr \".s\" -type \"double3\" {scale} {scale} {scale};\n\
+         createNode transform -n \"leaf\" -p \"b\";\n"
+    );
+    azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap()
+}
+
+// Two ancestors scaled 1e200 have no finite product, so the leaf frame is refused as ParentTransform.
+// A capture taken before they overflow survives later frames (a view build error does not clear
+// `move_viewport`), so the scene is swapped in directly after the pointer was captured. Plausible
+// through the MCP set_transform tool on a writable scene, not exercised here (read-only ASCII).
+#[tokio::test]
+async fn sdk_pointer_refusal_reports_a_scene_frame_refusal() {
+    let expected = azteccraft::native_scene::NativeError::UnsupportedMove(
+        azteccraft::native_scene::WorldMoveUnsupported::ParentTransform,
+    )
+    .to_string();
+    for tool in ["rotate", "scale"] {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        editor.history = azteccraft::history::History::new(chain_scene("1"));
+        editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
+        editor.camera = oblique();
+        frame(&mut editor, &context, vec![]);
+        let token = editor.scene_token.to_string();
+        let activated = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_active_tool",
+            json!({"scene_token":token,"tool":tool}),
+        )
+        .await;
+        assert!(!activated.is_error.unwrap_or(false), "{tool}");
+        let output = frame(&mut editor, &context, vec![]);
+        let at = viewport(&output).center();
+        frame(&mut editor, &context, vec![Event::PointerMoved(at)]);
+        let scene = chain_scene("1e200");
+        let leaf = scene
+            .nodes()
+            .iter()
+            .find(|node| node.name() == "leaf")
+            .unwrap()
+            .id();
+        editor.history = azteccraft::history::History::new(scene);
+        editor.select(Some(leaf));
+        let picked = pick(&mut editor, &context, &client).await;
+        assert_eq!(
+            picked,
+            [Value::Null, Value::Null, json!(expected)],
+            "{tool}"
+        );
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}
+
 #[tokio::test]
 async fn sdk_pointer_refusal_is_null_for_an_accepted_handle() {
     let context = egui::Context::default();

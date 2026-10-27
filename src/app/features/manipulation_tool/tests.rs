@@ -2362,6 +2362,75 @@ fn a_mirrored_frame_is_reported_for_the_whole_tool_at_any_pixel() {
     }
 }
 
+fn ascii_chain(scale: &str) -> String {
+    format!(
+        concat!(
+            "createNode transform -n \"a\"; setAttr \".s\" -type \"double3\" {s} {s} {s};\n",
+            "createNode transform -n \"b\" -p \"a\"; setAttr \".s\" -type \"double3\" {s} {s} {s};\n",
+            "createNode transform -n \"leaf\" -p \"b\";\n"
+        ),
+        s = scale
+    )
+}
+
+// Two ancestors scaled 1e200 each have a finite matrix but no finite product, so the leaf's frame is
+// refused as ParentTransform. A capture taken before the ancestors overflow survives later frames
+// (a view build error does not clear `move_viewport`), so the test swaps the scene in directly after
+// capturing the pointer. Reachable through the MCP set_transform tool on a writable scene (plausible,
+// not exercised here); the scene here is read-only ASCII.
+#[test]
+fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
+    let expected = NativeError::UnsupportedMove(
+        azteccraft::native_scene::WorldMoveUnsupported::ParentTransform,
+    )
+    .to_string();
+    for (tool, name) in [(ActiveTool::Rotate, "Rotate"), (ActiveTool::Scale, "Scale")] {
+        for corner in [false, true] {
+            let (mut editor, context, view) = ascii_editor(&ascii_chain("1"), "leaf", tool);
+            let at = if corner {
+                view.rect.min + egui::vec2(40.0, 40.0)
+            } else {
+                view.rect.center()
+            };
+            moved(&mut editor, &context, 1.0, at);
+            let source = format!(
+                "//Maya ASCII 2016 scene\nrequires maya \"2016\"; \
+                 currentUnit -l centimeter -a degree -t film;\n{}",
+                ascii_chain("1e200")
+            );
+            let scene =
+                azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+            let leaf = scene
+                .nodes()
+                .iter()
+                .find(|node| node.name() == "leaf")
+                .unwrap()
+                .id();
+            editor.history = azteccraft::history::History::new(scene);
+            editor.select(Some(leaf));
+            let viewport = editor
+                .inspect_manipulation()
+                .expect("inspection survives a refused frame")
+                .viewport
+                .unwrap();
+            assert_eq!(viewport.pointer_hit, None, "{name}");
+            assert_eq!(
+                viewport.pointer_refusal.as_deref(),
+                Some(expected.as_str()),
+                "{name}"
+            );
+        }
+    }
+}
+
+#[test]
+fn no_selection_has_no_frame_refusal() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    editor.select(None);
+    moved(&mut editor, &context, 1.0, view.rect.center());
+    assert_eq!(pointer_refusal(&editor), None);
+}
+
 #[test]
 fn pointer_refusals_carry_no_node_name_or_path() {
     let (mut editor, context, view) = ascii_editor(
