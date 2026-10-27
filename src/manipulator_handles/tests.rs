@@ -512,6 +512,48 @@ fn identical_ring_segments_tie_to_x_then_y_then_z() {
     );
 }
 
+fn horizontal_disabled(kind: DisabledKind, y: f64) -> DisabledHandle {
+    DisabledHandle {
+        kind,
+        segments: vec![ScreenSegment {
+            start: DVec2::new(0.0, y),
+            end: DVec2::new(100.0, y),
+        }],
+    }
+}
+
+#[test]
+fn disabled_ties_go_to_the_earlier_handle() {
+    // Both segments are exactly 3 px from the probe, so the squared distances are equal.
+    let pixel = DVec2::new(50.0, 0.0);
+    let handles = [
+        horizontal_disabled(DisabledKind::ViewRing, -3.0),
+        horizontal_disabled(DisabledKind::FreeRotate, 3.0),
+    ];
+    assert_eq!(
+        nearest_disabled(&handles, pixel),
+        Some(DisabledKind::ViewRing)
+    );
+    let reversed = [
+        horizontal_disabled(DisabledKind::FreeRotate, 3.0),
+        horizontal_disabled(DisabledKind::ViewRing, -3.0),
+    ];
+    assert_eq!(
+        nearest_disabled(&reversed, pixel),
+        Some(DisabledKind::FreeRotate)
+    );
+}
+
+#[test]
+fn a_disabled_segment_at_exactly_the_pick_radius_is_still_returned() {
+    let handles = [horizontal_disabled(DisabledKind::ScalePlane, 8.0)];
+    assert_eq!(
+        nearest_disabled(&handles, DVec2::new(50.0, 0.0)),
+        Some(DisabledKind::ScalePlane)
+    );
+    assert_eq!(nearest_disabled(&handles, DVec2::new(50.0, -0.5)), None);
+}
+
 #[test]
 fn identical_scale_boxes_tie_to_x_then_y_then_z() {
     let mut handles = world_scale(&front_camera());

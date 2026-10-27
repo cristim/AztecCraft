@@ -106,13 +106,15 @@ fn inside_viewport(pixel: DVec2, size: DVec2) -> bool {
     pixel.is_finite() && !pixel.cmplt(DVec2::ZERO).any() && !pixel.cmpgt(size).any()
 }
 
+/// The disabled handle with the nearest segment inside the pick threshold; ties go to the earlier
+/// handle, like the enabled handles.
 fn nearest_disabled(handles: &[DisabledHandle], pixel: DVec2) -> Option<DisabledKind> {
     let mut closest = HIT_RADIUS * HIT_RADIUS;
     let mut selected = None;
     for handle in handles {
         for segment in &handle.segments {
             let distance = segment_distance_squared(*segment, pixel);
-            if distance <= closest {
+            if distance <= closest && (selected.is_none() || distance < closest) {
                 closest = distance;
                 selected = Some(handle.kind);
             }
