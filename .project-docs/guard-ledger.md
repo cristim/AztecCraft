@@ -23,8 +23,8 @@ provenance Native and no token or draft checks. In order:
 
 1. A Delete in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
-   `SetActiveTool`, `Select`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene` and
-   `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
+   `SetActiveTool`, `Select`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
+   and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
    pointer sequence only on a real tool change that cancelled nothing
    (`src/app/features/move_tool.rs "self.consume_pointer_sequence()"`). Other operations during a Move are `BusyManipulation` except
    `UpdateMove`/`FinishMove`.
@@ -37,7 +37,7 @@ provenance Native and no token or draft checks. In order:
    modal (`src/app/dispatch.rs "SaveDestination::As(path)"`, preceded by the modal check) and `SaveScene` likewise (`src/app/dispatch.rs "Operation::SaveScene => {"`). `NewScene`,
    `RequestClose` and `ResolveFileAction` decide internally (`src/app/dispatch.rs "Operation::NewScene => return self.new_document()"` and the two arms after it).
 5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
-   `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
+   `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
    (the modal `matches!` after the file-operation match in `apply_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never
    commits a draft (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
@@ -125,6 +125,9 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   native caller of `Operation::SaveScene`; New and Open go through `request_new` and `open_dialog`.
   Enable state, disabled reason and handler come from the same helper, so the guards are those of
   the menu path, and the entry-point allowlist names `file_actions` instead of `menus`.
+- Select > Deselect All and Alt+D share `deselect_all` (`src/app/features/selection.rs`), the one
+  native caller of `Operation::DeselectAll`, so the entry-point allowlist names it instead of the
+  menu bar; MCP reaches the same operation as `deselect_all` (#167).
 - Human-draft commits (`commit_pending`) are the only history mutation besides operations; the
   entry-point test names them.
 

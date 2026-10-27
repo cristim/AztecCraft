@@ -158,6 +158,7 @@
     ],
     "pending_action": null,
     "read_only_reason": "Maya ASCII scenes are read-only in this version",
+    "redo_label": null,
     "remembered_edge": null,
     "remembered_face": null,
     "remembered_vertex": null,
@@ -199,6 +200,7 @@
     },
     "status_message": "Scene ready",
     "text_focused": false,
+    "undo_label": null,
     "units": {
       "angular": "deg",
       "linear": "cm",

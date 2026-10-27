@@ -896,6 +896,29 @@
     }
   },
   {
+    "name": "deselect_all",
+    "description": "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_selection_mode",
     "description": "Set Object, Face, Vertex, Edge or Hierarchy (Root sub-mask only) selection mode without editing the scene; a valid remembered face, vertex or edge stays inactive outside its own mode",
     "inputSchema": {

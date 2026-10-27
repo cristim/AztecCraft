@@ -67,6 +67,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `finish_manipulation` | `manipulation_id`; `finish`: `commit` or `cancel` | One Undo at commit (labelled Move, Rotate or Scale), or exact begin-state restoration |
 | `create_primitive` | `primitive`: `cube`, `plane`, `sphere`, `cylinder` or `cone` (the schema is one `oneOf` tagged by `primitive`); optional `name` (omitted: Maya default names such as `pCube1` with shape `pCubeShape1`; given: shape `<name>Shape`, #175); optional `options` object for that primitive, every field optional and defaulting to the values below | Created `node_id`; selects the new node |
 | `select_node` | Optional `node_id` and `instance_path`, at most 256 decimal NativeId strings | Full root-to-transform prefix; ambiguous objects require a path. Null or omitted node clears selection and cannot include a path. `select_node` stays exact: it selects the named transform and is not limited by the selection mode |
+| `deselect_all` | none (scene token only) | Select > Deselect All (Alt+D): clears the object selection and any remembered face, vertex or edge and sets Object selection mode, as Maya 2025.1's `SelectNone` does (#167); `unchanged` when nothing is selected in Object mode |
 | `set_selection_mode` | Required `mode`: `object`, `face`, `vertex`, `edge` or `hierarchy` (Root sub-mask only; Leaf and Template are unsupported) | Changes the transient selection mask; a valid remembered face, vertex or edge remains inactive outside its own mode. In Hierarchy mode a native viewport click selects the root transform of the hit object's hierarchy |
 | `select_face` | Required `target`: complete target object or null | In Face mode, selects that exact owning instance and canonical face; null clears only the face |
 | `select_vertex` | Required `target`: complete target object or null | In Vertex mode, selects that exact owning instance and native point index; null clears only the vertex |
@@ -160,7 +161,7 @@ Supported static cubic Maya ASCII `.ma` scenes open through the same native
 document lifecycle. Original script bodies remain inert retained data. Unknown
 commands, node classes, geometry dependencies or unsupported curve classes refuse
 the complete candidate before adoption. This subset is read-only: authoring and
-Save are unavailable, while Outliner/`select_node`, navigation and
+Save are unavailable, while Outliner/`select_node`, `deselect_all`, navigation and
 `frame_selected` remain available. Viewport curve picking and CV/component editing
 are unsupported. Binary NCRV remains unsupported.
 
@@ -476,6 +477,8 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Nodes | Visibility edit | unsupported | | `nodes` | |
 | Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |
 | Selection | Select object, clear selection, Outliner click, viewport pick | supported | `select_node` | `selected_node`, `selected_instance_path` | |
+| Selection | Select > Deselect All and Alt+D (returns to Object mode, as Maya) | supported | `deselect_all` | `selected_node`, `selection_mode`, `remembered_face`, `remembered_vertex`, `remembered_edge` | |
+| Selection | Select > All (Ctrl+Shift+A), All by Type, Hierarchy and Inverse (visible disabled rows; need multi-selection, #166) | unsupported | | | |
 | Selection | Selection mode (Object, Face, Vertex, Edge, Hierarchy), F8 to F11 | supported | `set_selection_mode` | `selection_mode` | |
 | Selection | Face, vertex and edge component targets | supported | `select_face`, `select_vertex`, `select_edge` | `remembered_face`, `remembered_vertex`, `remembered_edge` | |
 | Selection | Multi-select, marquee, Lasso, Paint Selection, UV mask | unsupported | | | |
@@ -494,8 +497,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
-| History | Undo and Redo | supported | `undo`, `redo` | `can_undo`, `can_redo` | |
-| History | Undo and Redo command names (Edit menu hover) | missing | | | #188 |
+| History | Undo and Redo | supported | `undo`, `redo` | `can_undo`, `undo_label`, `can_redo`, `redo_label` | |
 | Materials | Phong diffuse edit (Channel Box, Attribute Editor) | supported | `set_material_diffuse` | `shapes` | |
 | Materials | Session materials (create, assign, colour; MCP and `inspect_scene` only, no native UI) | supported | `create_session_material`, `assign_session_material`, `set_session_material_color` | `session_materials` | |
 | Materials | Material rendering, shading networks, textures | unsupported | | | |
@@ -600,9 +602,9 @@ Select tool is active. Press-time guards that depend on window state (for
 example modal, popup, focus, modifier keys, file closing, stale scene token,
 pending draft) are never reflected. Refusals raised when a Rotate or Scale drag
 begins are included, and win over the scene's refusal as they do on press, for
-example an edge-on Rotate ring or a Scale grab whose along-axis component is
-under 1 px of world length (a ring plane behind the camera along the press ray
-is expected from `HandleError::BehindRay` but not yet reproduced). Native hover shows the same text with the handle label.
+example an edge-on Rotate ring, a ring plane that lies behind the camera along
+the press ray, or a Scale grab whose along-axis component is under 1 px of
+world length. Native hover shows the same text with the handle label.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.

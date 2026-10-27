@@ -168,6 +168,7 @@
     ],
     "pending_action": null,
     "read_only_reason": null,
+    "redo_label": null,
     "remembered_edge": null,
     "remembered_face": {
       "face_index": 0,
@@ -262,6 +263,7 @@
     },
     "status_message": "Scene edited",
     "text_focused": false,
+    "undo_label": "Create",
     "units": {
       "angular": "deg",
       "linear": "cm",

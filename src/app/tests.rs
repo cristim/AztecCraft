@@ -1920,8 +1920,8 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
     let steps: Vec<fn(&Editor) -> Operation> = vec![
         |_| Operation::Create {
             primitive: Primitive::Cube,
-            options: None,
             name: None,
+            options: None,
         },
         |editor| Operation::Rename {
             id: editor.selected.unwrap(),
@@ -2231,6 +2231,124 @@ fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
         before
     );
     assert!(super::menus::GRID_OPTIONS_REASON.contains("+/-12 units (PROVISIONAL)"));
+}
+
+/// Maya 2025.1's SelectNone runs `changeSelectMode -component; changeSelectMode -object;
+/// select -cl`, so Deselect All also leaves component and hierarchy modes (#167).
+#[test]
+fn deselect_all_clears_object_and_components_and_returns_to_object_mode() {
+    let changed = |reply: Result<OperationReply, OperationError>| {
+        matches!(reply.unwrap(), OperationReply::Changed)
+    };
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let cap = selected_face(&editor, 0);
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Face),
+    )
+    .unwrap();
+    remote(&mut editor, Operation::SelectFace { target: Some(cap) }).unwrap();
+    assert!(changed(remote(&mut editor, Operation::DeselectAll)));
+    assert_eq!(editor.selection_mode, SelectionMode::Object);
+    assert_eq!(editor.selection_presentation().0, None);
+    assert!(editor.remembered_face.is_none());
+    assert!(!changed(remote(&mut editor, Operation::DeselectAll)));
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Hierarchy),
+    )
+    .unwrap();
+    assert!(changed(remote(&mut editor, Operation::DeselectAll)));
+    assert_eq!(editor.selection_mode, SelectionMode::Object);
+}
+
+#[test]
+fn alt_d_deselects_all_and_other_d_chords_do_not() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.single_target().unwrap().0;
+    let mac_cmd = egui::Modifiers {
+        mac_cmd: true,
+        command: true,
+        ..Default::default()
+    };
+    for modifiers in [
+        egui::Modifiers::NONE,
+        egui::Modifiers::CTRL,
+        egui::Modifiers::SHIFT,
+        egui::Modifiers::ALT | egui::Modifiers::SHIFT,
+        // AltGr arrives as Ctrl+Alt on Windows; Alt+Cmd is another chord on macOS.
+        egui::Modifiers::ALT | egui::Modifiers::CTRL,
+        egui::Modifiers::ALT | mac_cmd,
+    ] {
+        shortcuts_events(
+            &mut editor,
+            modifiers,
+            vec![key_event(Key::D, modifiers, false)],
+        );
+        assert!(editor.selection_presentation().0.is_some(), "{modifiers:?}");
+    }
+    let alt = egui::Modifiers::ALT;
+    let ctx = egui::Context::default();
+    shortcuts_in(&ctx, &mut editor, alt, vec![key_event(Key::D, alt, false)]);
+    assert_eq!(editor.selection_presentation().0, None);
+    // Holding the chord repeats nothing: the key is already down in this context.
+    editor.select(Some(id));
+    shortcuts_in(&ctx, &mut editor, alt, vec![key_event(Key::D, alt, true)]);
+    assert_eq!(editor.selection_presentation().0, Some(id));
+}
+
+#[test]
+fn ctrl_shift_a_reports_that_select_all_needs_multi_selection() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let selected = editor.selection_presentation().0;
+    let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+    shortcuts_events(&mut editor, chord, vec![key_event(Key::A, chord, false)]);
+    assert_eq!(editor.status, super::menus::SELECT_ALL_STATUS);
+    assert!(!editor.error);
+    assert_eq!(editor.selection_presentation().0, selected);
+}
+
+#[test]
+fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let menu = face_text_position(&output, "Select");
+    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let rows = [
+        "All   Ctrl/Cmd Shift A",
+        "All by Type",
+        "Deselect All   Alt D",
+        "Hierarchy",
+        "Inverse",
+        "Object / Component   F8",
+    ];
+    let ys: Vec<f32> = rows
+        .iter()
+        .map(|label| face_text_position(&output, label).y)
+        .collect();
+    assert!(
+        ys.windows(2).all(|pair| pair[0] < pair[1]),
+        "rows out of order: {ys:?}"
+    );
+    for label in ["All   Ctrl/Cmd Shift A", "Hierarchy", "Inverse"] {
+        face_pointer_click(
+            &mut editor,
+            &ctx,
+            face_text_position(&output, label),
+            egui::Modifiers::NONE,
+            vec![],
+        );
+        assert!(editor.selection_presentation().0.is_some(), "{label}");
+    }
+    let deselect = face_text_position(&output, "Deselect All   Alt D");
+    face_pointer_click(&mut editor, &ctx, deselect, egui::Modifiers::NONE, vec![]);
+    assert_eq!(editor.selection_presentation().0, None);
 }
 
 #[test]
@@ -5034,6 +5152,7 @@ fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
                 translation: [0.0, 1.0000000000000004, 0.0],
                 ..Default::default()
             },
+            label: None,
         })
         .unwrap();
     editor.sync_fields();

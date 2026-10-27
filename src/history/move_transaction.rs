@@ -431,7 +431,7 @@ impl History {
                 name: None,
                 channels,
             },
-            active.kind.label(),
+            active.kind.label().to_string(),
         )
         .map_err(Into::into)
     }

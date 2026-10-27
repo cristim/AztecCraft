@@ -1,5 +1,36 @@
 # Native verification record
 
+## Linux native interaction verification (2026-10-23)
+
+Verified source: `origin/main` commit [`bcc0cc1`](https://github.com/cristim/AztecCraft/commit/bcc0cc15e9c73ba3654071ffa8ccc4311c96fdd4),
+Kali GNU/Linux Rolling 2026.3 (kernel 7.1.5+kali-amd64, x86_64),
+Rust 1.99.0, X11 (`DISPLAY=:0`; `XDG_SESSION_TYPE=tty`, no Wayland session),
+one independent session that did not write the verified features.
+Fixtures: synthetic scenes created in the running window; no private assets.
+
+| Action | Observed result |
+| --- | --- |
+| Launch | Native window opened and accepted input |
+| File → New Scene | Worked |
+| File → Open | Worked (native panel) |
+| File → Save | Disabled (as documented; native Save QA pending) |
+| File → Save As | Disabled (as documented; native Save QA pending) |
+| File → Export | Disabled (as documented; GUI Export still disabled) |
+| File → Close | Worked |
+| Edit → Undo / Redo / Delete | Worked |
+| Create: Cube / Plane / Sphere / Cylinder / Cone | All worked |
+| Select: Object / Vertex / Edge / Face | Worked |
+| 3D View: Zoom In / Zoom Out / Move | Worked |
+| Channel Box: name, Translate/Rotate/Scale XYZ, Delete Selected | Worked |
+| Attribute Editor, Scene Root, Lateral Tools | Worked |
+| Component editing | Selection works; editing controls visibly disabled (expected per prototype scope, already documented in known-issues.md) |
+| Observed anomaly: sphere scale on X/Y | After creating a sphere, rotating on Z, then scaling, X/Y scaling did not apply while Z did (intermittent; reported separately) |
+
+Not verified: Windows native interaction, packaged launch, full interactive
+file-panel navigation, GUI OBJ Export, Maya reference comparison, and any
+rendering or parity claim. Issue #8 stays open for the Windows and
+packaged-launch slices.
+
 ## macOS quit guard: Command-Q (#11), Dock Quit, logout, shutdown and SIGTERM (#261), partly verified natively
 
 Command-Q, the Quit item, Dock Quit, logout and shutdown send `terminate:`, which exits inside AppKit

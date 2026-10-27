@@ -33,6 +33,7 @@ pub enum Command {
     SetTransform {
         id: NodeId,
         transform: NativeTransform,
+        label: Option<String>,
     },
     EditNode {
         id: NodeId,
@@ -63,18 +64,30 @@ pub enum Command {
 
 impl Command {
     /// The name an Undo or Redo entry shows for this command.
-    fn label(&self) -> &'static str {
+    fn label(&self) -> String {
         match self {
-            Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create",
-            Self::Remove(_) => "Delete",
-            Self::Rename { .. } => "Rename",
-            Self::SetTransform { .. } => "Transform",
-            Self::EditNode { .. } => "Edit",
+            Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create".to_string(),
+            Self::Remove(_) => "Delete".to_string(),
+            Self::Rename { .. } => "Rename".to_string(),
+            Self::SetTransform { transform, .. } => {
+                // Compare with default values to guess the action.
+                if transform.rotation.iter().any(|&v| v != 0.0)
+                    && transform.scale == [1.0, 1.0, 1.0]
+                {
+                    "Rotate".to_string()
+                } else if transform.scale.iter().any(|&v| v != 1.0) {
+                    "Scale".to_string()
+                } else {
+                    "Move".to_string()
+                }
+            }
+            Self::EditNode { .. } => "Edit".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
-            | Self::SetSessionMaterialColor { .. } => "Material",
-            Self::ExtrudeFace { .. } => "Extrude",
+            | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
+
+            Self::ExtrudeFace { .. } => "Extrude".to_string(),
         }
     }
 }
@@ -83,7 +96,7 @@ impl Command {
 #[derive(Clone, Debug, PartialEq)]
 struct Entry {
     scene: NativeScene,
-    label: &'static str,
+    label: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -128,12 +141,12 @@ impl History {
         !self.redo.is_empty()
     }
     /// The name of the edit Undo would revert.
-    pub fn undo_label(&self) -> Option<&'static str> {
-        self.undo.back().map(|entry| entry.label)
+    pub fn undo_label(&self) -> Option<String> {
+        self.undo.back().map(|entry| entry.label.clone())
     }
     /// The name of the edit Redo would reapply.
-    pub fn redo_label(&self) -> Option<&'static str> {
-        self.redo.last().map(|entry| entry.label)
+    pub fn redo_label(&self) -> Option<String> {
+        self.redo.last().map(|entry| entry.label.clone())
     }
 
     pub fn execute(&mut self, command: Command) -> Result<EditOutcome, NativeError> {
@@ -144,7 +157,7 @@ impl History {
     fn execute_labeled(
         &mut self,
         command: Command,
-        label: &'static str,
+        label: String,
     ) -> Result<EditOutcome, NativeError> {
         if self.active_manipulation.is_some() {
             return Err(NativeError::BusyManipulation);
@@ -171,7 +184,7 @@ impl History {
                 candidate.rename(id, &name)?;
                 EditOutcome::Changed
             }
-            Command::SetTransform { id, transform } => {
+            Command::SetTransform { id, transform, .. } => {
                 candidate.set_transform(id, transform)?;
                 EditOutcome::Changed
             }
