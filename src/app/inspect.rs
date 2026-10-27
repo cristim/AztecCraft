@@ -648,14 +648,14 @@ mod lower_bound_tests {
     }
 
     #[test]
-    fn the_bound_holds_for_flat_cubes_up_to_the_reply_ceiling() {
-        for count in [1, 30, 60] {
+    fn the_bound_holds_for_flat_cubes_up_to_the_reply_cap() {
+        for count in [1, 50, 100, 140, 146] {
             let mut editor = Editor::default();
             for _ in 0..count {
                 editor.create(Primitive::Cube);
             }
             let real = assert_lower_bound(&editor);
-            assert!(real > 0);
+            assert!(count < 146 || real <= crate::editor_operations::MAX_RESULT_BYTES / 4);
         }
     }
 
@@ -703,5 +703,16 @@ mod lower_bound_tests {
         );
         assert!(inspection.nodes.iter().any(|n| n.visible == Some(false)));
         assert_lower_bound(&editor);
+    }
+
+    #[test]
+    fn a_scene_the_worst_case_estimate_refused_inspects_at_the_editor() {
+        let mut editor = Editor::default();
+        for _ in 0..120 {
+            editor.create(Primitive::Cube);
+        }
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.nodes.len(), 120);
+        assert!(serde_json::to_vec(&inspection).unwrap().len() < 128 * 1024);
     }
 }

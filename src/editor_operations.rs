@@ -829,27 +829,12 @@ pub struct RemoteRequest {
 }
 
 #[cfg(any(test, feature = "mcp"))]
-const APPEARANCE_SUMMARY_MAX_BYTES: usize = 1024;
-#[cfg(any(test, feature = "mcp"))]
-/// Worst case of the serialized `transform_attributes` object plus its key, asserted by a test.
-const NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES: usize = 640;
-#[cfg(any(test, feature = "mcp"))]
-const NODE_VISIBLE_FIELD_MAX_BYTES: usize = "\"visible\":false,".len();
-#[cfg(any(test, feature = "mcp"))]
 pub const STATUS_MESSAGE_MAX_CHARS: usize = 512;
 #[cfg(any(test, feature = "mcp"))]
 pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withheld)";
-/// Six bytes per character covers JSON escaping of control characters.
-#[cfg(any(test, feature = "mcp"))]
-const STATUS_MESSAGE_MAX_BYTES: usize = STATUS_MESSAGE_MAX_CHARS * 6 + 32;
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
-/// Nine f32 values (at most 15 JSON bytes each), three f64 degree values (at most 24) and the
-/// field names: about 330 bytes in the worst case.
-#[cfg(any(test, feature = "mcp"))]
-const CAMERA_INSPECTION_MAX_BYTES: usize = 512;
-
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 192;
 
 // The inspection preflight is a guaranteed minimum: each constant below is the serialized length
@@ -953,57 +938,12 @@ pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> 
         .fold(MIN_FIXED.len(), usize::saturating_add)
 }
 
+/// Refuses before any clone when even the guaranteed minimum exceeds the reply ceiling.
 #[cfg(any(test, feature = "mcp"))]
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
-    let limit = MAX_RESULT_BYTES / 2;
-    if inspection_lower_bound(scene) > limit {
-        return Err(OperationError::TooLarge);
-    }
-    let mut estimated_bytes = APPEARANCE_SUMMARY_MAX_BYTES
-        + MOVE_INSPECTION_MAX_BYTES
-        + STATUS_MESSAGE_MAX_BYTES
-        + CAMERA_INSPECTION_MAX_BYTES;
-    for node in scene.nodes() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(1024)
-            .saturating_add(node.name().len().saturating_mul(6))
-            .saturating_add(512)
-            .saturating_add(NODE_VISIBLE_FIELD_MAX_BYTES);
-        if !node.extras().is_default() {
-            estimated_bytes = estimated_bytes.saturating_add(NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES);
-        }
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
-        }
-    }
-    for shape in scene.shapes() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(512)
-            .saturating_add(256)
-            .saturating_add(APPEARANCE_SUMMARY_MAX_BYTES)
-            .saturating_add(shape.name().len().saturating_mul(6));
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
-        }
-    }
-    for curve in scene.curves() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(512)
-            .saturating_add(curve.name().len().saturating_mul(6));
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
-        }
-    }
-    estimated_bytes = estimated_bytes.saturating_add(
-        scene
-            .session_materials()
-            .len()
-            .saturating_mul(SESSION_MATERIAL_INSPECTION_MAX_BYTES),
-    );
-    estimated_bytes = estimated_bytes.saturating_add(scene.dag_edges().len().saturating_mul(24));
-    if estimated_bytes > limit {
+    if inspection_lower_bound(scene) > MAX_RESULT_BYTES / 2 {
         return Err(OperationError::TooLarge);
     }
     Ok(())
@@ -1053,158 +993,6 @@ mod tests {
             };
             assert_eq!(error.to_string(), expected);
         }
-    }
-
-    #[test]
-    fn curve_inspection_preflight_bounds_names_and_fixed_fields_before_cloning() {
-        let curve = CurveInspection {
-            id: u64::MAX.to_string(),
-            name: String::new(),
-            degree: u32::MAX,
-            form: azteccraft::native_scene::CurveForm::Open,
-            control_vertices: usize::MAX,
-            knots: usize::MAX,
-            domain: [-f64::MAX, f64::MAX],
-            read_only: true,
-            draw_available: true,
-        };
-        assert!(serde_json::to_vec(&curve).unwrap().len() <= 512);
-        let mut source = String::from(
-            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
-        );
-        for index in 0..100 {
-            source.push_str(&format!(" createNode nurbsCurve -n \"c{index}_{}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;","x".repeat(650)));
-        }
-        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
-        assert!(matches!(
-            check_inspection_size(&scene),
-            Err(OperationError::TooLarge)
-        ));
-    }
-
-    #[test]
-    fn inspection_preflight_reserves_bounded_move_metadata_before_cloning_scene() {
-        let mut scene = NativeScene::default();
-        for index in 0..66 {
-            scene
-                .create(Primitive::Cube, &format!("cube_{index:02}"))
-                .unwrap();
-        }
-        assert!(matches!(
-            check_inspection_size(&scene),
-            Err(OperationError::TooLarge)
-        ));
-    }
-
-    #[test]
-    fn default_nodes_keep_the_base_inspection_capacity() {
-        // Default nodes must not reserve bytes for transform extras: the first node count that
-        // exceeds the budget is pinned, so a per-node reservation that grows shows up here.
-        let mut scene = NativeScene::default();
-        let mut first_too_large = None;
-        for index in 0..200 {
-            scene
-                .create(Primitive::Cube, &format!("cube_{index:02}"))
-                .unwrap();
-            if check_inspection_size(&scene).is_err() {
-                first_too_large = Some(index + 1);
-                break;
-            }
-        }
-        assert_eq!(first_too_large, Some(65));
-    }
-
-    #[test]
-    fn node_visible_field_is_covered_by_the_preflight_estimate() {
-        let node = |visible| NodeInspection {
-            id: String::new(),
-            name: String::new(),
-            transform_id: String::new(),
-            visible,
-            transform: TransformInput {
-                translation: [0.0; 3],
-                rotation_degrees: [0.0; 3],
-                scale: [0.0; 3],
-            },
-            authoring_transform: AuthoringTransformInspection {
-                translation: [0.0; 3],
-                rotation: [0.0; 3],
-                scale: [0.0; 3],
-            },
-            transform_attributes: None,
-            instance_paths: Vec::new(),
-            shape_ids: Vec::new(),
-        };
-        let base = serde_json::to_vec(&node(None)).unwrap().len();
-        for visible in [Some(true), Some(false)] {
-            let with = serde_json::to_vec(&node(visible)).unwrap().len();
-            assert!(with - base <= NODE_VISIBLE_FIELD_MAX_BYTES);
-        }
-        let worst = TransformAttributes {
-            rotate_order: "zyx",
-            rotate_axis_degrees: [-1.7976931348623157e308; 3],
-            shear: [-1.7976931348623157e308; 3],
-            rotate_pivot_translate: [-1.7976931348623157e308; 3],
-            scale_pivot_translate: [-1.7976931348623157e308; 3],
-            non_default: vec![
-                "rotate_order",
-                "rotate_axis",
-                "shear",
-                "rotate_pivot_translate",
-                "scale_pivot_translate",
-            ],
-        };
-        let size = serde_json::to_vec(&worst).unwrap().len() + "\"transform_attributes\":,".len();
-        assert!(size <= NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES, "{size}");
-        assert!(
-            String::from_utf8(serde_json::to_vec(&node(None)).unwrap())
-                .unwrap()
-                .contains("\"visible\":null")
-        );
-    }
-
-    #[test]
-    fn camera_inspection_preflight_bounds_the_longest_serialized_values() {
-        let worst = -f32::MIN_POSITIVE * 1.000_000_1;
-        let camera = CameraInspection {
-            target: [worst; 3],
-            eye: [f32::MIN; 3],
-            distance: worst,
-            yaw_degrees: f64::from(f32::MIN).to_degrees(),
-            // Unreachable for a valid camera, but the longest f64 text.
-            pitch_degrees: -f64::MIN_POSITIVE,
-            fov_y_degrees: f64::from(worst).to_degrees(),
-            near_clip: worst,
-            far_clip: worst,
-        };
-        assert!(serde_json::to_vec(&camera).unwrap().len() <= CAMERA_INSPECTION_MAX_BYTES);
-    }
-
-    #[test]
-    fn appearance_summary_preflight_bounds_the_largest_fixed_dto() {
-        use azteccraft::native_scene::{AppearanceIssues, AppearanceState, AppearanceSummary};
-        let summary = AppearanceSummary {
-            state: AppearanceState::CheckedViewerSource,
-            shapes: usize::MAX,
-            checked_source_bindings: usize::MAX,
-            unavailable: usize::MAX,
-            unbound: usize::MAX,
-            issues: AppearanceIssues::default(),
-        };
-        assert!(serde_json::to_vec(&summary).unwrap().len() <= APPEARANCE_SUMMARY_MAX_BYTES);
-    }
-
-    #[test]
-    fn inspection_preflight_accounts_for_escaped_legacy_names_before_cloning() {
-        let mut legacy = Scene::default();
-        legacy
-            .create(Primitive::Cube, &"\"".repeat(50_000))
-            .unwrap();
-        let native = NativeScene::from_legacy(legacy).unwrap();
-        assert!(matches!(
-            check_inspection_size(&native),
-            Err(OperationError::TooLarge)
-        ));
     }
 
     fn zeros() -> [f64; 3] {
@@ -1291,6 +1079,87 @@ mod tests {
             serde_json::to_string(&material).unwrap(),
             MIN_SESSION_MATERIAL
         );
+    }
+
+    fn cubes(count: usize) -> NativeScene {
+        let mut scene = NativeScene::default();
+        for index in 0..count {
+            scene
+                .create(Primitive::Cube, &format!("cube_{index:03}"))
+                .unwrap();
+        }
+        scene
+    }
+
+    fn named_legacy(name: &str) -> NativeScene {
+        let mut legacy = Scene::default();
+        legacy.create(Primitive::Cube, name).unwrap();
+        NativeScene::from_legacy(legacy).unwrap()
+    }
+
+    #[test]
+    fn the_preflight_accepts_scenes_the_old_worst_case_estimate_refused() {
+        // The old estimate refused from 66 cubes although 120 serialize to about 105 KB.
+        for count in [65, 66, 120, 140] {
+            assert!(check_inspection_size(&cubes(count)).is_ok(), "{count}");
+        }
+    }
+
+    #[test]
+    fn the_inspection_capacity_follows_the_minimum_sizes_and_the_limit() {
+        // Pinned from the limit and the constants, not as a second literal.
+        let per_cube = MIN_NODE.len() + MIN_SHAPE.len() + "cube_000".len() + "cube_000Shape".len();
+        let fixed = MIN_FIXED.len() + MIN_SESSION_MATERIAL.len();
+        let capacity = (MAX_RESULT_BYTES / 2 - fixed) / per_cube;
+        assert!(check_inspection_size(&cubes(capacity)).is_ok());
+        assert!(matches!(
+            check_inspection_size(&cubes(capacity + 1)),
+            Err(OperationError::TooLarge)
+        ));
+    }
+
+    #[test]
+    fn the_preflight_refuses_names_whose_minimum_exceeds_the_limit_before_cloning() {
+        for length in [300_000, MAX_RESULT_BYTES] {
+            assert!(matches!(
+                check_inspection_size(&named_legacy(&"\"".repeat(length))),
+                Err(OperationError::TooLarge)
+            ));
+        }
+        // 50 000 quotes serialize to about 100 KB, which fits the ceiling.
+        assert!(check_inspection_size(&named_legacy(&"\"".repeat(50_000))).is_ok());
+    }
+
+    #[test]
+    fn the_preflight_refuses_many_long_curve_names_before_cloning() {
+        let mut source = String::from(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
+        );
+        for index in 0..100 {
+            source.push_str(&format!(" createNode nurbsCurve -n \"c{index}_{}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;","x".repeat(3000)));
+        }
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        assert!(matches!(
+            check_inspection_size(&scene),
+            Err(OperationError::TooLarge)
+        ));
+    }
+
+    #[test]
+    fn the_preflight_charges_node_and_shape_names_separately() {
+        // Each list alone stays under the limit; only the sum of both refuses.
+        let mut legacy = Scene::default();
+        let name = "s".repeat(3500);
+        for index in 0..40 {
+            legacy
+                .create(Primitive::Cube, &format!("{index:02}{name}"))
+                .unwrap();
+        }
+        let scene = NativeScene::from_legacy(legacy).unwrap();
+        assert!(matches!(
+            check_inspection_size(&scene),
+            Err(OperationError::TooLarge)
+        ));
     }
 
     #[test]

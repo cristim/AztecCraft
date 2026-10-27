@@ -122,6 +122,7 @@ mod official_client {
     mod files;
     mod frame_all;
     mod grid;
+    mod inspect_budget;
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod material;
