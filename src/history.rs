@@ -26,6 +26,8 @@ pub enum Command {
         options: Option<PrimitiveOptions>,
     },
     Remove(NodeId),
+    /// Removes several nodes as one undo step; any refusal leaves the scene and history untouched.
+    RemoveMany(Vec<NodeId>),
     Rename {
         id: NodeId,
         name: String,
@@ -66,7 +68,7 @@ impl Command {
     fn label(&self) -> String {
         match self {
             Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create".to_string(),
-            Self::Remove(_) => "Delete".to_string(),
+            Self::Remove(_) | Self::RemoveMany(_) => "Delete".to_string(),
             Self::Rename { .. } => "Rename".to_string(),
             // execute_labeled names it from the stored before/after values.
             Self::SetTransform { .. } => "Transform".to_string(),
@@ -191,6 +193,10 @@ impl History {
                 candidate.remove(id)?;
                 EditOutcome::Changed
             }
+            Command::RemoveMany(ids) => {
+                candidate.remove_many(&ids)?;
+                EditOutcome::Changed
+            }
             Command::Rename { id, name } => {
                 candidate.rename(id, &name)?;
                 EditOutcome::Changed
@@ -283,6 +289,84 @@ impl History {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn three_cube_history() -> (History, [NodeId; 3]) {
+        let mut history = History::default();
+        let mut ids = Vec::new();
+        for name in ["a", "b", "c"] {
+            match history
+                .execute(Command::Create {
+                    primitive: crate::scene::Primitive::Cube,
+                    options: None,
+                    name: name.into(),
+                })
+                .unwrap()
+            {
+                EditOutcome::Created(id) => ids.push(id),
+                outcome => panic!("{outcome:?}"),
+            }
+        }
+        (history, ids.try_into().unwrap())
+    }
+
+    #[test]
+    fn remove_many_is_one_undo_step_that_redoes_and_undoes_as_a_whole() {
+        let (mut history, ids) = three_cube_history();
+        let before = history.scene().clone();
+        history
+            .execute(Command::RemoveMany(vec![ids[0], ids[2]]))
+            .unwrap();
+        assert_eq!(history.scene().nodes().len(), 1);
+        assert_eq!(history.undo_label().as_deref(), Some("Delete"));
+        assert!(history.undo());
+        assert_eq!(history.scene(), &before);
+        assert!(history.redo());
+        assert_eq!(history.scene().nodes().len(), 1);
+        assert!(history.undo() && history.undo());
+        assert_eq!(history.scene().nodes().len(), 2);
+    }
+
+    #[test]
+    fn remove_many_with_a_refused_member_leaves_scene_and_stacks_untouched() {
+        let (scene, root, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+        let mut history = History::new(scene);
+        let before = history.scene().clone();
+        assert!(matches!(
+            history.execute(Command::RemoveMany(vec![root, child])),
+            Err(NativeError::UnsupportedDelete(_))
+        ));
+        assert_eq!(history.scene(), &before);
+        assert!(!history.can_undo() && !history.can_redo());
+        let (mut history, ids) = three_cube_history();
+        let missing = NodeId::from_decimal("999").unwrap();
+        let before = history.scene().clone();
+        assert!(
+            history
+                .execute(Command::RemoveMany(vec![ids[0], ids[1], missing]))
+                .is_err()
+        );
+        assert_eq!(history.scene(), &before);
+        assert!(history.can_undo() && !history.can_redo());
+        let mut undone = 0;
+        while history.undo() {
+            undone += 1;
+        }
+        assert_eq!(undone, 3);
+    }
+
+    #[test]
+    fn remove_many_of_nothing_is_unchanged_and_adds_no_undo_entry() {
+        let (mut history, _) = three_cube_history();
+        assert!(matches!(
+            history.execute(Command::RemoveMany(Vec::new())),
+            Ok(EditOutcome::Unchanged)
+        ));
+        let mut undone = 0;
+        while history.undo() {
+            undone += 1;
+        }
+        assert_eq!(undone, 3);
+    }
 
     #[test]
     fn identical_transforms_read_transform() {
