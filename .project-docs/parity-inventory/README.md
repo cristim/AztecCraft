@@ -1,12 +1,12 @@
 # Maya parity inventory (framework)
 
-Status: framework only. No family is expanded, so this inventory contains no rows, no evidence and no figure. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
+Status: framework plus the expanded families listed in the family files (Interchange has rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
 
 This inventory replaces the provisional [workflow seed](../inventory-seed.md) as the candidate denominator once all 14 family files are expanded and frozen. It never says AztecCraft matches Maya. Exact parity needs comparison against the pinned reference and remains an open acceptance requirement (see [parity.md](../parity.md)).
 
 ## Documentation pin
 
-- Denominator source: the Maya 2027.2 online documentation ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), the pin recorded in [reference.md](../reference.md). No Maya installation is used; the maintainer's 2026-10-20 decision that the official online Maya documentation is the source of truth (recorded on #5).
+- Denominator source: the Maya 2027.2 online documentation ([Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/)), the pin recorded in [reference.md](../reference.md). No Maya installation is used. The maintainer decided on 2026-10-20 that the official online Maya documentation is the source of truth ([recorded on #5](https://github.com/cristim/AztecCraft/issues/5#issuecomment-6429151313)).
 - The wording "all Maya 2026 functionality" in #6 maps to this pin. Rows that exist only in the 2026 documentation are tagged `2026-only`; rows that the 2027 notes add are tagged `2027-new`. No claim is made that the 2027.2 set contains or equals the 2026 set.
 - A row whose 2027 page could not be read cites a 2026 page and carries the tag `2026 FALLBACK`. Details the documentation does not state are tagged `PROVISIONAL`.
 - Component versions (Arnold, Bifrost, MayaUSD, LookdevX, MASH, XGen and so on) are taken from the 2027 documentation, never from an install.
@@ -74,7 +74,7 @@ This rule is PROPOSED and needs the user's approval, including the budgets. It m
 - `runtime-only` rows stay in the divisor at 0 and are also counted separately, so the ceiling is visible.
 - Report together: row counts per status, the Out-of-scope and runtime-only counts, and per-family results. No family may vanish in an average.
 - A family with no in-scope rows contributes 0 to both numerator and denominator, its budget is reported as unallocated, and it is listed separately.
-- No percentage is computed until all 14 files are expanded and the budgets are approved at the freeze.
+- No percentage is computed until all 14 files are expanded and the budgets are approved at the freeze. Whenever a percentage is reported (after the freeze), the unallocated budget is reported beside it.
 - No figure from this inventory may be quoted as Maya parity or Maya coverage. It does not count toward the 80-90% target or toward publication eligibility; those need reference comparisons ([inventory-seed.md](../inventory-seed.md), "Measurement proposal").
 - Deviation from inventory-seed.md: the seed gives credit only after reference comparisons. This inventory uses documentation as its truth, so its top status is documentation conformance, which the seed would not credit.
 
@@ -89,13 +89,13 @@ Recorded as `OOS: third-party`, easy to revisit. The confirmation question is in
 
 ## Families
 
-Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners (#202 is a custom path tracer, not a Maya workflow). Each file lists its own owners.
+Names and order match [parity.md](../parity.md). Owner issues are open feature, epic or verification issues; bug issues and #202 are not owners (#202 is a custom path tracer, not a Maya workflow). Each file lists its own owners. An issue may own rows in two families (for example #156 and #189 under SCN and INT, #21 and #58 under PIP and INT, #52 under ANM and INT); each row cites it independently.
 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
-| 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #170, #178, #71 |
+| 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
 | 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #42, #105, #156, #189 |
-| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #166, #167, #35, #36, #37, #38, #39, #40, #41, #48, #49, #292, #295 |
+| 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #167, #292, #295 |
 | 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #43, #44, #45, #46 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
@@ -103,7 +103,37 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
-| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #22, #23, #272 |
+| 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #15, #17, #18, #21, #22, #23, #52, #58, #156, #189, #272, #300 |
 | 12 | Scripting and extensions | [12-scripting-and-extensions.md](12-scripting-and-extensions.md) | SCR | #57 |
 | 13 | Dynamics and extended systems | [13-dynamics-and-extended-systems.md](13-dynamics-and-extended-systems.md) | DYN | #56 |
 | 14 | Pipeline and robustness | [14-pipeline-and-robustness.md](14-pipeline-and-robustness.md) | PIP | #8, #21, #58 |
+
+## Top-level menu to family map
+
+Documented menus and the family that owns their content. The always-available menus and menu sets come from the 2027 [Menus and menu sets](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-D90A2BDB-FD05-4528-8A95-C33A02D15129.htm) page (fetched 2026-10-27); the per-set menus come from the set pages cited in the table. Hotkeys: F2 Modeling, F3 Rigging, F4 Animation, F5 FX, F6 Rendering. File-menu items are split per item in [11-interchange.md](11-interchange.md).
+
+| Menu (set) | Family | Source and note |
+| --- | --- | --- |
+| File (all) | INT; New Scene and Close in SCN; Exit in SHL; View Image and View Sequence in RND; Save Preferences in SHL | [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm) |
+| Edit | SCN (undo, redo, duplicate, group, parent, delete) | per-item split when SCN expands |
+| Create | MOD (Polygon Primitives), CRV (NURBS, curve tools), MAT (Lights), VPT (Cameras, image planes), SCN (Empty Group, Sets) | split per submenu when those families expand |
+| Select | SCN | |
+| Modify | SCN (transform tools, freeze, pivot), VPT (tool settings) | |
+| Display | VPT | HUD items also VPT |
+| Windows | SHL; each editor to the family that owns its content (Outliner SCN, Time Slider ANM, Render View RND) | |
+| Mesh, Edit Mesh, Mesh Tools, Mesh Display (Modeling) | MOD | [Modeling menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Modeling/files/GUID-A0E08BF2-0206-4518-8431-DC4E15AD4558.htm) |
+| Curves, Surfaces (Modeling) | CRV | same page |
+| UV (Modeling) | UVE | same page |
+| Generate (Modeling) | MOD | same page; contents not confirmed, PROVISIONAL |
+| Deform (Modeling, Rigging, Animation) | RIG | one owner for all three sets |
+| Skeleton, Skin, Constrain, Control (Rigging); Constrain (Animation) | RIG | [Rigging menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-CharacterAnimation/files/GUID-E8BE786A-AA88-46FD-A402-FBCD8855368B.htm) |
+| Key, Playback, Audio, Visualize (Animation) | ANM | [Animation menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-3CCAA3C8-A480-4CB7-A85E-F5AB17D3FB1F.htm) |
+| nParticles, Fluids, nCloth, nHair, Fields/Solvers, Effects, Bifrost (FX) | DYN | 2027 FX set page not located; PROVISIONAL, names from the Simulation and Effects index |
+| nConstraint, nCache (FX) | DYN | 2027 menu pages not located; PROVISIONAL |
+| Lighting/Shading, Texturing (Rendering) | MAT | [Rendering menu set](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Rendering/files/GUID-E4D6B80A-B812-4776-91C8-E5229CBF989F.htm) |
+| Render, Stereo (Rendering) | RND | same page |
+| Toon | RND | PROVISIONAL: no 2027 or 2026 doc page found |
+| Cache | DYN (geometry cache); Alembic and GPU Cache items are INT-026 to INT-028 | [Cache Menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9158C004-A9EB-4BF4-9FDB-442EB9851E75.htm) |
+| MASH | DYN | 2027 menu page not located; TO-VERIFY |
+| Arnold | RND | 2027 menu page and component version not located; TO-VERIFY |
+| Help | SHL | |
