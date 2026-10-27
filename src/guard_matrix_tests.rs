@@ -182,6 +182,9 @@ enum Pre {
     EdgeMode,
     /// Adds a second node with different channels, reselects the first and enters Face mode.
     SecondNodeFaceMode,
+    /// Adds a second node and selects both, the original node as the lead, so the cells start from
+    /// an ordered multi-selection.
+    MultiSelection,
     /// Makes the Attribute Editor the active dock panel, the only state that accepts a tab.
     AttributeEditorDock,
     /// Creates session material 1 (refused on sourced scenes, where the cell shows that).
@@ -981,14 +984,57 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
-        Operation::ModifySelection { .. } => vec![sample(
-            "modify_selection(add)",
-            Operation::ModifySelection {
-                change: SelectionChange::Add,
-                node: t.node,
-                instance_path: Some(t.path.clone()),
-            },
-        )],
+        Operation::ModifySelection { .. } => {
+            let modify = |change, node, path: &[NativeId]| Operation::ModifySelection {
+                change,
+                node,
+                instance_path: Some(path.to_vec()),
+            };
+            let (other, other_path, _) = t.other.clone();
+            // With Pre::MultiSelection `t.node` is the lead and `other` the second node.
+            vec![
+                sample(
+                    "modify_selection(add)",
+                    modify(SelectionChange::Add, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(toggle)",
+                    modify(SelectionChange::Toggle, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(remove)",
+                    modify(SelectionChange::Remove, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(unknown_path)",
+                    modify(SelectionChange::Add, t.node, &[t.shape]),
+                ),
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(toggle_non_lead)",
+                        modify(SelectionChange::Toggle, other, &other_path),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(remove_lead)",
+                        modify(SelectionChange::Remove, t.node, &t.path),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(add_non_lead)",
+                        modify(SelectionChange::Add, other, &other_path),
+                    )
+                },
+            ]
+        }
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),
@@ -1333,6 +1379,26 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
             "selected_path_len",
             editor.selected_path().len().to_string(),
         ),
+        // Members before the lead, in order, so a cell that reorders or drops a member shows it.
+        ("selection_rest", {
+            let rest = editor
+                .selection
+                .members()
+                .split_last()
+                .map_or(&[][..], |(_, rest)| rest)
+                .iter()
+                .map(|member| {
+                    let name = scene.node(member.node).map_or("?", |node| node.name());
+                    format!("{name}@{}", member.path.len())
+                })
+                .collect::<Vec<_>>()
+                .join(">");
+            if rest.is_empty() {
+                "-".to_owned()
+            } else {
+                rest
+            }
+        }),
         ("selection_mode", format!("{:?}", editor.selection_mode)),
         (
             "face_remembered",
@@ -1507,6 +1573,22 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
             add_second_node(&mut rig.editor);
             rig.editor.selection_mode = SelectionMode::Face;
         }
+        Pre::MultiSelection => {
+            let first = rig.editor.selection.lead().cloned().unwrap();
+            add_second_node(&mut rig.editor);
+            let plane = rig
+                .editor
+                .history
+                .scene()
+                .transform_paths()
+                .unwrap()
+                .into_iter()
+                .find(|target| target.node != first.node)
+                .unwrap();
+            rig.editor
+                .set_selection_members_for_test(vec![plane, first]);
+            rig.editor.sync_fields();
+        }
     }
     // Rebuilt after the pre-step so targets can name nodes it created.
     let mut chosen = samples(&rig).swap_remove(index);
@@ -1567,7 +1649,7 @@ fn baseline_text(state: State) -> String {
     for (name, value) in observed
         .fields
         .iter()
-        .filter(|(name, _)| *name != "token" && *name != "camera")
+        .filter(|(name, _)| !matches!(*name, "token" | "camera" | "selection_rest"))
     {
         let item = format!("{name}={value}");
         let line = lines.last_mut().unwrap();

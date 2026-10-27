@@ -56,6 +56,12 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
+  modify_selection(toggle_non_lead) => Ok(changed) | selection_rest: pPlane1@1 -> -
+  modify_selection(remove_lead) => Ok(changed) | selected: pCube1 -> pPlane1; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> "pPlane1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 4,5,6,0,0,0,2,2,2
+  modify_selection(add_non_lead) => Ok(changed) | selected: pCube1 -> pPlane1; selection_rest: pPlane1@1 -> pCube1@1; name_field: "pCube1" -> "pPlane1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 4,5,6,0,0,0,2,2,2
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -154,6 +160,12 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
+  modify_selection(toggle_non_lead) => Ok(changed) | selection_rest: pPlane1@1 -> -
+  modify_selection(remove_lead) => Ok(changed) | selected: pCube1 -> pPlane1; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> "pPlane1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 4,5,6,0,0,0,2,2,2
+  modify_selection(add_non_lead) => Ok(changed) | selected: pCube1 -> pPlane1; selection_rest: pPlane1@1 -> pCube1@1; name_field: "pCube1" -> "pPlane1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 4,5,6,0,0,0,2,2,2
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -252,6 +264,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -349,6 +364,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -446,6 +464,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -543,6 +564,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -640,6 +664,9 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   modify_selection(add) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -737,6 +764,9 @@
   select(none) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none_with_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   modify_selection(add) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(toggle) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(remove) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(unknown_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_selection_mode(face) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   deselect_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   deselect_all(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -834,6 +864,9 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   modify_selection(add) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -931,6 +964,9 @@
   select(none) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(none_with_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   modify_selection(add) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(toggle) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(remove) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_selection(unknown_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_selection_mode(face) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   deselect_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   deselect_all(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1028,6 +1064,9 @@
   select(none) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  modify_selection(toggle) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  modify_selection(remove) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   deselect_all => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   deselect_all(face_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1125,6 +1164,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1223,6 +1265,9 @@
   select(none) => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  modify_selection(toggle) => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
+  modify_selection(remove) => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | scene changed; selection_mode: Object -> Face; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   deselect_all => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
   deselect_all(face_mode) => Ok(changed) | scene changed; selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> -; name_field: "object" -> ""; channel_fields: 1,2,3,0,0,0,1,1,1 -> ,,,,,,,,; can_undo: false -> true
@@ -1321,6 +1366,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1418,6 +1466,9 @@
   select(none) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_selection(toggle) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  modify_selection(remove) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | scene changed; selection_mode: Object -> Face; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   deselect_all => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
   deselect_all(face_mode) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
@@ -1515,6 +1566,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1612,6 +1666,9 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -1709,6 +1766,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1806,6 +1866,9 @@
   select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -1903,6 +1966,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2000,6 +2066,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2097,6 +2166,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2194,6 +2266,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2291,6 +2366,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2388,6 +2466,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2485,6 +2566,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2582,6 +2666,9 @@
   select(none) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(none_with_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   modify_selection(add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(toggle) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(remove) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_selection(unknown_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_selection_mode(face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   deselect_all(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2679,6 +2766,9 @@
   select(none) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -2776,6 +2866,9 @@
   select(none) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: curve -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -2874,6 +2967,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -2972,6 +3068,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -3070,6 +3169,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -3168,6 +3270,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -3266,6 +3371,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -3364,6 +3472,9 @@
   select(none) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
   modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
   set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
   deselect_all => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   deselect_all(face_mode) => Ok(changed) | selected: object -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
@@ -3462,6 +3573,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3560,6 +3674,9 @@
   select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3604,4 +3721,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 3147
+cells: 3264
