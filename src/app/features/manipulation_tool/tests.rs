@@ -1887,6 +1887,10 @@ fn a_plain_ascii_source_reports_the_rotate_ring_although_move_refuses() {
             .all(|axis| axis.unavailable_reason.is_some())
     );
     assert_eq!(viewport.pointer_hit, Some("y"));
+    // The refusal is the text native hover shows after the handle's label.
+    let reason = "Maya ASCII scenes are read-only in this version";
+    assert_eq!(viewport.pointer_refusal.as_deref(), Some(reason));
+    assert_eq!(editor.status, format!("Object Y Rotate: {reason}"));
 }
 
 // An editor on a decoded Maya ASCII scene (read-only), with the node `select` selected and `tool`
@@ -2225,4 +2229,172 @@ fn scale_hover_states_the_refusal_of_the_handle_under_the_pointer() {
         assert_eq!(editor.status, expected);
         assert_eq!(editor.error, refused);
     }
+}
+
+fn pointer_refusal(editor: &Editor) -> Option<String> {
+    editor
+        .inspect_manipulation()
+        .unwrap()
+        .viewport
+        .unwrap()
+        .pointer_refusal
+}
+
+#[test]
+fn pointer_refusal_is_per_handle_and_matches_the_native_hover_text() {
+    // World X of a node turned 30 degrees about Z is refused, World Z and Uniform are not.
+    let (mut editor, context, view) = rotated_cube_scale_editor(30.0);
+    let handles = scale_handles_at(&editor, DVec3::ZERO, WORLD_AXES);
+    let reason = NativeError::UnsupportedScale(ScaleUnsupported::NotAxisAligned).to_string();
+    let centre = handles
+        .center()
+        .fold(glam::DVec2::ZERO, |sum, s| sum + (s.start + s.end) * 0.5)
+        * 0.25;
+    for (pixel, hit, expected) in [
+        (
+            shaft_probe(&editor, DVec3::ZERO, &handles, 0, &[]),
+            "x",
+            Some(reason.as_str()),
+        ),
+        (
+            shaft_probe(&editor, DVec3::ZERO, &handles, 2, &[]),
+            "z",
+            None,
+        ),
+        (centre, "uniform", None),
+    ] {
+        moved(&mut editor, &context, 1.0, logical(view.rect, pixel));
+        assert_eq!(pointer_pick(&editor), (Some(hit), None), "{hit}");
+        assert_eq!(pointer_refusal(&editor).as_deref(), expected, "{hit}");
+        if let Some(reason) = expected {
+            assert!(editor.status.ends_with(reason), "{}", editor.status);
+        }
+    }
+}
+
+#[test]
+fn pointer_refusal_is_cleared_during_a_manipulation_and_for_disabled_picks() {
+    let (mut editor, context, view) = rotated_cube_scale_editor(30.0);
+    let handles = scale_handles_at(&editor, DVec3::ZERO, WORLD_AXES);
+    let refused = logical(
+        view.rect,
+        shaft_probe(&editor, DVec3::ZERO, &handles, 0, &[]),
+    );
+    moved(&mut editor, &context, 1.0, refused);
+    assert!(pointer_refusal(&editor).is_some());
+    // An accepted handle starts a drag; the pointer then rests over the refused one.
+    let accepted = logical(
+        view.rect,
+        shaft_probe(&editor, DVec3::ZERO, &handles, 2, &[]),
+    );
+    press(&mut editor, &context, 1.0, accepted);
+    assert!(editor.history.active_manipulation().is_some());
+    moved(&mut editor, &context, 1.0, refused);
+    let inspected = editor.inspect_manipulation().unwrap().viewport.unwrap();
+    assert!(inspected.pointer_available);
+    assert_eq!(
+        (
+            inspected.pointer_hit,
+            inspected.pointer_disabled,
+            inspected.pointer_refusal
+        ),
+        (None, None, None)
+    );
+    // A disabled pick in a read-only scene: the kind is the reason, so no refusal is added.
+    let (mut editor, context, view) =
+        ascii_editor("createNode transform -n \"a\";\n", "a", ActiveTool::Rotate);
+    moved(
+        &mut editor,
+        &context,
+        1.0,
+        view.screen(Vec3::ZERO) + egui::vec2(72.0 * 1.2, 0.0),
+    );
+    assert_eq!(pointer_pick(&editor), (None, Some("view_ring")));
+    assert_eq!(pointer_refusal(&editor), None);
+}
+
+#[test]
+fn pointer_refusal_stays_null_for_move_even_when_its_frame_refuses() {
+    let mirrored = concat!(
+        "createNode transform -n \"p\"; setAttr \".s\" -type \"double3\" -1 1 1;\n",
+        "createNode transform -n \"c\" -p \"p\";\n"
+    );
+    for (nodes, node) in [("createNode transform -n \"a\";\n", "a"), (mirrored, "c")] {
+        let (mut editor, context, view) = ascii_editor(nodes, node, ActiveTool::Move);
+        moved(&mut editor, &context, 1.0, view.screen(Vec3::ZERO));
+        let inspected = editor.inspect_manipulation().unwrap();
+        assert!(!inspected.kinds[0].available, "{node}");
+        let viewport = inspected.viewport.unwrap();
+        assert!(viewport.pointer_available);
+        assert_eq!(viewport.pointer_refusal, None, "{node}");
+    }
+}
+
+#[test]
+fn a_mirrored_frame_is_reported_for_the_whole_tool_at_any_pixel() {
+    let nodes = concat!(
+        "createNode transform -n \"privateParent\"; setAttr \".s\" -type \"double3\" -1 1 1;\n",
+        "createNode transform -n \"privateChild\" -p \"privateParent\";\n"
+    );
+    for (tool, name) in [(ActiveTool::Rotate, "Rotate"), (ActiveTool::Scale, "Scale")] {
+        let (mut editor, context, view) = ascii_editor(nodes, "privateChild", tool);
+        // World axes are never mirrored; Scale defaults to World.
+        editor
+            .set_tool_space(tool, ManipulationSpace::Object)
+            .unwrap();
+        idle(&mut editor, &context, 1.0);
+        // No pointer yet: nothing to report.
+        assert_eq!(pointer_refusal(&editor), None, "{name}");
+        for at in [view.rect.center(), view.rect.min + egui::vec2(40.0, 40.0)] {
+            moved(&mut editor, &context, 1.0, at);
+            let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+            assert!(viewport.pointer_available);
+            assert_eq!(viewport.pointer_hit, None);
+            let reason = viewport.pointer_refusal.expect("the frame refusal");
+            assert!(reason.contains("Handle axes are mirrored"), "{reason}");
+            assert_eq!(
+                editor.status,
+                format!("{name} unavailable: {reason}"),
+                "native shows the same suffix"
+            );
+            assert!(!reason.contains("private"), "{reason}");
+        }
+    }
+}
+
+#[test]
+fn pointer_refusals_carry_no_node_name_or_path() {
+    let (mut editor, context, view) = ascii_editor(
+        "createNode transform -n \"privateNodeName\";\n",
+        "privateNodeName",
+        ActiveTool::Rotate,
+    );
+    moved(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    let reason = pointer_refusal(&editor).expect("read-only refusal");
+    for secret in ["privateNodeName", "/", "\\"] {
+        assert!(!reason.contains(secret), "{reason}");
+    }
+}
+
+#[test]
+fn a_refused_hit_with_the_longest_reason_stays_within_the_reserved_budget() {
+    let (mut editor, context, view) =
+        ascii_editor("createNode transform -n \"a\";\n", "a", ActiveTool::Rotate);
+    moved(&mut editor, &context, 1.0, view.ring(Vec3::Y, 0.0));
+    let mut inspected = editor.inspect_manipulation().unwrap();
+    let viewport = inspected.viewport.as_mut().unwrap();
+    assert!(viewport.pointer_hit.is_some() && viewport.pointer_refusal.is_some());
+    // The longest reason a handle refusal can carry.
+    let longest = NativeError::AbsentChannelLeaf {
+        channel: azteccraft::native_scene::ChannelLeaf::Translate,
+        component: 0,
+    }
+    .to_string();
+    assert!(longest.len() < 128, "{}", longest.len());
+    viewport.pointer_refusal = Some(longest);
+    let bytes = serde_json::to_vec(&inspected).unwrap().len();
+    assert!(
+        bytes <= crate::editor_operations::MOVE_INSPECTION_MAX_BYTES,
+        "{bytes}"
+    );
 }

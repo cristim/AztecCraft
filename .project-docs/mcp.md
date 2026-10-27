@@ -491,7 +491,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
-| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled` | Active tool only; null during a manipulation |
+| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only |
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -579,7 +579,16 @@ null for Select or no hit. `pointer_disabled` is `free_rotate`, `view_ring` or
 `scale_plane` when a drawn-but-unsupported handle is under the pointer and no
 enabled handle outranks it, else null. Both are null during an active
 manipulation, like native hover, and the geometric pick ignores per-handle
-refusals (those stay in `kinds`). Missing or stale capture is unavailable.
+refusals (those stay in `kinds`). `pointer_refusal` says why a press there
+would be refused, in the text native hover shows. With a `pointer_hit` it is
+that handle's refusal (the suffix after "{space} {handle} {tool}: "); with a
+null `pointer_hit` it is the whole Rotate or Scale tool's refusal at every
+pixel (for example a mirrored frame; the suffix after "{tool} unavailable: "),
+reported only while the pointer is available. It is null for Move (native Move
+hover shows no reason; its refusals stay in `kinds` and `axes`), Select,
+disabled picks, accepted handles, no selection and an active manipulation. The
+text comes from fixed core messages and never carries a node name or path.
+Missing or stale capture is unavailable.
 Visible geometry is not a global pickability or
 Ready claim, especially in tiny viewports and the excluded center region.
 Baseline Scalars and source bytes are never exposed.

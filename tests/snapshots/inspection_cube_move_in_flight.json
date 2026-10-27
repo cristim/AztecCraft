@@ -110,6 +110,7 @@
         "pointer_available": false,
         "pointer_disabled": null,
         "pointer_hit": null,
+        "pointer_refusal": null,
         "provenance": "last_native_viewport_capture"
       }
     },

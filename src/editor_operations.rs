@@ -545,6 +545,13 @@ pub struct MoveViewportInspection {
     /// `free_rotate`, `view_ring` or `scale_plane` when a drawn-but-unsupported handle is under
     /// the pointer and no enabled handle outranks it; null otherwise.
     pub pointer_disabled: Option<&'static str>,
+    /// Why a press at the pointer would be refused, in the text native hover shows after
+    /// `{space} {handle} {tool}: ` (a handle) or `{tool} unavailable: ` (the whole tool). Non-null
+    /// with a `pointer_hit` means that handle's press is refused; non-null with a null
+    /// `pointer_hit` means Rotate or Scale is refused at every pixel (for example a mirrored
+    /// frame). Null for Move (its refusals stay in `kinds` and `axes`), Select, disabled handles,
+    /// an accepted handle, no selection, an unavailable pointer and an active manipulation.
+    pub pointer_refusal: Option<String>,
     pub pointer_available: bool,
 }
 

@@ -562,7 +562,7 @@ impl Editor {
                 let pointer = feedback
                     .pointer
                     .and_then(|pointer| feedback.capture.pointer_pixel(pointer).ok());
-                let (pointer_hit, pointer_disabled) = self.pointer_pick(
+                let pick = self.pointer_pick(
                     &feedback.capture,
                     pointer.filter(|_| self.history.active_manipulation().is_none()),
                     geometry.as_ref().ok(),
@@ -591,8 +591,9 @@ impl Editor {
                 MoveViewportInspection {
                     provenance: "last_native_viewport_capture",
                     axes,
-                    pointer_hit,
-                    pointer_disabled,
+                    pointer_hit: pick.hit,
+                    pointer_disabled: pick.disabled,
+                    pointer_refusal: pick.refusal,
                     pointer_available: pointer.is_some(),
                 }
             });
@@ -615,49 +616,71 @@ impl Editor {
         })
     }
 
-    /// The active tool's enabled handle and any unsupported handle under the pointer pixel, as the
-    /// ids `pointer_hit` and `pointer_disabled` report. Move uses the Move frame's geometry; Rotate
-    /// and Scale go through the same `pick_handle` as native hover and press.
+    /// The active tool's enabled handle, any unsupported handle and the refusal under the pointer
+    /// pixel, as the ids and text `pointer_hit`, `pointer_disabled` and `pointer_refusal` report.
+    /// Move uses the Move frame's geometry; Rotate and Scale go through the same `pick_handle`,
+    /// `pick_refusal` and frame reason as native hover and press.
     #[cfg(any(test, feature = "mcp"))]
     fn pointer_pick(
         &self,
         capture: &ViewportCapture,
         pixel: Option<glam::DVec2>,
         move_handles: Option<&WorldHandles>,
-    ) -> (Option<&'static str>, Option<&'static str>) {
+    ) -> PointerPick {
+        let none = PointerPick::default();
         let Some(pixel) = pixel else {
-            return (None, None);
+            return none;
         };
         let tool = self.active_tool;
         match tool {
-            ActiveTool::Move => (
-                move_handles
+            ActiveTool::Move => PointerPick {
+                hit: move_handles
                     .and_then(|handles| handles.hit_test(pixel))
                     .map(axis_name),
-                None,
-            ),
+                ..none
+            },
             ActiveTool::Rotate | ActiveTool::Scale => {
-                let picked = self
-                    .manipulation_frame(tool)
-                    .ok()
-                    .and_then(|(_, frame)| self.pick_handle(tool, capture, &frame, pixel));
-                match picked {
-                    Some(ToolPick::Rotate(Pick::Handle(axis))) => {
-                        (Some(rotate_axis_id(axis)), None)
+                let (target, frame) = match self.manipulation_frame_or_reason(tool) {
+                    Ok(found) => found,
+                    // The whole tool is refused at any pixel, as native hover says.
+                    Err(failure) => {
+                        return PointerPick {
+                            refusal: failure.reason(tool),
+                            ..none
+                        };
                     }
-                    Some(ToolPick::Scale(Pick::Handle(handle))) => {
-                        (Some(scale_handle_id(handle)), None)
-                    }
+                };
+                match self.pick_handle(tool, capture, &frame, pixel) {
+                    Some(picked @ ToolPick::Rotate(Pick::Handle(axis))) => PointerPick {
+                        hit: Some(rotate_axis_id(axis)),
+                        refusal: self.pick_refusal(&target, tool, picked),
+                        ..none
+                    },
+                    Some(picked @ ToolPick::Scale(Pick::Handle(handle))) => PointerPick {
+                        hit: Some(scale_handle_id(handle)),
+                        refusal: self.pick_refusal(&target, tool, picked),
+                        ..none
+                    },
                     Some(ToolPick::Rotate(Pick::Disabled(kind)))
-                    | Some(ToolPick::Scale(Pick::Disabled(kind))) => {
-                        (None, Some(disabled_kind_id(kind)))
-                    }
-                    None => (None, None),
+                    | Some(ToolPick::Scale(Pick::Disabled(kind))) => PointerPick {
+                        disabled: Some(disabled_kind_id(kind)),
+                        ..none
+                    },
+                    None => none,
                 }
             }
-            ActiveTool::Select => (None, None),
+            ActiveTool::Select => none,
         }
     }
+}
+
+/// What inspection reports for the pointer pixel.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Default)]
+struct PointerPick {
+    hit: Option<&'static str>,
+    disabled: Option<&'static str>,
+    refusal: Option<String>,
 }
 
 impl Editor {
