@@ -1866,6 +1866,34 @@ fn focused_label(output: &egui::FullOutput) -> Option<String> {
         .and_then(|(_, node)| node.label().map(str::to_owned))
 }
 
+// Opens the File menu with the keyboard: Tab to the "File" button, then Space.
+pub(in crate::app) fn open_file_menu(
+    editor: &mut Editor,
+    context: &egui::Context,
+    size: egui::Vec2,
+) {
+    context.enable_accesskit();
+    let mut reached = false;
+    for _ in 0..60 {
+        let output = frame(
+            editor,
+            context,
+            raw(size, Pos2::ZERO, 1.0, vec![key(Key::Tab)]),
+        );
+        if focused_label(&output).as_deref() == Some("File") {
+            reached = true;
+            break;
+        }
+    }
+    assert!(reached, "Tab reaches the File menu button");
+    frame(
+        editor,
+        context,
+        raw(size, Pos2::ZERO, 1.0, vec![key(Key::Space)]),
+    );
+    assert!(egui::Popup::is_any_open(context), "File menu opens");
+}
+
 #[test]
 fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_cancels_it() {
     // A native pointer Move is already cancelled by an open popup, so the surviving case is a
@@ -1892,17 +1920,7 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
             raw(size, Pos2::ZERO, 1.0, vec![key(key_press)]),
         )
     };
-    let mut reached = false;
-    for _ in 0..60 {
-        let output = step(&mut editor, Key::Tab);
-        if focused_label(&output).as_deref() == Some("File") {
-            reached = true;
-            break;
-        }
-    }
-    assert!(reached, "Tab reaches the File menu button");
-    step(&mut editor, Key::Space);
-    assert!(egui::Popup::is_any_open(&context), "File menu opens");
+    open_file_menu(&mut editor, &context, size);
     assert!(editor.history.active_manipulation().is_some());
     let status = editor.status.clone();
     step(&mut editor, Key::Escape);

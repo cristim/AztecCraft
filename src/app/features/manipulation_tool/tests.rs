@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::features::move_tool::tests::{
-    View, button, frame, key, oblique, raw, scale_plane_point, viewport,
+    View, button, frame, key, oblique, open_file_menu, raw, scale_plane_point, viewport,
 };
 use azteccraft::{
     manipulator_handles::{DisabledKind, HandleFrame, RotateHandles},
@@ -2407,6 +2407,54 @@ fn hovering_the_y_ring() -> (Editor, egui::Context, Pos2) {
     assert_eq!(editor.status, "Object Y Rotate: drag to turn");
     assert_eq!(pointer_pick(&editor), (Some("y"), None));
     (editor, context, at)
+}
+
+// Pinned: an open egui popup suppresses the hover status text but not the pick (move_tool.rs hover gate).
+#[test]
+fn an_open_popup_suppresses_hover_status_but_inspection_still_picks() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    open_file_menu(&mut editor, &context, SIZE);
+    moved(&mut editor, &context, 1.0, at);
+    assert!(egui::Popup::is_any_open(&context));
+    assert_eq!(editor.status, editor.tool_help());
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+}
+
+// Pinned: an open popup keeps a press on the ring from beginning a rotate (move_tool.rs press gate).
+#[test]
+fn an_open_popup_blocks_a_press_on_the_ring() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    open_file_menu(&mut editor, &context, SIZE);
+    press(&mut editor, &context, 1.0, at);
+    // A press outside the menu could have closed it before the gate read it, which would be vacuous.
+    assert!(
+        egui::Popup::is_any_open(&context),
+        "popup survives the press"
+    );
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.status, editor.tool_help());
+    assert!(!editor.error);
+}
+
+// Pinned: a popup opening mid-drag cancels the native drag (move_tool.rs drag-cancel gate). A key
+// sequence cannot open a menu mid-drag without changing the drag, so the popup opens through egui memory.
+#[test]
+fn a_popup_opening_mid_drag_cancels_the_native_rotate() {
+    let (mut editor, context, at) = hovering_the_y_ring();
+    press(&mut editor, &context, 1.0, at);
+    assert!(
+        editor.history.active_manipulation().is_some(),
+        "{}",
+        editor.status
+    );
+    egui::Popup::open_id(&context, egui::Id::new("popup_admission_probe"));
+    assert!(egui::Popup::is_any_open(&context));
+    frame(&mut editor, &context, raw(SIZE, Pos2::ZERO, 1.0, vec![]));
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(
+        editor.status,
+        "Rotate cancelled: camera, viewport or native input changed"
+    );
 }
 
 // Pinned, not gated: `pointer_hit` mirrors the painted highlight, which native paints whatever the
