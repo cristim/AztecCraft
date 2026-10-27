@@ -2,9 +2,11 @@
 //! acceptance flow and stays one uninterrupted sequence; the extras are separate tests.
 use super::*;
 
+#[cfg(unix)]
 type Client = rmcp::service::RunningService<RoleClient, ()>;
 
 /// Calls `name` with the live scene token and returns the structured result.
+#[cfg(unix)]
 async fn tool(
     editor: &mut Editor,
     context: &egui::Context,
@@ -19,6 +21,7 @@ async fn tool(
         .unwrap()
 }
 
+#[cfg(unix)]
 async fn inspect_json(editor: &mut Editor, context: &egui::Context, client: &Client) -> Value {
     call(editor, context, client.peer(), "inspect_scene", json!({}))
         .await
@@ -27,6 +30,7 @@ async fn inspect_json(editor: &mut Editor, context: &egui::Context, client: &Cli
         .clone()
 }
 
+#[cfg(unix)]
 fn vec3(value: &Value) -> [f64; 3] {
     let items = value.as_array().unwrap();
     [0, 1, 2].map(|i| items[i].as_f64().unwrap())
@@ -34,6 +38,7 @@ fn vec3(value: &Value) -> [f64; 3] {
 
 /// Names, transforms and mesh counts in node order: what a reopen must reproduce.
 #[derive(Debug)]
+#[cfg(unix)]
 struct NodeSummary {
     name: String,
     /// Translation, rotation in degrees and scale.
@@ -43,6 +48,7 @@ struct NodeSummary {
     counts: [u64; 3],
 }
 
+#[cfg(unix)]
 fn summary(inspection: &Value) -> Vec<NodeSummary> {
     let shapes = inspection["shapes"].as_array().unwrap();
     inspection["nodes"]
@@ -196,6 +202,7 @@ async fn native_sdk_new_scene_save_as_reopen_inspect_and_move_succeeds() {
     server.await.unwrap();
 }
 /// Strict container parse plus the root header, independent of the scene decoder.
+#[cfg(unix)]
 fn assert_well_formed_mb(bytes: &[u8]) {
     assert_eq!(&bytes[0..4], b"FOR8");
     assert_eq!(
