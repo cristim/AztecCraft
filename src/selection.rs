@@ -53,6 +53,23 @@ impl ObjectSelection {
         self.members.push(target);
     }
 
+    /// Replaces the members with `members` in order, the last being the lead. A repeated target
+    /// keeps its first position. Over the cap the selection is unchanged.
+    pub fn replace_with(&mut self, members: Vec<TransformTarget>) -> Result<(), SelectionFull> {
+        let mut seen = std::collections::HashSet::new();
+        let mut unique = Vec::with_capacity(members.len().min(MAX_TRANSFORM_PATHS));
+        for member in members {
+            if seen.insert(member.clone()) {
+                if unique.len() >= MAX_TRANSFORM_PATHS {
+                    return Err(SelectionFull);
+                }
+                unique.push(member);
+            }
+        }
+        self.members = unique;
+        Ok(())
+    }
+
     /// Appends `target` as the lead; an existing member moves to the end and becomes the lead.
     /// Over the cap the selection is unchanged.
     pub fn add(&mut self, target: TransformTarget) -> Result<(), SelectionFull> {

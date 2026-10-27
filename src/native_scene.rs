@@ -502,7 +502,7 @@ pub const MAX_TRANSFORM_PATHS: usize = 4096;
 pub const MAX_TRANSFORM_DEPTH: usize = 256;
 pub const MAX_PATH_IDENTITIES: usize = 65536;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TransformTarget {
     pub node: NodeId,
     pub path: Vec<NativeId>,
@@ -821,6 +821,22 @@ impl NativeScene {
         }
         paths.sort_unstable_by(|a, b| a.path.cmp(&b.path));
         Ok(paths)
+    }
+    /// Every transform instance strictly below one of `roots`, in `transform_paths` order. A root
+    /// is not its own descendant; an instance below two roots appears once.
+    pub fn descendant_targets(
+        &self,
+        roots: &[TransformTarget],
+    ) -> Result<Vec<TransformTarget>, NativeError> {
+        let root_paths: std::collections::HashSet<&[NativeId]> =
+            roots.iter().map(|root| root.path.as_slice()).collect();
+        Ok(self
+            .transform_paths()?
+            .into_iter()
+            .filter(|target| {
+                (1..target.path.len()).any(|len| root_paths.contains(&target.path[..len]))
+            })
+            .collect())
     }
     pub fn internal_transform(&self, id: NodeId) -> Result<InternalTransform, NativeError> {
         let node = self.node(id)?;

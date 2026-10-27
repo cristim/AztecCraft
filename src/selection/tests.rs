@@ -179,3 +179,48 @@ fn selection_full_error_names_the_cap() {
         "A selection holds at most 4096 objects"
     );
 }
+
+#[test]
+fn replace_with_sets_the_members_in_order_and_the_last_leads() {
+    let mut selection = selection_of(&[9]);
+    selection
+        .replace_with(vec![plain(3), plain(1), plain(2)])
+        .unwrap();
+    assert_eq!(nodes(&selection), [node(3), node(1), node(2)]);
+    assert_eq!(selection.lead(), Some(&plain(2)));
+    selection.replace_with(Vec::new()).unwrap();
+    assert!(selection.is_empty());
+}
+
+#[test]
+fn replace_with_keeps_the_first_position_of_a_repeated_target() {
+    let mut selection = ObjectSelection::default();
+    selection
+        .replace_with(vec![plain(1), plain(2), plain(1), target(2, &[7, 2])])
+        .unwrap();
+    assert_eq!(
+        selection.members(),
+        [plain(1), plain(2), target(2, &[7, 2])]
+    );
+}
+
+#[test]
+fn replace_with_over_the_cap_is_an_error_and_does_not_mutate() {
+    let mut selection = selection_of(&[1, 2]);
+    let before = selection.clone();
+    let too_many = (0..=MAX_TRANSFORM_PATHS as u64).map(plain).collect();
+    assert_eq!(selection.replace_with(too_many), Err(SelectionFull));
+    assert_eq!(selection, before);
+    let exactly = (0..MAX_TRANSFORM_PATHS as u64).map(plain).collect();
+    selection.replace_with(exactly).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+}
+
+#[test]
+fn replace_with_counts_unique_targets_against_the_cap() {
+    let mut selection = ObjectSelection::default();
+    let mut repeated: Vec<_> = (0..MAX_TRANSFORM_PATHS as u64).map(plain).collect();
+    repeated.push(plain(0));
+    selection.replace_with(repeated).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+}

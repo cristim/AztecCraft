@@ -1096,3 +1096,63 @@ fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() 
     binary(&mut scene);
     assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
 }
+
+#[test]
+fn descendant_targets_are_the_instances_strictly_below_the_roots_in_path_order() {
+    let (scene, root, mid, leaf) = chain_of_three();
+    let paths = scene.transform_paths().unwrap();
+    let of = |node| paths.iter().find(|t| t.node == node).unwrap().clone();
+    let (root_t, mid_t, leaf_t) = (of(root), of(mid), of(leaf));
+    assert_eq!(
+        scene
+            .descendant_targets(std::slice::from_ref(&root_t))
+            .unwrap(),
+        [mid_t.clone(), leaf_t.clone()]
+    );
+    assert_eq!(
+        scene
+            .descendant_targets(std::slice::from_ref(&mid_t))
+            .unwrap(),
+        [of(leaf)]
+    );
+    assert!(
+        scene
+            .descendant_targets(std::slice::from_ref(&leaf_t))
+            .unwrap()
+            .is_empty()
+    );
+    assert!(scene.descendant_targets(&[]).unwrap().is_empty());
+    assert_eq!(
+        scene.descendant_targets(&[mid_t, root_t]).unwrap(),
+        [of(mid), leaf_t]
+    );
+}
+
+#[test]
+fn descendant_targets_follow_each_instance_path_of_a_reparented_node() {
+    let (mut scene, root, child, _) = test_fixtures::hidden_group();
+    let root_id = scene.node(root).unwrap().transform_id;
+    let child_id = scene.node(child).unwrap().transform_id;
+    scene.dag.push(DagEdge {
+        parent: None,
+        child: child_id,
+    });
+    scene.validate().unwrap();
+    let root_target = TransformTarget {
+        node: root,
+        path: vec![root_id],
+    };
+    let below = scene.descendant_targets(&[root_target]).unwrap();
+    assert_eq!(
+        below,
+        [TransformTarget {
+            node: child,
+            path: vec![root_id, child_id],
+        }]
+    );
+    let direct = TransformTarget {
+        node: child,
+        path: vec![child_id],
+    };
+    assert!(scene.descendant_targets(&[direct]).unwrap().is_empty());
+}
