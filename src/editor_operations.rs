@@ -38,7 +38,6 @@ pub enum AttributeEditorTab {
 /// as the lead, or moves a present one to the end; Toggle flips membership; Remove drops a member
 /// and leaves an absent instance alone. Removing the lead promotes the previous member.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
 pub enum SelectionChange {
     Add,
     Toggle,
@@ -257,7 +256,6 @@ pub enum Operation {
     },
     /// Adds, toggles or removes one object instance in the ordered object selection; the last
     /// member is the lead. Object and Hierarchy modes only.
-    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     ModifySelection {
         change: SelectionChange,
         node: NodeId,

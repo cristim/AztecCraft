@@ -365,8 +365,15 @@ impl Editor {
                     self.selection_mode,
                 )
                 .is_some();
+            // Shift and Ctrl clicks modify the object selection; only the component modes refuse them.
+            let object_mode = matches!(
+                self.selection_mode,
+                SelectionMode::Object | SelectionMode::Hierarchy
+            );
             let selection_refusal = input.unsupported_selection().filter(|refusal| {
                 can_select
+                    && !(object_mode
+                        && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
                     && (*refusal != crate::viewport_ui::SelectionRefusal::Marquee
                         || !(consumed || mode_refused))
             });
@@ -476,10 +483,32 @@ impl Editor {
                         } else {
                             (None, None)
                         };
-                        self.apply_operation(Operation::Select {
-                            node,
-                            instance_path,
-                        })?;
+                        // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
+                        // click on empty space leaves the selection alone.
+                        let modifiers = input.click_modifiers().unwrap_or_default();
+                        let ctrl = modifiers.ctrl || modifiers.command;
+                        let change = match (modifiers.shift, ctrl) {
+                            (false, false) => None,
+                            (true, false) => Some(SelectionChange::Toggle),
+                            (false, true) => Some(SelectionChange::Remove),
+                            (true, true) => Some(SelectionChange::Add),
+                        };
+                        match (change, node) {
+                            (None, _) => {
+                                self.apply_operation(Operation::Select {
+                                    node,
+                                    instance_path,
+                                })?;
+                            }
+                            (Some(change), Some(node)) => {
+                                self.apply_operation(Operation::ModifySelection {
+                                    change,
+                                    node,
+                                    instance_path,
+                                })?;
+                            }
+                            (Some(_), None) => {}
+                        }
                     }
                     SelectionMode::Face => {
                         let target = input

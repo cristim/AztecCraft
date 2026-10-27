@@ -481,7 +481,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Select > All (Ctrl+Shift+A), All by Type, Hierarchy and Inverse (visible disabled rows; not implemented, tracked in #325) | unsupported | | | |
 | Selection | Selection mode (Object, Face, Vertex, Edge, Hierarchy), F8 to F11 | supported | `set_selection_mode` | `selection_mode` | |
 | Selection | Face, vertex and edge component targets | supported | `select_face`, `select_vertex`, `select_edge` | `remembered_face`, `remembered_vertex`, `remembered_edge` | |
-| Selection | Add, toggle or remove one object in the ordered selection (the Shift, Ctrl and Shift+Ctrl click operation; the native gestures land later in #166) | supported | `modify_selection` | `selected_node`, `selection`, `selection_count` | the lead is the last member |
+| Selection | Add, toggle or remove one object in the ordered selection (Shift, Ctrl and Shift+Ctrl viewport clicks; Outliner clicks are not built yet) | supported | `modify_selection` | `selected_node`, `selection`, `selection_count` | the lead is the last member |
 | Selection | Marquee, Lasso, Paint Selection, UV mask | unsupported | | | |
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |

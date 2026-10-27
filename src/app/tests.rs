@@ -10152,3 +10152,229 @@ fn remote_modify_selection_follows_the_same_guards() {
     ));
     assert_eq!(editor.selection.members(), [t[0].clone()]);
 }
+
+/// Three cubes in a row facing the camera, none selected, and a settled frame.
+fn gesture_rig() -> (Editor, egui::Context, egui::Rect, Vec<TransformTarget>) {
+    let mut editor = Editor::default();
+    for index in 0..3 {
+        editor.create(Primitive::Cube);
+        let id = editor.selected().unwrap();
+        editor
+            .apply_operation(Operation::SetTransform {
+                id,
+                transform: TransformInput {
+                    translation: [3.0 * (index as f64 - 1.0), 0.0, 0.0],
+                    rotation_degrees: [0.0; 3],
+                    scale: [1.0; 3],
+                },
+            })
+            .unwrap();
+    }
+    let targets = editor.history.scene().transform_paths().unwrap();
+    editor.deselect_all();
+    editor.camera =
+        Camera::new(Vec3::ZERO, 0.0, 0.0, 14.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let output = frame(&mut editor, &ctx, vec![]);
+    let rect = face_viewport_rect(&output);
+    (editor, ctx, rect, targets)
+}
+
+fn screen_of(editor: &Editor, rect: egui::Rect, x: f32) -> egui::Pos2 {
+    let ndc = editor
+        .camera
+        .project(Vec3::new(x, 0.0, 0.0), editor.aspect)
+        .unwrap()
+        .unwrap();
+    rect.min
+        + egui::vec2(
+            (ndc.x + 1.0) * 0.5 * rect.width(),
+            (1.0 - ndc.y) * 0.5 * rect.height(),
+        )
+}
+
+fn click_cube(
+    rig: &mut (Editor, egui::Context, egui::Rect, Vec<TransformTarget>),
+    index: usize,
+    modifiers: egui::Modifiers,
+) {
+    let at = screen_of(&rig.0, rig.2, 3.0 * (index as f32 - 1.0));
+    face_pointer_click(&mut rig.0, &rig.1, at, modifiers, vec![]);
+}
+
+fn members(rig: &(Editor, egui::Context, egui::Rect, Vec<TransformTarget>)) -> Vec<NodeId> {
+    rig.0.selection.members().iter().map(|t| t.node).collect()
+}
+
+const SHIFT_CTRL: egui::Modifiers = egui::Modifiers {
+    shift: true,
+    ..egui::Modifiers::CTRL
+};
+
+#[test]
+fn viewport_clicks_replace_toggle_add_and_remove_with_the_lead_last() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    assert_eq!(members(&rig), [ids[0]]);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[1]]);
+    click_cube(&mut rig, 2, egui::Modifiers::SHIFT);
+    assert_eq!(members(&rig), [ids[0], ids[1], ids[2]]);
+    click_cube(&mut rig, 0, egui::Modifiers::CTRL);
+    assert_eq!(members(&rig), [ids[1], ids[2]]);
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert!(!rig.0.error, "{}", rig.0.status);
+}
+
+#[test]
+fn viewport_shift_on_existing_member_removes_it() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    click_cube(&mut rig, 0, egui::Modifiers::SHIFT);
+    assert_eq!(members(&rig), [ids[1]]);
+}
+
+#[test]
+fn viewport_add_on_existing_member_makes_it_lead() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    click_cube(&mut rig, 0, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[1], ids[0]]);
+}
+
+#[test]
+fn viewport_ctrl_on_unselected_is_a_noop() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    let status = rig.0.status.clone();
+    click_cube(&mut rig, 2, egui::Modifiers::CTRL);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert_eq!((rig.0.status.clone(), rig.0.error), (status, false));
+}
+
+#[test]
+fn viewport_command_click_acts_as_ctrl() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    let command = egui::Modifiers {
+        command: true,
+        mac_cmd: true,
+        ..egui::Modifiers::NONE
+    };
+    click_cube(&mut rig, 1, command);
+    assert_eq!(members(&rig), [ids[0]]);
+    let shift_command = egui::Modifiers {
+        shift: true,
+        ..command
+    };
+    click_cube(&mut rig, 2, shift_command);
+    assert_eq!(members(&rig), [ids[0], ids[2]]);
+}
+
+#[test]
+fn viewport_modified_click_on_empty_space_keeps_the_selection_and_a_plain_one_clears_it() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    let empty = rig.2.min + egui::vec2(8.0, 8.0);
+    for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL, SHIFT_CTRL] {
+        face_pointer_click(&mut rig.0, &rig.1, empty, modifiers, vec![]);
+        assert_eq!(members(&rig), [ids[0], ids[1]], "{modifiers:?}");
+        assert!(!rig.0.error);
+    }
+    face_pointer_click(&mut rig.0, &rig.1, empty, egui::Modifiers::NONE, vec![]);
+    assert!(rig.0.selection.is_empty());
+}
+
+#[test]
+fn viewport_ctrl_click_arriving_as_a_secondary_click_does_not_select() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    let at = screen_of(&rig.0, rig.2, 3.0);
+    for pressed in [true, false] {
+        frame(
+            &mut rig.0,
+            &rig.1,
+            vec![
+                egui::Event::ModifiersChanged(egui::Modifiers::CTRL),
+                egui::Event::PointerMoved(at),
+                egui::Event::PointerButton {
+                    pos: at,
+                    button: egui::PointerButton::Secondary,
+                    pressed,
+                    modifiers: egui::Modifiers::CTRL,
+                },
+            ],
+        );
+    }
+    frame(&mut rig.0, &rig.1, vec![]);
+    assert_eq!(members(&rig), [ids[0]]);
+}
+
+#[test]
+fn modified_clicks_are_still_refused_in_component_modes() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    rig.0
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+        .unwrap();
+    for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL, SHIFT_CTRL] {
+        click_cube(&mut rig, 1, modifiers);
+        assert!(
+            rig.0.error && rig.0.status.contains("component modes"),
+            "{}",
+            rig.0.status
+        );
+        assert_eq!(members(&rig), [ids[0]]);
+    }
+}
+
+#[test]
+fn viewport_modified_click_commits_a_valid_draft_and_refuses_an_invalid_one() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    rig.0.channels[0] = "abc".into();
+    rig.0.channel_intents[0] = true;
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert!(rig.0.error);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert_eq!(rig.0.channels[0], "abc");
+    rig.0.channels[0] = "-3.5".into();
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[1]]);
+    let x = rig
+        .0
+        .history
+        .scene()
+        .node(ids[0])
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, -3.5);
+}
+
+#[test]
+fn hierarchy_mode_modified_click_modifies_the_root() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    rig.0
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy))
+        .unwrap();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 2, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[2]]);
+}
