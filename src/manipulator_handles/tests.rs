@@ -692,7 +692,7 @@ fn a_scale_shaft_shorter_than_its_box_never_reaches_back_past_the_origin() {
 }
 
 #[test]
-fn an_end_on_scale_axis_collapses_into_the_center_box_and_steals_nothing() {
+fn an_end_on_scale_axis_steals_nothing_far_from_the_center() {
     let handles = world_scale(&camera_at(0.02, 0.0, 10.0));
     let z = handles.axes()[2].geometry().unwrap();
     for segment in z.segments() {
@@ -999,16 +999,16 @@ fn rotate_picks_at_seven_pixels_and_misses_at_nine_at_every_size() {
 }
 
 #[test]
-fn scale_diagonal_ties_go_to_x_and_the_dead_zone_corner_stays_empty() {
+fn scale_picks_x_on_the_diagonal_and_the_dead_zone_corner_stays_empty() {
     // The front camera has no Z axis, so the X and Y shafts are the only candidates.
     let handles = world_scale(&front_camera());
     let origin = DVec2::new(400.0, 300.0);
-    // 7.5 px from both shafts: an exact tie, which goes to X. Fails at 6 px.
+    // 7.5 px from the X shaft (10.6 px from the upward Y shaft): X wins. Fails at 6 px.
     assert_eq!(
         handles.hit_test(origin + DVec2::new(7.5, 7.5)),
         Some(ScaleHandle::X)
     );
-    // 8.5 px from both shafts is outside the radius. Passes at 6 px too (not red).
+    // 8.5 px from the X shaft is outside the radius. Passes at 6 px too (not red).
     assert_eq!(handles.hit_test(origin + DVec2::new(8.5, 8.5)), None);
     // Just past the centre box and on the shaft. Passes at 6 px too (not red).
     assert_eq!(

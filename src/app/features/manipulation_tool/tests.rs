@@ -371,6 +371,29 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
 }
 
 #[test]
+fn rotate_hover_and_press_use_the_same_eight_pixel_distance() {
+    // 7 px off the Y ring both highlights and begins the drag (red at 6 px); 9 px neither.
+    for (offset, grabbed) in [(7.0_f32, true), (9.0, false)] {
+        let (mut editor, context, view) = setup(Key::E, 1.0);
+        let on_ring = view.ring(Vec3::Y, 0.0);
+        let along = (view.ring(Vec3::Y, 1.0) - view.ring(Vec3::Y, -1.0)).normalized();
+        let point = on_ring + egui::vec2(-along.y, along.x) * offset;
+        let output = moved(&mut editor, &context, 1.0, point);
+        let highlighted = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, Shape::LineSegment { stroke, .. }
+                if stroke.color == egui::Color32::WHITE)
+        });
+        assert_eq!(highlighted, grabbed, "hover painter at {offset}");
+        press(&mut editor, &context, 1.0, point);
+        assert_eq!(
+            editor.history.active_manipulation().is_some(),
+            grabbed,
+            "press at {offset}"
+        );
+    }
+}
+
+#[test]
 fn hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_help() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     let help = editor.status.clone();
