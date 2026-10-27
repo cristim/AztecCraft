@@ -441,6 +441,144 @@ fn pressing_an_unsupported_handle_is_refused_and_consumed_without_selecting() {
 }
 
 #[test]
+fn a_z_ring_drag_turns_about_z_only_and_is_one_rotate_history_entry() {
+    for scale in [1.0, 2.0] {
+        let (mut editor, context, view) = setup(Key::E, scale);
+        let z = Vec3::Z;
+        moved(&mut editor, &context, scale, view.ring(z, 0.0));
+        assert_eq!(pointer_pick(&editor), (Some("z"), None));
+        press(&mut editor, &context, scale, view.ring(z, 0.0));
+        assert_eq!(
+            editor.history.active_manipulation().unwrap().kind,
+            ManipulationKindState::Rotate {
+                axis: RotateAxis::Z,
+                space: azteccraft::native_scene::RotateSpace::Object
+            }
+        );
+        assert_eq!(editor.status, "Object Z Rotate");
+        for degrees in [30.0_f32, -20.0] {
+            moved(&mut editor, &context, scale, view.ring(z, degrees));
+            near(channels(&editor)[5], f64::from(degrees), 0.05);
+            assert_eq!(channels(&editor)[3], 0.0);
+            assert_eq!(channels(&editor)[4], 0.0);
+            assert!(
+                editor.status.starts_with("Rotate preview"),
+                "{}",
+                editor.status
+            );
+            assert!(!editor.error);
+        }
+        release(&mut editor, &context, scale, view.ring(z, -20.0));
+        assert!(editor.history.active_manipulation().is_none());
+        assert_eq!(editor.status, "Rotate committed");
+        assert_eq!(editor.history.undo_label(), Some("Rotate"));
+        editor.native_operation(Operation::Undo);
+        assert_eq!(channels(&editor)[5], 0.0);
+    }
+}
+
+#[test]
+fn a_y_scale_handle_drag_scales_y_only_in_one_scale_history_entry() {
+    for scale in [1.0, 2.0] {
+        let (mut editor, context, view) = setup(Key::R, scale);
+        let radius = view.radius();
+        let begin = view.screen(Vec3::Y * radius);
+        moved(&mut editor, &context, scale, begin);
+        assert_eq!(pointer_pick(&editor), (Some("y"), None));
+        press(&mut editor, &context, scale, begin);
+        assert_eq!(editor.status, "World Y Scale");
+        assert_eq!(
+            editor.history.active_manipulation().unwrap().kind,
+            ManipulationKindState::Scale {
+                handle: ScaleHandle::Y,
+                space: azteccraft::native_scene::ScaleSpace::World
+            }
+        );
+        for factor in [1.5_f32, 2.0, 0.5] {
+            moved(
+                &mut editor,
+                &context,
+                scale,
+                view.screen(Vec3::Y * radius * factor),
+            );
+            near(channels(&editor)[7], f64::from(factor), 1e-3);
+            assert_eq!(channels(&editor)[6], 1.0);
+            assert_eq!(channels(&editor)[8], 1.0);
+            assert!(
+                editor.status.starts_with("Scale preview"),
+                "{}",
+                editor.status
+            );
+        }
+        release(
+            &mut editor,
+            &context,
+            scale,
+            view.screen(Vec3::Y * radius * 0.5),
+        );
+        assert_eq!(editor.status, "Scale committed");
+        assert_eq!(editor.history.undo_label(), Some("Scale"));
+        editor.native_operation(Operation::Undo);
+        assert_eq!(channels(&editor)[7], 1.0);
+    }
+}
+
+// Hovers `at`, checks the pick, then overwrites the status so only the press can rewrite it.
+fn press_a_disabled_handle(
+    editor: &mut Editor,
+    context: &egui::Context,
+    at: Pos2,
+    pick: &'static str,
+    kind: DisabledKind,
+) {
+    let before = editor.history.scene().clone();
+    let depth = undo_depth(editor);
+    moved(editor, context, 1.0, at);
+    assert_eq!(pointer_pick(editor), (None, Some(pick)));
+    assert_eq!(editor.status, kind.to_string(), "hover stored the text");
+    editor.status = "sentinel".into();
+    editor.error = false;
+    press(editor, context, 1.0, at);
+    assert_eq!(editor.status, kind.to_string());
+    assert!(editor.error);
+    assert!(editor.history.active_manipulation().is_none());
+    release(editor, context, 1.0, at);
+    assert!(editor.selected.is_some(), "the click must not deselect");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(undo_depth(editor), depth);
+}
+
+#[test]
+fn pressing_the_free_rotate_circle_is_refused_and_consumed_without_selecting() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let at = view.screen(Vec3::ZERO) + egui::vec2(-64.0, -33.0);
+    press_a_disabled_handle(
+        &mut editor,
+        &context,
+        at,
+        "free_rotate",
+        DisabledKind::FreeRotate,
+    );
+}
+
+#[test]
+fn pressing_a_scale_plane_outline_is_refused_and_consumed_without_selecting() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    editor
+        .apply_operation(Operation::SetManipulatorSize(size(0.1)))
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    let at = scale_plane_point(&editor, view.rect);
+    press_a_disabled_handle(
+        &mut editor,
+        &context,
+        at,
+        "scale_plane",
+        DisabledKind::ScalePlane,
+    );
+}
+
+#[test]
 fn escape_cancels_a_native_rotate_and_restores_the_exact_baseline() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     let before = editor.history.scene().clone();
