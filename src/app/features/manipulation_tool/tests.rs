@@ -1888,3 +1888,300 @@ fn a_plain_ascii_source_reports_the_rotate_ring_although_move_refuses() {
     );
     assert_eq!(viewport.pointer_hit, Some("y"));
 }
+
+// An editor on a decoded Maya ASCII scene (read-only), with the node `select` selected and `tool`
+// active, and the viewport rect taken from an idle frame.
+fn ascii_editor(nodes: &str, select: &str, tool: ActiveTool) -> (Editor, egui::Context, View) {
+    let source = format!(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; \
+         currentUnit -l centimeter -a degree -t film;\n{nodes}"
+    );
+    let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
+        camera: oblique(),
+        ..Editor::default()
+    };
+    let node = editor
+        .history
+        .scene()
+        .nodes()
+        .iter()
+        .find(|node| node.name() == select)
+        .unwrap()
+        .id();
+    editor.select(Some(node));
+    editor.native_operation(Operation::SetActiveTool(tool));
+    let context = egui::Context::default();
+    let view = View {
+        camera: editor.camera.clone(),
+        aspect: editor.aspect,
+        rect: viewport(&idle(&mut editor, &context, 1.0)),
+        scale: 1.0,
+    };
+    (editor, context, view)
+}
+
+fn segment_gap(point: glam::DVec2, segment: &azteccraft::move_handles::ScreenSegment) -> f64 {
+    let along = segment.end - segment.start;
+    let t = if along.length_squared() == 0.0 {
+        0.0
+    } else {
+        ((point - segment.start).dot(along) / along.length_squared()).clamp(0.0, 1.0)
+    };
+    (point - (segment.start + along * t)).length()
+}
+
+// Scale handles for a frame the test builds from known numbers, never from the editor.
+fn scale_handles_at(editor: &Editor, origin: DVec3, axes: [DVec3; 3]) -> ScaleHandles {
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    ScaleHandles::new(&capture, &HandleFrame::new(origin, axes).unwrap()).unwrap()
+}
+
+// The distance from `pixel` to the nearest drawn segment of the handles (axis geometry and the
+// centre box).
+fn clearance(handles: &ScaleHandles, pixel: glam::DVec2) -> f64 {
+    handles
+        .axes()
+        .iter()
+        .filter_map(|axis| axis.geometry())
+        .flat_map(|geometry| geometry.segments())
+        .chain(handles.center())
+        .map(|segment| segment_gap(pixel, segment))
+        .fold(f64::INFINITY, f64::min)
+}
+
+fn logical(rect: egui::Rect, pixel: glam::DVec2) -> Pos2 {
+    rect.min + egui::vec2(pixel.x as f32, pixel.y as f32)
+}
+
+// The point on shaft `index` farthest from every wrong frame's handles.
+fn shaft_probe(
+    editor: &Editor,
+    origin: DVec3,
+    handles: &ScaleHandles,
+    index: usize,
+    wrong: &[(DVec3, [DVec3; 3])],
+) -> glam::DVec2 {
+    let shaft = handles.axes()[index]
+        .geometry()
+        .unwrap()
+        .segments()
+        .next()
+        .unwrap();
+    let wrong: Vec<_> = wrong
+        .iter()
+        .filter(|(other, _)| other.distance(origin) > 1e-9)
+        .map(|(origin, axes)| scale_handles_at(editor, *origin, *axes))
+        .collect();
+    (1..20)
+        .map(|step| shaft.start + (shaft.end - shaft.start) * (f64::from(step) / 20.0))
+        .max_by(|a, b| {
+            let worst = |p: &glam::DVec2| {
+                wrong
+                    .iter()
+                    .map(|handles| clearance(handles, *p))
+                    .fold(f64::INFINITY, f64::min)
+            };
+            worst(a).total_cmp(&worst(b))
+        })
+        .unwrap()
+}
+
+// Every frame the Scale tool could wrongly use is a different (origin, axes) pair; the probe
+// pixel must be more than the pick radius from the handles of each wrong frame with another
+// origin and must pick something else under each wrong frame.
+fn assert_probe_discriminates(
+    editor: &Editor,
+    expected_origin: DVec3,
+    pixel: glam::DVec2,
+    expected: Pick<ScaleHandle>,
+    wrong: &[(DVec3, [DVec3; 3])],
+) {
+    for (origin, axes) in wrong {
+        let alternative = scale_handles_at(editor, *origin, *axes);
+        // A frame at the same origin shares the centre box and, in Object space, the arm
+        // directions, so it is told apart by the pick alone.
+        if origin.distance(expected_origin) > 1e-9 {
+            assert!(
+                clearance(&alternative, pixel) > 8.0,
+                "{origin:?} {axes:?} reaches the probe {pixel:?}"
+            );
+        }
+        assert_ne!(alternative.pick(pixel), Some(expected));
+    }
+}
+
+const WORLD_AXES: [DVec3; 3] = [DVec3::X, DVec3::Y, DVec3::Z];
+// Rz(90): object X is world Y, object Y is world -X.
+const ROTATED_AXES: [DVec3; 3] = [DVec3::Y, DVec3::NEG_X, DVec3::Z];
+const ROTATE_ORIGIN: DVec3 = DVec3::new(1.0, 0.0, 0.0);
+const SCALE_ORIGIN: DVec3 = DVec3::new(1.0, 2.0, 0.0);
+
+// T=(1,0,0), Rz(90), scalePivotTranslate=(2,0,0): the Rotate origin is (1,0,0) and the Scale
+// origin (1,2,0).
+fn offset_pivot_scene() -> (Editor, egui::Context, View) {
+    ascii_editor(
+        concat!(
+            "createNode transform -n \"a\";\n",
+            "setAttr \".t\" -type \"double3\" 1 0 0;\n",
+            "setAttr \".r\" -type \"double3\" 0 0 90;\n",
+            "setAttr \".spt\" -type \"double3\" 2 0 0;\n"
+        ),
+        "a",
+        ActiveTool::Scale,
+    )
+}
+
+#[test]
+fn scale_hover_and_inspection_use_the_scale_frame_not_the_rotate_frame() {
+    for (space, axes, (index, handle, name, id), wrong) in [
+        (
+            ManipulationSpace::World,
+            WORLD_AXES,
+            (0, ScaleHandle::X, "X", "x"),
+            [
+                (ROTATE_ORIGIN, WORLD_AXES),
+                (SCALE_ORIGIN, ROTATED_AXES),
+                (ROTATE_ORIGIN, ROTATED_AXES),
+            ],
+        ),
+        (
+            ManipulationSpace::Object,
+            ROTATED_AXES,
+            (0, ScaleHandle::X, "X", "x"),
+            [
+                (ROTATE_ORIGIN, ROTATED_AXES),
+                (SCALE_ORIGIN, WORLD_AXES),
+                (ROTATE_ORIGIN, WORLD_AXES),
+            ],
+        ),
+    ] {
+        let (mut editor, context, view) = offset_pivot_scene();
+        editor.set_tool_space(ActiveTool::Scale, space).unwrap();
+        // Short handles keep the wrong frames' arms away from the probes.
+        editor
+            .apply_operation(Operation::SetManipulatorSize(size(0.5)))
+            .unwrap();
+        idle(&mut editor, &context, 1.0);
+        // The fixture really has the frames the test names.
+        assert!(
+            editor
+                .manipulation_frame(ActiveTool::Scale)
+                .unwrap()
+                .1
+                .origin()
+                .distance(SCALE_ORIGIN)
+                < 1e-9
+        );
+        assert!(
+            editor
+                .manipulation_frame(ActiveTool::Rotate)
+                .unwrap()
+                .1
+                .origin()
+                .distance(ROTATE_ORIGIN)
+                < 1e-9
+        );
+        let expected = scale_handles_at(&editor, SCALE_ORIGIN, axes);
+        let space_name = if space == ManipulationSpace::World {
+            "World"
+        } else {
+            "Object"
+        };
+
+        let shaft = shaft_probe(&editor, SCALE_ORIGIN, &expected, index, &wrong);
+        assert_eq!(expected.pick(shaft), Some(Pick::Handle(handle)));
+        assert_probe_discriminates(&editor, SCALE_ORIGIN, shaft, Pick::Handle(handle), &wrong);
+        moved(&mut editor, &context, 1.0, logical(view.rect, shaft));
+        assert_eq!(pointer_pick(&editor), (Some(id), None), "{space_name}");
+        assert!(
+            editor
+                .status
+                .starts_with(&format!("{space_name} {name} Scale: ")),
+            "{}",
+            editor.status
+        );
+        assert!(editor.error && !editor.status.ends_with("drag to scale"));
+
+        // The centre box sits on the Scale origin; only the frames with another origin differ.
+        let centre = scale_handles_at(&editor, SCALE_ORIGIN, axes);
+        let origin_pixel = centre
+            .center()
+            .fold(glam::DVec2::ZERO, |sum, s| sum + (s.start + s.end) * 0.5)
+            * 0.25;
+        assert_eq!(
+            centre.pick(origin_pixel),
+            Some(Pick::Handle(ScaleHandle::Uniform))
+        );
+        let other_origin: Vec<_> = wrong
+            .iter()
+            .copied()
+            .filter(|(origin, _)| *origin != SCALE_ORIGIN)
+            .collect();
+        assert_eq!(other_origin.len(), 2);
+        assert_probe_discriminates(
+            &editor,
+            SCALE_ORIGIN,
+            origin_pixel,
+            Pick::Handle(ScaleHandle::Uniform),
+            &other_origin,
+        );
+        moved(&mut editor, &context, 1.0, logical(view.rect, origin_pixel));
+        assert_eq!(
+            pointer_pick(&editor),
+            (Some("uniform"), None),
+            "{space_name}"
+        );
+        assert!(
+            editor
+                .status
+                .starts_with(&format!("{space_name} Uniform Scale: ")),
+            "{}",
+            editor.status
+        );
+    }
+}
+
+#[test]
+fn a_scale_press_uses_the_scale_frame_space_not_the_rotate_space() {
+    // A cube turned 90 degrees about Z: Rotate defaults to Object axes, Scale to World axes.
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let id = editor.selected.unwrap();
+    editor
+        .apply_operation(Operation::SetTransform {
+            id,
+            transform: crate::editor_operations::TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0, 0.0, 90.0],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    let expected = scale_handles_at(&editor, DVec3::ZERO, WORLD_AXES);
+    let shaft = shaft_probe(
+        &editor,
+        DVec3::ZERO,
+        &expected,
+        0,
+        &[(DVec3::ZERO, ROTATED_AXES)],
+    );
+    assert_probe_discriminates(
+        &editor,
+        DVec3::ZERO,
+        shaft,
+        Pick::Handle(ScaleHandle::X),
+        &[(DVec3::ZERO, ROTATED_AXES)],
+    );
+    press(&mut editor, &context, 1.0, logical(view.rect, shaft));
+    assert_eq!(
+        editor.history.active_manipulation().unwrap().kind,
+        ManipulationKindState::Scale {
+            handle: ScaleHandle::X,
+            space: azteccraft::native_scene::ScaleSpace::World
+        }
+    );
+    assert_eq!(editor.status, "World X Scale");
+}
