@@ -240,11 +240,13 @@ enum DragHandle {
 }
 
 impl DragHandle {
-    fn of(pick: ToolPick) -> Option<Self> {
+    fn of(pick: ToolPick) -> Result<Self, DisabledKind> {
         match pick {
-            ToolPick::Rotate(Pick::Handle(axis)) => Some(Self::Rotate(axis)),
-            ToolPick::Scale(Pick::Handle(handle)) => Some(Self::Scale(handle)),
-            ToolPick::Rotate(Pick::Disabled(_)) | ToolPick::Scale(Pick::Disabled(_)) => None,
+            ToolPick::Rotate(Pick::Handle(axis)) => Ok(Self::Rotate(axis)),
+            ToolPick::Scale(Pick::Handle(handle)) => Ok(Self::Scale(handle)),
+            ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
+                Err(kind)
+            }
         }
     }
 }
@@ -529,21 +531,19 @@ impl Editor {
         pick: ToolPick,
         pointer: Vec2,
     ) -> Option<String> {
-        if let Some(handle) = DragHandle::of(pick)
-            && let Err(error) = start_drag(capture.clone(), frame, handle, pointer)
-        {
+        let handle = DragHandle::of(pick).ok()?;
+        if let Err(error) = start_drag(capture.clone(), frame, handle, pointer) {
             return Some(error.describe_for(tool_name(tool)));
         }
         let space = self.manipulation.space(tool);
         let scene = self.history.scene();
-        match pick {
-            ToolPick::Rotate(Pick::Handle(axis)) => scene
+        match handle {
+            DragHandle::Rotate(axis) => scene
                 .rotation_refusal(target, axis, space.rotate())
                 .map(|error| error.to_string()),
-            ToolPick::Scale(Pick::Handle(handle)) => scene
+            DragHandle::Scale(handle) => scene
                 .scale_refusal(target, handle, space.scale())
                 .map(|error| error.to_string()),
-            ToolPick::Rotate(Pick::Disabled(_)) | ToolPick::Scale(Pick::Disabled(_)) => None,
         }
     }
 
@@ -672,12 +672,12 @@ impl Editor {
         let Some(picked) = self.pick_handle(tool, &capture, &frame, pixel) else {
             return Ok(false);
         };
-        let (handle, operation, label) = match picked {
-            ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
-                return self.refuse_disabled(kind);
-            }
-            ToolPick::Rotate(Pick::Handle(axis)) => (
-                DragHandle::Rotate(axis),
+        let handle = match DragHandle::of(picked) {
+            Ok(handle) => handle,
+            Err(kind) => return self.refuse_disabled(kind),
+        };
+        let (operation, label) = match handle {
+            DragHandle::Rotate(axis) => (
                 Operation::BeginRotate {
                     target,
                     axis,
@@ -685,8 +685,7 @@ impl Editor {
                 },
                 format!("{} {} Rotate", space_name(space), rotate_axis_name(axis)),
             ),
-            ToolPick::Scale(Pick::Handle(handle)) => (
-                DragHandle::Scale(handle),
+            DragHandle::Scale(handle) => (
                 Operation::BeginScale {
                     target,
                     handle,
