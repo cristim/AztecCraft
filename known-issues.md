@@ -899,9 +899,9 @@ minimized, in component selection modes and after a renderer terminal error; it 
 valid capture, after a scene load and after a camera change, the last two until the next viewport
 capture; the pointer fields are null when the pointer has left the window, a manipulation is active
 or Select is the tool). `pointer_refusal` includes the refusals raised when a Rotate or Scale drag
-begins, for example an edge-on Rotate ring or a Scale grab whose along-axis component is under 1 px
-of world length (a ring plane behind the camera along the press ray is expected from
-`HandleError::BehindRay` but not yet reproduced), as the press shows them; native hover shows the same text. Not fixed: gating the highlight
+begins, for example an edge-on Rotate ring, a ring plane behind the camera along the press ray, or a
+Scale grab whose along-axis component is under 1 px of world length, as the press shows them; native
+hover shows the same text. Not fixed: gating the highlight
 changes native behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
 
 ## Inspection keeps reporting a pick after a view build error

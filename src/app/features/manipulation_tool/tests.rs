@@ -2034,6 +2034,10 @@ const SCALE_ORIGIN: DVec3 = DVec3::new(1.0, 2.0, 0.0);
 // T=(1,0,0), Rz(90), scalePivotTranslate=(2,0,0): the Rotate origin is (1,0,0) and the Scale
 // origin (1,2,0).
 fn offset_pivot_scene() -> (Editor, egui::Context, View) {
+    offset_pivot_scene_for(ActiveTool::Scale)
+}
+
+fn offset_pivot_scene_for(tool: ActiveTool) -> (Editor, egui::Context, View) {
     ascii_editor(
         concat!(
             "createNode transform -n \"a\";\n",
@@ -2042,7 +2046,7 @@ fn offset_pivot_scene() -> (Editor, egui::Context, View) {
             "setAttr \".spt\" -type \"double3\" 2 0 0;\n"
         ),
         "a",
-        ActiveTool::Scale,
+        tool,
     )
 }
 
@@ -2670,6 +2674,26 @@ fn an_edge_on_rotate_ring_reports_the_drag_refusal_before_the_scene_refusal() {
         "y",
         "Object Y Rotate",
         "Rotate ring is edge-on to the camera",
+    );
+}
+
+// With the camera level (yaw 0, pitch 0) the offset-pivot scene's Object X ring is seen nearly
+// edge-on, and a press ray through its right-hand arc meets the ring plane behind the eye. The
+// pixel is on that arc in the 1.0-scale test window (at x 800 rows 471..478 are BehindRay,
+// between the edge-on row 470 and the ring's lower edge; 475 is at least 3 px inside); the hit-id
+// precondition fails loudly if the layout or camera moves it off the ring.
+#[test]
+fn a_rotate_ring_plane_behind_the_eye_reports_the_drag_refusal() {
+    let (mut editor, context, _) = offset_pivot_scene_for(ActiveTool::Rotate);
+    editor.camera = camera_at(0.0, 0.0);
+    idle(&mut editor, &context, 1.0);
+    assert_drag_refusal_everywhere(
+        &mut editor,
+        &context,
+        Pos2::new(800.0, 475.0),
+        "x",
+        "Object X Rotate",
+        "Rotate closest point lies behind the camera ray origin",
     );
 }
 
