@@ -8977,12 +8977,12 @@ fn set_camera_pose_changes_only_the_camera_and_reports_unchanged_on_repeat() {
         7.0_f32.rem_euclid(std::f32::consts::TAU)
     );
     assert_eq!(
-        [
-            editor.camera.fov_y(),
+        (
+            editor.camera.lens(),
             editor.camera.near(),
             editor.camera.far()
-        ],
-        [lens.fov_y(), lens.near(), lens.far()]
+        ),
+        (lens.lens(), lens.near(), lens.far())
     );
     let again = remote_pose(&mut editor, token, pose_op(7.0, 0.2, 5.0)).unwrap();
     assert!(matches!(again, OperationReply::Unchanged));
@@ -8990,6 +8990,25 @@ fn set_camera_pose_changes_only_the_camera_and_reports_unchanged_on_repeat() {
     assert_eq!(editor.is_dirty(), dirty);
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.history.can_undo(), undoable);
+}
+
+#[test]
+fn inspect_fov_tracks_the_viewport_aspect() {
+    let mut editor = Editor::default();
+    for aspect in [1.0_f32, 2.0] {
+        editor.aspect = aspect;
+        let tan_y = if aspect >= 1.4173 / 0.9449 {
+            1.4173_f32 * 25.4 / 70.0 / aspect
+        } else {
+            0.9449_f32 * 25.4 / 70.0
+        };
+        let expected = f64::from(2.0 * tan_y.atan()).to_degrees();
+        let actual = editor.inspect(false).unwrap().camera.fov_y_degrees;
+        assert!(
+            (actual - expected).abs() < 1e-4,
+            "aspect {aspect}: {actual}"
+        );
+    }
 }
 
 #[test]

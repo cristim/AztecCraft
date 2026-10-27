@@ -32,7 +32,10 @@ fn analytic_projection_and_ray_agree_off_center() {
     close(ray.direction, (world - ray.origin).normalize());
     let mut rotated = Camera::default();
     rotated.pan(Vec2::new(1.0, -2.0)).unwrap();
+    // Off center but inside the default film-fit frustum, which is narrower than 45 degrees.
+    let world = rotated.target() + Vec3::new(0.5, 0.25, 0.0);
     let projected = rotated.project(world, 1.0).unwrap().unwrap();
+    assert!(projected.truncate().abs().max_element() <= 1.0);
     close(
         rotated.ray(projected.truncate(), 1.0).unwrap().direction,
         (world - rotated.eye()).normalize(),

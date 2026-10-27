@@ -9,6 +9,9 @@ use crate::{
 use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
 
+mod lens;
+pub use lens::Lens;
+
 const MAX_FACE_CENTER_INTERSECTIONS: usize = 1_000_000;
 
 /// Relative view-depth slack for a face center against its own surface hit (f32 rounding).
@@ -28,7 +31,7 @@ pub struct Camera {
     yaw: f32,
     pitch: f32,
     distance: f32,
-    fov_y: f32,
+    lens: Lens,
     near: f32,
     far: f32,
 }
@@ -88,16 +91,17 @@ pub const MAX_PITCH: f32 = std::f32::consts::FRAC_PI_2 - 0.001;
 
 impl Default for Camera {
     fn default() -> Self {
-        Self::new(
-            Vec3::ZERO,
-            0.6,
-            0.4,
-            8.0,
-            45_f32.to_radians(),
-            0.1,
-            10_000.0,
-        )
-        .expect("default camera is valid")
+        let camera = Self {
+            target: Vec3::ZERO,
+            yaw: 0.6,
+            pitch: 0.4,
+            distance: 8.0,
+            lens: Lens::Film,
+            near: 0.1,
+            far: 10_000.0,
+        };
+        camera.validate().expect("default camera is valid");
+        camera
     }
 }
 
@@ -115,24 +119,16 @@ fn wrap_yaw(yaw: f32) -> f32 {
 impl Camera {
     pub fn same_capture(&self, other: &Self) -> bool {
         self.target.to_array().map(f32::to_bits) == other.target.to_array().map(f32::to_bits)
-            && [
-                self.yaw,
-                self.pitch,
-                self.distance,
-                self.fov_y,
-                self.near,
-                self.far,
-            ]
-            .map(f32::to_bits)
+            && [self.yaw, self.pitch, self.distance, self.near, self.far].map(f32::to_bits)
                 == [
                     other.yaw,
                     other.pitch,
                     other.distance,
-                    other.fov_y,
                     other.near,
                     other.far,
                 ]
                 .map(f32::to_bits)
+            && self.lens.capture_bits() == other.lens.capture_bits()
     }
 
     /// Builds a camera in the same normal form `orbit` and `set_pose` keep: yaw wraps into
@@ -151,7 +147,7 @@ impl Camera {
             yaw: wrap_yaw(yaw),
             pitch,
             distance,
-            fov_y,
+            lens: Lens::VerticalFov(fov_y),
             near,
             far,
         };
@@ -166,9 +162,7 @@ impl Camera {
             || self.pitch.abs() > MAX_PITCH
             || !self.distance.is_finite()
             || self.distance <= 0.0
-            || !self.fov_y.is_finite()
-            || self.fov_y <= 0.0
-            || self.fov_y >= std::f32::consts::PI
+            || !self.lens.is_valid()
             || !self.near.is_finite()
             || self.near <= 0.0
             || !self.far.is_finite()
@@ -195,9 +189,13 @@ impl Camera {
     pub fn pitch(&self) -> f32 {
         self.pitch
     }
-    /// Vertical field of view in radians.
-    pub fn fov_y(&self) -> f32 {
-        self.fov_y
+    pub fn lens(&self) -> Lens {
+        self.lens
+    }
+    /// Vertical field of view in radians at the viewport `aspect`; the film lens narrows it as
+    /// the viewport widens beyond the film aspect.
+    pub fn fov_y_for(&self, aspect: f32) -> f32 {
+        self.lens.half_angle_y(aspect) * 2.0
     }
     pub fn near(&self) -> f32 {
         self.near
@@ -238,7 +236,7 @@ impl Camera {
         if !aspect.is_finite() || aspect <= 0.0 {
             return Err(InvalidCameraInput);
         }
-        let y = 1.0 / (self.fov_y * 0.5).tan();
+        let y = 1.0 / self.lens.tan_half_y(aspect);
         let z = self.far / (self.near - self.far);
         let matrix = Mat4::from_cols(
             Vec4::new(y / aspect, 0.0, 0.0, 0.0),
@@ -266,7 +264,7 @@ impl Camera {
 
     /// Restores an absolute view. Yaw wraps like `orbit`; a pitch beyond orbit's limit is
     /// rejected rather than clamped so a pose that was read back never changes silently.
-    /// fov and clip planes are untouched. The camera is unchanged on error.
+    /// The lens and clip planes are untouched. The camera is unchanged on error.
     /// Changed/Unchanged is numeric: -0.0 equals 0.0, so a pose differing only in zero signs is
     /// no change although the stored bits may flip; `same_capture` compares bits.
     pub fn set_pose(
@@ -458,7 +456,10 @@ impl Camera {
         }
         let target = min * 0.5 + max * 0.5;
         let radius = vertices.map(|v| v.distance(target)).fold(0.0_f32, f32::max);
-        let half_angle = (self.fov_y * 0.5).min(((self.fov_y * 0.5).tan() * aspect).atan());
+        let half_angle = self
+            .lens
+            .half_angle_y(aspect)
+            .min((self.lens.tan_half_y(aspect) * aspect).atan());
         let mut next = self.clone();
         next.target = target;
         next.distance = (radius / half_angle.sin())

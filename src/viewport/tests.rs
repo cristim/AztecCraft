@@ -662,9 +662,10 @@ fn set_pose_sets_the_pose_and_keeps_lens_and_clip() {
     assert_eq!(camera.yaw(), 0.25);
     assert_eq!(camera.pitch(), -0.5);
     assert_eq!(
-        [camera.fov_y(), camera.near(), camera.far()],
-        [lens.fov_y(), lens.near(), lens.far()]
+        (camera.lens(), camera.near(), camera.far()),
+        (lens.lens(), lens.near(), lens.far())
     );
+    assert_eq!(camera.lens(), Lens::Film);
 }
 
 #[test]
@@ -897,12 +898,14 @@ fn default_camera_is_pinned_bit_for_bit() {
         camera.distance(),
         camera.yaw(),
         camera.pitch(),
-        camera.fov_y(),
         camera.near(),
         camera.far(),
     ];
-    let expected = [8.0, 0.6, 0.4, 45_f32.to_radians(), 0.1, 10_000.0];
+    let expected = [8.0, 0.6, 0.4, 0.1, 10_000.0];
     assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
+    // Create Camera Options: Focal Length "The default value is 35." Film Aperture "The default
+    // values are 1.4173 and 0.9449." Film fit "The default setting is Fill." (PROVISIONAL for persp)
+    assert_eq!(camera.lens(), Lens::Film);
 }
 
 #[test]
@@ -933,7 +936,7 @@ fn frame_floors_tiny_objects_at_twice_near() {
     let mut camera = Camera::default();
     let big = [Vec3::new(-1.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0)];
     camera.frame_points(&big, 1.0).unwrap();
-    let expected = 1.0 / (camera.fov_y() * 0.5).sin() * 1.05;
+    let expected = 1.0 / (camera.fov_y_for(1.0) * 0.5).sin() * 1.05;
     assert!((camera.distance() - expected).abs() < 1e-4);
     assert!(camera.far() >= camera.distance() + 1.0 + camera.near());
 }
@@ -946,4 +949,159 @@ fn dolly_does_not_change_near_or_far() {
     camera.dolly(2.0).unwrap();
     assert_eq!(camera.near().to_bits(), 0.5_f32.to_bits());
     assert_eq!(camera.far().to_bits(), 50.0_f32.to_bits());
+}
+
+// Create Camera Options, Focal Length 35 and Film Aperture 1.4173 x 0.9449 inches. The relation
+// tan(half angle) = aperture * 25.4 / (2 * focal) is standard pinhole geometry (PROVISIONAL).
+fn film_tan_half(aperture_in: f32) -> f32 {
+    aperture_in * 25.4 / (2.0 * 35.0)
+}
+
+fn film_aspect() -> f32 {
+    1.4173 / 0.9449
+}
+
+/// Fill fits the resolution gate within the film gate (PROVISIONAL threshold: the viewport
+/// aspect is the resolution gate).
+fn expected_film_tan_half_y(aspect: f32) -> f32 {
+    if aspect >= film_aspect() {
+        film_tan_half(1.4173) / aspect
+    } else {
+        film_tan_half(0.9449)
+    }
+}
+
+const FILM_ASPECTS: [f32; 8] = [0.5, 1.0, 1.49, 1.5, 1.51, 16.0 / 9.0, 21.0 / 9.0, 4.0];
+
+#[test]
+fn vertical_fov_lens_projection_is_bit_identical_to_the_old_formula() {
+    let fov = 45_f32.to_radians();
+    let camera = Camera::new(Vec3::ZERO, 0.6, 0.4, 8.0, fov, 0.1, 100.0).unwrap();
+    for aspect in [0.5_f32, 1.0, 1.78, 3.0] {
+        let y = 1.0 / (fov * 0.5).tan();
+        let m = camera.projection_matrix(aspect).unwrap();
+        assert_eq!(m.x_axis.x.to_bits(), (y / aspect).to_bits());
+        assert_eq!(m.y_axis.y.to_bits(), y.to_bits());
+        assert_eq!(camera.fov_y_for(aspect).to_bits(), fov.to_bits());
+    }
+}
+
+#[test]
+fn same_capture_distinguishes_lenses() {
+    let film = Camera::default();
+    let mut fixed = film.clone();
+    fixed.lens = Lens::VerticalFov(45_f32.to_radians());
+    let mut other = fixed.clone();
+    other.lens = Lens::VerticalFov(46_f32.to_radians());
+    assert!(film.same_capture(&film.clone()));
+    assert!(!film.same_capture(&fixed));
+    assert!(!fixed.same_capture(&other));
+}
+
+#[test]
+fn film_lens_fill_matches_horizontal_at_or_above_film_aspect_and_vertical_below() {
+    for aspect in FILM_ASPECTS {
+        let expected = expected_film_tan_half_y(aspect);
+        let actual = Lens::Film.tan_half_y(aspect);
+        assert!(
+            (actual - expected).abs() <= expected * 1e-6,
+            "aspect {aspect}: {actual} vs {expected}"
+        );
+        let fov = Camera::default().fov_y_for(aspect);
+        assert!(
+            (fov - 2.0 * expected.atan()).abs() < 1e-6,
+            "aspect {aspect}"
+        );
+    }
+    // Horizontal match above the film aspect: the horizontal half angle stays constant.
+    let wide = [2.0_f32, 3.0];
+    let half_x = wide.map(|a| (Lens::Film.tan_half_y(a) * a).atan());
+    assert!((half_x[0] - half_x[1]).abs() < 1e-6);
+    // Vertical match below it: the vertical fov stays constant.
+    assert_eq!(
+        Lens::Film.tan_half_y(0.5).to_bits(),
+        Lens::Film.tan_half_y(1.0).to_bits()
+    );
+}
+
+#[test]
+fn fill_is_continuous_at_the_film_aspect() {
+    let camera = Camera::default();
+    let at = film_aspect();
+    let below = camera.fov_y_for(at * (1.0 - 1e-4));
+    let above = camera.fov_y_for(at * (1.0 + 1e-4));
+    assert!((below - above).abs().to_degrees() < 1e-2, "{below} {above}");
+}
+
+#[test]
+fn default_camera_projection_uses_the_film_fit_at_each_aspect() {
+    let camera = Camera::default();
+    for aspect in FILM_ASPECTS {
+        let y = 1.0 / expected_film_tan_half_y(aspect);
+        let m = camera.projection_matrix(aspect).unwrap();
+        assert!((m.y_axis.y - y).abs() <= y * 1e-6, "aspect {aspect} y");
+        assert!(
+            (m.x_axis.x - y / aspect).abs() <= (y / aspect) * 1e-6,
+            "aspect {aspect} x"
+        );
+    }
+}
+
+fn frame_unit_sphere_points() -> [Vec3; 6] {
+    [
+        Vec3::X,
+        Vec3::NEG_X,
+        Vec3::Y,
+        Vec3::NEG_Y,
+        Vec3::Z,
+        Vec3::NEG_Z,
+    ]
+}
+
+#[test]
+fn frame_all_distance_follows_the_effective_fov() {
+    for aspect in [0.5_f32, 1.0, 1.6, 16.0 / 9.0] {
+        let mut camera = Camera::default();
+        camera
+            .frame_points(&frame_unit_sphere_points(), aspect)
+            .unwrap();
+        let tan_y = expected_film_tan_half_y(aspect);
+        let half = tan_y.atan().min((tan_y * aspect).atan());
+        let expected = 1.0 / half.sin() * 1.05;
+        assert!(
+            (camera.distance() - expected).abs() <= expected * 1e-5,
+            "aspect {aspect}: {} vs {expected}",
+            camera.distance()
+        );
+    }
+}
+
+#[test]
+fn frame_keeps_every_vertex_inside_ndc() {
+    let cube: Vec<Vec3> = (0..8)
+        .map(|i| {
+            Vec3::new(
+                if i & 1 == 0 { -1.0 } else { 1.0 },
+                if i & 2 == 0 { -1.0 } else { 1.0 },
+                if i & 4 == 0 { -1.0 } else { 1.0 },
+            )
+        })
+        .collect();
+    for aspect in [0.5_f32, 1.0, 1.6, 16.0 / 9.0] {
+        let mut camera = Camera::default();
+        camera.frame_points(&cube, aspect).unwrap();
+        for v in &cube {
+            let ndc = camera.project(*v, aspect).unwrap().unwrap();
+            assert!(ndc.truncate().abs().max_element() < 1.0, "aspect {aspect}");
+        }
+    }
+}
+
+#[test]
+fn dolly_has_no_minimum_distance() {
+    let mut camera = Camera::default();
+    camera.dolly(1e-4).unwrap();
+    assert_eq!(camera.distance(), 8.0_f32 * 1e-4);
+    assert!(camera.distance() < camera.near());
+    assert_eq!(camera.project(camera.target(), 1.0).unwrap(), None);
 }

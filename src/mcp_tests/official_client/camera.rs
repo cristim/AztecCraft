@@ -86,7 +86,7 @@ async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
             ),
             (
                 "fov_y_degrees",
-                f64::from(editor.camera.fov_y()).to_degrees(),
+                f64::from(editor.camera.fov_y_for(editor.aspect)).to_degrees(),
             ),
             ("near_clip", f64::from(editor.camera.near())),
             ("far_clip", f64::from(editor.camera.far())),
