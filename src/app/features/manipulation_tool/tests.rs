@@ -2185,3 +2185,44 @@ fn a_scale_press_uses_the_scale_frame_space_not_the_rotate_space() {
     );
     assert_eq!(editor.status, "World X Scale");
 }
+
+// A writable cube turned `degrees` about Z at the origin with the Scale tool active.
+fn rotated_cube_scale_editor(degrees: f64) -> (Editor, egui::Context, View) {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let id = editor.selected.unwrap();
+    editor
+        .apply_operation(Operation::SetTransform {
+            id,
+            transform: crate::editor_operations::TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0, 0.0, degrees],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    (editor, context, view)
+}
+
+#[test]
+fn scale_hover_states_the_refusal_of_the_handle_under_the_pointer() {
+    // World X and Y of a node turned 30 degrees about Z are not local axes; World Z is.
+    let (mut editor, context, view) = rotated_cube_scale_editor(30.0);
+    let handles = scale_handles_at(&editor, DVec3::ZERO, WORLD_AXES);
+    let refusal = NativeError::UnsupportedScale(ScaleUnsupported::NotAxisAligned).to_string();
+    for (index, handle, name, refused) in [
+        (0, ScaleHandle::X, "X", true),
+        (2, ScaleHandle::Z, "Z", false),
+    ] {
+        let pixel = shaft_probe(&editor, DVec3::ZERO, &handles, index, &[]);
+        assert_eq!(handles.pick(pixel), Some(Pick::Handle(handle)));
+        moved(&mut editor, &context, 1.0, logical(view.rect, pixel));
+        let expected = if refused {
+            format!("World {name} Scale: {refusal}")
+        } else {
+            format!("World {name} Scale: drag to scale")
+        };
+        assert_eq!(editor.status, expected);
+        assert_eq!(editor.error, refused);
+    }
+}

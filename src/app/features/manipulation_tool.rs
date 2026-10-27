@@ -236,6 +236,32 @@ fn handle_error(tool: ActiveTool, error: HandleError) -> OperationError {
     OperationError::InvalidInput(error.describe_for(tool_name(tool)))
 }
 
+/// Why a tool has no handle frame. The cause stays typed so a reason is built only from fixed
+/// core text, never from an arbitrary `InvalidInput` string.
+pub(in crate::app) enum FrameFailure {
+    Operation(OperationError),
+    Handle(HandleError),
+}
+
+impl FrameFailure {
+    /// The text native shows after "{tool} unavailable: ". None when the tool is simply idle (no
+    /// selection) or the cause is not one the handles report.
+    pub(in crate::app) fn reason(&self, tool: ActiveTool) -> Option<String> {
+        match self {
+            Self::Handle(error) => Some(error.describe_for(tool_name(tool))),
+            Self::Operation(OperationError::Scene(error)) => Some(error.to_string()),
+            Self::Operation(_) => None,
+        }
+    }
+
+    fn into_operation(self, tool: ActiveTool) -> OperationError {
+        match self {
+            Self::Operation(error) => error,
+            Self::Handle(error) => handle_error(tool, error),
+        }
+    }
+}
+
 impl Editor {
     pub(in crate::app) fn check_manipulation_target(
         &self,
@@ -419,16 +445,29 @@ impl Editor {
         &self,
         tool: ActiveTool,
     ) -> Result<(TransformTarget, HandleFrame), OperationError> {
+        self.manipulation_frame_or_reason(tool)
+            .map_err(|failure| failure.into_operation(tool))
+    }
+
+    // `manipulation_frame` with the typed cause kept, for callers that report the reason.
+    pub(in crate::app) fn manipulation_frame_or_reason(
+        &self,
+        tool: ActiveTool,
+    ) -> Result<(TransformTarget, HandleFrame), FrameFailure> {
         let name = tool_name(tool);
         if let Some(refusal) = mode_refusal(name, self.selection_mode) {
-            return Err(OperationError::InvalidInput(refusal));
+            return Err(FrameFailure::Operation(OperationError::InvalidInput(
+                refusal,
+            )));
         }
-        let target = self.selected_move_target()?;
+        let target = self
+            .selected_move_target()
+            .map_err(FrameFailure::Operation)?;
         let frame = self
             .history
             .scene()
             .manipulator_frame(&target)
-            .map_err(OperationError::Scene)?;
+            .map_err(|error| FrameFailure::Operation(OperationError::Scene(error)))?;
         let axes = match self.manipulation.space(tool) {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
@@ -438,8 +477,30 @@ impl Editor {
         } else {
             frame.origin_cm
         };
-        let handle = HandleFrame::new(origin, axes).map_err(|e| handle_error(tool, e))?;
+        let handle = HandleFrame::new(origin, axes).map_err(FrameFailure::Handle)?;
         Ok((target, handle))
+    }
+
+    /// Why a press on `pick` would be refused, in the words native hover shows after
+    /// "{space} {handle} {tool}: ". None for an accepted handle and for a disabled one, whose
+    /// reason is the kind itself.
+    pub(in crate::app) fn pick_refusal(
+        &self,
+        target: &TransformTarget,
+        tool: ActiveTool,
+        pick: ToolPick,
+    ) -> Option<String> {
+        let space = self.manipulation.space(tool);
+        let scene = self.history.scene();
+        match pick {
+            ToolPick::Rotate(Pick::Handle(axis)) => scene
+                .rotation_refusal(target, axis, space.rotate())
+                .map(|error| error.to_string()),
+            ToolPick::Scale(Pick::Handle(handle)) => scene
+                .scale_refusal(target, handle, space.scale())
+                .map(|error| error.to_string()),
+            ToolPick::Rotate(Pick::Disabled(_)) | ToolPick::Scale(Pick::Disabled(_)) => None,
+        }
     }
 
     // A refused hover shows the core's own reason before any press.
@@ -453,40 +514,31 @@ impl Editor {
         if mode_refusal("", self.selection_mode).is_some() {
             return None;
         }
-        let (target, frame) = match self.manipulation_frame(tool) {
+        let (target, frame) = match self.manipulation_frame_or_reason(tool) {
             Ok(found) => found,
-            Err(OperationError::NoSelection) => return None,
             // A frame the handles refuse (for example a mirrored one) is named for as long as the
             // pointer is over the viewport.
-            Err(error) => return Some((format!("{} unavailable: {error}", tool_name(tool)), true)),
+            Err(failure) => {
+                return failure
+                    .reason(tool)
+                    .map(|reason| (format!("{} unavailable: {reason}", tool_name(tool)), true));
+            }
         };
         let space = self.manipulation.space(tool);
-        let scene = self.history.scene();
-        Some(match self.pick_handle(tool, capture, &frame, pixel)? {
+        let picked = self.pick_handle(tool, capture, &frame, pixel)?;
+        Some(match picked {
             ToolPick::Rotate(Pick::Handle(axis)) => {
-                let name = rotate_axis_name(axis);
-                match scene.rotation_refusal(&target, axis, space.rotate()) {
-                    Some(refusal) => (
-                        format!("{} {name} Rotate: {refusal}", space_name(space)),
-                        true,
-                    ),
-                    None => (
-                        format!("{} {name} Rotate: drag to turn", space_name(space)),
-                        false,
-                    ),
+                let label = format!("{} {} Rotate", space_name(space), rotate_axis_name(axis));
+                match self.pick_refusal(&target, tool, picked) {
+                    Some(refusal) => (format!("{label}: {refusal}"), true),
+                    None => (format!("{label}: drag to turn"), false),
                 }
             }
             ToolPick::Scale(Pick::Handle(handle)) => {
-                let name = scale_handle_name(handle);
-                match scene.scale_refusal(&target, handle, space.scale()) {
-                    Some(refusal) => (
-                        format!("{} {name} Scale: {refusal}", space_name(space)),
-                        true,
-                    ),
-                    None => (
-                        format!("{} {name} Scale: drag to scale", space_name(space)),
-                        false,
-                    ),
+                let label = format!("{} {} Scale", space_name(space), scale_handle_name(handle));
+                match self.pick_refusal(&target, tool, picked) {
+                    Some(refusal) => (format!("{label}: {refusal}"), true),
+                    None => (format!("{label}: drag to scale"), false),
                 }
             }
             ToolPick::Rotate(Pick::Disabled(kind)) | ToolPick::Scale(Pick::Disabled(kind)) => {
