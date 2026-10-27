@@ -1693,7 +1693,6 @@ fn guard_matrix_file_writing_cells_match_committed_snapshot() {
         cells > 10,
         "file-writing matrix unexpectedly small: {cells}"
     );
-    eprintln!("GUARD_MATRIX_BEGIN\n{text}\nGUARD_MATRIX_END");
     if cfg!(windows) {
         super::snapshots::assert_snapshot("guard_matrix_file_writing_windows.txt", &text);
     } else {
