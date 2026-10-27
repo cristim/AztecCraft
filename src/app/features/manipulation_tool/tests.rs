@@ -471,7 +471,7 @@ fn a_z_ring_drag_turns_about_z_only_and_is_one_rotate_history_entry() {
         release(&mut editor, &context, scale, view.ring(z, -20.0));
         assert!(editor.history.active_manipulation().is_none());
         assert_eq!(editor.status, "Rotate committed");
-        assert_eq!(editor.history.undo_label(), Some("Rotate"));
+        assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
         editor.native_operation(Operation::Undo);
         assert_eq!(channels(&editor)[5], 0.0);
     }
@@ -517,7 +517,7 @@ fn a_y_scale_handle_drag_scales_y_only_in_one_scale_history_entry() {
             view.screen(Vec3::Y * radius * 0.5),
         );
         assert_eq!(editor.status, "Scale committed");
-        assert_eq!(editor.history.undo_label(), Some("Scale"));
+        assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
         editor.native_operation(Operation::Undo);
         assert_eq!(channels(&editor)[7], 1.0);
     }
