@@ -90,8 +90,8 @@ type Baseline = (
 
 fn baseline(editor: &Editor) -> Baseline {
     (
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selected(),
+        editor.selected_path().to_vec(),
         editor.remembered_face.clone(),
         editor.remembered_vertex.clone(),
         editor.remembered_edge.clone(),
@@ -211,7 +211,7 @@ async fn mode_select_inspect_unchanged_clear_and_frame(kind: Kind) {
     .await;
     assert_eq!(cleared.structured_content.unwrap()["outcome"], "changed");
     assert_eq!(kind.remembered_index(&editor), None);
-    assert_eq!(editor.selected.unwrap().to_decimal(), id);
+    assert_eq!(editor.selected().unwrap().to_decimal(), id);
     let no_target = call(
         &mut editor,
         &context,
@@ -280,7 +280,7 @@ async fn select_node_stays_exact(kind: Kind) {
     )
     .await;
     assert_ne!(other.is_error, Some(true));
-    assert_eq!(editor.selected.unwrap().to_decimal(), plane);
+    assert_eq!(editor.selected().unwrap().to_decimal(), plane);
     assert_eq!(editor.selection_mode, kind.mode);
     assert_eq!(kind.remembered_index(&editor), None);
     client.cancel().await.unwrap();

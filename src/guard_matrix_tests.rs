@@ -285,7 +285,7 @@ impl Targets {
 fn targets(rig: &Rig) -> Targets {
     let editor = &rig.editor;
     let scene = editor.history.scene();
-    let node = editor.selected.expect("every state selects a node");
+    let node = editor.selected().expect("every state selects a node");
     let shape = scene
         .shapes()
         .first()
@@ -294,11 +294,11 @@ fn targets(rig: &Rig) -> Targets {
         .expect("every state has a shape or curve");
     let other = match (scene.nodes().get(1), scene.shapes().get(1)) {
         (Some(node), Some(shape)) => (node.id(), vec![node.transform_id()], shape.id()),
-        _ => (node, editor.selected_path.clone(), shape),
+        _ => (node, editor.selected_path().to_vec(), shape),
     };
     Targets {
         node,
-        path: editor.selected_path.clone(),
+        path: editor.selected_path().to_vec(),
         shape,
         other,
         move_id: editor.history.active_manipulation().map_or_else(
@@ -317,7 +317,7 @@ fn targets(rig: &Rig) -> Targets {
 fn cube_editor() -> Editor {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor
         .apply_operation(Operation::Rename {
             id,
@@ -439,8 +439,8 @@ fn build(state: State) -> Rig {
             };
             editor.active_tool = ActiveTool::Move;
             let target = TransformTarget {
-                node: editor.selected.unwrap(),
-                path: editor.selected_path.clone(),
+                node: editor.selected().unwrap(),
+                path: editor.selected_path().to_vec(),
             };
             editor
                 .apply_operation_guarded(
@@ -1293,7 +1293,7 @@ struct Observed {
 fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
     let scene = editor.history.scene();
     let selected = editor
-        .selected
+        .selected()
         .and_then(|id| scene.node(id).ok())
         .map_or("-", |node| node.name());
     let active_manipulation = match editor.history.active_manipulation() {
@@ -1316,7 +1316,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("token", editor.scene_token.to_string()),
         ("nodes", scene.nodes().len().to_string()),
         ("selected", selected.to_owned()),
-        ("selected_path_len", editor.selected_path.len().to_string()),
+        (
+            "selected_path_len",
+            editor.selected_path().len().to_string(),
+        ),
         ("selection_mode", format!("{:?}", editor.selection_mode)),
         (
             "face_remembered",
@@ -1440,8 +1443,8 @@ fn describe(result: &Result<OperationReply, OperationError>, roots: &[&std::path
 }
 
 fn add_second_node(editor: &mut Editor) {
-    let first = editor.selected.unwrap();
-    let first_path = editor.selected_path.clone();
+    let first = editor.selected().unwrap();
+    let first_path = editor.selected_path().to_vec();
     editor
         .apply_operation(Operation::Create {
             primitive: Primitive::Plane,
@@ -1449,7 +1452,7 @@ fn add_second_node(editor: &mut Editor) {
             name: None,
         })
         .unwrap();
-    let plane = editor.selected.unwrap();
+    let plane = editor.selected().unwrap();
     editor
         .apply_operation(Operation::SetTransform {
             id: plane,
@@ -1662,7 +1665,7 @@ fn guard_matrix_is_deterministic() {
 #[test]
 fn native_operation_reports_face_mode_delete_refusal() {
     let mut editor = cube_editor();
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor.selection_mode = SelectionMode::Face;
     let scene = editor.history.scene().clone();
     editor.native_operation(Operation::Delete(id));

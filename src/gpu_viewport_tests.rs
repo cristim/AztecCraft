@@ -70,7 +70,7 @@ fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
     }
     assert_eq!(editor.history.scene(), &baseline);
     assert_eq!(editor.scene_token, token);
-    assert_eq!(editor.selected, Some(owner));
+    assert_eq!(editor.selected(), Some(owner));
     assert!(!editor.is_dirty() && !editor.history.can_undo());
     assert_eq!(std::fs::read(path).unwrap(), source);
 }
@@ -288,7 +288,7 @@ fn replacement_frame_token_discards_navigation_and_click_for_old_document() {
     );
     output.textures_delta.clear();
     assert_eq!(editor.camera, camera);
-    assert!(editor.selected.is_none());
+    assert!(editor.selected().is_none());
 }
 
 #[test]
@@ -425,7 +425,7 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
             );
         }
         assert_eq!(submission.surfaces, 0..36);
-        assert!(editor.selected.is_none());
+        assert!(editor.selected().is_none());
     }
 }
 
@@ -436,7 +436,7 @@ fn headless_gpu_recoverable_clip_error_clears_after_typed_transform_repair() {
     let creation = creation_context(context.clone());
     let mut editor = Editor::new(&creation).unwrap();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor.camera = Camera::new(
         glam::Vec3::ZERO,
         0.0,

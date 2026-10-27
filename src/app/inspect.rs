@@ -383,8 +383,8 @@ mod tests {
         let mut editor = crate::app::Editor::default();
         editor.create(azteccraft::scene::Primitive::Cube);
         assert_eq!(editor.remembered_path_bytes().unwrap(), [0; 3]);
-        let id = editor.selected.unwrap();
-        let path = editor.selected_path.clone();
+        let id = editor.selected().unwrap();
+        let path = editor.selected_path().to_vec();
         let shape = path[0];
         let mut owned = path.clone();
         owned.push(shape);
@@ -422,8 +422,8 @@ mod tests {
     fn inspect_sums_node_and_remembered_paths_against_its_limit() {
         let mut editor = crate::app::Editor::default();
         editor.create(azteccraft::scene::Primitive::Cube);
-        let id = editor.selected.unwrap();
-        let shape = editor.selected_path[0];
+        let id = editor.selected().unwrap();
+        let shape = editor.selected_path()[0];
         editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
             transform: id,
             shape,

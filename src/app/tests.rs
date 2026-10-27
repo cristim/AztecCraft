@@ -1925,15 +1925,15 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             options: None,
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "renamed".into(),
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "renamed".into(),
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: String::new(),
         },
         |_| Operation::Undo,
@@ -6500,8 +6500,8 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
     let scene = editor.history.scene().clone();
     let state = |editor: &Editor| {
         (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.history.can_undo(),
             editor.history.can_redo(),
             editor.history.undo_label(),
@@ -8461,7 +8461,7 @@ fn frame_all_frames_every_object_regardless_of_selection() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     let transform = NativeTransform {
         translation: [20.0, 0.0, 0.0],
         ..Default::default()
@@ -8488,7 +8488,7 @@ fn frame_all_frames_every_object_regardless_of_selection() {
     }
     remote(&mut editor, Operation::FrameAll).unwrap();
     assert_eq!(editor.camera, expected);
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selected(), Some(id));
     assert!(matches!(
         remote(&mut editor, Operation::FrameAll),
         Ok(OperationReply::Unchanged)
@@ -8856,7 +8856,7 @@ mod primitive_options_create {
         let mut editor = Editor::default();
         create(&mut editor, Primitive::Cube, None).unwrap();
         let scene = editor.history.scene().clone();
-        let selection = (editor.selected, editor.selected_path.clone());
+        let selection = (editor.selected(), editor.selected_path().to_vec());
         let token = editor.scene_token;
         let dirty = editor.is_dirty();
         let invalid = [
@@ -8868,7 +8868,10 @@ mod primitive_options_create {
             let error = create(&mut editor, primitive, Some(options)).unwrap_err();
             assert!(matches!(error, OperationError::Scene(_)), "{error:?}");
             assert_eq!(editor.history.scene(), &scene);
-            assert_eq!((editor.selected, editor.selected_path.clone()), selection);
+            assert_eq!(
+                (editor.selected(), editor.selected_path().to_vec()),
+                selection
+            );
             assert_eq!(editor.scene_token, token);
             assert_eq!(editor.is_dirty(), dirty);
             assert!(!editor.history.can_redo());
@@ -9289,7 +9292,7 @@ fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip()
         ..Default::default()
     };
     let input = editor.transform_input(transform).unwrap();
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     remote(
         &mut editor,
         Operation::SetTransform {

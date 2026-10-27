@@ -15,6 +15,11 @@ impl Editor {
         self.selection_presentation().0
     }
 
+    #[cfg(test)]
+    pub(in crate::app) fn selected_path(&self) -> &[NativeId] {
+        self.selection_presentation().1
+    }
+
     /// Fixture setter: the one test entry for building a selection without dispatching `Select`.
     #[cfg(test)]
     pub(in crate::app) fn set_selection_for_test(

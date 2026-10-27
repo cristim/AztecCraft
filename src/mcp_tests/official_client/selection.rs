@@ -85,11 +85,11 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
         let result = call(&mut editor, &context, client.peer(), tool, args).await;
         assert_ne!(result.is_error, Some(true));
     }
-    assert_eq!(editor.selected.unwrap().to_decimal(), ids[1]);
+    assert_eq!(editor.selected().unwrap().to_decimal(), ids[1]);
     assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 0);
     let selection = (
-        editor.selected,
-        editor.selected_path.clone(),
+        editor.selected(),
+        editor.selected_path().to_vec(),
         editor.remembered_face.clone(),
     );
     for mode in ["face", "object", "face"] {
@@ -138,8 +138,8 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
         assert_eq!(result.is_error, Some(true), "{field}");
         assert_eq!(
             (
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone()
             ),
             selection
@@ -171,8 +171,8 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
     .await;
     assert_ne!(cleared.is_error, Some(true));
     assert_eq!(editor.remembered_face, None);
-    assert_eq!(editor.selected, selection.0);
-    assert_eq!(editor.selected_path, selection.1);
+    assert_eq!(editor.selected(), selection.0);
+    assert_eq!(editor.selected_path(), selection.1);
     call(
         &mut editor,
         &context,
@@ -329,7 +329,7 @@ async fn sdk_hierarchy_mode_is_idempotent_refuses_faces_and_keeps_select_node_ex
     .await;
     assert_ne!(selected.is_error, Some(true));
     assert_eq!(editor.selection_mode, SelectionMode::Hierarchy);
-    assert_eq!(editor.selected.unwrap().to_decimal(), child_node);
+    assert_eq!(editor.selected().unwrap().to_decimal(), child_node);
     assert_eq!(
         editor
             .selected_path
@@ -355,7 +355,7 @@ async fn sdk_hierarchy_mode_is_idempotent_refuses_faces_and_keeps_select_node_ex
     );
 
     let scene = editor.history.scene().clone();
-    let selection = (editor.selected, editor.selected_path.clone());
+    let selection = (editor.selected(), editor.selected_path().to_vec());
     let shape_id = scene.shapes()[0].id().to_decimal();
     let target =
         json!({"node_id":child_node,"shape_id":shape_id,"instance_path":child_path,"face_index":0});
@@ -374,7 +374,10 @@ async fn sdk_hierarchy_mode_is_idempotent_refuses_faces_and_keeps_select_node_ex
             "invalid_input"
         );
         assert_eq!(editor.selection_mode, SelectionMode::Hierarchy);
-        assert_eq!((editor.selected, editor.selected_path.clone()), selection);
+        assert_eq!(
+            (editor.selected(), editor.selected_path().to_vec()),
+            selection
+        );
         assert_eq!(editor.remembered_face, None);
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(editor.scene_token.to_string(), token);
@@ -533,7 +536,7 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
     .structured_content
     .unwrap();
     let node_id = created["node_id"].clone();
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     for (mode, selection, noun) in [
         ("face", SelectionMode::Face, "Face"),
         ("vertex", SelectionMode::Vertex, "Vertex"),
@@ -633,8 +636,8 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
     let before = editor.history.scene().clone();
     let state = |editor: &Editor| {
         (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.history.can_undo(),
             editor.history.can_redo(),
             editor.history.undo_label(),

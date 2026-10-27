@@ -26,7 +26,7 @@ async fn sparse_node_edit_combines_history_preserves_selection_and_rejects_inval
     )
     .await;
     let before = editor.history.scene().clone();
-    let selection = (editor.selected, editor.selected_path.clone());
+    let selection = (editor.selected(), editor.selected_path().to_vec());
     let camera = editor.camera.clone();
     let title = editor.document_title();
     let result = call(&mut editor, &context, client.peer(), "edit_node", json!({"scene_token":token,"node_id":id,"name":"combined","translation":[16777217.125,null,null],"rotation_degrees":[null,90,null],"scale":[null,null,-1]})).await;
@@ -38,8 +38,8 @@ async fn sparse_node_edit_combines_history_preserves_selection_and_rejects_inval
     assert_eq!(node.transform().rotation, [0.0, 90.0, 0.0]);
     assert_eq!(node.transform().scale, [1.0, 1.0, -1.0]);
     assert_eq!(
-        (editor.selected, &editor.selected_path),
-        (selection.0, &selection.1)
+        (editor.selected(), editor.selected_path()),
+        (selection.0, selection.1.as_slice())
     );
     assert_eq!(editor.camera, camera);
     assert_eq!(editor.scene_token.to_string(), token);
@@ -213,7 +213,7 @@ async fn sparse_imported_edit_preserves_raw_radians_and_only_changes_requested_w
     assert!(editor.history.can_redo());
     assert!(!editor.is_dirty());
     assert_eq!((&editor.name, &editor.channels), (&fields.0, &fields.1));
-    let selection = (editor.selected, editor.selected_path.clone());
+    let selection = (editor.selected(), editor.selected_path().to_vec());
     let camera = editor.camera.clone();
     let title = editor.document_title();
     let edited = call(&mut editor, &context, client.peer(), "edit_node", json!({"scene_token":token,"node_id":id.to_decimal(),"translation":[16777219.375,null,null]})).await;
@@ -244,8 +244,8 @@ async fn sparse_imported_edit_preserves_raw_radians_and_only_changes_requested_w
     assert!(encoded[offset..offset + 8] == 16777219.375_f64.to_be_bytes());
     assert!(encoded[offset + 8..] == source[offset + 8..]);
     assert_eq!(
-        (editor.selected, &editor.selected_path),
-        (selection.0, &selection.1)
+        (editor.selected(), editor.selected_path()),
+        (selection.0, selection.1.as_slice())
     );
     assert_eq!(editor.camera, camera);
     assert_eq!(editor.document_title(), format!("{title} *"));
@@ -365,7 +365,7 @@ async fn native_sdk_transforms_preserve_double_precision_and_inspect_metadata_on
     .await;
     assert_eq!(selected.is_error, Some(false));
     let before = editor.history.scene().clone();
-    let selected_path = editor.selected_path.clone();
+    let selected_path = editor.selected_path().to_vec();
     let wrong = call(
         &mut editor,
         &context,
@@ -379,7 +379,7 @@ async fn native_sdk_transforms_preserve_double_precision_and_inspect_metadata_on
         "scene_error"
     );
     assert_eq!(editor.history.scene(), &before);
-    assert_eq!(editor.selected_path, selected_path);
+    assert_eq!(editor.selected_path(), selected_path);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

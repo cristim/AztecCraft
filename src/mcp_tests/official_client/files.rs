@@ -796,8 +796,8 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
     .await;
     let before = editor.history.scene().clone();
     let camera = editor.camera.clone();
-    let selected = editor.selected;
-    let selected_path = editor.selected_path.clone();
+    let selected = editor.selected();
+    let selected_path = editor.selected_path().to_vec();
     let pending = call(
         &mut editor,
         &context,
@@ -868,8 +868,8 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
         );
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
-        assert_eq!(editor.selected, selected);
-        assert_eq!(editor.selected_path, selected_path);
+        assert_eq!(editor.selected(), selected);
+        assert_eq!(editor.selected_path(), selected_path);
     }
     let stale = call(
         &mut editor,

@@ -69,12 +69,12 @@ async fn sdk_inspection_matches_committed_snapshots() {
     editor
         .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
         .unwrap();
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let begin = editor
         .apply_operation(Operation::BeginMove {
             target: azteccraft::native_scene::TransformTarget {
                 node,
-                path: editor.selected_path.clone(),
+                path: editor.selected_path().to_vec(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
         })

@@ -426,7 +426,7 @@ async fn move_sdk_never_commits_real_native_text_drafts_or_takes_their_focus() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
         .selected_path
         .iter()
@@ -1360,7 +1360,7 @@ async fn declared_echo_does_not_survive_a_new_scene_that_reuses_the_manipulation
     let mut ids = Vec::new();
     for round in 0..2 {
         let token = editor.scene_token.to_string();
-        let node = editor.selected.unwrap().to_decimal();
+        let node = editor.selected().unwrap().to_decimal();
         let path: Vec<_> = editor
             .selected_path
             .iter()
@@ -1573,7 +1573,7 @@ async fn rotate_and_scale_sdk_never_commit_real_native_text_drafts() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
         .selected_path
         .iter()

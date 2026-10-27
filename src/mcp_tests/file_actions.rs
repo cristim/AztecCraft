@@ -9,7 +9,7 @@ fn ascii_remote_open_obeys_all_existing_editor_guards_before_candidate_adoption(
         let context = egui::Context::default();
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
-        let id = editor.selected.unwrap();
+        let id = editor.selected().unwrap();
         editor
             .apply_operation(Operation::Rename {
                 id,
