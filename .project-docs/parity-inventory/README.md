@@ -105,7 +105,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | # | Family | File | ID prefix | Owner issues |
 | --- | --- | --- | --- | --- |
 | 1 | Application shell | [01-application-shell.md](01-application-shell.md) | SHL | #59, #60, #61, #63, #64, #65, #66, #67, #68, #69, #71, #170, #178 |
-| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #29, #30, #32, #35, #36, #37, #38, #39, #41, #42, #47, #53, #58, #60, #66, #67, #68, #69, #105, #166, #167, #178, #189, #272, #313 |
+| 2 | Scene management | [02-scene-management.md](02-scene-management.md) | SCN | #29, #30, #32, #35, #36, #37, #38, #39, #41, #42, #47, #53, #58, #60, #66, #67, #68, #69, #105, #166, #178, #189, #272, #313, #325 |
 | 3 | Viewport | [03-viewport.md](03-viewport.md) | VPT | #29, #30, #32, #35, #36, #37, #38, #39, #40, #41, #48, #49, #166, #292 |
 | 4 | Polygon modeling | [04-polygon-modeling.md](04-polygon-modeling.md) | MOD | #29, #41, #43, #44, #45, #46, #47, #49, #51, #52, #53, #55, #64 |
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |

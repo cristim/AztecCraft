@@ -185,7 +185,7 @@ in Face mode frames the selected face corners even if its center is occluded or
 clipped; no face returns an error instead of framing the object. Existing native
 valid-draft commitment and remote draft-refusal rules remain in force.
 
-Shift/Ctrl selection, marquee, multiple faces, other component masks, preselection
+Shift/Ctrl component selection, marquee, multiple faces, other component masks, preselection
 hover and marking menus are unsupported. Ambiguous coalesced primary-release
 frames refuse selection with a single-click retry message; they do not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
@@ -210,7 +210,7 @@ Face buttons and a plain primary click enter and use Vertex and Edge modes (#29)
 `set_selection_mode` (`vertex`, `edge`), `select_vertex` and `select_edge` reach the
 same typed operations over MCP. Each component type keeps its own remembered pick,
 active only in its mode. Picks are single, replace-only and clear on an empty click
-(UNCONFIRMED for Maya). Shift/Ctrl clicks are refused with `ModifiedClick`; UV, Vertex
+(UNCONFIRMED for Maya). In component modes Shift/Ctrl clicks are refused with `ModifiedClick`; UV, Vertex
 Face (Alt+F9), Multi-Component and masks are unsupported. F8 leaves Vertex and Edge
 for Object (provisional). Constants and limits are in
 [known-issues.md](../known-issues.md#vertex-and-edge-picking-and-drawing-constants-are-provisional);

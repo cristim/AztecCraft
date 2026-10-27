@@ -940,6 +940,19 @@ colour and an object below another member in the member colour, whichever member
 first. Whether Maya draws descendants of a selected group that way is unconfirmed. Pinned by
 `descendants_take_the_colour_of_the_selected_ancestor_they_sit_below`.
 
+Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
+in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It does
+not act on several objects: Move, Rotate, Scale, Delete, Frame Selected and Channel Box edits
+refuse with `multiple_selection` until #325, and Select All, Hierarchy, Inverse and marquee
+(#30) are absent. These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
+an unselected object does nothing in the viewport but selects it in the Outliner, where the page
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
+click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
+pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+whole set.
+
 ## Ambiguous selection is unreachable today
 
 `OperationError::AmbiguousSelection` (an object with several instance paths selected without a
