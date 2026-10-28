@@ -11072,4 +11072,61 @@ mod frame_members {
             assert_eq!(editor.camera, expected, "{with_children}");
         }
     }
+
+    fn open_view_menu(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+        let output = frame(editor, ctx, vec![]);
+        let menu = face_text_position(&output, "View");
+        face_pointer_click(editor, ctx, menu, egui::Modifiers::NONE, vec![])
+    }
+
+    #[test]
+    fn view_menu_rows_dispatch_the_two_flavours() {
+        for (label, children) in [
+            ("Frame Selection (F)", FrameChildren::Exclude),
+            (
+                "Frame Selection with Children (Ctrl+F)",
+                FrameChildren::Include,
+            ),
+        ] {
+            let mut editor = parent_with_far_child();
+            let expected = framed_by(&editor, children);
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let output = open_view_menu(&mut editor, &ctx);
+            assert!(!button_disabled(&output, label), "{label}");
+            let row = face_text_position(&output, label);
+            face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+            assert_eq!(editor.camera, expected, "{label}");
+        }
+    }
+
+    #[test]
+    fn view_menu_rows_are_disabled_without_a_selection_and_do_nothing() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        let before = editor.camera.clone();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        for label in [
+            "Frame Selection (F)",
+            "Frame Selection with Children (Ctrl+F)",
+        ] {
+            assert!(button_disabled(&output, label), "{label}");
+            let row = face_text_position(&output, label);
+            face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+            assert_eq!(editor.camera, before, "{label}");
+        }
+    }
+
+    #[test]
+    fn view_menu_rows_follow_frame_all_in_order() {
+        let mut editor = parent_with_far_child();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        let y = |label| face_text_position(&output, label).y;
+        assert!(y("Frame All (A)") < y("Frame Selection (F)"));
+        assert!(y("Frame Selection (F)") < y("Frame Selection with Children (Ctrl+F)"));
+    }
 }
