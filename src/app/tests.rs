@@ -3921,10 +3921,9 @@ fn frame_key_editor() -> Editor {
 #[test]
 fn frame_selected_pressed_with_a_modifier_is_not_rescued_by_a_same_frame_release() {
     for held in [
-        egui::Modifiers::SHIFT,
         egui::Modifiers::ALT,
         egui::Modifiers::COMMAND,
-        egui::Modifiers::CTRL | egui::Modifiers::SHIFT,
+        egui::Modifiers::SHIFT | egui::Modifiers::ALT,
         egui::Modifiers::CTRL | egui::Modifiers::ALT,
     ] {
         let mut editor = frame_key_editor();
@@ -11128,5 +11127,27 @@ mod frame_members {
         let y = |label| face_text_position(&output, label).y;
         assert!(y("Frame All (A)") < y("Frame Selection (F)"));
         assert!(y("Frame Selection (F)") < y("Frame Selection with Children (Ctrl+F)"));
+    }
+
+    /// Shift+F and Ctrl+Shift+F alias F and Ctrl+F while there is one view.
+    #[test]
+    fn shift_variants_alias_the_single_view_flavours() {
+        let (excluded, included) = both_flavours();
+        let shift = egui::Modifiers::SHIFT;
+        let ctrl_shift = egui::Modifiers::CTRL | egui::Modifiers::SHIFT;
+        for (held, want) in [(shift, &excluded), (ctrl_shift, &included)] {
+            let mut editor = parent_with_far_child();
+            let undo_before = editor.history.can_undo();
+            let events = vec![key_event(Key::F, held, false)];
+            shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+            assert_eq!(&editor.camera, want, "{held:?}");
+            assert_eq!(editor.history.can_undo(), undo_before);
+        }
+        let mut editor = parent_with_far_child();
+        let before = editor.camera.clone();
+        let held = shift | egui::Modifiers::ALT;
+        let events = vec![key_event(Key::F, held, false)];
+        shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+        assert!(editor.camera.same_capture(&before));
     }
 }

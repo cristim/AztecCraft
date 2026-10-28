@@ -89,18 +89,27 @@ impl Editor {
                         modifiers,
                         ..
                     } if modifiers.is_none() => Some(false),
+                    // Shift+F and Ctrl+Shift+F frame in all views; with one view they alias F and
+                    // Ctrl+F (PROVISIONAL until multiple views exist).
                     egui::Event::Key {
                         key: Key::F,
                         pressed: true,
                         modifiers,
                         ..
-                    } if modifiers.ctrl
-                        && !modifiers.mac_cmd
-                        && !modifiers.shift
-                        && !modifiers.alt =>
+                    } if modifiers.shift
+                        && !modifiers.ctrl
+                        && !modifiers.alt
+                        && !modifiers.command
+                        && !modifiers.mac_cmd =>
                     {
-                        Some(true)
+                        Some(false)
                     }
+                    egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.ctrl && !modifiers.mac_cmd && !modifiers.alt => Some(true),
                     _ => None,
                 }),
                 i.events.iter().any(|event| {
