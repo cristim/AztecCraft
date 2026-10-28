@@ -863,7 +863,7 @@ currently reach such text. `inspect_scene.status_message` withholds file-error s
 The fresh `.mb` writer (`src/native_scene/binary/write.rs`) takes its profile (`VERS` and the aux word
 of each chunk kind) from one public Maya 2025 file and emits groups shorter than any Maya wrote. Files
 it produces are Maya 2025-format; that Maya 2026 opens them, and that Maya accepts them at all, is
-PROVISIONAL and unproven. AztecCraft's own decoder reopening a file is the only check. Saved meshes
+PROVISIONAL and unproven. AztecCraft's own decoder provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader but does not establish Maya acceptance. Saved meshes
 will carry no shading assignment. The invented items are the I rows of
 `.project-docs/binary-authored-writer.md`.
 

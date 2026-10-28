@@ -3,10 +3,12 @@
 Status: in progress. The pure writer in `src/native_scene/binary/write.rs` builds a whole file for a
 scene of bare transforms or of transforms over one mesh each: framing builders, the profile constants,
 the `HEAD` group, `XFRM` and `DMSH` groups, and a self-check that decodes the bytes before they are
-returned. `encode_authored` has no Editor caller yet. This note records what the writer may
-emit, where each choice comes from, and what is invented. **Maya acceptance of any file this writer
-produces is unproven.** AztecCraft's own decoder reopening a file is the only check, and no PR text may
-claim more.
+returned. Unix Editor Save As now calls `encode_authored` for supported new scenes. This note
+records what the writer may emit, where each choice comes from, and what is invented.
+**Maya acceptance of any file this writer produces is unproven.** AztecCraft's own decoder
+provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader
+and currently refuses the authored mesh chunk. Neither check establishes Maya acceptance.
+See [mayascenekit-crosscheck.md](mayascenekit-crosscheck.md).
 
 ## Evidence and its limits
 

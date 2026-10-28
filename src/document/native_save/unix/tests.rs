@@ -29,7 +29,7 @@ pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocum
 fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
     match &baseline.retention {
         Retention::Source { parse_bytes } => parse_bytes.clone(),
-        Retention::Authored => panic!("expected a baseline that retains its source"),
+        Retention::Authored { .. } => panic!("expected a baseline that retains its source"),
     }
 }
 pub(super) fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
@@ -1334,20 +1334,21 @@ fn exclusive_stage_collision_never_grants_ownership_or_cleanup() {
 fn an_authored_baseline_requires_a_scene_without_a_retained_source() {
     let directory = tempfile::tempdir().unwrap();
     let (_, document) = opened(directory.path());
-    let NativeOrigin::Binary(source) = &document.origin else {
-        unreachable!()
-    };
-    let mut authored = source.clone();
-    authored.retention = Retention::Authored;
-    let origin = NativeOrigin::Binary(authored);
+    let mut fresh = NativeScene::default();
+    fresh.create(crate::scene::Primitive::Cube, "cube").unwrap();
+    let path = directory.path().join("authored.mb");
+    let (origin, _) = saved(crate::document::save_native(
+        &NativeOrigin::Untitled,
+        &fresh,
+        SaveDestination::As(&path),
+        &|| true,
+    ));
     // A scene that still retains parsed source is not what an authored baseline describes.
     assert_eq!(
         save_native(&origin, &document.scene, SaveDestination::Active, &|| true).unwrap_err(),
         Error::SourceChanged
     );
-    // A scene with no source passes the guard and is written as authored content.
-    let mut fresh = NativeScene::default();
-    fresh.create(crate::scene::Primitive::Cube, "cube").unwrap();
+    // The original authored scene continues to match its own baseline.
     assert!(matches!(
         save_native(&origin, &fresh, SaveDestination::Active, &|| true),
         Ok(SaveOutcome::Saved { .. })
@@ -1357,4 +1358,90 @@ fn an_authored_baseline_requires_a_scene_without_a_retained_source() {
         save_native(&document.origin, &fresh, SaveDestination::Active, &|| true).unwrap_err(),
         Error::SourceChanged
     );
+}
+
+#[test]
+fn independently_authored_equal_scenes_cannot_reuse_a_saved_origin() {
+    let directory = tempfile::tempdir().unwrap();
+    let first = directory.path().join("first.mb");
+    let second = directory.path().join("second.mb");
+    let scene = NativeScene::default();
+    let unrelated = NativeScene::default();
+    assert_eq!(scene, unrelated, "identity is not semantic scene content");
+    let (origin, _) = saved(crate::document::save_native(
+        &NativeOrigin::Untitled,
+        &scene,
+        SaveDestination::As(&first),
+        &|| true,
+    ));
+    let original = std::fs::read(&first).unwrap();
+    for destination in [SaveDestination::Active, SaveDestination::As(&second)] {
+        assert_eq!(
+            crate::document::save_native(&origin, &unrelated, destination, &|| true).unwrap_err(),
+            Error::SourceChanged
+        );
+        assert_eq!(std::fs::read(&first).unwrap(), original);
+        assert!(!second.exists());
+    }
+    let mut edited = scene.clone();
+    edited.create(crate::scene::Primitive::Cube, "box").unwrap();
+    let (origin, _) = saved(crate::document::save_native(
+        &origin,
+        &edited,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    saved(crate::document::save_native(
+        &origin,
+        &edited.clone(),
+        SaveDestination::As(&second),
+        &|| true,
+    ));
+    assert_eq!(
+        std::fs::read(&first).unwrap(),
+        std::fs::read(&second).unwrap()
+    );
+}
+
+#[test]
+fn uncertain_authored_save_reconciles_with_the_same_document_authority() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uncertain.mb");
+    let mut scene = NativeScene::default();
+    let origin = NativeOrigin::Untitled;
+    let transaction = prepare(&origin, &scene, SaveDestination::As(&path), &|| true).unwrap();
+    let fs = FaultFs {
+        inner: &transaction,
+        fault: Fault::DirectorySync,
+        renames: Cell::new(0),
+        after_sync: None,
+    };
+    let SaveOutcome::Uncertain { receipt, .. } =
+        transaction.run(&fs, RenameRetry::platform()).unwrap()
+    else {
+        panic!("expected uncertainty")
+    };
+    let (origin, _) = receipt.reconcile().unwrap();
+    let original = std::fs::read(&path).unwrap();
+    assert_eq!(
+        crate::document::save_native(
+            &origin,
+            &NativeScene::default(),
+            SaveDestination::Active,
+            &|| true
+        )
+        .unwrap_err(),
+        Error::SourceChanged
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), original);
+    scene
+        .create(crate::scene::Primitive::Cube, "later")
+        .unwrap();
+    saved(crate::document::save_native(
+        &origin,
+        &scene.clone(),
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_ne!(std::fs::read(&path).unwrap(), original);
 }

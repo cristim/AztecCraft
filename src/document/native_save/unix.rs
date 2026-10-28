@@ -489,7 +489,9 @@ fn prepare<'a>(
                 destination,
                 baseline: None,
                 bytes: encode_authored(scene)?.into(),
-                retention: Retention::Authored,
+                retention: Retention::Authored {
+                    document_id: scene.authored_document_id().ok_or(Error::SourceChanged)?,
+                },
                 may_install,
                 state: RefCell::new(State::default()),
             });
@@ -498,7 +500,7 @@ fn prepare<'a>(
     };
     let tied = match &source.retention {
         Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
-        Retention::Authored => scene.has_no_source(),
+        Retention::Authored { document_id } => scene.authored_document_id() == Some(*document_id),
     };
     if !tied {
         return Err(Error::SourceChanged);
@@ -521,7 +523,7 @@ fn prepare<'a>(
     }
     let bytes: Arc<[u8]> = match source.retention {
         Retention::Source { .. } => binary::encode(scene).map_err(Error::Encode)?.into(),
-        Retention::Authored => encode_authored(scene)?.into(),
+        Retention::Authored { .. } => encode_authored(scene)?.into(),
     };
     Ok(Transaction {
         destination,

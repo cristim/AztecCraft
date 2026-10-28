@@ -1464,7 +1464,7 @@ mod tests {
         assert!(editor.files.save_available() && editor.files.save_as_available());
     }
 
-    #[cfg(unix)]
+    #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_from_read_through_symlink_preserves_original_and_verifies_origin() {
         let directory = tempfile::tempdir().unwrap();

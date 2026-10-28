@@ -1,4 +1,4 @@
-use crate::native_scene::{NativeError, NativeScene, ascii, binary};
+use crate::native_scene::{AuthoredDocumentId, NativeError, NativeScene, ascii, binary};
 use crate::scene::{Scene, SceneError};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -22,7 +22,7 @@ pub enum LinkStatus {
 }
 
 /// What ties a baseline to the scene in memory: the parsed source bytes the scene still
-/// retains, or nothing because the scene was authored and written from scratch.
+/// retains, or the private identity of the document authored and written from scratch.
 #[derive(Clone)]
 enum Retention {
     Source {
@@ -32,13 +32,15 @@ enum Retention {
         not(unix),
         expect(dead_code, reason = "only the Unix save path creates it")
     )]
-    Authored,
+    Authored {
+        document_id: AuthoredDocumentId,
+    },
 }
 impl Retention {
     fn len(&self) -> Option<usize> {
         match self {
             Self::Source { parse_bytes } => Some(parse_bytes.len()),
-            Self::Authored => None,
+            Self::Authored { .. } => None,
         }
     }
 }
