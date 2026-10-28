@@ -139,3 +139,39 @@ async fn sdk_ascii_curve_and_pending_action_inspections_match_committed_snapshot
     drop(editor);
     server.await.unwrap();
 }
+
+/// Pins the serialized names of the `page` block, `next_cursor: null` on the last page included.
+#[tokio::test]
+async fn sdk_last_page_inspection_matches_committed_snapshot() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let peer = client.peer();
+    let first = call(
+        &mut editor,
+        &context,
+        peer,
+        "inspect_scene",
+        json!({"node_limit": 1}),
+    )
+    .await;
+    let cursor = first.structured_content.unwrap()["inspection"]["page"]["next_cursor"].clone();
+    let last = call(
+        &mut editor,
+        &context,
+        peer,
+        "inspect_scene",
+        json!({"node_limit": 1, "cursor": cursor}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let normalized = crate::app::snapshots::normalize_json(&last, &[]);
+    let mut text = serde_json::to_string_pretty(&normalized).unwrap();
+    text.push('\n');
+    crate::app::snapshots::assert_snapshot("inspection_paged_last_page.json", &text);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
