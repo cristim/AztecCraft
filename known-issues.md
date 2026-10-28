@@ -354,7 +354,7 @@ the origin is the translate plus rotate-pivot translate, so a rotate pivot point
 (Maya's choice between pivot and matrix translation is undocumented). Pinned by
 `exclude_frames_a_shapeless_group_at_its_world_origin`, `exclude_origin_ignores_the_rotate_pivot_point` and
 `has_direct_geometry_counts_visible_own_meshes_and_curves_only`. The MCP `frame_selected` tool
-still includes descendants until the `with_children` argument lands (#335). F with nothing selected
+follows the same rules and takes `with_children` for Ctrl+F. F with nothing selected
 is `no_selection` today; the View page says it should frame all.
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)

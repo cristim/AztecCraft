@@ -1717,19 +1717,24 @@
   },
   {
     "name": "frame_selected",
-    "description": "Frame the selected objects using the live camera: the union of all selected objects (with their descendants), the selected face corners, the remembered vertex or both endpoints of the remembered edge. Objects with no geometry add nothing; if none has any, the call is refused and the camera is unchanged",
+    "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected returns no_selection",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
         "scene_token": {
           "type": "string"
+        },
+        "with_children": {
+          "default": false,
+          "description": "Also frame the selected objects' descendants (Maya Ctrl+F). Default false (Maya F).",
+          "type": "boolean"
         }
       },
       "required": [
         "scene_token"
       ],
-      "title": "MutationArgs",
+      "title": "FrameSelectedArgs",
       "type": "object"
     },
     "annotations": {

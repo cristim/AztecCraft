@@ -701,7 +701,7 @@ async fn sdk_frame_selected_frames_the_union_of_several_selected_objects() {
         .frame_view_many(
             &view,
             &prefixes,
-            azteccraft::viewport::FrameChildren::Include,
+            azteccraft::viewport::FrameChildren::Exclude,
             editor.aspect,
         )
         .unwrap();
