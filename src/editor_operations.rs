@@ -1189,6 +1189,33 @@ mod tests {
         ));
     }
 
+    fn curve_scene(names: &[&str]) -> NativeScene {
+        let mut source = String::from(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
+        );
+        for name in names {
+            source.push_str(&format!(" createNode nurbsCurve -n \"{name}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;"));
+        }
+        azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap()
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_cube_its_minimum_and_both_names() {
+        let delta = inspection_lower_bound(&cubes(2)) - inspection_lower_bound(&cubes(1));
+        let expected = MIN_NODE.len() + MIN_SHAPE.len() + "cube_001".len() + "cube_001Shape".len();
+        assert_eq!(delta, expected);
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_curve_its_minimum_and_its_name() {
+        let one = curve_scene(&["curveA"]);
+        let two = curve_scene(&["curveA", "curveBB"]);
+        assert_eq!((one.curves().len(), two.curves().len()), (1, 2));
+        assert_eq!(one.nodes().len(), two.nodes().len());
+        let delta = inspection_lower_bound(&two) - inspection_lower_bound(&one);
+        assert_eq!(delta, MIN_CURVE.len() + "curveBB".len());
+    }
+
     #[test]
     fn the_preflight_refuses_names_whose_minimum_exceeds_the_limit_before_cloning() {
         for length in [300_000, MAX_RESULT_BYTES] {

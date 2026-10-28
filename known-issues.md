@@ -1014,7 +1014,7 @@ covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
 `inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
 default-named cubes, 269 with every cube selected, measured through the official client) report
-`too_large`. A selection counts about 40-60 bytes per member: 4096 selected members fit with one cube but
+`too_large`. A selection counts about 40 bytes per member: 4096 selected members fit with one cube but
 not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
 whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
 selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
