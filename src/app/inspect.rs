@@ -82,8 +82,17 @@ impl Editor {
         .into_iter()
         .fold(bytes, usize::saturating_add)
     }
-    #[cfg(any(test, feature = "mcp"))]
+    #[cfg(test)]
     pub(super) fn inspect(&self, text_focused: bool) -> Result<SceneInspection, OperationError> {
+        self.inspect_page(text_focused, None)
+    }
+    /// `page` is threaded through now and read by the paging commit.
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn inspect_page(
+        &self,
+        text_focused: bool,
+        _page: Option<&crate::editor_operations::InspectPage>,
+    ) -> Result<SceneInspection, OperationError> {
         self.inspect_within(text_focused, crate::editor_operations::MAX_REPLY_BYTES)
     }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.

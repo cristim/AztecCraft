@@ -465,7 +465,7 @@ async fn remote_close_and_discard_close_flush_their_own_reply_before_hidden_exit
             .remote_operation(
                 RemoteRequest {
                     expected_scene_token: None,
-                    operation: Operation::Inspect,
+                    operation: Operation::Inspect { page: None },
                 },
                 &context,
             )

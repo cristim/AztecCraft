@@ -190,9 +190,9 @@ impl Editor {
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
         let focused = text_edit_focused(ctx);
-        if matches!(request.operation, Operation::Inspect) {
+        if let Operation::Inspect { page } = &request.operation {
             return Ok(OperationReply::Scene {
-                inspection: Box::new(self.inspect(focused)?),
+                inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
             });
         }
         if request.expected_scene_token != Some(self.scene_token) {
@@ -851,9 +851,9 @@ impl Editor {
                 });
             }
             #[cfg(any(test, feature = "mcp"))]
-            Operation::Inspect => {
+            Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
-                    inspection: Box::new(self.inspect(false)?),
+                    inspection: Box::new(self.inspect_page(false, page.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

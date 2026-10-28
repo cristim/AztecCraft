@@ -64,7 +64,7 @@ fn remote_change_requests_repaint_and_large_inspection_returns_explicit_error() 
         editor.remote_operation(
             RemoteRequest {
                 expected_scene_token: None,
-                operation: Operation::Inspect,
+                operation: Operation::Inspect { page: None },
             },
             &context
         ),

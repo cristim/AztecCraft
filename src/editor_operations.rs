@@ -205,6 +205,73 @@ pub enum ToolHandle {
     ScaleHandle(ScaleHandle),
 }
 
+/// A page of `inspect_scene` nodes: at most `limit` nodes from the position `cursor` names (the
+/// start when absent).
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InspectPage {
+    pub limit: usize,
+    pub cursor: Option<PageCursor>,
+}
+
+/// Where the next page starts, bound to the document and the scene revision it was issued for.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursor {
+    pub scene_token: Uuid,
+    pub revision: u64,
+    pub offset: usize,
+}
+
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursorError;
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("malformed cursor")
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "v1.{}.{:x}.{}",
+            self.scene_token, self.revision, self.offset
+        )
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl std::str::FromStr for PageCursor {
+    type Err = PageCursorError;
+
+    /// Untrusted text. Each part is parsed, then the canonical text is compared with the input, so
+    /// signs, padding, upper case, braces and extra segments are all refused.
+    fn from_str(text: &str) -> Result<Self, PageCursorError> {
+        let mut parts = text.splitn(4, '.');
+        let (Some("v1"), Some(token), Some(revision), Some(offset)) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return Err(PageCursorError);
+        };
+        let cursor = PageCursor {
+            scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
+            revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
+            offset: offset.parse().map_err(|_| PageCursorError)?,
+        };
+        if cursor.to_string() == text {
+            Ok(cursor)
+        } else {
+            Err(PageCursorError)
+        }
+    }
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
@@ -264,7 +331,9 @@ pub enum Operation {
         color: [f64; 3],
     },
     #[cfg(any(test, feature = "mcp"))]
-    Inspect,
+    Inspect {
+        page: Option<InspectPage>,
+    },
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -1166,6 +1235,52 @@ mod tests {
         let mut legacy = Scene::default();
         legacy.create(Primitive::Cube, name).unwrap();
         NativeScene::from_legacy(legacy).unwrap()
+    }
+
+    #[test]
+    fn a_page_cursor_round_trips_through_its_text() {
+        let cursor = PageCursor {
+            scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
+            revision: 0xab_cdef,
+            offset: 4096,
+        };
+        let text = cursor.to_string();
+        assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
+        assert_eq!(text.parse::<PageCursor>(), Ok(cursor));
+        let extreme = PageCursor {
+            scene_token: Uuid::nil(),
+            revision: u64::MAX,
+            offset: usize::MAX,
+        };
+        assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
+    }
+
+    #[test]
+    fn a_malformed_page_cursor_is_refused_not_panicked_on() {
+        let id = "12345678-9abc-def0-1234-56789abcdef0";
+        let bad = [
+            String::new(),
+            "v1".into(),
+            format!("v2.{id}.1.0"),
+            format!("v1.{id}.1"),
+            "v1.not-a-uuid.1.0".into(),
+            format!("v1.{id}..0"),
+            format!("v1.{id}.10000000000000000.0"),
+            format!("v1.{id}.+1.0"),
+            format!("v1.{id}.01.0"),
+            format!("v1.{}.1.0", id.to_uppercase()),
+            format!("v1.{{{id}}}.1.0"),
+            format!("v1.{id}.1.-1"),
+            format!("v1.{id}.1.+1"),
+            format!("v1.{id}.1.01"),
+            format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1."),
+            format!("v1.{id}.1.99999999999999999999999"),
+            format!("v1.{id}.1.1 "),
+        ];
+        for text in &bad {
+            assert_eq!(text.parse::<PageCursor>(), Err(PageCursorError), "{text:?}");
+        }
     }
 
     #[test]

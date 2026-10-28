@@ -571,7 +571,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
-        Operation::Inspect,
+        Operation::Inspect { page: None },
         Operation::Create {
             primitive: Primitive::Plane,
             options: None,
@@ -893,7 +893,9 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
-        Operation::Inspect => vec![sample("inspect", Operation::Inspect)],
+        Operation::Inspect { .. } => {
+            vec![sample("inspect", Operation::Inspect { page: None })]
+        }
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",
@@ -1661,7 +1663,7 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
     let label = chosen.label;
     let before = observe(&rig.editor, &root_refs);
     let may_install = rig.may_install;
-    let operation = std::mem::replace(&mut chosen.operation, Operation::Inspect);
+    let operation = std::mem::replace(&mut chosen.operation, Operation::Inspect { page: None });
     let result = match pipeline {
         Pipeline::Native => rig.editor.apply_operation_guarded(
             ManipulationProvenance::Native,

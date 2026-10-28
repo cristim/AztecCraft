@@ -568,7 +568,8 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
             assert!(colors.next().is_none(), "{phase}");
         }
         assert_eq!(state(&editor), baseline, "{phase}: paint");
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection");
         };
@@ -2980,7 +2981,8 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
             .translation[0],
         6.0
     );
-    let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+    let OperationReply::Scene { inspection } =
+        remote(&mut editor, Operation::Inspect { page: None }).unwrap()
     else {
         panic!("expected inspection")
     };
@@ -3044,7 +3046,8 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
         remote(&mut editor, Operation::Undo),
         Err(OperationError::BusyEditing)
     ));
-    let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+    let OperationReply::Scene { inspection } =
+        remote(&mut editor, Operation::Inspect { page: None }).unwrap()
     else {
         panic!("expected inspection")
     };
@@ -3151,7 +3154,7 @@ fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus(
         .remote_operation(
             RemoteRequest {
                 expected_scene_token: None,
-                operation: Operation::Inspect,
+                operation: Operation::Inspect { page: None },
             },
             &ctx,
         )
@@ -3182,7 +3185,7 @@ fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus(
             .remote_operation(
                 RemoteRequest {
                     expected_scene_token: None,
-                    operation: Operation::Inspect,
+                    operation: Operation::Inspect { page: None },
                 },
                 &ctx,
             )
@@ -6192,7 +6195,8 @@ fn borrowed_selection_readers_preserve_exact_paths_and_operation_baselines() {
         )
         .unwrap();
         let before_inspection = state(&editor);
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection")
         };
@@ -8351,7 +8355,8 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
             }
         }
         assert_eq!(state(&editor), baseline, "{phase}: paint");
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection");
         };

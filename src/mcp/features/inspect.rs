@@ -19,7 +19,7 @@ fn parse_inspect(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     decode::<InspectArgs>(arguments)?;
     Ok(RemoteRequest {
         expected_scene_token: None,
-        operation: Operation::Inspect,
+        operation: Operation::Inspect { page: None },
     })
 }
 
