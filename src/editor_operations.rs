@@ -498,6 +498,17 @@ pub enum OperationReply {
     },
 }
 
+/// Present only on a paged reply. `truncated` means more node pages follow.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PageInspection {
+    pub nodes_total: usize,
+    pub node_offset: usize,
+    pub node_count: usize,
+    pub next_cursor: Option<String>,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct SceneInspection {
@@ -556,6 +567,8 @@ pub struct SceneInspection {
     /// The native status line text, or a fixed notice when the text would carry a local path.
     pub status_message: Option<String>,
     pub camera: CameraInspection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<PageInspection>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1011,7 +1024,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part
 /// plus the minimum of every node, shape, curve and session material and each name's length.
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> usize {
     inspection_page_lower_bound(scene, 0..scene.nodes().len())
 }
@@ -1073,7 +1086,7 @@ pub fn inspection_page_lower_bound(
 }
 
 /// Refuses before any clone when even the guaranteed minimum exceeds the reply ceiling.
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
