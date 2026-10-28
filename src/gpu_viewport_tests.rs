@@ -30,7 +30,11 @@ fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
             instance_path: None,
         })
         .unwrap();
-    editor.apply_operation(Operation::FrameSelected).unwrap();
+    editor
+        .apply_operation(Operation::FrameSelected {
+            with_children: true,
+        })
+        .unwrap();
     let baseline = editor.history.scene().clone();
     let token = editor.scene_token;
     let output = context.run_ui(input(Vec::new(), egui::Vec2::splat(128.0)), |ui| {

@@ -82,7 +82,7 @@ impl Editor {
             | Operation::SelectVertex { .. }
             | Operation::SelectEdge { .. }
             | Operation::SetSelectionMode(_)
-            | Operation::FrameSelected
+            | Operation::FrameSelected { .. }
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
@@ -752,7 +752,7 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
-            Operation::FrameSelected => {
+            Operation::FrameSelected { with_children } => {
                 let component = matches!(
                     self.selection_mode,
                     SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge
@@ -778,7 +778,11 @@ impl Editor {
                 }
                 if !component {
                     let before = self.camera.clone();
-                    self.frame_members(FrameChildren::Include)?;
+                    self.frame_members(if with_children {
+                        FrameChildren::Include
+                    } else {
+                        FrameChildren::Exclude
+                    })?;
                     return Ok(if self.camera == before {
                         OperationReply::Unchanged
                     } else {

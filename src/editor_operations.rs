@@ -341,7 +341,11 @@ pub enum Operation {
     DeleteSelection,
     Undo,
     Redo,
-    FrameSelected,
+    /// F frames the selected objects without their descendants, Ctrl+F (`with_children`) with
+    /// them. Component modes frame the component and ignore the flag.
+    FrameSelected {
+        with_children: bool,
+    },
     FrameAll,
     SetGridVisible {
         visible: bool,

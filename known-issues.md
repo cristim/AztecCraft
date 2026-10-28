@@ -345,13 +345,17 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 - P17: after Delete of several objects the selection is empty and Undo restores the nodes but
   not the selection (`undo_of_delete_selection_restores_nodes_but_not_the_selection`).
 
-## Frame Selected includes the descendants of the selected objects
+## Frame Selected with no visible geometry frames the object origin (PROVISIONAL, #335)
 
-`Camera::frame_view` and `frame_view_many` match instances by path prefix, so framing a selected
-group also frames everything below it. Maya's F frames the selected objects and excludes children
-unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
-union framing; no with-Children variant exists (Ctrl+F, and Shift+F / Ctrl+Shift+F for all views, are absent). Per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm), aligning F with Maya is tracked in #335. Pinned by
-`frame_view_include_of_a_group_frames_the_geometry_of_its_children`.
+F frames parents only and Ctrl+F frames with children, per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm). The page
+is silent on a selection that owns no visible geometry (a plain group, or a parent whose only own
+shape is hidden). F then frames the objects' manipulator origins as a lone point at the near floor;
+the origin is the translate plus rotate-pivot translate, so a rotate pivot point does not move it
+(Maya's choice between pivot and matrix translation is undocumented). Pinned by
+`exclude_frames_a_shapeless_group_at_its_world_origin`, `exclude_origin_ignores_the_rotate_pivot_point` and
+`has_direct_geometry_counts_visible_own_meshes_and_curves_only`. The MCP `frame_selected` tool
+still includes descendants until the `with_children` argument lands (#335). F with nothing selected
+is `no_selection` today; the View page says it should frame all.
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 

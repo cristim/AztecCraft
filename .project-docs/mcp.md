@@ -490,7 +490,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
 | Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | |
-| Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
+| Camera | Frame selected (F) | supported | `frame_selected` | `camera` | Frames with children (Ctrl+F semantics) until #335 C3b adds `with_children` |
 | Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |
 | Camera | Camera pose read (target, eye, distance, yaw/pitch, vertical field of view, clip planes) | supported | | `camera` | |
 | Camera | Orthographic views, field-of-view edits, camera bookmarks | unsupported | | | |

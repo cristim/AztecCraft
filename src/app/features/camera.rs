@@ -1,8 +1,8 @@
 use crate::app::*;
 
 impl Editor {
-    pub(in crate::app) fn frame_selected(&mut self) {
-        self.native_operation(Operation::FrameSelected);
+    pub(in crate::app) fn frame_selected(&mut self, with_children: bool) {
+        self.native_operation(Operation::FrameSelected { with_children });
     }
 
     /// Frames the selected objects. With `Exclude`, a selection none of whose members owns visible

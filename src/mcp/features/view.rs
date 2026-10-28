@@ -58,7 +58,12 @@ struct ShadingArgs {
 }
 
 fn parse_frame_selected(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    mutation(arguments, Operation::FrameSelected)
+    mutation(
+        arguments,
+        Operation::FrameSelected {
+            with_children: true,
+        },
+    )
 }
 
 fn parse_frame_all(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {

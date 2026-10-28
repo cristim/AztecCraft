@@ -504,7 +504,7 @@ impl Editor {
                 !self.selection.is_empty(),
             );
             if frame_button.clicked() {
-                self.frame_selected();
+                self.frame_selected(false);
             }
             ui.separator();
             ui.add_enabled(false, egui::Button::new("Extrude"))

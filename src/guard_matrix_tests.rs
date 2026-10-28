@@ -638,7 +638,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
-        Operation::FrameSelected,
+        Operation::FrameSelected {
+            with_children: false,
+        },
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
@@ -1319,7 +1321,20 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
-        Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],
+        Operation::FrameSelected { .. } => vec![
+            sample(
+                "frame_selected(parents)",
+                Operation::FrameSelected {
+                    with_children: false,
+                },
+            ),
+            sample(
+                "frame_selected(children)",
+                Operation::FrameSelected {
+                    with_children: true,
+                },
+            ),
+        ],
         Operation::FrameAll => vec![sample("frame_all", Operation::FrameAll)],
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
