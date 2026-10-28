@@ -1013,18 +1013,51 @@ pub(crate) const MIN_FIXED: &str = concat!(
 /// plus the minimum of every node, shape, curve and session material and each name's length.
 #[cfg(any(test, feature = "mcp"))]
 pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> usize {
-    let nodes = scene.nodes().iter().fold(0usize, |sum, node| {
+    inspection_page_lower_bound(scene, 0..scene.nodes().len())
+}
+
+/// The same bound for one page: the nodes in `nodes` (clamped to the scene) and the shapes and
+/// curves those nodes hold (each once). Every shape and curve is the child of a node edge
+/// (`validate_dag`), so the whole range covers all of them.
+#[cfg(any(test, feature = "mcp"))]
+pub fn inspection_page_lower_bound(
+    scene: &azteccraft::native_scene::NativeScene,
+    nodes: std::ops::Range<usize>,
+) -> usize {
+    use std::collections::HashSet;
+    let all = scene.nodes();
+    let end = nodes.end.min(all.len());
+    let page = &all[nodes.start.min(end)..end];
+    let page_nodes = page.iter().fold(0usize, |sum, node| {
         sum.saturating_add(MIN_NODE.len())
             .saturating_add(node.name().len())
     });
-    let shapes = scene.shapes().iter().fold(0usize, |sum, shape| {
-        sum.saturating_add(MIN_SHAPE.len())
-            .saturating_add(shape.name().len())
-    });
-    let curves = scene.curves().iter().fold(0usize, |sum, curve| {
-        sum.saturating_add(MIN_CURVE.len())
-            .saturating_add(curve.name().len())
-    });
+    let on_page: HashSet<NativeId> = page.iter().map(|node| node.transform_id()).collect();
+    let mut held_by_page = HashSet::new();
+    for edge in scene.dag_edges() {
+        let Some(parent) = edge.parent() else {
+            continue;
+        };
+        if on_page.contains(&parent) {
+            held_by_page.insert(edge.child());
+        }
+    }
+    let shapes = scene
+        .shapes()
+        .iter()
+        .filter(|shape| held_by_page.contains(&shape.id()))
+        .fold(0usize, |sum, shape| {
+            sum.saturating_add(MIN_SHAPE.len())
+                .saturating_add(shape.name().len())
+        });
+    let curves = scene
+        .curves()
+        .iter()
+        .filter(|curve| held_by_page.contains(&curve.id()))
+        .fold(0usize, |sum, curve| {
+            sum.saturating_add(MIN_CURVE.len())
+                .saturating_add(curve.name().len())
+        });
     // Sourced scenes (appearance incomplete) report an empty table.
     let materials = if scene.appearance_incomplete() {
         0
@@ -1034,7 +1067,7 @@ pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> 
             .len()
             .saturating_mul(MIN_SESSION_MATERIAL.len())
     };
-    [nodes, shapes, curves, materials]
+    [page_nodes, shapes, curves, materials]
         .into_iter()
         .fold(MIN_FIXED.len(), usize::saturating_add)
 }
@@ -1044,7 +1077,16 @@ pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> 
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
-    if inspection_lower_bound(scene) > MAX_REPLY_BYTES {
+    check_inspection_page(scene, 0..scene.nodes().len())
+}
+
+/// `check_inspection_size` for one page.
+#[cfg(any(test, feature = "mcp"))]
+pub fn check_inspection_page(
+    scene: &azteccraft::native_scene::NativeScene,
+    nodes: std::ops::Range<usize>,
+) -> Result<(), OperationError> {
+    if inspection_page_lower_bound(scene, nodes) > MAX_REPLY_BYTES {
         return Err(OperationError::TooLarge);
     }
     Ok(())
@@ -1329,6 +1371,65 @@ mod tests {
         assert_eq!(one.nodes().len(), two.nodes().len());
         let delta = inspection_lower_bound(&two) - inspection_lower_bound(&one);
         assert_eq!(delta, MIN_CURVE.len() + "curveBB".len());
+    }
+
+    #[test]
+    fn a_partial_page_charges_only_its_own_curves() {
+        let cc = " setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;";
+        let source = format!(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"first\"; createNode nurbsCurve -n \"curveOne\" -p \"first\";{cc} createNode transform -n \"second\"; createNode nurbsCurve -n \"curveTwoLonger\" -p \"second\";{cc}"
+        );
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        assert_eq!((scene.nodes().len(), scene.curves().len()), (2, 2));
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        for (range, node, curve) in [
+            (0..1, "first", "curveOne"),
+            (1..2, "second", "curveTwoLonger"),
+        ] {
+            assert_eq!(scene.nodes()[range.start].name(), node);
+            assert_eq!(
+                inspection_page_lower_bound(&scene, range) - empty,
+                MIN_NODE.len() + node.len() + MIN_CURVE.len() + curve.len()
+            );
+        }
+    }
+
+    #[test]
+    fn page_bounds_count_each_node_and_its_shapes_once_across_pages() {
+        let scene = cubes(10);
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        let full = inspection_lower_bound(&scene);
+        let paged: usize = [0..3, 3..6, 6..9, 9..10]
+            .into_iter()
+            .map(|range| inspection_page_lower_bound(&scene, range) - empty)
+            .sum();
+        assert_eq!(paged, full - empty);
+        // A range past the end is clamped, not an overflow or a panic.
+        assert_eq!(inspection_page_lower_bound(&scene, 10..usize::MAX), empty);
+        assert_eq!(
+            inspection_page_lower_bound(&scene, usize::MAX..usize::MAX),
+            empty
+        );
+    }
+
+    #[test]
+    fn a_whole_scene_bound_is_over_the_ceiling_while_every_page_of_200_is_under() {
+        // Legacy creation is cheap; `NativeScene::create` is cubic over a whole scene.
+        let mut legacy = Scene::default();
+        for index in 0..azteccraft::native_scene::MAX_TRANSFORM_PATHS {
+            legacy
+                .create(Primitive::Cube, &format!("cube_{index:04}"))
+                .unwrap();
+        }
+        let scene = NativeScene::from_legacy(legacy).unwrap();
+        assert_eq!(scene.nodes().len(), 4096);
+        assert!(matches!(
+            check_inspection_size(&scene),
+            Err(OperationError::TooLarge)
+        ));
+        for start in (0..4096).step_by(200) {
+            assert!(check_inspection_page(&scene, start..start + 200).is_ok());
+        }
     }
 
     #[test]
