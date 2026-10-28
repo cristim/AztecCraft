@@ -1010,15 +1010,33 @@ parents, so every node has one path. Only the unit test
 `an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
 covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
-## Inspection is one response of at most 256 KiB
+## A very large selection lowers the usable inspect_scene node_limit
 
-`inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
-default-named cubes, 269 with every cube selected, measured through the official client) report
-`too_large`. A selection counts about 40 bytes per member: 4096 selected members fit with one cube but
-not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
-whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
-selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
-token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
-(a plain click on empty space, or Alt+D). Fix: page the nodes (#332, second PR). The limit is pinned by
-`inspect_scene_returns_250_cubes_and_refuses_400_without_closing` and
-`inspect_scene_sizes_a_maximal_selection_by_its_serialized_bytes`.
+Every `inspect_scene` page repeats the full `selection` list, about 40 bytes per member. With 4096
+selected default-named cubes a page of 1 node is about 170 KB and 50 nodes about 212 KB, but 250 nodes
+exceed the reply cap, so such a selection needs a small `node_limit` (about 50). Select All (native, and
+MCP `select_by_rule`, #325) builds a whole-scene selection in one call. A client that connects fresh
+inspects with a small `node_limit` first to obtain the token, then clears the selection with
+`deselect_all` if it wants larger pages. Only a selection whose serialized members approach the reply
+cap on their own (for example very deep instance paths) blocks every page; that case has no
+tokenless recovery except clearing the selection in the native UI (a plain click on empty space, or
+Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
+`a_full_selection_is_inspectable_with_a_small_node_limit`.
+
+## Creating N objects costs O(N^3)
+
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, and `validate_dag` scans
+every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
+O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
+`azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
+fixed by the paging work.
+
+## Frame origin for a mixed selection is PROVISIONAL
+
+F (frame without descendants, #338) frames the objects' origins when no selected object owns visible
+geometry. The Maya documentation does not state this, so the choice is provisional and pinned only by
+tests: the origin is the node's translate plus its rotate-pivot translate and ignores the rotate pivot
+point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ignores_the_rotate_pivot_point`),
+and a selection where any one member owns geometry frames the geometry only
+(`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
+with Maya 2027.
