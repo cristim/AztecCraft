@@ -617,9 +617,10 @@ Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build 
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
-so the viewport looks faceted. There are no UVs or normals, and
-new nodes save only through Save As as a fresh Maya binary (see "Mesh Save is
-PROVISIONAL"). Pole triangles cannot be extruded; body quads can. The new node is named
+so the viewport looks faceted. There are no UVs or normals. On Unix, new scenes require
+an initial Save As to a fresh Maya binary file; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Pole triangles cannot be extruded; body quads can.
+The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
@@ -660,8 +661,9 @@ lists sz 1 instead, so a Maya-default cylinder may have different counts, and th
 cap topology of both solids is derived, not verified against Maya 2026 (#5). The cone
 has 21 points, 40 edges and 21 faces (20 side triangles and a 20-gon base) with its apex
 at (0, 1, 0) and its base at y=-1. Vertex and face order and winding are not claimed to
-match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals,
-and new nodes are not persisted. Caps and cone side triangles cannot
+match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals.
+On Unix, new scenes require an initial Save As; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
 `pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
@@ -773,9 +775,10 @@ sphere, cylinder and cone, and each built Create > Polygon Primitives row has an
 "Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
 and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
-pages do not say), session only and never saved. Created
-primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
-limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
+pages do not say), session only and never saved. On Unix, scenes with created primitives
+require an initial Save As; subsequent Save operations persist changes (see "Mesh Save is
+PROVISIONAL"). The AztecCraft limits (size 1e-6 to 1e6 cm, subdivisions up to 128,
+at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
 interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
@@ -980,7 +983,9 @@ paints nothing. This contradicts the "mirrors the painted highlight" wording in
 **Area:** file format, Save As
 **Issue:** cristim/AztecCraft#156
 
-Save As on a new (Untitled) scene writes a fresh Maya 2025-format `.mb` through the writer above.
+On Unix, a new (Untitled) scene requires an initial Save As, which writes a fresh Maya
+2025-format `.mb` through the writer above. Subsequent Save operations persist changes
+to that file. Saving Untitled scenes is unsupported on Windows.
 Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
 documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
 `.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
