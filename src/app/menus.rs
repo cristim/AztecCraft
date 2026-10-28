@@ -501,7 +501,7 @@ impl Editor {
                 ui,
                 "Frame selected  F",
                 UiIcon::FrameSelected,
-                !self.selection.is_empty(),
+                self.can_frame_selected(),
             );
             if frame_button.clicked() {
                 self.frame_selected(false);

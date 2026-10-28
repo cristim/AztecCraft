@@ -100,3 +100,25 @@ async fn sdk_frame_selected_rejects_a_non_boolean_flag_and_keeps_the_camera() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_frame_selected_with_nothing_selected_frames_all_in_object_mode() {
+    for arguments in [json!({}), json!({"with_children": true})] {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        parent_with_far_child(&mut editor);
+        editor.native_operation(Operation::DeselectAll);
+        frame(&mut editor, &context, vec![]);
+        let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+        let mut want = editor.camera.clone();
+        want.frame_view(&view, None, editor.aspect).unwrap();
+        let mut args = arguments.clone();
+        args["scene_token"] = json!(editor.scene_token.to_string());
+        let reply = call(&mut editor, &context, client.peer(), "frame_selected", args).await;
+        assert!(reply.structured_content.unwrap().get("error").is_none());
+        assert_eq!(editor.camera, want, "{arguments}");
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}

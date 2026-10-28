@@ -3094,7 +3094,7 @@ fn remote_errors_and_noop_do_not_change_selection_or_history() {
     ));
     assert!(matches!(
         remote(&mut editor, frame_with_children()),
-        Err(OperationError::NoSelection)
+        Err(OperationError::NothingToFrame)
     ));
     editor.create(Primitive::Cube);
     let id = editor.single_target().unwrap().0;
@@ -6000,9 +6000,11 @@ mod toolbox_wire {
             ..Editor::default()
         };
         let output = frame(&mut editor, &context, vec![]);
-        for label in ["Undo", "Redo", "Frame selected  F"] {
+        for label in ["Undo", "Redo"] {
             assert!(disabled(&output, label), "{label}");
         }
+        // With nothing selected in Object mode, Frame selected acts like Frame All.
+        assert!(!disabled(&output, "Frame selected  F"));
         for label in ["Cube", "Plane"] {
             assert!(!disabled(&output, label), "{label}");
         }
@@ -6418,10 +6420,8 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
     )
     .unwrap();
     let before = (click_baseline(&editor), state(&editor));
-    assert!(matches!(
-        remote(&mut editor, frame_with_children()),
-        Err(OperationError::NoSelection)
-    ));
+    // Nothing selected in Object mode frames everything (#335), without touching the state.
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!((click_baseline(&editor), state(&editor)), before);
 }
 
@@ -11100,9 +11100,10 @@ mod frame_members {
     }
 
     #[test]
-    fn view_menu_rows_are_disabled_without_a_selection_and_do_nothing() {
+    fn view_menu_rows_are_disabled_without_a_selection_in_a_component_mode() {
         let mut editor = parent_with_far_child();
         editor.native_operation(Operation::DeselectAll);
+        set_mode(&mut editor, SelectionMode::Face);
         let before = editor.camera.clone();
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
@@ -11149,5 +11150,60 @@ mod frame_members {
         let events = vec![key_event(Key::F, held, false)];
         shortcuts_in(&egui::Context::default(), &mut editor, held, events);
         assert!(editor.camera.same_capture(&before));
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_frames_all_in_object_and_hierarchy_modes() {
+        for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
+            for with_children in [false, true] {
+                let mut editor = parent_with_far_child();
+                editor.native_operation(Operation::DeselectAll);
+                editor.native_operation(Operation::SetSelectionMode(mode));
+                assert_eq!(editor.selection_mode, mode);
+                let expected = camera_after_frame_all(&editor);
+                let reply = remote(&mut editor, Operation::FrameSelected { with_children });
+                assert!(reply.is_ok(), "{mode:?} {with_children}");
+                assert_eq!(editor.camera, expected, "{mode:?} {with_children}");
+            }
+        }
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_in_an_empty_scene_is_nothing_to_frame() {
+        let mut editor = Editor::default();
+        let before = editor.camera.clone();
+        assert!(matches!(
+            remote(&mut editor, frame_with_children()),
+            Err(OperationError::NothingToFrame)
+        ));
+        assert_eq!(editor.camera, before);
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_in_a_component_mode_stays_no_selection() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        set_mode(&mut editor, SelectionMode::Face);
+        let before = editor.camera.clone();
+        assert!(matches!(
+            remote(&mut editor, frame_with_children()),
+            Err(OperationError::NoSelection)
+        ));
+        assert_eq!(editor.camera, before);
+    }
+
+    #[test]
+    fn view_menu_rows_frame_all_with_nothing_selected_in_object_mode() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        let expected = camera_after_frame_all(&editor);
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        let label = "Frame Selection (F)";
+        assert!(!button_disabled(&output, label));
+        let row = face_text_position(&output, label);
+        face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+        assert_eq!(editor.camera, expected);
     }
 }

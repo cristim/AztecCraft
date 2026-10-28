@@ -776,6 +776,10 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                     .map_err(OperationError::Scene)?;
                 }
+                if !component && self.selection.is_empty() {
+                    // The 2027 View page: Frame Selection with nothing selected acts like Frame All.
+                    return self.frame_everything();
+                }
                 if !component {
                     let before = self.camera.clone();
                     self.frame_members(if with_children {
@@ -830,22 +834,7 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
-            Operation::FrameAll => {
-                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::View(error.to_string()))?;
-                if view.instances().is_empty() && view.curve_instances().is_empty() {
-                    return Err(OperationError::NothingToFrame);
-                }
-                let before = self.camera.clone();
-                self.camera
-                    .frame_view(&view, None, self.aspect)
-                    .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
-            }
+            Operation::FrameAll => return self.frame_everything(),
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
                 let before = self.camera.clone();
                 match operation {

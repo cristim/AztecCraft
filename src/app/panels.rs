@@ -261,7 +261,7 @@ impl Editor {
                     }
                     // Row names and order are from the Maya 2027 View menu page; the shelf button
                     // uses the same enablement.
-                    let has_selection = !self.selection.is_empty();
+                    let has_selection = self.can_frame_selected();
                     for (label, with_children) in [
                         ("Frame Selection (F)", false),
                         ("Frame Selection with Children (Ctrl+F)", true),

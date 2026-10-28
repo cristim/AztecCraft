@@ -57,6 +57,33 @@ impl Editor {
         });
     }
 
+    /// Whether F, Ctrl+F and their menu rows can act: a selection, or Object and Hierarchy modes,
+    /// where an empty selection frames everything.
+    pub(in crate::app) fn can_frame_selected(&self) -> bool {
+        !self.selection.is_empty()
+            || matches!(
+                self.selection_mode,
+                SelectionMode::Object | SelectionMode::Hierarchy
+            )
+    }
+
+    pub(in crate::app) fn frame_everything(&mut self) -> Result<OperationReply, OperationError> {
+        let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
+            .map_err(|error| OperationError::View(error.to_string()))?;
+        if view.instances().is_empty() && view.curve_instances().is_empty() {
+            return Err(OperationError::NothingToFrame);
+        }
+        let before = self.camera.clone();
+        self.camera
+            .frame_view(&view, None, self.aspect)
+            .map_err(OperationError::Camera)?;
+        Ok(if self.camera == before {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
+        })
+    }
+
     pub(in crate::app) fn frame_all(&mut self) {
         self.native_operation(Operation::FrameAll);
     }
