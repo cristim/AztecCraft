@@ -123,7 +123,7 @@ fn tab_is_null_when_hidden_and_survives_a_dock_round_trip() {
     let shape = shape_of(&editor);
     assert!(inspected(&editor)["attribute_editor_tab"].is_null());
     editor.apply_operation(set(AE, true)).unwrap();
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     assert_eq!(
         inspected(&editor)["attribute_editor_tab"],
         serde_json::json!({"kind": "transform", "id": node.to_decimal()})
@@ -146,7 +146,7 @@ fn tab_is_null_when_hidden_and_survives_a_dock_round_trip() {
 #[test]
 fn tab_selection_replies_and_drives_the_material_shape() {
     let mut editor = material_editor();
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let shape = shape_of(&editor);
     editor.apply_operation(set(AE, true)).unwrap();
     assert!(matches!(
@@ -179,7 +179,7 @@ fn tab_selection_replies_and_drives_the_material_shape() {
 fn unresolved_tabs_are_refused_with_invalid_input_and_change_nothing() {
     let mut editor = material_editor();
     editor.sidebar_dock = Some(AE);
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let shape = shape_of(&editor);
     let foreign = editor.history.scene().shapes()[1].id();
     let other_node = editor.history.scene().nodes()[1].id();
@@ -221,7 +221,7 @@ fn unresolved_tabs_are_refused_with_invalid_input_and_change_nothing() {
 #[test]
 fn tab_resets_on_selection_change_deletion_shape_removal_and_scene_replacement() {
     let mut editor = cube();
-    let first = editor.selected.unwrap();
+    let first = editor.selected().unwrap();
     let shape = shape_of(&editor);
     let pick = |editor: &mut Editor, shape| {
         editor
@@ -328,7 +328,7 @@ fn native_refuses_closing_and_modal_before_committing_drafts() {
                 editor.new_document().unwrap();
             }
             let node = editor
-                .selected
+                .selected()
                 .unwrap_or_else(|| NodeId::from_decimal("1").unwrap());
             editor.name = "pending draft".into();
             let before = inspected(&editor);
@@ -347,7 +347,7 @@ fn native_commits_a_valid_draft_and_refuses_an_invalid_one() {
     for make in MAKERS {
         let mut editor = cube();
         let dock = editor.sidebar_dock;
-        let node = editor.selected.unwrap();
+        let node = editor.selected().unwrap();
         let scene = editor.history.scene().clone();
         editor.channels[0] = "invalid".into();
         assert!(matches!(
@@ -372,7 +372,7 @@ fn remote_refuses_any_draft_native_input_and_stale_token_with_state_intact() {
     for make in MAKERS {
         let mut editor = cube();
         let dock = editor.sidebar_dock;
-        let node = editor.selected.unwrap();
+        let node = editor.selected().unwrap();
         let before = inspected(&editor);
         for draft in ["2", "invalid"] {
             editor.channels[0] = draft.into();
@@ -407,7 +407,7 @@ fn remote_refuses_any_draft_native_input_and_stale_token_with_state_intact() {
 fn an_active_move_refuses_both_operations_for_both_callers() {
     let mut editor = cube();
     let dock = editor.sidebar_dock;
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let target = editor.selected_move_target().unwrap();
     editor
         .apply_operation_guarded(
@@ -446,7 +446,7 @@ fn tab_selection_is_refused_unless_the_attribute_editor_is_the_active_panel() {
     for dock in [Some(CB), None] {
         let mut editor = cube();
         editor.sidebar_dock = dock;
-        let node = editor.selected.unwrap();
+        let node = editor.selected().unwrap();
         let before = inspected(&editor);
         for remote_caller in [false, true] {
             let operation = tab_op(AttributeEditorTab::Transform(node));

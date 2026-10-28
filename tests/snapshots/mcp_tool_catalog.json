@@ -896,6 +896,94 @@
     }
   },
   {
+    "name": "modify_selection",
+    "description": "Add, toggle or remove one object instance in the ordered object selection (Shift, Ctrl and Shift+Ctrl clicks); the last member is the lead. add appends an absent instance as the lead or moves a present one to the end, toggle flips membership, remove drops a member and leaves an absent one unchanged; removing the lead promotes the previous member. Ambiguous objects require a full instance_path; Object and Hierarchy modes only. Not idempotent; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "SelectionChange": {
+          "enum": [
+            "add",
+            "toggle",
+            "remove"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "change": {
+          "$ref": "#/$defs/SelectionChange"
+        },
+        "instance_path": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "change",
+        "node_id"
+      ],
+      "title": "ModifySelectionArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "select_by_rule",
+    "description": "Select > All, Hierarchy or Inverse by rule. all selects every transform instance, nested ones included, with the last as the lead (only the roots in Hierarchy selection mode); hierarchy adds every descendant of the selected objects and keeps the lead (no change in Hierarchy selection mode); inverse selects the unselected instances (roots only in Hierarchy selection mode; an empty selection selects all). Object and Hierarchy modes only. Not idempotent because inverse flips; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "SelectRule": {
+          "enum": [
+            "all",
+            "hierarchy",
+            "inverse"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "$ref": "#/$defs/SelectRule"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "rule"
+      ],
+      "title": "SelectByRuleArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "deselect_all",
     "description": "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
     "inputSchema": {
@@ -1559,6 +1647,29 @@
     }
   },
   {
+    "name": "delete_selected",
+    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "undo",
     "description": "Undo the last editor authoring operation",
     "inputSchema": {
@@ -1606,7 +1717,7 @@
   },
   {
     "name": "frame_selected",
-    "description": "Frame the selected object using the live camera",
+    "description": "Frame the selected objects using the live camera: the union of all selected objects (with their descendants), the selected face corners, the remembered vertex or both endpoints of the remembered edge. Objects with no geometry add nothing; if none has any, the call is refused and the camera is unchanged",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

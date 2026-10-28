@@ -164,6 +164,24 @@ fn curve_only_camera_frames_conservative_hull_and_exact_selected_prefix() {
 }
 
 #[test]
+fn frame_view_many_includes_curve_members_in_the_union() {
+    let scene = shared_curve(false);
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let prefixes: Vec<&[_]> = view
+        .curve_instances()
+        .iter()
+        .map(|instance| &instance.path()[..1])
+        .collect();
+    assert_eq!(prefixes.len(), 2);
+    let mut union = front_camera();
+    union.frame_view_many(&view, &prefixes, 1.0).unwrap();
+    let mut all = front_camera();
+    all.frame_view(&view, None, 1.0).unwrap();
+    assert_eq!(union, all);
+    assert_eq!(union.target(), Vec3::new(1.5, 0.0, 0.0));
+}
+
+#[test]
 fn complete_curve_view_budget_accounts_all_prepared_instances() {
     let scene = shared_curve(false);
     let mut low = 0;

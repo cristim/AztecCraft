@@ -117,6 +117,10 @@ unchanged. The dirty state compares the live scene with the saved scene by value
 so dropping old entries cannot make an edited scene read clean. Memory still
 scales with scene size times 50. Autosave and persisting history remain pending.
 
+Undo and Redo entry names are PROVISIONAL: the Maya 2027 documentation names no undo entries. A
+transform edit that changes several value groups reads "Transform"; Channel Box and numeric edits
+read "Edit" whatever channel changed.
+
 Selection, camera, tool and panel changes do not create undo entries in
 AztecCraft (`.project-docs/mcp.md` already says selection does not). Whether Maya
 puts selection changes on its undo queue is not stated by its Undo preferences page; see
@@ -239,7 +243,7 @@ original RGB values. In Vertex and Edge modes component
 feedback replaces Object feedback, so the selected object's faces are not tinted and
 selected curves are not highlighted.
 
-Test limits for this slice: the `sync_fields` owner-path test fakes `selected_path`
+Test limits for this slice: the `sync_fields` owner-path test fakes the selected path through `set_selection_for_test`
 because no real instanced scene can be built from the bin crate, so it proves the
 clearing rule, not a live instance. The `remembered_face` term in the MCP test
 `baseline()` (`src/mcp_tests/official_client/vertex_edge.rs`) is defensive; no SDK test
@@ -296,19 +300,58 @@ and every edge through surfaces. When that check is over budget `vertex_markers_
 `ViewInstance` edge; the bin crate has no loose-edge fixture, so the face-less case is
 covered by the carried edge list and the picker tests, not pixels.
 
-## Select menu: Deselect All works, All, Hierarchy and Inverse wait for multi-selection (#167)
+## Select menu: All by Type is not implemented; the rules are Object and Hierarchy mode only (#325)
 
 The Select menu follows Maya 2025.1's order (`buildSelectMenu.mel`): All (Ctrl+Shift+A), All by
-Type, Deselect All (Alt+D), Hierarchy and Inverse, with labels from the `SelectAll`, `SelectNone`,
-`SelectHierarchy` and `InvertSelection` runtime commands and hotkeys from `hotkeySetup.mel`.
+Type, Deselect All (Alt+D), Hierarchy and Inverse (Ctrl+Shift+I, hint only), with labels from
+the `SelectAll`, `SelectNone`, `SelectHierarchy` and `InvertSelection` runtime commands and
+hotkeys from `hotkeySetup.mel`.
 Deselect All is the typed `DeselectAll` operation shared by the menu, Alt+D and MCP
 `deselect_all`; like Maya's `SelectNone` (`changeSelectMode -component; changeSelectMode
 -object; select -cl`) it also clears remembered components and returns to Object mode from Face,
-Vertex, Edge or Hierarchy. All, All by Type, Hierarchy and Inverse select several objects, so they stay disabled
-rows with a reason until multi-selection (#166), and Ctrl/Cmd+Shift+A reports the same on the
-status line. Similar, Grow, Shrink and the rest of Maya's Select menu are absent. Option+D on
-macOS relies on egui-winit's physical-key fallback (PROVISIONAL). Maya 2026 and the 2027.2
-documentation pin are unverified.
+Vertex, Edge or Hierarchy. All, Hierarchy and Inverse are the typed `SelectByRule` operation shared by the menu,
+Ctrl/Cmd+Shift+A (All) and Ctrl/Cmd+Shift+I (Inverse). They select transform instances, nested ones
+included (PROVISIONAL), and in Hierarchy selection mode All and Inverse select roots only and
+Hierarchy changes nothing. Maya's Hierarchy adds "parent and child" nodes; ours adds descendants
+only (PROVISIONAL). In Face, Vertex or Edge mode Maya selects components, which cannot be
+multi-selected yet (#30), so the rows are disabled and the operation is refused, a documented
+deviation. All by Type stays a disabled row with a reason (#325); the
+[2027 Select menu page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-D1BBC051-0EE7-4A91-B4FF-2A369764EC8B.htm)
+confirms these labels, their order, Alt+D, Ctrl+Shift+A and Ctrl+Shift+I and lists All by Type as a
+submenu, drawn here as a plain disabled row. Similar, Grow, Shrink and the rest of Maya's Select
+menu are absent. Option+D on macOS relies on egui-winit's physical-key fallback (PROVISIONAL).
+
+## Select All, Hierarchy and Inverse: PROVISIONAL scope choices (#325)
+
+The Select menu page does not state these, so each is a pinned choice, not Maya parity:
+
+- P1/P2: Select All selects every transform instance, nested children included, in scene order
+  with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
+  scene therefore selects parent and children together, and Delete of that selection is refused
+  whole because a parent with children and a child each fail.
+- P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
+  Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
+  `select_inverse_in_hierarchy_mode_swaps_roots_only`,
+  `select_hierarchy_in_hierarchy_mode_is_unchanged`).
+- P4: Hierarchy adds every descendant of the selected objects and no parents, although the page
+  says "parent and child"; the lead stays the lead and added nodes sit before it
+  (`select_hierarchy_adds_descendants_keeps_lead`).
+- P5/P6: Inverse selects the unselected instances in scene order, last as the lead, and an empty
+  selection selects everything (`select_inverse_of_an_empty_selection_selects_everything`).
+- P7: Maya selects components in a component mode; here All, Hierarchy and Inverse are refused in
+  Face, Vertex and Edge mode (components cannot be multi-selected until #30), natively with
+  disabled rows and over MCP with `invalid_input`
+  (`select_rules_in_component_modes_are_refused_and_keep_state`).
+- P17: after Delete of several objects the selection is empty and Undo restores the nodes but
+  not the selection (`undo_of_delete_selection_restores_nodes_but_not_the_selection`).
+
+## Frame Selected includes the descendants of the selected objects
+
+`Camera::frame_view` and `frame_view_many` match instances by path prefix, so framing a selected
+group also frames everything below it. Maya's F frames the selected objects and excludes children
+unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
+union framing; no with-Children variant exists (Ctrl+F, and Shift+F / Ctrl+Shift+F for all views, are absent). Per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm), aligning F with Maya is tracked in #335. Pinned by
+`frame_view_of_a_group_frames_the_geometry_of_its_children`.
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
@@ -953,3 +996,47 @@ becomes visible. The
 Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
 MayaSceneKit starts decoding these meshes (the cross-check test flips); a public, licensed Maya
 file shows a mesh without a UV block or with default primitive UVs.
+
+## Multi-object selection colours and group descendants are PROVISIONAL
+
+With several objects selected, the lead and the other members are drawn in our own colours
+(`.project-docs/development.md` row 33); Maya's page says only "a different colour". The
+renderer matches by instance-path prefix, so an object below the lead's path is drawn in the lead
+colour and an object below another member in the member colour, whichever member is listed
+first. Whether Maya draws descendants of a selected group that way is unconfirmed. Pinned by
+`descendants_take_the_colour_of_the_selected_ancestor_they_sit_below`.
+
+Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
+in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It does
+not act on several objects: Move, Rotate, Scale
+and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP tools `delete_node`,
+`rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
+(#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
+an unselected object does nothing in the viewport but selects it in the Outliner, where the page
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
+click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
+pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+whole set.
+
+## Ambiguous selection is unreachable today
+
+`OperationError::AmbiguousSelection` (an object with several instance paths selected without a
+path) cannot occur in a running editor: no decoder or runtime operation gives a transform two
+parents, so every node has one path. Only the unit test
+`an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
+covers `only_instance_path`; there is no end-to-end test through a loaded scene.
+
+## Inspection is one response of at most 256 KiB
+
+`inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
+default-named cubes, 269 with every cube selected, measured through the official client) report
+`too_large`. A selection counts about 40-60 bytes per member: 4096 selected members fit with one cube but
+not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
+whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
+selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
+token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
+(a plain click on empty space, or Alt+D). Fix: page the nodes (#332, second PR). The limit is pinned by
+`inspect_scene_returns_250_cubes_and_refuses_400_without_closing` and
+`inspect_scene_sizes_a_maximal_selection_by_its_serialized_bytes`.

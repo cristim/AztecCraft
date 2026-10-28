@@ -1096,3 +1096,140 @@ fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() 
     binary(&mut scene);
     assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
 }
+
+#[test]
+fn descendant_targets_are_the_instances_strictly_below_the_roots_in_path_order() {
+    let (scene, root, mid, leaf) = chain_of_three();
+    let paths = scene.transform_paths().unwrap();
+    let of = |node| paths.iter().find(|t| t.node == node).unwrap().clone();
+    let (root_t, mid_t, leaf_t) = (of(root), of(mid), of(leaf));
+    assert_eq!(
+        scene
+            .descendant_targets(std::slice::from_ref(&root_t))
+            .unwrap(),
+        [mid_t.clone(), leaf_t.clone()]
+    );
+    assert_eq!(
+        scene
+            .descendant_targets(std::slice::from_ref(&mid_t))
+            .unwrap(),
+        [of(leaf)]
+    );
+    assert!(
+        scene
+            .descendant_targets(std::slice::from_ref(&leaf_t))
+            .unwrap()
+            .is_empty()
+    );
+    assert!(scene.descendant_targets(&[]).unwrap().is_empty());
+    assert_eq!(
+        scene.descendant_targets(&[mid_t, root_t]).unwrap(),
+        [of(mid), leaf_t]
+    );
+}
+
+#[test]
+fn descendant_targets_follow_each_instance_path_of_a_reparented_node() {
+    let (mut scene, root, child, _) = test_fixtures::hidden_group();
+    let root_id = scene.node(root).unwrap().transform_id;
+    let child_id = scene.node(child).unwrap().transform_id;
+    scene.dag.push(DagEdge {
+        parent: None,
+        child: child_id,
+    });
+    scene.validate().unwrap();
+    let root_target = TransformTarget {
+        node: root,
+        path: vec![root_id],
+    };
+    let below = scene.descendant_targets(&[root_target]).unwrap();
+    assert_eq!(
+        below,
+        [TransformTarget {
+            node: child,
+            path: vec![root_id, child_id],
+        }]
+    );
+    let direct = TransformTarget {
+        node: child,
+        path: vec![child_id],
+    };
+    assert!(scene.descendant_targets(&[direct]).unwrap().is_empty());
+}
+
+fn validations_during(action: impl FnOnce()) -> usize {
+    FULL_VALIDATIONS.with(|count| count.set(0));
+    action();
+    FULL_VALIDATIONS.with(|count| count.get())
+}
+
+fn three_roots() -> (NativeScene, [NodeId; 3]) {
+    let (mut scene, first) = cube();
+    let second = scene.create(Primitive::Cube, "b").unwrap();
+    let third = scene.create(Primitive::Cube, "c").unwrap();
+    (scene, [first, second, third])
+}
+
+/// Baseline: N single removes validate N times; remove_many validates once.
+#[test]
+fn remove_many_validates_once_where_single_removes_validate_per_node() {
+    let (mut scene, ids) = three_roots();
+    let mut singly = scene.clone();
+    assert_eq!(
+        validations_during(|| ids.iter().for_each(|id| singly.remove(*id).unwrap())),
+        3
+    );
+    assert_eq!(validations_during(|| scene.remove_many(&ids).unwrap()), 1);
+    assert_eq!(scene, singly);
+    assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
+}
+
+#[test]
+fn remove_many_removes_a_shared_shape_only_with_its_last_parent() {
+    let (scene, first, second, shape) = shared_shape();
+    let mut one = scene.clone();
+    one.remove_many(&[first]).unwrap();
+    assert!(one.shape(shape).is_ok());
+    let mut both = scene.clone();
+    both.remove_many(&[first, second]).unwrap();
+    assert!(both.shapes.is_empty() && both.dag.is_empty() && both.nodes.is_empty());
+    both.validate().unwrap();
+    let mut reversed = scene;
+    reversed.remove_many(&[second, first]).unwrap();
+    assert_eq!(reversed, both);
+}
+
+#[test]
+fn remove_many_deduplicates_repeated_ids_and_accepts_an_empty_list() {
+    let (mut scene, [a, b, c]) = three_roots();
+    let before = scene.clone();
+    scene.remove_many(&[]).unwrap();
+    assert_eq!(scene, before);
+    scene.remove_many(&[b, b, a, b]).unwrap();
+    assert_eq!(scene.nodes.len(), 1);
+    assert!(scene.node(c).is_ok());
+}
+
+#[test]
+fn remove_many_keeps_the_per_node_refusals_and_names_the_first_one() {
+    let (mut scene, root, child, _) = grouped_shape();
+    assert_eq!(
+        scene.remove_many(&[root, child]),
+        Err(NativeError::UnsupportedDelete(
+            DeleteUnsupported::HasChildren
+        ))
+    );
+    assert_eq!(
+        scene.remove_many(&[child, root]),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
+    );
+    let (mut scene, id) = cube();
+    retain(&mut scene, b"original", std::iter::once(0..8).collect());
+    assert_eq!(scene.remove_many(&[id]), Err(NativeError::ReadOnlyFormat));
+    let (mut scene, ids) = three_roots();
+    let missing = NodeId::from_decimal("999").unwrap();
+    assert_eq!(
+        scene.remove_many(&[ids[0], missing]),
+        Err(NativeError::Legacy(SceneError::MissingNode(missing)))
+    );
+}

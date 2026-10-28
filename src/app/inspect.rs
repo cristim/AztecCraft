@@ -36,28 +36,55 @@ impl Editor {
             Some(_) => self.viewport_error,
         }
     }
-    /// Reported size of the remembered face, vertex and edge paths, in that order.
+    /// Guaranteed minimum of the serialized path fields: 4 bytes per path element of every node
+    /// instance path, selection member and remembered target, plus the fixed keys of each member
+    /// and each present target (net of the `null` it replaces).
     #[cfg(any(test, feature = "mcp"))]
-    fn remembered_path_bytes(&self) -> Result<[usize; 3], OperationError> {
-        let bytes = |path_len: Option<usize>| {
-            path_len
-                .map_or(Some(0), |len| {
-                    if len > azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1 {
-                        return None;
-                    }
-                    len.checked_mul(24)?.checked_add(128)
-                })
-                .ok_or(OperationError::TooLarge)
+    fn path_lower_bound(&self, node_paths: &[azteccraft::native_scene::TransformTarget]) -> usize {
+        use crate::editor_operations::{
+            MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL, MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER,
+            MIN_VERTEX_TARGET,
         };
-        Ok([
-            bytes(self.remembered_face.as_ref().map(|t| t.path.len()))?,
-            bytes(self.remembered_vertex.as_ref().map(|t| t.path.len()))?,
-            bytes(self.remembered_edge.as_ref().map(|t| t.path.len()))?,
-        ])
+        let elements = |len: usize| len.saturating_mul(MIN_PATH_ELEMENT);
+        // Members and targets are counted with an empty `[]`; L elements add 4L - 1 (no last comma).
+        let added = |len: usize| elements(len).saturating_sub(1);
+        let target = |fixed: &str, len: Option<usize>| {
+            len.map_or(0, |len| (fixed.len() - MIN_NULL).saturating_add(added(len)))
+        };
+        let mut bytes = 0usize;
+        for path_len in node_paths.iter().map(|target| target.path.len()) {
+            bytes = bytes.saturating_add(elements(path_len));
+        }
+        for path_len in self
+            .selection
+            .members()
+            .iter()
+            .map(|member| member.path.len())
+        {
+            bytes = bytes
+                .saturating_add(MIN_SELECTION_MEMBER.len())
+                .saturating_add(added(path_len));
+        }
+        [
+            target(
+                MIN_FACE_TARGET,
+                self.remembered_face.as_ref().map(|t| t.path.len()),
+            ),
+            target(
+                MIN_VERTEX_TARGET,
+                self.remembered_vertex.as_ref().map(|t| t.path.len()),
+            ),
+            target(
+                MIN_EDGE_TARGET,
+                self.remembered_edge.as_ref().map(|t| t.path.len()),
+            ),
+        ]
+        .into_iter()
+        .fold(bytes, usize::saturating_add)
     }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn inspect(&self, text_focused: bool) -> Result<SceneInspection, OperationError> {
-        self.inspect_within(text_focused, crate::editor_operations::MAX_RESULT_BYTES / 2)
+        self.inspect_within(text_focused, crate::editor_operations::MAX_REPLY_BYTES)
     }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.
     #[cfg(any(test, feature = "mcp"))]
@@ -72,15 +99,21 @@ impl Editor {
             .scene()
             .transform_paths()
             .map_err(OperationError::Scene)?;
-        let path_bytes = paths
-            .iter()
-            .try_fold(0usize, |sum, target| {
-                sum.checked_add(target.path.len().checked_mul(24)?)
-                    .and_then(|sum| sum.checked_add(64))
-            })
-            .ok_or(OperationError::TooLarge)?;
-        let remembered = self.remembered_path_bytes()?;
-        if !inspection_paths_fit(path_bytes, remembered, path_limit) {
+        // The schema bounds a target's path to MAX_TRANSFORM_DEPTH + 1 elements.
+        let too_long = [
+            self.remembered_face.as_ref().map(|t| t.path.len()),
+            self.remembered_vertex.as_ref().map(|t| t.path.len()),
+            self.remembered_edge.as_ref().map(|t| t.path.len()),
+        ]
+        .into_iter()
+        .flatten()
+        .any(|len| len > azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1);
+        if too_long {
+            return Err(OperationError::TooLarge);
+        }
+        let total = crate::editor_operations::inspection_lower_bound(self.history.scene())
+            .saturating_add(self.path_lower_bound(&paths));
+        if total > path_limit {
             return Err(OperationError::TooLarge);
         }
         let units = self.history.scene().units();
@@ -276,6 +309,18 @@ impl Editor {
             pending_action: self.files.pending_inspection(),
             selected_node: selected.map(NodeId::to_decimal),
             selected_instance_path: selected_path.iter().map(|id| id.to_decimal()).collect(),
+            selection: self
+                .selection
+                .members()
+                .iter()
+                .map(
+                    |member| crate::editor_operations::SelectionMemberInspection {
+                        node: member.node.to_decimal(),
+                        instance_path: member.path.iter().map(|id| id.to_decimal()).collect(),
+                    },
+                )
+                .collect(),
+            selection_count: self.selection.len(),
             selection_mode: self.selection_mode,
             remembered_face: self
                 .remembered_face
@@ -348,82 +393,19 @@ pub(in crate::app) fn angular_unit_name(unit: &AngularUnit) -> &str {
     }
 }
 
-#[cfg(any(test, feature = "mcp"))]
-/// The node paths plus every remembered component path must fit `limit`.
-fn inspection_paths_fit(path_bytes: usize, remembered: [usize; 3], limit: usize) -> bool {
-    remembered
-        .into_iter()
-        .try_fold(path_bytes, usize::checked_add)
-        .is_some_and(|bytes| bytes <= limit)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::inspection_paths_fit;
-    use crate::editor_operations::MAX_RESULT_BYTES;
+    use crate::editor_operations::{
+        MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL, MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER,
+        MIN_VERTEX_TARGET, OperationError, inspection_lower_bound,
+    };
 
     #[test]
-    fn each_remembered_term_counts_toward_the_inspection_limit() {
-        let limit = MAX_RESULT_BYTES / 2;
-        assert!(inspection_paths_fit(limit, [0; 3], limit));
-        assert!(inspection_paths_fit(limit - 3, [1; 3], limit));
-        for term in 0..3 {
-            let mut remembered = [0; 3];
-            remembered[term] = 1;
-            assert!(
-                !inspection_paths_fit(limit, remembered, limit),
-                "term {term}"
-            );
-        }
-        assert!(!inspection_paths_fit(usize::MAX, [1, 0, 0], limit));
-    }
-
-    #[test]
-    fn inspection_charges_the_face_vertex_and_edge_paths_in_that_order() {
+    fn inspect_sums_node_selection_and_remembered_paths_against_its_limit() {
         let mut editor = crate::app::Editor::default();
         editor.create(azteccraft::scene::Primitive::Cube);
-        assert_eq!(editor.remembered_path_bytes().unwrap(), [0; 3]);
-        let id = editor.selected.unwrap();
-        let path = editor.selected_path.clone();
-        let shape = path[0];
-        let mut owned = path.clone();
-        owned.push(shape);
-        editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
-            transform: id,
-            shape,
-            path: owned.clone(),
-            face_index: 0,
-        });
-        assert_eq!(
-            editor.remembered_path_bytes().unwrap(),
-            [128 + 24 * 2, 0, 0]
-        );
-        owned.push(shape);
-        editor.remembered_vertex = Some(azteccraft::native_scene::VertexTarget {
-            transform: id,
-            shape,
-            path: owned.clone(),
-            vertex_index: 0,
-        });
-        owned.push(shape);
-        editor.remembered_edge = Some(azteccraft::native_scene::EdgeTarget {
-            transform: id,
-            shape,
-            path: owned,
-            edge_index: 0,
-        });
-        assert_eq!(
-            editor.remembered_path_bytes().unwrap(),
-            [128 + 24 * 2, 128 + 24 * 3, 128 + 24 * 4]
-        );
-    }
-
-    #[test]
-    fn inspect_sums_node_and_remembered_paths_against_its_limit() {
-        let mut editor = crate::app::Editor::default();
-        editor.create(azteccraft::scene::Primitive::Cube);
-        let id = editor.selected.unwrap();
-        let shape = editor.selected_path[0];
+        let id = editor.selected().unwrap();
+        let shape = editor.selected_path()[0];
         editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
             transform: id,
             shape,
@@ -442,19 +424,305 @@ mod tests {
             path: vec![shape; 4],
             edge_index: 0,
         });
-        let node_bytes: usize = editor
+        let node_elements: usize = editor
             .history
             .scene()
             .transform_paths()
             .unwrap()
             .iter()
-            .map(|target| target.path.len() * 24 + 64)
+            .map(|target| target.path.len())
             .sum();
-        let total = node_bytes + 3 * 128 + 24 * (2 + 3 + 4);
+        let selection_elements: usize = editor
+            .selection
+            .members()
+            .iter()
+            .map(|member| member.path.len())
+            .sum();
+        let remembered =
+            |fixed: &str, len: usize| fixed.len() - MIN_NULL + len * MIN_PATH_ELEMENT - 1;
+        let total = inspection_lower_bound(editor.history.scene())
+            + (node_elements + selection_elements) * MIN_PATH_ELEMENT
+            - editor.selection.len()
+            + editor.selection.len() * MIN_SELECTION_MEMBER.len()
+            + remembered(MIN_FACE_TARGET, 2)
+            + remembered(MIN_VERTEX_TARGET, 3)
+            + remembered(MIN_EDGE_TARGET, 4);
         assert!(editor.inspect_within(false, total).is_ok());
         assert!(matches!(
             editor.inspect_within(false, total - 1),
-            Err(crate::editor_operations::OperationError::TooLarge)
+            Err(OperationError::TooLarge)
         ));
+    }
+
+    /// A chain of 150 nested transforms: node k has a k-element instance path, 11 325 elements in
+    /// all. The old 24 bytes per element plus 64 per path charged about 270 KB against 256 KiB;
+    /// the paths really serialize to about 100 KB.
+    #[test]
+    fn a_deep_transform_chain_inspects_within_the_limit() {
+        let mut source = String::from(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\";\ncurrentUnit -l centimeter -a degree -t film;\n",
+        );
+        for depth in 0..150 {
+            let parent = if depth == 0 {
+                String::new()
+            } else {
+                format!(" -p \"t{}\"", depth - 1)
+            };
+            source.push_str(&format!("createNode transform -n \"t{depth}\"{parent};\n"));
+        }
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        let editor = crate::app::Editor {
+            history: crate::app::History::new(scene),
+            ..Default::default()
+        };
+        let paths = editor.history.scene().transform_paths().unwrap();
+        assert_eq!(paths.iter().map(|p| p.path.len()).sum::<usize>(), 11_325);
+        let inspection = editor.inspect(false).unwrap();
+        let real = serde_json::to_vec(&inspection).unwrap().len();
+        let bound =
+            inspection_lower_bound(editor.history.scene()) + editor.path_lower_bound(&paths);
+        assert!(bound <= real && real <= crate::editor_operations::MAX_REPLY_BYTES);
+    }
+}
+
+#[cfg(test)]
+mod selection_tests {
+    use crate::editor_operations::{
+        MAX_RESULT_BYTES, MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER, OperationError,
+    };
+    use azteccraft::scene::Primitive;
+
+    fn two_selected() -> crate::app::Editor {
+        let mut editor = crate::app::Editor::default();
+        editor.create(Primitive::Cube);
+        editor.create(Primitive::Cube);
+        let paths = editor.history.scene().transform_paths().unwrap();
+        editor.set_selection_members_for_test(paths);
+        editor
+    }
+
+    #[test]
+    fn inspection_lists_the_selection_in_order_with_the_lead_last() {
+        let editor = two_selected();
+        let members = editor.selection.members().to_vec();
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.selection_count, 2);
+        let listed: Vec<_> = inspection
+            .selection
+            .iter()
+            .map(|member| (member.node.clone(), member.instance_path.clone()))
+            .collect();
+        let expected: Vec<_> = members
+            .iter()
+            .map(|t| {
+                (
+                    t.node.to_decimal(),
+                    t.path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        assert_eq!(listed, expected);
+        assert_eq!(inspection.selected_node, Some(expected[1].0.clone()));
+        assert_eq!(inspection.selected_instance_path, expected[1].1);
+        let json = serde_json::to_value(&inspection).unwrap();
+        assert_eq!(json["selection_count"], 2);
+        assert_eq!(json["selection"][1]["node"], expected[1].0);
+        assert!(serde_json::to_vec(&json).unwrap().len() < MAX_RESULT_BYTES);
+    }
+
+    #[test]
+    fn an_empty_selection_reports_an_empty_list() {
+        let mut editor = two_selected();
+        editor.deselect_all();
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.selection_count, 0);
+        assert!(inspection.selection.is_empty() && inspection.selected_node.is_none());
+    }
+
+    #[test]
+    fn inspection_charges_the_selection_set_against_its_limit() {
+        let editor = two_selected();
+        let paths = editor.history.scene().transform_paths().unwrap();
+        let elements: usize = paths.iter().map(|target| target.path.len()).sum();
+        // Node paths and the selection list the same two paths; each is charged by its size.
+        let total = crate::editor_operations::inspection_lower_bound(editor.history.scene())
+            + 2 * elements * MIN_PATH_ELEMENT
+            - 2
+            + 2 * MIN_SELECTION_MEMBER.len();
+        assert!(editor.inspect_within(false, total).is_ok());
+        assert!(matches!(
+            editor.inspect_within(false, total - 1),
+            Err(OperationError::TooLarge)
+        ));
+    }
+}
+
+#[cfg(test)]
+mod lower_bound_tests {
+    // No multi-instance or `visible: null` fixture: the bin crate cannot build instancing
+    // (src/app/tests.rs:8252), MIN_NODE already uses null (the smallest value), and node
+    // instance paths are charged 4L against a real cost of at least 4L + 1.
+    use crate::app::{Editor, History};
+    use crate::editor_operations::{MIN_FIXED, inspection_lower_bound};
+    use azteccraft::native_scene::{NativeScene, ascii};
+    use azteccraft::scene::{Primitive, Scene};
+
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+
+    fn editor_for(scene: NativeScene) -> Editor {
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    /// The serialized length of the real inspection, after checking the bound does not exceed it.
+    fn assert_lower_bound(editor: &Editor) -> usize {
+        let inspection = editor.inspect(false).unwrap();
+        let real = serde_json::to_vec(&inspection).unwrap().len();
+        let paths = editor.history.scene().transform_paths().unwrap();
+        let bound =
+            inspection_lower_bound(editor.history.scene()) + editor.path_lower_bound(&paths);
+        assert!(bound <= real, "bound {bound} exceeds the real {real} bytes");
+        real
+    }
+
+    fn key_structure(value: &serde_json::Value) -> serde_json::Value {
+        match value {
+            serde_json::Value::Object(map) => serde_json::Value::Object(
+                map.iter()
+                    .map(|(key, value)| (key.clone(), key_structure(value)))
+                    .collect(),
+            ),
+            _ => serde_json::Value::Null,
+        }
+    }
+
+    #[test]
+    fn the_fixed_minimum_has_every_key_of_the_tightest_inspection() {
+        // An empty default editor: every Option null, nothing selected, no nodes.
+        let editor = Editor::default();
+        let real = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        let minimum: serde_json::Value = serde_json::from_str(MIN_FIXED).unwrap();
+        assert_eq!(key_structure(&minimum), key_structure(&real));
+        let real_len = assert_lower_bound(&editor);
+        assert!(MIN_FIXED.len() <= real_len);
+        assert!(
+            real_len - MIN_FIXED.len() < 1024,
+            "the minimum drifted loose"
+        );
+    }
+
+    #[test]
+    fn the_bound_holds_for_a_sourced_scene_with_curves_and_null_session_material() {
+        let editor = editor_for(ascii::decode(ascii_fixture::specimen().into()).unwrap());
+        assert!(editor.history.scene().appearance_incomplete());
+        assert_lower_bound(&editor);
+    }
+
+    #[test]
+    fn the_bound_holds_for_flat_cubes_up_to_the_reply_cap() {
+        for count in [1, 50, 100, 140, 146] {
+            let mut editor = Editor::default();
+            for _ in 0..count {
+                editor.create(Primitive::Cube);
+            }
+            let real = assert_lower_bound(&editor);
+            assert!(count < 146 || real <= crate::editor_operations::MAX_REPLY_BYTES);
+        }
+    }
+
+    #[test]
+    fn the_bound_holds_for_escaped_and_multibyte_names() {
+        let mut accepted = 0;
+        for name in [
+            "quo\"te\\back".to_string(),
+            "caf\u{e9} \u{4e2d}\u{6587} \u{1f600}".to_string(),
+            "\"".repeat(1000),
+            "plain".to_string(),
+        ] {
+            let mut legacy = Scene::default();
+            legacy.create(Primitive::Cube, &name).unwrap();
+            let editor = editor_for(NativeScene::from_legacy(legacy).unwrap());
+            assert_lower_bound(&editor);
+            accepted += 1;
+        }
+        assert_eq!(accepted, 4);
+    }
+
+    #[test]
+    fn the_bound_holds_for_a_full_session_material_table() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let mut scene = editor.history.scene().clone();
+        while scene.session_materials().len() < azteccraft::native_scene::MAX_SESSION_MATERIALS {
+            scene.create_session_material([0.5; 3]).unwrap();
+        }
+        assert_lower_bound(&editor_for(scene));
+    }
+
+    #[test]
+    fn the_bound_holds_for_transform_attributes_and_unproved_or_false_visibility() {
+        let source = "//Maya ASCII 2016 scene\nrequires maya \"2016\";\ncurrentUnit -l centimeter -a degree -t film;\n\
+            createNode transform -n \"a\";\nsetAttr \".ro\" 3;\nsetAttr \".sh\" -type \"double3\" 1 2 3;\n\
+            createNode transform -n \"b\";\nsetAttr \".v\" no;\ncreateNode transform -n \"c\";\n";
+        let editor = editor_for(ascii::decode(source.as_bytes().to_vec().into()).unwrap());
+        let inspection = editor.inspect(false).unwrap();
+        assert!(
+            inspection
+                .nodes
+                .iter()
+                .any(|n| n.transform_attributes.is_some())
+        );
+        assert!(inspection.nodes.iter().any(|n| n.visible == Some(false)));
+        assert_lower_bound(&editor);
+    }
+
+    #[test]
+    fn a_scene_the_worst_case_estimate_refused_inspects_at_the_editor() {
+        let mut editor = Editor::default();
+        for _ in 0..120 {
+            editor.create(Primitive::Cube);
+        }
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(inspection.nodes.len(), 120);
+        assert!(serde_json::to_vec(&inspection).unwrap().len() < 128 * 1024);
+    }
+
+    #[test]
+    fn the_bound_holds_for_a_full_selection_and_remembered_component_targets() {
+        let mut editor = Editor::default();
+        for _ in 0..20 {
+            editor.create(Primitive::Cube);
+        }
+        let paths = editor.history.scene().transform_paths().unwrap();
+        let transform = editor.selected().unwrap();
+        let shape = editor.selected_path()[0];
+        editor.set_selection_members_for_test(paths);
+        let path = vec![shape; 2];
+        editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
+            transform,
+            shape,
+            path: path.clone(),
+            face_index: 123_456,
+        });
+        editor.remembered_vertex = Some(azteccraft::native_scene::VertexTarget {
+            transform,
+            shape,
+            path: path.clone(),
+            vertex_index: 7,
+        });
+        editor.remembered_edge = Some(azteccraft::native_scene::EdgeTarget {
+            transform,
+            shape,
+            path,
+            edge_index: 0,
+        });
+        assert_lower_bound(&editor);
     }
 }

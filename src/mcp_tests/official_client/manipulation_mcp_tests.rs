@@ -17,7 +17,7 @@ async fn move_sdk_absolute_preview_cancel_commit_busy_and_tokens_share_one_histo
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -426,9 +426,9 @@ async fn move_sdk_never_commits_real_native_text_drafts_or_takes_their_focus() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -487,7 +487,7 @@ async fn move_sdk_refuses_begin_in_face_mode_and_reports_it_in_inspection() {
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -575,7 +575,7 @@ async fn move_sdk_refuses_begin_on_a_read_only_ascii_curve_scene_with_a_typed_er
     editor.select(Some(node));
     let token = editor.scene_token.to_string();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -735,7 +735,7 @@ async fn every_kind_sdk_shares_guards_busy_tokens_cancel_undo_and_typed_mismatch
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -976,7 +976,7 @@ async fn rotate_sdk_refusal_by_the_scene_keeps_the_preview_and_is_inspectable() 
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -1360,9 +1360,9 @@ async fn declared_echo_does_not_survive_a_new_scene_that_reuses_the_manipulation
     let mut ids = Vec::new();
     for round in 0..2 {
         let token = editor.scene_token.to_string();
-        let node = editor.selected.unwrap().to_decimal();
+        let node = editor.selected().unwrap().to_decimal();
         let path: Vec<_> = editor
-            .selected_path
+            .selected_path()
             .iter()
             .map(|id| id.to_decimal())
             .collect();
@@ -1573,9 +1573,9 @@ async fn rotate_and_scale_sdk_never_commit_real_native_text_drafts() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -1645,7 +1645,7 @@ async fn rotate_and_scale_sdk_refuse_face_mode_and_absent_leaves_with_typed_erro
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

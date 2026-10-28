@@ -309,6 +309,9 @@ impl Editor {
         if let Some(refusal) = mode_refusal(tool, self.selection_mode) {
             return Err(OperationError::InvalidInput(refusal));
         }
+        if self.selection.len() > 1 {
+            return Err(OperationError::MultipleSelection);
+        }
         let (selected, path) = self.selection_presentation();
         if selected != Some(target.node) || path != target.path {
             return Err(OperationError::InvalidInput(format!(

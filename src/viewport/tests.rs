@@ -1105,3 +1105,141 @@ fn dolly_has_no_minimum_distance() {
     assert!(camera.distance() < camera.near());
     assert_eq!(camera.project(camera.target(), 1.0).unwrap(), None);
 }
+
+fn view_of(scene: &NativeScene) -> ViewScene {
+    ViewScene::from_native(scene, 1 << 28).unwrap()
+}
+
+fn root_path(
+    scene: &NativeScene,
+    node: crate::scene::NodeId,
+) -> Vec<crate::native_scene::NativeId> {
+    scene
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|target| target.node == node)
+        .unwrap()
+        .path
+}
+
+fn two_cubes_apart() -> (NativeScene, Vec<Vec<crate::native_scene::NativeId>>) {
+    let (mut scene, first) = test_fixtures::cube();
+    let second = scene.create(crate::scene::Primitive::Cube, "far").unwrap();
+    scene
+        .set_transform(
+            second,
+            crate::native_scene::NativeTransform {
+                translation: [30.0, 0.0, -12.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let paths = [first, second]
+        .iter()
+        .map(|node| root_path(&scene, *node))
+        .collect();
+    (scene, paths)
+}
+
+#[test]
+fn frame_view_many_frames_the_union_of_the_members() {
+    let (scene, paths) = two_cubes_apart();
+    let view = view_of(&scene);
+    let all: Vec<Vec3> = view
+        .instances()
+        .iter()
+        .flat_map(|instance| instance.world_vertices().iter().copied())
+        .collect();
+    let mut expected = Camera::default();
+    expected.frame_points(&all, 1.5).unwrap();
+    let mut camera = Camera::default();
+    let prefixes: Vec<&[crate::native_scene::NativeId]> = paths.iter().map(Vec::as_slice).collect();
+    camera.frame_view_many(&view, &prefixes, 1.5).unwrap();
+    assert_eq!(camera, expected);
+    let mut lead_only = Camera::default();
+    lead_only.frame_view(&view, Some(&paths[1]), 1.5).unwrap();
+    assert_ne!(camera, lead_only);
+}
+
+#[test]
+fn frame_view_many_with_one_member_equals_frame_view() {
+    let (scene, paths) = two_cubes_apart();
+    let view = view_of(&scene);
+    for path in &paths {
+        let mut many = Camera::default();
+        many.frame_view_many(&view, &[path.as_slice()], 1.0)
+            .unwrap();
+        let mut single = Camera::default();
+        single.frame_view(&view, Some(path), 1.0).unwrap();
+        assert_eq!(many, single);
+    }
+}
+
+#[test]
+fn frame_selected_with_an_empty_member_and_a_cube_frames_the_cube() {
+    let (scene, cube, empty) = test_fixtures::cube_and_empty_transform();
+    let view = view_of(&scene);
+    let (cube_path, empty_path) = (root_path(&scene, cube), root_path(&scene, empty));
+    let mut both = Camera::default();
+    both.frame_view_many(&view, &[empty_path.as_slice(), cube_path.as_slice()], 1.0)
+        .unwrap();
+    let mut only_cube = Camera::default();
+    only_cube.frame_view(&view, Some(&cube_path), 1.0).unwrap();
+    assert_eq!(both, only_cube);
+}
+
+#[test]
+fn frame_selected_with_only_empty_members_errors_and_keeps_the_camera() {
+    let (scene, _, empty) = test_fixtures::cube_and_empty_transform();
+    let view = view_of(&scene);
+    let empty_path = root_path(&scene, empty);
+    let mut camera = Camera::default();
+    camera.pan(Vec2::new(2.0, 1.0)).unwrap();
+    let before = camera.clone();
+    assert_eq!(
+        camera.frame_view_many(&view, &[empty_path.as_slice()], 1.0),
+        Err(InvalidCameraInput)
+    );
+    assert_eq!(
+        camera.frame_view_many(&view, &[], 1.0),
+        Err(InvalidCameraInput)
+    );
+    assert_eq!(camera, before);
+}
+
+#[test]
+fn frame_selected_with_a_lone_point_uses_the_near_floor() {
+    let (mut scene, cube) = test_fixtures::cube();
+    scene
+        .set_transform(
+            cube,
+            crate::native_scene::NativeTransform {
+                scale: [0.0; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let view = view_of(&scene);
+    let path = root_path(&scene, cube);
+    let mut camera = Camera::default();
+    camera
+        .frame_view_many(&view, &[path.as_slice()], 1.0)
+        .unwrap();
+    assert_eq!(camera.distance(), camera.near() * 2.0 * 1.05);
+}
+
+/// Pins the existing deviation from Maya's F (children excluded): a prefix match frames the
+/// geometry below a group that owns none itself.
+#[test]
+fn frame_view_of_a_group_frames_the_geometry_of_its_children() {
+    let (scene, root, child, _) = test_fixtures::grouped_shape();
+    let view = view_of(&scene);
+    let (root_path, child_path) = (root_path(&scene, root), root_path(&scene, child));
+    assert!(child_path.starts_with(&root_path) && child_path.len() > root_path.len());
+    let mut group = Camera::default();
+    group.frame_view(&view, Some(&root_path), 1.0).unwrap();
+    let mut leaf = Camera::default();
+    leaf.frame_view(&view, Some(&child_path), 1.0).unwrap();
+    assert_eq!(group, leaf);
+}

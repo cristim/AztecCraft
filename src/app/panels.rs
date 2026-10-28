@@ -365,8 +365,15 @@ impl Editor {
                     self.selection_mode,
                 )
                 .is_some();
+            // Shift and Ctrl clicks modify the object selection; only the component modes refuse them.
+            let object_mode = matches!(
+                self.selection_mode,
+                SelectionMode::Object | SelectionMode::Hierarchy
+            );
             let selection_refusal = input.unsupported_selection().filter(|refusal| {
                 can_select
+                    && !(object_mode
+                        && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
                     && (*refusal != crate::viewport_ui::SelectionRefusal::Marquee
                         || !(consumed || mode_refused))
             });
@@ -418,8 +425,8 @@ impl Editor {
                 };
                 self.apply_operation(Operation::SetSelectionMode(mode))?;
             }
-            if delete_intent && let Some((id, _)) = self.single_target().ok() {
-                self.native_operation(Operation::Delete(id));
+            if delete_intent && !self.selection.is_empty() {
+                self.native_operation(Operation::DeleteSelection);
             }
             match selection_refusal {
                 Some(crate::viewport_ui::SelectionRefusal::Marquee) => {
@@ -468,10 +475,32 @@ impl Editor {
                         } else {
                             (None, None)
                         };
-                        self.apply_operation(Operation::Select {
-                            node,
-                            instance_path,
-                        })?;
+                        // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
+                        // click on empty space leaves the selection alone.
+                        let modifiers = input.click_modifiers().unwrap_or_default();
+                        let ctrl = modifiers.ctrl || modifiers.command;
+                        let change = match (modifiers.shift, ctrl) {
+                            (false, false) => None,
+                            (true, false) => Some(SelectionChange::Toggle),
+                            (false, true) => Some(SelectionChange::Remove),
+                            (true, true) => Some(SelectionChange::Add),
+                        };
+                        match (change, node) {
+                            (None, _) => {
+                                self.apply_operation(Operation::Select {
+                                    node,
+                                    instance_path,
+                                })?;
+                            }
+                            (Some(change), Some(node)) => {
+                                self.apply_operation(Operation::ModifySelection {
+                                    change,
+                                    node,
+                                    instance_path,
+                                })?;
+                            }
+                            (Some(_), None) => {}
+                        }
                     }
                     SelectionMode::Face => {
                         let target = input
@@ -499,8 +528,16 @@ impl Editor {
                 &view,
                 match self.selection_mode {
                     SelectionMode::Object | SelectionMode::Hierarchy => {
-                        let (selected, path) = self.selection_presentation();
-                        crate::viewport_renderer::SelectionFeedback::Object(selected.map(|_| path))
+                        if self.selection.len() > 1 {
+                            crate::viewport_renderer::SelectionFeedback::Multi(
+                                self.selection.members(),
+                            )
+                        } else {
+                            let (selected, path) = self.selection_presentation();
+                            crate::viewport_renderer::SelectionFeedback::Object(
+                                selected.map(|_| path),
+                            )
+                        }
                     }
                     SelectionMode::Vertex => crate::viewport_renderer::SelectionFeedback::Vertex {
                         active: self.single_target().ok(),

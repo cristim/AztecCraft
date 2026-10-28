@@ -51,8 +51,8 @@ fn face_remote_operations_and_hidden_callbacks_preserve_guarded_selection_baseli
             let baseline = (
                 editor.history.scene().clone(),
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone(),
                 editor.camera.clone(),
                 editor.scene_token,
@@ -100,8 +100,8 @@ fn face_remote_operations_and_hidden_callbacks_preserve_guarded_selection_baseli
                 (
                     editor.history.scene().clone(),
                     editor.selection_mode,
-                    editor.selected,
-                    editor.selected_path.clone(),
+                    editor.selected(),
+                    editor.selected_path().to_vec(),
                     editor.remembered_face.clone(),
                     editor.camera.clone(),
                     editor.scene_token,
@@ -209,7 +209,7 @@ fn camera_sparse_extrusion_and_grid_requests_keep_human_and_closed_bridge_guards
             let (bridge, ingress) = mcp::test_bridge(context.clone());
             let mut editor = Editor::default();
             editor.create(Primitive::Cube);
-            let id = editor.selected.unwrap();
+            let id = editor.selected().unwrap();
             let shape = editor.history.scene().shapes()[0].id();
             let operation = match operation_index {
                 0..=3 => camera_operations()
@@ -445,7 +445,7 @@ fn hidden_pending_input_preserves_native_baseline_before_visible_consumption() {
     assert!(editor.name.contains("human"));
     assert_eq!(editor.name, baseline.name);
     assert_eq!(editor.channels, baseline.channels);
-    assert_eq!(editor.selected, baseline.selected);
+    assert_eq!(editor.selected(), baseline.selected());
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(baseline.history.scene(), &baseline_before);
     assert_eq!(editor.camera, baseline.camera);
@@ -712,7 +712,7 @@ fn same_frame_click_and_type_blocks_queued_mutation_without_prior_focus() {
     assert!(baseline.name.contains("human"));
     assert_eq!(editor.name, baseline.name);
     assert_eq!(editor.channels, baseline.channels);
-    assert_eq!(editor.selected, baseline.selected);
+    assert_eq!(editor.selected(), baseline.selected());
     assert_eq!(
         context.memory(|memory| memory.focused()),
         baseline_context.memory(|memory| memory.focused())
@@ -734,7 +734,7 @@ fn same_frame_click_and_type_blocks_queued_mutation_without_prior_focus() {
     assert!(baseline.name.contains("human"));
     assert_eq!(editor.name, baseline.name);
     assert_eq!(editor.channels, baseline.channels);
-    assert_eq!(editor.selected, baseline.selected);
+    assert_eq!(editor.selected(), baseline.selected());
     assert_eq!(
         context.memory(|memory| memory.focused()),
         baseline_context.memory(|memory| memory.focused())

@@ -23,8 +23,10 @@ pub(in crate::app) fn material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
-    editor.selected_path = vec![editor.history.scene().nodes()[0].transform_id()];
+    editor.set_selection_for_test(
+        Some(editor.history.scene().nodes()[0].id()),
+        vec![editor.history.scene().nodes()[0].transform_id()],
+    );
     editor.sync_fields();
     editor
 }
@@ -89,7 +91,7 @@ fn independent_material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     editor
 }
@@ -480,7 +482,7 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     let before = editor.history.scene().clone();
     let context = egui::Context::default();
@@ -542,8 +544,7 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
         ("material/no-owner", None, Vec::new(), false),
         ("material/stale-owner", Some(stale), Vec::new(), false),
     ] {
-        editor.selected = selected;
-        editor.selected_path = path.clone();
+        editor.set_selection_for_test(selected, path.clone());
         let baseline = state(&editor);
         assert_eq!(baseline.4, (false, false, None, None, false), "{phase}");
         for _ in 0..2 {
@@ -615,7 +616,7 @@ fn material_multiple_direct_shapes_require_an_explicit_choice_without_guessing()
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     assert!(editor.material_shape.is_none());
     assert!(editor.material_draft.is_none());
@@ -1924,15 +1925,15 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             options: None,
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "renamed".into(),
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "renamed".into(),
         },
         |editor| Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: String::new(),
         },
         |_| Operation::Undo,
@@ -2234,7 +2235,7 @@ fn display_menu_shows_grid_options_disabled_with_the_default_grid_reason() {
 }
 
 /// Maya 2025.1's SelectNone runs `changeSelectMode -component; changeSelectMode -object;
-/// select -cl`, so Deselect All also leaves component and hierarchy modes (#167).
+/// select -cl`, so Deselect All also leaves component and hierarchy modes.
 #[test]
 fn deselect_all_clears_object_and_components_and_returns_to_object_mode() {
     let changed = |reply: Result<OperationReply, OperationError>| {
@@ -2300,32 +2301,80 @@ fn alt_d_deselects_all_and_other_d_chords_do_not() {
 }
 
 #[test]
-fn ctrl_shift_a_reports_that_select_all_needs_multi_selection() {
+fn ctrl_shift_a_selects_all_and_ctrl_shift_i_inverts() {
     let mut editor = Editor::default();
-    editor.create(Primitive::Cube);
-    let selected = editor.selection_presentation().0;
+    let ids: Vec<_> = (0..3)
+        .map(|_| {
+            editor.create(Primitive::Cube);
+            editor.selection_presentation().0.unwrap()
+        })
+        .collect();
+    editor.select(Some(ids[0]));
     let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
     shortcuts_events(&mut editor, chord, vec![key_event(Key::A, chord, false)]);
-    assert_eq!(editor.status, super::menus::SELECT_ALL_STATUS);
+    assert_eq!(editor.selection.len(), 3);
+    assert_eq!(editor.selection_presentation().0, Some(ids[2]));
     assert!(!editor.error);
-    assert_eq!(editor.selection_presentation().0, selected);
+    editor.select(Some(ids[0]));
+    shortcuts_events(&mut editor, chord, vec![key_event(Key::I, chord, false)]);
+    let selected: Vec<_> = editor.selection.members().iter().map(|t| t.node).collect();
+    assert_eq!(selected, [ids[1], ids[2]]);
+    for held in [egui::Modifiers::SHIFT, egui::Modifiers::COMMAND] {
+        shortcuts_events(&mut editor, held, vec![key_event(Key::I, held, false)]);
+        shortcuts_events(&mut editor, held, vec![key_event(Key::A, held, false)]);
+    }
+    assert_eq!(editor.selection.len(), 2);
 }
 
 #[test]
-fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
+fn select_shortcuts_do_nothing_while_a_dialog_is_open() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let before = editor.selection.clone();
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+    for key in [Key::A, Key::I] {
+        shortcuts_events(&mut editor, chord, vec![key_event(key, chord, false)]);
+        assert_eq!(editor.selection, before, "{key:?}");
+    }
+}
+
+#[test]
+fn select_shortcuts_are_refused_in_a_component_mode_with_the_status_error() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    set_mode(&mut editor, SelectionMode::Vertex);
+    let chord = egui::Modifiers::COMMAND | egui::Modifiers::SHIFT;
+    shortcuts_events(&mut editor, chord, vec![key_event(Key::A, chord, false)]);
+    assert!(editor.error);
+    assert_eq!(editor.status, super::menus::SELECT_RULE_COMPONENT_REASON);
+    assert_eq!(editor.selection.len(), 1);
+}
+
+const SELECT_ALL_ROW: &str = "All   Ctrl/Cmd Shift A";
+const SELECT_INVERSE_ROW: &str = "Inverse   Ctrl/Cmd Shift I";
+
+fn open_select_menu(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+    let output = frame(editor, ctx, vec![]);
+    let menu = face_text_position(&output, "Select");
+    face_pointer_click(editor, ctx, menu, egui::Modifiers::NONE, vec![])
+}
+
+#[test]
+fn select_menu_rows_follow_maya_order_and_only_all_by_type_is_unsupported() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
-    let output = frame(&mut editor, &ctx, vec![]);
-    let menu = face_text_position(&output, "Select");
-    let output = face_pointer_click(&mut editor, &ctx, menu, egui::Modifiers::NONE, vec![]);
+    let output = open_select_menu(&mut editor, &ctx);
     let rows = [
-        "All   Ctrl/Cmd Shift A",
+        SELECT_ALL_ROW,
         "All by Type",
         "Deselect All   Alt D",
         "Hierarchy",
-        "Inverse",
+        SELECT_INVERSE_ROW,
         "Object / Component   F8",
     ];
     let ys: Vec<f32> = rows
@@ -2336,18 +2385,57 @@ fn select_menu_rows_follow_maya_order_and_only_deselect_all_acts() {
         ys.windows(2).all(|pair| pair[0] < pair[1]),
         "rows out of order: {ys:?}"
     );
-    for label in ["All   Ctrl/Cmd Shift A", "Hierarchy", "Inverse"] {
-        face_pointer_click(
-            &mut editor,
-            &ctx,
-            face_text_position(&output, label),
-            egui::Modifiers::NONE,
-            vec![],
-        );
-        assert!(editor.selection_presentation().0.is_some(), "{label}");
+    assert!(button_disabled(&output, "All by Type"));
+    for label in [SELECT_ALL_ROW, "Hierarchy", SELECT_INVERSE_ROW] {
+        assert!(!button_disabled(&output, label), "{label} must be enabled");
     }
-    let deselect = face_text_position(&output, "Deselect All   Alt D");
-    face_pointer_click(&mut editor, &ctx, deselect, egui::Modifiers::NONE, vec![]);
+    assert!(
+        super::menus::ALL_BY_TYPE_REASON.contains("#325")
+            && !super::menus::ALL_BY_TYPE_REASON.contains("#166")
+    );
+}
+
+#[test]
+fn select_rule_rows_are_disabled_in_a_component_mode_and_deselect_all_is_not() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    set_mode(&mut editor, SelectionMode::Face);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let output = open_select_menu(&mut editor, &ctx);
+    for label in [SELECT_ALL_ROW, "Hierarchy", SELECT_INVERSE_ROW] {
+        assert!(button_disabled(&output, label), "{label} must be disabled");
+    }
+    assert!(!button_disabled(&output, "Deselect All   Alt D"));
+}
+
+#[test]
+fn select_menu_rows_act_on_the_selection() {
+    let mut editor = Editor::default();
+    let ids: Vec<_> = (0..3)
+        .map(|_| {
+            editor.create(Primitive::Cube);
+            editor.selection_presentation().0.unwrap()
+        })
+        .collect();
+    editor.select(Some(ids[0]));
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let selected =
+        |editor: &Editor| -> Vec<_> { editor.selection.members().iter().map(|t| t.node).collect() };
+    let click_row = |editor: &mut Editor, label: &str| {
+        let output = open_select_menu(editor, &ctx);
+        let at = face_text_position(&output, label);
+        face_pointer_click(editor, &ctx, at, egui::Modifiers::NONE, vec![]);
+    };
+    click_row(&mut editor, SELECT_ALL_ROW);
+    assert_eq!(selected(&editor), ids);
+    click_row(&mut editor, SELECT_INVERSE_ROW);
+    assert!(selected(&editor).is_empty());
+    editor.select(Some(ids[0]));
+    click_row(&mut editor, "Hierarchy");
+    assert_eq!(selected(&editor), [ids[0]]);
+    click_row(&mut editor, "Deselect All   Alt D");
     assert_eq!(editor.selection_presentation().0, None);
 }
 
@@ -5117,7 +5205,7 @@ fn first_click_on_a_field_keeps_same_frame_delete_and_selection_keys_suppressed(
 #[test]
 fn first_click_on_a_field_that_just_disappeared_leaves_no_stale_focus() {
     let (mut editor, ctx) = unfocused_cube_editor();
-    editor.selected = None;
+    editor.set_selection_for_test(None, Vec::new());
     click_with_text(&mut editor, &ctx, channel_edit_id(0), "7");
     frame(&mut editor, &ctx, vec![]);
     frame(&mut editor, &ctx, vec![]);
@@ -5153,7 +5241,6 @@ fn real_channel_text_keeps_f64_precision_and_untouched_slots_in_one_undo() {
                 translation: [0.0, 1.0000000000000004, 0.0],
                 ..Default::default()
             },
-            label: None,
         })
         .unwrap();
     editor.sync_fields();
@@ -6146,7 +6233,7 @@ fn borrowed_selection_readers_preserve_exact_paths_and_operation_baselines() {
 }
 
 #[test]
-fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
+fn selection_presentation_has_no_path_without_a_node() {
     let mut editor = deep_group_editor();
     let leaf = editor
         .history
@@ -6155,8 +6242,7 @@ fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
         .unwrap()
         .pop()
         .unwrap();
-    editor.selected = None;
-    editor.selected_path = leaf.path.clone();
+    editor.set_selection_for_test(None, leaf.path.clone());
     let before = (
         click_baseline(&editor),
         editor.history.can_undo(),
@@ -6168,17 +6254,8 @@ fn selection_presentation_preserves_defensive_none_node_nonempty_path() {
     );
     let inspection = editor.inspect(false).unwrap();
     assert_eq!(inspection.selected_node, None);
-    assert_eq!(
-        inspection.selected_instance_path,
-        leaf.path
-            .iter()
-            .map(|id| id.to_decimal())
-            .collect::<Vec<_>>()
-    );
-    assert_eq!(
-        editor.selection_presentation(),
-        (None, leaf.path.as_slice())
-    );
+    assert!(inspection.selected_instance_path.is_empty());
+    assert_eq!(editor.selection_presentation(), (None, &[][..]));
     assert!(matches!(
         editor.single_target(),
         Err(OperationError::NoSelection)
@@ -6301,11 +6378,14 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
     let full_path_baseline = click_baseline(&editor);
     for defensive_empty_path in [false, true] {
         editor.camera = unframed.clone();
-        editor.selected_path = if defensive_empty_path {
-            Vec::new()
-        } else {
-            target.path.clone()
-        };
+        editor.set_selection_for_test(
+            editor.selected(),
+            if defensive_empty_path {
+                Vec::new()
+            } else {
+                target.path.clone()
+            },
+        );
         assert_eq!(
             click_baseline(&editor) == full_path_baseline,
             !defensive_empty_path
@@ -6346,7 +6426,7 @@ fn group_editor() -> Editor {
 }
 
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
-fn deep_group_editor() -> Editor {
+pub(in crate::app) fn deep_group_editor() -> Editor {
     nested_group_editor(&[b"mid", b"child"])
 }
 
@@ -6498,8 +6578,8 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
     let scene = editor.history.scene().clone();
     let state = |editor: &Editor| {
         (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.history.can_undo(),
             editor.history.can_redo(),
             editor.history.undo_label(),
@@ -7117,7 +7197,7 @@ fn undoing_the_creation_clears_vertex_and_edge_picks() {
     assert_eq!(editor.remembered_vertex, None);
     remote(&mut editor, Operation::Redo).unwrap();
     assert_eq!(editor.remembered_vertex, None);
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, 2);
@@ -8229,7 +8309,7 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
         ("outliner/stale-path", true, Some(false)),
     ] {
         if stale_path {
-            editor.selected_path = leaf.path[1..].to_vec();
+            editor.set_selection_for_test(editor.selected(), leaf.path[1..].to_vec());
         }
         let expected_path = if stale_path {
             &leaf.path[1..]
@@ -8455,11 +8535,58 @@ fn camera_after_frame_all(editor: &Editor) -> Camera {
 }
 
 #[test]
+fn set_transform_moving_a_rotated_node_reports_undo_move() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    let apply = |editor: &mut Editor, transform: NativeTransform| {
+        let input = editor.transform_input(transform).unwrap();
+        remote(
+            editor,
+            Operation::SetTransform {
+                id,
+                transform: input,
+            },
+        )
+        .unwrap();
+    };
+    let rotated = NativeTransform {
+        rotation: [0.0, 45.0, 0.0],
+        ..Default::default()
+    };
+    apply(&mut editor, rotated);
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Rotate")
+    );
+    apply(
+        &mut editor,
+        NativeTransform {
+            translation: [3.0, 0.0, 0.0],
+            ..rotated
+        },
+    );
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Move")
+    );
+    remote(&mut editor, Operation::Undo).unwrap();
+    assert_eq!(
+        editor.inspect(false).unwrap().redo_label.as_deref(),
+        Some("Move")
+    );
+    assert_eq!(
+        editor.inspect(false).unwrap().undo_label.as_deref(),
+        Some("Rotate")
+    );
+}
+
+#[test]
 fn frame_all_frames_every_object_regardless_of_selection() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     let transform = NativeTransform {
         translation: [20.0, 0.0, 0.0],
         ..Default::default()
@@ -8486,7 +8613,7 @@ fn frame_all_frames_every_object_regardless_of_selection() {
     }
     remote(&mut editor, Operation::FrameAll).unwrap();
     assert_eq!(editor.camera, expected);
-    assert_eq!(editor.selected, Some(id));
+    assert_eq!(editor.selected(), Some(id));
     assert!(matches!(
         remote(&mut editor, Operation::FrameAll),
         Ok(OperationReply::Unchanged)
@@ -8854,7 +8981,7 @@ mod primitive_options_create {
         let mut editor = Editor::default();
         create(&mut editor, Primitive::Cube, None).unwrap();
         let scene = editor.history.scene().clone();
-        let selection = (editor.selected, editor.selected_path.clone());
+        let selection = (editor.selected(), editor.selected_path().to_vec());
         let token = editor.scene_token;
         let dirty = editor.is_dirty();
         let invalid = [
@@ -8866,7 +8993,10 @@ mod primitive_options_create {
             let error = create(&mut editor, primitive, Some(options)).unwrap_err();
             assert!(matches!(error, OperationError::Scene(_)), "{error:?}");
             assert_eq!(editor.history.scene(), &scene);
-            assert_eq!((editor.selected, editor.selected_path.clone()), selection);
+            assert_eq!(
+                (editor.selected(), editor.selected_path().to_vec()),
+                selection
+            );
             assert_eq!(editor.scene_token, token);
             assert_eq!(editor.is_dirty(), dirty);
             assert!(!editor.history.can_redo());
@@ -9288,7 +9418,7 @@ fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip()
         ..Default::default()
     };
     let input = editor.transform_input(transform).unwrap();
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     remote(
         &mut editor,
         Operation::SetTransform {
@@ -9397,4 +9527,1182 @@ fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
         assert_eq!(editor.history.undo_label(), undo);
         assert_eq!(editor.history.redo_label(), redo);
     }
+}
+
+fn two_cube_editor() -> Editor {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    assert_eq!(paths.len(), 2);
+    editor.set_selection_members_for_test(paths);
+    editor
+}
+
+#[test]
+fn several_selected_objects_refuse_single_target_and_present_the_lead() {
+    let editor = two_cube_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    assert!(matches!(
+        editor.single_target(),
+        Err(OperationError::MultipleSelection)
+    ));
+    assert_eq!(
+        OperationError::MultipleSelection.to_string(),
+        "Several objects are selected; select one object"
+    );
+    let lead = paths.last().unwrap();
+    assert_eq!(
+        editor.selection_presentation(),
+        (Some(lead.node), lead.path.as_slice())
+    );
+    assert_eq!(
+        editor.lead_target().unwrap(),
+        (lead.node, lead.path.as_slice())
+    );
+}
+
+#[test]
+fn move_and_rotate_refuse_several_selected_objects_and_keep_state() {
+    let editor = two_cube_editor();
+    let camera = editor.camera.clone();
+    let scene = editor.history.scene().clone();
+    let selection = editor.selection.clone();
+    assert!(matches!(
+        editor.selected_move_target(),
+        Err(OperationError::MultipleSelection)
+    ));
+    let lead = selection.lead().unwrap().clone();
+    assert!(matches!(
+        editor.check_manipulation_target("Rotate", &lead),
+        Err(OperationError::MultipleSelection)
+    ));
+    assert_eq!(editor.camera, camera);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.selection, selection);
+}
+
+#[test]
+fn undo_of_a_creation_prunes_only_that_member() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let first = editor.history.scene().transform_paths().unwrap().remove(0);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(vec![first.clone(), paths[1].clone()]);
+    editor.native_operation(Operation::Undo);
+    assert_eq!(editor.selection.members(), std::slice::from_ref(&first));
+    assert_eq!(editor.lead_target().unwrap().0, first.node);
+}
+
+#[test]
+fn undo_that_removes_every_member_clears_the_selection() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    editor.native_operation(Operation::Undo);
+    editor.native_operation(Operation::Undo);
+    assert!(editor.selection.is_empty());
+    assert!(matches!(
+        editor.single_target(),
+        Err(OperationError::NoSelection)
+    ));
+}
+
+#[test]
+fn create_and_select_replace_the_whole_set() {
+    let mut editor = two_cube_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.native_operation(Operation::Select {
+        node: Some(paths[1].node),
+        instance_path: None,
+    });
+    assert_eq!(editor.selection.members(), [paths[1].clone()]);
+    editor.set_selection_members_for_test(paths);
+    editor.create(Primitive::Cube);
+    assert_eq!(editor.selection.len(), 1);
+}
+
+#[test]
+fn deselect_all_and_new_document_clear_several_selected_objects() {
+    let mut editor = two_cube_editor();
+    editor.deselect_all();
+    assert!(editor.selection.is_empty());
+    let members = two_cube_editor().selection.members().to_vec();
+    let mut editor = Editor::default();
+    editor.set_selection_members_for_test(members);
+    assert_eq!(editor.selection.len(), 2);
+    editor.new_document().unwrap();
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn a_draft_on_the_lead_is_committed_through_the_lead_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let lead = editor.lead_target().unwrap().0;
+    editor.channels[0] = "5".into();
+    editor.channel_intents[0] = true;
+    assert!(editor.commit_pending());
+    let x = editor
+        .history
+        .scene()
+        .node(lead)
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, 5.0);
+    assert_eq!(editor.selection.len(), 2);
+}
+
+fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
+    (
+        editor.history.scene().clone(),
+        editor.selection.clone(),
+        editor.selection_mode,
+        editor.camera.clone(),
+        editor.scene_token,
+        editor.history.can_undo(),
+        editor.history.undo_label(),
+    )
+}
+
+#[test]
+fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+    let mut editor = two_cube_editor();
+    let baseline = multi_baseline(&editor);
+    let target = editor.selection.lead().unwrap().clone();
+    let space = crate::editor_operations::ManipulationSpace::World;
+    let make = |index: usize| match index {
+        0 => Operation::BeginMove {
+            target: target.clone(),
+            axis: azteccraft::native_scene::WorldAxis::X,
+        },
+        1 => Operation::BeginRotate {
+            target: target.clone(),
+            axis: azteccraft::native_scene::RotateAxis::X,
+            space,
+        },
+        _ => Operation::BeginScale {
+            target: target.clone(),
+            handle: azteccraft::native_scene::ScaleHandle::Uniform,
+            space,
+        },
+    };
+    for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
+        assert!(
+            matches!(
+                editor.apply_operation(make(index)),
+                Err(OperationError::MultipleSelection)
+            ),
+            "native {label}"
+        );
+        assert!(
+            matches!(
+                remote(&mut editor, make(index)),
+                Err(OperationError::MultipleSelection)
+            ),
+            "remote {label}"
+        );
+        assert!(editor.history.active_manipulation().is_none());
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+}
+
+#[test]
+fn component_modes_refuse_several_selected_objects_and_object_modes_do_not() {
+    let mut editor = two_cube_editor();
+    let baseline = multi_baseline(&editor);
+    for mode in [
+        SelectionMode::Face,
+        SelectionMode::Vertex,
+        SelectionMode::Edge,
+    ] {
+        assert!(matches!(
+            remote(&mut editor, Operation::SetSelectionMode(mode)),
+            Err(OperationError::MultipleSelection)
+        ));
+        assert!(matches!(
+            editor.apply_operation(Operation::SetSelectionMode(mode)),
+            Err(OperationError::MultipleSelection)
+        ));
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+    remote(
+        &mut editor,
+        Operation::SetSelectionMode(SelectionMode::Hierarchy),
+    )
+    .unwrap();
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn f8_reports_the_refusal_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let baseline = multi_baseline(&editor);
+    frame(&mut editor, &ctx, vec![key(Key::F8)]);
+    assert!(editor.error, "{}", editor.status);
+    assert!(editor.status.contains("Several objects are selected"));
+    assert_eq!(multi_baseline(&editor), baseline);
+}
+
+#[test]
+fn the_delete_key_deletes_every_selected_object_as_one_undo_step() {
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    frame(&mut editor, &ctx, vec![key(Key::Delete)]);
+    assert!(!editor.error, "{}", editor.status);
+    assert!(editor.history.scene().nodes().is_empty());
+    assert!(editor.selection.is_empty());
+    assert!(editor.history.undo());
+    assert_eq!(editor.history.scene().nodes().len(), 2);
+}
+
+#[test]
+fn channel_box_and_attribute_editor_edits_are_refused_with_several_selected() {
+    let mut editor = two_cube_editor();
+    assert_eq!(
+        editor.authoring_refusal().as_deref(),
+        Some("Several objects are selected; select one object")
+    );
+    let lead = editor.selection.lead().unwrap().clone();
+    editor.set_selection_members_for_test(vec![lead]);
+    assert_eq!(editor.authoring_refusal(), None);
+    let mut editor = two_cube_editor();
+    let ctx = egui::Context::default();
+    editor.channels[0] = "9".into();
+    editor.channel_intents[0] = true;
+    let baseline = multi_baseline(&editor);
+    frame(&mut editor, &ctx, vec![]);
+    assert_eq!(multi_baseline(&editor), baseline);
+    assert_eq!(editor.channels[0], "9");
+}
+
+#[test]
+fn attribute_editor_tab_follows_the_lead_with_several_selected() {
+    let mut editor = two_cube_editor();
+    let (first, lead) = {
+        let members = editor.selection.members();
+        (members[0].node, members[1].node)
+    };
+    remote(
+        &mut editor,
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+    )
+    .unwrap();
+    assert!(matches!(
+        remote(
+            &mut editor,
+            Operation::SelectAttributeEditorTab {
+                tab: AttributeEditorTab::Transform(first),
+            },
+        ),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(lead))
+    );
+    remote(
+        &mut editor,
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Transform(lead),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        editor.effective_attribute_editor_tab(),
+        Some(AttributeEditorTab::Transform(lead))
+    );
+}
+
+#[test]
+fn by_id_edits_of_a_non_lead_member_keep_the_selection_ordered() {
+    let mut editor = two_cube_editor();
+    let members = editor.selection.members().to_vec();
+    let first = members[0].node;
+    remote(
+        &mut editor,
+        Operation::Rename {
+            id: first,
+            name: "renamed".into(),
+        },
+    )
+    .unwrap();
+    assert_eq!(editor.selection.members(), members);
+    remote(
+        &mut editor,
+        Operation::EditNode {
+            id: first,
+            name: None,
+            translation: [Some(3.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        },
+    )
+    .unwrap();
+    assert_eq!(editor.selection.members(), members);
+    remote(&mut editor, Operation::Delete(first)).unwrap();
+    assert_eq!(editor.selection.members(), &members[1..]);
+    assert_eq!(editor.lead_target().unwrap().0, members[1].node);
+}
+
+const SEVERAL_REASON: &str = "Several objects are selected; select one object";
+
+fn count_text(output: &egui::FullOutput, text: &str) -> usize {
+    output
+        .shapes
+        .iter()
+        .filter(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(shape) if shape.galley.job.text == text)
+        })
+        .count()
+}
+
+/// One full-UI frame a quarter second after the previous one, so tooltips and the Grid sizing
+/// pass settle after a few calls.
+fn render_at(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
+    let time = ctx.input(|input| input.time) + 0.25;
+    let mut input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1440.0, 900.0),
+        )),
+        time: Some(time),
+        events,
+        ..Default::default()
+    };
+    input.viewports.entry(egui::ViewportId::ROOT).or_default();
+    let mut output = ctx.run_ui(input, |ui| editor.render(ui));
+    output.textures_delta.clear();
+    output
+}
+
+fn settle(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+    let mut output = render_at(editor, ctx, vec![]);
+    for _ in 0..3 {
+        output = render_at(editor, ctx, vec![]);
+    }
+    output
+}
+
+/// True when resting the pointer on `at` adds a tooltip carrying `SEVERAL_REASON`.
+fn hover_adds_the_reason(editor: &mut Editor, ctx: &egui::Context, at: egui::Pos2) -> bool {
+    ctx.global_style_mut(|style| style.interaction.tooltip_delay = 0.0);
+    // Take the pointer off the window so an earlier tooltip is gone.
+    for _ in 0..4 {
+        render_at(editor, ctx, vec![egui::Event::PointerGone]);
+    }
+    let baseline = count_text(&render_at(editor, ctx, vec![]), SEVERAL_REASON);
+    let mut hovered = render_at(editor, ctx, vec![]);
+    for _ in 0..8 {
+        hovered = render_at(editor, ctx, vec![egui::Event::PointerMoved(at)]);
+    }
+    count_text(&hovered, SEVERAL_REASON) > baseline
+}
+
+fn widget_enabled(ctx: &egui::Context, id: egui::Id) -> bool {
+    ctx.read_response(id)
+        .unwrap_or_else(|| panic!("{id:?} was not drawn"))
+        .enabled()
+}
+
+fn widget_center(ctx: &egui::Context, id: egui::Id) -> egui::Pos2 {
+    ctx.read_response(id).expect("drawn").rect.center()
+}
+
+fn role_states(output: &egui::FullOutput, role: eframe::egui::accesskit::Role) -> Vec<bool> {
+    output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .expect("accesskit enabled")
+        .nodes
+        .iter()
+        .filter(|(_, node)| node.role() == role)
+        .map(|(_, node)| node.is_disabled())
+        .collect()
+}
+
+fn editing_ctx() -> egui::Context {
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx
+}
+
+/// The material fixture's two nodes selected, the node whose shapes carry the editable material
+/// last (the lead).
+fn multi_material_editor() -> Editor {
+    let mut editor = material_editor();
+    let lead = editor.selection.lead().unwrap().clone();
+    let other = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|target| target.node != lead.node)
+        .unwrap();
+    editor.set_selection_members_for_test(vec![other, lead]);
+    editor
+}
+
+#[test]
+fn channel_box_controls_are_disabled_with_the_reason_while_several_are_selected() {
+    let ctx = editing_ctx();
+    let mut single = multi_material_editor();
+    let lead = single.selection.lead().unwrap().clone();
+    single.set_selection_members_for_test(vec![lead]);
+    let output = settle(&mut single, &ctx);
+    assert!(widget_enabled(&ctx, name_edit_id()), "control: one object");
+    assert!(widget_enabled(&ctx, channel_edit_id(0)));
+    assert!(widget_enabled(&ctx, material_edit_id()));
+    assert!(!button_disabled(&output, "Delete selected"));
+    assert!(role_states(&output, eframe::egui::accesskit::Role::Slider).contains(&false));
+
+    let ctx = editing_ctx();
+    let mut editor = multi_material_editor();
+    let output = settle(&mut editor, &ctx);
+    for id in [name_edit_id(), channel_edit_id(0), channel_edit_id(8)] {
+        assert!(!widget_enabled(&ctx, id), "{id:?}");
+        let at = widget_center(&ctx, id);
+        assert!(hover_adds_the_reason(&mut editor, &ctx, at), "{id:?}");
+    }
+    assert!(!widget_enabled(&ctx, material_edit_id()), "Diffuse text");
+    let output2 = settle(&mut editor, &ctx);
+    assert!(
+        role_states(&output2, eframe::egui::accesskit::Role::Slider)
+            .iter()
+            .all(|disabled| *disabled),
+        "Diffuse slider"
+    );
+    assert!(count_text(&output2, SEVERAL_REASON) > 0, "Diffuse reason");
+    assert!(
+        !button_disabled(&output, "Delete selected"),
+        "Delete acts on all"
+    );
+    assert!(
+        !button_disabled(&output, "Frame selected  F"),
+        "Frame acts on the union"
+    );
+}
+
+#[test]
+fn attribute_editor_controls_are_disabled_with_the_reason_while_several_are_selected() {
+    let ctx = editing_ctx();
+    let mut editor = multi_material_editor();
+    remote(
+        &mut editor,
+        Operation::SetSidebarPanelVisible {
+            panel: SidebarPanel::AttributeEditor,
+            visible: true,
+        },
+    )
+    .unwrap();
+    settle(&mut editor, &ctx);
+    for id in [name_edit_id(), channel_edit_id(0), channel_edit_id(8)] {
+        assert!(!widget_enabled(&ctx, id), "{id:?}");
+        let at = widget_center(&ctx, id);
+        assert!(hover_adds_the_reason(&mut editor, &ctx, at), "{id:?}");
+    }
+    let shape = editor.material_shape.expect("a direct mesh shape");
+    remote(
+        &mut editor,
+        Operation::SelectAttributeEditorTab {
+            tab: AttributeEditorTab::Material(shape),
+        },
+    )
+    .unwrap();
+    let output = settle(&mut editor, &ctx);
+    assert!(!widget_enabled(&ctx, material_edit_id()), "Diffuse text");
+    assert!(
+        role_states(&output, eframe::egui::accesskit::Role::Slider)
+            .iter()
+            .all(|disabled| *disabled),
+        "Diffuse slider"
+    );
+    assert!(count_text(&output, SEVERAL_REASON) > 0);
+}
+
+#[test]
+fn edit_menu_delete_removes_every_selected_object() {
+    let ctx = editing_ctx();
+    let mut editor = two_cube_editor();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let edit = face_text_position(&output, "Edit");
+    let output = face_pointer_click(&mut editor, &ctx, edit, egui::Modifiers::NONE, vec![]);
+    assert!(!button_disabled(&output, "Delete"), "edit menu Delete");
+    let at = face_text_position(&output, "Delete");
+    face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
+    assert!(editor.history.scene().nodes().is_empty());
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn the_f_key_frames_the_union_of_several_selected_objects() {
+    let mut editor = two_cube_editor();
+    let far = editor.selection.lead().unwrap().node;
+    editor
+        .apply_operation(Operation::SetTransform {
+            id: far,
+            transform: TransformInput {
+                translation: [40.0, 0.0, 0.0],
+                rotation_degrees: [0.0; 3],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+    let paths: Vec<_> = editor
+        .selection
+        .members()
+        .iter()
+        .map(|t| t.path.clone())
+        .collect();
+    let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
+    let mut expected = editor.camera.clone();
+    expected
+        .frame_view_many(&view, &prefixes, editor.aspect)
+        .unwrap();
+    assert_ne!(expected, editor.camera);
+    frame(&mut editor, &ctx, vec![key(Key::F)]);
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(editor.camera, expected);
+    assert_eq!(editor.selection.len(), 2);
+}
+
+fn three_cube_editor() -> (Editor, Vec<TransformTarget>) {
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let targets = editor.history.scene().transform_paths().unwrap();
+    assert_eq!(targets.len(), 3);
+    editor.deselect_all();
+    (editor, targets)
+}
+
+fn modify(
+    editor: &mut Editor,
+    change: SelectionChange,
+    target: &TransformTarget,
+) -> Result<OperationReply, OperationError> {
+    editor.apply_operation(Operation::ModifySelection {
+        change,
+        node: target.node,
+        instance_path: Some(target.path.clone()),
+    })
+}
+
+#[test]
+fn modify_selection_add_appends_leads_and_moves_an_existing_member_to_the_end() {
+    let (mut editor, t) = three_cube_editor();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[0]),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Ok(OperationReply::Changed)
+    ));
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone(), t[1].clone()]);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[0]),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.selection.members(), [t[1].clone(), t[0].clone()]);
+    assert_eq!(editor.lead_target().unwrap().0, t[0].node);
+}
+
+#[test]
+fn modify_selection_toggle_flips_membership_and_promotes_the_previous_lead() {
+    let (mut editor, t) = three_cube_editor();
+    for target in &t {
+        assert!(matches!(
+            modify(&mut editor, SelectionChange::Toggle, target),
+            Ok(OperationReply::Changed)
+        ));
+    }
+    assert_eq!(editor.selection.len(), 3);
+    modify(&mut editor, SelectionChange::Toggle, &t[2]).unwrap();
+    assert_eq!(editor.lead_target().unwrap().0, t[1].node);
+    modify(&mut editor, SelectionChange::Toggle, &t[0]).unwrap();
+    assert_eq!(editor.selection.members(), [t[1].clone()]);
+    modify(&mut editor, SelectionChange::Toggle, &t[1]).unwrap();
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn modify_selection_remove_drops_a_member_and_ignores_an_absent_one() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    modify(&mut editor, SelectionChange::Add, &t[1]).unwrap();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Remove, &t[2]),
+        Ok(OperationReply::Unchanged)
+    ));
+    assert_eq!(editor.selection.len(), 2);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Remove, &t[1]),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+    assert_eq!(editor.lead_target().unwrap().0, t[0].node);
+}
+
+#[test]
+fn modify_selection_rejects_unknown_nodes_and_paths_without_changing_the_set() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    let baseline = multi_baseline(&editor);
+    let missing = NodeId::from_decimal("999999").unwrap();
+    for change in [
+        SelectionChange::Add,
+        SelectionChange::Toggle,
+        SelectionChange::Remove,
+    ] {
+        assert!(matches!(
+            editor.apply_operation(Operation::ModifySelection {
+                change,
+                node: missing,
+                instance_path: None,
+            }),
+            Err(OperationError::Scene(_))
+        ));
+        assert!(matches!(
+            editor.apply_operation(Operation::ModifySelection {
+                change,
+                node: t[1].node,
+                instance_path: Some(t[2].path.clone()),
+            }),
+            Err(OperationError::Scene(_))
+        ));
+        assert_eq!(multi_baseline(&editor), baseline);
+    }
+}
+
+#[test]
+fn modify_selection_without_a_path_resolves_the_single_instance() {
+    let (mut editor, t) = three_cube_editor();
+    editor
+        .apply_operation(Operation::ModifySelection {
+            change: SelectionChange::Add,
+            node: t[1].node,
+            instance_path: None,
+        })
+        .unwrap();
+    assert_eq!(editor.selection.members(), [t[1].clone()]);
+}
+
+#[test]
+fn modify_selection_is_refused_in_component_modes_modal_and_closing() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let baseline = multi_baseline(&editor);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(multi_baseline(&editor), baseline);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Object));
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let baseline = multi_baseline(&editor);
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(multi_baseline(&editor), baseline);
+    let mut closing = Editor::default();
+    closing.create(Primitive::Cube);
+    let target = closing.history.scene().transform_paths().unwrap().remove(0);
+    closing.close_document().unwrap();
+    assert!(matches!(
+        modify(&mut closing, SelectionChange::Remove, &target),
+        Err(OperationError::BusyEditing)
+    ));
+}
+
+#[test]
+fn modify_selection_commits_a_valid_draft_and_keeps_an_invalid_one() {
+    let (mut editor, t) = three_cube_editor();
+    modify(&mut editor, SelectionChange::Add, &t[0]).unwrap();
+    editor.channels[0] = "abc".into();
+    editor.channel_intents[0] = true;
+    let before = editor.history.scene().clone();
+    assert!(matches!(
+        modify(&mut editor, SelectionChange::Add, &t[1]),
+        Err(OperationError::InvalidInput(_))
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+    assert_eq!(editor.channels[0], "abc");
+    assert_eq!(editor.history.scene(), &before);
+    editor.channels[0] = "5".into();
+    modify(&mut editor, SelectionChange::Add, &t[1]).unwrap();
+    let x = editor
+        .history
+        .scene()
+        .node(t[0].node)
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, 5.0);
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn modify_selection_reports_nothing_on_the_status_line() {
+    let (mut editor, t) = three_cube_editor();
+    editor.status = "sentinel".into();
+    editor.error = false;
+    for (change, target) in [
+        (SelectionChange::Add, &t[0]),
+        (SelectionChange::Add, &t[0]),
+        (SelectionChange::Toggle, &t[1]),
+        (SelectionChange::Remove, &t[2]),
+    ] {
+        editor.native_operation(Operation::ModifySelection {
+            change,
+            node: target.node,
+            instance_path: Some(target.path.clone()),
+        });
+        assert_eq!((editor.status.as_str(), editor.error), ("sentinel", false));
+    }
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[test]
+fn remote_modify_selection_follows_the_same_guards() {
+    let (mut editor, t) = three_cube_editor();
+    let operation = |target: &TransformTarget| Operation::ModifySelection {
+        change: SelectionChange::Add,
+        node: target.node,
+        instance_path: Some(target.path.clone()),
+    };
+    assert!(matches!(
+        remote(&mut editor, operation(&t[0])),
+        Ok(OperationReply::Changed)
+    ));
+    editor.channels[0] = "7".into();
+    editor.channel_intents[0] = true;
+    assert!(matches!(
+        remote(&mut editor, operation(&t[1])),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(editor.selection.members(), [t[0].clone()]);
+}
+
+/// Three cubes in a row facing the camera, none selected, and a settled frame.
+fn gesture_rig() -> (Editor, egui::Context, egui::Rect, Vec<TransformTarget>) {
+    let mut editor = Editor::default();
+    for index in 0..3 {
+        editor.create(Primitive::Cube);
+        let id = editor.selected().unwrap();
+        editor
+            .apply_operation(Operation::SetTransform {
+                id,
+                transform: TransformInput {
+                    translation: [3.0 * (index as f64 - 1.0), 0.0, 0.0],
+                    rotation_degrees: [0.0; 3],
+                    scale: [1.0; 3],
+                },
+            })
+            .unwrap();
+    }
+    let targets = editor.history.scene().transform_paths().unwrap();
+    editor.deselect_all();
+    editor.camera =
+        Camera::new(Vec3::ZERO, 0.0, 0.0, 14.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    let output = frame(&mut editor, &ctx, vec![]);
+    let rect = face_viewport_rect(&output);
+    (editor, ctx, rect, targets)
+}
+
+fn screen_of(editor: &Editor, rect: egui::Rect, x: f32) -> egui::Pos2 {
+    let ndc = editor
+        .camera
+        .project(Vec3::new(x, 0.0, 0.0), editor.aspect)
+        .unwrap()
+        .unwrap();
+    rect.min
+        + egui::vec2(
+            (ndc.x + 1.0) * 0.5 * rect.width(),
+            (1.0 - ndc.y) * 0.5 * rect.height(),
+        )
+}
+
+fn click_cube(
+    rig: &mut (Editor, egui::Context, egui::Rect, Vec<TransformTarget>),
+    index: usize,
+    modifiers: egui::Modifiers,
+) {
+    let at = screen_of(&rig.0, rig.2, 3.0 * (index as f32 - 1.0));
+    face_pointer_click(&mut rig.0, &rig.1, at, modifiers, vec![]);
+}
+
+fn members(rig: &(Editor, egui::Context, egui::Rect, Vec<TransformTarget>)) -> Vec<NodeId> {
+    rig.0.selection.members().iter().map(|t| t.node).collect()
+}
+
+const SHIFT_CTRL: egui::Modifiers = egui::Modifiers {
+    shift: true,
+    ..egui::Modifiers::CTRL
+};
+
+#[test]
+fn viewport_clicks_replace_toggle_add_and_remove_with_the_lead_last() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    assert_eq!(members(&rig), [ids[0]]);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[1]]);
+    click_cube(&mut rig, 2, egui::Modifiers::SHIFT);
+    assert_eq!(members(&rig), [ids[0], ids[1], ids[2]]);
+    click_cube(&mut rig, 0, egui::Modifiers::CTRL);
+    assert_eq!(members(&rig), [ids[1], ids[2]]);
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert!(!rig.0.error, "{}", rig.0.status);
+}
+
+#[test]
+fn viewport_shift_on_existing_member_removes_it() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    click_cube(&mut rig, 0, egui::Modifiers::SHIFT);
+    assert_eq!(members(&rig), [ids[1]]);
+}
+
+#[test]
+fn viewport_add_on_existing_member_makes_it_lead() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    click_cube(&mut rig, 0, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[1], ids[0]]);
+}
+
+#[test]
+fn viewport_ctrl_on_unselected_is_a_noop() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    let status = rig.0.status.clone();
+    click_cube(&mut rig, 2, egui::Modifiers::CTRL);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert_eq!((rig.0.status.clone(), rig.0.error), (status, false));
+}
+
+#[test]
+fn viewport_command_click_acts_as_ctrl() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    let command = egui::Modifiers {
+        command: true,
+        mac_cmd: true,
+        ..egui::Modifiers::NONE
+    };
+    click_cube(&mut rig, 1, command);
+    assert_eq!(members(&rig), [ids[0]]);
+    let shift_command = egui::Modifiers {
+        shift: true,
+        ..command
+    };
+    click_cube(&mut rig, 2, shift_command);
+    assert_eq!(members(&rig), [ids[0], ids[2]]);
+}
+
+#[test]
+fn viewport_modified_click_on_empty_space_keeps_the_selection_and_a_plain_one_clears_it() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    let empty = rig.2.min + egui::vec2(8.0, 8.0);
+    for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL, SHIFT_CTRL] {
+        face_pointer_click(&mut rig.0, &rig.1, empty, modifiers, vec![]);
+        assert_eq!(members(&rig), [ids[0], ids[1]], "{modifiers:?}");
+        assert!(!rig.0.error);
+    }
+    face_pointer_click(&mut rig.0, &rig.1, empty, egui::Modifiers::NONE, vec![]);
+    assert!(rig.0.selection.is_empty());
+}
+
+#[test]
+fn viewport_ctrl_click_arriving_as_a_secondary_click_does_not_select() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    let at = screen_of(&rig.0, rig.2, 3.0);
+    for pressed in [true, false] {
+        frame(
+            &mut rig.0,
+            &rig.1,
+            vec![
+                egui::Event::ModifiersChanged(egui::Modifiers::CTRL),
+                egui::Event::PointerMoved(at),
+                egui::Event::PointerButton {
+                    pos: at,
+                    button: egui::PointerButton::Secondary,
+                    pressed,
+                    modifiers: egui::Modifiers::CTRL,
+                },
+            ],
+        );
+    }
+    frame(&mut rig.0, &rig.1, vec![]);
+    assert_eq!(members(&rig), [ids[0]]);
+}
+
+#[test]
+fn modified_clicks_are_still_refused_in_component_modes() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    rig.0
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+        .unwrap();
+    for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL, SHIFT_CTRL] {
+        click_cube(&mut rig, 1, modifiers);
+        assert!(
+            rig.0.error && rig.0.status.contains("component modes"),
+            "{}",
+            rig.0.status
+        );
+        assert_eq!(members(&rig), [ids[0]]);
+    }
+}
+
+#[test]
+fn viewport_modified_click_commits_a_valid_draft_and_refuses_an_invalid_one() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    rig.0.channels[0] = "abc".into();
+    rig.0.channel_intents[0] = true;
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert!(rig.0.error);
+    assert_eq!(members(&rig), [ids[0]]);
+    assert_eq!(rig.0.channels[0], "abc");
+    rig.0.channels[0] = "-3.5".into();
+    click_cube(&mut rig, 1, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[1]]);
+    let x = rig
+        .0
+        .history
+        .scene()
+        .node(ids[0])
+        .unwrap()
+        .transform()
+        .values()[0];
+    assert_eq!(x, -3.5);
+}
+
+#[test]
+fn hierarchy_mode_modified_click_modifies_the_root() {
+    let mut rig = gesture_rig();
+    let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
+    rig.0
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy))
+        .unwrap();
+    click_cube(&mut rig, 0, egui::Modifiers::NONE);
+    click_cube(&mut rig, 2, SHIFT_CTRL);
+    assert_eq!(members(&rig), [ids[0], ids[2]]);
+}
+
+fn outliner_rig() -> (Editor, egui::Context, Vec<NodeId>) {
+    let mut editor = Editor::default();
+    for _ in 0..3 {
+        editor.create(Primitive::Cube);
+    }
+    let ids: Vec<NodeId> = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .iter()
+        .map(|t| t.node)
+        .collect();
+    editor.deselect_all();
+    let ctx = egui::Context::default();
+    frame(&mut editor, &ctx, vec![]);
+    (editor, ctx, ids)
+}
+
+fn click_row(editor: &mut Editor, ctx: &egui::Context, index: usize, modifiers: egui::Modifiers) {
+    let output = frame(editor, ctx, vec![]);
+    let at = face_text_position(&output, &format!("◇  pCube{}", index + 1));
+    face_pointer_click(editor, ctx, at, modifiers, vec![]);
+}
+
+fn selected_nodes(editor: &Editor) -> Vec<NodeId> {
+    editor.selection.members().iter().map(|t| t.node).collect()
+}
+
+#[test]
+fn outliner_shift_adds_and_a_plain_click_replaces() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 2, egui::Modifiers::SHIFT);
+    assert_eq!(selected_nodes(&editor), [ids[0], ids[2]]);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::NONE);
+    assert_eq!(selected_nodes(&editor), [ids[1]]);
+}
+
+#[test]
+fn outliner_shift_on_existing_member_makes_it_lead() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::SHIFT);
+    assert_eq!(selected_nodes(&editor), [ids[1], ids[0]]);
+}
+
+#[test]
+fn outliner_ctrl_click_toggles_the_clicked_row_not_the_last() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[1]]);
+    let command = egui::Modifiers {
+        command: true,
+        mac_cmd: true,
+        ..egui::Modifiers::NONE
+    };
+    click_row(&mut editor, &ctx, 0, command);
+    assert_eq!(selected_nodes(&editor), [ids[1], ids[0]]);
+}
+
+#[test]
+fn outliner_ctrl_on_unselected_adds_it() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 2, egui::Modifiers::CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[2]]);
+}
+
+#[test]
+fn outliner_shift_ctrl_adds() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, SHIFT_CTRL);
+    click_row(&mut editor, &ctx, 1, SHIFT_CTRL);
+    assert_eq!(selected_nodes(&editor), [ids[0], ids[1]]);
+}
+
+#[test]
+fn outliner_highlights_every_member_and_marks_only_the_lead_row() {
+    let (mut editor, ctx, _) = outliner_rig();
+    let selected_fill = ctx.global_style().visuals.selection.bg_fill;
+    let fills = |output: &egui::FullOutput| {
+        output
+            .shapes
+            .iter()
+            .filter(|shape| {
+                matches!(&shape.shape, egui::Shape::Rect(rect) if rect.fill == selected_fill)
+            })
+            .count()
+    };
+    let none = fills(&frame(&mut editor, &ctx, vec![]));
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    click_row(&mut editor, &ctx, 1, egui::Modifiers::SHIFT);
+    let output = frame(&mut editor, &ctx, vec![]);
+    let colour = |name: &str| -> Color32 {
+        output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.job.text == name => {
+                    Some(text.galley.job.sections[0].format.color)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("row {name}"))
+    };
+    // The lead row is drawn strong; the other member is not.
+    assert_ne!(colour("◇  pCube2"), colour("◇  pCube1"));
+    assert_eq!(fills(&output) - none, 2, "one highlighted row per member");
+}
+
+#[test]
+fn outliner_modified_clicks_are_refused_while_a_file_modal_is_open() {
+    let (mut editor, ctx, ids) = outliner_rig();
+    click_row(&mut editor, &ctx, 0, egui::Modifiers::NONE);
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    for modifiers in [
+        egui::Modifiers::NONE,
+        egui::Modifiers::SHIFT,
+        egui::Modifiers::CTRL,
+    ] {
+        click_row(&mut editor, &ctx, 1, modifiers);
+        assert_eq!(selected_nodes(&editor), [ids[0]], "{modifiers:?}");
+    }
+}
+
+#[test]
+fn modify_selection_at_the_cap_reports_the_typed_error_and_keeps_the_set() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let real = editor.history.scene().transform_paths().unwrap().remove(0);
+    // Stand-in members for 4096 objects: the cap check never looks the members up.
+    let full: Vec<TransformTarget> = (0..azteccraft::native_scene::MAX_TRANSFORM_PATHS as u64)
+        .map(|index| TransformTarget {
+            node: NodeId::from_decimal(&(100_000 + index).to_string()).unwrap(),
+            path: real.path.clone(),
+        })
+        .collect();
+    editor.set_selection_members_for_test(full.clone());
+    let status = editor.status.clone();
+    for change in [SelectionChange::Add, SelectionChange::Toggle] {
+        let operation = || Operation::ModifySelection {
+            change,
+            node: real.node,
+            instance_path: Some(real.path.clone()),
+        };
+        for result in [
+            editor.apply_operation(operation()),
+            remote(&mut editor, operation()),
+        ] {
+            let Err(OperationError::InvalidInput(message)) = result else {
+                panic!("{change:?} at the cap must fail with InvalidInput");
+            };
+            assert_eq!(message, "A selection holds at most 4096 objects");
+        }
+        assert_eq!(editor.selection.members(), full.as_slice(), "{change:?}");
+    }
+    assert_eq!(editor.status, status);
+    // A non-member Remove stays Unchanged at the cap.
+    assert!(matches!(
+        editor.apply_operation(Operation::ModifySelection {
+            change: SelectionChange::Remove,
+            node: real.node,
+            instance_path: Some(real.path.clone()),
+        }),
+        Ok(OperationReply::Unchanged)
+    ));
 }

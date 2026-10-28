@@ -20,13 +20,14 @@ impl Editor {
         self.channel_intents = [false; 9];
         self.name_intent = false;
         self.normalize_attribute_editor_tab();
+        let scene = self.history.scene();
+        self.selection
+            .retain(|member| scene.node(member.node).is_ok());
         let Some(node) = self
             .selection_presentation()
             .0
             .and_then(|id| self.history.scene().node(id).ok())
         else {
-            self.selected = None;
-            self.selected_path.clear();
             self.clear_remembered_components();
             self.name.clear();
             self.channels = Default::default();
@@ -163,7 +164,7 @@ impl Editor {
         authoring: bool,
         style: NameStyle,
     ) -> bool {
-        let reason = self.read_only_reason();
+        let reason = self.authoring_refusal();
         let edit = egui::TextEdit::singleline(&mut self.name)
             .interactive(authoring)
             .id(name_edit_id());
@@ -203,7 +204,7 @@ impl Editor {
     /// the Attribute Editor Transform tab so both edit the same drafts and widget ids. Returns
     /// whether a channel field lost focus.
     pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) -> bool {
-        let reason = self.read_only_reason();
+        let reason = self.authoring_refusal();
         let mut apply = false;
         let visibility = self
             .selection_presentation()
@@ -258,6 +259,14 @@ impl Editor {
         ui.weak(format!("Rotation in {angular} | XYZ"));
         apply
     }
+    /// Why the Channel Box and Attribute Editor cannot edit right now: the scene's read-only
+    /// reason, else that editing acts on one object and several are selected (acting on all is
+    /// tracked in #325).
+    pub(in crate::app) fn authoring_refusal(&self) -> Option<String> {
+        self.read_only_reason().or_else(|| {
+            (self.selection.len() > 1).then(|| OperationError::MultipleSelection.to_string())
+        })
+    }
     pub(in crate::app) fn read_only_reason(&self) -> Option<String> {
         self.history
             .scene()
@@ -288,12 +297,13 @@ impl Editor {
     }
 
     fn channel_sections(&mut self, ui: &mut egui::Ui, delete_intent: &mut bool) {
-        if self.single_target().is_err() {
+        if self.lead_target().is_err() {
             unsupported_section(ui, "Layers");
             return;
         }
+        let authoring_refusal = self.authoring_refusal();
+        let authoring = authoring_refusal.is_none();
         let read_only_reason = self.read_only_reason();
-        let authoring = read_only_reason.is_none();
         let name_blur = self.name_field(ui, authoring, NameStyle::Heading);
         let channel_blur = self.transform_section(ui, authoring);
         self.commit_on_blur(name_blur | channel_blur);
@@ -304,7 +314,7 @@ impl Editor {
         ui.separator();
         if ui
             .add_enabled(
-                authoring && !self.selection_mode.is_component(),
+                read_only_reason.is_none() && !self.selection_mode.is_component(),
                 egui::Button::new("Delete selected"),
             )
             .on_disabled_hover_text(self.delete_disabled_hover(read_only_reason.as_deref(), false))

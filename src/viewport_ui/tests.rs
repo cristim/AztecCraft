@@ -1034,12 +1034,23 @@ fn alt_drag_orbits_without_marquee_even_when_alt_is_released_before_the_button()
 }
 
 #[test]
-fn shift_click_keeps_modified_click() {
-    let (input, _) = drag_release(Modifiers::SHIFT, Modifiers::SHIFT, Modifiers::SHIFT, 0.0);
-    assert_eq!(
-        input.unsupported_selection(),
-        Some(SelectionRefusal::ModifiedClick)
-    );
+fn shift_click_reports_its_modifiers_and_the_component_mode_refusal() {
+    // The capture reports the refusal; the Object and Hierarchy modes turn the click into
+    // ModifySelection and only the component modes surface it (app tests).
+    for modifiers in [
+        Modifiers::SHIFT,
+        Modifiers::CTRL,
+        Modifiers::SHIFT | Modifiers::CTRL,
+    ] {
+        let (input, _) = drag_release(modifiers, modifiers, modifiers, 0.0);
+        assert_eq!(
+            input.unsupported_selection(),
+            Some(SelectionRefusal::ModifiedClick)
+        );
+        assert_eq!(input.click_modifiers(), Some(modifiers));
+    }
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);
+    assert_eq!(input.click_modifiers(), Some(Modifiers::NONE));
 }
 
 #[test]

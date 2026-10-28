@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-42 tools.
+45 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -16,6 +16,8 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `finish_manipulation` | mutating | no | Commit one undoable Move, Rotate or Scale edit or cancel to the exact begin authoring state. Only the matching remote-owned manipulation ID may finish |
 | `create_primitive` | mutating | no | Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params |
 | `select_node` | mutating | yes | Select an object using an optional full transform instance_path; ambiguous objects require a path. Null node_id clears selection without a path |
+| `modify_selection` | mutating | no | Add, toggle or remove one object instance in the ordered object selection (Shift, Ctrl and Shift+Ctrl clicks); the last member is the lead. add appends an absent instance as the lead or moves a present one to the end, toggle flips membership, remove drops a member and leaves an absent one unchanged; removing the lead promotes the previous member. Ambiguous objects require a full instance_path; Object and Hierarchy modes only. Not idempotent; does not edit the scene |
+| `select_by_rule` | mutating | no | Select > All, Hierarchy or Inverse by rule. all selects every transform instance, nested ones included, with the last as the lead (only the roots in Hierarchy selection mode); hierarchy adds every descendant of the selected objects and keeps the lead (no change in Hierarchy selection mode); inverse selects the unselected instances (roots only in Hierarchy selection mode; an empty selection selects all). Object and Hierarchy modes only. Not idempotent because inverse flips; does not edit the scene |
 | `deselect_all` | mutating | yes | Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene |
 | `set_selection_mode` | mutating | yes | Set Object, Face, Vertex, Edge or Hierarchy (Root sub-mask only) selection mode without editing the scene; a valid remembered face, vertex or edge stays inactive outside its own mode |
 | `select_face` | mutating | yes | Select a complete canonical face target in Face mode, or clear it with null; explicit targets need not be visible and select their owning instance |
@@ -30,9 +32,10 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `assign_session_material` | mutating | no | Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `set_session_material_color` | mutating | yes | Set the linear RGB colour of a session material created in this session; the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `delete_node` | mutating | no | Delete an object through editor undo history; refused in Face, Vertex or Edge selection mode |
+| `delete_selected` | mutating | no | Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected |
 | `undo` | mutating | no | Undo the last editor authoring operation |
 | `redo` | mutating | no | Redo the last undone authoring operation |
-| `frame_selected` | mutating | no | Frame the selected object using the live camera |
+| `frame_selected` | mutating | no | Frame the selected objects using the live camera: the union of all selected objects (with their descendants), the selected face corners, the remembered vertex or both endpoints of the remembered edge. Objects with no geometry add nothing; if none has any, the call is refused and the camera is unchanged |
 | `frame_all` | mutating | no | Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection |
 | `set_grid_visibility` | mutating | yes | Set the current viewport's grid visibility explicitly. Session-only and idempotent; does not edit the scene or report GPU health |
 | `set_shading_mode` | mutating | yes | Set the current viewport's shading mode explicitly to wireframe or smooth_shade_all. Session-only and idempotent; does not edit the scene, change picking or report GPU health |

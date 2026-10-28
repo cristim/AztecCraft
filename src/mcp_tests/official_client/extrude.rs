@@ -52,7 +52,7 @@ async fn extrusion_moves_the_requested_cap_and_preserves_history_selection_and_o
         let shape_id = NativeId::from_decimal(shape).unwrap();
         let before = editor.history.scene().clone();
         let original_mesh = before.shape(shape_id).unwrap().mesh();
-        let selection = (editor.selected, editor.selected_path.clone());
+        let selection = (editor.selected(), editor.selected_path().to_vec());
         let camera = editor.camera.clone();
         let title = editor.document_title();
         let args = json!({"scene_token":token,"node_id":id,"shape_id":shape,"instance_path":path,"face_index":1,"distance":distance});
@@ -112,8 +112,8 @@ async fn extrusion_moves_the_requested_cap_and_preserves_history_selection_and_o
             unrelated_shape
         );
         assert_eq!(
-            (editor.selected, &editor.selected_path),
-            (selection.0, &selection.1)
+            (editor.selected(), editor.selected_path()),
+            (selection.0, selection.1.as_slice())
         );
         assert_eq!(editor.camera, camera);
         assert_eq!(editor.scene_token.to_string(), token);
@@ -165,7 +165,7 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
     let (mut editor, client, server) = start(&context).await;
     let token = editor.scene_token.to_string();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     let shape = editor.history.scene().shapes()[0].id();
     let transform = editor.history.scene().node(id).unwrap().transform_id();
     // A single-quad plane, so face 0 is every face and all-face extrusion is refused.
@@ -174,11 +174,11 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
         options: Some(SINGLE_QUAD_PLANE),
         name: None,
     });
-    let other = editor.selected.unwrap();
+    let other = editor.selected().unwrap();
     let other_shape = editor.history.scene().shapes()[1].id();
     let other_transform = editor.history.scene().node(other).unwrap().transform_id();
     let before = editor.history.scene().clone();
-    let selection = (editor.selected, editor.selected_path.clone());
+    let selection = (editor.selected(), editor.selected_path().to_vec());
     let camera = editor.camera.clone();
     let fields = (editor.name.clone(), editor.channels.clone());
     let valid = json!({"scene_token":token,"node_id":id.to_decimal(),"shape_id":shape.to_decimal(),"instance_path":[transform.to_decimal(),shape.to_decimal()],"face_index":1,"distance":1});
@@ -205,8 +205,8 @@ async fn extrusion_refuses_mismatched_current_targets_planes_and_imported_struct
         );
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(
-            (editor.selected, &editor.selected_path),
-            (selection.0, &selection.1)
+            (editor.selected(), editor.selected_path()),
+            (selection.0, selection.1.as_slice())
         );
         assert_eq!(editor.camera, camera);
         assert_eq!((&editor.name, &editor.channels), (&fields.0, &fields.1));

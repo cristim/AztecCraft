@@ -21,9 +21,9 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
 provenance Native and no token or draft checks. In order:
 
-1. A Delete in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
+1. A Delete or DeleteSelection in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
-   `SetActiveTool`, `Select`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
+   `SetActiveTool`, `Select`, `ModifySelection`, `SelectByRule`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
    and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
    pointer sequence only on a real tool change that cancelled nothing
    (`src/app/features/move_tool.rs "self.consume_pointer_sequence()"`). Other operations during a Move are `BusyManipulation` except
@@ -37,13 +37,13 @@ provenance Native and no token or draft checks. In order:
    modal (`src/app/dispatch.rs "SaveDestination::As(path)"`, preceded by the modal check) and `SaveScene` likewise (`src/app/dispatch.rs "Operation::SaveScene => {"`). `NewScene`,
    `RequestClose` and `ResolveFileAction` decide internally (`src/app/dispatch.rs "Operation::NewScene => return self.new_document()"` and the two arms after it).
 5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
-   `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
+   `ModifySelection`, `SelectByRule`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
    (the modal `matches!` after the file-operation match in `apply_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never
    commits a draft (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
    resolve path dispatches a selection operation. Create, Delete and Undo/Redo also move the selection as a side
    effect but stay allowed under a modal (see Observed behavior).
-6. Validation before the draft commit: `selection_path` and Select-clear-with-path
+6. Validation before the draft commit: `selection_path` (also for `ModifySelection`, which additionally needs Object or Hierarchy mode, as does `SelectByRule`, refused in Face, Vertex and Edge mode) and Select-clear-with-path
    (`src/app/dispatch.rs "Clearing selection cannot include an instance path"`), Face mode and face-target resolution for `SelectFace` (`src/app/dispatch.rs "fn require_component_selection"`, `src/app/dispatch.rs "SelectionMode::Face,"`).
 7. `commit_pending` (`src/app/dispatch.rs "fn commit_pending"`) commits a valid human draft first, except for `UpdateMove`,
    `UpdateManipulation` and `FinishMove` (`src/app/dispatch.rs "&& !self.commit_pending()"`). On failure the operation returns `InvalidInput(status)`
@@ -62,7 +62,7 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `src/native_scene.rs "fn authoring_read_only_reason"`) and surfaces as `ReadOnlyFormat`; Move, Rotate and Scale map it in
   `begin_error` (`src/app/features/manipulation_tool.rs "fn begin_error"`).
 - `EditNode` with no fields returns `Unchanged` after only checking the node (`src/app/dispatch.rs "Operation::EditNode {"`).
-- Delete in Face, Vertex or Edge mode is refused by the first guard of `apply_operation_guarded`
+- Delete and DeleteSelection in Face, Vertex or Edge mode are refused by the first guard of `apply_operation_guarded`
   (`src/app/dispatch.rs "fn apply_operation_guarded"`), so native and remote callers refuse alike;
   `native_operation` no longer carries a separate pre-check and
   `native_operation_reports_face_mode_delete_refusal` covers the UI status line. The remote
@@ -89,8 +89,8 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - While a file modal is open, `SetSelectionMode` to the mode already current returns `BusyEditing`,
   not `Unchanged`: the modal refusal (item 5 above) runs before the handler's same-mode check
   (test: `native_selection_changes_refuse_modal_before_committing_drafts`, `src/app/tests.rs`). The
-  Outliner row click (`Operation::Select` through `native_operation`) is refused the same way by the
-  dispatch rule (#141); no Outliner-specific test exists.
+  Outliner row click (`Operation::Select`, or `ModifySelection` with Shift or Ctrl, through `native_operation`) is refused the same way by the
+  dispatch rule (#141), pinned by `outliner_modified_clicks_are_refused_while_a_file_modal_is_open`.
 - Inspect: remote `inspect` is `Ok` in every state. Native `inspect` is `BusyManipulation` during
   a Move and `BusyEditing` while closing, and `Ok` under a modal.
 - Native mutations (`create`, `delete`, `rename`, `undo`) succeed under a modal pending file
@@ -127,7 +127,7 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   the menu path, and the entry-point allowlist names `file_actions` instead of `menus`.
 - Select > Deselect All and Alt+D share `deselect_all` (`src/app/features/selection.rs`), the one
   native caller of `Operation::DeselectAll`, so the entry-point allowlist names it instead of the
-  menu bar; MCP reaches the same operation as `deselect_all` (#167).
+  menu bar; MCP reaches the same operation as `deselect_all`.
 - Human-draft commits (`commit_pending`) are the only history mutation besides operations; the
   entry-point test names them.
 

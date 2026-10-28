@@ -1,13 +1,13 @@
 use super::*;
 use azteccraft::ui_icons::UiIcon;
 
-/// Select > All, All by Type, Hierarchy and Inverse select several objects, which needs
-/// multi-selection.
-pub(super) const MULTI_SELECTION_REASON: &str =
-    "Not implemented: selecting several objects needs multi-selection (#166)";
-/// Status for Ctrl/Cmd+Shift+A, Maya's Select All hotkey, which is bound but unsupported.
-pub(super) const SELECT_ALL_STATUS: &str =
-    "Select All is not implemented: selecting several objects needs multi-selection (#166)";
+/// Select > All by Type needs a vocabulary of object types, which does not exist yet (#325).
+pub(super) const ALL_BY_TYPE_REASON: &str =
+    "Not implemented: selecting by object type needs an object type list, tracked in #325";
+/// Select > All, Hierarchy and Inverse change the object selection only; components cannot be
+/// multi-selected yet (#30).
+pub(super) const SELECT_RULE_COMPONENT_REASON: &str =
+    "Selection changes need Object or Hierarchy selection mode";
 
 /// One File menu entry that the Status Line also draws, so the two cannot diverge.
 pub(super) struct FileAction {
@@ -329,7 +329,7 @@ impl Editor {
                 if ui
                     .add_enabled(
                         authoring
-                            && self.single_target().is_ok()
+                            && !self.selection.is_empty()
                             && !self.selection_mode.is_component(),
                         egui::Button::new("Delete"),
                     )
@@ -370,18 +370,33 @@ impl Editor {
                 });
             });
             ui.menu_button("Select", |ui| {
-                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel), #167.
-                ui.add_enabled(false, egui::Button::new("All   Ctrl/Cmd Shift A"))
-                    .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                // Maya 2025.1 order (buildSelectMenu.mel) and hotkeys (hotkeySetup.mel), confirmed by the
+                // 2027 Select menu page. All by Type is a submenu in Maya; here a plain disabled row.
+                let rule_rows_enabled = !self.selection_mode.is_component();
+                let rule_row = |ui: &mut egui::Ui, label: &str| {
+                    let clicked = ui
+                        .add_enabled(rule_rows_enabled, egui::Button::new(label))
+                        .on_disabled_hover_text(SELECT_RULE_COMPONENT_REASON)
+                        .clicked();
+                    if clicked {
+                        ui.close();
+                    }
+                    clicked
+                };
+                if rule_row(ui, "All   Ctrl/Cmd Shift A") {
+                    self.native_select_by_rule(SelectRule::All);
+                }
                 ui.add_enabled(false, egui::Button::new("All by Type"))
-                    .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                    .on_disabled_hover_text(ALL_BY_TYPE_REASON);
                 if ui.button("Deselect All   Alt D").clicked() {
                     self.deselect_all();
                     ui.close();
                 }
-                for label in ["Hierarchy", "Inverse"] {
-                    ui.add_enabled(false, egui::Button::new(label))
-                        .on_disabled_hover_text(MULTI_SELECTION_REASON);
+                if rule_row(ui, "Hierarchy") {
+                    self.native_select_by_rule(SelectRule::Hierarchy);
+                }
+                if rule_row(ui, "Inverse   Ctrl/Cmd Shift I") {
+                    self.native_select_by_rule(SelectRule::Inverse);
                 }
                 ui.separator();
                 if ui.button("Object / Component   F8").clicked() {
@@ -482,14 +497,13 @@ impl Editor {
             {
                 self.history_step(true);
             }
-            if crate::tool_icons::button(
+            let frame_button = crate::tool_icons::button(
                 ui,
                 "Frame selected  F",
                 UiIcon::FrameSelected,
-                self.single_target().is_ok(),
-            )
-            .clicked()
-            {
+                !self.selection.is_empty(),
+            );
+            if frame_button.clicked() {
                 self.frame_selected();
             }
             ui.separator();

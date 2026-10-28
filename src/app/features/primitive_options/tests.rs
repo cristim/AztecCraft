@@ -319,7 +319,7 @@ fn typing_in_a_field_blocks_hotkeys_delete_and_viewport_clicks() {
     let (mut editor, ctx) = setup();
     editor.create(Primitive::Cube);
     editor.create(Primitive::Plane);
-    let selected = editor.selected;
+    let selected = editor.selected();
     let nodes = node_count(&editor);
     open_dialog(&mut editor, &ctx, Primitive::Sphere);
     focus_field(&mut editor, &ctx, 0);
@@ -334,10 +334,10 @@ fn typing_in_a_field_blocks_hotkeys_delete_and_viewport_clicks() {
     assert_eq!(editor.active_tool, tool);
     assert_eq!(editor.selection_mode, mode);
     assert_eq!(node_count(&editor), nodes);
-    assert_eq!(editor.selected, selected);
+    assert_eq!(editor.selected(), selected);
     // A viewport click while a field has focus must not select or change anything.
     let viewport = Pos2::new(700.0, 400.0);
-    let before = (editor.selected, editor.history.scene().clone());
+    let before = (editor.selected(), editor.history.scene().clone());
     focus_field(&mut editor, &ctx, 1);
     run(&mut editor, &ctx, vec![Event::PointerMoved(viewport)]);
     run(
@@ -350,7 +350,7 @@ fn typing_in_a_field_blocks_hotkeys_delete_and_viewport_clicks() {
             modifiers: Modifiers::NONE,
         }],
     );
-    assert_eq!((editor.selected, editor.history.scene().clone()), before);
+    assert_eq!((editor.selected(), editor.history.scene().clone()), before);
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn create_commits_a_valid_human_draft_first_and_reports_an_invalid_one() {
         "the valid draft was committed by the create"
     );
     editor.channels[0] = "nope".into();
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
+    editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     run(&mut editor, &ctx, vec![]);
     editor.channels[0] = "nope".into();
     press(&mut editor, &ctx, "Create");

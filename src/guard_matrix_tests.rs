@@ -11,8 +11,8 @@
 
 use super::*;
 use crate::editor_operations::{
-    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, ToolHandle,
-    TransformInput,
+    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, SelectRule,
+    ToolHandle, TransformInput,
 };
 use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -182,6 +182,9 @@ enum Pre {
     EdgeMode,
     /// Adds a second node with different channels, reselects the first and enters Face mode.
     SecondNodeFaceMode,
+    /// Adds a second node and selects both, the original node as the lead, so the cells start from
+    /// an ordered multi-selection.
+    MultiSelection,
     /// Makes the Attribute Editor the active dock panel, the only state that accepts a tab.
     AttributeEditorDock,
     /// Creates session material 1 (refused on sourced scenes, where the cell shows that).
@@ -289,7 +292,7 @@ impl Targets {
 fn targets(rig: &Rig) -> Targets {
     let editor = &rig.editor;
     let scene = editor.history.scene();
-    let node = editor.selected.expect("every state selects a node");
+    let node = editor.selected().expect("every state selects a node");
     let shape = scene
         .shapes()
         .first()
@@ -298,11 +301,11 @@ fn targets(rig: &Rig) -> Targets {
         .expect("every state has a shape or curve");
     let other = match (scene.nodes().get(1), scene.shapes().get(1)) {
         (Some(node), Some(shape)) => (node.id(), vec![node.transform_id()], shape.id()),
-        _ => (node, editor.selected_path.clone(), shape),
+        _ => (node, editor.selected_path().to_vec(), shape),
     };
     Targets {
         node,
-        path: editor.selected_path.clone(),
+        path: editor.selected_path().to_vec(),
         shape,
         other,
         move_id: editor.history.active_manipulation().map_or_else(
@@ -321,7 +324,7 @@ fn targets(rig: &Rig) -> Targets {
 fn cube_editor() -> Editor {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor
         .apply_operation(Operation::Rename {
             id,
@@ -341,8 +344,10 @@ fn material_editor() -> Editor {
         history: History::new(scene),
         ..Editor::default()
     };
-    editor.selected = Some(editor.history.scene().nodes()[0].id());
-    editor.selected_path = vec![editor.history.scene().nodes()[0].transform_id()];
+    editor.set_selection_for_test(
+        Some(editor.history.scene().nodes()[0].id()),
+        vec![editor.history.scene().nodes()[0].transform_id()],
+    );
     editor.sync_fields();
     editor
 }
@@ -441,8 +446,8 @@ fn build(state: State) -> Rig {
             };
             editor.active_tool = ActiveTool::Move;
             let target = TransformTarget {
-                node: editor.selected.unwrap(),
-                path: editor.selected_path.clone(),
+                node: editor.selected().unwrap(),
+                path: editor.selected_path().to_vec(),
             };
             editor
                 .apply_operation_guarded(
@@ -580,6 +585,12 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             node: Some(t.node),
             instance_path: Some(t.path.clone()),
         },
+        Operation::ModifySelection {
+            change: SelectionChange::Add,
+            node: t.node,
+            instance_path: Some(t.path.clone()),
+        },
+        Operation::SelectByRule(SelectRule::All),
         Operation::SetSelectionMode(SelectionMode::Face),
         Operation::DeselectAll,
         Operation::SelectFace {
@@ -628,6 +639,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             distance: 0.5,
         },
         Operation::Delete(t.node),
+        Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
         Operation::FrameSelected,
@@ -978,6 +990,83 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
+        Operation::ModifySelection { .. } => {
+            let modify = |change, node, path: &[NativeId]| Operation::ModifySelection {
+                change,
+                node,
+                instance_path: Some(path.to_vec()),
+            };
+            let (other, other_path, _) = t.other.clone();
+            // With Pre::MultiSelection `t.node` is the lead and `other` the second node.
+            vec![
+                sample(
+                    "modify_selection(add)",
+                    modify(SelectionChange::Add, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(toggle)",
+                    modify(SelectionChange::Toggle, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(remove)",
+                    modify(SelectionChange::Remove, t.node, &t.path),
+                ),
+                sample(
+                    "modify_selection(unknown_path)",
+                    modify(SelectionChange::Add, t.node, &[t.shape]),
+                ),
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(toggle_non_lead)",
+                        modify(SelectionChange::Toggle, other, &other_path),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(remove_lead)",
+                        modify(SelectionChange::Remove, t.node, &t.path),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_selection(add_non_lead)",
+                        modify(SelectionChange::Add, other, &other_path),
+                    )
+                },
+            ]
+        }
+        Operation::SelectByRule(_) => vec![
+            sample("select_all", Operation::SelectByRule(SelectRule::All)),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "select_all(face_mode)",
+                    Operation::SelectByRule(SelectRule::All),
+                )
+            },
+            sample(
+                "select_hierarchy",
+                Operation::SelectByRule(SelectRule::Hierarchy),
+            ),
+            sample(
+                "select_inverse",
+                Operation::SelectByRule(SelectRule::Inverse),
+            ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "select_inverse(multi_selection)",
+                    Operation::SelectByRule(SelectRule::Inverse),
+                )
+            },
+        ],
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),
@@ -1240,6 +1329,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 ..sample("delete(edge_mode)", Operation::Delete(t.node))
             },
         ],
+        Operation::DeleteSelection => vec![
+            sample("delete_selection", Operation::DeleteSelection),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample("delete_selection(face_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::VertexMode,
+                ..sample("delete_selection(vertex_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::EdgeMode,
+                ..sample("delete_selection(edge_mode)", Operation::DeleteSelection)
+            },
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "delete_selection(multi_selection)",
+                    Operation::DeleteSelection,
+                )
+            },
+        ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
         Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],
@@ -1326,7 +1438,7 @@ struct Observed {
 fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
     let scene = editor.history.scene();
     let selected = editor
-        .selected
+        .selected()
         .and_then(|id| scene.node(id).ok())
         .map_or("-", |node| node.name());
     let active_manipulation = match editor.history.active_manipulation() {
@@ -1349,7 +1461,30 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("token", editor.scene_token.to_string()),
         ("nodes", scene.nodes().len().to_string()),
         ("selected", selected.to_owned()),
-        ("selected_path_len", editor.selected_path.len().to_string()),
+        (
+            "selected_path_len",
+            editor.selected_path().len().to_string(),
+        ),
+        // Members before the lead, in order, so a cell that reorders or drops a member shows it.
+        ("selection_rest", {
+            let rest = editor
+                .selection
+                .members()
+                .split_last()
+                .map_or(&[][..], |(_, rest)| rest)
+                .iter()
+                .map(|member| {
+                    let name = scene.node(member.node).map_or("?", |node| node.name());
+                    format!("{name}@{}", member.path.len())
+                })
+                .collect::<Vec<_>>()
+                .join(">");
+            if rest.is_empty() {
+                "-".to_owned()
+            } else {
+                rest
+            }
+        }),
         ("selection_mode", format!("{:?}", editor.selection_mode)),
         (
             "face_remembered",
@@ -1473,8 +1608,8 @@ fn describe(result: &Result<OperationReply, OperationError>, roots: &[&std::path
 }
 
 fn add_second_node(editor: &mut Editor) {
-    let first = editor.selected.unwrap();
-    let first_path = editor.selected_path.clone();
+    let first = editor.selected().unwrap();
+    let first_path = editor.selected_path().to_vec();
     editor
         .apply_operation(Operation::Create {
             primitive: Primitive::Plane,
@@ -1482,7 +1617,7 @@ fn add_second_node(editor: &mut Editor) {
             name: None,
         })
         .unwrap();
-    let plane = editor.selected.unwrap();
+    let plane = editor.selected().unwrap();
     editor
         .apply_operation(Operation::SetTransform {
             id: plane,
@@ -1536,6 +1671,22 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
         Pre::SecondNodeFaceMode => {
             add_second_node(&mut rig.editor);
             rig.editor.selection_mode = SelectionMode::Face;
+        }
+        Pre::MultiSelection => {
+            let first = rig.editor.selection.lead().cloned().unwrap();
+            add_second_node(&mut rig.editor);
+            let plane = rig
+                .editor
+                .history
+                .scene()
+                .transform_paths()
+                .unwrap()
+                .into_iter()
+                .find(|target| target.node != first.node)
+                .unwrap();
+            rig.editor
+                .set_selection_members_for_test(vec![plane, first]);
+            rig.editor.sync_fields();
         }
     }
     // Rebuilt after the pre-step so targets can name nodes it created.
@@ -1597,7 +1748,7 @@ fn baseline_text(state: State) -> String {
     for (name, value) in observed
         .fields
         .iter()
-        .filter(|(name, _)| *name != "token" && *name != "camera")
+        .filter(|(name, _)| !matches!(*name, "token" | "camera" | "selection_rest"))
     {
         let item = format!("{name}={value}");
         let line = lines.last_mut().unwrap();
@@ -1712,7 +1863,7 @@ fn guard_matrix_is_deterministic() {
 #[test]
 fn native_operation_reports_face_mode_delete_refusal() {
     let mut editor = cube_editor();
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor.selection_mode = SelectionMode::Face;
     let scene = editor.history.scene().clone();
     editor.native_operation(Operation::Delete(id));

@@ -23,7 +23,7 @@ async fn sdk_frame_all_frames_the_whole_scene_and_refuses_an_empty_one() {
 
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     let node = editor
         .history
         .scene()
@@ -39,7 +39,7 @@ async fn sdk_frame_all_frames_the_whole_scene_and_refuses_an_empty_one() {
     frame(&mut editor, &context, vec![]);
     let token = editor.scene_token.to_string();
     let scene = editor.history.scene().clone();
-    let selected = editor.selected;
+    let selected = editor.selected();
     let view = azteccraft::view_scene::ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
     let mut expected = editor.camera.clone();
     expected.frame_view(&view, None, editor.aspect).unwrap();
@@ -63,7 +63,7 @@ async fn sdk_frame_all_frames_the_whole_scene_and_refuses_an_empty_one() {
         assert_eq!(result.structured_content.unwrap()["outcome"], outcome);
         assert_eq!(editor.camera, expected);
         assert_eq!(editor.history.scene(), &scene);
-        assert_eq!(editor.selected, selected);
+        assert_eq!(editor.selected(), selected);
     }
     for arguments in [json!({}), json!({"scene_token": token, "extra": true})] {
         assert!(

@@ -160,7 +160,7 @@ impl Editor {
     }
 
     fn attribute_editor_body(&mut self, ui: &mut egui::Ui, active: AttributeEditorTab) {
-        let read_only_reason = self.read_only_reason();
+        let read_only_reason = self.authoring_refusal();
         let authoring = read_only_reason.is_none();
         if let Some(reason) = read_only_reason {
             ui.weak(reason);

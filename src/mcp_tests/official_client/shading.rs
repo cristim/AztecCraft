@@ -133,7 +133,7 @@ fn over_budget_editor(editor: &mut Editor) {
     editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
     editor.create(Primitive::Cube);
     let shape = editor.history.scene().shapes()[0].id();
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let path = vec![
         editor.history.scene().node(node).unwrap().transform_id(),
         shape,

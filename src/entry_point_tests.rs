@@ -228,6 +228,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "frame_all",
             "frame_selected",
             "deselect_all",
+            "native_select_by_rule",
             "history_step",
             "manipulation_options",
             "outliner",

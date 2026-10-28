@@ -286,10 +286,10 @@ fn real_w_q_and_vector_buttons_activate_tools_and_leave_unsupported_tools_disabl
 fn real_axis_press_absolute_motion_release_makes_one_undo_at_fractional_dpi() {
     for scale in [1.0, 1.25, 2.0] {
         let (mut editor, context, rect) = setup(scale);
-        let node = editor.selected.unwrap();
+        let node = editor.selected().unwrap();
         let before = editor.history.scene().clone();
         let camera = editor.camera.clone();
-        let selected_path = editor.selected_path.clone();
+        let selected_path = editor.selected_path().to_vec();
         let begin = press_x(&mut editor, &context, rect, scale);
         for distance in [0.5, 1.0, -1.0, 2.0] {
             let position = begin + egui::vec2(rect.height() * distance / 20.0, 0.0);
@@ -332,7 +332,7 @@ fn real_axis_press_absolute_motion_release_makes_one_undo_at_fractional_dpi() {
         assert!(editor.history.active_manipulation().is_none());
         assert!(editor.native_move.is_none());
         assert_eq!(editor.camera, camera);
-        assert_eq!(editor.selected_path, selected_path);
+        assert_eq!(editor.selected_path(), selected_path);
         let after = editor.history.scene().clone();
         editor.history_step(false);
         assert_eq!(editor.history.scene(), &before);
@@ -353,7 +353,7 @@ fn stationary_release_in_changed_window_origin_size_or_dpi_cancels_without_fallt
         (egui::vec2(1440.0, 900.0), Pos2::ZERO, 1.25),
     ] {
         let (mut editor, context, rect) = setup(1.0);
-        let node = editor.selected.unwrap();
+        let node = editor.selected().unwrap();
         editor
             .apply_operation(Operation::Rename {
                 id: node,
@@ -363,7 +363,7 @@ fn stationary_release_in_changed_window_origin_size_or_dpi_cancels_without_fallt
         editor.history_step(false);
         let before = editor.history.scene().clone();
         let camera = editor.camera.clone();
-        let path = editor.selected_path.clone();
+        let path = editor.selected_path().to_vec();
         let begin = press_x(&mut editor, &context, rect, 1.0);
         let position = begin + egui::vec2(rect.height() / 10.0, 0.0);
         frame(
@@ -385,8 +385,8 @@ fn stationary_release_in_changed_window_origin_size_or_dpi_cancels_without_fallt
         assert!(editor.history.active_manipulation().is_none());
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
-        assert_eq!(editor.selected, Some(node));
-        assert_eq!(editor.selected_path, path);
+        assert_eq!(editor.selected(), Some(node));
+        assert_eq!(editor.selected_path(), path);
         assert!(!editor.has_draft());
         assert!(editor.history.can_undo());
         assert!(editor.history.can_redo());
@@ -1233,12 +1233,12 @@ fn idle_escape_or_tool_activation_consumes_same_frame_axis_press_and_terminal_re
 #[test]
 fn idle_cancels_from_select_new_scene_and_tool_changes_do_not_swallow_the_next_press() {
     let (mut editor, context, rect) = setup(1.0);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     assert!(!editor.cancel_move().unwrap());
     assert!(!editor.move_consumed_frame && !editor.move_suppress_primary);
     editor.native_operation(Operation::Select {
         node: Some(id),
-        instance_path: Some(editor.selected_path[..editor.selected_path.len() - 1].to_vec()),
+        instance_path: Some(editor.selected_path()[..editor.selected_path().len() - 1].to_vec()),
     });
     assert!(!editor.move_consumed_frame && !editor.move_suppress_primary);
     press_x(&mut editor, &context, rect, 1.0);
@@ -1262,7 +1262,7 @@ fn idle_cancels_from_select_new_scene_and_tool_changes_do_not_swallow_the_next_p
 #[test]
 fn release_with_a_refused_final_sample_commits_the_last_valid_preview() {
     let (mut editor, context, rect) = setup(1.0);
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let before = editor.history.scene().clone();
     let begin = press_x(&mut editor, &context, rect, 1.0);
     let valid = begin + egui::vec2(rect.height() / 20.0, 0.0);
@@ -1799,7 +1799,7 @@ fn same_frame_name_or_channel_focus_blocks_qw_before_move_dispatch() {
 #[test]
 fn a_scene_refusal_mid_move_drag_keeps_the_last_valid_preview_and_other_errors_propagate() {
     let (mut editor, _, _) = setup(1.0);
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     editor
         .apply_operation(Operation::EditNode {
             id: node,
@@ -2019,7 +2019,7 @@ fn drag_off_a_handle_shows_the_marquee_refusal_and_on_a_handle_does_not() {
     assert_eq!(editor.status, MARQUEE_STATUS);
 
     let (mut editor, context, rect) = setup(1.0);
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     let from = rect.center() + egui::vec2(40.0, 0.0);
     drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
     assert_ne!(editor.status, MARQUEE_STATUS);
@@ -2100,7 +2100,7 @@ fn a_plain_drag_after_an_orbit_drag_still_shows_the_marquee_refusal() {
 #[test]
 fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
     let (mut editor, context, rect) = select_tool_editor();
-    let selected = editor.selected;
+    let selected = editor.selected();
     assert!(selected.is_some());
     let dirty = editor.is_dirty();
     let undo = editor.history.undo_label();
@@ -2114,7 +2114,7 @@ fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
         Modifiers::NONE,
     );
     assert_eq!(editor.status, MARQUEE_STATUS);
-    assert_eq!(editor.selected, selected);
+    assert_eq!(editor.selected(), selected);
     assert_eq!(editor.is_dirty(), dirty);
     assert_eq!(editor.history.undo_label(), undo);
     assert_eq!(editor.history.can_redo(), redo);

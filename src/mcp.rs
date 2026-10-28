@@ -6,6 +6,8 @@ mod transport;
 
 #[cfg(test)]
 pub(crate) use registry::tool_names;
+#[cfg(all(test, feature = "mcp-test-client"))]
+pub(crate) use transport::MAX_EGRESS_BYTES;
 
 use crate::{
     app::Editor,

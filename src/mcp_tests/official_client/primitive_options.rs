@@ -122,7 +122,7 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
     editor.create(Primitive::Cube);
     let token = editor.scene_token.to_string();
     let scene = editor.history.scene().clone();
-    let selected = (editor.selected, editor.selected_path.clone());
+    let selected = (editor.selected(), editor.selected_path().to_vec());
     let cases = [
         ("cube", json!(null)),
         ("cube", json!([])),
@@ -181,7 +181,10 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         );
         assert_eq!(editor.history.scene(), &scene, "{primitive} {options}");
         assert_eq!(editor.scene_token.to_string(), token);
-        assert_eq!((editor.selected, editor.selected_path.clone()), selected);
+        assert_eq!(
+            (editor.selected(), editor.selected_path().to_vec()),
+            selected
+        );
         assert!(!editor.history.can_redo());
     }
     for arguments in [

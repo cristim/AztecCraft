@@ -183,6 +183,8 @@ impl Editor {
                 operation,
                 Operation::SetActiveTool(_)
                     | Operation::Select { .. }
+                    | Operation::ModifySelection { .. }
+                    | Operation::SelectByRule(_)
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }

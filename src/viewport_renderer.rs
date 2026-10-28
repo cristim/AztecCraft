@@ -20,6 +20,12 @@ use std::{fmt, ops::Range, sync::Arc};
 /// Selection tint, averaged with a face's base colour. On the grey base fill (83) the result is
 /// the historical selected fill (95, 110, 120).
 const SELECTION_TINT_RGB: [u8; 3] = [107, 137, 157];
+/// Tint and edge colour of the lead (key) object while several objects are selected. Maya draws
+/// the last selected object in a different colour but its values are not documented, so these
+/// are our own (PROVISIONAL, development.md row 33).
+const LEAD_TINT_RGB: [u8; 3] = [117, 167, 117];
+const SELECTED_EDGE_RGB_OBJECT: [u8; 3] = [242, 163, 70];
+const LEAD_EDGE_RGB: [u8; 3] = [140, 240, 140];
 
 /// Smallest per-channel gap between a selected and an unselected base on at least one channel.
 /// `shade()` scales by at least `AMBIENT_FLOOR` (0.4) and rounds, so a gap of 3 (3 * 0.4 > 1)
@@ -31,12 +37,20 @@ const MIN_SELECTION_DELTA: u8 = 3;
 /// bases near the tint; those use the average with their complement (about 127 per channel),
 /// which is far from every such base.
 fn selected_base(base: [u8; 3]) -> [u8; 3] {
+    tinted_base(base, SELECTION_TINT_RGB)
+}
+
+fn lead_base(base: [u8; 3]) -> [u8; 3] {
+    tinted_base(base, LEAD_TINT_RGB)
+}
+
+fn tinted_base(base: [u8; 3], tint: [u8; 3]) -> [u8; 3] {
     let blend = |other: [u8; 3]| -> [u8; 3] {
         std::array::from_fn(|channel| {
             ((u16::from(base[channel]) + u16::from(other[channel])) / 2) as u8
         })
     };
-    let tinted = blend(SELECTION_TINT_RGB);
+    let tinted = blend(tint);
     let gap = |color: [u8; 3]| {
         (0..3)
             .map(|c| color[c].abs_diff(base[c]))
@@ -48,6 +62,15 @@ fn selected_base(base: [u8; 3]) -> [u8; 3] {
     } else {
         tinted
     }
+}
+
+fn highlight_edge_color(highlight: Highlight) -> Color32 {
+    let [red, green, blue] = match highlight {
+        Highlight::None => return Color32::from_gray(145),
+        Highlight::Member => SELECTED_EDGE_RGB_OBJECT,
+        Highlight::Lead => LEAD_EDGE_RGB,
+    };
+    Color32::from_rgb(red, green, blue)
 }
 
 // Provisional original colours that follow the Maya 2026 display-colour words only (purple-ish
@@ -86,7 +109,10 @@ const MAX_UPLOAD_WORKING_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 pub enum SelectionFeedback<'a> {
+    /// No selection or one selected object, drawn in the member colours.
     Object(Option<&'a [NativeId]>),
+    /// Several selected objects in selection order; the last is the lead and has its own colours.
+    Multi(&'a [azteccraft::native_scene::TransformTarget]),
     Face {
         active: Option<(NodeId, &'a [NativeId])>,
         selected: Option<&'a FaceTarget>,
@@ -101,25 +127,53 @@ pub enum SelectionFeedback<'a> {
     },
 }
 
+/// How an object is drawn; passes run in this order so the lead lands on top.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Highlight {
+    None,
+    Member,
+    Lead,
+}
+
 impl SelectionFeedback<'_> {
-    /// Curves are object-selectable only; Face mode never highlights or marks them.
-    fn curve_selected(self, instance: &azteccraft::view_scene::ViewCurveInstance) -> bool {
+    fn object_highlight(self, path: &[NativeId]) -> Highlight {
         match self {
-            Self::Object(path) => path.is_some_and(|path| instance.path().starts_with(path)),
-            Self::Face { .. } | Self::Vertex { .. } | Self::Edge { .. } => false,
+            Self::Object(Some(selected)) if path.starts_with(selected) => Highlight::Member,
+            Self::Multi(members) => {
+                if members
+                    .last()
+                    .is_some_and(|lead| path.starts_with(&lead.path))
+                {
+                    Highlight::Lead
+                } else if members.iter().any(|member| path.starts_with(&member.path)) {
+                    Highlight::Member
+                } else {
+                    Highlight::None
+                }
+            }
+            _ => Highlight::None,
         }
     }
 
-    fn selected(self, instance: &ViewInstance, face: &ViewFace) -> bool {
+    /// Curves are object-selectable only; Face mode never highlights or marks them.
+    fn curve_highlight(self, instance: &azteccraft::view_scene::ViewCurveInstance) -> Highlight {
+        self.object_highlight(instance.path())
+    }
+
+    fn highlight(self, instance: &ViewInstance, face: &ViewFace) -> Highlight {
         match self {
-            Self::Object(path) => path.is_some_and(|path| instance.path().starts_with(path)),
-            Self::Face { selected, .. } => selected.is_some_and(|target| {
-                target.transform == instance.transform()
-                    && target.shape == instance.shape()
-                    && target.path == instance.path()
-                    && target.face_index == face.source_index()
-            }),
-            Self::Vertex { .. } | Self::Edge { .. } => false,
+            Self::Object(_) | Self::Multi(_) => self.object_highlight(instance.path()),
+            Self::Face { selected, .. }
+                if selected.is_some_and(|target| {
+                    target.transform == instance.transform()
+                        && target.shape == instance.shape()
+                        && target.path == instance.path()
+                        && target.face_index == face.source_index()
+                }) =>
+            {
+                Highlight::Member
+            }
+            Self::Face { .. } | Self::Vertex { .. } | Self::Edge { .. } => Highlight::None,
         }
     }
 
@@ -496,10 +550,10 @@ impl Submission {
         };
         for instance in surface_instances.iter().rev() {
             for face in instance.faces().iter().rev() {
-                let base = if selection.selected(instance, face) {
-                    selected_base(instance.base_rgb())
-                } else {
-                    instance.base_rgb()
+                let base = match selection.highlight(instance, face) {
+                    Highlight::None => instance.base_rgb(),
+                    Highlight::Member => selected_base(instance.base_rgb()),
+                    Highlight::Lead => lead_base(instance.base_rgb()),
                 };
                 let center = face
                     .center(instance.world_vertices())
@@ -539,21 +593,17 @@ impl Submission {
                 }
             }
         }
-        for selected_pass in [false, true] {
+        for pass in [Highlight::None, Highlight::Member, Highlight::Lead] {
             for instance in scene.instances() {
                 if selection.edges_shown(instance) {
                     continue;
                 }
                 for face in instance.faces() {
-                    let selected = selection.selected(instance, face);
-                    if selected != selected_pass {
+                    let highlight = selection.highlight(instance, face);
+                    if highlight != pass {
                         continue;
                     }
-                    let color = if selected {
-                        Color32::from_rgb(242, 163, 70)
-                    } else {
-                        Color32::from_gray(145)
-                    };
+                    let color = highlight_edge_color(highlight);
                     let corners = face.corners();
                     for index in 0..corners.len() {
                         for vertex in [corners[index], corners[(index + 1) % corners.len()]] {
@@ -567,7 +617,7 @@ impl Submission {
                     }
                 }
             }
-            if !selected_pass {
+            if pass == Highlight::None {
                 for instance in scene
                     .instances()
                     .iter()
@@ -586,15 +636,11 @@ impl Submission {
                 }
             }
             for instance in scene.curve_instances() {
-                let selected = selection.curve_selected(instance);
-                if selected != selected_pass {
+                let highlight = selection.curve_highlight(instance);
+                if highlight != pass {
                     continue;
                 }
-                let color = if selected {
-                    Color32::from_rgb(242, 163, 70)
-                } else {
-                    Color32::from_gray(145)
-                };
+                let color = highlight_edge_color(highlight);
                 for segment in instance.segments() {
                     for point in segment {
                         submission.vertex(matrix, *point, color, format)?;

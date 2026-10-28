@@ -75,7 +75,7 @@ fn setup_with_camera(
 }
 
 fn channels(editor: &Editor) -> [f64; 9] {
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     editor
         .history
         .scene()
@@ -436,7 +436,7 @@ fn pressing_an_unsupported_handle_is_refused_and_consumed_without_selecting() {
     assert!(editor.error);
     assert!(editor.history.active_manipulation().is_none());
     release(&mut editor, &context, 1.0, on_view_ring);
-    assert!(editor.selected.is_some(), "the click must not deselect");
+    assert!(editor.selected().is_some(), "the click must not deselect");
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -543,7 +543,7 @@ fn press_a_disabled_handle(
     assert!(editor.error);
     assert!(editor.history.active_manipulation().is_none());
     release(editor, context, 1.0, at);
-    assert!(editor.selected.is_some(), "the click must not deselect");
+    assert!(editor.selected().is_some(), "the click must not deselect");
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(undo_depth(editor), depth);
 }
@@ -1057,8 +1057,8 @@ fn rotate_and_scale_target_reads_keep_exact_ownership_errors_and_mode_precedence
             (
                 editor.history.scene().clone(),
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone(),
                 editor.remembered_vertex.clone(),
                 editor.remembered_edge.clone(),
@@ -2304,7 +2304,7 @@ fn scale_hover_and_inspection_use_the_scale_frame_not_the_rotate_frame() {
 fn a_scale_press_uses_the_scale_frame_space_not_the_rotate_space() {
     // A cube turned 90 degrees about Z: Rotate defaults to Object axes, Scale to World axes.
     let (mut editor, context, view) = setup(Key::R, 1.0);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor
         .apply_operation(Operation::SetTransform {
             id,
@@ -2345,7 +2345,7 @@ fn a_scale_press_uses_the_scale_frame_space_not_the_rotate_space() {
 // A writable cube turned `degrees` about Z at the origin with the Scale tool active.
 fn rotated_cube_scale_editor(degrees: f64) -> (Editor, egui::Context, View) {
     let (mut editor, context, view) = setup(Key::R, 1.0);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor
         .apply_operation(Operation::SetTransform {
             id,
