@@ -31,10 +31,7 @@ async fn inspection_snapshot(
         // These fixtures use the Unix authored-scene writer. Windows does not
         // offer Untitled Save As yet; compare the real SDK reply to that policy
         // without normalizing away a wrong availability value in the reply.
-        if std::env::var_os("UPDATE_SNAPSHOTS").is_some_and(|value| value == "1") {
-            #[cfg(not(unix))]
-            panic!("update shared Untitled fixtures on Unix");
-            #[cfg(unix)]
+        if cfg!(unix) && std::env::var_os("UPDATE_SNAPSHOTS").is_some_and(|value| value == "1") {
             crate::app::snapshots::assert_snapshot(name, &text);
         } else {
             let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
