@@ -100,6 +100,11 @@ pub(crate) fn group_with_own_shape_and_child() -> (NativeScene, NodeId, NodeId) 
     (scene, parent, child)
 }
 
+pub(crate) fn hide_first_shape(scene: &mut NativeScene) {
+    scene.shapes[0].view.local_visibility = Some(false);
+    scene.validate().unwrap();
+}
+
 /// root > mid > leaf, with the only shape under leaf.
 pub(crate) fn chain_of_three() -> (NativeScene, NodeId, NodeId, NodeId) {
     let (mut scene, root, mid, _) = grouped_shape();

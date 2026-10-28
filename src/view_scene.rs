@@ -248,6 +248,19 @@ impl ViewScene {
     pub fn curve_instances(&self) -> &[ViewCurveInstance] {
         &self.curve_instances
     }
+    /// Whether any visible mesh or curve instance is a direct shape of one of `prefixes`.
+    pub fn has_direct_geometry(&self, prefixes: &[&[NativeId]]) -> bool {
+        let direct = |path: &[NativeId]| {
+            prefixes
+                .iter()
+                .any(|prefix| is_direct_instance(path, prefix))
+        };
+        self.instances.iter().any(|instance| direct(&instance.path))
+            || self
+                .curve_instances
+                .iter()
+                .any(|instance| direct(&instance.path))
+    }
 }
 
 /// True when `instance_path` is `prefix` plus exactly one more element (the shape), so the

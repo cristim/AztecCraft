@@ -10704,3 +10704,253 @@ fn modify_selection_at_the_cap_reports_the_typed_error_and_keeps_the_set() {
         Ok(OperationReply::Unchanged)
     ));
 }
+
+mod frame_members {
+    use super::*;
+    use material_wire as wire;
+
+    fn xfrm(name: &[u8], parent: Option<&[u8]>, attrs: &[Vec<u8>]) -> Vec<u8> {
+        wire::group(
+            b"XFRM",
+            &[wire::creation(name, parent), attrs.concat()].concat(),
+            4,
+        )
+    }
+
+    fn triangle(name: &[u8], parent: &[u8]) -> Vec<u8> {
+        wire::group(
+            b"DMSH",
+            &[
+                wire::creation(name, Some(parent)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        )
+    }
+
+    fn editor_of(chunks: &[Vec<u8>]) -> Editor {
+        let scene =
+            azteccraft::native_scene::binary::decode(wire::scene(&chunks.concat())).unwrap();
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    fn select(editor: &mut Editor, names: &[&str]) {
+        let scene = editor.history.scene();
+        let mut members = Vec::new();
+        for name in names {
+            let node = scene
+                .nodes()
+                .iter()
+                .find(|n| n.name() == *name)
+                .unwrap()
+                .id();
+            let target = scene
+                .transform_paths()
+                .unwrap()
+                .into_iter()
+                .find(|target| target.node == node)
+                .unwrap();
+            members.push(target);
+        }
+        editor.set_selection_members_for_test(members);
+    }
+
+    fn origin_camera(editor: &Editor, origin: Vec3) -> Camera {
+        let mut camera = editor.camera.clone();
+        camera.frame_points(&[origin], editor.aspect).unwrap();
+        camera
+    }
+
+    #[test]
+    fn exclude_frames_a_shapeless_group_at_its_world_origin() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(b"child", Some(b"group"), &[]),
+            triangle(b"shape", b"child"),
+        ]);
+        select(&mut editor, &["group"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_eq!(editor.camera.distance(), editor.camera.near() * 2.0 * 1.05);
+        let origin = editor.camera.target();
+        editor.camera = Camera::default();
+        editor.frame_members(FrameChildren::Include).unwrap();
+        let framed = editor.camera.target();
+        assert!((framed.x - 2.0).abs() < 1.0 && framed != origin);
+    }
+
+    #[test]
+    fn exclude_origin_of_a_nested_group_includes_its_ancestors() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(
+                b"mid",
+                Some(b"group"),
+                &[wire::triple(b"t", [0.0, 3.0, 0.0])],
+            ),
+            xfrm(b"leaf", Some(b"mid"), &[]),
+            triangle(b"shape", b"leaf"),
+        ]);
+        select(&mut editor, &["mid"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 3.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    /// PROVISIONAL pin: the framed origin is the manipulator origin (translate plus rotate-pivot
+    /// translate); a rotate pivot point does not move it. Maya's docs name neither.
+    #[test]
+    fn exclude_origin_ignores_the_rotate_pivot_point() {
+        let mut editor = editor_of(&[
+            xfrm(
+                b"group",
+                None,
+                &[
+                    wire::triple(b"t", [2.0, 0.0, 0.0]),
+                    wire::triple(b"rp", [0.0, 5.0, 0.0]),
+                ],
+            ),
+            xfrm(b"child", Some(b"group"), &[]),
+            triangle(b"shape", b"child"),
+        ]);
+        select(&mut editor, &["group"]);
+        let frame = {
+            let target = editor.selection.lead().unwrap().clone();
+            editor
+                .history
+                .scene()
+                .manipulator_frame(&target)
+                .unwrap()
+                .origin_cm
+        };
+        assert_eq!(frame, glam::DVec3::new(2.0, 0.0, 0.0));
+        let expected = origin_camera(&editor, frame.as_vec3());
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    const CURVE_CC: &str =
+        "setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;";
+
+    fn ascii_editor(body: &str) -> Editor {
+        let source = format!(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; {body}"
+        );
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    #[test]
+    fn exclude_origin_includes_the_rotate_pivot_translate() {
+        let mut editor = ascii_editor(
+            "createNode transform -n \"g\"; setAttr \".t\" -type \"double3\" 2 0 0; setAttr \".rpt\" -type \"double3\" 0 3 0;",
+        );
+        select(&mut editor, &["g"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 3.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    fn curve_parent_editor(hidden: bool) -> Editor {
+        let hide = if hidden { "setAttr \".v\" no;" } else { "" };
+        let mut editor = ascii_editor(&format!(
+            "createNode transform -n \"g\"; setAttr \".t\" -type \"double3\" 2 0 0; \
+             createNode nurbsCurve -n \"gShape\" -p \"g\"; {hide} {CURVE_CC} \
+             createNode transform -n \"c\" -p \"g\"; setAttr \".t\" -type \"double3\" 40 0 0; \
+             createNode nurbsCurve -n \"cShape\" -p \"c\"; {CURVE_CC}"
+        ));
+        select(&mut editor, &["g"]);
+        editor
+    }
+
+    #[test]
+    fn exclude_with_a_hidden_own_curve_frames_the_origin_and_with_it_visible_the_curve() {
+        let mut editor = curve_parent_editor(true);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_eq!(editor.camera.distance(), editor.camera.near() * 2.0 * 1.05);
+        editor.camera = Camera::default();
+        editor.frame_members(FrameChildren::Include).unwrap();
+        assert!(
+            editor.camera.target().x > 10.0,
+            "{:?}",
+            editor.camera.target()
+        );
+
+        let mut editor = curve_parent_editor(false);
+        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+        let prefix = editor.selection.lead().unwrap().path.clone();
+        let mut own = editor.camera.clone();
+        own.frame_view_many(
+            &view,
+            &[prefix.as_slice()],
+            FrameChildren::Exclude,
+            editor.aspect,
+        )
+        .unwrap();
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, own);
+        assert_ne!(
+            editor.camera,
+            origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
+    fn exclude_with_one_member_owning_geometry_ignores_origins() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(b"solid", None, &[wire::triple(b"t", [-9.0, 0.0, 0.0])]),
+            triangle(b"shape", b"solid"),
+        ]);
+        select(&mut editor, &["group", "solid"]);
+        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+        let solid = editor.selection.members()[1].path.clone();
+        let mut expected = editor.camera.clone();
+        expected
+            .frame_view_many(
+                &view,
+                &[solid.as_slice()],
+                FrameChildren::Exclude,
+                editor.aspect,
+            )
+            .unwrap();
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_ne!(
+            editor.camera,
+            origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
+    fn include_still_refuses_a_selection_without_any_geometry() {
+        let mut editor = editor_of(&[xfrm(b"empty", None, &[])]);
+        select(&mut editor, &["empty"]);
+        let before = editor.camera.clone();
+        assert!(matches!(
+            editor.frame_members(FrameChildren::Include),
+            Err(OperationError::Camera(_))
+        ));
+        assert_eq!(editor.camera, before);
+        assert!(editor.frame_members(FrameChildren::Exclude).is_ok());
+    }
+
+    #[test]
+    fn nothing_selected_is_refused() {
+        let mut editor = editor_of(&[xfrm(b"empty", None, &[])]);
+        assert!(matches!(
+            editor.frame_members(FrameChildren::Exclude),
+            Err(OperationError::NoSelection)
+        ));
+    }
+}

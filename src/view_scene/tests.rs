@@ -184,6 +184,35 @@ fn frame_exclude_of_a_curve_parent_frames_its_direct_curve() {
 }
 
 #[test]
+fn has_direct_geometry_counts_visible_own_meshes_and_curves_only() {
+    let (mut scene, parent, child) = test_fixtures::group_with_own_shape_and_child();
+    let path = |scene: &NativeScene, node| {
+        scene
+            .transform_paths()
+            .unwrap()
+            .into_iter()
+            .find(|target| target.node == node)
+            .unwrap()
+            .path
+    };
+    let (parent_path, child_path) = (path(&scene, parent), path(&scene, child));
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    assert!(view.has_direct_geometry(&[parent_path.as_slice()]));
+    assert!(view.has_direct_geometry(&[child_path.as_slice()]));
+    assert!(!view.has_direct_geometry(&[]));
+    // Hide the parent's only own shape: the visible child below it no longer counts.
+    test_fixtures::hide_first_shape(&mut scene);
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    assert!(!view.has_direct_geometry(&[parent_path.as_slice()]));
+    assert!(view.has_direct_geometry(&[child_path.as_slice()]));
+
+    let curves = shared_curve(false);
+    let view = ViewScene::from_native(&curves, VIEW_BUDGET).unwrap();
+    let first = &view.curve_instances()[0].path()[..1];
+    assert!(view.has_direct_geometry(&[first]));
+}
+
+#[test]
 fn frame_view_many_includes_curve_members_in_the_union() {
     let scene = shared_curve(false);
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
