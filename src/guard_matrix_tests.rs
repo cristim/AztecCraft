@@ -1813,7 +1813,12 @@ fn guard_matrix_file_writing_cells_match_committed_snapshot() {
         cells > 10,
         "file-writing matrix unexpectedly small: {cells}"
     );
-    super::snapshots::assert_snapshot("guard_matrix_file_writing.txt", &text);
+    let snapshot = if cfg!(windows) {
+        "guard_matrix_file_writing_windows.txt"
+    } else {
+        "guard_matrix_file_writing.txt"
+    };
+    super::snapshots::assert_snapshot(snapshot, &text);
 }
 
 #[test]

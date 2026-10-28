@@ -1522,7 +1522,7 @@
   },
   {
     "name": "create_session_material",
-    "description": "Create a session-only lambert material (not saved; Untitled scenes only, sourced and Maya ASCII scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Create a session-only lambert material (not saved; authored source-free scenes only, imported scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1556,7 +1556,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; authored source-free scenes only, imported scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2087,7 +2087,7 @@
   },
   {
     "name": "open_scene",
-    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. ASCII native writing is unavailable",
+    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; mesh files produced by new-scene ASCII Save As cannot currently be reopened by this editor",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2116,7 +2116,7 @@
   },
   {
     "name": "save_scene",
-    "description": "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write",
+    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor. Imported ASCII scenes remain read-only and assigned session materials refuse before writing. An uncertain prior installation is reconciled without another write",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2139,7 +2139,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting; an uncertain prior save is reconciled instead",
+    "description": "Save a supported Maya binary scene to a fresh .mb path, or an authored untitled scene to a fresh .ma path, without overwriting; an uncertain prior save is reconciled instead",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

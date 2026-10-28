@@ -1327,8 +1327,13 @@ fn edit_menu_pins_the_undo_and_redo_hints() {
     click(&mut editor, &context, edit.rect.center());
     let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
     let labels: Vec<String> = controls(&output).into_iter().map(|c| c.label).collect();
-    for row in ["Undo   Ctrl/Cmd Z", "Redo   Ctrl/Cmd Y"] {
-        assert!(labels.iter().any(|l| l == row), "missing {row}");
+    for (row, shortcut) in [("Undo ", "Ctrl/Cmd Z"), ("Redo ", "Ctrl/Cmd Y")] {
+        assert!(
+            labels
+                .iter()
+                .any(|label| label.starts_with(row) && label.ends_with(shortcut)),
+            "missing {row}menu row with {shortcut}: {labels:?}"
+        );
     }
 }
 

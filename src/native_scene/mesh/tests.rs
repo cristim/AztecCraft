@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn defensive_private_mesh_states_refuse_the_actual_authored_prefix() {
-    use crate::native_scene::ascii::{AsciiWriteRefusal as R, emit_geometry_prefix as emit};
+    use crate::native_scene::ascii::write::{AsciiWriteRefusal as R, emit_geometry_prefix as emit};
     type Case = (fn(&mut NativeMesh), R);
     let cases: [Case; 4] = [
         (
@@ -81,7 +81,7 @@ fn authored_faces_keep_admitted_repeated_loop_and_unused_edges() {
 
 #[test]
 fn malformed_stored_face_refuses_before_any_output() {
-    use crate::native_scene::ascii::{AsciiWriteRefusal, emit_geometry_prefix};
+    use crate::native_scene::ascii::write::{AsciiWriteRefusal, emit_geometry_prefix};
     let (mut scene, _) = crate::native_scene::test_fixtures::cube();
     scene.shapes[0].mesh.faces[0].outer[0].edge = usize::MAX;
     let before = scene.clone();

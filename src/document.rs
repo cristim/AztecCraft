@@ -1,4 +1,4 @@
-use crate::native_scene::{NativeError, NativeScene, ascii, binary};
+use crate::native_scene::{AuthoredDocumentId, NativeError, NativeScene, ascii, binary};
 use crate::scene::{Scene, SceneError};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -25,6 +25,8 @@ pub enum LinkStatus {
 pub struct SourceBaseline {
     bytes: Arc<[u8]>,
     parse_bytes: Arc<[u8]>,
+    #[cfg_attr(not(unix), expect(dead_code, reason = "authored saving is Unix-only"))]
+    authored_document_id: Option<AuthoredDocumentId>,
     metadata: Metadata,
     link: LinkStatus,
     #[cfg(any(unix, windows))]
@@ -42,38 +44,69 @@ impl fmt::Debug for SourceBaseline {
             .finish()
     }
 }
+impl SourceBaseline {
+    pub fn destination_path(&self) -> Option<PathBuf> {
+        #[cfg(unix)]
+        {
+            self.destination.as_ref().map(|d| d.path())
+        }
+        #[cfg(not(unix))]
+        {
+            None
+        }
+    }
+}
 #[derive(Clone, Debug, Default)]
 pub enum NativeOrigin {
     #[default]
     Untitled,
     Binary(SourceBaseline),
     Ascii(SourceBaseline),
+    AuthoredAscii(SourceBaseline),
     Legacy(SourceBaseline),
 }
 impl NativeOrigin {
     pub fn active_save_available(&self) -> bool {
         #[cfg(any(unix, windows))]
         {
-            matches!(self, Self::Binary(source) if matches!(source.link, LinkStatus::Direct) && source.destination.is_some())
+            match self {
+                Self::Binary(source)
+                    if matches!(source.link, LinkStatus::Direct)
+                        && source.destination.is_some() =>
+                {
+                    true
+                }
+                #[cfg(unix)]
+                Self::AuthoredAscii(source)
+                    if matches!(source.link, LinkStatus::Direct)
+                        && source.destination.is_some() =>
+                {
+                    true
+                }
+                _ => false,
+            }
         }
         #[cfg(not(any(unix, windows)))]
         false
     }
     pub fn save_as_available(&self) -> bool {
-        cfg!(any(unix, windows)) && matches!(self, Self::Binary(_))
+        (cfg!(any(unix, windows)) && matches!(self, Self::Binary(_)))
+            || (cfg!(unix) && matches!(self, Self::AuthoredAscii(_) | Self::Untitled))
     }
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Untitled => "untitled",
             Self::Binary(_) => "maya_binary",
-            Self::Ascii(_) => "maya_ascii",
+            Self::Ascii(_) | Self::AuthoredAscii(_) => "maya_ascii",
             Self::Legacy(_) => "legacy_aztec",
         }
     }
     pub fn source_bytes(&self) -> Option<&Arc<[u8]>> {
         match self {
             Self::Untitled => None,
-            Self::Binary(s) | Self::Ascii(s) | Self::Legacy(s) => Some(&s.bytes),
+            Self::Binary(s) | Self::Ascii(s) | Self::AuthoredAscii(s) | Self::Legacy(s) => {
+                Some(&s.bytes)
+            }
         }
     }
 }
@@ -85,6 +118,7 @@ pub fn verify_native_origin(path: &Path, origin: &NativeOrigin) -> Result<(), Na
         let source = match origin {
             NativeOrigin::Binary(source)
             | NativeOrigin::Ascii(source)
+            | NativeOrigin::AuthoredAscii(source)
             | NativeOrigin::Legacy(source) => source,
             NativeOrigin::Untitled => return Err(NativeSaveError::SourceChanged),
         };
@@ -106,6 +140,7 @@ pub fn verify_native_origin(path: &Path, origin: &NativeOrigin) -> Result<(), Na
         let source = match origin {
             NativeOrigin::Binary(source)
             | NativeOrigin::Ascii(source)
+            | NativeOrigin::AuthoredAscii(source)
             | NativeOrigin::Legacy(source) => source,
             NativeOrigin::Untitled => return Err(NativeSaveError::SourceChanged),
         };
@@ -251,6 +286,7 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
     drop(file);
     let source = SourceBaseline {
         parse_bytes: bytes.clone(),
+        authored_document_id: None,
         bytes,
         metadata,
         link,

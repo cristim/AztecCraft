@@ -90,7 +90,7 @@ fn parse_request_close(arguments: JsonObject) -> Result<RemoteRequest, ErrorData
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "open_scene",
-        description: "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. ASCII native writing is unavailable",
+        description: "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; mesh files produced by new-scene ASCII Save As cannot currently be reopened by this editor",
         schema: schema::<OpenArgs>,
         parse: parse_open_scene,
         idempotent: false,
@@ -98,7 +98,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene",
-        description: "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write",
+        description: "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor. Imported ASCII scenes remain read-only and assigned session materials refuse before writing. An uncertain prior installation is reconciled without another write",
         schema: schema::<MutationArgs>,
         parse: parse_save_scene,
         idempotent: false,
@@ -106,7 +106,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene_as",
-        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting; an uncertain prior save is reconciled instead",
+        description: "Save a supported Maya binary scene to a fresh .mb path, or on Unix an authored source-free scene (Untitled or previously saved by this editor) to a fresh .ma path, without overwriting. Assigned session materials and unsupported ASCII content refuse before writing. An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance is unverified; saved mesh ASCII files cannot currently be reopened by this editor",
         schema: schema::<OpenArgs>,
         parse: parse_save_scene_as,
         idempotent: false,

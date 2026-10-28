@@ -129,7 +129,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "create_session_material",
-        description: "Create a session-only lambert material (not saved; Untitled scenes only, sourced and Maya ASCII scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Create a session-only lambert material (not saved; authored source-free scenes only, imported scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<CreateSessionMaterialArgs>,
         parse: parse_create_session_material,
         idempotent: false,
@@ -137,7 +137,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "assign_session_material",
-        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; authored source-free scenes only, imported scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<AssignSessionMaterialArgs>,
         parse: parse_assign_session_material,
         idempotent: false,

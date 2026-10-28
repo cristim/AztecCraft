@@ -28,10 +28,11 @@ const FACE_ROW_BYTES: usize = "\tf \n".len() + "2147483647".len() + 1;
 const FACE_TOKEN_BYTES: usize = " -2147483648".len();
 const ARRAY_END: &[u8] = b";\n";
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum AsciiWriteRefusal {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
+    MaterialAssigned,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -60,6 +61,9 @@ impl fmt::Display for AsciiWriteRefusal {
         f.write_str(match self {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
+            Self::MaterialAssigned => {
+                "a shape is assigned a non-initial shading group, which authored ASCII cannot carry"
+            }
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
             Self::NonAuthoredHierarchy => "only flat transform-over-mesh ownership is supported",
@@ -178,6 +182,14 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     authored::check_content_kind(scene)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
+    if scene
+        .session_materials
+        .assignments
+        .values()
+        .any(|group| *group != 0)
+    {
+        return Err(AsciiWriteRefusal::MaterialAssigned);
+    }
     Ok(())
 }
 
@@ -398,7 +410,6 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
     Ok(())
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
     check(scene)?;
     let length = prefix_bytes(scene)?;
