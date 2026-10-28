@@ -384,11 +384,13 @@ impl History {
             .as_mut()
             .ok_or(ManipulationError::StaleManipulation)?;
         active.matches(scene_token, id, provenance)?;
-        let (previous, changed) = active
-            .kind
-            .preview(&mut self.scene, distance_cm, declared)?;
+        let (previous, changed) = active.kind.preview(
+            Self::touch(&mut self.scene, &mut self.revision),
+            distance_cm,
+            declared,
+        )?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
-            self.scene.restore_channels(&previous)?;
+            Self::touch(&mut self.scene, &mut self.revision).restore_channels(&previous)?;
             return Err(error.into());
         }
         active.parameter = distance_cm;
@@ -417,7 +419,7 @@ impl History {
             .ok_or(ManipulationError::StaleManipulation)?;
         let channels = active.kind.changes(&self.scene)?;
         let node = active.target.node;
-        active.kind.restore(&mut self.scene)?;
+        active.kind.restore(self.scene_mut())?;
         if finish == ManipulationFinish::Cancel || channels.iter().all(Option::is_none) {
             return Ok(if channels.iter().all(Option::is_none) {
                 EditOutcome::Unchanged
@@ -442,7 +444,7 @@ impl History {
             return Ok(EditOutcome::Unchanged);
         };
         let channels = active.kind.changes(&self.scene)?;
-        active.kind.restore(&mut self.scene)?;
+        active.kind.restore(self.scene_mut())?;
         Ok(if channels.iter().all(Option::is_none) {
             EditOutcome::Unchanged
         } else {

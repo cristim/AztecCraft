@@ -41,6 +41,35 @@ fn cube_history() -> History {
 }
 
 #[test]
+fn every_manipulation_write_to_the_scene_changes_the_revision() {
+    let token = Uuid::new_v4();
+    let finish = |finish| {
+        let mut history = cube_history();
+        let id = start(&mut history, token);
+        let begun = history.revision();
+        history
+            .update_move(token, id, ManipulationProvenance::Native, 2.0)
+            .unwrap();
+        let previewed = history.revision();
+        assert_ne!(previewed, begun);
+        history
+            .finish_move(token, id, ManipulationProvenance::Native, finish)
+            .unwrap();
+        assert_ne!(history.revision(), previewed);
+    };
+    finish(ManipulationFinish::Commit);
+    finish(ManipulationFinish::Cancel);
+    let mut history = cube_history();
+    let id = start(&mut history, token);
+    history
+        .update_move(token, id, ManipulationProvenance::Native, 2.0)
+        .unwrap();
+    let previewed = history.revision();
+    history.cancel_active_move().unwrap();
+    assert_ne!(history.revision(), previewed);
+}
+
+#[test]
 fn many_absolute_previews_make_exactly_one_undo_and_redo() {
     let mut history = cube_history();
     let original = history.scene.clone();
