@@ -448,3 +448,63 @@ fn a_full_selection_inspects_with_a_small_node_limit() {
     assert!(bytes <= crate::editor_operations::MAX_REPLY_BYTES);
     assert!(editor.inspect_page(false, Some(&page(250, None))).is_err());
 }
+
+/// Minimum of `samples` timings of each closure, interleaved so a noisy period hits both.
+fn min_interleaved(
+    samples: usize,
+    small: &dyn Fn(),
+    large: &dyn Fn(),
+) -> (std::time::Duration, std::time::Duration) {
+    let time = |run: &dyn Fn()| {
+        let start = std::time::Instant::now();
+        run();
+        start.elapsed()
+    };
+    let (mut small_min, mut large_min) = (std::time::Duration::MAX, std::time::Duration::MAX);
+    for _ in 0..samples {
+        small_min = small_min.min(time(small));
+        large_min = large_min.min(time(large));
+    }
+    (small_min, large_min)
+}
+
+/// A ratio of two timings from one process cancels machine speed; 8x the scene may cost about 8x
+/// (limits leave room for noise), the old per-edge scans cost 50 to 90x.
+fn ratio_within(limit: f64, small: &dyn Fn(), large: &dyn Fn()) -> bool {
+    (0..2).any(|_| {
+        let (small, large) = min_interleaved(9, small, large);
+        large.as_secs_f64() < limit * small.as_secs_f64()
+    })
+}
+
+#[test]
+fn a_4096_node_scene_pages_completely_and_page_cost_stays_linear() {
+    let large = cubes(4096);
+    let pages = walk(&large, 200);
+    assert_eq!(pages.len(), 21);
+    let nodes: Vec<_> = pages
+        .iter()
+        .flat_map(|p| p.nodes.iter().map(|n| n.id.clone()))
+        .collect();
+    assert_eq!(nodes, node_ids(&large));
+    assert!(!pages[20].page.as_ref().unwrap().truncated);
+
+    let small = cubes(512);
+    let first = page(200, None);
+    assert!(
+        ratio_within(
+            30.0,
+            &|| drop(small.history.scene().transform_paths().unwrap()),
+            &|| drop(large.history.scene().transform_paths().unwrap()),
+        ),
+        "transform_paths cost is no longer linear in the scene"
+    );
+    assert!(
+        ratio_within(
+            25.0,
+            &|| drop(small.inspect_page(false, Some(&first)).unwrap()),
+            &|| drop(large.inspect_page(false, Some(&first)).unwrap()),
+        ),
+        "a page costs more than linearly more in a larger scene"
+    );
+}
