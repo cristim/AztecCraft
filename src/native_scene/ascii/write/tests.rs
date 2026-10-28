@@ -1363,3 +1363,23 @@ fn declaration_size_checks_exact_cap_and_overflow_without_an_output_buffer() {
         );
     }
 }
+
+#[test]
+fn assigned_session_materials_are_refused_before_ascii_output() {
+    use crate::native_scene::{MaterialChoice, SessionMaterialId};
+    let mut scene = scene(&["box"]);
+    let material = scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
+    prefix(&scene).unwrap();
+    let shape = scene.shapes()[0].id();
+    scene
+        .assign_session_material(shape, MaterialChoice::Existing(material))
+        .unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::MaterialAssigned));
+    scene
+        .assign_session_material(
+            shape,
+            MaterialChoice::Existing(SessionMaterialId::from_index(0)),
+        )
+        .unwrap();
+    prefix(&scene).unwrap();
+}

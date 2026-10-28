@@ -113,7 +113,7 @@ impl FileState {
         match self.origin {
             NativeOrigin::Untitled => DocumentOrigin::Untitled,
             NativeOrigin::Binary(_) => DocumentOrigin::MayaBinary,
-            NativeOrigin::Ascii(_) => DocumentOrigin::MayaAscii,
+            NativeOrigin::Ascii(_) | NativeOrigin::AuthoredAscii(_) => DocumentOrigin::MayaAscii,
             NativeOrigin::Legacy(_) => DocumentOrigin::LegacyAztec,
         }
     }
@@ -211,7 +211,7 @@ impl Editor {
                     scene_token,
                     written,
                     receipt,
-                    cause,
+                    cause: cause.clone(),
                 });
                 self.status = format!("Save installed but requires reconciliation: {cause}");
                 self.error = true;
@@ -303,7 +303,9 @@ impl Editor {
         }
     }
     pub(super) fn save_as_dialog(&mut self) {
-        if self.refuse_while_closing() {
+        if self.files.is_closing() {
+            self.status = OperationError::BusyEditing.to_string();
+            self.error = true;
             return;
         }
         if self.history.active_manipulation().is_some() {
@@ -314,11 +316,18 @@ impl Editor {
         if self.files.is_modal() || !self.files.save_as_available() {
             return;
         }
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("Save Maya binary scene to a new file")
-            .add_filter("Maya binary scene", &["mb"])
-            .save_file()
-        {
+        // Select the filter based on the scene origin.
+        let dialog = match &self.files.origin {
+            NativeOrigin::Binary(_) => rfd::FileDialog::new()
+                .set_title("Save Maya binary scene to a new file")
+                .add_filter("Maya binary scene", &["mb"]),
+            NativeOrigin::Untitled | NativeOrigin::AuthoredAscii(_) => rfd::FileDialog::new()
+                .set_title("Save Maya ASCII scene to a new file")
+                .add_filter("Maya ASCII scene", &["ma"])
+                .set_file_name("untitled.ma"),
+            _ => return, // Ascii and Legacy cannot be saved
+        };
+        if let Some(path) = dialog.save_file() {
             self.native_operation(Operation::SaveSceneAs { path });
         }
     }

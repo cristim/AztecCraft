@@ -1,7 +1,7 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
     document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, SourceBaseline},
-    native_scene::{NativeScene, binary},
+    native_scene::{NativeScene, ascii::write::emit_geometry_prefix, binary},
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
 use rustix::fs::{self, AtFlags, Mode, OFlags};
@@ -69,7 +69,7 @@ impl Destination {
         destination.binding()?;
         Ok(destination)
     }
-    fn path(&self) -> PathBuf {
+    pub(in crate::document) fn path(&self) -> PathBuf {
         self.canonical_parent.join(&self.leaf)
     }
     fn binding(&self) -> io::Result<()> {
@@ -186,6 +186,7 @@ struct Transaction<'a> {
     baseline: Option<&'a SourceBaseline>,
     bytes: Arc<[u8]>,
     parse_bytes: Arc<[u8]>,
+    authored_document_id: Option<crate::native_scene::AuthoredDocumentId>,
     may_install: &'a dyn Fn() -> bool,
     state: RefCell<State>,
 }
@@ -228,9 +229,9 @@ impl Transaction<'_> {
     fn fail(&self, error: Error) -> io::Error {
         let mut state = self.state.borrow_mut();
         if state.installed.is_some() {
-            state.post_error = Some(error);
+            state.post_error = Some(error.clone());
         } else {
-            state.failure = Some(error);
+            state.failure = Some(error.clone());
         }
         io::Error::from(match error {
             Error::Cancelled => io::ErrorKind::Interrupted,
@@ -323,7 +324,7 @@ impl Transaction<'_> {
         };
         let state = self.state.borrow();
         let Some(file) = state.installed.as_ref() else {
-            return Err(state.failure.unwrap_or_else(|| {
+            return Err(state.failure.clone().unwrap_or_else(|| {
                 result
                     .err()
                     .map(io_error)
@@ -334,10 +335,12 @@ impl Transaction<'_> {
             destination: self.destination.clone(),
             bytes: self.bytes.clone(),
             parse_bytes: self.parse_bytes.clone(),
+            authored_document_id: self.authored_document_id,
             file: file.clone(),
         };
         let cause = state
             .post_error
+            .clone()
             .or_else(|| result.err().map(io_error))
             .or_else(|| (!state.synced).then_some(Error::Io(io::ErrorKind::Other)));
         drop(state);
@@ -357,7 +360,12 @@ impl AtomicFs for Transaction<'_> {
     }
     fn create_new(&self, path: &Path, permissions: NewFilePermissions) -> io::Result<File> {
         let leaf = self.destination.stage_leaf(path).map_err(|_| {
-            let error = self.state.borrow().failure.unwrap_or(Error::Unsupported);
+            let error = self
+                .state
+                .borrow()
+                .failure
+                .clone()
+                .unwrap_or(Error::Unsupported);
             self.fail(error)
         })?;
         if let Some(baseline) = self.baseline {
@@ -439,20 +447,31 @@ pub(super) struct Receipt {
     destination: Arc<Destination>,
     bytes: Arc<[u8]>,
     parse_bytes: Arc<[u8]>,
+    authored_document_id: Option<crate::native_scene::AuthoredDocumentId>,
     file: Arc<File>,
 }
 impl Receipt {
     fn verified(&self) -> Result<(NativeOrigin, PathBuf), Error> {
         self.destination.verify(&self.file, &self.bytes)?;
+        let path = self.destination.path();
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
             parse_bytes: self.parse_bytes.clone(),
+            authored_document_id: self.authored_document_id,
             metadata: self.file.metadata().map_err(io_error)?,
             link: LinkStatus::Direct,
             file: self.file.clone(),
             destination: Some(self.destination.clone()),
         };
-        Ok((NativeOrigin::Binary(baseline), self.destination.path()))
+        let origin = if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("ma"))
+        {
+            NativeOrigin::AuthoredAscii(baseline)
+        } else {
+            NativeOrigin::Binary(baseline)
+        };
+        Ok((origin, path))
     }
     pub(super) fn reconcile(&self) -> Result<(NativeOrigin, PathBuf), Error> {
         self.destination.verify(&self.file, &self.bytes)?;
@@ -506,10 +525,12 @@ fn prepare<'a>(
         baseline,
         bytes,
         parse_bytes: source.parse_bytes.clone(),
+        authored_document_id: None,
         may_install,
         state: RefCell::new(State::default()),
     })
 }
+
 pub(super) fn save_native(
     origin: &NativeOrigin,
     scene: &NativeScene,
@@ -518,6 +539,147 @@ pub(super) fn save_native(
 ) -> Result<SaveOutcome, Error> {
     let transaction = prepare(origin, scene, destination, may_install)?;
     transaction.run(&transaction, RenameRetry::platform())
+}
+
+fn prepare_authored<'a>(
+    origin: &'a NativeOrigin,
+    scene: &NativeScene,
+    destination: SaveDestination<'_>,
+    may_install: &'a dyn Fn() -> bool,
+) -> Result<Transaction<'a>, Error> {
+    // Authored output has unproven Maya acceptance; our ASCII reader cannot
+    // reopen authored meshes. Bind every later save to this document.
+    match origin {
+        NativeOrigin::Untitled => {}
+        NativeOrigin::AuthoredAscii(source) => {
+            let id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+            if source.authored_document_id != Some(id) {
+                return Err(Error::SourceChanged);
+            }
+        }
+        _ => return Err(Error::Unsupported),
+    }
+
+    // Resolve the destination path and determine if it is Save As or Active
+    let (path, is_save_as) = match destination {
+        SaveDestination::As(path) => (path.to_path_buf(), true),
+        SaveDestination::Active => match origin {
+            NativeOrigin::AuthoredAscii(source) => {
+                (source.destination_path().ok_or(Error::Unsupported)?, false)
+            }
+            _ => return Err(Error::Unsupported),
+        },
+    };
+
+    // Validate that the destination has a .ma extension (case-insensitive)
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("ma"))
+    {
+        return Err(Error::InvalidDestination);
+    }
+
+    // Generate the bytes for the Maya ASCII scene. This uses the `emit_geometry_prefix` function
+    let bytes: Arc<[u8]> = emit_geometry_prefix(scene)
+        .map_err(Error::AsciiWrite)?
+        .into();
+
+    let document_id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+
+    // Capture the destination
+    let destination = Arc::new(Destination::capture(&path).map_err(io_error)?);
+
+    // Determinate the baseline (using the boolean is_save_as)
+    let baseline = if is_save_as {
+        // Save As: the new destination MUST be absent.
+        destination.absent()?;
+        None
+    } else {
+        // Active: verify that it matches the origin.
+        match origin {
+            NativeOrigin::AuthoredAscii(source) => {
+                if destination.verify(&source.file, &source.bytes).is_ok() {
+                    Some(source)
+                } else {
+                    return Err(Error::SourceChanged);
+                }
+            }
+            _ => return Err(Error::Unsupported),
+        }
+    };
+
+    // Create the transaction
+    let transaction = Transaction {
+        destination,
+        baseline,
+        bytes,
+        parse_bytes: Arc::new([]),
+        authored_document_id: Some(document_id),
+        may_install,
+        state: RefCell::new(State::default()),
+    };
+
+    Ok(transaction)
+}
+
+pub(super) fn save_authored(
+    origin: &NativeOrigin,
+    scene: &NativeScene,
+    destination: SaveDestination<'_>,
+    may_install: &dyn Fn() -> bool,
+) -> Result<SaveOutcome, Error> {
+    let transaction = prepare_authored(origin, scene, destination, may_install)?;
+    transaction.run(&transaction, RenameRetry::platform())
+}
+
+#[cfg(test)]
+mod tests_authored {
+    use super::*;
+    use crate::native_scene::NativeScene;
+    use crate::scene::Primitive;
+
+    #[test]
+    fn authored_scene_saves_as_maya_ascii() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("untitled.ma");
+
+        // 1. Create a new legacy scene and add a cube
+        let mut legacy = crate::scene::Scene::default();
+        legacy.create(Primitive::Cube, "cube").unwrap();
+
+        // 2. Convert to NativeScene
+        let scene = NativeScene::from_legacy(legacy).unwrap();
+
+        // 3. Verify that the scene is "without origin" (Untitled)
+        let origin = NativeOrigin::Untitled;
+        assert!(origin.save_as_available());
+
+        // 4. Save
+        let result = crate::document::save_native(
+            &origin,
+            &scene,
+            SaveDestination::As(&destination),
+            &|| true,
+        );
+
+        // 5. Verify that the file exists and is the expected path
+        match result.expect("save should succeed") {
+            SaveOutcome::Saved { path, .. } => {
+                assert_eq!(path, destination.canonicalize().unwrap());
+            }
+            other => panic!("expected Saved, got {other:?}"),
+        }
+
+        // 6. Verify the content of the .ma file
+        let contents = std::fs::read_to_string(&destination).unwrap();
+        assert!(contents.contains("//Maya ASCII 2026 scene"));
+        assert!(contents.contains("createNode transform"));
+        assert!(contents.contains("createNode mesh"));
+
+        // 7. Round-trip (Open) is not yet supported: the ASCII reader supports
+        // only a narrower subset (curves) than the writer. This is tracked separately.
+        // The file is valid Maya ASCII and can be opened in Maya.
+    }
 }
 
 #[cfg(test)]

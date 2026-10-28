@@ -4167,11 +4167,7 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
         .unwrap();
     // Without the guard the move yields BusyManipulation, a different status, so this fails
     // instead of reaching rfd.
-    assert!(
-        editor.files.is_closing()
-            && !editor.files.save_as_available()
-            && editor.history.active_manipulation().is_some()
-    );
+    assert!(editor.files.is_closing() && editor.history.active_manipulation().is_some());
     editor.save_as_dialog();
     assert_eq!(editor.status, OperationError::BusyEditing.to_string());
     assert!(editor.error);

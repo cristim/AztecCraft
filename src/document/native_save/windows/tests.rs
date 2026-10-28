@@ -14,6 +14,9 @@ fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let document = load_native(&path).unwrap();
     (path, document)
 }
+fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
+    baseline.parse_bytes.clone()
+}
 fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
     match result.unwrap() {
         SaveOutcome::Saved { origin, path } => (origin, path),
@@ -371,7 +374,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(original) = &document.origin else {
         unreachable!()
     };
-    let parse = original.parse_bytes.clone();
+    let parse = parse_bytes(original);
     let id = document.scene.nodes()[0].id();
     document
         .scene
@@ -387,7 +390,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(baseline) = &origin else {
         unreachable!()
     };
-    assert!(Arc::ptr_eq(&parse, &baseline.parse_bytes));
+    assert!(Arc::ptr_eq(&parse, &parse_bytes(baseline)));
     assert!(document.scene.has_binary_source(&parse));
     let first = std::fs::read(&path).unwrap();
     let (origin, _) = saved(save_native(

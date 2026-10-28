@@ -15,7 +15,7 @@
     can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## idle / remote
@@ -30,7 +30,7 @@
     can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## closing / native
@@ -196,7 +196,7 @@
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## material_draft / remote
@@ -227,7 +227,7 @@
     can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## channel_draft / remote
@@ -257,7 +257,7 @@
     can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## text_focus / remote
@@ -287,7 +287,7 @@
     can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## native_input_pending / remote
