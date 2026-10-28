@@ -1027,7 +1027,19 @@ Each `NativeScene::create` runs a full `validate()` through `structural_edit`, a
 every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
 O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
 `azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
-fixed by the paging work.
+fixed by the paging work. The remaining cost is `validate_dag`: its "every identity has an edge" check
+(identities x dag) and the Kahn loop's per-parent dag filter are both O(N*E). It runs on every structural
+edit, not on the per-frame or inspect path; #345 tracks it.
+
+## Paged inspect cost and the decision not to cache transform paths
+
+After #340 `NativeScene::transform_paths` indexes nodes and children once per call, so one
+`inspect_scene` page costs about 2.6 ms at the 4096-node cap in a release build (0.6 ms of it
+`transform_paths`) and a 21-page walk about 75 ms; it was 40 ms per page and 859 ms per walk. Nothing is
+cached per `History::revision()`: the cache would need invalidation on every mutation, load and undo for
+about 1 ms. Revisit if a measurement shows `transform_paths` above about 5 ms at the 4096 cap. The ratio
+guard `a_4096_node_scene_pages_completely_and_page_cost_stays_linear` fails if page cost approaches
+quadratic growth (over 25x for 8x the nodes).
 
 ## Frame origin for a mixed selection is PROVISIONAL
 
