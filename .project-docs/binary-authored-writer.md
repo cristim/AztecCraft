@@ -3,10 +3,12 @@
 Status: in progress. The pure writer in `src/native_scene/binary/write.rs` builds a whole file for a
 scene of bare transforms or of transforms over one mesh each: framing builders, the profile constants,
 the `HEAD` group, `XFRM` and `DMSH` groups, and a self-check that decodes the bytes before they are
-returned. `encode_authored` has no Editor caller yet. This note records what the writer may
-emit, where each choice comes from, and what is invented. **Maya acceptance of any file this writer
-produces is unproven.** AztecCraft's own decoder reopening a file is the only check, and no PR text may
-claim more.
+returned. Unix Editor Save As now calls `encode_authored` for supported new scenes. This note
+records what the writer may emit, where each choice comes from, and what is invented.
+**Maya acceptance of any file this writer produces is unproven.** AztecCraft's own decoder
+provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader
+and currently refuses the authored mesh chunk. Neither check establishes Maya acceptance.
+See [mayascenekit-crosscheck.md](mayascenekit-crosscheck.md).
 
 ## Evidence and its limits
 
@@ -85,6 +87,54 @@ bodies and `known-issues.md`.
 `Retention`, `AuthoredRefusalCode` and the other save-integration types are code structures, not file
 format inventions.
 
+## "No UVs" is a documented state (citations, PROVISIONAL)
+
+Verified 2026-10-20 against the raw HTML of each page, fetched with curl, tags stripped. The quoted
+phrases below are exact. Autodesk's pages document "No UVs" as a primitive option and an empty UV set as
+a mesh state. They say nothing about what a Maya Binary file stores for either, and no page says in
+those words that UVs are optional.
+
+- polyCube: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCube.html,
+  flag `createUVs` (`cuv`): "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize Each Face
+  Separately 3: Normalize Collectively 4: Normalize and Preserve Aspect Ratio Default: 3"
+- polyPlane: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyPlane.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize and Preserve Aspect Ratio Default: 1"
+- polySphere: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html:
+  "0 implies that no UVs will be generated (No texture to be applied). 1 implies UVs are created with
+  pinched at poles 2 implies UVs are created with sawtooth at poles ... Default is 2"
+- polyCylinder: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCylinder.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize 3: Normalize and Preserve Aspect Ratio
+  Default: 2"
+- polyCone: https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/CommandsPython/polyCone.html:
+  "Create UVs or not. 0: No UVs 1: No Normalization 2: Normalize 3: Normalize and Preserve Aspect Ratio
+  Default: 2"
+- MFnMesh: https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/class_m_fn_mesh.html
+  (identical text on the 2025 and 2022 pages), `clearUVs`: "This method clears out all texture
+  coordinates for the mesh, and leaves behind an empty UVset."
+
+What follows for the writer: an empty UV set is a documented outcome of `clearUVs`, which is the only
+reason the writer's empty `map1` is described as "no UVs" and not as invented UV data. Whether Maya
+accepts such a set in a file is unproven.
+
+## Can a mesh omit the UV set entirely? (investigated, no)
+
+The writer keeps the empty `map1` (0 points, 0 ids, header 0,1,0). Evidence:
+
+- The decoder's `MESH` grammar (`src/maya_binary/semantic/mesh.rs`, `decode_mesh`) has no optional
+  UV block: after the normals it reads the three header words (it requires exactly 0, 1, 0), the set
+  name, the UV points, the UV ids, and the 20-byte zero trailer, and rejects anything else. The one
+  relaxation is that the points and ids arrays may both be empty.
+- Every observed `MESH` carries that block: the one in the Maya 2025 fixture, and all 29 meshes of the
+  private corpus (aggregate: they all decode through that grammar). The Maya 2026 fixture has no mesh.
+- The header's middle word `1` is plausibly a UV-set count, but no file shows a mesh with count 0 or
+  without the block, so a count-0 layout, or the bytes that would follow it, would be invented, and
+  the decoder would need a new grammar branch with no observed file to anchor it.
+- Omission would also change what reopening yields only in a way nothing here can validate.
+
+Pinned by `an_empty_uv_set_is_admitted_only_when_both_points_and_ids_are_empty` and
+`a_mesh_without_the_uv_block_is_rejected` (decoder), and the writer test that emits `map1` with 0
+points and 0 ids. Reopen trigger: any Maya-written file showing a mesh without a UV block.
+
 ## Task 1.0: edge bit31 against topology (private corpus, aggregate)
 
 Read-only structural correlation over 5 files, 29 meshes, 61,429 edges. Adjacent-face normals come from
@@ -106,6 +156,12 @@ The mapping "bit31 clear = hard edge" from the ASCII `.ed` third value therefore
 All-clear is observed on one closed mesh, so the writer may emit it for closed meshes, but it stays I
 (PROVISIONAL) and the decoder's `smooth: None` is the only honest read-back.
 
+Public check on the vendored Maya 2025 fixture (`tests/fixtures/gt-tools/dummy_mesh.mb`, counted
+2026-10-20 by reading the `MESH` chunk at offset 0x11324 and counting face-loop uses per edge): 4,264 edges,
+all interior (every edge is used by exactly two face loops, no boundary edges), and 221 of them (5.2%)
+have bit31 set. So the one public closed mesh is not all clear either; the rule that a closed mesh
+writes all clear remains an invented value, PROVISIONAL, and not a Maya-observed rule.
+
 ## Refusals (typed, path-free, nothing dropped)
 
 The shared eligibility (`src/native_scene/authored.rs`) refuses: a retained source, curves, units other
@@ -123,8 +179,10 @@ over u32, output over 16 MiB and resource overruns.
 The writer decodes its own output with `binary::decode` and compares names, DAG pairing, units, `t/r/s`
 internal words, points, edge endpoints and face loops before returning bytes. UUIDs, `NativeId`s and edge
 smoothness differ by design. A raw-byte test checks the 16 `CREA` identity bytes, which the decoder skips.
-An ignored differential test rebuilds chunks from a private corpus given by environment variable and
-compares them to Maya's bytes; it never commits paths or content.
+No differential test against Maya-written files exists in the tree. The only cross-check against another
+reader is the ignored MayaSceneKit test described in `mayascenekit-crosscheck.md`, which records that
+MayaSceneKit (third-party, not Maya) decodes a Maya-written mesh but not the writer's; the empty UV set
+is the inferred cause (from the reader's source), not probed.
 
 The self-check currently compares units, node count and order, names, DAG pairing and the t/r/s/pivot
 bit patterns, and for each mesh shape its name, point f32 bit patterns, edge endpoint pairs and face

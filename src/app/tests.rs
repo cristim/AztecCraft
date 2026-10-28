@@ -4148,6 +4148,7 @@ fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
 }
 
 /// The assertions before each dialog call make a broken setup panic instead of reaching rfd.
+#[cfg(unix)]
 #[test]
 fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     let mut editor = Editor::default();
@@ -4179,7 +4180,7 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     // instead of reaching rfd.
     assert!(
         editor.files.is_closing()
-            && !editor.files.save_as_available()
+            && editor.files.save_as_available()
             && editor.history.active_manipulation().is_some()
     );
     editor.save_as_dialog();
@@ -9045,8 +9046,9 @@ mod primitive_options_create {
         assert_eq!(editor.history.scene(), &after);
     }
 
+    #[cfg(unix)]
     #[test]
-    fn save_and_save_as_stay_refused_and_write_nothing_after_an_optioned_create() {
+    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene() {
         let directory = tempfile::tempdir().unwrap();
         let destination = directory.path().join("created.mb");
         let mut editor = Editor::default();
@@ -9063,11 +9065,11 @@ mod primitive_options_create {
             },
         );
         assert!(
-            matches!(save_as, Err(OperationError::NativeSave(_))),
+            matches!(save_as, Ok(OperationReply::Saved { .. })),
             "{save_as:?}"
         );
-        assert!(!destination.exists());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        assert!(destination.is_file());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 
     #[test]

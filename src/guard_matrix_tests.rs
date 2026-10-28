@@ -189,6 +189,10 @@ enum Pre {
     AttributeEditorDock,
     /// Creates session material 1 (refused on sourced scenes, where the cell shows that).
     SessionMaterial,
+    /// Assigns a created material to the first shape, which a new Maya Binary cannot hold.
+    AssignedMaterial,
+    /// Puts a file at the Save As destination before the operation runs.
+    OccupiedDestination,
 }
 
 struct Sample {
@@ -1191,15 +1195,46 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             install_probe: true,
             ..sample("save_scene", Operation::SaveScene)
         }],
-        Operation::SaveSceneAs { .. } => vec![Sample {
-            install_probe: true,
-            ..sample(
-                "save_scene_as",
-                Operation::SaveSceneAs {
-                    path: t.save_as.clone(),
-                },
-            )
-        }],
+        Operation::SaveSceneAs { .. } => vec![
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                pre: Pre::OccupiedDestination,
+                ..sample(
+                    "save_scene_as(occupied)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                pre: Pre::AssignedMaterial,
+                ..sample(
+                    "save_scene_as(material_assigned)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as(wrong_extension)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.with_extension("txt"),
+                    },
+                )
+            },
+        ],
         Operation::ResolveFileAction { .. } => vec![
             sample(
                 "resolve_file_action(cancel)",
@@ -1632,6 +1667,19 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                 color: [1.0, 0.0, 0.0],
             });
         }
+        Pre::AssignedMaterial => {
+            if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
+                let _ = rig.editor.history.execute(Command::AssignSessionMaterial {
+                    shape,
+                    material: MaterialChoice::New {
+                        color: [1.0, 0.0, 0.0],
+                    },
+                });
+            }
+        }
+        Pre::OccupiedDestination => {
+            std::fs::write(rig.directory.path().join("saved.mb"), b"occupant").unwrap();
+        }
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
         Pre::EdgeMode => rig.editor.selection_mode = SelectionMode::Edge,
         Pre::AttributeEditorDock => {
@@ -1813,7 +1861,11 @@ fn guard_matrix_file_writing_cells_match_committed_snapshot() {
         cells > 10,
         "file-writing matrix unexpectedly small: {cells}"
     );
-    super::snapshots::assert_snapshot("guard_matrix_file_writing.txt", &text);
+    if cfg!(windows) {
+        super::snapshots::assert_snapshot("guard_matrix_file_writing_windows.txt", &text);
+    } else {
+        super::snapshots::assert_snapshot("guard_matrix_file_writing.txt", &text);
+    }
 }
 
 #[test]

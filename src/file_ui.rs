@@ -1437,6 +1437,33 @@ mod tests {
         assert!(!editor.is_dirty());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn untitled_scene_enables_save_as_and_its_title_follows_the_saved_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("fresh.mb");
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        assert!(editor.files.save_as_available());
+        assert!(!editor.files.save_available());
+        assert_eq!(editor.document_title(), "AztecCraft | Untitled *");
+        assert!(matches!(
+            editor.apply_operation(Operation::SaveScene),
+            Err(OperationError::NativeSave(NativeSaveError::NoDestination))
+        ));
+        assert!(editor.is_dirty());
+        assert!(matches!(
+            editor
+                .apply_operation(Operation::SaveSceneAs {
+                    path: destination.clone()
+                })
+                .unwrap(),
+            OperationReply::Saved { dirty: false, .. }
+        ));
+        assert_eq!(editor.document_title(), "AztecCraft | fresh.mb");
+        assert!(editor.files.save_available() && editor.files.save_as_available());
+    }
+
     #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_from_read_through_symlink_preserves_original_and_verifies_origin() {

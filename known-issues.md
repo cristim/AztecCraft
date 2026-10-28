@@ -556,8 +556,7 @@ edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
 effects are unsupported"). The refusal rate on real Maya files outside the
 five-file private corpus is unmeasured.
 
-Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
-binary. Setting every inserted word to +0.0 inserts nothing, because that is the
+Source-free scenes (new, OBJ) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
 default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
@@ -623,9 +622,10 @@ Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build 
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
-so the viewport looks faceted. There are no UVs or normals, and
-new nodes are not persisted (Save is unavailable for created scenes, as for the
-cube). Pole triangles cannot be extruded; body quads can. The new node is named
+so the viewport looks faceted. There are no UVs or normals. On Unix, new scenes require
+an initial Save As to a fresh Maya binary file; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Pole triangles cannot be extruded; body quads can.
+The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
@@ -666,8 +666,9 @@ lists sz 1 instead, so a Maya-default cylinder may have different counts, and th
 cap topology of both solids is derived, not verified against Maya 2026 (#5). The cone
 has 21 points, 40 edges and 21 faces (20 side triangles and a 20-gon base) with its apex
 at (0, 1, 0) and its base at y=-1. Vertex and face order and winding are not claimed to
-match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals,
-and new nodes are not persisted. Caps and cone side triangles cannot
+match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals.
+On Unix, new scenes require an initial Save As; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
 `pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
@@ -779,9 +780,10 @@ sphere, cylinder and cone, and each built Create > Polygon Primitives row has an
 "Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
 and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
-pages do not say), session only and never saved. Created
-primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
-limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
+pages do not say), session only and never saved. On Unix, scenes with created primitives
+require an initial Save As; subsequent Save operations persist changes (see "Mesh Save is
+PROVISIONAL"). The AztecCraft limits (size 1e-6 to 1e6 cm, subdivisions up to 128,
+at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
 interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
@@ -821,7 +823,8 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (Untitled scenes have no save), sourced binary scenes
+session-only lambert table. It is not saved (a new scene refuses Save As with `save_unwritable` while a shape is
+assigned a non-initial group; an unassigned created material is dropped), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
@@ -868,7 +871,7 @@ currently reach such text. `inspect_scene.status_message` withholds file-error s
 The fresh `.mb` writer (`src/native_scene/binary/write.rs`) takes its profile (`VERS` and the aux word
 of each chunk kind) from one public Maya 2025 file and emits groups shorter than any Maya wrote. Files
 it produces are Maya 2025-format; that Maya 2026 opens them, and that Maya accepts them at all, is
-PROVISIONAL and unproven. AztecCraft's own decoder reopening a file is the only check. Saved meshes
+PROVISIONAL and unproven. AztecCraft's own decoder provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader but does not establish Maya acceptance. Saved meshes
 will carry no shading assignment. The invented items are the I rows of
 `.project-docs/binary-authored-writer.md`.
 
@@ -976,6 +979,31 @@ in the same frame returns before the view build, so the paint is skipped and the
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
 View build errors other than `ResourceLimit` leave `viewport_error`
 unchanged, tracked in #342.
+
+## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
+
+**Severity:** medium
+**Area:** file format, Save As
+**Issue:** cristim/AztecCraft#156
+
+On Unix, a new (Untitled) scene requires an initial Save As, which writes a fresh Maya
+2025-format `.mb` through the writer above. Subsequent Save operations persist changes
+to that file. Saving Untitled scenes is unsupported on Windows.
+Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
+documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
+`.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
+acceptance is unproven. MayaSceneKit (a third-party reader, not Maya; pinned commit 95a11db) decodes the Maya-written
+`tests/fixtures/gt-tools/dummy_mesh.mb` (no MESH issue, an exact DMSH/MESH decode) but reports the
+writer's cube MESH/DMSH as unsupported ("no decoder registered for chunk tag"). The empty UV set is the
+INFERRED cause, from the reader's mesh decoder source (it requires a nonzero UV count) plus that
+contrast; no probe that adds UVs has been run. The ignored test `msk_decodes_maya_meshes_but_not_the_writers_mesh`
+(`AZTECCRAFT_MSK_BIN`, see `.project-docs/mayascenekit-crosscheck.md`) pins the contrast so a change
+becomes visible. The
+`save_scene_as` MCP description carries the same PROVISIONAL note.
+
+Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
+MayaSceneKit starts decoding these meshes (the cross-check test flips); a public, licensed Maya
+file shows a mesh without a UV block or with default primitive UVs.
 
 ## Multi-object selection colours and group descendants are PROVISIONAL
 
