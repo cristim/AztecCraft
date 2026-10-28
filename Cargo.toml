@@ -31,7 +31,7 @@ nom = "=8.0.0"
 eframe = { version = "=0.36.2", optional = true, default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland", "accesskit"] }
 rfd = { version = "=0.17.2", optional = true }
 uuid = { version = "=1.28.0", features = ["v4"] }
-rmcp = { version = "=3.5.1", default-features = false, features = ["server", "transport-io"], optional = true }
+rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"], optional = true }
 tokio = { version = "=1.53.3", features = ["rt", "macros", "sync", "time", "io-std", "io-util"], optional = true }
 tokio-util = { version = "=0.7.20", features = ["codec", "rt"], optional = true }
 futures-util = { version = "=0.3.34", features = ["sink"], optional = true }
