@@ -506,7 +506,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
-| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only and includes drag-begin refusals; the null list is not exhaustive (see the pointer fields paragraph); not gated by window focus, popups or file modals (painted highlight, not status text) |
+| Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only and includes drag-begin refusals; the null list is not exhaustive (see the pointer fields paragraph); not gated by window focus, popups or file modals (painted highlight, not status text); null after a view build error |
 | Tools | Manipulator size (+ and - keys on Move, Rotate and Scale) | supported | `set_manipulator_size` | `manipulation.manipulator_size` | Session-only; step, key repeat and the length floor are PROVISIONAL (rows 15 to 19 of the [policy constants table](development.md#application-policy-constants)) |
 | Tools | Gimbal, Parent, Normal, Custom and Component spaces; Move orientation modes other than World (listed disabled in the native Move row) | unsupported | | | |
 | Tools | Lasso, Paint Selection, Last Used buttons | unsupported | | | |
@@ -607,7 +607,10 @@ hover status text. The highlight is not gated by window focus, an open popup
 or a file modal, so inspection is not either (the status text is, see
 `known-issues.md`). The null list is not exhaustive. `viewport` itself is
 null, for example, when the window is hidden or minimized, in Face, Vertex and
-Edge selection, and after a renderer terminal error. It is also null with no
+Edge selection, and after a renderer terminal error. It is null after a view
+build error too (for example an overflowing scale), from the first frame after
+the edit until the next frame that builds a view; an active native drag is
+cancelled by the same path as a lost capture. It is also null with no
 valid capture yet, after a scene load and after a camera change, the last two
 until the next viewport capture. With a `viewport` present, the pointer fields
 are null when the pointer has left the window, a manipulation is active, or the

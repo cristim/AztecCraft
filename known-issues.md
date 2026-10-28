@@ -966,18 +966,16 @@ Scale grab whose along-axis component is under 1 px of world length, as the pres
 hover shows the same text. Not fixed: gating the highlight
 changes native behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
 
-## Inspection keeps reporting a pick after a view build error
+## A pointer capture can survive a frame that skips the view build
 
 **Severity:** low
 **Area:** viewport manipulators, MCP inspection
-**Issue:** tracked in #310
 
-After a view build error (for example ancestors whose scales overflow), `move_viewport` survives, so
-`inspect_scene` pointer fields still report a pick from the surviving capture although the viewport
-paints nothing. This contradicts the "mirrors the painted highlight" wording in
-`.project-docs/mcp.md` (the pointer fields paragraph). The tests
-`a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
-`sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.
+A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
+in the same frame returns before the view build, so the paint is skipped and the capture survives
+for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
+View build errors other than `ResourceLimit` leave `viewport_error`
+unchanged, tracked in #342.
 
 ## Multi-object selection colours and group descendants are PROVISIONAL
 
