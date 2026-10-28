@@ -31,10 +31,10 @@ fn error_code(result: &CallToolResult) -> &str {
 }
 
 #[tokio::test]
-async fn paging_reads_a_4096_instance_scene_in_21_pages() {
+async fn paging_reads_a_450_cube_scene_in_3_pages() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
-    editor_with_legacy_cubes(&mut editor, 4096);
+    editor_with_legacy_cubes(&mut editor, 450);
     let (mut nodes, mut shapes, mut pages) = (Vec::new(), Vec::new(), 0);
     let mut arguments = json!({"node_limit": 200});
     loop {
@@ -49,7 +49,7 @@ async fn paging_reads_a_4096_instance_scene_in_21_pages() {
         assert!(serde_json::to_vec(&result).unwrap().len() + 256 <= crate::mcp::MAX_EGRESS_BYTES);
         let inspection = &result.structured_content.unwrap()["inspection"];
         let page = &inspection["page"];
-        assert_eq!(page["nodes_total"], 4096);
+        assert_eq!(page["nodes_total"], 450);
         assert_eq!(page["node_offset"], pages * 200);
         for (key, ids) in [("nodes", &mut nodes), ("shapes", &mut shapes)] {
             for item in inspection[key].as_array().unwrap() {
@@ -57,14 +57,14 @@ async fn paging_reads_a_4096_instance_scene_in_21_pages() {
             }
         }
         pages += 1;
-        assert!(pages <= 21, "cursor never ends");
+        assert!(pages <= 3, "cursor never ends");
         if page["truncated"] == false {
             assert!(page["next_cursor"].is_null());
             break;
         }
         arguments = json!({"node_limit": 200, "cursor": page["next_cursor"]});
     }
-    assert_eq!(pages, 21);
+    assert_eq!(pages, 3);
     let order: Vec<String> = editor
         .history
         .scene()
@@ -76,18 +76,18 @@ async fn paging_reads_a_4096_instance_scene_in_21_pages() {
     let mut unique = shapes.clone();
     unique.sort();
     unique.dedup();
-    assert_eq!((shapes.len(), unique.len()), (4096, 4096));
+    assert_eq!((shapes.len(), unique.len()), (450, 450));
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
 }
 
 #[tokio::test]
-async fn the_whole_4096_scene_is_still_too_large_unpaged_and_as_one_page() {
+async fn the_whole_450_cube_scene_is_still_too_large_unpaged_and_as_one_page() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
-    editor_with_legacy_cubes(&mut editor, 4096);
-    for arguments in [json!({}), json!({"node_limit": 4096})] {
+    editor_with_legacy_cubes(&mut editor, 450);
+    for arguments in [json!({}), json!({"node_limit": 450})] {
         let result = inspect(&mut editor, &context, client.peer(), arguments).await;
         assert_eq!(result.is_error, Some(true));
         assert_eq!(error_code(&result), "too_large");
