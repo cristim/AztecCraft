@@ -461,14 +461,18 @@ impl Editor {
                 }
                 None => {}
             }
-            let view =
-                ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024).map_err(|e| {
+            let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
+                Ok(view) => view,
+                Err(e) => {
                     if matches!(e, azteccraft::view_scene::ViewError::ResourceLimit) {
                         self.viewport_error =
                             Some(crate::viewport_renderer::ViewportError::ResourceLimit);
                     }
-                    OperationError::View(e.to_string())
-                })?;
+                    // No handles are painted this frame, so the capture must not outlive them.
+                    self.missing_move_viewport()?;
+                    return Err(OperationError::View(e.to_string()));
+                }
+            };
             // Picks dispatch through `apply_operation`, not `native_operation`.
             if !self.files.is_modal()
                 && let Some(ndc) = clickable

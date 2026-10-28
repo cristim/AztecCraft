@@ -212,33 +212,100 @@ async fn sdk_pointer_refusal_reports_a_refused_handle_and_a_refused_tool() {
     }
 }
 
-fn chain_scene(scale: &str) -> azteccraft::native_scene::NativeScene {
-    let source = format!(
-        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; \
-         currentUnit -l centimeter -a degree -t film;\n\
-         createNode transform -n \"a\"; setAttr \".s\" -type \"double3\" {scale} {scale} {scale};\n\
-         createNode transform -n \"b\" -p \"a\"; setAttr \".s\" -type \"double3\" {scale} {scale} {scale};\n\
-         createNode transform -n \"leaf\" -p \"b\";\n"
+// A binary-sourced scene (its format check passes, unlike read-only ASCII) whose parent is scaled
+// 1 2 1, so a World-space Rotate or Scale handle of the unrotated leaf is refused per handle as
+// ParentTransform while the geometry stays finite.
+fn skewed_parent_scene() -> azteccraft::native_scene::NativeScene {
+    use binary_fixture::{creation, group, scene, triple};
+    let bytes = scene(
+        &[
+            group(
+                b"XFRM",
+                &[creation(b"parent", None), triple(b"s", [1.0, 2.0, 1.0])].concat(),
+                4,
+            ),
+            group(b"XFRM", &creation(b"leaf", Some(b"parent")), 4),
+        ]
+        .concat(),
     );
-    azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap()
+    azteccraft::native_scene::binary::decode(bytes).unwrap()
 }
 
-// Two ancestors scaled 1e200 have no finite product, so the leaf frame is refused as ParentTransform.
-// A capture taken before they overflow survives later frames (a view build error does not clear
-// `move_viewport`), so the scene is swapped in directly after the pointer was captured. Plausible
-// through the MCP set_transform tool on a writable scene, not exercised here (read-only ASCII).
 #[tokio::test]
-async fn sdk_pointer_refusal_reports_a_scene_frame_refusal() {
-    let expected = azteccraft::native_scene::NativeError::UnsupportedMove(
-        azteccraft::native_scene::WorldMoveUnsupported::ParentTransform,
-    )
-    .to_string();
-    for tool in ["rotate", "scale"] {
+async fn sdk_pointer_refusal_reports_a_parent_transform_refusal() {
+    use azteccraft::native_scene::{NativeError, RotateUnsupported, ScaleUnsupported};
+    for (tool, refusal) in [
+        (
+            "rotate",
+            NativeError::UnsupportedRotate(RotateUnsupported::ParentTransform).to_string(),
+        ),
+        (
+            "scale",
+            NativeError::UnsupportedScale(ScaleUnsupported::ParentTransform).to_string(),
+        ),
+    ] {
         let context = egui::Context::default();
         let (mut editor, client, server) = start(&context).await;
-        editor.history = azteccraft::history::History::new(chain_scene("1"));
+        let scene = skewed_parent_scene();
+        let leaf = scene
+            .nodes()
+            .iter()
+            .find(|node| node.name() == "leaf")
+            .unwrap()
+            .id();
+        editor.history = azteccraft::history::History::new(scene);
+        editor.select(Some(leaf));
         editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
         editor.camera = oblique();
+        frame(&mut editor, &context, vec![]);
+        let token = editor.scene_token.to_string();
+        for (name, args) in [
+            ("set_active_tool", json!({"scene_token":token,"tool":tool})),
+            // Rotate defaults to Object space, which skips the parent check.
+            (
+                "set_tool_space",
+                json!({"scene_token":token,"tool":tool,"space":"world"}),
+            ),
+        ] {
+            let result = call(&mut editor, &context, client.peer(), name, args).await;
+            assert!(!result.is_error.unwrap_or(false), "{tool} {name}");
+        }
+        let output = frame(&mut editor, &context, vec![]);
+        let view = View {
+            camera: editor.camera.clone(),
+            aspect: editor.aspect,
+            rect: viewport(&output),
+            scale: 1.0,
+        };
+        let (at, hit) = if tool == "rotate" {
+            (view.ring(Vec3::Y, 0.0), "y")
+        } else {
+            let tip = view.screen(Vec3::X * view.radius());
+            let origin = view.screen(Vec3::ZERO);
+            (origin + (tip - origin) * 0.5, "x")
+        };
+        assert_eq!(
+            hover(&mut editor, &context, &client, at).await,
+            [json!(hit), Value::Null, json!(refusal)],
+            "{tool}"
+        );
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}
+
+// A view build error paints no handles, so the pointer fields must be null like the painted
+// highlight, and a later frame that builds a view restores them.
+#[tokio::test]
+async fn sdk_pointer_fields_clear_after_a_view_build_error() {
+    for (tool, handle) in [("move", "x"), ("rotate", "y"), ("scale", "x")] {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
+        editor.camera = oblique();
+        editor.create(Primitive::Cube);
+        let node = editor.selected().unwrap().to_decimal();
         frame(&mut editor, &context, vec![]);
         let token = editor.scene_token.to_string();
         let activated = call(
@@ -251,22 +318,72 @@ async fn sdk_pointer_refusal_reports_a_scene_frame_refusal() {
         .await;
         assert!(!activated.is_error.unwrap_or(false), "{tool}");
         let output = frame(&mut editor, &context, vec![]);
-        let at = viewport(&output).center();
-        frame(&mut editor, &context, vec![Event::PointerMoved(at)]);
-        let scene = chain_scene("1e200");
-        let leaf = scene
-            .nodes()
-            .iter()
-            .find(|node| node.name() == "leaf")
-            .unwrap()
-            .id();
-        editor.history = azteccraft::history::History::new(scene);
-        editor.select(Some(leaf));
-        let picked = pick(&mut editor, &context, &client).await;
+        let view = View {
+            camera: editor.camera.clone(),
+            aspect: editor.aspect,
+            rect: viewport(&output),
+            scale: 1.0,
+        };
+        let origin = view.screen(Vec3::ZERO);
+        let at = if tool == "rotate" {
+            view.ring(Vec3::Y, 0.0)
+        } else {
+            let tip = view.screen(Vec3::X * view.radius());
+            origin + (tip - origin) * 0.5
+        };
+        let hit = [json!(handle), Value::Null, Value::Null];
         assert_eq!(
-            picked,
-            [Value::Null, Value::Null, json!(expected)],
+            hover(&mut editor, &context, &client, at).await,
+            hit,
             "{tool}"
+        );
+        let edited = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_transform",
+            json!({"scene_token":token,"node_id":node,"translation":[0,0,0],
+                   "rotation_degrees":[0,0,0],"scale":[1e300,1e300,1e300]}),
+        )
+        .await;
+        assert!(!edited.is_error.unwrap_or(false), "{tool}");
+        frame(&mut editor, &context, vec![]);
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let manipulation = &inspected["inspection"]["manipulation"];
+        assert_eq!(manipulation["viewport"], Value::Null, "{tool}");
+        assert_eq!(
+            pick(&mut editor, &context, &client).await,
+            [Value::Null, Value::Null, Value::Null],
+            "{tool}"
+        );
+        assert_eq!(
+            inspected["inspection"]["status_message"],
+            "world geometry cannot be represented by the viewport",
+            "{tool}"
+        );
+        let undone = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "undo",
+            json!({"scene_token":token}),
+        )
+        .await;
+        assert!(!undone.is_error.unwrap_or(false), "{tool}");
+        frame(&mut editor, &context, vec![]);
+        assert_eq!(
+            hover(&mut editor, &context, &client, at).await,
+            hit,
+            "{tool} restored"
         );
         client.cancel().await.unwrap();
         drop(editor);
