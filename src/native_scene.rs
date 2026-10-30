@@ -1718,7 +1718,7 @@ impl fmt::Display for NativeError {
                 write!(f, "native mesh shape {} does not exist", id.to_decimal())
             }
             Self::InvalidInstancePath => {
-                f.write_str("face target does not match a valid full instance path")
+                f.write_str("target does not match a valid full instance path")
             }
             Self::UnsupportedLinearUnit => {
                 f.write_str("declared linear unit conversion is unsupported")
