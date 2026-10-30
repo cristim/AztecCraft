@@ -1067,13 +1067,53 @@ fn scale_picks_x_on_the_diagonal_and_the_dead_zone_corner_stays_empty() {
 }
 
 #[test]
-fn an_end_on_scale_axis_wins_a_pixel_just_outside_the_centre_box() {
-    // Known defect, widened by the 8 px radius (#297): the end-on Z tip box sits next to the
-    // origin and wins this pixel. It fails at 6 px, so 8 px is what makes Z win this pixel.
+fn an_end_on_scale_axis_wins_nothing_in_the_ring_around_the_centre_box() {
+    // The last camera tips Z diagonally: about 8 px long, yet inside the square centre box.
+    for (yaw, pitch, size) in [(0.02, 0.0, 0.1), (0.02, 0.0, 1.0), (0.08, 0.08, 1.0)] {
+        let handles =
+            ScaleHandles::new(&sized(&camera_at(yaw, pitch, 10.0), size), &world_frame()).unwrap();
+        for dx in -20..=20 {
+            for dy in -20..=20 {
+                let offset = DVec2::new(f64::from(dx), f64::from(dy));
+                if offset.abs().max_element() > CENTER_BOX_HALF {
+                    assert_ne!(
+                        handles.hit_test(handles.origin + offset),
+                        Some(ScaleHandle::Z),
+                        "size {size}, offset {offset}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_short_scale_axis_past_the_centre_box_stays_pickable() {
+    // About 14 px long on screen at size 10, so it is short but has not collapsed.
+    let handles =
+        ScaleHandles::new(&sized(&camera_at(0.02, 0.0, 10.0), 10.0), &world_frame()).unwrap();
+    let z = handles.axes()[2].geometry().unwrap();
+    assert!(
+        z.segments()
+            .any(|segment| handles.hit_test(segment.end) == Some(ScaleHandle::Z))
+    );
+}
+
+#[test]
+fn a_collapsed_scale_axis_stays_drawn() {
     let handles = world_scale(&camera_at(0.02, 0.0, 10.0));
-    assert_eq!(
-        handles.hit_test(DVec2::new(400.0, 300.0) + DVec2::new(9.0, 9.0)),
-        Some(ScaleHandle::Z)
+    assert!(handles.axes()[2].geometry().is_some());
+}
+
+#[test]
+fn a_scale_axis_whose_tip_clears_the_centre_box_stays_pickable() {
+    let handles = world_scale(&camera_at(0.5, 0.5, 10.0));
+    let z = handles.axes()[2].geometry().unwrap();
+    let outside = |pixel: DVec2| (pixel - handles.origin).abs().max_element() > CENTER_BOX_HALF;
+    assert!(z.segments().all(|segment| outside(segment.end)));
+    assert!(
+        z.segments()
+            .any(|segment| handles.hit_test(segment.end) == Some(ScaleHandle::Z))
     );
 }
 
