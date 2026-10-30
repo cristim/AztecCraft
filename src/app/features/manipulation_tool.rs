@@ -694,10 +694,7 @@ impl Editor {
                     handle,
                     space,
                 },
-                match handle {
-                    ScaleHandle::Uniform => "Uniform Scale".to_string(),
-                    _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
-                },
+                format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
             ),
         };
         let drag = match start_drag(capture, &frame, handle, position) {
