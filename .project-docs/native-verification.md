@@ -181,7 +181,7 @@ complement the automated core and UI-event tests with native application evidenc
 
 - Windows and Linux native interaction and package launch checks remain pending.
 - Full interactive file-panel navigation remains pending.
-- GUI OBJ Export is disabled, so the complete native export journey remains pending.
+- GUI OBJ Export now exists, but no native export journey has been recorded; it remains pending.
 - New icon work and subsequent modeling/MCP changes need verification against their own builds.
 - Maya reference comparison, the complete functionality denominator and the original 80–90% full-functionality target remain unfulfilled. Overall Maya coverage is unmeasured.
 

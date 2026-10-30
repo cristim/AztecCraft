@@ -129,6 +129,8 @@ mod official_client {
     mod manipulator_size;
     mod material;
     mod node_edit;
+    mod obj_export;
+
     mod pointer_hit;
     mod primitive_options;
     mod select_by_rule;

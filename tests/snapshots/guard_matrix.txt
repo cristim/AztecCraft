@@ -85,6 +85,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -200,6 +203,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
+  export_obj(selection) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -310,6 +316,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -419,6 +428,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -528,6 +540,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Scene ready"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false; can_redo: true -> false
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -637,6 +652,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Scene ready"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false; can_redo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -746,6 +764,9 @@
   request_close => Ok(pending_confirmation) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  export_obj(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(not_obj) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -855,6 +876,9 @@
   request_close => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(ascii_curve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(empty_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(not_obj) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -964,6 +988,9 @@
   request_close => Ok(pending_confirmation) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  export_obj(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(not_obj) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1073,6 +1100,9 @@
   request_close => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(ascii_curve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(empty_path) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  export_obj(not_obj) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1182,6 +1212,9 @@
   request_close => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   open_scene(ascii_curve) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  export_obj(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1291,6 +1324,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1401,6 +1437,9 @@
   request_close => Ok(pending_confirmation) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_undo: false -> true
   open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_undo: false -> true
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  export_obj(selection) => Ok(exported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -1511,6 +1550,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1620,6 +1662,9 @@
   request_close => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_redo: true -> false
   open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_redo: true -> false
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  export_obj(selection) => Ok(exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -1729,6 +1774,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1838,6 +1886,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -1947,6 +1998,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2056,6 +2110,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -2165,6 +2222,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2274,6 +2334,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2383,6 +2446,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2492,6 +2558,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2601,6 +2670,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2710,6 +2782,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2819,6 +2894,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2928,6 +3006,9 @@
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(empty_path) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  export_obj(not_obj) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3037,6 +3118,9 @@
   request_close => Ok(close_requested) | closing: false -> true
   open_scene(ascii_curve) => Ok(document_applied) | token replaced; selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Err(ObjExport: Nothing to export: no displayed polygon geometry) | no state change
+  export_obj(selection) => Err(ObjExport: Nothing to export: no displayed polygon geometry) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3146,6 +3230,9 @@
   request_close => Ok(close_requested) | closing: false -> true
   open_scene(ascii_curve) => Ok(document_applied) | token replaced; selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Err(ObjExport: Nothing to export: no displayed polygon geometry) | no state change
+  export_obj(selection) => Err(ObjExport: Nothing to export: no displayed polygon geometry) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3256,6 +3343,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3366,6 +3456,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(selection) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3476,6 +3569,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3586,6 +3682,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(selection) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3696,6 +3795,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | no state change
+  export_obj(selection) => Ok(exported) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3806,6 +3908,9 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(selection) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3916,6 +4021,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; camera changed; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4026,6 +4134,9 @@
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; camera changed; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4058,4 +4169,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 3601
+cells: 3712
