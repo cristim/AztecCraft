@@ -23,6 +23,7 @@ path = "examples/icon_sheet.rs"
 required-features = ["desktop"]
 
 [dependencies]
+rayon = "1.10"
 glam = { version = "=0.34.1", features = ["serde"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
