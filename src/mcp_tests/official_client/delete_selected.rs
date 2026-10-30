@@ -176,7 +176,12 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
     .structured_content
     .unwrap();
     let many = delete_selected(&mut editor, &context, client.peer()).await;
-    assert_eq!(many["error"], single["error"]);
+    let name = editor.history.scene().node(paths[0].node).unwrap().name();
+    assert_eq!(many["error"]["code"], single["error"]["code"]);
+    assert_eq!(
+        many["error"]["message"].as_str().unwrap(),
+        format!("{name}: {}", single["error"]["message"].as_str().unwrap())
+    );
     assert_eq!(many["error"]["code"], "unsupported_delete");
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.selection.members(), paths);

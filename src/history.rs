@@ -411,7 +411,7 @@ mod tests {
         let before = history.scene().clone();
         assert!(matches!(
             history.execute(Command::RemoveMany(vec![root, child])),
-            Err(NativeError::UnsupportedDelete(_))
+            Err(NativeError::DeleteMemberRefused { .. })
         ));
         assert_eq!(history.scene(), &before);
         assert!(!history.can_undo() && !history.can_redo());

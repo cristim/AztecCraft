@@ -109,7 +109,7 @@ fn delete_selection_in_component_modes_is_refused_and_keeps_state() {
 }
 
 /// An opened file refuses every delete; the multi-delete reports what the single delete does for
-/// the same node and leaves scene, selection and history untouched.
+/// the same node, naming it, and leaves scene, selection and history untouched.
 #[test]
 fn delete_selection_refusals_match_single_delete_and_keep_state() {
     let mut editor = deep_group_editor();
@@ -117,10 +117,14 @@ fn delete_selection_refusals_match_single_delete_and_keep_state() {
     editor.set_selection_members_for_test(all.clone());
     editor.sync_fields();
     let before = baseline(&editor);
-    let single = editor.apply_operation(Operation::Delete(all[0].node));
-    let many = editor.apply_operation(Operation::DeleteSelection);
-    assert!(single.is_err());
-    assert_eq!(format!("{single:?}"), format!("{many:?}"));
+    let single = editor
+        .apply_operation(Operation::Delete(all[0].node))
+        .unwrap_err();
+    let many = editor
+        .apply_operation(Operation::DeleteSelection)
+        .unwrap_err();
+    let name = editor.history.scene().node(all[0].node).unwrap().name();
+    assert_eq!(many.to_string(), format!("{name}: {single}"));
     assert_eq!(baseline(&editor), before);
 }
 

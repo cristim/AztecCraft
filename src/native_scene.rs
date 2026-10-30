@@ -1272,15 +1272,22 @@ impl NativeScene {
         self.remove_validated(id)
     }
     /// Removes every listed node, in order, after one preflight and one validation; a repeated id
-    /// is removed once. The first refusal is returned unchanged and earlier removals stay applied,
-    /// so callers run it on a candidate clone, as `History::execute` does.
+    /// is removed once. The first refusal names its node when several are listed, and earlier
+    /// removals stay applied, so callers run it on a candidate clone, as `History::execute` does.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
         let mut seen = std::collections::HashSet::new();
-        for id in ids {
-            if seen.insert(*id) {
-                self.remove_validated(*id)?;
+        let distinct: Vec<NodeId> = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
+        for id in &distinct {
+            if let Err(reason) = self.remove_validated(*id) {
+                return Err(match self.node(*id) {
+                    Ok(node) if distinct.len() > 1 => NativeError::DeleteMemberRefused {
+                        node: refusal_name(node.name()),
+                        reason: Box::new(reason),
+                    },
+                    _ => reason,
+                });
             }
         }
         Ok(())
@@ -1664,6 +1671,21 @@ impl fmt::Display for DeleteUnsupported {
     }
 }
 
+const MAX_REFUSAL_NAME_BYTES: usize = 256;
+
+/// A node name for one line of refusal text. Opened names are unbounded, so it drops control
+/// characters and stops at `MAX_REFUSAL_NAME_BYTES`, on a character boundary.
+fn refusal_name(name: &str) -> String {
+    let mut bounded = String::new();
+    for character in name.chars().filter(|character| !character.is_control()) {
+        if bounded.len() + character.len_utf8() > MAX_REFUSAL_NAME_BYTES {
+            break;
+        }
+        bounded.push(character);
+    }
+    bounded
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeError {
     Legacy(SceneError),
@@ -1681,6 +1703,11 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// One node of a delete of several refused; `reason` is that node's own error.
+    DeleteMemberRefused {
+        node: String,
+        reason: Box<NativeError>,
+    },
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
@@ -1731,6 +1758,7 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::ReadOnlyFormat => f.write_str("Maya ASCII scenes are read-only in this version"),
             Self::UnknownSessionMaterial(id) => {
                 write!(f, "session material {} does not exist", id.index())

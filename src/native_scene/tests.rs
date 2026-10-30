@@ -2,6 +2,52 @@ use super::test_fixtures::{chain_of_three, cube, grouped_shape, shared_shape};
 use super::*;
 
 #[test]
+fn a_refused_multi_delete_names_the_refusing_node() {
+    let (mut scene, parent, _) = test_fixtures::group_with_own_shape_and_child();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let last = scene.create(Primitive::Cube, "last").unwrap();
+    let name = scene.node(parent).unwrap().name().to_string();
+
+    let error = scene.remove_many(&[first, parent, last]).unwrap_err();
+
+    assert_eq!(
+        error,
+        NativeError::DeleteMemberRefused {
+            node: name.clone(),
+            reason: Box::new(NativeError::UnsupportedDelete(
+                DeleteUnsupported::HasChildren
+            )),
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        format!("{name}: Deleting a node with children is not supported yet")
+    );
+}
+
+#[test]
+fn a_refusal_name_is_bounded_on_a_character_boundary_without_control_characters() {
+    let plain = "a".repeat(MAX_REFUSAL_NAME_BYTES);
+    assert_eq!(refusal_name(&plain), plain);
+    assert_eq!(refusal_name(&format!("{plain}a")), plain);
+    let wide = format!("{}é", "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name(&wide), "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name("a\nb\u{7}c"), "abc");
+    assert_eq!(refusal_name(""), "");
+}
+
+#[test]
+fn a_refused_delete_of_one_distinct_node_keeps_the_plain_error() {
+    let (mut scene, parent, _) = test_fixtures::group_with_own_shape_and_child();
+    assert_eq!(
+        scene.remove_many(&[parent, parent]),
+        Err(NativeError::UnsupportedDelete(
+            DeleteUnsupported::HasChildren
+        ))
+    );
+}
+
+#[test]
 fn transform_path_discovery_includes_hidden_groups_and_every_transform_instance() {
     let (mut scene, root, child, _) = test_fixtures::hidden_group();
     let root_id = scene.node(root).unwrap().transform_id;
@@ -1213,15 +1259,19 @@ fn remove_many_deduplicates_repeated_ids_and_accepts_an_empty_list() {
 #[test]
 fn remove_many_keeps_the_per_node_refusals_and_names_the_first_one() {
     let (mut scene, root, child, _) = grouped_shape();
+    let refused = |scene: &NativeScene, id, reason| {
+        Err(NativeError::DeleteMemberRefused {
+            node: scene.node(id).unwrap().name().to_string(),
+            reason: Box::new(NativeError::UnsupportedDelete(reason)),
+        })
+    };
     assert_eq!(
         scene.remove_many(&[root, child]),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
+        refused(&scene, root, DeleteUnsupported::HasChildren)
     );
     assert_eq!(
         scene.remove_many(&[child, root]),
-        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
+        refused(&scene, child, DeleteUnsupported::IsChild)
     );
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
