@@ -92,6 +92,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::DegenerateUvProjection) => {
+                    "degenerate_uv_projection"
+                }
+                OperationError::Scene(NativeError::UnsupportedUvTopology) => {
+                    "unsupported_uv_topology"
+                }
+                OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
+                    "uvs_block_topology_edit"
+                }
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -614,7 +623,10 @@ mod tests {
             }
             assert_eq!(
                 tool.annotations.as_ref().unwrap().read_only_hint,
-                Some(tool.name == "inspect_scene")
+                Some(matches!(
+                    tool.name.as_ref(),
+                    "inspect_scene" | "inspect_uvs"
+                ))
             );
             let args = match tool.name.as_ref() {
                 "inspect_scene" => json!({}),
@@ -660,6 +672,9 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
+                "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "inspect_uvs" => json!({"shape_id":"2"}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
@@ -771,6 +786,8 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "project_uv_planar"
+                    | "delete_uvs"
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"

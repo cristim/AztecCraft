@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-45 tools.
+48 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -27,6 +27,9 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `set_transform` | mutating | no | Set f64 translation in declared scene units, rotation in XYZ degrees, and scale |
 | `edit_node` | mutating | no | Edit optional name and individual f64 channels in one undo entry. Omitted arrays and null components are untouched; translation uses declared scene units and supplied rotations use degrees. Does not change selection |
 | `extrude_face` | mutating | no | Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported |
+| `project_uv_planar` | mutating | yes | Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the shape's bounding box so u and v fill 0 through 1. The axis-to-(u, v) assignment and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection |
+| `delete_uvs` | mutating | yes | Remove a shape's session-only map1. A shape without UVs returns unchanged |
+| `inspect_uvs` | read-only | no | Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order. `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes |
 | `set_material_diffuse` | mutating | no | Edit the checked saved Phong diffuse scalar for an exact shape through shared undo history. Requires complete shared-shader users; affects all those shapes. Values are finite and nonnegative, may exceed one, and do not enable rendered materials |
 | `create_session_material` | mutating | no | Create a session-only lambert material (not saved; Untitled scenes only, sourced and Maya ASCII scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `assign_session_material` | mutating | no | Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |

@@ -222,6 +222,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native_operation(",
         &[
             "create",
+            "apply_planar",
+            "uv_menu",
             "create_from_dialog",
             "default_view",
             "file_actions",

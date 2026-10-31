@@ -462,6 +462,10 @@ impl NativeMesh {
             reversed: false,
         }
     }
+    /// The vertex a face loop reaches this corner at.
+    pub(super) fn directed_start(&self, edge: DirectedEdge) -> Result<usize, NativeError> {
+        Ok(self.endpoints(edge)?[0])
+    }
     fn endpoints(&self, edge: DirectedEdge) -> Result<[usize; 2], NativeError> {
         let points = self
             .edges

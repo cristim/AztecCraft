@@ -195,6 +195,11 @@ impl Editor {
                 inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
             });
         }
+        if let Operation::InspectUvs { shape, cursor } = &request.operation {
+            return Ok(OperationReply::Uvs {
+                inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
+            });
+        }
         if request.expected_scene_token != Some(self.scene_token) {
             return Err(OperationError::StaleScene);
         }
@@ -473,6 +478,8 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
+            Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -854,6 +861,12 @@ impl Editor {
             Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
                     inspection: Box::new(self.inspect_page(false, page.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectUvs { shape, cursor } => {
+                return Ok(OperationReply::Uvs {
+                    inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

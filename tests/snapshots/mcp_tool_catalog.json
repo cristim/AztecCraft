@@ -1489,6 +1489,111 @@
     }
   },
   {
+    "name": "project_uv_planar",
+    "description": "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the shape's bounding box so u and v fill 0 through 1. The axis-to-(u, v) assignment and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
+    "inputSchema": {
+      "$defs": {
+        "ProjectFrom": {
+          "enum": [
+            "x",
+            "y",
+            "z"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "axis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProjectFrom"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Project from this object-space axis. Omit it for Y (PROVISIONAL)."
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "shape_id"
+      ],
+      "title": "ProjectUvPlanarArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "delete_uvs",
+    "description": "Remove a shape's session-only map1. A shape without UVs returns unchanged",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "shape_id"
+      ],
+      "title": "DeleteUvsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "inspect_uvs",
+    "description": "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order. `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "description": "The `next_cursor` of the previous reply. It is opaque and valid only until the scene\nchanges.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape_id"
+      ],
+      "title": "InspectUvsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_material_diffuse",
     "description": "Edit the checked saved Phong diffuse scalar for an exact shape through shared undo history. Requires complete shared-shader users; affects all those shapes. Values are finite and nonnegative, may exceed one, and do not enable rendered materials",
     "inputSchema": {

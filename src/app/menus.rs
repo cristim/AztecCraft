@@ -435,7 +435,11 @@ impl Editor {
                 placeholder_menu(ui, label);
             }
             for label in MODELING_SET_MENUS {
-                placeholder_menu(ui, label);
+                if label == "UV" {
+                    self.uv_menu(ui);
+                } else {
+                    placeholder_menu(ui, label);
+                }
             }
             ui.menu_button(HELP_MENU, |ui| {
                 ui.label("Local editor prototype");

@@ -1038,3 +1038,16 @@ point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ign
 and a selection where any one member owns geometry frames the geometry only
 (`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
 with Maya 2027.
+
+## UVs are session-only and planar (#360)
+
+UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
+so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
+holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
+because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
+Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
+Set, the projection manipulator and construction history are missing. The axis-to-(u, v) assignment
+and the Y default are PROVISIONAL. Scenes opened from a file do not expose their UVs, which does not
+mean they have none. The UV Editor is a read-only outline, not drawn with a texture, and the viewport
+does not show UVs. The native menu and both windows have automated UI tests but no reviewed native
+screenshot yet, and nothing has been compared with Maya (#5).

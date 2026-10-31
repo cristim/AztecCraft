@@ -8,4 +8,5 @@ pub(super) mod node_edit;
 mod primitive_args;
 pub(super) mod selection;
 pub(super) mod status_line;
+pub(super) mod uv;
 pub(super) mod view;

@@ -10,6 +10,7 @@ mod move_translation;
 mod rotate_frame;
 mod scale_frame;
 mod session_material;
+mod session_uv;
 mod source;
 mod transform_extras;
 pub use appearance::{
@@ -27,6 +28,8 @@ use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
 };
+use session_uv::SessionUvs;
+pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras};
 
@@ -518,6 +521,7 @@ pub struct NativeScene {
     source: Option<SourceRetention>,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_uvs: SessionUvs,
     next_id: u64,
     next_native_id: u64,
 }
@@ -605,6 +609,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_uvs == other.session_uvs
     }
 }
 
@@ -619,6 +624,7 @@ impl Default for NativeScene {
             source: None,
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_uvs: SessionUvs::default(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -1332,6 +1338,7 @@ impl NativeScene {
         let node = self.nodes.remove(index);
         self.shapes.retain(|shape| !exclusive.contains(&shape.id));
         self.session_materials.prune(&self.shapes);
+        self.session_uvs.prune(&self.shapes);
         self.dag.retain(|edge| {
             edge.child != node.transform_id && edge.parent != Some(node.transform_id)
         });
@@ -1409,12 +1416,18 @@ impl NativeScene {
             .position(|shape| shape.id == id)
             .ok_or(NativeError::MissingShape(id))?;
         self.check_effects(id)?;
+        if self.uv_set(id).is_some() {
+            return Err(NativeError::UvsBlockTopologyEdit);
+        }
         let distance = distance * self.units.linear_factor()?;
         let mesh = self.shapes[index].mesh.extruded_face(face, distance)?;
         self.shapes[index].mesh = mesh;
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_uvs.is_empty() {
+            return Err(NativeError::UnsupportedView("session UVs"));
+        }
         if !self.curves.is_empty() {
             return Err(NativeError::UnsupportedView("curves in legacy mesh view"));
         }
@@ -1452,6 +1465,8 @@ impl NativeScene {
     pub fn validate(&self) -> Result<(), NativeError> {
         self.validate_materials()?;
         self.session_materials
+            .validate(&self.shapes, self.source.is_some())?;
+        self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
         FULL_VALIDATIONS.with(|count| count.set(count.get() + 1));
@@ -1686,6 +1701,10 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionUvs,
+    DegenerateUvProjection,
+    UnsupportedUvTopology,
+    UvsBlockTopologyEdit,
     UnsupportedMove(WorldMoveUnsupported),
     UnsupportedRotate(RotateUnsupported),
     UnsupportedScale(ScaleUnsupported),
@@ -1743,6 +1762,14 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
+            Self::DegenerateUvProjection => f.write_str(
+                "the shape has no usable extent across this projection; pick another Project from axis",
+            ),
+            Self::UnsupportedUvTopology => f.write_str("UVs on faces with holes are not supported"),
+            Self::UvsBlockTopologyEdit => {
+                f.write_str("UVs do not follow topology edits yet; delete the UVs first")
             }
             Self::AbsentChannelLeaf { channel, component } => write!(
                 f,

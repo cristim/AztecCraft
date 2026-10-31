@@ -5713,8 +5713,9 @@ mod menu_bar_wire {
             .iter()
             .chain(MODELING_SET_MENUS.iter())
             .copied()
+            .filter(|label| *label != "UV")
             .collect();
-        assert_eq!(placeholders.len(), 12);
+        assert_eq!(placeholders.len(), 11);
         for label in placeholders {
             let (mut editor, context) = setup();
             let output = frame(&mut editor, &context, vec![]);
@@ -5737,6 +5738,174 @@ mod menu_bar_wire {
             assert_eq!(rows.len(), 1, "{label}");
             assert!(rows[0].disabled, "{label} row must be disabled");
         }
+    }
+
+    fn open_uv_menu(editor: &mut Editor, context: &egui::Context) -> Vec<Control> {
+        let output = frame(editor, context, vec![]);
+        let at = bar(&output)
+            .into_iter()
+            .find(|c| c.label == "UV")
+            .unwrap()
+            .rect
+            .center();
+        click(editor, context, at);
+        controls(&frame(editor, context, vec![]))
+    }
+
+    fn row<'a>(rows: &'a [Control], label: &str) -> &'a Control {
+        rows.iter()
+            .find(|c| c.label == label && c.rect.top() > 20.0)
+            .unwrap_or_else(|| panic!("row {label}"))
+    }
+
+    #[test]
+    fn uv_menu_keeps_maya_order_and_disables_what_is_missing() {
+        let (mut editor, context) = setup();
+        let rows = open_uv_menu(&mut editor, &context);
+        let order = [
+            "UV Editor",
+            "UV Set Editor",
+            "Assign Checker Shader",
+            "Automatic",
+            "Best Plane Texturing Tool",
+            "Camera-Based",
+            "Contour Stretch",
+            "Normal-Based",
+            "Cylindrical",
+            "Planar",
+            "Spherical",
+            "Auto Seams",
+            "Cut UV Edges",
+            "Sew UV Edges",
+            "Split UVs",
+            "Delete UVs",
+            "Merge UVs",
+            "3D Cut and Sew UV Tool",
+            "3D Grab UV Tool",
+        ];
+        let tops: Vec<f32> = order.iter().map(|l| row(&rows, l).rect.top()).collect();
+        assert!(tops.is_sorted(), "{tops:?}");
+        for label in order {
+            let enabled = matches!(label, "UV Editor" | "Planar" | "Delete UVs");
+            assert_eq!(!row(&rows, label).disabled, enabled, "{label}");
+        }
+    }
+
+    #[test]
+    fn planar_row_projects_the_selected_cube_and_undoes() {
+        let (mut editor, context) = setup();
+        let rows = open_uv_menu(&mut editor, &context);
+        let shape = editor.uv_target().unwrap();
+        click(&mut editor, &context, row(&rows, "Planar").rect.center());
+        assert!(editor.history.scene().uv_set(shape).is_some());
+        assert_eq!(
+            editor.history.undo_label().as_deref(),
+            Some("Planar Mapping")
+        );
+        editor.native_operation(Operation::Undo);
+        assert!(editor.history.scene().uv_set(shape).is_none());
+    }
+
+    #[test]
+    fn uv_rows_are_disabled_without_exactly_one_object_in_object_mode() {
+        let (mut editor, context) = setup();
+        editor.create(Primitive::Cube);
+        editor.native_operation(Operation::SelectByRule(SelectRule::All));
+        assert_eq!(
+            editor.uv_target().err(),
+            Some(super::super::features::uv::SEVERAL_SELECTED_REASON)
+        );
+        let rows = open_uv_menu(&mut editor, &context);
+        assert!(row(&rows, "Planar").disabled);
+        assert!(row(&rows, "Delete UVs").disabled);
+        assert!(!row(&rows, "UV Editor").disabled);
+    }
+
+    #[test]
+    fn uv_rows_are_disabled_in_component_mode() {
+        let (mut editor, _context) = setup();
+        editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+        assert!(editor.uv_target().is_err());
+    }
+
+    #[test]
+    fn an_open_uv_editor_leaves_a_human_draft_alone() {
+        let (mut editor, context) = setup();
+        let shape = editor.uv_target().unwrap();
+        editor.native_operation(Operation::ProjectUvPlanar {
+            shape,
+            axis: Default::default(),
+        });
+        editor.uv.editor_open = true;
+        editor.name = "pending draft".into();
+        let revision = editor.history.revision();
+        for _ in 0..3 {
+            frame(&mut editor, &context, vec![]);
+        }
+        assert_eq!(editor.history.revision(), revision);
+        assert_eq!(editor.name, "pending draft");
+    }
+
+    /// Radio and check rows, which `controls` leaves out: label, centre and disabled.
+    fn option_rows(output: &egui::FullOutput) -> Vec<(String, egui::Pos2, bool)> {
+        use eframe::egui::accesskit::Role;
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        update
+            .nodes
+            .iter()
+            .filter(|(_, node)| matches!(node.role(), Role::RadioButton | Role::CheckBox))
+            .filter_map(|(_, node)| {
+                let bounds = node.bounds()?;
+                let center = egui::pos2(
+                    ((bounds.x0 + bounds.x1) / 2.0) as f32,
+                    ((bounds.y0 + bounds.y1) / 2.0) as f32,
+                );
+                Some((node.label()?.to_owned(), center, node.is_disabled()))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn planar_options_apply_the_chosen_axis_and_stay_open() {
+        use azteccraft::native_scene::UvProjectAxis;
+        let (mut editor, context) = setup();
+        let shape = editor.uv_target().unwrap();
+        editor.uv.options_open = true;
+        let mut output = frame(&mut editor, &context, vec![]);
+        for _ in 0..3 {
+            output = frame(&mut editor, &context, vec![]);
+        }
+        let rows = option_rows(&output);
+        for disabled in [
+            "Best plane",
+            "Camera",
+            "Keep image width/height ratio",
+            "Insert projection before deformers",
+            "Create new UV Set",
+        ] {
+            let found = rows.iter().find(|row| row.0 == disabled);
+            assert!(found.is_some_and(|row| row.2), "{disabled}");
+        }
+        let z = rows.iter().find(|row| row.0 == "Z axis").unwrap().1;
+        click(&mut editor, &context, z);
+        assert_eq!(editor.uv.axis, UvProjectAxis::Z);
+        let buttons = controls(&frame(&mut editor, &context, vec![]));
+        click(&mut editor, &context, row(&buttons, "Apply").rect.center());
+        let projected = editor.history.scene().uv_set(shape).unwrap().clone();
+        let mut expected = editor.history.scene().clone();
+        expected.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+        assert_eq!(expected.uv_set(shape), Some(&projected));
+        assert!(editor.uv.options_open);
+    }
+
+    #[test]
+    fn the_uv_editor_tolerates_its_shape_being_deleted() {
+        let (mut editor, context) = setup();
+        editor.uv.editor_open = true;
+        frame(&mut editor, &context, vec![]);
+        editor.native_operation(Operation::DeleteSelection);
+        frame(&mut editor, &context, vec![]);
+        assert!(editor.uv.editor_open);
     }
 }
 
