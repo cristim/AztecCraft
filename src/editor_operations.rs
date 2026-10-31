@@ -330,9 +330,42 @@ pub enum Operation {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
     },
+    /// Moves the current time to a whole frame and writes every keyed channel there. Not an undo
+    /// step. A draft refuses it, because the write refreshes the fields.
+    SetCurrentTime {
+        time: f64,
+    },
+    SetPlaybackRange {
+        start: f64,
+        end: f64,
+    },
+    /// Starts playback, which then runs as a tick in `render`.
+    Play,
+    /// Stops playback and never commits a draft.
+    Stop,
+    /// Keys `channels` with their current value, as one undo step. No `nodes` means the object
+    /// selection, no `time` the current time.
+    SetKeyframe {
+        nodes: Option<Vec<NodeId>>,
+        time: Option<f64>,
+        channels: azteccraft::native_scene::ChannelMask,
+    },
+    /// Deletes keys at `time`, or at every frame without one, as one undo step. No `nodes` means
+    /// the object selection.
+    DeleteKeys {
+        nodes: Option<Vec<NodeId>>,
+        time: Option<f64>,
+        channels: azteccraft::native_scene::ChannelMask,
+    },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
         page: Option<InspectPage>,
+    },
+    /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectKeys {
+        node: Option<NodeId>,
+        cursor: Option<PageCursor>,
     },
     Create {
         primitive: Primitive,
@@ -453,6 +486,10 @@ pub enum OperationReply {
     Scene {
         inspection: Box<SceneInspection>,
     },
+    #[cfg(any(test, feature = "mcp"))]
+    Keys {
+        inspection: Box<KeysInspection>,
+    },
     Created {
         node_id: String,
     },
@@ -567,8 +604,53 @@ pub struct SceneInspection {
     /// The native status line text, or a fixed notice when the text would carry a local path.
     pub status_message: Option<String>,
     pub camera: CameraInspection,
+    pub timeline: TimelineInspection,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<PageInspection>,
+}
+
+/// Session timeline state, of a fixed size whatever the scene holds.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct TimelineInspection {
+    pub current_time: i32,
+    pub playback_start: i32,
+    pub playback_end: i32,
+    pub playing: bool,
+    pub frames_per_second: f64,
+    #[serde(rename = "loop")]
+    pub loop_mode: &'static str,
+    pub key_count: usize,
+}
+
+/// Most keys in one `inspect_keys` reply. A key takes at most about 110 bytes of JSON, so a page
+/// and its escaped text copy stay inside the tool limits;
+/// `a_full_page_of_the_longest_keys_fits_the_reply_limits` pins it.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_KEYS_PER_PAGE: usize = 1024;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct KeyInspection {
+    pub node_id: String,
+    pub channel: &'static str,
+    pub frame: i32,
+    pub value: f64,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct KeysInspection {
+    /// With `revision`, tells a client which document state this read belongs to: the read passes
+    /// no token guard, and ids can recur after New.
+    pub scene_token: String,
+    pub revision: u64,
+    /// Why keys cannot be read here; null does not mean there are keys.
+    pub unavailable_reason: Option<&'static str>,
+    pub keys_total: usize,
+    pub key_offset: usize,
+    pub keys: Vec<KeyInspection>,
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -884,7 +966,7 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::StaleScene => f.write_str("Scene token is stale; inspect the current document"),
             #[cfg(any(test, feature = "mcp"))]
-            Self::TooLarge => f.write_str("Scene inspection exceeds the prototype response limit"),
+            Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
@@ -1019,7 +1101,9 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
-    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0}}"#
+    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0},"#,
+    r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
+    r#""frames_per_second":0.0,"loop":"","key_count":0}}"#
 );
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part

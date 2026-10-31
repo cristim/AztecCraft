@@ -255,3 +255,16 @@ fn reassigning_back_to_the_initial_group_does_not_refuse() {
         .unwrap();
     encode_authored(&scene).unwrap();
 }
+
+#[test]
+fn session_keys_are_refused_rather_than_dropped() {
+    let mut scene = NativeScene::default();
+    let id = scene.create(crate::scene::Primitive::Cube, "a").unwrap();
+    scene
+        .set_keys(&[id], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(AuthoredIneligible::Keys))
+    );
+}

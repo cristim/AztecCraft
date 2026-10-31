@@ -199,6 +199,9 @@ impl Editor {
         if default_view {
             self.default_view();
         }
+        if let Some(action) = ctx.input(|i| features::timeline::timeline_chord(&i.events)) {
+            self.run_timeline_action(action);
+        }
         if let Some(chord) = ctx.input(|i| menus::file_chord(&i.events)) {
             let actions = self.file_actions();
             if let Some(index) = menus::chord_entry(&actions, chord)

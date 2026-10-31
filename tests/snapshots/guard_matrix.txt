@@ -11,8 +11,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -44,7 +45,17 @@
   assign_session_material(initial) => Ok(unchanged) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | no state change
   set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
@@ -126,8 +137,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
@@ -159,7 +171,17 @@
   assign_session_material(initial) => Ok(unchanged) | status: "Scene edited" -> "No change"
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | no state change
   set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
@@ -241,7 +263,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -274,7 +297,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -350,7 +383,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -383,7 +417,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -459,8 +503,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -492,7 +537,17 @@
   assign_session_material(initial) => Ok(unchanged) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | no state change
   set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
@@ -568,8 +623,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -601,7 +657,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -669,6 +735,246 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
+## playing / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  set_active_tool(select) => Ok(unchanged) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
+  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
+  set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
+  set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
+  set_manipulator_size(1) => Ok(unchanged) | no state change
+  begin_move => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(object) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(world) => Ok(manipulation_started) | active_move: none -> native; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  assign_session_material(new) => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  assign_session_material(initial) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  play => Ok(unchanged) | no state change
+  stop => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
+  create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  select(node) => Ok(unchanged) | no state change
+  select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
+  modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
+  select_all => Ok(unchanged) | no state change
+  select_all(face_mode) => Err(InvalidInput: Selection changes need Object or Hierarchy selection mode) | no state change
+  select_hierarchy => Ok(unchanged) | no state change
+  select_inverse => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
+  deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  select_face(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  select_face(face_mode) => Ok(changed) | face_remembered: false -> true
+  select_vertex(object_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_vertex(vertex_mode) => Ok(changed) | vertex_remembered: false -> true
+  select_vertex(vertex_mode_clear) => Ok(unchanged) | no state change
+  select_vertex(face_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_edge(object_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
+  select_edge(edge_mode_clear) => Ok(unchanged) | no state change
+  select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  new_scene => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> New
+  request_close => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Close
+  open_scene(ascii_curve) => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Open
+  open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  set_transform => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  edit_node(empty) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
+  delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
+  delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
+  redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  frame_selected(parents) => Ok(changed) | camera changed
+  frame_selected(children) => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
+  set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
+  set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
+  select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
+  select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
+  orbit => Ok(changed) | camera changed
+  pan => Ok(changed) | camera changed
+  dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
+
+## playing / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
+  set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
+  set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
+  set_active_tool(select) => Ok(unchanged) | no state change
+  set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
+  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
+  set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
+  set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
+  set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
+  set_manipulator_size(1) => Ok(unchanged) | no state change
+  begin_move => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_move => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(object) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(world) => Ok(manipulation_started) | active_move: none -> remote; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create_session_material => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  assign_session_material(new) => Ok(session_material) | scene changed; session_materials: [] -> [[1.0, 0.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  assign_session_material(initial) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  play => Ok(unchanged) | no state change
+  stop => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_keyframe(selection) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
+  create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  select(node) => Ok(unchanged) | no state change
+  select(none) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
+  modify_selection(add) => Ok(unchanged) | no state change
+  modify_selection(toggle) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(remove) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  modify_selection(unknown_path) => Err(Scene: face target does not match a valid full instance path) | no state change
+  select_all => Ok(unchanged) | no state change
+  select_all(face_mode) => Err(InvalidInput: Selection changes need Object or Hierarchy selection mode) | no state change
+  select_hierarchy => Ok(unchanged) | no state change
+  select_inverse => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  set_selection_mode(face) => Ok(changed) | selection_mode: Object -> Face
+  deselect_all => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  deselect_all(face_mode) => Ok(changed) | selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,
+  select_face(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  select_face(face_mode) => Ok(changed) | face_remembered: false -> true
+  select_vertex(object_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_vertex(vertex_mode) => Ok(changed) | vertex_remembered: false -> true
+  select_vertex(vertex_mode_clear) => Ok(unchanged) | no state change
+  select_vertex(face_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_edge(object_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
+  select_edge(edge_mode_clear) => Ok(unchanged) | no state change
+  select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  new_scene => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> New
+  request_close => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Close
+  open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Open
+  open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  set_transform => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  edit_node(empty) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
+  delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
+  delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Undo Create"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
+  redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; status: "Scene edited" -> "Redo Rename"; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  frame_selected(parents) => Ok(changed) | camera changed
+  frame_selected(children) => Ok(changed) | camera changed
+  frame_all => Ok(changed) | camera changed
+  set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
+  set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
+  select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
+  select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | no state change
+  orbit => Ok(changed) | camera changed
+  pan => Ok(changed) | camera changed
+  dolly => Ok(changed) | camera changed
+  set_camera_pose => Ok(changed) | camera changed
+
 ## local_move / native
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
@@ -677,8 +983,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -710,7 +1017,17 @@
   assign_session_material(initial) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(unknown) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(created) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(5) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(fractional) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(2,12) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(inverted) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  play => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  stop => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -786,8 +1103,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -819,7 +1137,17 @@
   assign_session_material(initial) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(unknown) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(created) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(5) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(fractional) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(2,12) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(inverted) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  play => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  stop => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -895,8 +1223,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -928,7 +1257,17 @@
   assign_session_material(initial) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(unknown) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(created) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(5) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(fractional) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(2,12) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(inverted) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  play => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  stop => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1004,8 +1343,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1037,7 +1377,17 @@
   assign_session_material(initial) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(unknown) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_session_material_color(created) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(5) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_current_time(fractional) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(2,12) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_playback_range(inverted) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  play => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  stop => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1113,8 +1463,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1146,7 +1497,17 @@
   assign_session_material(initial) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_session_material_color(unknown) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_session_material_color(created) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_keyframe(node,frame_9) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  delete_keys(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  inspect_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(plane) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(sphere) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cylinder) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1222,8 +1583,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1255,7 +1617,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1332,7 +1704,8 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
@@ -1365,7 +1738,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0; can_undo: false -> true
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect => Ok(scene) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -1442,7 +1825,8 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1475,7 +1859,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1551,8 +1945,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -1584,7 +1979,17 @@
   assign_session_material(initial) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_session_material_color(created) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0; can_redo: true -> false
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
@@ -1660,8 +2065,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1693,7 +2099,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1769,8 +2185,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1802,7 +2219,17 @@
   assign_session_material(initial) => Ok(unchanged) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | no state change
   set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
@@ -1878,8 +2305,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1911,7 +2339,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1987,8 +2425,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2020,7 +2459,17 @@
   assign_session_material(initial) => Ok(unchanged) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | no state change
   set_session_material_color(created) => Ok(changed) | scene changed; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
   create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
@@ -2096,8 +2545,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2129,7 +2579,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2205,8 +2665,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2238,7 +2699,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2314,8 +2785,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2347,7 +2819,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2423,8 +2905,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2456,7 +2939,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2532,7 +3025,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2565,7 +3059,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2641,8 +3145,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2674,7 +3179,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2750,8 +3265,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2783,7 +3299,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2859,8 +3385,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2892,7 +3419,17 @@
   assign_session_material(initial) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(unknown) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_session_material_color(created) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(5) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_current_time(fractional) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(2,12) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_playback_range(inverted) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  play => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  stop => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2968,8 +3505,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3001,7 +3539,17 @@
   assign_session_material(initial) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
   set_session_material_color(created) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3077,8 +3625,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
@@ -3110,7 +3659,17 @@
   assign_session_material(initial) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
   set_session_material_color(created) => Err(SessionMaterial: Maya ASCII scenes are read-only in this version) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(sphere) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3186,8 +3745,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3220,7 +3779,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3296,8 +3865,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -3330,7 +3899,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3406,8 +3985,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3440,7 +4019,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3516,8 +4105,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -3550,7 +4139,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3626,8 +4225,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3660,7 +4259,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3736,8 +4345,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -3770,7 +4379,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=5 range=1..48 playing=false keys=0
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3846,8 +4465,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3880,7 +4499,17 @@
   assign_session_material(initial) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(unknown) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
   set_session_material_color(created) => Err(SessionMaterial: native ownership or edit effects are unsupported) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -3956,8 +4585,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3990,7 +4619,17 @@
   assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4058,4 +4697,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 3601
+cells: 4185

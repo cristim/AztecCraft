@@ -1,5 +1,57 @@
 # Known limitations
 
+## Animation is a first, session-only slice (#361)
+
+**Severity:** medium
+**Area:** animation
+**Issue:** #361, epics #52 and #62
+
+Keys, a Time Slider, playback and MCP tools exist so a cube can be keyed, scrubbed, played and read
+back. No parity with Maya is claimed, and nothing was compared with a running Maya (#5).
+
+- **Not saved.** Keys live in the session and in undo history. A scene holding keys cannot be saved:
+  Save is unavailable for a new scene, and the authored writers refuse keys rather than drop them.
+  Deleting every key leaves the evaluated pose, which is then an ordinary edit.
+- **Authored scenes only.** Sourced scenes refuse keys. Their animation curves are neither read nor
+  evaluated, so scrubbing one moves the time and changes nothing, even when the file is animated.
+  `inspect_keys` says so through `unavailable_reason`. A file's current time and range are not read.
+- **Transform channels only.** Whole frames from -1000000 through 1000000, and 65536 keys a scene.
+  Fractional times are refused. Rotation keys are in the scene's declared angular unit.
+- **Time units.** Only `film` is accepted. The ASCII reader refuses other units, and a binary scene
+  with another unit refuses every time operation; that refusal is tested in the core only.
+
+PROVISIONAL, because the docs do not state it or the feature behind it is absent:
+
+- Linear interpolation. Maya's default tangents are not implemented, so in-between values differ.
+- Playback at 24 fps in real time, skipping frames, looping continuously. The 2027 Playback Controls
+  page states no default for either.
+- A playback range defaulting to 1 through 48. The 2027 [New Scene Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8F961875-1D41-4C52-9CD5-B90DE75C546C.htm) page gives
+  animation start 1 and end 48 and no playback default. There is no separate animation range, and
+  the Range Slider is absent.
+- A manual edit of a keyed channel holds until the next time change, then snaps back. Undo and Redo
+  count as such a change: they re-evaluate at the current time, which they do not restore, so undoing
+  a key can also drop a held edit made before it. Redoing such an edit on a keyed channel replies
+  Ok but shows the evaluated value, not the edit, until the channel is edited again.
+- Setting the time to the current frame replies unchanged and keeps a held edit.
+- Step Key does not wrap at the first or last key, and Step Frame ignores the Loop Play Range
+  preferences. A held step repeats, and S does not.
+- Play from outside the playback range starts at the range start.
+- `set_keyframe` with a time other than the current one keys the current value, per the
+  [setKeyframe](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/setKeyframe.html) command, then re-evaluates that channel at the current time, so a held edit on
+  it snaps back.
+- Undo entry names `Set Key` and `Delete Keys`.
+- A native time change with a channel draft is refused as busy. Clicking the slider while a field
+  holds a draft reports that on the first frame, before the field's own blur commit.
+
+Unsupported: tangents, Graph Editor, Dope Sheet, Auto Key, animation layers, Time Editor, Range Slider
+gestures, Play Backwards (visibly disabled), audio, cached playback, the Key menu, F4, Set Key Options,
+Alt+Shift+V and keying non-transform attributes.
+
+Playback advances only while the window renders, and a hidden window stops it. Each frame that moves
+a keyed channel changes the revision, so `inspect_scene` and `inspect_keys` cursors go stale during
+playback; stop first to page. The timeline row had native checks on Linux with real mouse and key
+input in a private virtual session; other platforms rely on CI, and Delete Key on a keyed frame is headless only.
+
 ## Manipulator size is PROVISIONAL and session-only
 
 **Severity:** low

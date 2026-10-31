@@ -387,6 +387,7 @@ impl Editor {
         self.files.path = path;
         self.files.uncertain = None;
         self.history = History::new(scene);
+        self.timeline = Default::default();
         self.active_tool = crate::editor_operations::ActiveTool::Select;
         self.native_move = None;
         self.move_viewport = None;

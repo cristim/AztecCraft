@@ -46,6 +46,7 @@ pub(super) const BUILTINS: [&str; 14] = [
 pub(crate) enum AuthoredIneligible {
     SourcedScene,
     Curves,
+    Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -75,13 +76,17 @@ pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>
         .chain(scene.shapes.iter().map(|s| (None, s.name())))
 }
 
-/// The first checks: a retained source or curve content cannot be written as authored.
+/// The first checks: a retained source, curve content or session keys cannot be written as
+/// authored.
 pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     if scene.source.is_some() {
         return Err(AuthoredIneligible::SourcedScene);
     }
     if !scene.curves.is_empty() {
         return Err(AuthoredIneligible::Curves);
+    }
+    if !scene.session_keys.is_empty() {
+        return Err(AuthoredIneligible::Keys);
     }
     Ok(())
 }

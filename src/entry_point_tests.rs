@@ -229,6 +229,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "frame_selected",
             "deselect_all",
             "native_select_by_rule",
+            "run_timeline_action",
+            "timeline_controls",
             "history_step",
             "manipulation_options",
             "outliner",
@@ -275,6 +277,13 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         "history execute",
         ".execute(",
         &["apply_operation_guarded", "commit_pending"],
+    );
+    // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
+    // and Redo, and write_time serves set_current_time, play and the playback tick.
+    expect(
+        "history evaluate",
+        ".apply_evaluated(",
+        &["apply_operation_guarded", "write_time"],
     );
     expect("history undo", ".undo()", &["apply_operation_guarded"]);
     expect("history redo", ".redo()", &["apply_operation_guarded"]);

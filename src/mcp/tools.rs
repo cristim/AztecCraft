@@ -92,6 +92,12 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
+                OperationError::Scene(NativeError::InvalidPlaybackRange) => {
+                    "invalid_playback_range"
+                }
+                OperationError::Scene(NativeError::KeyLimit) => "key_limit",
+                OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -614,7 +620,10 @@ mod tests {
             }
             assert_eq!(
                 tool.annotations.as_ref().unwrap().read_only_hint,
-                Some(tool.name == "inspect_scene")
+                Some(matches!(
+                    tool.name.as_ref(),
+                    "inspect_scene" | "inspect_keys"
+                ))
             );
             let args = match tool.name.as_ref() {
                 "inspect_scene" => json!({}),
@@ -660,6 +669,10 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "set_current_time" => json!({"scene_token":token,"time":1}),
+                "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
+                "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
+                "inspect_keys" => json!({}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
@@ -771,6 +784,12 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "set_current_time"
+                    | "set_keyframe"
+                    | "delete_keys"
+                    | "set_playback_range"
+                    | "play_timeline"
+                    | "stop_timeline"
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"

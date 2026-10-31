@@ -1,6 +1,7 @@
 use crate::{
     native_scene::{
-        MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform, SessionMaterialId,
+        ChannelMask, MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform,
+        SessionMaterialId,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -61,6 +62,20 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
+    SetKeys {
+        nodes: Vec<NodeId>,
+        frame: i32,
+        channels: ChannelMask,
+        current_frame: i32,
+    },
+    /// Removes keys at `frame`, or at every frame without one, then evaluates at `current_frame`.
+    DeleteKeys {
+        nodes: Vec<NodeId>,
+        frame: Option<i32>,
+        channels: ChannelMask,
+        current_frame: i32,
+    },
 }
 
 impl Command {
@@ -79,6 +94,9 @@ impl Command {
             | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::SetKeys { .. } => "Set Key".to_string(),
+            Self::DeleteKeys { .. } => "Delete Keys".to_string(),
         }
     }
 }
@@ -249,6 +267,24 @@ impl History {
                 candidate.extrude_face(shape, face_index, distance)?;
                 EditOutcome::Changed
             }
+            Command::SetKeys {
+                nodes,
+                frame,
+                channels,
+                current_frame,
+            } => {
+                candidate.set_keys(&nodes, frame, channels, current_frame)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteKeys {
+                nodes,
+                frame,
+                channels,
+                current_frame,
+            } => {
+                candidate.delete_keys(&nodes, frame, channels, current_frame)?;
+                EditOutcome::Changed
+            }
         };
         if self.scene == candidate {
             return Ok(EditOutcome::Unchanged);
@@ -272,6 +308,21 @@ impl History {
         });
         self.redo.clear();
         Ok(outcome)
+    }
+
+    /// Writes every keyed channel's value at `frame` through the revision path. It takes no undo
+    /// snapshot and leaves both stacks alone, because a time change is not an undo step. All
+    /// writes are computed before any lands; the revision moves only on a real change.
+    pub fn apply_evaluated(&mut self, frame: i32) -> Result<bool, NativeError> {
+        if self.active_manipulation.is_some() {
+            return Err(NativeError::BusyManipulation);
+        }
+        let writes = self.scene.evaluated_writes(frame)?;
+        if writes.is_empty() {
+            return Ok(false);
+        }
+        self.scene_mut().apply_evaluated(writes);
+        Ok(true)
     }
 
     pub fn undo(&mut self) -> bool {
@@ -444,6 +495,107 @@ mod tests {
             undone += 1;
         }
         assert_eq!(undone, 3);
+    }
+
+    fn keyed_history() -> (History, NodeId) {
+        let (mut history, ids) = three_cube_history();
+        let mut channels = [None; 9];
+        channels[0] = Some(1.0);
+        history
+            .execute(Command::EditNode {
+                id: ids[0],
+                name: None,
+                channels,
+            })
+            .unwrap();
+        history.execute(key(ids[0], 1, 1)).unwrap();
+        channels[0] = Some(5.0);
+        history
+            .execute(Command::EditNode {
+                id: ids[0],
+                name: None,
+                channels,
+            })
+            .unwrap();
+        history.execute(key(ids[0], 9, 9)).unwrap();
+        (history, ids[0])
+    }
+
+    fn key(id: NodeId, frame: i32, current_frame: i32) -> Command {
+        Command::SetKeys {
+            nodes: vec![id],
+            frame,
+            channels: crate::native_scene::ALL_CHANNELS,
+            current_frame,
+        }
+    }
+
+    fn tx(history: &History, id: NodeId) -> f64 {
+        history.scene().node(id).unwrap().transform().translation[0]
+    }
+
+    #[test]
+    fn apply_evaluated_keeps_both_stacks_and_moves_the_revision_only_on_a_change() {
+        let (mut history, id) = keyed_history();
+        assert!(history.undo());
+        let (undo, redo) = (history.undo.len(), history.redo.len());
+        let before = history.revision();
+        assert!(history.apply_evaluated(1).unwrap());
+        assert_eq!(tx(&history, id), 1.0);
+        assert_ne!(history.revision(), before);
+        assert_eq!((history.undo.len(), history.redo.len()), (undo, redo));
+        let before = history.revision();
+        assert!(!history.apply_evaluated(1).unwrap());
+        assert_eq!(history.revision(), before);
+    }
+
+    #[test]
+    fn apply_evaluated_is_refused_during_a_manipulation() {
+        let (mut history, id) = keyed_history();
+        let node = history.scene().node(id).unwrap();
+        let path = vec![node.transform_id()];
+        let before = history.revision();
+        let moved = history.scene().node(id).unwrap().transform();
+        history
+            .begin_move(
+                &crate::native_scene::TransformTarget { node: id, path },
+                crate::native_scene::WorldAxis::X,
+                uuid::Uuid::new_v4(),
+                ManipulationProvenance::Native,
+                1024 * 1024,
+            )
+            .unwrap();
+        assert_eq!(
+            history.apply_evaluated(1),
+            Err(NativeError::BusyManipulation)
+        );
+        assert_eq!(history.scene().node(id).unwrap().transform(), moved);
+        assert_eq!(history.revision(), before);
+    }
+
+    #[test]
+    fn a_key_is_one_undo_step_named_set_key_and_restores_the_keys() {
+        let (mut history, id) = keyed_history();
+        assert_eq!(history.undo_label().as_deref(), Some("Set Key"));
+        assert_eq!(history.scene().session_key_count(), 18);
+        assert!(history.undo());
+        assert_eq!(history.scene().session_key_count(), 9);
+        assert!(history.redo());
+        assert_eq!(history.scene().session_key_count(), 18);
+        assert_eq!(
+            history.execute(key(id, 9, 9)).unwrap(),
+            EditOutcome::Unchanged
+        );
+        history
+            .execute(Command::DeleteKeys {
+                nodes: vec![id],
+                frame: None,
+                channels: crate::native_scene::ALL_CHANNELS,
+                current_frame: 9,
+            })
+            .unwrap();
+        assert_eq!(history.undo_label().as_deref(), Some("Delete Keys"));
+        assert_eq!(history.scene().session_key_count(), 0);
     }
 
     #[test]

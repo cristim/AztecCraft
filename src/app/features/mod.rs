@@ -9,3 +9,4 @@ pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) mod primitive_options;
 mod selection;
 mod status_line;
+pub(in crate::app) mod timeline;

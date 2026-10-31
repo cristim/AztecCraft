@@ -456,6 +456,7 @@ impl Editor {
                 near_clip: self.camera.near(),
                 far_clip: self.camera.far(),
             },
+            timeline: self.inspect_timeline(),
         })
     }
 }

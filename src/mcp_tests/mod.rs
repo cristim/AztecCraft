@@ -112,6 +112,7 @@ mod official_client {
         ));
     }
 
+    mod animation;
     mod ascii;
     mod attribute_editor;
     mod camera;

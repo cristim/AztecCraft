@@ -453,6 +453,7 @@ pub(super) fn construct(
         source: None,
         materials: Vec::new(),
         session_materials: Default::default(),
+        session_keys: Default::default(),
         next_id: 1,
         next_native_id: 1,
     };

@@ -272,6 +272,15 @@
     },
     "status_message": "Scene edited",
     "text_focused": false,
+    "timeline": {
+      "current_time": 1,
+      "frames_per_second": 24.0,
+      "key_count": 0,
+      "loop": "continuous",
+      "playback_end": 48,
+      "playback_start": 1,
+      "playing": false
+    },
     "undo_label": "Create",
     "units": {
       "angular": "deg",

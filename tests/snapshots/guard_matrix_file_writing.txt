@@ -11,8 +11,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -26,8 +27,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -41,7 +43,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -56,7 +59,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -71,8 +75,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -86,12 +91,45 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+
+## playing / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+
+## playing / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
 
 ## local_move / native
   baseline:
@@ -101,8 +139,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -116,8 +155,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -131,8 +171,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -146,8 +187,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -161,8 +203,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   save_scene_as => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -176,8 +219,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -192,7 +236,8 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -208,7 +253,8 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -223,8 +269,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -238,8 +285,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -253,8 +301,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -268,8 +317,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -283,8 +333,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -298,8 +349,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -313,8 +365,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -328,8 +381,9 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -343,8 +397,9 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -358,7 +413,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -373,8 +429,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -388,8 +445,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -403,8 +461,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -418,8 +477,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -433,8 +493,9 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -448,8 +509,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
@@ -464,8 +525,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
@@ -480,8 +541,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
@@ -496,8 +557,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
@@ -512,8 +573,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
@@ -528,8 +589,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
@@ -544,8 +605,8 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -560,12 +621,12 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
-cells: 111
+cells: 117

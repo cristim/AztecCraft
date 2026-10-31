@@ -9,6 +9,7 @@ mod mesh;
 mod move_translation;
 mod rotate_frame;
 mod scale_frame;
+mod session_keys;
 mod session_material;
 mod source;
 mod transform_extras;
@@ -23,6 +24,11 @@ pub(crate) use move_translation::ChannelBaseline;
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
+use session_keys::SessionKeys;
+pub use session_keys::{
+    ALL_CHANNELS, ChannelMask, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME, MAX_SESSION_KEYS,
+    whole_frame,
+};
 use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
@@ -518,6 +524,7 @@ pub struct NativeScene {
     source: Option<SourceRetention>,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_keys: SessionKeys,
     next_id: u64,
     next_native_id: u64,
 }
@@ -605,6 +612,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_keys == other.session_keys
     }
 }
 
@@ -619,6 +627,7 @@ impl Default for NativeScene {
             source: None,
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_keys: SessionKeys::default(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -1332,6 +1341,7 @@ impl NativeScene {
         let node = self.nodes.remove(index);
         self.shapes.retain(|shape| !exclusive.contains(&shape.id));
         self.session_materials.prune(&self.shapes);
+        self.session_keys.prune(&self.nodes);
         self.dag.retain(|edge| {
             edge.child != node.transform_id && edge.parent != Some(node.transform_id)
         });
@@ -1415,6 +1425,9 @@ impl NativeScene {
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_keys.is_empty() {
+            return Err(NativeError::UnsupportedView("session keys"));
+        }
         if !self.curves.is_empty() {
             return Err(NativeError::UnsupportedView("curves in legacy mesh view"));
         }
@@ -1453,6 +1466,8 @@ impl NativeScene {
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
+        self.session_keys
+            .validate(&self.nodes, self.source.is_some())?;
         #[cfg(test)]
         FULL_VALIDATIONS.with(|count| count.set(count.get() + 1));
         let mut ids = std::collections::HashSet::new();
@@ -1686,6 +1701,11 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionKeys,
+    InvalidFrame,
+    InvalidPlaybackRange,
+    KeyLimit,
+    UnsupportedTimeUnit,
     UnsupportedMove(WorldMoveUnsupported),
     UnsupportedRotate(RotateUnsupported),
     UnsupportedScale(ScaleUnsupported),
@@ -1743,6 +1763,24 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFrame => write!(
+                f,
+                "a time must be a whole frame from {} through {}",
+                -session_keys::MAX_FRAME,
+                session_keys::MAX_FRAME
+            ),
+            Self::InvalidPlaybackRange => {
+                f.write_str("the playback start must not be after its end")
+            }
+            Self::KeyLimit => write!(
+                f,
+                "the scene holds the most keys allowed ({})",
+                session_keys::MAX_SESSION_KEYS
+            ),
+            Self::UnsupportedTimeUnit => {
+                f.write_str("only the film (24 fps) time unit is supported")
             }
             Self::AbsentChannelLeaf { channel, component } => write!(
                 f,

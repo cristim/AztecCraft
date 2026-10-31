@@ -91,7 +91,13 @@ impl Editor {
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
-            | Operation::SelectAttributeEditorTab { .. } => None,
+            | Operation::SelectAttributeEditorTab { .. }
+            | Operation::SetCurrentTime { .. }
+            | Operation::SetPlaybackRange { .. }
+            | Operation::Play
+            | Operation::Stop => None,
+            Operation::SetKeyframe { .. } => Some("Key set"),
+            Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
@@ -195,6 +201,11 @@ impl Editor {
                 inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
             });
         }
+        if let Operation::InspectKeys { node, cursor } = &request.operation {
+            return Ok(OperationReply::Keys {
+                inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
+            });
+        }
         if request.expected_scene_token != Some(self.scene_token) {
             return Err(OperationError::StaleScene);
         }
@@ -268,6 +279,9 @@ impl Editor {
         operation: Operation,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
+        if features::timeline::stops_playback(&operation) {
+            self.stop_playback();
+        }
         if let Some(noun) = self.selection_mode.component_noun()
             && matches!(operation, Operation::Delete(_) | Operation::DeleteSelection)
         {
@@ -344,6 +358,11 @@ impl Editor {
                     | Operation::SelectFace { .. }
                     | Operation::SelectVertex { .. }
                     | Operation::SelectEdge { .. }
+                    | Operation::SetCurrentTime { .. }
+                    | Operation::SetPlaybackRange { .. }
+                    | Operation::Play
+                    | Operation::SetKeyframe { .. }
+                    | Operation::DeleteKeys { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -417,13 +436,30 @@ impl Editor {
                         .map_err(OperationError::Scene)?;
                 }
             }
+            Operation::SetKeyframe {
+                nodes,
+                time,
+                channels,
+            } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
+            Operation::DeleteKeys {
+                nodes,
+                time,
+                channels,
+            } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
+            Operation::SetPlaybackRange { start, end } => {
+                self.check_playback_range(*start, *end)?;
+            }
             _ => {}
         }
+        // A time change and Play refuse a draft instead of committing it; Stop leaves it alone.
         if !matches!(
             operation,
             Operation::UpdateMove { .. }
                 | Operation::UpdateManipulation { .. }
                 | Operation::FinishMove { .. }
+                | Operation::SetCurrentTime { .. }
+                | Operation::Play
+                | Operation::Stop
         ) && !self.commit_pending()
         {
             return Err(OperationError::InvalidInput(self.status.clone()));
@@ -473,6 +509,22 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            Operation::SetCurrentTime { time } => return self.set_current_time(time),
+            Operation::SetPlaybackRange { start, end } => {
+                return self.set_playback_range(start, end);
+            }
+            Operation::Play => return self.play(),
+            Operation::Stop => return Ok(self.stop()),
+            Operation::SetKeyframe {
+                nodes,
+                time,
+                channels,
+            } => self.set_key_command(nodes, time, channels)?,
+            Operation::DeleteKeys {
+                nodes,
+                time,
+                channels,
+            } => self.delete_keys_command(nodes, time, channels)?,
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -745,7 +797,14 @@ impl Editor {
                 } else {
                     self.history.undo()
                 };
+                // The restored snapshot holds the pose of its own time, not the current one.
+                let evaluated = if changed {
+                    self.history.apply_evaluated(self.timeline.current)
+                } else {
+                    Ok(false)
+                };
                 self.sync_fields();
+                evaluated.map_err(OperationError::from_history)?;
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -854,6 +913,12 @@ impl Editor {
             Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
                     inspection: Box::new(self.inspect_page(false, page.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectKeys { node, cursor } => {
+                return Ok(OperationReply::Keys {
+                    inspection: Box::new(self.inspect_keys(node, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }
