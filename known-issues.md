@@ -1021,13 +1021,14 @@ tokenless recovery except clearing the selection in the native UI (a plain click
 Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
 `a_full_selection_is_inspectable_with_a_small_node_limit`.
 
-## Creating N objects costs O(N^3)
+## Creating N objects costs O(N^2)
 
-Each `NativeScene::create` runs a full `validate()` through `structural_edit`, and `validate_dag` scans
-every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
-O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
-`azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
-fixed by the paging work.
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, so building N cubes one
+by one is O(N^2). `validate_dag` itself is linear in the edges since #345 (it builds an
+identity-to-edge and a parent-to-children index once per call instead of scanning `self.dag` for every
+identity and every pending parent), which took 4096 cubes from 36.7 s to 3.1 s in a release build. The
+remaining quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a
+large scene still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
 
 ## Frame origin for a mixed selection is PROVISIONAL
 

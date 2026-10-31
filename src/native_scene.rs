@@ -1571,6 +1571,17 @@ impl NativeScene {
             .try_reserve(identities.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         incoming.extend(identities.iter().map(|id| (*id, 0usize)));
+        // Indexes built once, so the checks below stay linear in the edges rather than scanning
+        // `self.dag` for every identity and every pending parent (#345).
+        let mut edge_children = std::collections::HashSet::new();
+        edge_children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        let mut children_of: std::collections::HashMap<Option<NativeId>, Vec<NativeId>> =
+            std::collections::HashMap::new();
+        children_of
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
             if !identities.contains(&edge.child)
                 || !edges.insert((edge.parent, edge.child))
@@ -1586,11 +1597,14 @@ impl NativeScene {
                     .get_mut(&edge.child)
                     .ok_or(NativeError::InvalidIdentity)? += 1;
             }
+            edge_children.insert(edge.child);
+            let children = children_of.entry(edge.parent).or_default();
+            children
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            children.push(edge.child);
         }
-        if identities
-            .iter()
-            .any(|id| !self.dag.iter().any(|edge| edge.child == *id))
-        {
+        if identities.iter().any(|id| !edge_children.contains(id)) {
             return Err(NativeError::InvalidIdentity);
         }
         let mut pending = std::collections::VecDeque::new();
@@ -1606,13 +1620,16 @@ impl NativeScene {
         let mut visited = 0;
         while let Some(parent) = pending.pop_front() {
             visited += 1;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            for child in children_of
+                .get(&Some(parent))
+                .map_or(&[][..], Vec::as_slice)
+            {
                 let count = incoming
-                    .get_mut(&edge.child)
+                    .get_mut(child)
                     .ok_or(NativeError::InvalidIdentity)?;
                 *count -= 1;
                 if *count == 0 {
-                    pending.push_back(edge.child);
+                    pending.push_back(*child);
                 }
             }
         }
