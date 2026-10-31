@@ -179,7 +179,13 @@ impl Editor {
                 };
                 ui.horizontal(|ui| {
                     ui.add_space((target.path.len() - 1) as f32 * 12.0);
-                    let label = format!("◇  {}", node.name());
+                    let scene = self.history.scene();
+                    let glyph = if scene.joint(node.transform_id()).is_some() {
+                        features::rigging::JOINT_ROW_GLYPH
+                    } else {
+                        "◇"
+                    };
+                    let label = format!("{glyph}  {}", node.name());
                     // With several selected, the lead row is bold (PROVISIONAL; the page gives
                     // no Outliner colour for the key object).
                     let text = if self.selection.len() > 1 && self.selection.lead() == Some(&target)

@@ -1,6 +1,7 @@
 use crate::{
     native_scene::{
-        MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform, SessionMaterialId,
+        JointRequest, MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform,
+        SessionMaterialId, TransformTarget,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -61,13 +62,17 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    CreateJoint(JointRequest),
 }
 
 impl Command {
     /// The name an Undo or Redo entry shows for this command.
     fn label(&self) -> String {
         match self {
-            Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create".to_string(),
+            // PROVISIONAL for a joint: Maya's docs name no undo entries.
+            Self::Create { .. } | Self::CreateDefaultNamed { .. } | Self::CreateJoint(_) => {
+                "Create".to_string()
+            }
             Self::Remove(_) | Self::RemoveMany(_) => "Delete".to_string(),
             Self::Rename { .. } => "Rename".to_string(),
             // execute_labeled names it from the stored before/after values.
@@ -108,9 +113,11 @@ struct Entry {
     label: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EditOutcome {
     Created(NodeId),
+    /// A joint with its full path, proved valid by the core before the edit committed.
+    CreatedJoint(TransformTarget),
     SessionMaterial(SessionMaterialId),
     Changed,
     Unchanged,
@@ -248,6 +255,9 @@ impl History {
             } => {
                 candidate.extrude_face(shape, face_index, distance)?;
                 EditOutcome::Changed
+            }
+            Command::CreateJoint(request) => {
+                EditOutcome::CreatedJoint(candidate.create_joint(&request)?)
             }
         };
         if self.scene == candidate {

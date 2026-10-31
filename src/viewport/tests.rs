@@ -1360,3 +1360,186 @@ fn frame_view_include_of_a_group_frames_the_geometry_of_its_children() {
     leaf.frame_view(&view, Some(&child_path), 1.0).unwrap();
     assert_eq!(group, leaf);
 }
+
+mod joints {
+    use super::*;
+    use crate::native_scene::{JointRequest, NativeTransform};
+    use crate::scene::{NodeId, Primitive};
+
+    const PIXELS: [u32; 2] = [400, 400];
+
+    #[test]
+    fn a_scene_without_joints_has_nothing_to_pick_and_no_new_error() {
+        let view = ViewScene::from_native(&NativeScene::default(), 1 << 28).unwrap();
+        // A pixel size the frame would refuse: without joints it is never computed.
+        let pick = Camera::default().pick_joint(&view, Vec2::ZERO, [0, 0], 1.0);
+        assert!(matches!(pick, Ok(None)));
+    }
+
+    fn joint(scene: &mut NativeScene, parent: Option<NodeId>, position: [f64; 3]) -> NodeId {
+        scene
+            .create_joint(&JointRequest {
+                parent,
+                position,
+                relative: false,
+                radius: 1.0,
+                name: None,
+            })
+            .unwrap()
+            .node
+    }
+
+    fn pixel_of(camera: &Camera, point: Vec3) -> Vec2 {
+        let ndc = camera.project(point, 1.0).unwrap().unwrap();
+        Vec2::new((ndc.x + 1.0) * 200.0, (1.0 - ndc.y) * 200.0)
+    }
+
+    fn pick(camera: &Camera, view: &ViewScene, pointer: Vec2) -> Option<NodeId> {
+        camera
+            .pick_joint(view, pointer, PIXELS, 1.0)
+            .unwrap()
+            .map(|joint| joint.transform())
+    }
+
+    #[test]
+    fn a_click_within_the_tolerance_picks_the_joint_and_one_past_it_does_not() {
+        let mut scene = NativeScene::default();
+        let node = joint(&mut scene, None, [0.0; 3]);
+        let view = view_of(&scene);
+        let camera = Camera::default();
+        let center = pixel_of(&camera, Vec3::ZERO);
+        assert_eq!(pick(&camera, &view, center), Some(node));
+        let inside = center + Vec2::new(JOINT_CLICK_PIXELS - 0.01, 0.0);
+        assert_eq!(pick(&camera, &view, inside), Some(node));
+        let outside = center + Vec2::new(JOINT_CLICK_PIXELS + 0.1, 0.0);
+        assert_eq!(pick(&camera, &view, outside), None);
+    }
+
+    #[test]
+    fn the_nearest_joint_to_the_pointer_wins_and_a_bone_is_not_pickable() {
+        let mut scene = NativeScene::default();
+        let first = joint(&mut scene, None, [0.0; 3]);
+        let second = joint(&mut scene, Some(first), [0.02, 0.0, 0.0]);
+        joint(&mut scene, Some(second), [6.0, 0.0, 0.0]);
+        let view = view_of(&scene);
+        let camera = Camera::default();
+        let (a, b) = (
+            pixel_of(&camera, Vec3::ZERO),
+            pixel_of(&camera, Vec3::new(0.02, 0.0, 0.0)),
+        );
+        assert_eq!(pick(&camera, &view, a), Some(first));
+        assert_eq!(pick(&camera, &view, b), Some(second));
+        let middle = (pixel_of(&camera, Vec3::new(3.0, 0.0, 0.0)) + b) * 0.5;
+        assert_eq!(pick(&camera, &view, middle), None);
+    }
+
+    #[test]
+    fn a_surface_in_front_hides_a_joint_and_one_behind_does_not() {
+        for (depth, expected) in [(1.0, false), (-1.0, true)] {
+            let mut scene = NativeScene::default();
+            let node = joint(&mut scene, None, [0.0; 3]);
+            let wall = scene.create(Primitive::Cube, "wall").unwrap();
+            let camera = Camera::default();
+            let eye = camera.eye().as_dvec3().normalize();
+            scene
+                .set_transform(
+                    wall,
+                    NativeTransform {
+                        translation: (eye * depth).to_array(),
+                        scale: [0.5; 3],
+                        ..NativeTransform::default()
+                    },
+                )
+                .unwrap();
+            let view = view_of(&scene);
+            let picked = pick(&camera, &view, pixel_of(&camera, Vec3::ZERO));
+            assert_eq!(picked, expected.then_some(node), "depth {depth}");
+        }
+    }
+
+    #[test]
+    fn joints_behind_the_camera_are_not_picked() {
+        let mut scene = NativeScene::default();
+        joint(&mut scene, None, [0.0; 3]);
+        let view = view_of(&scene);
+        let mut camera = Camera::default();
+        let forward = (camera.target() - camera.eye()).normalize();
+        camera
+            .set_pose(forward * 100.0, 8.0, camera.yaw(), camera.pitch())
+            .unwrap();
+        assert_eq!(pick(&camera, &view, Vec2::new(200.0, 200.0)), None);
+    }
+
+    #[test]
+    fn occlusion_work_is_charged_only_after_the_tolerance_filter() {
+        // 64 candidates times 32768 triangles is over the pick budget; none is under it.
+        let mut scene = NativeScene::default();
+        for _ in 0..64 {
+            joint(&mut scene, None, [0.0; 3]);
+        }
+        scene
+            .create_with_options(
+                Primitive::Plane,
+                &crate::primitive_options::PrimitiveOptions::Plane {
+                    width: 1.0,
+                    height: 1.0,
+                    sub_width: 128,
+                    sub_height: 128,
+                    axis: crate::primitive_options::Axis::Y,
+                },
+                "dense",
+            )
+            .unwrap();
+        let view = view_of(&scene);
+        let camera = Camera::default();
+        let center = pixel_of(&camera, Vec3::ZERO);
+        let away = center + Vec2::new(JOINT_CLICK_PIXELS + 1.0, 0.0);
+        assert_eq!(pick(&camera, &view, away), None);
+        assert!(matches!(
+            camera.pick_joint(&view, center, PIXELS, 1.0),
+            Err(ViewError::ResourceLimit)
+        ));
+    }
+
+    #[test]
+    fn framing_sees_joints_with_and_without_children() {
+        let mut scene = NativeScene::default();
+        let root = joint(&mut scene, None, [0.0; 3]);
+        joint(&mut scene, Some(root), [10.0, 0.0, 0.0]);
+        let view = view_of(&scene);
+        let mut all = Camera::default();
+        all.frame_view(&view, None, 1.0).unwrap();
+        assert!((all.target() - Vec3::new(5.0, 0.0, 0.0)).length() < 1e-4);
+        let path = root_path(&scene, root);
+        let mut parents = Camera::default();
+        parents
+            .frame_view_many(&view, &[path.as_slice()], FrameChildren::Exclude, 1.0)
+            .unwrap();
+        assert!(parents.target().length() < 1e-4, "the child stays out");
+        let mut with_children = Camera::default();
+        with_children
+            .frame_view_many(&view, &[path.as_slice()], FrameChildren::Include, 1.0)
+            .unwrap();
+        assert!((with_children.target() - Vec3::new(5.0, 0.0, 0.0)).length() < 1e-4);
+    }
+
+    #[test]
+    fn framing_a_mesh_and_a_joint_without_children_keeps_both() {
+        let mut scene = NativeScene::default();
+        let root = joint(&mut scene, None, [10.0, 0.0, 0.0]);
+        let cube = scene.create(Primitive::Cube, "cube").unwrap();
+        joint(&mut scene, Some(root), [20.0, 0.0, 0.0]);
+        let view = view_of(&scene);
+        let (joint_path, cube_path) = (root_path(&scene, root), root_path(&scene, cube));
+        let mut camera = Camera::default();
+        camera
+            .frame_view_many(
+                &view,
+                &[joint_path.as_slice(), cube_path.as_slice()],
+                FrameChildren::Exclude,
+                1.0,
+            )
+            .unwrap();
+        assert!(camera.target().x > 4.0 && camera.target().x < 6.0);
+    }
+}

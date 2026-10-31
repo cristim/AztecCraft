@@ -124,6 +124,7 @@ fn internal(c: &Case) -> InternalTransform {
             rotate_pivot_translate_cm: c.rpt,
             scale_pivot_translate_cm: c.spt,
         }),
+        inverse_parent_scale: None,
     }
 }
 
@@ -441,6 +442,7 @@ fn out_of_range_rotate_order_has_no_matrix() {
         rotate_pivot_cm: [0.0; 3],
         scale_pivot_cm: [0.0; 3],
         extras: Some(extras),
+        inverse_parent_scale: None,
     };
     assert!(t.matrix().is_none());
 }

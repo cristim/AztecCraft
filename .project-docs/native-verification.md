@@ -331,6 +331,34 @@ application choices. The screenshots are not committed. Windows, Linux, release 
 and the hidden-corner margin at other distances or adapters are not covered (see
 known-issues.md).
 
+## Rigging set and joints (#363)
+
+On 2026-10-31, a debug `--features mcp` build of the `feat/363-rigging-joints` branch was run on
+Linux with an AMD Radeon RX 9060 XT (radv). The desktop session was locked with its displays off,
+so the MCP bridge got no frames there; the run used a private `kwin_wayland --virtual` compositor
+at 1600 x 1000 on its own D-Bus session. Mouse and keys came from that compositor's fake input
+protocol, so the clicks and key presses below reached the real window through Wayland. Screenshots
+were taken with Spectacle inside that compositor and reviewed by eye. Synthetic scene only.
+
+| Action | Observed in the window |
+| --- | --- |
+| F3 after clicking the viewport | Selector reads Rigging; the bar shows Skeleton, Skin, Deform, Constrain, Control, Help; `inspect_scene` reports `rigging` |
+| Click Skeleton | Joints and IK sections with every row; only Create Joints is lit, and its option box and the other rows are dimmed |
+| Click Create Joints | Non-modal window with X, Y, Z, Radius, Name, Parent, Relative to parent, Create and Close |
+| Type values and press Create three times | joint1, joint2, joint3 as a chain; Parent reads the previous joint, the last joint stays selected and the Channel Box shows local values and a disabled Radius |
+| `frame_all` over MCP | The chain fills the view, with three-circle joints and a line per bone |
+| Click a joint centre in the viewport | Selects joint2; the Outliner shows the joint glyph, indented rows and the selected row; joint2 and what lies below it are highlighted |
+| Delete key with joint2 selected | Reviewed screenshot: the Outliner and viewport show only joint1, the Channel Box is empty and the status reads Scene edited |
+| MCP `undo` | Reviewed screenshot: joint1, joint2 and joint3 and both bones return, unselected, and the status reads Undo Delete; the undo was issued over MCP, not by a native click or key |
+| Cube selected with the window open | Parent reads Unavailable and Create is dimmed |
+
+Fixed from this check: the window opened over the Outliner, so it now opens over the viewport.
+
+Scope: hover reasons, the Move, Rotate and Scale handles on a joint, and Escape were not driven
+natively; automated tests cover them. Not checked on the locked desktop itself, macOS or Windows,
+or against Maya: colours, shapes, sizes and menu order are provisional application choices. The
+screenshots are not committed.
+
 ## Channel Box heading (#171)
 
 | Check | Result |

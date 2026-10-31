@@ -583,7 +583,7 @@ Channel Box is resynchronized to the scene.
 
 The strip shows:
 
-- a menu-set selector where only Modeling is active; Rigging, Animation, FX and Rendering are disabled;
+- a menu-set selector where Modeling and Rigging work; Animation, FX and Rendering are disabled;
 - New, Open and Save buttons, which share the File menu's handlers and enable state;
 - Hierarchy (Root sub-mask only), Object and Component selection modes. The Component button enters Face
   from Object and Hierarchy, keeps the current mode in Vertex, Edge and Face, and stays pressed in all three;
@@ -599,7 +599,7 @@ Groups without AztecCraft behavior are not drawn rather than shown as inert cont
 snaps, symmetry, construction history, render buttons, Hypershade and the input box. The right-end
 cluster therefore follows the last drawn group.
 
-- The F2 to F6 menu-set hotkeys are deferred.
+- F2 and F3 switch Modeling and Rigging; F4 to F6 stay unbound because their sets do not exist.
 - No Layer Editor exists, so the toggle shows or hides only the Channel Box; its hover and a Layers stub in the panel say so.
 - The toggle is disabled during an active manipulation, including a remote one with no native gesture, like other edits.
 - Save As has no strip button and stays in the File menu.
@@ -881,9 +881,29 @@ profile from it), or Maya rejects, repairs or rewrites these files (issue #5 ask
 **Area:** editor core
 **Issue:** cristim/AztecCraft#187
 
-Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
-Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
+Delete refuses any non-joint node with children or a parent (`unsupported_delete`), natively and
+over MCP. Session joints are the exception: deleting one removes everything below it (#363), which
+is PROVISIONAL because the 2027 `delete` command page does not say. Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
 found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+
+## Joints are session-only with PROVISIONAL display and defaults
+
+**Severity:** medium
+**Area:** rigging
+**Issue:** cristim/AztecCraft#363
+
+Joints exist only in authored, unsourced scenes and are never saved: both writers refuse a scene
+holding joints rather than writing them as plain transforms, so such a scene cannot be Saved until
+they are deleted. A joint's parent must be a joint, so a joint cannot sit under a mesh transform.
+Create Joints is a numeric window, not Maya's click-driven Joint Tool; there is no orientation,
+jointOrient, rotate axis, rotate order, IK, skinning or constraint.
+
+PROVISIONAL, because the cited 2027 pages do not settle them: the default name `joint<N>`; the
+display (circle radius 0.5 times the radius, 16 segments, one line per bone, existing object
+colours); default radius 1.0 at creation and the 1e6 cm upper limit on radius; an inverse of 1 for a zero or non-finite parent scale;
+Delete removing descendants; a child rotation of 0 under a rotated parent; the Rigging menu order;
+the undo label Create; the 8 pixel click tolerance on joint centres, with bones not pickable; the
+Radius row in the Channel Box. None of this has been compared with Maya.
 
 ## Marquee drag feedback has PROVISIONAL edge cases
 

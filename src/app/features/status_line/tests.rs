@@ -251,16 +251,62 @@ fn open_combo_popup_blocks_shortcuts_and_disabled_sets_stay_disabled() {
     click(&mut editor, &context, combo.rect.center());
     assert!(egui::Popup::is_any_open(&context));
     let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
-    for set in ["Rigging", "Animation", "FX", "Rendering"] {
+    for (set, disabled) in [
+        ("Rigging", false),
+        ("Animation", true),
+        ("FX", true),
+        ("Rendering", true),
+    ] {
         let entry = controls(&output)
             .into_iter()
             .find(|c| c.label == set)
             .unwrap_or_else(|| panic!("set {set}"));
-        assert!(entry.disabled, "{set}");
+        assert_eq!(entry.disabled, disabled, "{set}");
     }
     frame_with(&mut editor, &context, SIZE, 1.0, vec![key(Key::F11)]);
     assert_eq!(editor.selection_mode, before.3, "F11 reached a shortcut");
     assert_eq!(snapshot(&editor), before);
+}
+
+#[test]
+fn choosing_rigging_in_the_selector_switches_the_set_and_leaves_the_scene_alone() {
+    let (mut editor, context) = setup();
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let combo = strip(&output).remove(0);
+    let before = snapshot(&editor);
+    click(&mut editor, &context, combo.rect.center());
+    let output = frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let rigging = controls(&output)
+        .into_iter()
+        .find(|c| c.label == "Rigging")
+        .unwrap();
+    click(&mut editor, &context, rigging.rect.center());
+    assert_eq!(editor.menu_set, MenuSet::Rigging);
+    assert_eq!(snapshot(&editor), before);
+}
+
+#[test]
+fn the_selector_rows_are_disabled_while_a_manipulation_is_active() {
+    let (mut editor, _context) = setup();
+    editor.create(azteccraft::scene::Primitive::Cube);
+    assert_eq!(
+        editor.display_switch_refusal(),
+        None,
+        "the baseline allows a switch"
+    );
+    let (node, path) = editor.lead_target().unwrap();
+    let target = azteccraft::native_scene::TransformTarget {
+        node,
+        path: path.to_vec(),
+    };
+    editor
+        .apply_operation(Operation::BeginMove {
+            target,
+            axis: azteccraft::native_scene::WorldAxis::X,
+        })
+        .unwrap();
+    assert_eq!(editor.display_switch_refusal(), Some("a Move is active"));
 }
 
 #[test]

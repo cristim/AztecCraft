@@ -260,10 +260,10 @@ fn complete_curve_view_budget_accounts_all_prepared_instances() {
         "createNode transform -n \"first\"; createNode nurbsCurve -n \"shape\" -p \"first\"; {CURVE_CC}"
     ));
     let graph = Graph::prepare(&scene, VIEW_BUDGET).unwrap();
-    let requirements = graph.requirements(VIEW_BUDGET).unwrap();
+    let requirements = graph.requirements(&scene, VIEW_BUDGET).unwrap();
     let first_requirements = Graph::prepare(&first_only, VIEW_BUDGET)
         .unwrap()
-        .requirements(VIEW_BUDGET)
+        .requirements(&first_only, VIEW_BUDGET)
         .unwrap();
     let mut first_low = first_requirements.bytes;
     let mut first_high = VIEW_BUDGET;
@@ -323,6 +323,7 @@ const IDENTITY: InternalTransform = InternalTransform {
     rotate_pivot_cm: [0.0; 3],
     scale_pivot_cm: [0.0; 3],
     extras: None,
+    inverse_parent_scale: None,
 };
 
 fn front_camera() -> Camera {
@@ -336,6 +337,7 @@ fn scale_pivot_is_fixed_and_rotation_uses_its_own_pivot() {
         scale: [1.2474601320620895; 3],
         scale_pivot_cm: pivot.to_array(),
         extras: None,
+        inverse_parent_scale: None,
         ..IDENTITY
     };
     let matrix = local_matrix(transform).unwrap();
@@ -361,6 +363,7 @@ fn internal_centimeter_radian_channels_are_not_converted_again() {
         scale: [2.0, 1.0, 1.0],
         scale_pivot_cm: [2.0, 0.0, 0.0],
         extras: None,
+        inverse_parent_scale: None,
         ..IDENTITY
     };
     let matrix = local_matrix(transform).unwrap();
@@ -749,7 +752,7 @@ fn view_budget_rejects_one_byte_below_the_complete_preflight_requirement() {
     let mut native = NativeScene::default();
     native.create(Primitive::Cube, "cube").unwrap();
     let graph = Graph::prepare(&native, VIEW_BUDGET).unwrap();
-    let required = graph.requirements(VIEW_BUDGET).unwrap().bytes;
+    let required = graph.requirements(&native, VIEW_BUDGET).unwrap().bytes;
     assert!(ViewScene::from_native(&native, required).is_ok());
     assert!(matches!(
         ViewScene::from_native(&native, required - 1),
@@ -853,7 +856,7 @@ fn transform_only_shared_paths_are_counted_without_exponential_enumeration() {
     edges.sort_unstable();
     let graph = Graph { records, edges };
     assert!(matches!(
-        graph.requirements(1024 * 1024),
+        graph.requirements(&NativeScene::default(), 1024 * 1024),
         Err(ViewError::ResourceLimit)
     ));
 }
@@ -2390,7 +2393,7 @@ fn view_budget_charges_every_source_edge_per_instance() {
             test_fixtures::add_loose_edge_unvalidated(&mut native, [0, 2]);
         }
         let graph = Graph::prepare(&native, VIEW_BUDGET).unwrap();
-        graph.requirements(VIEW_BUDGET).unwrap().bytes
+        graph.requirements(&native, VIEW_BUDGET).unwrap().bytes
     };
     assert_eq!(required(100) - required(0), 100 * size_of::<[usize; 2]>());
 }
@@ -2462,4 +2465,94 @@ fn marker_sizes_are_pinned_to_their_provisional_pixel_values() {
     assert_eq!(FACE_CENTER_MARKER_PIXELS, 4.0);
     assert_eq!(VERTEX_MARKER_PIXELS, 5.0);
     assert_eq!(SELECTED_EDGE_PIXELS, 3.0);
+}
+
+mod joints {
+    use super::*;
+    use crate::native_scene::{DEFAULT_JOINT_RADIUS, JointRequest};
+
+    fn joint(scene: &mut NativeScene, parent: Option<NodeId>, position: [f64; 3]) -> NodeId {
+        scene
+            .create_joint(&JointRequest {
+                parent,
+                position,
+                relative: false,
+                radius: DEFAULT_JOINT_RADIUS,
+                name: None,
+            })
+            .unwrap()
+            .node
+    }
+
+    #[test]
+    fn a_chain_lists_each_joint_with_its_world_centre_and_bone() {
+        let mut scene = NativeScene::default();
+        let root = joint(&mut scene, None, [1.0, 0.0, 0.0]);
+        let child = joint(&mut scene, Some(root), [1.0, 2.0, 0.0]);
+        let tip = joint(&mut scene, Some(child), [1.0, 2.0, 3.0]);
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        assert!(view.instances().is_empty());
+        let joints = view.joints();
+        assert_eq!(joints.len(), 3);
+        assert_eq!(joints[0].transform(), root);
+        assert_eq!(joints[0].center(), Vec3::new(1.0, 0.0, 0.0));
+        assert_eq!(joints[0].parent_center(), None);
+        assert_eq!(joints[0].path().len(), 1);
+        assert_eq!(joints[1].center(), Vec3::new(1.0, 2.0, 0.0));
+        assert_eq!(joints[1].parent_center(), Some(Vec3::new(1.0, 0.0, 0.0)));
+        assert_eq!(joints[2].transform(), tip);
+        assert_eq!(joints[2].path().len(), 3);
+        assert_eq!(joints[2].parent_center(), Some(Vec3::new(1.0, 2.0, 0.0)));
+        assert_eq!(joints[2].display_radius(), 0.5);
+    }
+
+    #[test]
+    fn a_scaled_parent_moves_the_child_centre_but_not_its_segment() {
+        let mut scene = NativeScene::default();
+        let root = joint(&mut scene, None, [0.0; 3]);
+        let child = joint(&mut scene, Some(root), [1.0, 0.0, 0.0]);
+        joint(&mut scene, Some(child), [2.0, 0.0, 0.0]);
+        scene
+            .set_transform(
+                root,
+                NativeTransform {
+                    scale: [2.0; 3],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        // The child sits under the root's scale; IS keeps that scale off the segment below it.
+        assert_eq!(view.joints()[1].center(), Vec3::new(2.0, 0.0, 0.0));
+        assert_eq!(view.joints()[2].center(), Vec3::new(3.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn joints_are_charged_to_the_view_budget() {
+        fn smallest_budget(scene: &NativeScene) -> usize {
+            (1..)
+                .find(|budget| ViewScene::from_native(scene, *budget).is_ok())
+                .unwrap()
+        }
+        let mut scene = NativeScene::default();
+        joint(&mut scene, None, [0.0; 3]);
+        let charged = smallest_budget(&scene);
+        assert_eq!(
+            ViewScene::from_native(&scene, charged - 1).err(),
+            Some(ViewError::ResourceLimit)
+        );
+        let bare = smallest_budget(&test_fixtures::lone_transform());
+        assert!(charged >= bare + std::mem::size_of::<ViewJoint>());
+    }
+
+    #[test]
+    fn a_shapeless_transform_is_not_a_joint() {
+        let (scene, _, _, _) = test_fixtures::grouped_shape();
+        assert!(
+            ViewScene::from_native(&scene, VIEW_BUDGET)
+                .unwrap()
+                .joints()
+                .is_empty()
+        );
+    }
 }

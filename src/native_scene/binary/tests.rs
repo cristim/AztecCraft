@@ -54,6 +54,25 @@ fn shared_protocol_specimen_uses_the_actual_checked_decoder() {
     );
 }
 
+/// Reading joints is out of scope (#363), so a joint group must fail the Open, never leave the
+/// scene without its joints. Maya's real form tag is unverified; `JOIN` is the one observed in
+/// retained vendor streams. The decoder has no joint case, so any unlisted form must refuse.
+#[test]
+fn a_joint_form_is_refused_not_dropped_from_the_scene() {
+    let mut bytes = wire_fixture::specimen();
+    let offset = bytes.len();
+    bytes.extend(group(b"JOIN", &creation(b"joint1", Some(b"object")), 4));
+    let size = (bytes.len() - 16) as u64;
+    bytes[8..16].copy_from_slice(&size.to_be_bytes());
+    let source: Arc<[u8]> = bytes.into();
+    let refusal = container::inspect(source.clone()).unwrap_err();
+    assert_eq!(
+        (refusal.kind(), refusal.offset()),
+        (container::ErrorKind::Unsupported, offset)
+    );
+    assert!(decode(source).is_err());
+}
+
 #[test]
 fn ncrv_is_opaque_to_inspection_but_refused_before_native_construction() {
     let baseline = wire_fixture::specimen();

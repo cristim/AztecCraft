@@ -189,6 +189,8 @@ enum Pre {
     AttributeEditorDock,
     /// Creates session material 1 (refused on sourced scenes, where the cell shows that).
     SessionMaterial,
+    /// Creates a root joint with a child and selects the root, so Delete removes a chain.
+    JointChain,
 }
 
 struct Sample {
@@ -634,6 +636,13 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             target: t.face(),
             distance: 0.5,
         },
+        Operation::CreateJoint {
+            parent: None,
+            position: [1.0, 2.0, 3.0],
+            relative: false,
+            radius: 1.0,
+            name: None,
+        },
         Operation::Delete(t.node),
         Operation::DeleteSelection,
         Operation::Undo,
@@ -644,6 +653,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+        Operation::SetMenuSet {
+            set: crate::editor_operations::MenuSet::Rigging,
+        },
         Operation::SetSidebarPanelVisible {
             panel: crate::editor_operations::SidebarPanel::ChannelBox,
             visible: false,
@@ -1283,6 +1295,37 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 distance: 0.5,
             },
         )],
+        Operation::CreateJoint { .. } => {
+            let root = Operation::CreateJoint {
+                parent: None,
+                position: [1.0, 2.0, 3.0],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            };
+            let child_of_mesh = Operation::CreateJoint {
+                parent: Some(t.node),
+                position: [0.0; 3],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            };
+            let root_again = Operation::CreateJoint {
+                parent: None,
+                position: [1.0, 2.0, 3.0],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            };
+            vec![
+                sample("create_joint(root)", root),
+                sample("create_joint(mesh_parent)", child_of_mesh),
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample("create_joint(face_mode)", root_again)
+                },
+            ]
+        }
         Operation::Delete(_) => vec![
             sample("delete", Operation::Delete(t.node)),
             Sample {
@@ -1300,6 +1343,11 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         ],
         Operation::DeleteSelection => vec![
             sample("delete_selection", Operation::DeleteSelection),
+            Sample {
+                pre: Pre::JointChain,
+                only: Some(&[State::Idle]),
+                ..sample("delete_selection(joint_chain)", Operation::DeleteSelection)
+            },
             Sample {
                 pre: Pre::FaceMode,
                 ..sample("delete_selection(face_mode)", Operation::DeleteSelection)
@@ -1345,6 +1393,12 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+        )],
+        Operation::SetMenuSet { .. } => vec![sample(
+            "set_menu_set(rigging)",
+            Operation::SetMenuSet {
+                set: crate::editor_operations::MenuSet::Rigging,
+            },
         )],
         Operation::SetSidebarPanelVisible { .. } => vec![
             sample(
@@ -1483,6 +1537,7 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("active_tool", format!("{:?}", editor.active_tool)),
         ("grid", editor.grid_visible.to_string()),
         ("shading", format!("{:?}", editor.shading)),
+        ("menu_set", format!("{:?}", editor.menu_set)),
         (
             "sidebar_panels",
             format!(
@@ -1655,6 +1710,20 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                 .unwrap();
             rig.editor
                 .set_selection_members_for_test(vec![plane, first]);
+            rig.editor.sync_fields();
+        }
+        Pre::JointChain => {
+            let joint = |parent| Operation::CreateJoint {
+                parent,
+                position: [1.0, 0.0, 0.0],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            };
+            rig.editor.apply_operation(joint(None)).unwrap();
+            let root = rig.editor.selection.lead().cloned().unwrap();
+            rig.editor.apply_operation(joint(Some(root.node))).unwrap();
+            rig.editor.set_selection_members_for_test(vec![root]);
             rig.editor.sync_fields();
         }
     }

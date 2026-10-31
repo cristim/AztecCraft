@@ -25,6 +25,16 @@ pub enum SidebarPanel {
     AttributeEditor,
 }
 
+/// The menu sets the editor implements. Session-only: New and Open keep it, it is not undoable
+/// and it never marks the scene dirty. Animation, FX and Rendering stay disabled.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MenuSet {
+    #[default]
+    Modeling,
+    Rigging,
+}
+
 /// An Attribute Editor tab. Each variant names its owner: the selected transform, or a direct
 /// mesh shape (its own tab, or the material connected to it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -401,6 +411,16 @@ pub enum Operation {
         target: FaceTarget,
         distance: f64,
     },
+    /// Skeleton > Create Joints and MCP `create_joint`. The caller passes `parent` explicitly: the
+    /// window resolves it from the selection and MCP names it, and `None` starts a new hierarchy.
+    /// `radius` and `name` are resolved by the caller as well; the default name is `None`.
+    CreateJoint {
+        parent: Option<NodeId>,
+        position: [f64; 3],
+        relative: bool,
+        radius: f64,
+        name: Option<String>,
+    },
     /// Deletes one node by id; only MCP `delete_node` and tests build it, the UI deletes through
     /// `DeleteSelection`.
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
@@ -420,6 +440,9 @@ pub enum Operation {
         visible: bool,
     },
     SetShadingMode(ShadingMode),
+    SetMenuSet {
+        set: MenuSet,
+    },
     SetSidebarPanelVisible {
         panel: SidebarPanel,
         visible: bool,
@@ -535,6 +558,7 @@ pub struct SceneInspection {
     pub viewport_error: Option<crate::viewport_renderer::ViewportError>,
     pub grid_visible: bool,
     pub shading: ShadingMode,
+    pub menu_set: MenuSet,
     pub face_centres_hidden: bool,
     pub vertex_markers_hidden: bool,
     pub sidebar_panels: SidebarPanelsInspection,
@@ -723,8 +747,17 @@ pub struct NodeInspection {
     /// Read-only transform extras; present only when at least one differs from Maya's default.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transform_attributes: Option<TransformAttributes>,
+    /// Session-only joint data; present only on a joint.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub joint: Option<JointInspection>,
     pub instance_paths: Vec<Vec<String>>,
     pub shape_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct JointInspection {
+    pub radius: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -1006,7 +1039,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
-    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
     r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
@@ -1196,6 +1229,7 @@ mod tests {
                 scale: zeros(),
             },
             transform_attributes: None,
+            joint: None,
             instance_paths: Vec::new(),
             shape_ids: Vec::new(),
         };

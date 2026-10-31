@@ -255,3 +255,30 @@ fn reassigning_back_to_the_initial_group_does_not_refuse() {
         .unwrap();
     encode_authored(&scene).unwrap();
 }
+
+#[test]
+fn a_scene_of_root_joints_is_refused_not_written_as_bare_transforms() {
+    let request = crate::native_scene::JointRequest {
+        parent: None,
+        position: [1.0, 2.0, 3.0],
+        relative: false,
+        radius: 1.0,
+        name: None,
+    };
+    let mut roots = NativeScene::default();
+    roots.create_joint(&request).unwrap();
+    assert_eq!(
+        encode_authored(&roots),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::Joints
+        ))
+    );
+    let mut mixed = meshed(&[Primitive::Cube]);
+    mixed.create_joint(&request).unwrap();
+    assert_eq!(
+        encode_authored(&mixed),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::Joints
+        ))
+    );
+}

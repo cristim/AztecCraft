@@ -1,6 +1,6 @@
 # Maya parity inventory (framework)
 
-Status: framework plus the expanded families listed in the family files (Interchange, Polygon modeling and Scene management have rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
+Status: framework plus the expanded families listed in the family files (Interchange, Polygon modeling, Scene management and part of Rigging have rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
 
 This inventory replaces the provisional [workflow seed](../inventory-seed.md) as the candidate denominator once all 14 family files are expanded and frozen. It never says AztecCraft matches Maya. Exact parity needs comparison against the pinned reference and remains an open acceptance requirement (see [parity.md](../parity.md)).
 

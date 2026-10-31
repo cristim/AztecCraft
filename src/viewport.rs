@@ -2,8 +2,8 @@ use crate::scene::{Node, NodeId, Scene};
 use crate::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     view_scene::{
-        EDGE_CLICK_PIXELS, FACE_CENTER_CLICK_PIXELS, VERTEX_CLICK_PIXELS, ViewError, ViewFace,
-        ViewInstance, ViewScene, is_direct_instance,
+        EDGE_CLICK_PIXELS, FACE_CENTER_CLICK_PIXELS, JOINT_CLICK_PIXELS, VERTEX_CLICK_PIXELS,
+        ViewError, ViewFace, ViewInstance, ViewJoint, ViewScene, is_direct_instance,
     },
 };
 use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
@@ -354,6 +354,7 @@ impl Camera {
         self.frame_matching(
             scene,
             move |path| prefix.is_none_or(|prefix| path.starts_with(prefix)),
+            move |path| prefix.is_none_or(|prefix| path.starts_with(prefix)),
             aspect,
         )
     }
@@ -376,6 +377,13 @@ impl Camera {
                     FrameChildren::Exclude => is_direct_instance(path, prefix),
                 })
             },
+            // A joint's path is the transform path, so without children it matches exactly.
+            move |path| {
+                prefixes.iter().any(|prefix| match children {
+                    FrameChildren::Include => path.starts_with(prefix),
+                    FrameChildren::Exclude => path == *prefix,
+                })
+            },
             aspect,
         )
     }
@@ -384,6 +392,7 @@ impl Camera {
         &mut self,
         scene: &ViewScene,
         keep: impl Fn(&[crate::native_scene::NativeId]) -> bool + Copy,
+        keep_joint: impl Fn(&[crate::native_scene::NativeId]) -> bool + Copy,
         aspect: f32,
     ) -> Result<(), InvalidCameraInput> {
         self.frame_iter(
@@ -407,6 +416,20 @@ impl Camera {
                                 )
                                 .as_vec3()
                             })
+                        }),
+                )
+                .chain(
+                    scene
+                        .joints()
+                        .iter()
+                        .filter(move |joint| keep_joint(joint.path()))
+                        .flat_map(|joint| {
+                            let reach = joint.display_radius();
+                            [Vec3::X, Vec3::Y, Vec3::Z]
+                                .into_iter()
+                                .flat_map(move |axis| {
+                                    [joint.center() - axis * reach, joint.center() + axis * reach]
+                                })
                         }),
                 ),
             aspect,
@@ -692,6 +715,58 @@ impl Camera {
         selected
             .map(|(_, instance, index)| face_target(instance, index))
             .transpose()
+    }
+
+    /// The joint whose centre lies within `JOINT_CLICK_PIXELS` of the pointer and that no surface
+    /// hides. The nearest to the pointer wins, then the nearest in depth, then the lowest path.
+    /// Bones are not pickable.
+    pub fn pick_joint<'a>(
+        &self,
+        scene: &'a ViewScene,
+        pointer_points: Vec2,
+        viewport_pixels: [u32; 2],
+        pixels_per_point: f32,
+    ) -> Result<Option<&'a ViewJoint>, ViewError> {
+        if scene.joints().is_empty() {
+            return Ok(None);
+        }
+        let frame = self.pick_frame(pointer_points, viewport_pixels, pixels_per_point)?;
+        let mut candidates = Vec::new();
+        for joint in scene.joints() {
+            let Some((ndc, pixel)) = project_in_frustum(&frame, joint.center())? else {
+                continue;
+            };
+            let pixels = (pixel - frame.pointer).length();
+            if pixels <= JOINT_CLICK_PIXELS {
+                candidates
+                    .try_reserve(1)
+                    .map_err(|_| ViewError::ResourceLimit)?;
+                candidates.push((joint, ndc, pixels));
+            }
+        }
+        // After the tolerance filter, so distant joints cost no occlusion work.
+        admit_pick_work(scene, candidates.len())?;
+        let mut selected: Option<(f32, f32, &ViewJoint)> = None;
+        for (joint, ndc, pixels) in candidates {
+            let Some(depth) = self.unoccluded_depth(
+                scene,
+                &frame,
+                joint.center(),
+                ndc,
+                VERTEX_MARKER_DEPTH_TOLERANCE,
+            )?
+            else {
+                continue;
+            };
+            // Joints are sorted by path, so a strict comparison keeps the lowest of equals.
+            if selected
+                .as_ref()
+                .is_none_or(|(nearest, closest, _)| (pixels, depth) < (*nearest, *closest))
+            {
+                selected = Some((pixels, depth, joint));
+            }
+        }
+        Ok(selected.map(|(_, _, joint)| joint))
     }
 
     pub fn pick_vertex(

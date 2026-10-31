@@ -82,6 +82,7 @@ impl Editor {
         if !self.files.is_modal()
             && !egui::Popup::is_any_open(ui.ctx())
             && !self.escape_closes_primitive_options(ui.ctx())
+            && !self.escape_closes_joint_window(ui.ctx())
         {
             self.cancel_on_escape(ui.ctx());
         }
@@ -316,6 +317,7 @@ impl Editor {
         let admitted = frame_admitted && !self.files.is_modal() && !self.files.is_closing();
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());
+        self.joint_options_window(ui.ctx());
         let sidebar_request = self.sidebar_panel_request.take();
         let tab_request = self.attribute_editor_tab_request.take();
         if grid_requested && self.scene_token == frame_token {
@@ -479,13 +481,23 @@ impl Editor {
             {
                 match self.selection_mode {
                     SelectionMode::Object | SelectionMode::Hierarchy => {
-                        let hit = self
-                            .camera
-                            .pick_view(&view, ndc, self.aspect)
+                        let joint = input
+                            .pick_joint(&self.camera, &view)
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        let (node, instance_path) = if let Some(hit) = hit {
-                            let mut prefix = hit.path;
-                            prefix.pop();
+                        // A joint path ends at its transform; a surface hit ends at a shape.
+                        let hit = match joint {
+                            Some(joint) => Some((joint.transform(), joint.path().to_vec())),
+                            None => self
+                                .camera
+                                .pick_view(&view, ndc, self.aspect)
+                                .map_err(|e| OperationError::View(e.to_string()))?
+                                .map(|hit| {
+                                    let mut prefix = hit.path;
+                                    prefix.pop();
+                                    (hit.transform, prefix)
+                                }),
+                        };
+                        let (node, instance_path) = if let Some((transform, mut prefix)) = hit {
                             if self.selection_mode == SelectionMode::Hierarchy {
                                 prefix.truncate(1);
                                 let root = self
@@ -495,7 +507,7 @@ impl Editor {
                                     .map_err(OperationError::Scene)?;
                                 (Some(root), Some(prefix))
                             } else {
-                                (Some(hit.transform), Some(prefix))
+                                (Some(transform), Some(prefix))
                             }
                         } else {
                             (None, None)

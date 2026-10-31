@@ -1489,6 +1489,69 @@
     }
   },
   {
+    "name": "create_joint",
+    "description": "Create a session-only joint, the same operation as Skeleton > Create Joints: a bare transform that stays selected, with rotation 0 and scale 1. `parent_id` must name a joint and is the only way to attach it; the selection is not read. A world `position` under a parent is solved through the parent's world matrix and refused when that matrix is singular; `relative` stores the position as given. A joint under a joint keeps segment scale compensation on. A scene holding joints cannot be saved, and joints are not written to any file. Refused on an opened scene, in a component selection mode, for a parent that is not a joint, a radius of 0 or less or above 1000000, an invalid or colliding name and past the hierarchy depth limit. `inspect_scene` reports `joint.radius` on each joint; `delete_node` removes a joint with everything below it, as one undo step",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Omit it for the lowest free `joint<N>`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parent_id": {
+          "description": "The joint to parent under; omit it to start a new hierarchy. The selection is not read.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "description": "World position, or the offset from the parent when `relative` is true. Default the origin.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "radius": {
+          "description": "Greater than 0 and at most 1000000. Default 1.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "relative": {
+          "default": false,
+          "description": "Measure `position` from the parent. Without a parent it changes nothing. Default false.",
+          "type": "boolean"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "CreateJointArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_material_diffuse",
     "description": "Edit the checked saved Phong diffuse scalar for an exact shape through shared undo history. Requires complete shared-shader users; affects all those shapes. Values are finite and nonnegative, may exceed one, and do not enable rendered materials",
     "inputSchema": {
@@ -1667,7 +1730,7 @@
   },
   {
     "name": "delete_selected",
-    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
+    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. A session joint is the exception: it is removed with everything below it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1736,7 +1799,7 @@
   },
   {
     "name": "frame_selected",
-    "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
+    "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry (meshes, curves and joints) without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1764,7 +1827,7 @@
   },
   {
     "name": "frame_all",
-    "description": "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
+    "description": "Frame every mesh, curve and joint in the scene using the live camera; a scene with none of these returns nothing_to_frame. Session-only; does not edit the scene or the selection",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1988,6 +2051,42 @@
     "annotations": {
       "readOnlyHint": false,
       "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_menu_set",
+    "description": "Switch the menu set the native menu bar shows, like the Status Line selector or F2 and F3. Only modeling and rigging exist; Animation, FX and Rendering are not implemented. Session-only and idempotent: it does not edit the scene, mark it dirty or change the scene token, New and Open keep it, and it cannot be undone. Refused while a file dialog is open. `inspect_scene` reports it as `menu_set`",
+    "inputSchema": {
+      "$defs": {
+        "MenuSetInput": {
+          "enum": [
+            "modeling",
+            "rigging"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "set": {
+          "$ref": "#/$defs/MenuSetInput"
+        }
+      },
+      "required": [
+        "scene_token",
+        "set"
+      ],
+      "title": "MenuSetArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
       "openWorldHint": false
     }
   },

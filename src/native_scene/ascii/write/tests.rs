@@ -252,6 +252,21 @@ fn sourced_formats_and_source_free_curves_refuse_without_touching_retention() {
 }
 
 #[test]
+fn a_scene_holding_joints_is_refused_not_written_without_them() {
+    let mut scene = scene(&["kept"]);
+    scene
+        .create_joint(&crate::native_scene::JointRequest {
+            parent: None,
+            position: [0.0; 3],
+            relative: false,
+            radius: 1.0,
+            name: None,
+        })
+        .unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::Joints));
+}
+
+#[test]
 fn transform_prefix_keeps_uuid_values_and_relative_statements_with_their_owner() {
     let mut scene = scene(&["second", "first"]);
     for shape in &mut scene.shapes {

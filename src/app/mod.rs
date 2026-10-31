@@ -1,5 +1,5 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectRule,
+    ActiveTool, AttributeEditorTab, MenuSet, Operation, OperationError, OperationReply, SelectRule,
     SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
@@ -74,6 +74,7 @@ pub struct Editor {
     camera: Camera,
     grid_visible: bool,
     shading: ShadingMode,
+    menu_set: MenuSet,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
     face_centres_hidden: bool,
     /// Last painted frame hid Wireframe vertex markers (occlusion check over budget).
@@ -99,6 +100,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    joint_options: features::rigging::JointOptionsUi,
     native_input_pending: bool,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
@@ -127,6 +129,7 @@ impl Default for Editor {
             camera: Camera::default(),
             grid_visible: true,
             shading: ShadingMode::default(),
+            menu_set: MenuSet::default(),
             face_centres_hidden: false,
             vertex_markers_hidden: false,
             sidebar_dock: Some(SidebarPanel::ChannelBox),
@@ -149,6 +152,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            joint_options: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
@@ -324,6 +328,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .into_iter()
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
+    .chain(features::rigging::joint_field_ids())
 }
 
 fn text_edit_focused(ctx: &egui::Context) -> bool {

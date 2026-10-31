@@ -11212,3 +11212,166 @@ mod frame_members {
         assert_eq!(editor.camera, expected);
     }
 }
+
+mod joint_viewport {
+    use super::*;
+
+    fn chain(editor: &mut Editor) -> (NodeId, NodeId) {
+        let joint = |parent, position| Operation::CreateJoint {
+            parent,
+            position,
+            relative: false,
+            radius: 1.0,
+            name: None,
+        };
+        editor.apply_operation(joint(None, [0.0; 3])).unwrap();
+        let root = editor.selected().unwrap();
+        editor
+            .apply_operation(joint(Some(root), [3.0, 0.0, 0.0]))
+            .unwrap();
+        (root, editor.selected().unwrap())
+    }
+
+    fn run_viewport(
+        editor: &mut Editor,
+        context: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> egui::Rect {
+        let mut viewport = egui::Rect::NOTHING;
+        let mut output = context.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(800.0, 600.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                editor.viewport(ui, editor.scene_token, None, None, false, true);
+                viewport = ui.min_rect();
+            },
+        );
+        output.textures_delta.clear();
+        viewport
+    }
+
+    fn click(editor: &mut Editor, context: &egui::Context, world: glam::Vec3) {
+        let rect = run_viewport(editor, context, vec![]);
+        let ndc = editor
+            .camera
+            .project(world, editor.aspect)
+            .unwrap()
+            .unwrap();
+        let (width, height) = (rect.width(), rect.width() / editor.aspect);
+        let position = egui::pos2(
+            rect.left() + (ndc.x + 1.0) * 0.5 * width,
+            rect.bottom() - (ndc.y + 1.0) * 0.5 * height,
+        );
+        run_viewport(editor, context, vec![egui::Event::PointerMoved(position)]);
+        for event in pointer_click_events(position) {
+            run_viewport(editor, context, vec![event]);
+        }
+        run_viewport(editor, context, vec![]);
+    }
+
+    #[test]
+    fn a_click_on_a_child_joint_selects_its_full_path_in_object_mode() {
+        let mut editor = Editor::default();
+        let context = egui::Context::default();
+        let (root, child) = chain(&mut editor);
+        editor.selection.clear();
+        click(&mut editor, &context, glam::Vec3::new(3.0, 0.0, 0.0));
+        assert_eq!(editor.selected(), Some(child));
+        assert_eq!(editor.selection.lead().unwrap().path.len(), 2);
+        click(&mut editor, &context, glam::Vec3::ZERO);
+        assert_eq!(editor.selected(), Some(root));
+    }
+
+    #[test]
+    fn hierarchy_mode_resolves_a_joint_click_to_the_root() {
+        let mut editor = Editor::default();
+        let context = egui::Context::default();
+        let (root, _) = chain(&mut editor);
+        editor
+            .apply_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy))
+            .unwrap();
+        editor.selection.clear();
+        click(&mut editor, &context, glam::Vec3::new(3.0, 0.0, 0.0));
+        assert_eq!(editor.selected(), Some(root));
+        assert_eq!(editor.selection.lead().unwrap().path.len(), 1);
+    }
+
+    #[test]
+    fn component_modes_do_not_pick_joints() {
+        let mut editor = Editor::default();
+        let context = egui::Context::default();
+        let (root, _) = chain(&mut editor);
+        editor.selection.clear();
+        editor
+            .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+            .unwrap();
+        click(&mut editor, &context, glam::Vec3::ZERO);
+        assert_ne!(editor.selected(), Some(root));
+    }
+
+    #[test]
+    fn frame_all_and_f_work_on_a_scene_of_joints_alone() {
+        let mut editor = Editor::default();
+        let (root, _) = chain(&mut editor);
+        let before = editor.camera.clone();
+        editor.apply_operation(Operation::FrameAll).unwrap();
+        assert_ne!(editor.camera, before);
+        assert!((editor.camera.target() - glam::Vec3::new(1.5, 0.0, 0.0)).length() < 1e-4);
+        editor.selection.clear();
+        editor
+            .apply_operation(Operation::Select {
+                node: Some(root),
+                instance_path: None,
+            })
+            .unwrap();
+        editor
+            .apply_operation(Operation::FrameSelected {
+                with_children: false,
+            })
+            .unwrap();
+        assert!(editor.camera.target().length() < 1e-4);
+        assert!(editor.camera.distance() > 0.5, "the joint stays in view");
+    }
+
+    #[test]
+    fn nothing_to_frame_still_reports_on_an_empty_scene() {
+        let mut editor = Editor::default();
+        assert!(matches!(
+            editor.apply_operation(Operation::FrameAll),
+            Err(OperationError::NothingToFrame)
+        ));
+    }
+
+    #[test]
+    fn move_rotate_and_scale_reach_a_child_joint_through_its_full_path() {
+        let mut editor = Editor::default();
+        let (_, child) = chain(&mut editor);
+        let target = editor.selection.lead().cloned().unwrap();
+        let scene = editor.history.scene();
+        assert!(scene.world_move_frame(&target).is_ok());
+        for space in [
+            azteccraft::native_scene::RotateSpace::Object,
+            azteccraft::native_scene::RotateSpace::World,
+        ] {
+            assert_eq!(
+                scene.rotation_refusal(&target, azteccraft::native_scene::RotateAxis::Y, space),
+                None
+            );
+        }
+        assert_eq!(
+            scene.scale_refusal(
+                &target,
+                azteccraft::native_scene::ScaleHandle::Uniform,
+                azteccraft::native_scene::ScaleSpace::Object
+            ),
+            None
+        );
+        assert_eq!(target.node, child);
+    }
+}

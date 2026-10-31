@@ -217,6 +217,11 @@ impl Editor {
                             .map_err(OperationError::Scene)?,
                     )
                     .filter(|attributes| !attributes.non_default.is_empty()),
+                    joint: scene.joint(node.transform_id()).map(|joint| {
+                        crate::editor_operations::JointInspection {
+                            radius: joint.radius(),
+                        }
+                    }),
                     shape_ids: self
                         .history
                         .scene()
@@ -347,6 +352,7 @@ impl Editor {
             viewport_error,
             grid_visible: self.grid_visible,
             shading: self.shading,
+            menu_set: self.menu_set,
             face_centres_hidden: self.face_centres_hidden,
             vertex_markers_hidden: self.vertex_markers_hidden,
             sidebar_panels: SidebarPanelsInspection {

@@ -48,6 +48,10 @@ pub(super) const MODELING_SET_MENUS: [&str; 9] = [
     "Generate",
 ];
 
+/// The Rigging set page lists these topics; their order in the bar is PROVISIONAL.
+pub(super) const RIGGING_SET_MENUS: [&str; 5] =
+    ["Skeleton", "Skin", "Deform", "Constrain", "Control"];
+
 /// Help follows the Modeling set; its Maya position is UNCONFIRMED (the pages do not place it).
 pub(super) const HELP_MENU: &str = "Help";
 
@@ -434,8 +438,18 @@ impl Editor {
             for label in &ALWAYS_ON_MENUS[CONTENT_MENUS..] {
                 placeholder_menu(ui, label);
             }
-            for label in MODELING_SET_MENUS {
-                placeholder_menu(ui, label);
+            match self.menu_set {
+                MenuSet::Modeling => {
+                    for label in MODELING_SET_MENUS {
+                        placeholder_menu(ui, label);
+                    }
+                }
+                MenuSet::Rigging => {
+                    self.skeleton_menu(ui, read_only_reason);
+                    for label in &RIGGING_SET_MENUS[1..] {
+                        placeholder_menu(ui, label);
+                    }
+                }
             }
             ui.menu_button(HELP_MENU, |ui| {
                 ui.label("Local editor prototype");
@@ -456,7 +470,7 @@ impl Editor {
             .authoring_read_only_reason()
             .map(|reason| reason.to_string());
         let authoring = read_only_reason.is_none();
-        // Seventeen menus overflow the 960 point minimum window at enlarged text or padding;
+        // Sixteen or seventeen menus overflow the 960 point minimum window at enlarged text or padding;
         // scroll instead of wrapping so the strips below keep their rows.
         egui::ScrollArea::horizontal()
             .auto_shrink([false, true])

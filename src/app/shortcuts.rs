@@ -36,6 +36,23 @@ impl Editor {
                 _ => None,
             })
         });
+        // F2 and F3 switch sets. F4 to F6 stay unbound: their sets are not implemented.
+        let menu_set = ctx.input(|i| {
+            i.events.iter().find_map(|event| match event {
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                    ..
+                } if modifiers.is_none() => match key {
+                    Key::F2 => Some(MenuSet::Modeling),
+                    Key::F3 => Some(MenuSet::Rigging),
+                    _ => None,
+                },
+                _ => None,
+            })
+        });
         let shading_key = ctx.input(|i| {
             i.events.iter().find_map(|event| match event {
                 egui::Event::Key {
@@ -170,6 +187,9 @@ impl Editor {
         }
         if select_inverse {
             self.native_select_by_rule(SelectRule::Inverse);
+        }
+        if let Some(set) = menu_set {
+            self.native_operation(Operation::SetMenuSet { set });
         }
         match shading_key {
             Some(Key::Num4) => {

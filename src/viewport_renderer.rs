@@ -5,7 +5,7 @@ use azteccraft::{
     shading::shade,
     view_scene::{
         FACE_CENTER_MARKER_PIXELS, SELECTED_EDGE_PIXELS, VERTEX_MARKER_PIXELS, ViewFace,
-        ViewInstance, ViewScene,
+        ViewInstance, ViewJoint, ViewScene,
     },
     viewport::{Camera, InvalidCameraInput},
 };
@@ -62,6 +62,27 @@ fn tinted_base(base: [u8; 3], tint: [u8; 3]) -> [u8; 3] {
     } else {
         tinted
     }
+}
+
+/// Segments in each of the three wire circles standing in for Maya's joint drawing (PROVISIONAL).
+const JOINT_CIRCLE_SEGMENTS: usize = 16;
+const JOINT_VERTICES: usize = 3 * JOINT_CIRCLE_SEGMENTS * 2;
+
+/// The three world-aligned circles of one joint.
+fn joint_circle_segments(joint: &ViewJoint) -> impl Iterator<Item = [Vec3; 2]> + '_ {
+    let point = move |plane: usize, step: usize| {
+        let (sin, cos) =
+            (step as f32 * std::f32::consts::TAU / JOINT_CIRCLE_SEGMENTS as f32).sin_cos();
+        let radial = match plane {
+            0 => Vec3::new(cos, sin, 0.0),
+            1 => Vec3::new(cos, 0.0, sin),
+            _ => Vec3::new(0.0, cos, sin),
+        };
+        joint.center() + radial * joint.display_radius()
+    };
+    (0..3).flat_map(move |plane| {
+        (0..JOINT_CIRCLE_SEGMENTS).map(move |step| [point(plane, step), point(plane, step + 1)])
+    })
 }
 
 fn highlight_edge_color(highlight: Highlight) -> Color32 {
@@ -517,6 +538,16 @@ impl Submission {
                 )
                 .ok_or(RenderError::ResourceLimit)?;
         }
+        for joint in scene.joints() {
+            let bone = if joint.parent_center().is_some() {
+                2
+            } else {
+                0
+            };
+            vertices = vertices
+                .checked_add(JOINT_VERTICES + bone)
+                .ok_or(RenderError::ResourceLimit)?;
+        }
         let byte_count = vertices
             .checked_mul(VERTEX_BYTES)
             .ok_or(RenderError::ResourceLimit)?;
@@ -645,6 +676,21 @@ impl Submission {
                     for point in segment {
                         submission.vertex(matrix, *point, color, format)?;
                     }
+                }
+            }
+            for joint in scene.joints() {
+                let highlight = selection.object_highlight(joint.path());
+                if highlight != pass {
+                    continue;
+                }
+                let color = highlight_edge_color(highlight);
+                for [a, b] in joint_circle_segments(joint) {
+                    submission.vertex(matrix, a, color, format)?;
+                    submission.vertex(matrix, b, color, format)?;
+                }
+                if let Some(parent) = joint.parent_center() {
+                    submission.vertex(matrix, parent, color, format)?;
+                    submission.vertex(matrix, joint.center(), color, format)?;
                 }
             }
         }

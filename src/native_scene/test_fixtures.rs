@@ -26,6 +26,15 @@ pub(crate) fn cube() -> (NativeScene, NodeId) {
     (scene, id)
 }
 
+/// One transform without a shape that is not a joint.
+pub(crate) fn lone_transform() -> NativeScene {
+    let (mut scene, _) = cube();
+    scene.shapes.clear();
+    scene.dag.retain(|edge| edge.parent.is_none());
+    scene.validate().unwrap();
+    scene
+}
+
 /// One transform with two identical direct shapes; the second has the larger path.
 pub(crate) fn twin_shapes() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();

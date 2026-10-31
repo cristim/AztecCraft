@@ -18,6 +18,11 @@ pub const SELECTED_EDGE_PIXELS: f32 = 3.0;
 pub const VERTEX_CLICK_PIXELS: f32 = 10.0;
 /// Provisional largest screen distance from the pointer to a picked edge.
 pub const EDGE_CLICK_PIXELS: f32 = 6.0;
+/// Provisional largest screen distance from the pointer to a picked joint centre.
+pub const JOINT_CLICK_PIXELS: f32 = 8.0;
+/// Provisional stand-in for Maya's joint drawing: the `radius` attribute times this, with the
+/// documented default joint display scale of 1, is the radius of three wire circles.
+pub const JOINT_DISPLAY_RADIUS_FACTOR: f64 = 0.5;
 /// Allowed distance of a polygon's turning sum from a whole number of turns. A quarter turn
 /// separates integer windings; it is not a planarity check, so lifted vertices still display.
 /// Strongly skew (non-planar) n-gons may be accepted yet overlap in projection; display only.
@@ -34,6 +39,37 @@ fn channel_to_u8(channel: f64) -> u8 {
 pub struct ViewScene {
     instances: Vec<ViewInstance>,
     curve_instances: Vec<ViewCurveInstance>,
+    joints: Vec<ViewJoint>,
+}
+
+/// One joint as the viewport draws and picks it. Unlike a shape instance, `path` is the transform
+/// path itself: a joint has no shape below it.
+#[derive(Debug)]
+pub struct ViewJoint {
+    path: Vec<NativeId>,
+    transform: NodeId,
+    center: Vec3,
+    display_radius: f32,
+    parent_center: Option<Vec3>,
+}
+
+impl ViewJoint {
+    pub fn path(&self) -> &[NativeId] {
+        &self.path
+    }
+    pub fn transform(&self) -> NodeId {
+        self.transform
+    }
+    pub fn center(&self) -> Vec3 {
+        self.center
+    }
+    pub fn display_radius(&self) -> f32 {
+        self.display_radius
+    }
+    /// The far end of the bone to this joint's parent; `None` for a root.
+    pub fn parent_center(&self) -> Option<Vec3> {
+        self.parent_center
+    }
 }
 
 pub struct ViewCurveInstance {
@@ -110,7 +146,7 @@ impl ViewScene {
     /// Applies the caller's derived-view byte budget before expanding instance paths.
     pub fn from_native(scene: &NativeScene, byte_budget: usize) -> Result<Self, ViewError> {
         let graph = Graph::prepare(scene, byte_budget)?;
-        let requirements = graph.requirements(byte_budget)?;
+        let requirements = graph.requirements(scene, byte_budget)?;
         let mut paths = reserve(requirements.paths)?;
         for root in graph.children(None) {
             paths.push(PathRecord {
@@ -122,6 +158,7 @@ impl ViewScene {
         }
         let mut instances = reserve(requirements.instances)?;
         let mut curve_instances = reserve(requirements.curve_instances)?;
+        let mut joints = reserve(requirements.joints)?;
         let curve_capacity_extra = buffer_bytes::<ViewCurveInstance>(
             curve_instances
                 .capacity()
@@ -156,14 +193,38 @@ impl ViewScene {
                 return Err(ViewError::NonFiniteWorld);
             }
             paths[cursor].world = world;
-            if !matches!(record, Record::Transform(_)) {
-                let mut path = reserve(paths[cursor].depth)?;
-                let mut ancestor = Some(cursor);
-                while let Some(index) = ancestor {
-                    path.push(graph.records[paths[index].node].id());
-                    ancestor = paths[index].parent;
+            if let Record::Transform(node) = record
+                && let Some(joint) = scene.joint(node.transform_id())
+            {
+                let path = record_path(&graph, &paths, cursor)?;
+                if scene
+                    .joint_view_admission(&path)
+                    .map_err(ViewError::Native)?
+                {
+                    let parent_center = paths[cursor]
+                        .parent
+                        .filter(|parent| {
+                            scene
+                                .joint(graph.records[paths[*parent].node].id())
+                                .is_some()
+                        })
+                        .map(|parent| world_point(paths[parent].world, DVec3::ZERO))
+                        .transpose()?;
+                    let display_radius = (joint.radius() * JOINT_DISPLAY_RADIUS_FACTOR) as f32;
+                    if !display_radius.is_finite() {
+                        return Err(ViewError::NonFiniteWorld);
+                    }
+                    joints.push(ViewJoint {
+                        path,
+                        transform: node.id(),
+                        center: world_point(world, DVec3::ZERO)?,
+                        display_radius,
+                        parent_center,
+                    });
                 }
-                path.reverse();
+            }
+            if !matches!(record, Record::Transform(_)) {
+                let path = record_path(&graph, &paths, cursor)?;
                 let admission = scene
                     .geometry_view_admission(&path)
                     .map_err(ViewError::Native)?;
@@ -236,9 +297,11 @@ impl ViewScene {
         }
         instances.sort_unstable_by(|a, b| a.path.cmp(&b.path));
         curve_instances.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+        joints.sort_unstable_by(|a, b| a.path.cmp(&b.path));
         Ok(Self {
             instances,
             curve_instances,
+            joints,
         })
     }
 
@@ -248,7 +311,10 @@ impl ViewScene {
     pub fn curve_instances(&self) -> &[ViewCurveInstance] {
         &self.curve_instances
     }
-    /// Whether any visible mesh or curve instance is a direct shape of one of `prefixes`.
+    pub fn joints(&self) -> &[ViewJoint] {
+        &self.joints
+    }
+    /// Whether one of `prefixes` draws anything itself: a direct mesh or curve shape, or a joint.
     pub fn has_direct_geometry(&self, prefixes: &[&[NativeId]]) -> bool {
         let direct = |path: &[NativeId]| {
             prefixes
@@ -260,6 +326,10 @@ impl ViewScene {
                 .curve_instances
                 .iter()
                 .any(|instance| direct(&instance.path))
+            || self
+                .joints
+                .iter()
+                .any(|joint| prefixes.contains(&joint.path.as_slice()))
     }
 }
 
@@ -611,7 +681,24 @@ struct Requirements {
     paths: usize,
     instances: usize,
     curve_instances: usize,
+    joints: usize,
     bytes: usize,
+}
+
+/// The root-to-record path of the walk entry at `cursor`.
+fn record_path(
+    graph: &Graph<'_>,
+    paths: &[PathRecord],
+    cursor: usize,
+) -> Result<Vec<NativeId>, ViewError> {
+    let mut path = reserve(paths[cursor].depth)?;
+    let mut ancestor = Some(cursor);
+    while let Some(index) = ancestor {
+        path.push(graph.records[paths[index].node].id());
+        ancestor = paths[index].parent;
+    }
+    path.reverse();
+    Ok(path)
 }
 
 fn checked_add(a: usize, b: usize) -> Result<usize, ViewError> {
@@ -687,7 +774,11 @@ impl<'a> Graph<'a> {
         &self.edges[start..end]
     }
 
-    fn requirements(&self, byte_budget: usize) -> Result<Requirements, ViewError> {
+    fn requirements(
+        &self,
+        scene: &NativeScene,
+        byte_budget: usize,
+    ) -> Result<Requirements, ViewError> {
         let mut counts = reserve(self.records.len())?;
         counts.resize(self.records.len(), Counts::default());
         for edge in &self.edges {
@@ -739,6 +830,7 @@ impl<'a> Graph<'a> {
             paths: 0,
             instances: 0,
             curve_instances: 0,
+            joints: 0,
             bytes: 0,
         };
         let graph_bytes = checked_add(
@@ -796,7 +888,13 @@ impl<'a> Graph<'a> {
                         checked_add(requirements.curve_instances, count.paths)?;
                     size_of::<ViewCurveInstance>()
                 }
-                Record::Transform(_) => continue,
+                Record::Transform(node) => {
+                    if scene.joint(node.transform_id()).is_none() {
+                        continue;
+                    }
+                    requirements.joints = checked_add(requirements.joints, count.paths)?;
+                    size_of::<ViewJoint>()
+                }
             };
             output_bytes = checked_add(
                 output_bytes,

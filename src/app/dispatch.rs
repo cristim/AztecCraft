@@ -10,6 +10,10 @@ struct StatusFeedback {
     fixed: bool,
 }
 
+/// Why Create Joints is unavailable in a component mode, natively and over MCP.
+pub(super) const JOINT_COMPONENT_REASON: &str =
+    "Joints are created in Object or Hierarchy selection mode";
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -90,6 +94,7 @@ impl Editor {
             | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
+            | Operation::SetMenuSet { .. }
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. } => None,
             Operation::Orbit { .. }
@@ -275,6 +280,10 @@ impl Editor {
                 "{noun} deletion is unsupported; switch to Object or Hierarchy selection"
             )));
         }
+        if self.selection_mode.is_component() && matches!(operation, Operation::CreateJoint { .. })
+        {
+            return Err(OperationError::InvalidInput(JOINT_COMPONENT_REASON.into()));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
@@ -283,6 +292,7 @@ impl Editor {
             operation,
             Operation::SetGridVisible { .. }
                 | Operation::SetShadingMode(_)
+                | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
         ) && self.files.is_modal()
@@ -491,6 +501,15 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
+            Operation::SetMenuSet { set } => {
+                let changed = self.menu_set != set;
+                self.menu_set = set;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
             Operation::SetSidebarPanelVisible { panel, visible } => {
                 let before = self.sidebar_dock;
                 if visible {
@@ -615,6 +634,19 @@ impl Editor {
                     distance,
                 }
             }
+            Operation::CreateJoint {
+                parent,
+                position,
+                relative,
+                radius,
+                name,
+            } => Command::CreateJoint(azteccraft::native_scene::JointRequest {
+                parent,
+                position,
+                relative,
+                radius,
+                name,
+            }),
             Operation::Delete(id) => Command::Remove(id),
             Operation::DeleteSelection => {
                 if self.selection.is_empty() {
@@ -883,23 +915,31 @@ impl Editor {
             let _ = session_material_command;
             OperationError::from_history(error)
         })?;
-        if let EditOutcome::Created(id) = outcome {
+        let created = match &outcome {
+            EditOutcome::Created(id) => Some(TransformTarget {
+                node: *id,
+                path: vec![
+                    self.history
+                        .scene()
+                        .node(*id)
+                        .map_err(OperationError::Scene)?
+                        .transform_id(),
+                ],
+            }),
+            EditOutcome::CreatedJoint(target) => Some(target.clone()),
+            _ => None,
+        };
+        if let Some(target) = created {
             self.clear_remembered_components();
-            let transform = self
-                .history
-                .scene()
-                .node(id)
-                .map_err(OperationError::Scene)?
-                .transform_id();
-            self.selection.replace(TransformTarget {
-                node: id,
-                path: vec![transform],
-            });
+            self.selection.replace(target);
         }
         self.sync_fields();
         Ok(match outcome {
             EditOutcome::Created(id) => OperationReply::Created {
                 node_id: id.to_decimal(),
+            },
+            EditOutcome::CreatedJoint(target) => OperationReply::Created {
+                node_id: target.node.to_decimal(),
             },
             #[cfg(any(test, feature = "mcp"))]
             EditOutcome::SessionMaterial(material) => OperationReply::SessionMaterial {

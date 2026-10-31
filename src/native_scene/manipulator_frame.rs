@@ -10,7 +10,8 @@ pub struct ManipulatorFrame {
     /// pivot under a rotation.
     pub scale_origin_cm: DVec3,
     /// The node's X, Y and Z as seen from the world: the parents' linear map times the node's
-    /// rotation (rotate order and rotate axis included). The node's own shear and scale never
+    /// rotation (rotate order and rotate axis included), with a joint's inverse parent scale
+    /// between the two. The node's own shear and scale never
     /// enter it. Not normalized, and mirrored or skewed when a parent has negative or uneven
     /// scale; the handles refuse such frames.
     pub object_axes: [DVec3; 3],
@@ -39,7 +40,7 @@ impl NativeScene {
             .ok_or(refused.clone())?;
         let axes = transform
             .rotation_frame()
-            .map(|rotation| DMat3::from_mat4(parent_world) * rotation)
+            .map(|rotation| transform.compensated_parent(DMat3::from_mat4(parent_world)) * rotation)
             .ok_or(refused.clone())?;
         let object_axes = [axes.x_axis, axes.y_axis, axes.z_axis];
         if !origin_cm.is_finite() || object_axes.iter().any(|axis| !axis.is_finite()) {

@@ -131,6 +131,7 @@ mod official_client {
     mod node_edit;
     mod pointer_hit;
     mod primitive_options;
+    mod rigging;
     mod select_by_rule;
     mod selection;
     mod session;

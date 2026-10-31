@@ -436,9 +436,10 @@ impl Editor {
         self.manipulation.declared = declared.map(|angle| (id, angle));
         self.sync_fields();
         Ok(match outcome {
-            EditOutcome::Changed | EditOutcome::Created(_) | EditOutcome::SessionMaterial(_) => {
-                OperationReply::Changed
-            }
+            EditOutcome::Changed
+            | EditOutcome::Created(_)
+            | EditOutcome::CreatedJoint(_)
+            | EditOutcome::SessionMaterial(_) => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })
     }

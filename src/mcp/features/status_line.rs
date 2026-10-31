@@ -1,5 +1,5 @@
 use crate::{
-    editor_operations::{AttributeEditorTab, Operation, RemoteRequest, SidebarPanel},
+    editor_operations::{AttributeEditorTab, MenuSet, Operation, RemoteRequest, SidebarPanel},
     mcp::{
         args::{decode, native_id, node_id, schema, scoped, token},
         registry::ToolSpec,
@@ -43,6 +43,32 @@ fn parse_set_sidebar_panel_visibility(arguments: JsonObject) -> Result<RemoteReq
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+enum MenuSetInput {
+    Modeling,
+    Rigging,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct MenuSetArgs {
+    scene_token: String,
+    set: MenuSetInput,
+}
+
+fn parse_set_menu_set(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: MenuSetArgs = decode(arguments)?;
+    let set = match args.set {
+        MenuSetInput::Modeling => MenuSet::Modeling,
+        MenuSetInput::Rigging => MenuSet::Rigging,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetMenuSet { set },
+    ))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 enum TabKind {
     Transform,
     Shape,
@@ -78,6 +104,14 @@ fn parse_select_attribute_editor_tab(arguments: JsonObject) -> Result<RemoteRequ
 }
 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
+    ToolSpec {
+        name: "set_menu_set",
+        description: "Switch the menu set the native menu bar shows, like the Status Line selector or F2 and F3. Only modeling and rigging exist; Animation, FX and Rendering are not implemented. Session-only and idempotent: it does not edit the scene, mark it dirty or change the scene token, New and Open keep it, and it cannot be undone. Refused while a file dialog is open. `inspect_scene` reports it as `menu_set`",
+        schema: schema::<MenuSetArgs>,
+        parse: parse_set_menu_set,
+        idempotent: true,
+        read_only: false,
+    },
     ToolSpec {
         name: "set_sidebar_panel_visibility",
         description: "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse",

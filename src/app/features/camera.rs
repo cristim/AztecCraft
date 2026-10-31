@@ -70,7 +70,10 @@ impl Editor {
     pub(in crate::app) fn frame_everything(&mut self) -> Result<OperationReply, OperationError> {
         let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
             .map_err(|error| OperationError::View(error.to_string()))?;
-        if view.instances().is_empty() && view.curve_instances().is_empty() {
+        if view.instances().is_empty()
+            && view.curve_instances().is_empty()
+            && view.joints().is_empty()
+        {
             return Err(OperationError::NothingToFrame);
         }
         let before = self.camera.clone();

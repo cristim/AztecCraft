@@ -4,7 +4,7 @@ use azteccraft::{
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
-    view_scene::{ViewError, ViewScene},
+    view_scene::{ViewError, ViewJoint, ViewScene},
     viewport::{Camera, InvalidCameraInput},
 };
 use eframe::egui::{self, Color32, Painter, PointerButton, Rect};
@@ -265,6 +265,16 @@ impl ViewportInput {
                     self.pixels_per_point,
                 )
             })
+            .transpose()
+            .map(Option::flatten)
+    }
+    pub fn pick_joint<'a>(
+        &self,
+        camera: &Camera,
+        scene: &'a ViewScene,
+    ) -> Result<Option<&'a ViewJoint>, ViewError> {
+        self.click_points
+            .map(|point| camera.pick_joint(scene, point, self.physical_size, self.pixels_per_point))
             .transpose()
             .map(Option::flatten)
     }
