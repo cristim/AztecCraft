@@ -33,6 +33,7 @@ pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras}
 use crate::primitive_options::PrimitiveOptions;
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};
 use glam::{DMat3, DMat4, DVec3, Vec3};
+use std::collections::HashMap;
 use std::fmt;
 #[cfg(test)]
 use std::ops::Range;
@@ -459,6 +460,26 @@ impl NativeMeshShape {
     }
 }
 
+/// Lookup index over a scene's transforms and parent edges, built by `NativeScene::dag_index`.
+/// Only lookups are offered, so hash order cannot reach a result. `validate_dag` (#367) is expected to
+/// reuse it instead of building its own parent-to-children map.
+pub(crate) struct DagIndex {
+    by_transform: HashMap<NativeId, NodeId>,
+    children: HashMap<Option<NativeId>, Vec<NativeId>>,
+}
+
+impl DagIndex {
+    /// The node owning a transform id; the first node wins.
+    pub(crate) fn node(&self, transform_id: NativeId) -> Option<NodeId> {
+        self.by_transform.get(&transform_id).copied()
+    }
+
+    /// Children of `parent` in dag order; `None` is the scene root.
+    pub(crate) fn children(&self, parent: Option<NativeId>) -> &[NativeId] {
+        self.children.get(&parent).map_or(&[], Vec::as_slice)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DagEdge {
     parent: Option<NativeId>,
@@ -752,14 +773,33 @@ impl NativeScene {
             .map(|node| node.id)
             .ok_or(NativeError::InvalidInstancePath)
     }
+    /// Index the transform and parent relations once, for callers that would otherwise scan
+    /// `nodes` or `dag` per lookup.
+    pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        let mut by_transform = HashMap::new();
+        by_transform
+            .try_reserve(self.nodes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for node in &self.nodes {
+            by_transform.entry(node.transform_id).or_insert(node.id);
+        }
+        let mut children = HashMap::<Option<NativeId>, Vec<NativeId>>::new();
+        children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for edge in &self.dag {
+            children.entry(edge.parent).or_default().push(edge.child);
+        }
+        Ok(DagIndex {
+            by_transform,
+            children,
+        })
+    }
     pub fn transform_paths(&self) -> Result<Vec<TransformTarget>, NativeError> {
+        let index = self.dag_index()?;
         let mut paths = Vec::<TransformTarget>::new();
-        for root in self.dag.iter().filter(|edge| edge.parent.is_none()) {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == root.child)
-                .ok_or(NativeError::InvalidInstancePath)?;
+        for &root in index.children(None) {
+            let node = index.node(root).ok_or(NativeError::InvalidInstancePath)?;
             if paths.len() == MAX_TRANSFORM_PATHS {
                 return Err(NativeError::ResourceLimit);
             }
@@ -769,11 +809,8 @@ impl NativeScene {
             let mut path = Vec::new();
             path.try_reserve_exact(1)
                 .map_err(|_| NativeError::ResourceLimit)?;
-            path.push(root.child);
-            paths.push(TransformTarget {
-                node: node.id,
-                path,
-            });
+            path.push(root);
+            paths.push(TransformTarget { node, path });
         }
         let mut identities = paths.len();
         let mut cursor = 0;
@@ -782,12 +819,8 @@ impl NativeScene {
                 .path
                 .last()
                 .ok_or(NativeError::InvalidInstancePath)?;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
-                let Some(node) = self
-                    .nodes
-                    .iter()
-                    .find(|node| node.transform_id == edge.child)
-                else {
+            for &child in index.children(Some(parent)) {
+                let Some(node) = index.node(child) else {
                     continue;
                 };
                 let depth = paths[cursor]
@@ -808,14 +841,11 @@ impl NativeScene {
                 path.try_reserve_exact(depth)
                     .map_err(|_| NativeError::ResourceLimit)?;
                 path.extend_from_slice(&paths[cursor].path);
-                path.push(edge.child);
+                path.push(child);
                 paths
                     .try_reserve(1)
                     .map_err(|_| NativeError::ResourceLimit)?;
-                paths.push(TransformTarget {
-                    node: node.id,
-                    path,
-                });
+                paths.push(TransformTarget { node, path });
             }
             cursor += 1;
         }
