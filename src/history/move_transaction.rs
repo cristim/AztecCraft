@@ -689,4 +689,6 @@ impl History {
 }
 
 #[cfg(test)]
+mod multi_tests;
+#[cfg(test)]
 mod tests;
