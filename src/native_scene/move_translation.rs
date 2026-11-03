@@ -53,6 +53,8 @@ pub enum WorldMoveUnsupported {
     TranslationSource,
     ParentTransform,
     NumericalDisplacement,
+    /// One object selected through several instances: its instances share channels.
+    SharedInstances,
 }
 
 impl fmt::Display for WorldMoveUnsupported {
@@ -62,8 +64,18 @@ impl fmt::Display for WorldMoveUnsupported {
             Self::TranslationSource => "translation requires an existing supported source leaf",
             Self::ParentTransform => "parent transform is singular or numerically unstable",
             Self::NumericalDisplacement => "displacement cannot be represented accurately",
+            Self::SharedInstances => {
+                "the same object is selected through several instances and shares one translation"
+            }
         })
     }
+}
+
+/// Why `world_move_frames` refused: the scene as a whole, or one named target (by index).
+#[derive(Debug)]
+pub(crate) enum MoveBeginError {
+    Scene(NativeError),
+    Member { index: usize, source: NativeError },
 }
 
 #[derive(Clone, Copy)]
@@ -433,6 +445,81 @@ impl NativeScene {
         }
         let selected = self.resolve_transform_path(target.node, &target.path)?;
         self.editable(target.node)?;
+        self.world_move_frame_of(target, selected)
+    }
+
+    /// Scene-level refusals that do not depend on a member: read-only format and an invalid
+    /// scene. Run once for a whole set of movers.
+    fn move_scene_check(&self) -> Result<(), NativeError> {
+        self.authoring_preflight()?;
+        self.validate()
+    }
+
+    /// The per-member part of `world_move_frame`, after the scene-level checks.
+    fn member_move_frame(&self, target: &TransformTarget) -> Result<WorldMoveFrame, NativeError> {
+        if target.path.len() > MAX_TRANSFORM_DEPTH {
+            return Err(NativeError::ResourceLimit);
+        }
+        let selected = self.resolve_transform_path(target.node, &target.path)?;
+        self.editable_node(target.node)?;
+        self.world_move_frame_of(target, selected)
+    }
+
+    /// Resolves every target (depth and instance path), covered ones included, so a bogus
+    /// target is refused even when another selected target would cover it.
+    pub(crate) fn resolve_move_targets(
+        &self,
+        targets: &[TransformTarget],
+    ) -> Result<(), MoveBeginError> {
+        for (index, target) in targets.iter().enumerate() {
+            let member = |source| MoveBeginError::Member { index, source };
+            if target.path.len() > MAX_TRANSFORM_DEPTH {
+                return Err(member(NativeError::ResourceLimit));
+            }
+            self.resolve_transform_path(target.node, &target.path)
+                .map_err(member)?;
+        }
+        Ok(())
+    }
+
+    /// The translation baseline of `node` alone, for a selected lead that gets no mover.
+    pub(crate) fn translation_baseline(
+        &self,
+        node: NodeId,
+    ) -> Result<ChannelBaseline, NativeError> {
+        Ok(self.channel_baseline(self.node(node)?, TransformField::Translation))
+    }
+
+    /// Frames and translation baselines for every target, after one scene-level check (a single
+    /// validation for the whole set). Fails whole, naming the offending target's index.
+    pub(crate) fn world_move_frames(
+        &self,
+        targets: &[&TransformTarget],
+        axis: WorldAxis,
+    ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
+        self.move_scene_check().map_err(MoveBeginError::Scene)?;
+        let mut movers = Vec::new();
+        movers
+            .try_reserve_exact(targets.len())
+            .map_err(|_| MoveBeginError::Scene(NativeError::ResourceLimit))?;
+        for (index, target) in targets.iter().enumerate() {
+            let member = |source| MoveBeginError::Member { index, source };
+            let frame = self.member_move_frame(target).map_err(member)?;
+            frame.require_leaves(axis).map_err(member)?;
+            let node = self.node(target.node).map_err(member)?;
+            movers.push((
+                frame,
+                self.channel_baseline(node, TransformField::Translation),
+            ));
+        }
+        Ok(movers)
+    }
+
+    fn world_move_frame_of(
+        &self,
+        target: &TransformTarget,
+        selected: &NativeTransformNode,
+    ) -> Result<WorldMoveFrame, NativeError> {
         let transform = self.internal_transform(target.node)?;
         if transform
             .rotate_pivot_cm

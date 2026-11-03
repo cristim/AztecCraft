@@ -785,3 +785,64 @@ fn restore_channels_many_checks_every_owner_before_writing() {
     );
     assert_eq!(scene, before);
 }
+
+#[test]
+fn world_move_frames_reports_a_read_only_scene_once_and_unnamed() {
+    let (mut scene, first) = test_fixtures::cube();
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    let targets = [target(&scene, first), target(&scene, second)];
+    let refs: Vec<&TransformTarget> = targets.iter().collect();
+    crate::native_scene::tests::retain(
+        &mut scene,
+        b"setAttr .tx +0.000;",
+        std::iter::once(0..19).collect(),
+    );
+    scene.nodes[0].channels[0].origin = Some(ScalarOrigin::Ascii { literal: 12..18 });
+    assert!(matches!(
+        scene.world_move_frames(&refs, WorldAxis::X),
+        Err(MoveBeginError::Scene(NativeError::ReadOnlyFormat))
+    ));
+}
+
+#[test]
+fn world_move_frames_names_the_index_of_the_refusing_target() {
+    let (mut scene, pivoted) = test_fixtures::pivoted_shape();
+    let plain = scene.create(Primitive::Cube, "plain").unwrap();
+    let targets = [target(&scene, plain), target(&scene, pivoted)];
+    let refs: Vec<&TransformTarget> = targets.iter().collect();
+    assert!(matches!(
+        scene.world_move_frames(&refs, WorldAxis::X),
+        Err(MoveBeginError::Member {
+            index: 1,
+            source: NativeError::UnsupportedMove(WorldMoveUnsupported::SelectedPivot)
+        })
+    ));
+}
+
+/// Baseline: N single frames validate N times; the batch builder validates once.
+#[test]
+fn world_move_frames_validates_once_for_the_whole_set() {
+    let mut scene = NativeScene::default();
+    for index in 0..8 {
+        scene
+            .create(Primitive::Cube, &format!("cube{index}"))
+            .unwrap();
+    }
+    let targets = scene.transform_paths().unwrap();
+    let refs: Vec<&TransformTarget> = targets.iter().collect();
+    let validations = |action: &mut dyn FnMut()| {
+        FULL_VALIDATIONS.with(|count| count.set(0));
+        action();
+        FULL_VALIDATIONS.with(|count| count.get())
+    };
+    let singles = validations(&mut || {
+        for target in &targets {
+            scene.world_move_frame(target).unwrap();
+        }
+    });
+    assert_eq!(singles, 8);
+    let batch = validations(&mut || {
+        scene.world_move_frames(&refs, WorldAxis::X).unwrap();
+    });
+    assert_eq!(batch, 1);
+}

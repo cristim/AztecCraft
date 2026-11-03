@@ -277,7 +277,7 @@ fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
     );
 }
 
-fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
+pub(super) fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
         sites: Vec::new(),
         bytes: bytes.into(),

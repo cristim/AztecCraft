@@ -19,7 +19,7 @@ pub use appearance::{
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::ManipulatorFrame;
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::{ChannelBaseline, ChannelEdits};
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
@@ -1137,6 +1137,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()

@@ -1,10 +1,16 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
-    ChannelBaseline, ChannelEdits, NativeError, NativeId, NativeScene, RotateAxis, RotateFrame,
-    RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget, WorldAxis, WorldMoveFrame,
+    ChannelBaseline, ChannelEdits, MoveBeginError, NativeError, NativeId, NativeScene, RotateAxis,
+    RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget, WorldAxis,
+    WorldMoveFrame, WorldMoveUnsupported,
 };
+use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
-use std::{fmt, mem::size_of};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    mem::size_of,
+};
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,6 +41,11 @@ pub enum ManipulationFinish {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ManipulationError {
     Native(NativeError),
+    /// One selected object refused a multi-object Move; the scene is unchanged.
+    Member {
+        name: String,
+        source: Box<NativeError>,
+    },
     View(ViewError),
     Busy,
     StaleScene,
@@ -59,6 +70,7 @@ impl fmt::Display for ManipulationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Native(error) => error.fmt(f),
+            Self::Member { name, source } => write!(f, "{name}: {source}"),
             Self::View(error) => error.fmt(f),
             Self::Busy => f.write_str("finish or cancel the active manipulation"),
             Self::StaleScene => f.write_str("manipulation scene token is stale"),
@@ -98,9 +110,21 @@ pub struct ManipulationState<'a> {
     pub baseline_channels: [f64; 3],
     /// The same three channels now (the live preview); `None` if the node cannot be read.
     pub current_channels: Option<[f64; 3]>,
+    member_count: usize,
+    covered_count: usize,
 }
 
 impl ManipulationState<'_> {
+    /// Selected objects the Move acts on, covered members included (1 for Rotate and Scale).
+    pub fn member_count(&self) -> usize {
+        self.member_count
+    }
+
+    /// Members that follow a selected ancestor instead of getting their own translation.
+    pub fn covered_count(&self) -> usize {
+        self.covered_count
+    }
+
     pub fn move_axis(&self) -> Option<WorldAxis> {
         match self.kind {
             ManipulationKindState::Move { axis } => Some(axis),
@@ -115,10 +139,12 @@ impl ManipulationState<'_> {
 
 /// The kind of manipulation and its kind-specific state; the guards in `History` are shared.
 enum ManipulationKind {
-    /// Every uncovered member's frame and baseline, the lead last unless the lead is covered.
+    /// Every uncovered member's frame and baseline, the lead last unless the lead is covered,
+    /// in which case `covered_lead` holds the lead's own baseline for inspection.
     Move {
         axis: WorldAxis,
         movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
+        covered_lead: Option<ChannelBaseline>,
     },
     Rotate {
         axis: RotateAxis,
@@ -162,10 +188,16 @@ impl ManipulationKind {
         }
     }
 
-    /// The baseline the inspection reports: the last mover (the lead unless it is covered).
+    /// The baseline the inspection reports: the lead's own channels.
     fn baseline(&self) -> Option<&ChannelBaseline> {
         match self {
-            Self::Move { movers, .. } => movers.last().map(|mover| &mover.1),
+            Self::Move {
+                movers,
+                covered_lead,
+                ..
+            } => covered_lead
+                .as_ref()
+                .or_else(|| movers.last().map(|mover| &mover.1)),
             Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => Some(baseline),
         }
     }
@@ -179,7 +211,7 @@ impl ManipulationKind {
         declared: Option<f64>,
     ) -> Result<(Vec<ChannelBaseline>, bool), NativeError> {
         let values = match self {
-            Self::Move { axis, movers } => {
+            Self::Move { axis, movers, .. } => {
                 let values = movers
                     .iter()
                     .map(|(frame, _)| frame.translation(*axis, parameter))
@@ -235,6 +267,62 @@ impl ManipulationKind {
     }
 }
 
+/// Retained bytes charged per mover against the view budget, beside its path.
+const MOVER_BYTES: usize = size_of::<ChannelBaseline>() + size_of::<WorldMoveFrame>();
+
+/// What a begin builds: the kind, how many objects it acts on and the extra bytes to charge.
+struct ManipulationBegin {
+    kind: ManipulationKind,
+    member_count: usize,
+    covered_count: usize,
+    member_bytes: usize,
+}
+
+impl ManipulationBegin {
+    fn single(kind: ManipulationKind) -> Self {
+        Self {
+            kind,
+            member_count: 1,
+            covered_count: 0,
+            member_bytes: 0,
+        }
+    }
+
+    fn new(
+        axis: WorldAxis,
+        movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
+        covered_lead: Option<ChannelBaseline>,
+        member_count: usize,
+        covered_count: usize,
+        member_bytes: usize,
+    ) -> Self {
+        Self {
+            kind: ManipulationKind::Move {
+                axis,
+                movers,
+                covered_lead,
+            },
+            member_count,
+            covered_count,
+            member_bytes,
+        }
+    }
+}
+
+fn member_error(
+    scene: &NativeScene,
+    target: &TransformTarget,
+    source: NativeError,
+) -> ManipulationError {
+    let name = scene
+        .node(target.node)
+        .map_or_else(|_| String::from("?"), |node| node.name().to_string());
+    ManipulationError::Member {
+        name,
+        source: Box::new(source),
+    }
+}
+
 pub(super) struct MoveTransaction {
     id: ManipulationId,
     scene_token: Uuid,
@@ -243,6 +331,8 @@ pub(super) struct MoveTransaction {
     kind: ManipulationKind,
     view_budget: usize,
     parameter: f64,
+    member_count: usize,
+    covered_count: usize,
 }
 
 impl MoveTransaction {
@@ -281,6 +371,8 @@ impl History {
                 let values = node.transform().values();
                 [values[first], values[first + 1], values[first + 2]]
             }),
+            member_count: active.member_count,
+            covered_count: active.covered_count,
         })
     }
 
@@ -292,12 +384,105 @@ impl History {
         provenance: ManipulationProvenance,
         byte_budget: usize,
     ) -> Result<ManipulationId, ManipulationError> {
-        self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
-            let (frame, baseline) = scene.begin_move_translation(target, axis)?;
-            Ok(ManipulationKind::Move {
+        self.begin_move_many(
+            std::slice::from_ref(target),
+            axis,
+            scene_token,
+            provenance,
+            byte_budget,
+        )
+    }
+
+    /// Begins one Move of every target; the last target is the lead. A target that sits under
+    /// another selected target (by node identity, not path prefix) is covered: it follows its
+    /// ancestor and gets no translation of its own (PROVISIONAL, P20). One node selected through
+    /// two instances is refused whole (P21), as is any member that cannot be moved.
+    pub fn begin_move_many(
+        &mut self,
+        targets: &[TransformTarget],
+        axis: WorldAxis,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
+        let lead = targets
+            .last()
+            .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
+        self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
+            if let [target] = targets {
+                let (frame, baseline) = scene.begin_move_translation(target, axis)?;
+                return Ok(ManipulationBegin::new(
+                    axis,
+                    vec![(frame, baseline)],
+                    None,
+                    1,
+                    0,
+                    0,
+                ));
+            }
+            scene
+                .resolve_move_targets(targets)
+                .map_err(|error| match error {
+                    MoveBeginError::Scene(error) => ManipulationError::Native(error),
+                    MoveBeginError::Member { index, source } => {
+                        member_error(scene, &targets[index], source)
+                    }
+                })?;
+            let mut seen: HashMap<NodeId, &TransformTarget> = HashMap::new();
+            for target in targets {
+                if let Some(first) = seen.insert(target.node, target) {
+                    // The same object twice is a malformed request; the same object through
+                    // two instances shares one translation and cannot move as two members.
+                    let refusal = if first.path == target.path {
+                        NativeError::from(SceneError::InvalidIds)
+                    } else {
+                        NativeError::UnsupportedMove(WorldMoveUnsupported::SharedInstances)
+                    };
+                    return Err(member_error(scene, target, refusal));
+                }
+            }
+            let selected: HashSet<NativeId> = targets
+                .iter()
+                .filter_map(|target| target.path.last().copied())
+                .collect();
+            let movers: Vec<&TransformTarget> = targets
+                .iter()
+                .filter(|target| {
+                    let ancestors = &target.path[..target.path.len().saturating_sub(1)];
+                    !ancestors.iter().any(|id| selected.contains(id))
+                })
+                .collect();
+            let frames = scene
+                .world_move_frames(&movers, axis)
+                .map_err(|error| match error {
+                    MoveBeginError::Scene(error) => ManipulationError::Native(error),
+                    MoveBeginError::Member { index, source } => {
+                        member_error(scene, movers[index], source)
+                    }
+                })?;
+            let mut member_bytes = 0usize;
+            for target in targets {
+                member_bytes = target
+                    .path
+                    .len()
+                    .checked_mul(size_of::<NativeId>())
+                    .and_then(|bytes| bytes.checked_add(MOVER_BYTES))
+                    .and_then(|bytes| member_bytes.checked_add(bytes))
+                    .ok_or(ViewError::ResourceLimit)?;
+            }
+            let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
+                None
+            } else {
+                Some(scene.translation_baseline(lead.node)?)
+            };
+            Ok(ManipulationBegin::new(
                 axis,
-                movers: vec![(frame, baseline)],
-            })
+                frames,
+                covered_lead,
+                targets.len(),
+                targets.len() - movers.len(),
+                member_bytes,
+            ))
         })
     }
 
@@ -313,11 +498,11 @@ impl History {
     ) -> Result<ManipulationId, ManipulationError> {
         self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
             let (frame, baseline) = scene.begin_rotation(target, axis, space)?;
-            Ok(ManipulationKind::Rotate {
+            Ok(ManipulationBegin::single(ManipulationKind::Rotate {
                 axis,
                 frame,
                 baseline,
-            })
+            }))
         })
     }
 
@@ -333,11 +518,11 @@ impl History {
     ) -> Result<ManipulationId, ManipulationError> {
         self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
             let (frame, baseline) = scene.begin_scale_frame(target, handle, space)?;
-            Ok(ManipulationKind::Scale {
+            Ok(ManipulationBegin::single(ManipulationKind::Scale {
                 handle,
                 frame,
                 baseline,
-            })
+            }))
         })
     }
 
@@ -347,7 +532,7 @@ impl History {
         scene_token: Uuid,
         provenance: ManipulationProvenance,
         byte_budget: usize,
-        make_kind: impl FnOnce(&NativeScene) -> Result<ManipulationKind, NativeError>,
+        make_kind: impl FnOnce(&NativeScene) -> Result<ManipulationBegin, ManipulationError>,
     ) -> Result<ManipulationId, ManipulationError> {
         if self.active_manipulation.is_some() {
             return Err(ManipulationError::Busy);
@@ -356,7 +541,12 @@ impl History {
             .next_manipulation_id
             .checked_add(1)
             .ok_or(ManipulationError::IdsExhausted)?;
-        let kind = make_kind(&self.scene)?;
+        let ManipulationBegin {
+            kind,
+            member_count,
+            covered_count,
+            member_bytes,
+        } = make_kind(&self.scene)?;
         let mut path = Vec::new();
         path.try_reserve_exact(target.path.len())
             .map_err(|_| NativeError::ResourceLimit)?;
@@ -365,6 +555,7 @@ impl History {
             .capacity()
             .checked_mul(size_of::<NativeId>())
             .and_then(|bytes| bytes.checked_add(size_of::<MoveTransaction>()))
+            .and_then(|bytes| bytes.checked_add(member_bytes))
             .ok_or(ViewError::ResourceLimit)?;
         let view_budget = byte_budget
             .checked_sub(metadata)
@@ -381,6 +572,8 @@ impl History {
             parameter: kind.initial_parameter(),
             kind,
             view_budget,
+            member_count,
+            covered_count,
         });
         self.next_manipulation_id = next_id;
         Ok(ManipulationId(next_id))
