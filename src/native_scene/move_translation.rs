@@ -1,6 +1,6 @@
 use super::*;
 use glam::DMat3;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 const MAX_PARENT_CONDITION: f64 = 1e12;
 pub(super) const ROUNDTRIP_EPSILON: f64 = 128.0 * f64::EPSILON;
@@ -78,6 +78,9 @@ pub struct WorldMoveFrame {
     absent_leaf: [bool; 3],
 }
 
+/// The changed channels of each node an edit touches, as `Command::EditNodes` takes them.
+pub(crate) type ChannelEdits = Vec<(NodeId, [Option<f64>; 9])>;
+
 // Exact scalars of one transform field (translate, rotate or scale) captured at begin or preview.
 pub(crate) struct ChannelBaseline {
     field: TransformField,
@@ -91,6 +94,10 @@ impl ChannelBaseline {
     /// The three stored channel values at begin, in the scene's declared units.
     pub(crate) fn values(&self) -> [f64; 3] {
         self.scalars.each_ref().map(|scalar| scalar.value)
+    }
+
+    pub(crate) fn node(&self) -> NodeId {
+        self.node
     }
 
     /// Index of the first of the three channels in `NativeTransform::values`.
@@ -217,12 +224,12 @@ impl NativeScene {
         }
     }
 
-    fn channel_owner(&self, baseline: &ChannelBaseline) -> Result<usize, NativeError> {
-        let index = self
-            .nodes
-            .iter()
-            .position(|node| node.id == baseline.node && node.transform_id == baseline.owner)
-            .ok_or(NativeError::InvalidIdentity)?;
+    /// Source and origin checks for the node at `index`, which the caller found by identity.
+    fn check_channel_owner(
+        &self,
+        index: usize,
+        baseline: &ChannelBaseline,
+    ) -> Result<(), NativeError> {
         let same_source = match (&baseline.source, &self.source) {
             (None, None) => true,
             (Some(expected), Some(actual)) => Arc::ptr_eq(expected, &actual.bytes),
@@ -252,7 +259,7 @@ impl NativeScene {
                 component,
             )?;
         }
-        Ok(index)
+        Ok(())
     }
 
     pub(crate) fn preview_channels(
@@ -260,35 +267,9 @@ impl NativeScene {
         baseline: &ChannelBaseline,
         values: [f64; 3],
     ) -> Result<(ChannelBaseline, bool), NativeError> {
-        if values.iter().any(|value| !value.is_finite()) {
-            return Err(NativeError::NonFinite);
-        }
-        let index = self.channel_owner(baseline)?;
-        let start = field_start(baseline.field);
-        let mut replacement = baseline.scalars.clone();
-        for (component, scalar) in replacement.iter_mut().enumerate() {
-            if values[component].to_bits() != scalar.value.to_bits() {
-                *scalar = scalar.replacement(
-                    values[component],
-                    self.source.as_ref(),
-                    &self.units,
-                    baseline.owner,
-                    baseline.field,
-                    component,
-                )?;
-            }
-        }
-        let previous = ChannelBaseline {
-            field: baseline.field,
-            node: baseline.node,
-            owner: baseline.owner,
-            scalars: std::array::from_fn(|component| {
-                self.nodes[index].channels[start + component].clone()
-            }),
-            source: baseline.source.clone(),
-        };
-        let changed = self.nodes[index].channels[start..start + 3] != replacement;
-        self.nodes[index].channels[start..start + 3].clone_from_slice(&replacement);
+        let (mut previous, changed) =
+            self.preview_channels_many(std::iter::once((baseline, values)))?;
+        let previous = previous.pop().ok_or(NativeError::InvalidIdentity)?;
         Ok((previous, changed))
     }
 
@@ -296,26 +277,127 @@ impl NativeScene {
         &mut self,
         baseline: &ChannelBaseline,
     ) -> Result<(), NativeError> {
-        let index = self.channel_owner(baseline)?;
-        let start = field_start(baseline.field);
-        self.nodes[index].channels[start..start + 3].clone_from_slice(&baseline.scalars);
-        Ok(())
+        self.restore_channels_many(std::iter::once(baseline))
     }
 
     pub(crate) fn channel_changes(
         &self,
         baseline: &ChannelBaseline,
     ) -> Result<[Option<f64>; 9], NativeError> {
-        let index = self.channel_owner(baseline)?;
-        let start = field_start(baseline.field);
-        let mut channels = [None; 9];
-        for (component, original) in baseline.scalars.iter().enumerate() {
-            let current = &self.nodes[index].channels[start + component];
-            if current != original {
-                channels[start + component] = Some(current.value);
+        let mut changes = self.channel_changes_many(std::iter::once(baseline))?;
+        Ok(changes.pop().map_or([None; 9], |(_, channels)| channels))
+    }
+
+    fn node_indices(&self) -> HashMap<NodeId, usize> {
+        self.nodes
+            .iter()
+            .enumerate()
+            .map(|(index, node)| (node.id, index))
+            .collect()
+    }
+
+    fn channel_owner_in(
+        &self,
+        indices: &HashMap<NodeId, usize>,
+        baseline: &ChannelBaseline,
+    ) -> Result<usize, NativeError> {
+        let index = *indices
+            .get(&baseline.node)
+            .ok_or(NativeError::InvalidIdentity)?;
+        if self.nodes[index].transform_id != baseline.owner {
+            return Err(NativeError::InvalidIdentity);
+        }
+        self.check_channel_owner(index, baseline)?;
+        Ok(index)
+    }
+
+    /// `preview_channels` for several baselines, all or nothing: every replacement is computed
+    /// before the first write. Returns each member's previous baseline and whether any changed.
+    pub(crate) fn preview_channels_many<'a>(
+        &mut self,
+        items: impl Iterator<Item = (&'a ChannelBaseline, [f64; 3])>,
+    ) -> Result<(Vec<ChannelBaseline>, bool), NativeError> {
+        let indices = self.node_indices();
+        let mut writes = Vec::new();
+        let mut previous = Vec::new();
+        let mut changed = false;
+        for (baseline, values) in items {
+            if values.iter().any(|value| !value.is_finite()) {
+                return Err(NativeError::NonFinite);
+            }
+            let index = self.channel_owner_in(&indices, baseline)?;
+            let start = field_start(baseline.field);
+            let mut replacement = baseline.scalars.clone();
+            for (component, scalar) in replacement.iter_mut().enumerate() {
+                if values[component].to_bits() != scalar.value.to_bits() {
+                    *scalar = scalar.replacement(
+                        values[component],
+                        self.source.as_ref(),
+                        &self.units,
+                        baseline.owner,
+                        baseline.field,
+                        component,
+                    )?;
+                }
+            }
+            changed |= self.nodes[index].channels[start..start + 3] != replacement;
+            previous.push(ChannelBaseline {
+                field: baseline.field,
+                node: baseline.node,
+                owner: baseline.owner,
+                scalars: std::array::from_fn(|component| {
+                    self.nodes[index].channels[start + component].clone()
+                }),
+                source: baseline.source.clone(),
+            });
+            writes.push((index, start, replacement));
+        }
+        for (index, start, replacement) in writes {
+            self.nodes[index].channels[start..start + 3].clone_from_slice(&replacement);
+        }
+        Ok((previous, changed))
+    }
+
+    /// `restore_channels` for several baselines; every owner is checked before the first write.
+    pub(crate) fn restore_channels_many<'a>(
+        &mut self,
+        baselines: impl Iterator<Item = &'a ChannelBaseline> + Clone,
+    ) -> Result<(), NativeError> {
+        let indices = self.node_indices();
+        for baseline in baselines.clone() {
+            self.channel_owner_in(&indices, baseline)?;
+        }
+        for baseline in baselines {
+            let index = indices[&baseline.node];
+            let start = field_start(baseline.field);
+            self.nodes[index].channels[start..start + 3].clone_from_slice(&baseline.scalars);
+        }
+        Ok(())
+    }
+
+    /// `channel_changes` for several baselines: the nodes whose channels differ, with the changed
+    /// values. Members that did not change are omitted.
+    pub(crate) fn channel_changes_many<'a>(
+        &self,
+        baselines: impl Iterator<Item = &'a ChannelBaseline>,
+    ) -> Result<ChannelEdits, NativeError> {
+        let indices = self.node_indices();
+        let mut changes = Vec::new();
+        for baseline in baselines {
+            let index = self.channel_owner_in(&indices, baseline)?;
+            let start = field_start(baseline.field);
+            let mut channels = [None; 9];
+            for (component, original) in baseline.scalars.iter().enumerate() {
+                let current = &self.nodes[index].channels[start + component];
+                if current != original {
+                    channels[start + component] = Some(current.value);
+                }
+            }
+            if channels.iter().any(Option::is_some) {
+                changes.push((baseline.node, channels));
             }
         }
-        Ok(channels)
+        Ok(changes)
     }
 
     /// Product of the local matrices of the ancestors on `target.path` (the selected node

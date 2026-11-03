@@ -1,7 +1,7 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
-    ChannelBaseline, NativeError, NativeId, NativeScene, RotateAxis, RotateFrame, RotateSpace,
-    ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget, WorldAxis, WorldMoveFrame,
+    ChannelBaseline, ChannelEdits, NativeError, NativeId, NativeScene, RotateAxis, RotateFrame,
+    RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget, WorldAxis, WorldMoveFrame,
 };
 use crate::view_scene::{ViewError, ViewScene};
 use std::{fmt, mem::size_of};
@@ -115,10 +115,10 @@ impl ManipulationState<'_> {
 
 /// The kind of manipulation and its kind-specific state; the guards in `History` are shared.
 enum ManipulationKind {
+    /// Every uncovered member's frame and baseline, the lead last unless the lead is covered.
     Move {
         axis: WorldAxis,
-        frame: WorldMoveFrame,
-        baseline: ChannelBaseline,
+        movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
     },
     Rotate {
         axis: RotateAxis,
@@ -162,36 +162,76 @@ impl ManipulationKind {
         }
     }
 
-    fn baseline(&self) -> &ChannelBaseline {
+    /// The baseline the inspection reports: the last mover (the lead unless it is covered).
+    fn baseline(&self) -> Option<&ChannelBaseline> {
         match self {
-            Self::Move { baseline, .. }
-            | Self::Rotate { baseline, .. }
-            | Self::Scale { baseline, .. } => baseline,
+            Self::Move { movers, .. } => movers.last().map(|mover| &mover.1),
+            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => Some(baseline),
         }
     }
 
+    /// Writes the preview for `parameter`; returns each written node's previous baseline and
+    /// whether anything changed. For a Move every value is computed before the first write.
     fn preview(
         &self,
         scene: &mut NativeScene,
         parameter: f64,
         declared: Option<f64>,
-    ) -> Result<(ChannelBaseline, bool), NativeError> {
+    ) -> Result<(Vec<ChannelBaseline>, bool), NativeError> {
         let values = match self {
-            Self::Move { axis, frame, .. } => frame.translation(*axis, parameter)?,
-            Self::Rotate { axis, frame, .. } => {
-                frame.rotation_declared(*axis, parameter, declared)?
+            Self::Move { axis, movers } => {
+                let values = movers
+                    .iter()
+                    .map(|(frame, _)| frame.translation(*axis, parameter))
+                    .collect::<Result<Vec<_>, _>>()?;
+                return scene.preview_channels_many(
+                    movers.iter().map(|(_, baseline)| baseline).zip(values),
+                );
             }
-            Self::Scale { handle, frame, .. } => frame.scale(*handle, parameter)?,
+            Self::Rotate {
+                axis,
+                frame,
+                baseline,
+            } => (
+                baseline,
+                frame.rotation_declared(*axis, parameter, declared)?,
+            ),
+            Self::Scale {
+                handle,
+                frame,
+                baseline,
+            } => (baseline, frame.scale(*handle, parameter)?),
         };
-        scene.preview_channels(self.baseline(), values)
+        let (previous, changed) = scene.preview_channels(values.0, values.1)?;
+        Ok((vec![previous], changed))
     }
 
     fn restore(&self, scene: &mut NativeScene) -> Result<(), NativeError> {
-        scene.restore_channels(self.baseline())
+        match self {
+            Self::Move { movers, .. } => {
+                scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
+            }
+            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => {
+                scene.restore_channels(baseline)
+            }
+        }
     }
 
-    fn changes(&self, scene: &NativeScene) -> Result<[Option<f64>; 9], NativeError> {
-        scene.channel_changes(self.baseline())
+    /// The channel edits a commit applies: one `(node, channels)` per node that changed.
+    fn changes(&self, scene: &NativeScene) -> Result<ChannelEdits, NativeError> {
+        match self {
+            Self::Move { movers, .. } => {
+                scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
+            }
+            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => {
+                let channels = scene.channel_changes(baseline)?;
+                Ok(if channels.iter().all(Option::is_none) {
+                    Vec::new()
+                } else {
+                    vec![(baseline.node(), channels)]
+                })
+            }
+        }
     }
 }
 
@@ -227,21 +267,21 @@ impl MoveTransaction {
 
 impl History {
     pub fn active_manipulation(&self) -> Option<ManipulationState<'_>> {
-        self.active_manipulation
-            .as_ref()
-            .map(|active| ManipulationState {
-                id: active.id,
-                target: &active.target,
-                provenance: active.provenance,
-                parameter: active.parameter,
-                kind: active.kind.state(),
-                baseline_channels: active.kind.baseline().values(),
-                current_channels: self.scene.node(active.target.node).ok().map(|node| {
-                    let first = active.kind.baseline().first_channel();
-                    let values = node.transform().values();
-                    [values[first], values[first + 1], values[first + 2]]
-                }),
-            })
+        let active = self.active_manipulation.as_ref()?;
+        let baseline = active.kind.baseline()?;
+        Some(ManipulationState {
+            id: active.id,
+            target: &active.target,
+            provenance: active.provenance,
+            parameter: active.parameter,
+            kind: active.kind.state(),
+            baseline_channels: baseline.values(),
+            current_channels: self.scene.node(baseline.node()).ok().map(|node| {
+                let first = baseline.first_channel();
+                let values = node.transform().values();
+                [values[first], values[first + 1], values[first + 2]]
+            }),
+        })
     }
 
     pub fn begin_move(
@@ -256,8 +296,7 @@ impl History {
             let (frame, baseline) = scene.begin_move_translation(target, axis)?;
             Ok(ManipulationKind::Move {
                 axis,
-                frame,
-                baseline,
+                movers: vec![(frame, baseline)],
             })
         })
     }
@@ -390,7 +429,8 @@ impl History {
             declared,
         )?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
-            Self::touch(&mut self.scene, &mut self.revision).restore_channels(&previous)?;
+            Self::touch(&mut self.scene, &mut self.revision)
+                .restore_channels_many(previous.iter())?;
             return Err(error.into());
         }
         active.parameter = distance_cm;
@@ -417,25 +457,27 @@ impl History {
             .active_manipulation
             .take()
             .ok_or(ManipulationError::StaleManipulation)?;
-        let channels = active.kind.changes(&self.scene)?;
-        let node = active.target.node;
+        let mut changes = active.kind.changes(&self.scene)?;
         active.kind.restore(self.scene_mut())?;
-        if finish == ManipulationFinish::Cancel || channels.iter().all(Option::is_none) {
-            return Ok(if channels.iter().all(Option::is_none) {
+        if finish == ManipulationFinish::Cancel || changes.is_empty() {
+            return Ok(if changes.is_empty() {
                 EditOutcome::Unchanged
             } else {
                 EditOutcome::Changed
             });
         }
-        self.execute_labeled(
+        let command = if changes.len() == 1 {
+            let (id, channels) = changes.remove(0);
             Command::EditNode {
-                id: node,
+                id,
                 name: None,
                 channels,
-            },
-            active.kind.label().to_string(),
-        )
-        .map_err(Into::into)
+            }
+        } else {
+            Command::EditNodes(changes)
+        };
+        self.execute_labeled(command, active.kind.label().to_string())
+            .map_err(Into::into)
     }
 
     pub fn cancel_active_move(&mut self) -> Result<EditOutcome, ManipulationError> {
@@ -443,9 +485,9 @@ impl History {
         let Some(active) = self.active_manipulation.take() else {
             return Ok(EditOutcome::Unchanged);
         };
-        let channels = active.kind.changes(&self.scene)?;
+        let changes = active.kind.changes(&self.scene)?;
         active.kind.restore(self.scene_mut())?;
-        Ok(if channels.iter().all(Option::is_none) {
+        Ok(if changes.is_empty() {
             EditOutcome::Unchanged
         } else {
             EditOutcome::Changed

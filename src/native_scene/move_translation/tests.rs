@@ -703,3 +703,85 @@ fn move_origin_is_the_world_pivot_including_rotate_pivot_translate() {
         expected,
     );
 }
+
+fn two_baselines() -> (NativeScene, [NodeId; 2], [ChannelBaseline; 2]) {
+    let (mut scene, first) = test_fixtures::cube();
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    let baseline = |node| {
+        scene
+            .begin_move_translation(&target(&scene, node), WorldAxis::X)
+            .unwrap()
+            .1
+    };
+    let baselines = [baseline(first), baseline(second)];
+    (scene, [first, second], baselines)
+}
+
+#[test]
+fn preview_channels_many_writes_every_member_or_none() {
+    let (mut scene, nodes, baselines) = two_baselines();
+    let before = scene.clone();
+    let items = || {
+        baselines
+            .iter()
+            .zip([[1.0, 0.0, 0.0], [2.0, 0.0, f64::NAN]])
+    };
+    assert_eq!(
+        scene.preview_channels_many(items()).err(),
+        Some(NativeError::NonFinite)
+    );
+    assert_eq!(scene, before);
+    let (previous, changed) = scene
+        .preview_channels_many(baselines.iter().zip([[1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]))
+        .unwrap();
+    assert!(changed);
+    assert_eq!(previous.map_values(), [[0.0; 3]; 2]);
+    assert_eq!(
+        scene.node(nodes[0]).unwrap().transform().translation[0],
+        1.0
+    );
+    assert_eq!(
+        scene.node(nodes[1]).unwrap().transform().translation[0],
+        2.0
+    );
+}
+
+trait MapValues {
+    fn map_values(&self) -> Vec<[f64; 3]>;
+}
+
+impl MapValues for Vec<ChannelBaseline> {
+    fn map_values(&self) -> Vec<[f64; 3]> {
+        self.iter().map(ChannelBaseline::values).collect()
+    }
+}
+
+#[test]
+fn channel_changes_many_omits_unchanged_members_and_restore_many_restores_all() {
+    let (mut scene, nodes, baselines) = two_baselines();
+    let before = scene.clone();
+    scene
+        .preview_channels_many(baselines.iter().zip([[3.0, 0.0, 0.0], [0.0; 3]]))
+        .unwrap();
+    let changes = scene.channel_changes_many(baselines.iter()).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].0, nodes[0]);
+    assert_eq!(changes[0].1[0], Some(3.0));
+    scene.restore_channels_many(baselines.iter()).unwrap();
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn restore_channels_many_checks_every_owner_before_writing() {
+    let (mut scene, nodes, baselines) = two_baselines();
+    scene
+        .preview_channels_many(baselines.iter().zip([[3.0, 0.0, 0.0], [4.0, 0.0, 0.0]]))
+        .unwrap();
+    scene.nodes.retain(|node| node.id != nodes[1]);
+    let before = scene.clone();
+    assert_eq!(
+        scene.restore_channels_many(baselines.iter()).unwrap_err(),
+        NativeError::InvalidIdentity
+    );
+    assert_eq!(scene, before);
+}
