@@ -4148,7 +4148,6 @@ fn history_chord_pressed_before_alt_is_not_cancelled_by_alt_arriving_later() {
 }
 
 /// The assertions before each dialog call make a broken setup panic instead of reaching rfd.
-#[cfg(unix)]
 #[test]
 fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     let mut editor = Editor::default();
@@ -4180,7 +4179,7 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     // instead of reaching rfd.
     assert!(
         editor.files.is_closing()
-            && editor.files.save_as_available()
+            && editor.files.save_as_available() == cfg!(unix)
             && editor.history.active_manipulation().is_some()
     );
     editor.save_as_dialog();
@@ -9046,9 +9045,8 @@ mod primitive_options_create {
         assert_eq!(editor.history.scene(), &after);
     }
 
-    #[cfg(unix)]
     #[test]
-    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene() {
+    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene_on_unix_only() {
         let directory = tempfile::tempdir().unwrap();
         let destination = directory.path().join("created.mb");
         let mut editor = Editor::default();
@@ -9064,12 +9062,21 @@ mod primitive_options_create {
                 path: destination.clone(),
             },
         );
-        assert!(
-            matches!(save_as, Ok(OperationReply::Saved { .. })),
-            "{save_as:?}"
-        );
-        assert!(destination.is_file());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        if cfg!(unix) {
+            assert!(
+                matches!(save_as, Ok(OperationReply::Saved { .. })),
+                "{save_as:?}"
+            );
+            assert!(destination.is_file());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        } else {
+            assert!(
+                matches!(save_as, Err(OperationError::NativeSave(_))),
+                "{save_as:?}"
+            );
+            assert!(!destination.exists());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        }
     }
 
     #[test]
