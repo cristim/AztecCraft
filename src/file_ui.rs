@@ -1464,6 +1464,29 @@ mod tests {
         assert!(editor.files.save_available() && editor.files.save_as_available());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn save_as_refuses_a_created_material_keeps_the_scene_dirty_and_writes_nothing() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor
+            .apply_operation(Operation::CreateSessionMaterial {
+                color: [0.1, 0.2, 0.3],
+            })
+            .unwrap();
+        let result = editor.apply_operation(Operation::SaveSceneAs {
+            path: directory.path().join("fresh.mb"),
+        });
+        let Err(OperationError::NativeSave(error)) = result else {
+            panic!("a created material must refuse, got {result:?}");
+        };
+        assert!(error.to_string().contains("session materials"), "{error}");
+        assert!(editor.is_dirty());
+        assert!(!editor.files.save_available());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+
     #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_from_read_through_symlink_preserves_original_and_verifies_origin() {

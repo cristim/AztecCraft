@@ -37,7 +37,7 @@ mod profile;
 )]
 mod transform;
 
-use crate::native_scene::{NativeScene, authored, authored::AuthoredIneligible};
+use crate::native_scene::{NativeScene, SessionMaterials, authored, authored::AuthoredIneligible};
 use chunk::TooLarge;
 
 mod refusal;
@@ -49,8 +49,9 @@ pub(crate) enum AuthoredBinaryRefusal {
     TooLarge,
     /// A node has no stored UUID, and the file's creation chunks need one.
     MissingUuid,
-    /// Some shape is assigned a non-initial shading group, which this file cannot carry.
-    MaterialAssigned,
+    /// The scene holds a created material, an assignment or a reassignment; the file carries
+    /// only Maya's default material and shading group.
+    SessionMaterials,
     /// The decoder did not read back what was written; no bytes are returned.
     SelfCheckMismatch,
 }
@@ -109,13 +110,29 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
     } else {
         authored::check_scene(scene)?;
     }
-    if scene
-        .session_materials
-        .assignments
-        .values()
-        .any(|group| *group != 0)
-    {
-        return Err(AuthoredBinaryRefusal::MaterialAssigned);
+    // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
+    let NativeScene {
+        // Covered by `check_content_kind` and the structure checks above.
+        nodes: _,
+        shapes: _,
+        curves: _,
+        dag: _,
+        units: _,
+        source: _,
+        // Fresh per scene; the file stores no document identity.
+        authored_document_id: _,
+        next_id: _,
+        next_native_id: _,
+        // Diffuse edits bound into retained source bytes: set only with a source, which
+        // `check_content_kind` refuses; without one `check_scene` rejects a non-empty table
+        // as an invalid scene (tested), so nothing more is needed here.
+        materials: _,
+        // Created, assigned or reassigned materials: the file has only the default pair, so
+        // any difference from the default would be lost on reopen.
+        session_materials,
+    } = scene;
+    if *session_materials != SessionMaterials::default() {
+        return Err(AuthoredBinaryRefusal::SessionMaterials);
     }
     scene_file(scene)
 }

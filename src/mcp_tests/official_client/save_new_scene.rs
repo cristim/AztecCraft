@@ -350,7 +350,7 @@ async fn native_sdk_new_scene_save_extras_needs_path_resave_occupied_and_guards(
 
 #[cfg(unix)]
 #[tokio::test]
-async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothing() {
+async fn native_sdk_new_scene_save_refuses_session_materials_and_undo_recovers() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let directory = tempfile::tempdir().unwrap();
@@ -389,7 +389,7 @@ async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothi
         refused["error"]["message"]
             .as_str()
             .unwrap()
-            .contains("shading group")
+            .contains("session materials")
     );
     assert!(!refused_path.exists());
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
@@ -399,7 +399,7 @@ async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothi
     );
     assert!(editor.is_dirty());
 
-    // Back on the initial group the created material is unassigned session state: saving works.
+    // Reassigning to the initial group leaves the created material in the table: still refused.
     let reassigned = tool(
         &mut editor,
         &context,
@@ -410,6 +410,24 @@ async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothi
     .await;
     assert_eq!(reassigned["material_id"], "0");
     assert_eq!(editor.history.scene().session_materials().len(), 2);
+    let still = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": refused_path}),
+    )
+    .await;
+    assert_eq!(still["error"]["code"], "save_unwritable");
+    assert!(!refused_path.exists());
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+
+    // Undo is the recovery: it removes the material, and Save As then writes the file.
+    while editor.history.scene().session_materials().len() > 1 {
+        assert!(editor.history.can_undo());
+        let undone = tool(&mut editor, &context, &client, "undo", json!({})).await;
+        assert!(undone.get("error").is_none(), "{undone}");
+    }
     let saved = tool(
         &mut editor,
         &context,
@@ -420,6 +438,56 @@ async fn native_sdk_new_scene_save_refuses_an_assigned_material_and_writes_nothi
     .await;
     assert_eq!(saved["outcome"], "saved");
     assert_well_formed_mb(&std::fs::read(&saved_path).unwrap());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_authored_re_save_refuses_a_created_material_and_stays_dirty() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("scene.mb");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_primitive",
+        json!({"primitive": "cube"}),
+    )
+    .await;
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    let first = std::fs::read(&destination).unwrap();
+    let created = tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_session_material",
+        json!({"color": [0.0, 0.5, 1.0]}),
+    )
+    .await;
+    assert!(created.get("error").is_none(), "{created}");
+    assert!(editor.is_dirty());
+    let refused = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(refused["error"]["code"], "save_unwritable");
+    assert!(
+        refused["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("session materials")
+    );
+    assert!(editor.is_dirty());
+    assert_eq!(std::fs::read(&destination).unwrap(), first);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

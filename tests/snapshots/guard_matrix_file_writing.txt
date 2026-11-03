@@ -17,7 +17,7 @@
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
-  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
@@ -35,7 +35,7 @@
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
-  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
@@ -271,7 +271,7 @@
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   save_scene_as => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
@@ -307,7 +307,7 @@
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
-  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
@@ -343,7 +343,7 @@
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
-  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: a shape is assigned a non-initial shading group, which a new .mb cannot carry) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .mb destination) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 

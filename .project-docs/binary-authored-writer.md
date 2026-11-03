@@ -169,9 +169,11 @@ than cm/deg/film, a hierarchy that is not flat transform-over-one-mesh, invalid,
 names (the default Maya node names: `RESERVED` plus the ASCII decoder's `BUILTINS`, for every writer, since
 a file omitting the default scene still collides with them on load), empty meshes, non-zero pivots, extras,
 restrictions, effects, non-authored visibility, double-precision points, point offsets, non-hard edges,
-face holes and unsupported channels. The Binary writer adds `MaterialAssigned` (some shape assigned a non-initial shading group, tested on the
-assignment values, so a created but unassigned lambert or a shape reassigned to the initial group is
-accepted; the ASCII emitter ignores materials and is unchanged), `MissingUuid` (later commit), edge count over 2^24, counts
+face holes and unsupported channels. The Binary writer adds `SessionMaterials` (the session material table differs from its default: a created
+lambert, an assignment, or a shape reassigned to the initial group all leave an extra lambert and shading
+group, or an assignment entry, that the file cannot carry and that would be lost on reopen, so the write
+refuses; undo removes a created material; the ASCII emitter ignores materials and is unchanged). The
+destructure of `NativeScene` in `encode_authored` names every field, so a new field must be decided there. The writer also refuses `MissingUuid` (later commit), edge count over 2^24, counts
 over u32, output over 16 MiB and resource overruns.
 
 ## Self-check and tests

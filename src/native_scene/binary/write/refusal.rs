@@ -33,7 +33,7 @@ pub enum AuthoredRefusalCode {
     UnsupportedMeshChannels,
     TooLarge,
     MissingUuid,
-    MaterialAssigned,
+    SessionMaterials,
     SelfCheckMismatch,
 }
 
@@ -66,7 +66,7 @@ impl From<&AuthoredBinaryRefusal> for AuthoredRefusalCode {
             },
             AuthoredBinaryRefusal::TooLarge => Self::TooLarge,
             AuthoredBinaryRefusal::MissingUuid => Self::MissingUuid,
-            AuthoredBinaryRefusal::MaterialAssigned => Self::MaterialAssigned,
+            AuthoredBinaryRefusal::SessionMaterials => Self::SessionMaterials,
             AuthoredBinaryRefusal::SelfCheckMismatch => Self::SelfCheckMismatch,
         }
     }
@@ -100,8 +100,8 @@ impl fmt::Display for AuthoredRefusalCode {
             Self::UnsupportedMeshChannels => "a mesh has channels a new .mb cannot carry",
             Self::TooLarge => "the scene is too large for a new .mb",
             Self::MissingUuid => "a node has no identity to write",
-            Self::MaterialAssigned => {
-                "a shape is assigned a non-initial shading group, which a new .mb cannot carry"
+            Self::SessionMaterials => {
+                "the scene has session materials, which a new .mb cannot carry"
             }
             Self::SelfCheckMismatch => "the written file did not read back as the scene",
         })
@@ -127,8 +127,8 @@ mod tests {
                 AuthoredRefusalCode::Curves,
             ),
             (
-                AuthoredBinaryRefusal::MaterialAssigned,
-                AuthoredRefusalCode::MaterialAssigned,
+                AuthoredBinaryRefusal::SessionMaterials,
+                AuthoredRefusalCode::SessionMaterials,
             ),
             (
                 AuthoredBinaryRefusal::TooLarge,
