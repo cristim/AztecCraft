@@ -264,3 +264,54 @@ pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
     scene.validate().unwrap();
     (scene, cube, empty)
 }
+
+/// Roots x1 and x2 both parent transform `a` (instanced), and `b` is a child of `a`. Returns
+/// (scene, x1, x2, a, b); `b` is reachable as x1/a/b and x2/a/b and moves with `a`.
+pub(crate) fn instanced_chain() -> (NativeScene, NodeId, NodeId, NodeId, NodeId) {
+    let mut scene = NativeScene::default();
+    let [x1, x2, a, b] =
+        ["x1", "x2", "a", "b"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    let native = |scene: &NativeScene, id| scene.node(id).unwrap().transform_id;
+    let (x1_native, x2_native) = (native(&scene, x1), native(&scene, x2));
+    let (a_native, b_native) = (native(&scene, a), native(&scene, b));
+    scene.dag.retain(|edge| {
+        !(edge.parent.is_none() && (edge.child == a_native || edge.child == b_native))
+    });
+    for (parent, child) in [
+        (x1_native, a_native),
+        (x2_native, a_native),
+        (a_native, b_native),
+    ] {
+        scene.dag.push(DagEdge {
+            parent: Some(parent),
+            child,
+        });
+    }
+    scene.validate().unwrap();
+    (scene, x1, x2, a, b)
+}
+
+/// `count` shapeless root transforms named `root0`..; built without per-node validation so a
+/// 4096-member selection is cheap to set up.
+pub(crate) fn many_roots(count: u64) -> NativeScene {
+    let (mut scene, _) = cube();
+    let template = scene.nodes[0].clone();
+    scene.nodes.clear();
+    scene.shapes.clear();
+    scene.dag.clear();
+    for index in 0..count {
+        let mut node = template.clone();
+        node.id = NodeId::from_decimal(&(index + 1).to_string()).unwrap();
+        node.transform_id = NativeId(index + 1);
+        node.name = format!("root{index}");
+        scene.dag.push(DagEdge {
+            parent: None,
+            child: node.transform_id,
+        });
+        scene.nodes.push(node);
+    }
+    scene.next_id = count + 1;
+    scene.next_native_id = count + 2;
+    scene.validate().unwrap();
+    scene
+}
