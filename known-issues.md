@@ -1053,3 +1053,18 @@ point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ign
 and a selection where any one member owns geometry frames the geometry only
 (`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
 with Maya 2027.
+
+## A failed Move finish or cancel leaves the preview in place
+
+`History::finish_move` and `cancel_active_move` take the active transaction before computing
+`changes()?` and restoring the baselines. If that step fails (a baseline whose node or source no longer
+matches), the error is returned, the transaction is already cleared and the preview values stay in the
+scene; nothing reverses them. Pre-existing for single-object Move, Rotate and Scale. For a multi-object
+Move the preview stays whole and no member is restored, because `changes()?` fails before any restore
+and `restore_channels_many` checks every owner before its first write. The Channel Box is re-synced so
+it shows the actual values; the scene is reconciled by inspection. Pinned for the multi case by
+`a_failed_restore_is_typed_clears_the_transaction_and_writes_nothing_more`.
+
+`NativeScene::edit_nodes` and `check_effects` scan every member against every node at commit, which is
+O(members x nodes). It runs once per drag, and is recorded next to the begin cost of a 4096-member Move
+(about 0.7 s in a debug build).
