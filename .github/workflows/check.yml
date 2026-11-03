@@ -142,6 +142,12 @@ jobs:
         run: cargo +1.99.0 clippy --workspace --all-targets --locked --features mcp-test-client -- -D warnings
       - name: MCP official client and editor tests
         run: cargo +1.99.0 test --workspace --locked --features mcp-test-client
+      - name: Page cost timing guard
+        shell: bash
+        run: |
+          out=$(cargo +1.99.0 test --release --locked --bin azteccraft --features mcp-test-client page_cost_timing_guard -- --ignored --test-threads=1 2>&1) || { echo "$out"; exit 1; }
+          echo "$out"
+          grep -q "test result: ok. 1 passed" <<<"$out" || { echo "page_cost_timing_guard did not run exactly once"; exit 1; }
       - name: MCP production build
         run: cargo +1.99.0 build --workspace --locked --features mcp
       - name: Install LLVM tools

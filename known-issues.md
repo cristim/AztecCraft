@@ -1037,9 +1037,12 @@ After #340 `NativeScene::transform_paths` indexes nodes and children once per ca
 `inspect_scene` page costs about 2.6 ms at the 4096-node cap in a release build (0.6 ms of it
 `transform_paths`) and a 21-page walk about 75 ms; it was 40 ms per page and 859 ms per walk. Nothing is
 cached per `History::revision()`: the cache would need invalidation on every mutation, load and undo for
-about 1 ms. Revisit if a measurement shows `transform_paths` above about 5 ms at the 4096 cap. The ratio
-guard `a_4096_node_scene_pages_completely_and_page_cost_stays_linear` fails if page cost approaches
-quadratic growth (over 25x for 8x the nodes).
+about 1 ms. Revisit if a measurement shows `transform_paths` above about 5 ms at the 4096 cap.
+The regression guard of record is `page_cost_timing_guard`, a wall-clock check on the median of 5
+interleaved ratios between 512 and 4096 nodes (limits 30x for `transform_paths`, 25x for one page; the
+per-edge scans measured 57x to 72x). It is `#[ignore]`d and runs alone as a single-threaded step of the
+`check` job, in a release build (about 80 s more compile than debug locally, and more stable timings),
+because timing ratios flake under parallel load.
 
 ## Frame origin for a mixed selection is PROVISIONAL
 

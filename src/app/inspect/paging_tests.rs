@@ -449,36 +449,30 @@ fn a_full_selection_inspects_with_a_small_node_limit() {
     assert!(editor.inspect_page(false, Some(&page(250, None))).is_err());
 }
 
-/// Minimum of `samples` timings of each closure, interleaved so a noisy period hits both.
-fn min_interleaved(
-    samples: usize,
-    small: &dyn Fn(),
-    large: &dyn Fn(),
-) -> (std::time::Duration, std::time::Duration) {
+/// One ratio sample: the minimum of 3 timings of each closure, taken interleaved so a noisy
+/// period hits both. The median of 5 samples is returned, so one disturbed sample cannot decide.
+fn median_ratio(small: &dyn Fn(), large: &dyn Fn()) -> f64 {
     let time = |run: &dyn Fn()| {
         let start = std::time::Instant::now();
         run();
-        start.elapsed()
+        start.elapsed().as_secs_f64()
     };
-    let (mut small_min, mut large_min) = (std::time::Duration::MAX, std::time::Duration::MAX);
-    for _ in 0..samples {
-        small_min = small_min.min(time(small));
-        large_min = large_min.min(time(large));
-    }
-    (small_min, large_min)
-}
-
-/// A ratio of two timings from one process cancels machine speed; 8x the scene may cost about 8x
-/// (limits leave room for noise), the old per-edge scans cost 50 to 90x.
-fn ratio_within(limit: f64, small: &dyn Fn(), large: &dyn Fn()) -> bool {
-    (0..2).any(|_| {
-        let (small, large) = min_interleaved(9, small, large);
-        large.as_secs_f64() < limit * small.as_secs_f64()
-    })
+    let mut ratios: Vec<f64> = (0..5)
+        .map(|_| {
+            let (mut small_min, mut large_min) = (f64::MAX, f64::MAX);
+            for _ in 0..3 {
+                small_min = small_min.min(time(small));
+                large_min = large_min.min(time(large));
+            }
+            large_min / small_min
+        })
+        .collect();
+    ratios.sort_by(f64::total_cmp);
+    ratios[2]
 }
 
 #[test]
-fn a_4096_node_scene_pages_completely_and_page_cost_stays_linear() {
+fn a_4096_node_scene_pages_completely_within_the_reply_limit() {
     let large = cubes(4096);
     let pages = walk(&large, 200);
     assert_eq!(pages.len(), 21);
@@ -500,23 +494,33 @@ fn a_4096_node_scene_pages_completely_and_page_cost_stays_linear() {
             "page {index}: {real}"
         );
     }
+}
 
+/// The regression guard of record for #340: the scene is 8x larger, so linear cost gives about 8x
+/// and 6x; the old per-edge scans measured 57x to 69x (transform_paths) and 34x (one page). The
+/// bounds sit between the two, generous for noise. Wall-clock ratios flake under parallel load, so
+/// this is `#[ignore]`d and CI runs it alone with `--ignored --test-threads=1`.
+#[test]
+#[ignore = "timing guard; run single-threaded in CI"]
+fn page_cost_timing_guard() {
+    let large = cubes(4096);
     let small = cubes(512);
     let first = page(200, None);
-    assert!(
-        ratio_within(
-            30.0,
-            &|| drop(small.history.scene().transform_paths().unwrap()),
-            &|| drop(large.history.scene().transform_paths().unwrap()),
-        ),
-        "transform_paths cost is no longer linear in the scene"
+    let paths = median_ratio(
+        &|| drop(small.history.scene().transform_paths().unwrap()),
+        &|| drop(large.history.scene().transform_paths().unwrap()),
     );
     assert!(
-        ratio_within(
-            25.0,
-            &|| drop(small.inspect_page(false, Some(&first)).unwrap()),
-            &|| drop(large.inspect_page(false, Some(&first)).unwrap()),
-        ),
-        "a page costs more than linearly more in a larger scene"
+        paths < 30.0,
+        "transform_paths cost ratio {paths:.1} for 8x the scene"
     );
+    let inspect = median_ratio(
+        &|| drop(small.inspect_page(false, Some(&first)).unwrap()),
+        &|| drop(large.inspect_page(false, Some(&first)).unwrap()),
+    );
+    assert!(
+        inspect < 25.0,
+        "inspect_page cost ratio {inspect:.1} for 8x the scene"
+    );
+    eprintln!("median ratios: transform_paths {paths:.1}, inspect_page {inspect:.1}");
 }
