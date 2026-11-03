@@ -69,8 +69,9 @@ fn has_exact_mesh_decode(report: &Value) -> bool {
 #[ignore = "needs AZTECCRAFT_MSK_BIN, a MayaSceneKit CLI built from commit 95a11db"]
 fn msk_decodes_maya_meshes_but_not_the_writers_mesh() {
     let Some(binary) = std::env::var_os(ENV) else {
-        eprintln!("{ENV} is unset: skipping the MayaSceneKit cross-check");
-        return;
+        panic!(
+            "{ENV} is unset: this ignored test was asked for, so it must not pass without running"
+        );
     };
     let control_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/gt-tools/dummy_mesh.mb");
