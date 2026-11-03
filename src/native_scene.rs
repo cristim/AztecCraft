@@ -1401,6 +1401,45 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self
+                .nodes
+                .iter()
+                .position(|n| n.id == *id)
+                .ok_or(SceneError::MissingNode(*id))?;
+            self.check_effects(self.nodes[index].transform_id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1420,11 +1459,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
