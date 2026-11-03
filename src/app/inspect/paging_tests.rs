@@ -488,6 +488,18 @@ fn a_4096_node_scene_pages_completely_and_page_cost_stays_linear() {
         .collect();
     assert_eq!(nodes, node_ids(&large));
     assert!(!pages[20].page.as_ref().unwrap().truncated);
+    let scene = large.history.scene();
+    for (index, inspection) in pages.iter().enumerate() {
+        let range = index * 200..((index + 1) * 200).min(scene.nodes().len());
+        let paths = page_paths(&large, &range);
+        let bound = inspection_page_lower_bound(scene, range) + large.path_lower_bound(&paths);
+        let real = serde_json::to_vec(inspection).unwrap().len();
+        assert!(bound <= real, "page {index}: {bound} > {real}");
+        assert!(
+            real <= crate::editor_operations::MAX_REPLY_BYTES,
+            "page {index}: {real}"
+        );
+    }
 
     let small = cubes(512);
     let first = page(200, None);
