@@ -80,13 +80,37 @@ impl Editor {
         let (history, frame, frame_all) = ctx.input(|i| {
             (
                 history_chord(&i.events),
-                i.events.iter().any(|event| {
-                    matches!(event, egui::Event::Key {
+                // F frames parents only, Ctrl+F with children; explicit Ctrl like Ctrl+A, and each
+                // event is judged by its own modifiers (egui keeps only the frame-final ones).
+                i.events.iter().find_map(|event| match event {
+                    egui::Event::Key {
                         key: Key::F,
                         pressed: true,
                         modifiers,
                         ..
-                    } if modifiers.is_none())
+                    } if modifiers.is_none() => Some(false),
+                    // Shift+F and Ctrl+Shift+F frame in all views; with one view they alias F and
+                    // Ctrl+F (PROVISIONAL until multiple views exist).
+                    egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.shift
+                        && !modifiers.ctrl
+                        && !modifiers.alt
+                        && !modifiers.command
+                        && !modifiers.mac_cmd =>
+                    {
+                        Some(false)
+                    }
+                    egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.ctrl && !modifiers.mac_cmd && !modifiers.alt => Some(true),
+                    _ => None,
                 }),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
@@ -166,8 +190,8 @@ impl Editor {
         if let Some(operation) = history {
             self.native_operation(operation);
         }
-        if frame {
-            self.frame_selected();
+        if let Some(with_children) = frame {
+            self.frame_selected(with_children);
         }
         if frame_all {
             self.frame_all();

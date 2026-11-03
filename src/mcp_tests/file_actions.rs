@@ -48,7 +48,7 @@ fn ascii_remote_open_obeys_all_existing_editor_guards_before_candidate_adoption(
                 .remote_operation(
                     RemoteRequest {
                         expected_scene_token: None,
-                        operation: Operation::Inspect,
+                        operation: Operation::Inspect { page: None },
                     },
                     &context,
                 )
@@ -76,7 +76,7 @@ fn ascii_remote_open_obeys_all_existing_editor_guards_before_candidate_adoption(
                 .remote_operation(
                     RemoteRequest {
                         expected_scene_token: None,
-                        operation: Operation::Inspect,
+                        operation: Operation::Inspect { page: None },
                     },
                     &context,
                 )
@@ -146,7 +146,7 @@ fn pending_file_resolution_retains_input_draft_focus_and_scene_guards() {
             .remote_operation(
                 RemoteRequest {
                     expected_scene_token: None,
-                    operation: Operation::Inspect,
+                    operation: Operation::Inspect { page: None },
                 },
                 &context,
             )
@@ -206,7 +206,7 @@ fn undelivered_remote_close_withdraws_approval_and_suppresses_disconnect_retry()
         .remote_operation(
             RemoteRequest {
                 expected_scene_token: None,
-                operation: Operation::Inspect,
+                operation: Operation::Inspect { page: None },
             },
             &context,
         )
@@ -296,7 +296,7 @@ fn approved_close_still_dispatches_readonly_inspection_and_refuses_mutation() {
     let mut inspected = ingress
         .queue(RemoteRequest {
             expected_scene_token: None,
-            operation: Operation::Inspect,
+            operation: Operation::Inspect { page: None },
         })
         .unwrap();
     let mut mutation = ingress

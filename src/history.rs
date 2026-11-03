@@ -127,6 +127,9 @@ pub struct History {
     redo: Vec<Entry>,
     active_manipulation: Option<MoveTransaction>,
     next_manipulation_id: u64,
+    /// Counts every write to `scene`, so a reader can tell that the scene changed between two
+    /// reads. Replacing the whole `History` starts again at 0.
+    revision: u64,
 }
 
 impl History {
@@ -137,11 +140,26 @@ impl History {
             redo: Vec::new(),
             active_manipulation: None,
             next_manipulation_id: 0,
+            revision: 0,
         }
     }
 
     pub fn scene(&self) -> &NativeScene {
         &self.scene
+    }
+    /// Changes whenever the scene is written (edit, undo, redo, manipulation preview, restore).
+    /// A refused or Unchanged execute does not bump; manipulation writes always do.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+    /// The only write access to the scene; every call counts as a change.
+    fn scene_mut(&mut self) -> &mut NativeScene {
+        Self::touch(&mut self.scene, &mut self.revision)
+    }
+    /// `scene_mut` for callers that hold a borrow of another field.
+    fn touch<'a>(scene: &'a mut NativeScene, revision: &mut u64) -> &'a mut NativeScene {
+        *revision = revision.wrapping_add(1);
+        scene
     }
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
@@ -247,8 +265,9 @@ impl History {
         if self.undo.len() == UNDO_LIMIT {
             self.undo.pop_front();
         }
+        let previous = std::mem::replace(self.scene_mut(), candidate);
         self.undo.push_back(Entry {
-            scene: std::mem::replace(&mut self.scene, candidate),
+            scene: previous,
             label,
         });
         self.redo.clear();
@@ -266,7 +285,7 @@ impl History {
             scene: self.scene.clone(),
             label: previous.label,
         });
-        self.scene.restore_authoring(previous.scene);
+        self.scene_mut().restore_authoring(previous.scene);
         true
     }
 
@@ -281,7 +300,7 @@ impl History {
             scene: self.scene.clone(),
             label: next.label,
         });
-        self.scene.restore_authoring(next.scene);
+        self.scene_mut().restore_authoring(next.scene);
         true
     }
 }
@@ -307,6 +326,65 @@ mod tests {
             }
         }
         (history, ids.try_into().unwrap())
+    }
+
+    #[test]
+    fn the_revision_starts_at_zero_and_changes_with_every_scene_write() {
+        assert_eq!(History::default().revision(), 0);
+        let mut history = History::new(NativeScene::default());
+        let mut last = history.revision();
+        let mut changed = |history: &History| {
+            let now = history.revision();
+            assert_ne!(now, last);
+            last = now;
+        };
+        let EditOutcome::Created(id) = history
+            .execute(Command::Create {
+                primitive: crate::scene::Primitive::Cube,
+                options: None,
+                name: "a".into(),
+            })
+            .unwrap()
+        else {
+            panic!("create");
+        };
+        changed(&history);
+        history
+            .execute(Command::Rename {
+                id,
+                name: "b".into(),
+            })
+            .unwrap();
+        changed(&history);
+        assert!(history.undo());
+        changed(&history);
+        assert!(history.redo());
+        changed(&history);
+        history.execute(Command::Remove(id)).unwrap();
+        changed(&history);
+    }
+
+    #[test]
+    fn an_unchanged_edit_and_a_refused_undo_leave_the_revision_alone() {
+        let (mut history, ids) = three_cube_history();
+        history.execute(Command::Remove(ids[2])).unwrap();
+        let before = history.revision();
+        let same = history.scene().node(ids[0]).unwrap().transform();
+        assert_eq!(
+            history
+                .execute(Command::SetTransform {
+                    id: ids[0],
+                    transform: same
+                })
+                .unwrap(),
+            EditOutcome::Unchanged
+        );
+        assert_eq!(history.revision(), before);
+        assert!(history.execute(Command::Remove(ids[2])).is_err());
+        assert_eq!(history.revision(), before);
+        let mut empty = History::default();
+        assert!(!empty.undo() && !empty.redo());
+        assert_eq!(empty.revision(), 0);
     }
 
     #[test]

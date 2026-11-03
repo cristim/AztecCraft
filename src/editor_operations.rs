@@ -205,6 +205,73 @@ pub enum ToolHandle {
     ScaleHandle(ScaleHandle),
 }
 
+/// A page of `inspect_scene` nodes: at most `limit` nodes from the position `cursor` names (the
+/// start when absent).
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InspectPage {
+    pub limit: usize,
+    pub cursor: Option<PageCursor>,
+}
+
+/// Where the next page starts, bound to the document and the scene revision it was issued for.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursor {
+    pub scene_token: Uuid,
+    pub revision: u64,
+    pub offset: usize,
+}
+
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursorError;
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("malformed cursor")
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "v1.{}.{:x}.{}",
+            self.scene_token, self.revision, self.offset
+        )
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl std::str::FromStr for PageCursor {
+    type Err = PageCursorError;
+
+    /// Untrusted text. Each part is parsed, then the canonical text is compared with the input, so
+    /// signs, padding, upper case, braces and extra segments are all refused.
+    fn from_str(text: &str) -> Result<Self, PageCursorError> {
+        let mut parts = text.splitn(4, '.');
+        let (Some("v1"), Some(token), Some(revision), Some(offset)) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return Err(PageCursorError);
+        };
+        let cursor = PageCursor {
+            scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
+            revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
+            offset: offset.parse().map_err(|_| PageCursorError)?,
+        };
+        if cursor.to_string() == text {
+            Ok(cursor)
+        } else {
+            Err(PageCursorError)
+        }
+    }
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
@@ -264,7 +331,9 @@ pub enum Operation {
         color: [f64; 3],
     },
     #[cfg(any(test, feature = "mcp"))]
-    Inspect,
+    Inspect {
+        page: Option<InspectPage>,
+    },
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -341,7 +410,11 @@ pub enum Operation {
     DeleteSelection,
     Undo,
     Redo,
-    FrameSelected,
+    /// F frames the selected objects without their descendants, Ctrl+F (`with_children`) with
+    /// them. Component modes frame the component and ignore the flag.
+    FrameSelected {
+        with_children: bool,
+    },
     FrameAll,
     SetGridVisible {
         visible: bool,
@@ -425,6 +498,17 @@ pub enum OperationReply {
     },
 }
 
+/// Present only on a paged reply. `truncated` means more node pages follow.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PageInspection {
+    pub nodes_total: usize,
+    pub node_offset: usize,
+    pub node_count: usize,
+    pub next_cursor: Option<String>,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct SceneInspection {
@@ -483,6 +567,8 @@ pub struct SceneInspection {
     /// The native status line text, or a fixed notice when the text would carry a local path.
     pub status_message: Option<String>,
     pub camera: CameraInspection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<PageInspection>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -938,20 +1024,53 @@ pub(crate) const MIN_FIXED: &str = concat!(
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part
 /// plus the minimum of every node, shape, curve and session material and each name's length.
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> usize {
-    let nodes = scene.nodes().iter().fold(0usize, |sum, node| {
+    inspection_page_lower_bound(scene, 0..scene.nodes().len())
+}
+
+/// The same bound for one page: the nodes in `nodes` (clamped to the scene) and the shapes and
+/// curves those nodes hold (each once). Every shape and curve is the child of a node edge
+/// (`validate_dag`), so the whole range covers all of them.
+#[cfg(any(test, feature = "mcp"))]
+pub fn inspection_page_lower_bound(
+    scene: &azteccraft::native_scene::NativeScene,
+    nodes: std::ops::Range<usize>,
+) -> usize {
+    use std::collections::HashSet;
+    let all = scene.nodes();
+    let end = nodes.end.min(all.len());
+    let page = &all[nodes.start.min(end)..end];
+    let page_nodes = page.iter().fold(0usize, |sum, node| {
         sum.saturating_add(MIN_NODE.len())
             .saturating_add(node.name().len())
     });
-    let shapes = scene.shapes().iter().fold(0usize, |sum, shape| {
-        sum.saturating_add(MIN_SHAPE.len())
-            .saturating_add(shape.name().len())
-    });
-    let curves = scene.curves().iter().fold(0usize, |sum, curve| {
-        sum.saturating_add(MIN_CURVE.len())
-            .saturating_add(curve.name().len())
-    });
+    let on_page: HashSet<NativeId> = page.iter().map(|node| node.transform_id()).collect();
+    let mut held_by_page = HashSet::new();
+    for edge in scene.dag_edges() {
+        let Some(parent) = edge.parent() else {
+            continue;
+        };
+        if on_page.contains(&parent) {
+            held_by_page.insert(edge.child());
+        }
+    }
+    let shapes = scene
+        .shapes()
+        .iter()
+        .filter(|shape| held_by_page.contains(&shape.id()))
+        .fold(0usize, |sum, shape| {
+            sum.saturating_add(MIN_SHAPE.len())
+                .saturating_add(shape.name().len())
+        });
+    let curves = scene
+        .curves()
+        .iter()
+        .filter(|curve| held_by_page.contains(&curve.id()))
+        .fold(0usize, |sum, curve| {
+            sum.saturating_add(MIN_CURVE.len())
+                .saturating_add(curve.name().len())
+        });
     // Sourced scenes (appearance incomplete) report an empty table.
     let materials = if scene.appearance_incomplete() {
         0
@@ -961,17 +1080,26 @@ pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> 
             .len()
             .saturating_mul(MIN_SESSION_MATERIAL.len())
     };
-    [nodes, shapes, curves, materials]
+    [page_nodes, shapes, curves, materials]
         .into_iter()
         .fold(MIN_FIXED.len(), usize::saturating_add)
 }
 
 /// Refuses before any clone when even the guaranteed minimum exceeds the reply ceiling.
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub fn check_inspection_size(
     scene: &azteccraft::native_scene::NativeScene,
 ) -> Result<(), OperationError> {
-    if inspection_lower_bound(scene) > MAX_REPLY_BYTES {
+    check_inspection_page(scene, 0..scene.nodes().len())
+}
+
+/// `check_inspection_size` for one page.
+#[cfg(any(test, feature = "mcp"))]
+pub fn check_inspection_page(
+    scene: &azteccraft::native_scene::NativeScene,
+    nodes: std::ops::Range<usize>,
+) -> Result<(), OperationError> {
+    if inspection_page_lower_bound(scene, nodes) > MAX_REPLY_BYTES {
         return Err(OperationError::TooLarge);
     }
     Ok(())
@@ -1165,6 +1293,52 @@ mod tests {
     }
 
     #[test]
+    fn a_page_cursor_round_trips_through_its_text() {
+        let cursor = PageCursor {
+            scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
+            revision: 0xab_cdef,
+            offset: 4096,
+        };
+        let text = cursor.to_string();
+        assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
+        assert_eq!(text.parse::<PageCursor>(), Ok(cursor));
+        let extreme = PageCursor {
+            scene_token: Uuid::nil(),
+            revision: u64::MAX,
+            offset: usize::MAX,
+        };
+        assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
+    }
+
+    #[test]
+    fn a_malformed_page_cursor_is_refused_not_panicked_on() {
+        let id = "12345678-9abc-def0-1234-56789abcdef0";
+        let bad = [
+            String::new(),
+            "v1".into(),
+            format!("v2.{id}.1.0"),
+            format!("v1.{id}.1"),
+            "v1.not-a-uuid.1.0".into(),
+            format!("v1.{id}..0"),
+            format!("v1.{id}.10000000000000000.0"),
+            format!("v1.{id}.+1.0"),
+            format!("v1.{id}.01.0"),
+            format!("v1.{}.1.0", id.to_uppercase()),
+            format!("v1.{{{id}}}.1.0"),
+            format!("v1.{id}.1.-1"),
+            format!("v1.{id}.1.+1"),
+            format!("v1.{id}.1.01"),
+            format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1."),
+            format!("v1.{id}.1.99999999999999999999999"),
+            format!("v1.{id}.1.1 "),
+        ];
+        for text in &bad {
+            assert_eq!(text.parse::<PageCursor>(), Err(PageCursorError), "{text:?}");
+        }
+    }
+
+    #[test]
     fn the_preflight_accepts_scenes_the_old_worst_case_estimate_refused() {
         // The old estimate refused from 66 cubes although 120 serialize to about 105 KB.
         for count in [65, 66, 120, 140] {
@@ -1183,6 +1357,92 @@ mod tests {
             check_inspection_size(&cubes(capacity + 1)),
             Err(OperationError::TooLarge)
         ));
+    }
+
+    fn curve_scene(names: &[&str]) -> NativeScene {
+        let mut source = String::from(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
+        );
+        for name in names {
+            source.push_str(&format!(" createNode nurbsCurve -n \"{name}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;"));
+        }
+        azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap()
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_cube_its_minimum_and_both_names() {
+        let delta = inspection_lower_bound(&cubes(2)) - inspection_lower_bound(&cubes(1));
+        let expected = MIN_NODE.len() + MIN_SHAPE.len() + "cube_001".len() + "cube_001Shape".len();
+        assert_eq!(delta, expected);
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_curve_its_minimum_and_its_name() {
+        let one = curve_scene(&["curveA"]);
+        let two = curve_scene(&["curveA", "curveBB"]);
+        assert_eq!((one.curves().len(), two.curves().len()), (1, 2));
+        assert_eq!(one.nodes().len(), two.nodes().len());
+        let delta = inspection_lower_bound(&two) - inspection_lower_bound(&one);
+        assert_eq!(delta, MIN_CURVE.len() + "curveBB".len());
+    }
+
+    #[test]
+    fn a_partial_page_charges_only_its_own_curves() {
+        let cc = " setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;";
+        let source = format!(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"first\"; createNode nurbsCurve -n \"curveOne\" -p \"first\";{cc} createNode transform -n \"second\"; createNode nurbsCurve -n \"curveTwoLonger\" -p \"second\";{cc}"
+        );
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        assert_eq!((scene.nodes().len(), scene.curves().len()), (2, 2));
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        for (range, node, curve) in [
+            (0..1, "first", "curveOne"),
+            (1..2, "second", "curveTwoLonger"),
+        ] {
+            assert_eq!(scene.nodes()[range.start].name(), node);
+            assert_eq!(
+                inspection_page_lower_bound(&scene, range) - empty,
+                MIN_NODE.len() + node.len() + MIN_CURVE.len() + curve.len()
+            );
+        }
+    }
+
+    #[test]
+    fn page_bounds_count_each_node_and_its_shapes_once_across_pages() {
+        let scene = cubes(10);
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        let full = inspection_lower_bound(&scene);
+        let paged: usize = [0..3, 3..6, 6..9, 9..10]
+            .into_iter()
+            .map(|range| inspection_page_lower_bound(&scene, range) - empty)
+            .sum();
+        assert_eq!(paged, full - empty);
+        // A range past the end is clamped, not an overflow or a panic.
+        assert_eq!(inspection_page_lower_bound(&scene, 10..usize::MAX), empty);
+        assert_eq!(
+            inspection_page_lower_bound(&scene, usize::MAX..usize::MAX),
+            empty
+        );
+    }
+
+    #[test]
+    fn a_whole_scene_bound_is_over_the_ceiling_while_every_page_of_200_is_under() {
+        // Legacy creation is cheap; `NativeScene::create` is cubic over a whole scene.
+        let mut legacy = Scene::default();
+        for index in 0..azteccraft::native_scene::MAX_TRANSFORM_PATHS {
+            legacy
+                .create(Primitive::Cube, &format!("cube_{index:04}"))
+                .unwrap();
+        }
+        let scene = NativeScene::from_legacy(legacy).unwrap();
+        assert_eq!(scene.nodes().len(), 4096);
+        assert!(matches!(
+            check_inspection_size(&scene),
+            Err(OperationError::TooLarge)
+        ));
+        for start in (0..4096).step_by(200) {
+            assert!(check_inspection_page(&scene, start..start + 200).is_ok());
+        }
     }
 
     #[test]

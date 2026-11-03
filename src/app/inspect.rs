@@ -82,9 +82,53 @@ impl Editor {
         .into_iter()
         .fold(bytes, usize::saturating_add)
     }
+    /// The node range a page covers. The cursor is untrusted: token and revision are compared
+    /// first, and only then is its offset checked against the node count.
     #[cfg(any(test, feature = "mcp"))]
+    fn page_range(
+        &self,
+        page: &crate::editor_operations::InspectPage,
+    ) -> Result<std::ops::Range<usize>, OperationError> {
+        let total = self.history.scene().nodes().len();
+        if !(1..=azteccraft::native_scene::MAX_TRANSFORM_PATHS).contains(&page.limit) {
+            return Err(OperationError::InvalidInput(format!(
+                "node_limit must be between 1 and {}",
+                azteccraft::native_scene::MAX_TRANSFORM_PATHS
+            )));
+        }
+        let start = match &page.cursor {
+            None => 0,
+            Some(cursor) => {
+                if cursor.scene_token != self.scene_token
+                    || cursor.revision != self.history.revision()
+                {
+                    return Err(OperationError::StaleScene);
+                }
+                if cursor.offset > total {
+                    return Err(OperationError::InvalidInput(
+                        "cursor offset is past the last node".into(),
+                    ));
+                }
+                cursor.offset
+            }
+        };
+        Ok(start..start.saturating_add(page.limit).min(total))
+    }
+    #[cfg(test)]
     pub(super) fn inspect(&self, text_focused: bool) -> Result<SceneInspection, OperationError> {
-        self.inspect_within(text_focused, crate::editor_operations::MAX_REPLY_BYTES)
+        self.inspect_page(text_focused, None)
+    }
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn inspect_page(
+        &self,
+        text_focused: bool,
+        page: Option<&crate::editor_operations::InspectPage>,
+    ) -> Result<SceneInspection, OperationError> {
+        self.inspect_within(
+            text_focused,
+            crate::editor_operations::MAX_REPLY_BYTES,
+            page,
+        )
     }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.
     #[cfg(any(test, feature = "mcp"))]
@@ -92,13 +136,42 @@ impl Editor {
         &self,
         text_focused: bool,
         path_limit: usize,
+        page: Option<&crate::editor_operations::InspectPage>,
     ) -> Result<SceneInspection, OperationError> {
-        crate::editor_operations::check_inspection_size(self.history.scene())?;
-        let paths = self
-            .history
-            .scene()
-            .transform_paths()
-            .map_err(OperationError::Scene)?;
+        let scene = self.history.scene();
+        let range = match page {
+            None => 0..scene.nodes().len(),
+            Some(page) => self.page_range(page)?,
+        };
+        crate::editor_operations::check_inspection_page(scene, range.clone())?;
+        let all_paths = scene.transform_paths().map_err(OperationError::Scene)?;
+        let page_nodes = &scene.nodes()[range.clone()];
+        // Every instance path in an unpaged reply; a page keeps only its own nodes' paths.
+        let paths: Vec<_> = if page.is_none() {
+            all_paths
+        } else {
+            let ids: std::collections::HashSet<_> =
+                page_nodes.iter().map(|node| node.id()).collect();
+            all_paths
+                .into_iter()
+                .filter(|target| ids.contains(&target.node))
+                .collect()
+        };
+        // Shapes and curves a page lists: those its nodes hold. Unpaged lists them all.
+        let held: std::collections::HashSet<_> = {
+            let transforms: std::collections::HashSet<_> =
+                page_nodes.iter().map(|node| node.transform_id()).collect();
+            scene
+                .dag_edges()
+                .iter()
+                .filter(|edge| {
+                    edge.parent()
+                        .is_some_and(|parent| transforms.contains(&parent))
+                })
+                .map(|edge| edge.child())
+                .collect()
+        };
+        let listed = |id| page.is_none() || held.contains(&id);
         // The schema bounds a target's path to MAX_TRANSFORM_DEPTH + 1 elements.
         let too_long = [
             self.remembered_face.as_ref().map(|t| t.path.len()),
@@ -111,7 +184,7 @@ impl Editor {
         if too_long {
             return Err(OperationError::TooLarge);
         }
-        let total = crate::editor_operations::inspection_lower_bound(self.history.scene())
+        let total = crate::editor_operations::inspection_page_lower_bound(scene, range.clone())
             .saturating_add(self.path_lower_bound(&paths));
         if total > path_limit {
             return Err(OperationError::TooLarge);
@@ -127,10 +200,7 @@ impl Editor {
         {
             return Err(OperationError::TooLarge);
         }
-        let nodes = self
-            .history
-            .scene()
-            .nodes()
+        let nodes = page_nodes
             .iter()
             .map(|node| {
                 Ok(NodeInspection {
@@ -174,8 +244,9 @@ impl Editor {
             })
             .collect::<Result<Vec<_>, OperationError>>()?;
         let viewport_error = self.current_viewport_error();
-        let prepared_view = (!self.history.scene().curves().is_empty())
-            .then(|| ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024));
+        let has_curves = scene.curves().iter().any(|curve| listed(curve.id()));
+        let prepared_view =
+            has_curves.then(|| ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024));
         let gpu_healthy = self.renderer.is_some()
             && viewport_error != Some(crate::viewport_renderer::ViewportError::BackendFailed);
         let (selected, selected_path) = self.selection_presentation();
@@ -190,11 +261,10 @@ impl Editor {
                 .scene()
                 .authoring_read_only_reason()
                 .map(|reason| reason.to_string()),
-            curves: self
-                .history
-                .scene()
+            curves: scene
                 .curves()
                 .iter()
+                .filter(|curve| listed(curve.id()))
                 .map(|curve| {
                     Ok(crate::editor_operations::CurveInspection {
                         id: curve.id().to_decimal(),
@@ -215,11 +285,10 @@ impl Editor {
                     })
                 })
                 .collect::<Result<Vec<_>, OperationError>>()?,
-            shapes: self
-                .history
-                .scene()
+            shapes: scene
                 .shapes()
                 .iter()
+                .filter(|shape| listed(shape.id()))
                 .map(|shape| {
                     Ok(ShapeInspection {
                         id: shape.id().to_decimal(),
@@ -359,6 +428,24 @@ impl Editor {
             text_focused,
             modal: self.files.is_modal(),
             status_message: self.status_message(),
+            page: page.map(|_| {
+                let total = scene.nodes().len();
+                let next_cursor = (range.end < total).then(|| {
+                    crate::editor_operations::PageCursor {
+                        scene_token: self.scene_token,
+                        revision: self.history.revision(),
+                        offset: range.end,
+                    }
+                    .to_string()
+                });
+                crate::editor_operations::PageInspection {
+                    nodes_total: total,
+                    node_offset: range.start,
+                    node_count: range.len(),
+                    truncated: next_cursor.is_some(),
+                    next_cursor,
+                }
+            }),
             camera: CameraInspection {
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
@@ -447,9 +534,9 @@ mod tests {
             + remembered(MIN_FACE_TARGET, 2)
             + remembered(MIN_VERTEX_TARGET, 3)
             + remembered(MIN_EDGE_TARGET, 4);
-        assert!(editor.inspect_within(false, total).is_ok());
+        assert!(editor.inspect_within(false, total, None).is_ok());
         assert!(matches!(
-            editor.inspect_within(false, total - 1),
+            editor.inspect_within(false, total - 1, None),
             Err(OperationError::TooLarge)
         ));
     }
@@ -549,9 +636,9 @@ mod selection_tests {
             + 2 * elements * MIN_PATH_ELEMENT
             - 2
             + 2 * MIN_SELECTION_MEMBER.len();
-        assert!(editor.inspect_within(false, total).is_ok());
+        assert!(editor.inspect_within(false, total, None).is_ok());
         assert!(matches!(
-            editor.inspect_within(false, total - 1),
+            editor.inspect_within(false, total - 1, None),
             Err(OperationError::TooLarge)
         ));
     }
@@ -726,3 +813,6 @@ mod lower_bound_tests {
         assert_lower_bound(&editor);
     }
 }
+
+#[cfg(test)]
+mod paging_tests;

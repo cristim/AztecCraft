@@ -1,0 +1,260 @@
+{
+  "inspection": {
+    "appearance_incomplete": false,
+    "attribute_editor_tab": null,
+    "camera": {
+      "distance": 8.0,
+      "eye": [
+        4.1605610847473145,
+        3.115346670150757,
+        6.081475257873535
+      ],
+      "far_clip": 10000.0,
+      "fov_y_degrees": 37.849961153583806,
+      "near_clip": 0.10000000149011612,
+      "pitch_degrees": 22.918312146742387,
+      "target": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "yaw_degrees": 34.37746907388723
+    },
+    "can_redo": false,
+    "can_undo": true,
+    "clipping_complete": false,
+    "closing": false,
+    "curves": [],
+    "depth_complete": false,
+    "dirty": true,
+    "document_origin": "untitled",
+    "face_centres_hidden": false,
+    "face_selection_policy": "visible_centers_only",
+    "grid_visible": true,
+    "has_draft": false,
+    "has_file": false,
+    "manipulation": {
+      "active": null,
+      "active_tool": "select",
+      "kinds": [
+        {
+          "available": true,
+          "kind": "move",
+          "unavailable_reason": null
+        },
+        {
+          "available": true,
+          "kind": "rotate",
+          "unavailable_reason": null
+        },
+        {
+          "available": true,
+          "kind": "scale",
+          "unavailable_reason": null
+        }
+      ],
+      "manipulator_size": 1.0,
+      "refusal": null,
+      "rotate_axis": "x",
+      "rotate_space": "object",
+      "scale_handle": "uniform",
+      "scale_space": "world",
+      "units": {
+        "angle": "deg",
+        "distance": "cm",
+        "factor": "unitless"
+      },
+      "viewport": {
+        "axes": [
+          {
+            "axis": "x",
+            "unavailable_reason": null,
+            "visible": true
+          },
+          {
+            "axis": "y",
+            "unavailable_reason": null,
+            "visible": true
+          },
+          {
+            "axis": "z",
+            "unavailable_reason": null,
+            "visible": true
+          }
+        ],
+        "pointer_available": false,
+        "pointer_disabled": null,
+        "pointer_hit": null,
+        "pointer_refusal": null,
+        "provenance": "last_native_viewport_capture"
+      }
+    },
+    "modal": false,
+    "native_input_pending": false,
+    "nodes": [
+      {
+        "authoring_transform": {
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "id": "2",
+        "instance_paths": [
+          [
+            "3"
+          ]
+        ],
+        "name": "pCube2",
+        "shape_ids": [
+          "4"
+        ],
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "transform_id": "3",
+        "visible": true
+      }
+    ],
+    "page": {
+      "next_cursor": null,
+      "node_count": 1,
+      "node_offset": 1,
+      "nodes_total": 2,
+      "truncated": false
+    },
+    "pending_action": null,
+    "read_only_reason": null,
+    "redo_label": null,
+    "remembered_edge": null,
+    "remembered_face": null,
+    "remembered_vertex": null,
+    "retained_source_bytes": 0,
+    "retained_source_records": 0,
+    "save_as_available": false,
+    "save_available": false,
+    "save_reconciliation_required": false,
+    "scene_token": "<uuid>",
+    "selected_instance_path": [
+      "3"
+    ],
+    "selected_node": "2",
+    "selection": [
+      {
+        "instance_path": [
+          "3"
+        ],
+        "node": "2"
+      }
+    ],
+    "selection_count": 1,
+    "selection_mode": "object",
+    "session_materials": [
+      {
+        "color": [
+          0.3254901960784314,
+          0.3254901960784314,
+          0.3254901960784314
+        ],
+        "editable": false,
+        "id": "0",
+        "name": "standardSurface1",
+        "shading_group": "initialShadingGroup"
+      }
+    ],
+    "shading": "smooth_shade_all",
+    "shapes": [
+      {
+        "edges": 12,
+        "faces": 6,
+        "id": "4",
+        "material": null,
+        "name": "pCubeShape2",
+        "points": 8,
+        "session_material": "0",
+        "smoothing_known": true,
+        "source_appearance": {
+          "checked_source_bindings": 0,
+          "issues": {
+            "ambiguous_instance": false,
+            "color_processor_unavailable": true,
+            "evaluation_unavailable": true,
+            "malformed_data": false,
+            "missing_membership": false,
+            "overlapping_membership": false,
+            "quadratic_filtering_unproved": true,
+            "unsupported_graph": false,
+            "unsupported_settings": false,
+            "unsupported_shader": false,
+            "uv_mismatch": false
+          },
+          "shapes": 1,
+          "state": "unbound",
+          "unavailable": 0,
+          "unbound": 1
+        }
+      }
+    ],
+    "sidebar_panels": {
+      "attribute_editor": false,
+      "channel_box": true
+    },
+    "source_appearance": {
+      "checked_source_bindings": 0,
+      "issues": {
+        "ambiguous_instance": false,
+        "color_processor_unavailable": true,
+        "evaluation_unavailable": true,
+        "malformed_data": false,
+        "missing_membership": false,
+        "overlapping_membership": false,
+        "quadratic_filtering_unproved": true,
+        "unsupported_graph": false,
+        "unsupported_settings": false,
+        "unsupported_shader": false,
+        "uv_mismatch": false
+      },
+      "shapes": 2,
+      "state": "unbound",
+      "unavailable": 0,
+      "unbound": 2
+    },
+    "status_message": "Scene edited",
+    "text_focused": false,
+    "undo_label": "Create",
+    "units": {
+      "angular": "deg",
+      "linear": "cm",
+      "time": "film"
+    },
+    "vertex_markers_hidden": false,
+    "viewport_backend": "uninitialized",
+    "viewport_error": "uninitialized"
+  },
+  "outcome": "scene"
+}

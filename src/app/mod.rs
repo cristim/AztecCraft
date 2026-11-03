@@ -16,7 +16,7 @@ use azteccraft::{
     scene::{NodeId, Primitive},
     selection::ObjectSelection,
     view_scene::ViewScene,
-    viewport::Camera,
+    viewport::{Camera, FrameChildren},
 };
 use eframe::egui::{self, Color32, Key, RichText};
 #[cfg(test)]

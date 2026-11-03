@@ -345,13 +345,18 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 - P17: after Delete of several objects the selection is empty and Undo restores the nodes but
   not the selection (`undo_of_delete_selection_restores_nodes_but_not_the_selection`).
 
-## Frame Selected includes the descendants of the selected objects
+## Frame Selected with no visible geometry frames the object origin (PROVISIONAL, #335)
 
-`Camera::frame_view` and `frame_view_many` match instances by path prefix, so framing a selected
-group also frames everything below it. Maya's F frames the selected objects and excludes children
-unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
-union framing; no with-Children variant exists (Ctrl+F, and Shift+F / Ctrl+Shift+F for all views, are absent). Per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm), aligning F with Maya is tracked in #335. Pinned by
-`frame_view_of_a_group_frames_the_geometry_of_its_children`.
+F frames parents only and Ctrl+F frames with children, per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm). The page
+is silent on a selection that owns no visible geometry (a plain group, or a parent whose only own
+shape is hidden). F then frames the objects' manipulator origins as a lone point at the near floor;
+the origin is the translate plus rotate-pivot translate, so a rotate pivot point does not move it
+(Maya's choice between pivot and matrix translation is undocumented). Pinned by
+`exclude_frames_a_shapeless_group_at_its_world_origin`, `exclude_origin_ignores_the_rotate_pivot_point` and
+`has_direct_geometry_counts_visible_own_meshes_and_curves_only`. The MCP `frame_selected` tool
+follows the same rules and takes `with_children` for Ctrl+F. F and Ctrl+F with
+nothing selected in Object or Hierarchy mode frame everything (the View page documents this for
+F only; Ctrl+F is PROVISIONAL).
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
@@ -964,18 +969,16 @@ Scale grab whose along-axis component is under 1 px of world length, as the pres
 hover shows the same text. Not fixed: gating the highlight
 changes native behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
 
-## Inspection keeps reporting a pick after a view build error
+## A pointer capture can survive a frame that skips the view build
 
 **Severity:** low
 **Area:** viewport manipulators, MCP inspection
-**Issue:** tracked in #310
 
-After a view build error (for example ancestors whose scales overflow), `move_viewport` survives, so
-`inspect_scene` pointer fields still report a pick from the surviving capture although the viewport
-paints nothing. This contradicts the "mirrors the painted highlight" wording in
-`.project-docs/mcp.md` (the pointer fields paragraph). The tests
-`a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
-`sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.
+A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
+in the same frame returns before the view build, so the paint is skipped and the capture survives
+for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
+View build errors other than `ResourceLimit` leave `viewport_error`
+unchanged, tracked in #342.
 
 ## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
 
@@ -1033,15 +1036,33 @@ parents, so every node has one path. Only the unit test
 `an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
 covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
-## Inspection is one response of at most 256 KiB
+## A very large selection lowers the usable inspect_scene node_limit
 
-`inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
-default-named cubes, 269 with every cube selected, measured through the official client) report
-`too_large`. A selection counts about 40-60 bytes per member: 4096 selected members fit with one cube but
-not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
-whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
-selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
-token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
-(a plain click on empty space, or Alt+D). Fix: page the nodes (#332, second PR). The limit is pinned by
-`inspect_scene_returns_250_cubes_and_refuses_400_without_closing` and
-`inspect_scene_sizes_a_maximal_selection_by_its_serialized_bytes`.
+Every `inspect_scene` page repeats the full `selection` list, about 40 bytes per member. With 4096
+selected default-named cubes a page of 1 node is about 170 KB and 50 nodes about 212 KB, but 250 nodes
+exceed the reply cap, so such a selection needs a small `node_limit` (about 50). Select All (native, and
+MCP `select_by_rule`, #325) builds a whole-scene selection in one call. A client that connects fresh
+inspects with a small `node_limit` first to obtain the token, then clears the selection with
+`deselect_all` if it wants larger pages. Only a selection whose serialized members approach the reply
+cap on their own (for example very deep instance paths) blocks every page; that case has no
+tokenless recovery except clearing the selection in the native UI (a plain click on empty space, or
+Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
+`a_full_selection_is_inspectable_with_a_small_node_limit`.
+
+## Creating N objects costs O(N^3)
+
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, and `validate_dag` scans
+every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
+O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
+`azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
+fixed by the paging work.
+
+## Frame origin for a mixed selection is PROVISIONAL
+
+F (frame without descendants, #338) frames the objects' origins when no selected object owns visible
+geometry. The Maya documentation does not state this, so the choice is provisional and pinned only by
+tests: the origin is the node's translate plus its rotate-pivot translate and ignores the rotate pivot
+point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ignores_the_rotate_pivot_point`),
+and a selection where any one member owns geometry frames the geometry only
+(`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
+with Maya 2027.

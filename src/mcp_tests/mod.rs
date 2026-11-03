@@ -121,8 +121,10 @@ mod official_client {
     mod extrude;
     mod files;
     mod frame_all;
+    mod frame_selected;
     mod grid;
     mod inspect_budget;
+    mod inspect_paging;
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod material;

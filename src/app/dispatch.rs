@@ -82,7 +82,7 @@ impl Editor {
             | Operation::SelectVertex { .. }
             | Operation::SelectEdge { .. }
             | Operation::SetSelectionMode(_)
-            | Operation::FrameSelected
+            | Operation::FrameSelected { .. }
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
@@ -190,9 +190,9 @@ impl Editor {
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
         let focused = text_edit_focused(ctx);
-        if matches!(request.operation, Operation::Inspect) {
+        if let Operation::Inspect { page } = &request.operation {
             return Ok(OperationReply::Scene {
-                inspection: Box::new(self.inspect(focused)?),
+                inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
             });
         }
         if request.expected_scene_token != Some(self.scene_token) {
@@ -752,7 +752,7 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
-            Operation::FrameSelected => {
+            Operation::FrameSelected { with_children } => {
                 let component = matches!(
                     self.selection_mode,
                     SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge
@@ -776,42 +776,41 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                     .map_err(OperationError::Scene)?;
                 }
-                let paths = if component {
-                    None
-                } else {
-                    if self.selection.is_empty() {
-                        return Err(OperationError::NoSelection);
-                    }
-                    let mut paths = Vec::with_capacity(self.selection.len());
-                    for member in self.selection.members() {
-                        let path = (!member.path.is_empty()).then(|| member.path.clone());
-                        paths.push(self.selection_path(member.node, path)?);
-                    }
-                    Some(paths)
-                };
+                if !component && self.selection.is_empty() {
+                    // The 2027 View page: Frame Selection with nothing selected acts like Frame All.
+                    return self.frame_everything();
+                }
+                if !component {
+                    let before = self.camera.clone();
+                    self.frame_members(if with_children {
+                        FrameChildren::Include
+                    } else {
+                        FrameChildren::Exclude
+                    })?;
+                    return Ok(if self.camera == before {
+                        OperationReply::Unchanged
+                    } else {
+                        OperationReply::Changed
+                    });
+                }
                 let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
                     .map_err(|error| OperationError::View(error.to_string()))?;
                 let before = self.camera.clone();
-                if let Some(paths) = paths {
-                    let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
-                    self.camera.frame_view_many(&view, &prefixes, self.aspect)
-                } else {
-                    match self.selection_mode {
-                        SelectionMode::Face => self
-                            .remembered_face
-                            .as_ref()
-                            .map(|target| self.camera.frame_face(&view, target, self.aspect)),
-                        SelectionMode::Vertex => self
-                            .remembered_vertex
-                            .as_ref()
-                            .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
-                        _ => self
-                            .remembered_edge
-                            .as_ref()
-                            .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
-                    }
-                    .ok_or(OperationError::NoSelection)?
+                match self.selection_mode {
+                    SelectionMode::Face => self
+                        .remembered_face
+                        .as_ref()
+                        .map(|target| self.camera.frame_face(&view, target, self.aspect)),
+                    SelectionMode::Vertex => self
+                        .remembered_vertex
+                        .as_ref()
+                        .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
+                    _ => self
+                        .remembered_edge
+                        .as_ref()
+                        .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
                 }
+                .ok_or(OperationError::NoSelection)?
                 .map_err(OperationError::Camera)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
@@ -835,22 +834,7 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
-            Operation::FrameAll => {
-                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::View(error.to_string()))?;
-                if view.instances().is_empty() && view.curve_instances().is_empty() {
-                    return Err(OperationError::NothingToFrame);
-                }
-                let before = self.camera.clone();
-                self.camera
-                    .frame_view(&view, None, self.aspect)
-                    .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
-            }
+            Operation::FrameAll => return self.frame_everything(),
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
                 let before = self.camera.clone();
                 match operation {
@@ -867,9 +851,9 @@ impl Editor {
                 });
             }
             #[cfg(any(test, feature = "mcp"))]
-            Operation::Inspect => {
+            Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
-                    inspection: Box::new(self.inspect(false)?),
+                    inspection: Box::new(self.inspect_page(false, page.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

@@ -2526,10 +2526,10 @@ fn ascii_chain(scale: &str) -> String {
 }
 
 // Two ancestors scaled 1e200 each have a finite matrix but no finite product, so the leaf's frame is
-// refused as ParentTransform. A capture taken before the ancestors overflow survives later frames
-// (a view build error does not clear `move_viewport`), so the test swaps the scene in directly after
-// capturing the pointer. Reachable through the MCP set_transform tool on a writable scene (plausible,
-// not exercised here); the scene here is read-only ASCII.
+// refused as ParentTransform. That product is non-finite world geometry, which also fails the view
+// build, and a frame then clears the capture. The state between the edit and the next frame is the
+// only one that reports this refusal, so the test swaps the scene in directly and inspects without a
+// frame. After a frame it is no longer observable through MCP (the fields are null).
 #[test]
 fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
     let expected = NativeError::UnsupportedMove(
@@ -2570,6 +2570,88 @@ fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
                 viewport.pointer_refusal.as_deref(),
                 Some(expected.as_str()),
                 "{name}"
+            );
+        }
+    }
+}
+
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+// A binary scene whose one face is a pentagram: the view build refuses it as UnsupportedPolygon.
+fn pentagram_scene() -> std::sync::Arc<[u8]> {
+    use binary_fixture::{chunk, creation, group, mesh_payload_from, scene};
+    let mut positions = Vec::new();
+    for k in 0..5 {
+        let angle = std::f32::consts::TAU * k as f32 / 5.0;
+        positions.extend([angle.sin().to_bits(), angle.cos().to_bits(), 0]);
+    }
+    let mesh = mesh_payload_from(
+        &positions,
+        &[0x8000_0000, 2, 2, 4, 4, 1, 1, 3, 3, 0],
+        &[0, 1, 2, 3, 0x6000_0004],
+        &[0, 0, 1f32.to_bits(), 0, 0, 1f32.to_bits()],
+        &[0, 1, 2, 0, 1],
+    );
+    scene(
+        &[
+            group(b"XFRM", &creation(b"star", None), 4),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"starShape", Some(b"star")),
+                    chunk(b"MESH", &mesh, 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    )
+}
+
+// Every view build error paints no handles, so none may leave the pointer capture behind.
+#[test]
+fn a_view_build_error_clears_the_move_capture_for_every_tool() {
+    for (tool_key, name) in [(Key::W, "Move"), (Key::E, "Rotate"), (Key::R, "Scale")] {
+        for polygon in [false, true] {
+            let (mut editor, context, view) = setup(tool_key, 1.0);
+            moved(&mut editor, &context, 1.0, view.rect.center());
+            assert!(editor.move_viewport.is_some(), "{name}: captured before");
+            assert!(editor.inspect_manipulation().unwrap().viewport.is_some());
+            if polygon {
+                let scene = azteccraft::native_scene::binary::decode(pentagram_scene()).unwrap();
+                assert_eq!(
+                    azteccraft::view_scene::ViewScene::from_native(&scene, 1 << 20).unwrap_err(),
+                    azteccraft::view_scene::ViewError::UnsupportedPolygon
+                );
+                editor.history = azteccraft::history::History::new(scene);
+            } else {
+                let id = editor.selected().unwrap();
+                editor
+                    .apply_operation(Operation::SetTransform {
+                        id,
+                        transform: crate::editor_operations::TransformInput {
+                            translation: [0.0; 3],
+                            rotation_degrees: [0.0; 3],
+                            scale: [1e300; 3],
+                        },
+                    })
+                    .unwrap();
+            }
+            idle(&mut editor, &context, 1.0);
+            assert!(
+                editor.move_viewport.is_none(),
+                "{name} polygon={polygon}: capture survived a view build error"
+            );
+            assert!(
+                editor.inspect_manipulation().unwrap().viewport.is_none(),
+                "{name} polygon={polygon}"
             );
         }
     }

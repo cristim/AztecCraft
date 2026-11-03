@@ -698,7 +698,12 @@ async fn sdk_frame_selected_frames_the_union_of_several_selected_objects() {
     let prefixes: Vec<&[NativeId]> = members.iter().map(|m| m.path.as_slice()).collect();
     let mut expected = editor.camera.clone();
     expected
-        .frame_view_many(&view, &prefixes, editor.aspect)
+        .frame_view_many(
+            &view,
+            &prefixes,
+            azteccraft::viewport::FrameChildren::Exclude,
+            editor.aspect,
+        )
         .unwrap();
     let scene = editor.history.scene().clone();
     let token = editor.scene_token.to_string();

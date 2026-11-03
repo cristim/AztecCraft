@@ -182,7 +182,8 @@ clears it; New/Open retain the current mask. Edits and Undo/Redo revalidate the
 target and clear dangling identities without restoring them on Redo. Selection
 does not modify authoring history, source bytes or dirty state. F/frame_selected
 in Face mode frames the selected face corners even if its center is occluded or
-clipped; no face returns an error instead of framing the object. Existing native
+clipped; no face returns an error instead of framing the object. In Object and Hierarchy
+modes F frames the selected parents only and Ctrl+F includes their descendants. Existing native
 valid-draft commitment and remote draft-refusal rules remain in force.
 
 Shift/Ctrl component selection, marquee, multiple faces, other component masks, preselection
