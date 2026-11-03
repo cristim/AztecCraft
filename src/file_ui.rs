@@ -43,8 +43,17 @@ pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String)
 }
 
 /// Why the prompt's Save is disabled outside reconciliation.
-pub(super) const PROMPT_SAVE_UNAVAILABLE: &str =
-    "Not available: this build saves in place only an opened Maya Binary scene (#156, #15)";
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene or, on Unix, a new scene through Save As (#156, #289)";
+
+/// A scene with no retained source was written by the authored writer, whose files Maya has
+/// not been shown to accept.
+fn saved_status(base: &str, written: &NativeScene) -> String {
+    if written.retained_source_bytes() == 0 {
+        format!("{base} (PROVISIONAL: Maya acceptance of new-scene files is unproven)")
+    } else {
+        base.into()
+    }
+}
 
 #[cfg(all(test, any(unix, windows)))]
 mod binary_fixture {
@@ -181,7 +190,7 @@ impl Editor {
             self.files.origin = origin;
             self.files.path = Some(path);
             self.files.uncertain = None;
-            self.status = "Save reconciled".into();
+            self.status = saved_status("Save reconciled", &self.files.saved);
             self.error = false;
             return Ok(OperationReply::SaveReconciled {
                 scene_token: self.scene_token.to_string(),
@@ -198,7 +207,7 @@ impl Editor {
                 self.files.saved = written;
                 self.files.origin = origin;
                 self.files.path = Some(path);
-                self.status = "Scene saved".into();
+                self.status = saved_status("Scene saved", &self.files.saved);
                 self.error = false;
                 Ok(OperationReply::Saved {
                     scene_token: scene_token.to_string(),
@@ -818,6 +827,7 @@ mod tests {
                 ..
             }
         ));
+        assert_eq!(editor.status, "Scene saved");
         assert_eq!(editor.scene_token, token);
         assert_eq!(editor.camera, camera);
         assert_eq!(editor.history.scene(), &first);
@@ -1462,6 +1472,23 @@ mod tests {
         ));
         assert_eq!(editor.document_title(), "AztecCraft | fresh.mb");
         assert!(editor.files.save_available() && editor.files.save_as_available());
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+        assert!(!editor.error);
+        editor.apply_operation(Operation::SaveScene).unwrap();
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+    }
+
+    #[test]
+    fn saved_status_carries_the_caveat_only_for_scenes_without_a_retained_source() {
+        let new = azteccraft::native_scene::NativeScene::default();
+        assert_eq!(
+            saved_status("Scene saved", &new),
+            "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
+        assert_eq!(
+            saved_status("Save reconciled", &new),
+            "Save reconciled (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
     }
 
     #[cfg(unix)]
