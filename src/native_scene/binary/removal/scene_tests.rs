@@ -87,6 +87,29 @@ fn a_pending_insertion_on_another_node_blocks_a_removal() {
 }
 
 #[test]
+fn an_edit_needing_an_insertion_is_refused_after_a_delete_and_changes_nothing() {
+    let children = [
+        sited_transform(b"a", &[triple_aux(b"t", SITE_AUX, [7.0; 3])]),
+        sited_transform(b"c", &[triple_aux(b"r", SITE_AUX, [1.0; 3])]),
+        other_node_with_triple(b"anchor", SITE_AUX),
+    ]
+    .concat();
+    let mut scene = decode(scene(&children)).unwrap();
+    let (a, c) = (scene.nodes[0].id, scene.nodes[1].id);
+    assert_eq!(
+        scene.clone().set_channel(c, Channel::TranslateX, 5.0),
+        Ok(())
+    );
+    scene.remove(a).unwrap();
+    let before = scene.clone();
+    assert_eq!(
+        scene.set_channel(c, Channel::TranslateX, 5.0),
+        Err(NativeError::InsertionAfterDelete)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
 fn an_unshaded_object_leaves_a_sourced_scene_with_appearance_valid() {
     let extra = [transform(b"plain"), shape(b"plainShape", b"plain")].concat();
     let bytes = appearance_fixture::appearance_specimen_with_fields(appearance_fixture::Fields {

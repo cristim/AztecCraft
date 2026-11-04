@@ -461,6 +461,7 @@ pub(super) fn construct(
         next_native_id: 1,
     };
     let mut source = SourceRetention {
+        has_removals: false,
         bytes: container.source().clone(),
         format: SourceFormat::Binary,
         records: budget.vector(counts.atoms)?,

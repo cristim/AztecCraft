@@ -1,7 +1,7 @@
 use crate::native_scene::{
-    Channel, NativeId,
+    Channel, NativeError, NativeId,
     binary::{
-        ErrorKind, decode, encode,
+        decode, encode,
         removal::{
             RemovalRefusal, assert_pruned,
             tests::{connections, link, shape, transform, two_objects},
@@ -89,7 +89,7 @@ fn an_appearance_scene_prunes_an_unshaded_object_and_keeps_every_offset_consiste
 }
 
 #[test]
-fn an_edit_that_needs_an_insertion_cannot_be_saved_with_a_removal() {
+fn an_edit_that_needs_an_insertion_is_refused_before_it_can_reach_save() {
     let t = triple_aux(b"t", SITE_AUX, [7.0; 3]);
     let children = [
         sited_transform(b"a", &[t]),
@@ -100,8 +100,11 @@ fn an_edit_that_needs_an_insertion_cannot_be_saved_with_a_removal() {
     let mut opened = decode(scene(&children)).unwrap();
     let (a, c) = (opened.nodes()[0].id(), opened.nodes()[1].id());
     opened.remove(a).unwrap();
-    opened.set_channel(c, Channel::TranslateX, 5.0).unwrap();
-    assert_eq!(encode(&opened).unwrap_err().kind(), ErrorKind::Unsupported);
+    assert_eq!(
+        opened.set_channel(c, Channel::TranslateX, 5.0),
+        Err(NativeError::InsertionAfterDelete)
+    );
+    assert!(encode(&opened).is_ok());
 }
 
 #[test]

@@ -279,6 +279,7 @@ fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
 
 fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Ascii,
@@ -449,6 +450,7 @@ fn unit_conversion_only_changes_derived_view() {
 fn retained_ranges_and_exhausted_allocators_are_checked() {
     let (mut scene, _) = cube();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -458,6 +460,7 @@ fn retained_ranges_and_exhausted_allocators_are_checked() {
     });
     assert_eq!(scene.validate(), Err(NativeError::InvalidRetention));
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -1139,6 +1142,7 @@ fn binary_candidate_finishes_once_preserving_source_and_runtime_identity() {
     candidate.shapes[0].uuid = None;
     candidate.nodes[0].name = "native:arbitrary exact name".into();
     candidate.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: std::sync::Arc::from(&b"opaque original identity"[..]),
         format: SourceFormat::Binary,
@@ -1286,6 +1290,7 @@ fn read_only_format_wins_over_the_hierarchy_refusal_on_an_ascii_scene() {
 fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() {
     let binary = |scene: &mut NativeScene| {
         scene.source = Some(SourceRetention {
+            has_removals: false,
             sites: Vec::new(),
             bytes: std::sync::Arc::from(&b"original"[..]),
             format: SourceFormat::Binary,

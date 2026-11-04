@@ -231,7 +231,11 @@ impl Scalar {
             && value.to_bits() != self.value.to_bits()
             && !source.is_some_and(|source| source.can_insert(owner, field))
         {
-            return Err(NativeError::UnsupportedEdit);
+            return Err(if source.is_some_and(|source| source.has_removals) {
+                NativeError::InsertionAfterDelete
+            } else {
+                NativeError::UnsupportedEdit
+            });
         }
         let mut next = self.clone();
         if self.value.to_bits() != value.to_bits() || self.origin.is_some() {
@@ -1726,6 +1730,8 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
+    InsertionAfterDelete,
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
@@ -1776,6 +1782,9 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::InsertionAfterDelete => f.write_str(
+                "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
+            ),
             Self::ReadOnlyFormat => f.write_str("Maya ASCII scenes are read-only in this version"),
             Self::UnknownSessionMaterial(id) => {
                 write!(f, "session material {} does not exist", id.index())
