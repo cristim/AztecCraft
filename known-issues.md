@@ -1053,3 +1053,53 @@ point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ign
 and a selection where any one member owns geometry frames the geometry only
 (`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
 with Maya 2027.
+
+## Delete on an opened Maya Binary
+
+**Severity:** medium
+**Area:** native scene, Maya Binary save
+**Issue:** cristim/AztecCraft#272
+
+Delete removes a root transform and its exclusive shapes from an opened `.mb`, and Save writes
+the file without their records. Maya's acceptance of the pruned file is unproven (#5), so the
+behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
+reason except where noted:
+
+- A node with children or a parent, and any node of an opened ASCII scene.
+- Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
+  decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
+  `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
+  removed names (`STR `, `STR#`, the header tags `AUNI`, `LUNI`, `TUNI`, `BCSZ`, `CHNG`, `DATS`,
+  `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `PLUG` (the plug-in requirements, present in
+  nearly every real file), `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
+  of a `SCRP` group). A typed attribute payload is skipped only inside a bound transform or shape
+  group, whose layout the opener validated; in any other group it is scanned like text, so a few
+  false refusals are possible there. Any other tag, anywhere in the file, refuses the delete as "a
+  '<tag>' record that cannot be checked", even when it names nothing. A real file with other tags
+  (for example further typed-attribute tags) is not deletable until each tag is added with a reason.
+  The vendored `file_owner_delete.mb` uses only listed tags; its four default cameras are
+  refused because each has a camera shape (`DCAM`) parented under it (the names `persp`, `top`,
+  `front` and `side` also occur in its text, so the scan would refuse them too). `dummy_mesh.mb`
+  does not open.
+- Instancing. The opener builds one parent edge per binding, so a shape with several parents
+  cannot be read from the decoder. An extra instance parent would have to be a record naming
+  the shape: an unknown tag is refused by the rule above (tested for a record naming the shape
+  of the deleted parent), and a selection, relation, connection or scanned text that names it is
+  refused as a reference. Nothing more is claimed.
+- Another node parented under the transform; a selection, relation or connection that names a
+  removed node (by `|` or `:` path component); per-face material links (group id and group colour),
+  which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
+  set members can be deleted today.
+- A mode-1 set link with an index, a surviving explicit-index link beside a dropped mode-1 link, a
+  surviving mode-1 link beside a dropped mode-0 link, any `dagSetMembers` alias into the set, and a
+  set that is neither created in the file nor `:`-rooted.
+- A shape that is the first or only user of a material or the only user of a diffuse-bound shader
+  (reached only after the per-face rule is lifted; pinned by direct tests).
+- A removed range that would change an enclosing group's padding, and an edit that needs a leaf
+  inserted, before or after a Delete (the edit fails with `scene_error`).
+- Text scanning is bounded to 16 Mi (bytes times removed names), about 0.25 s in a debug build;
+  a larger scan is refused as "too large to check" rather than skipped, so a file with 200 KB of
+  script text refuses once more than about 80 names are removed. Free text in a listed kind that
+  holds a removed name (for example a `TEXT` leaf in a `SCRP` or an `STR` in any group) is refused.
+- A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
+  scene bound to the original bytes, so repeat saves are identical.

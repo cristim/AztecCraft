@@ -258,7 +258,7 @@ fn read_chunk(
     ))
 }
 
-fn group_alignment(tag: [u8; 4], form: [u8; 4]) -> Option<usize> {
+pub(crate) fn group_alignment(tag: [u8; 4], form: [u8; 4]) -> Option<usize> {
     match (&tag, &form) {
         (b"FOR8", b"Maya") | (b"LIS8", b"CONS") => Some(4),
         (
