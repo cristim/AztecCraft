@@ -1078,12 +1078,13 @@ reason except where noted:
   (these are reached only after the per-face rule is lifted; they are pinned by direct tests).
 - A removed range that would change an enclosing group's padding, and an edit that needs a leaf
   inserted, before or after a Delete (the edit fails with `scene_error`).
-- Text: only `STR ` chunks, leaves of `SCRP` groups and leaves of the `CONN` list with a tag the
-  opener does not decode are scanned for removed names (an unrecognised connection leaf that names
-  one is refused, `UnrecognisedConnection`; one that names only survivors is kept byte-identical).
-  A name in another leaf type of an unbound group is not found (PROVISIONAL). The scan is bounded to 16 Mi
-  (bytes times removed names), about 0.25 s in a debug build; a larger scan is refused as "too large
-  to check" rather than skipped, so a file with 200 KB of script text refuses once more than about
-  80 names are removed.
+- Text: scanned for removed names are `STR `, `STR#` and `ATTR` leaves and every leaf of a `SCRP`
+  group, on identifier boundaries, and every leaf the opener does not decode anywhere under a
+  `CONS` or `CONN` group, by plain byte substring (refused as `UnrecognisedConnection`; a leaf that
+  contains no removed name is kept byte-identical). Unrecognised leaves elsewhere, numeric payloads
+  and other leaf types of unbound groups are not scanned, since real files hold many of them and
+  there is no public spec to say which name them (PROVISIONAL). The scan is bounded to 16 Mi
+  (bytes times the longest removed name), about 0.25 s in a debug build; a larger scan is refused
+  as "too large to check" rather than skipped.
 - A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
   scene bound to the original bytes, so repeat saves are identical.

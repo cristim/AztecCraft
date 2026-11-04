@@ -1667,7 +1667,7 @@
   },
   {
     "name": "delete_selected",
-    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, or the scene was opened from a file) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
+    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object cannot be deleted (it has children or a parent, it belongs to an opened Maya ASCII file, or its records in an opened Maya Binary cannot be dropped without changing other records) the whole delete is refused with that object's error and nothing changes. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
