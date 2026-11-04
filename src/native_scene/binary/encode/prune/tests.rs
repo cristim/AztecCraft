@@ -245,3 +245,21 @@ fn a_surviving_text_that_names_a_removed_node_is_caught_on_the_written_bytes() {
     assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
     assert!(write_doctored(&analysed, &analysed, |_, _| {}).is_ok());
 }
+
+#[test]
+fn a_planned_insertion_is_refused_when_a_removal_is_pending() {
+    use super::super::{encode_with, insert::Insertion};
+    let mut opened = decode(two_objects(&[])).unwrap();
+    let a = opened.nodes()[0].id();
+    opened.remove(a).unwrap();
+    let plan = [Insertion {
+        owner: NativeId(3),
+        field: crate::native_scene::source::TransformField::Translation,
+        at: 16,
+        bytes: Vec::new(),
+        ancestors: vec![0],
+    }];
+    let error = encode_with(&opened, &plan, &[]).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Unsupported);
+    assert!(encode_with(&opened, &[], &[]).is_ok());
+}
