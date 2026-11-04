@@ -1409,11 +1409,11 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   edit_node(empty) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  delete => Err(Scene: Deleting this node is not supported yet: The file refers to this node by name from another record) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete => Err(Scene: Deleting this node is not supported yet: A shape of this node carries per-face material links) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
-  delete_selection => Err(Scene: Deleting this node is not supported yet: The file refers to this node by name from another record) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_selection => Err(Scene: Deleting this node is not supported yet: A shape of this node carries per-face material links) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change

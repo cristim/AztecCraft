@@ -1,5 +1,8 @@
 use super::*;
-use crate::native_scene::{DeleteUnsupported, NativeError, binary::tests::wire_fixture::*};
+use crate::native_scene::{
+    DeleteUnsupported, NativeError,
+    binary::tests::{appearance_fixture, wire_fixture::*},
+};
 
 fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
     chunk(
@@ -80,9 +83,14 @@ fn a_transform_and_shape_nothing_else_names_is_removable() {
 #[test]
 fn ids_must_name_the_transform_and_its_shapes() {
     let bytes = two_objects(&[]);
-    let cases: [(u64, &[u64]); 5] = [(2, &[]), (1, &[1]), (9, &[]), (1, &[9]), (0, &[])];
-    for (transform, shapes) in cases {
-        let shapes: Vec<_> = shapes.iter().copied().map(NativeId).collect();
+    for (transform, shapes) in [
+        (2, vec![]),
+        (1, vec![1]),
+        (9, vec![]),
+        (1, vec![9]),
+        (0, vec![]),
+    ] {
+        let shapes: Vec<_> = shapes.into_iter().map(NativeId).collect();
         assert_eq!(
             check_removal(&bytes, NativeId(transform), &shapes),
             Err(RemovalRefusal::Unreadable)
@@ -91,6 +99,10 @@ fn ids_must_name_the_transform_and_its_shapes() {
     assert_eq!(
         check_removal(&bytes, NativeId(1), &[NativeId(4)]),
         Err(RemovalRefusal::ForeignChild)
+    );
+    assert_eq!(
+        check_removal(&Arc::from(&b"junk"[..]), NativeId(1), &[]),
+        Err(RemovalRefusal::Unreadable)
     );
 }
 
@@ -110,6 +122,8 @@ fn long_and_absolute_paths_to_a_removed_node_are_refused() {
         let camera = group(b"DCAM", &creation(b"cam", Some(parent)), 4);
         assert_eq!(check(&camera), Err(RemovalRefusal::ForeignChild));
     }
+    let other = group(b"DCAM", &creation(b"cam", Some(b"|b|bs")), 4);
+    assert_eq!(check(&other), Ok(()));
     for target in [&b":|a"[..], b":|a|as.f[1]"] {
         assert_eq!(
             check(&selection(target)),
@@ -123,8 +137,7 @@ fn long_and_absolute_paths_to_a_removed_node_are_refused() {
     for links in [link(0, "|a.t", "x.y"), link(0, "x.y", ":|a|as.iog")] {
         assert_eq!(check_links(&[links]), Err(RemovalRefusal::NamedElsewhere));
     }
-    let unrelated = group(b"DCAM", &creation(b"cam", Some(b"|b|bs")), 4);
-    assert_eq!(check(&[unrelated, selection(b":|b|bs.f")].concat()), Ok(()));
+    assert_eq!(check(&selection(b":|b|bs.f")), Ok(()));
 }
 
 #[test]
@@ -144,6 +157,97 @@ fn relations_and_selections_naming_a_removed_node_are_refused() {
 }
 
 #[test]
+fn links_between_removed_nodes_and_to_a_zero_mode_set_are_dropped() {
+    let set = group(b"SHAD", &creation(b"sg", None), 4);
+    assert_eq!(check_links(&[link(0, "a.t", "as.foo")]), Ok(()));
+    assert_eq!(
+        check_links(&[link(0, "as.iog.og[0]", ":initialShadingGroup.dsm[2]")]),
+        Ok(())
+    );
+    assert_eq!(
+        check_links(&[link(0, "as.iog", ":initialShadingGroup.dsm[2]")]),
+        Ok(())
+    );
+    assert_eq!(
+        check(&[set, connections(&[link(0, "as.iog.og[1]", "sg.dsm[3]")])].concat()),
+        Ok(())
+    );
+    assert_eq!(check_links(&[link(1, "bs.iog.og[0]", "sg.dsm")]), Ok(()));
+}
+
+#[test]
+fn a_set_whose_namespaced_name_contains_the_removed_name_is_another_node() {
+    let set = group(b"SHAD", &creation(b"ns:a", None), 4);
+    let linked = connections(&[link(0, "as.iog", "ns:a.dsm[0]")]);
+    assert_eq!(check(&[set, linked].concat()), Ok(()));
+}
+
+#[test]
+fn mode_one_set_links_follow_the_unindexed_set_rule() {
+    let set = ":initialShadingGroup";
+    let unindexed = |mode, shape: &str| link(mode, shape, &format!("{set}.dsm"));
+    let indexed = |mode, shape: &str| link(mode, shape, &format!("{set}.dsm[0]"));
+    // An unindexed mode-1 member is an unordered set entry (PROVISIONAL), alone or beside others.
+    assert_eq!(check_links(&[unindexed(1, "as.iog")]), Ok(()));
+    assert_eq!(
+        check_links(&[unindexed(1, "as.iog"), unindexed(1, "bs.iog")]),
+        Ok(())
+    );
+    for refused in [
+        vec![indexed(1, "as.iog.og[0]")],
+        vec![unindexed(1, "as.iog"), indexed(0, "bs.iog")],
+        vec![unindexed(1, "as.iog"), indexed(1, "bs.iog")],
+        vec![indexed(0, "as.iog.og[0]"), unindexed(1, "bs.iog.og[0]")],
+    ] {
+        assert_eq!(
+            check_links(&refused),
+            Err(RemovalRefusal::NextAvailableIndex)
+        );
+    }
+    let other = link(0, "as.iog.og[0]", ":otherSet.dsm[0]");
+    assert_eq!(check_links(&[other, unindexed(1, "bs.iog.og[0]")]), Ok(()));
+    let alias = link(0, "bs.iog", &format!("{set}.dagSetMembers[0]"));
+    for dropped in [indexed(0, "as.iog"), unindexed(1, "as.iog")] {
+        assert_eq!(
+            check_links(&[dropped, alias.clone()]),
+            Err(RemovalRefusal::NamedElsewhere)
+        );
+    }
+}
+
+#[test]
+fn per_face_and_custom_links_naming_a_removed_node_are_refused() {
+    for (links, reason) in [
+        (
+            link(0, "identity.id", "as.iog.og[0].gid"),
+            RemovalRefusal::PerFaceShape,
+        ),
+        (
+            link(0, "surface.mwc", "as.iog.og[0].gco"),
+            RemovalRefusal::PerFaceShape,
+        ),
+        (
+            link(0, "a.custom", "pcuu.i"),
+            RemovalRefusal::NamedElsewhere,
+        ),
+        (
+            link(0, "pcuu.o", "a.custom"),
+            RemovalRefusal::NamedElsewhere,
+        ),
+        (
+            link(0, "as.iog.og[0]", ":set.other"),
+            RemovalRefusal::NamedElsewhere,
+        ),
+        (
+            link(0, "as.iog.og[0]", "b.dsm"),
+            RemovalRefusal::NamedElsewhere,
+        ),
+    ] {
+        assert_eq!(check_links(&[links]), Err(reason));
+    }
+}
+
+#[test]
 fn an_opened_scene_reports_the_specific_reason_and_stays_untouched() {
     let mut scene = crate::native_scene::binary::decode(two_objects(&connections(&[link(
         1,
@@ -156,7 +260,7 @@ fn an_opened_scene_reports_the_specific_reason_and_stays_untouched() {
     assert_eq!(
         scene.remove(id(&baseline, 0)),
         Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
-            RemovalRefusal::NamedElsewhere
+            RemovalRefusal::NextAvailableIndex
         )))
     );
     assert_eq!(scene, baseline);
@@ -165,4 +269,41 @@ fn an_opened_scene_reports_the_specific_reason_and_stays_untouched() {
         Err(NativeError::UnsupportedEdit)
     );
     assert_eq!(scene, baseline);
+}
+
+/// Measurement for issue #272: the recognised shading-group graph links a shape to `dsm` with mode
+/// 1 and an unindexed `dsm`, so a mode-1 refusal makes every such shape undeletable. PROVISIONAL.
+#[test]
+fn the_recognised_shading_group_membership_link_is_mode_one() {
+    use crate::native_scene::AppearanceState;
+    let bytes: Arc<[u8]> = appearance_fixture::appearance_specimen().into();
+    let container = container::inspect(bytes.clone()).unwrap();
+    let facts = semantic::decode_records(&container).unwrap();
+    let membership: Vec<_> = facts
+        .records
+        .iter()
+        .filter_map(|record| match &record.data {
+            Data::Connection(c) if text(&facts, &c.destination) == b"surface.dsm" => Some(c.mode),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(membership, [1]);
+    let ready = |bytes: Arc<[u8]>| {
+        crate::native_scene::binary::decode(bytes)
+            .unwrap()
+            .appearance_readiness()
+            .state
+    };
+    assert_eq!(ready(bytes.clone()), AppearanceState::CheckedViewerSource);
+    let mut mode_zero = bytes.to_vec();
+    let at = mode_zero
+        .windows(b"shape.iog.og[0]\0surface.dsm\0".len())
+        .position(|w| w == b"shape.iog.og[0]\0surface.dsm\0")
+        .unwrap();
+    assert_eq!(mode_zero[at - 1], 1);
+    mode_zero[at - 1] = 0;
+    assert_ne!(
+        ready(mode_zero.into()),
+        AppearanceState::CheckedViewerSource
+    );
 }

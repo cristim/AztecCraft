@@ -1,10 +1,11 @@
 //! Reference analysis for dropping a root transform and its exclusive shapes from an opened
 //! Maya Binary (PROVISIONAL, issue #272).
 //!
-//! Records name nodes by string, never by index, so a removal is safe only when no surviving
-//! record names a removed node. Anything this analysis cannot prove is refused.
+//! Records name nodes by string, never by index, so a removal is safe only when every surviving
+//! record is shown not to name a removed node. Anything this analysis cannot prove is refused.
+//! Grammar and the PROVISIONAL list: `.project-docs/binary-prune.md` (added with the feature).
 
-use super::binding::is_bound;
+use super::binding::{effects::normalized, is_bound};
 use crate::{
     maya_binary::{
         container::{self},
@@ -12,15 +13,19 @@ use crate::{
     },
     native_scene::NativeId,
 };
-use std::{fmt, ops::Range, sync::Arc};
+use std::{collections::HashMap, fmt, ops::Range, sync::Arc};
 
 /// Why a sourced Maya Binary node cannot be removed yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RemovalRefusal {
     /// The retained bytes no longer decode or lay out as expected.
     Unreadable,
-    /// Another node names the transform as its parent.
+    /// A node other than the shapes being removed names the transform as its parent.
     ForeignChild,
+    /// A removed shape carries per-face group id or group colour links.
+    PerFaceShape,
+    /// A removed shape's set membership uses a next-available index, which load would renumber.
+    NextAvailableIndex,
     /// A connection, relation or selection names a removed node in a way that is not droppable.
     NamedElsewhere,
 }
@@ -30,6 +35,10 @@ impl fmt::Display for RemovalRefusal {
         f.write_str(match self {
             Self::Unreadable => "The opened file's records could not be re-read for deletion",
             Self::ForeignChild => "Another node is parented under this one",
+            Self::PerFaceShape => "A shape of this node carries per-face material links",
+            Self::NextAvailableIndex => {
+                "A shape of this node is linked to a set by a next-available index"
+            }
             Self::NamedElsewhere => "The file refers to this node by name from another record",
         })
     }
@@ -47,7 +56,8 @@ fn node_part(endpoint: &[u8]) -> &[u8] {
         .unwrap_or(endpoint)
 }
 
-/// Whether any `|`- or `:`-separated component of the node part is in `names` (`|a|as` names `a`).
+/// Whether any `|`- or `:`-separated component of the node part is one of `names`, so `|a`,
+/// `:|a` and `|a|as` all count as naming `a`.
 fn names_path(names: &[&[u8]], endpoint: &[u8]) -> bool {
     node_part(endpoint)
         .split(|byte| matches!(byte, b'|' | b':'))
@@ -65,8 +75,18 @@ fn text<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> &'a [u8] {
     &facts.container.source()[span.clone()]
 }
 
-/// Checks that `transform` and its exclusive `shapes` can be dropped from `bytes` without a
-/// surviving record naming them. Ids are the opener's binding order (`NativeId` = index + 1).
+/// `(node, attribute)` of an `owner.attribute` endpoint; the node has no leading `:`.
+fn endpoint<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> (&'a [u8], &'a [u8]) {
+    let text = text(facts, span);
+    let dot = text.iter().position(|byte| *byte == b'.');
+    (
+        plain(node_part(text)),
+        dot.map_or(&[][..], |dot| &text[dot + 1..]),
+    )
+}
+
+/// Checks that the transform `transform` and its exclusive `shapes` can be dropped from `bytes`
+/// without leaving a record that names them. Ids are the opener's binding order, `NativeId = binding index + 1`.
 pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
     transform: NativeId,
@@ -123,6 +143,21 @@ pub(in crate::native_scene) fn check_removal(
     }) {
         return Err(RemovalRefusal::ForeignChild);
     }
+    let creators: HashMap<&[u8], usize> = facts
+        .records
+        .iter()
+        .enumerate()
+        .filter_map(|(index, record)| match &record.data {
+            Data::Create(create) => Some((plain(text(&facts, &create.name)), index)),
+            _ => None,
+        })
+        .collect();
+    let mut chunks: Vec<usize> = removed
+        .iter()
+        .map(|index| facts.records[*index].group)
+        .collect();
+    // `(set node, mode)` of each dropped set-membership link.
+    let mut dropped_sets: Vec<(&[u8], u8)> = Vec::new();
     for record in &facts.records {
         match &record.data {
             Data::Selection(target) if named(target) => {
@@ -135,12 +170,72 @@ pub(in crate::native_scene) fn check_removal(
             {
                 return Err(RemovalRefusal::NamedElsewhere);
             }
-            Data::Connection(connection)
-                if named(&connection.source) || named(&connection.destination) =>
-            {
-                return Err(RemovalRefusal::NamedElsewhere);
+            Data::Connection(connection) => {
+                let any = [&connection.source, &connection.destination].map(named);
+                if any == [false, false] {
+                    continue;
+                }
+                let (source, destination) = (
+                    endpoint(&facts, &connection.source),
+                    endpoint(&facts, &connection.destination),
+                );
+                let exact = [source, destination].map(|(node, _)| names.contains(&node));
+                if exact == [true, true] {
+                    chunks.push(record.chunk);
+                    continue;
+                }
+                if exact == [true, false] {
+                    let set_ok = match creators.get(destination.0) {
+                        Some(index) => {
+                            matches!(form(&facts, *index), Some(f) if f == *b"SHAD" || f == *b"OBST")
+                        }
+                        None => text(&facts, &connection.destination).starts_with(b":"),
+                    };
+                    if set_ok
+                        && (normalized(source.1, &[b"iog"])
+                            || normalized(source.1, &[b"iog", b"og"]))
+                        && normalized(destination.1, &[b"dsm"])
+                    {
+                        // Unindexed mode 1 is an unordered set member (PROVISIONAL, #5): load
+                        // appends it, so nothing renumbers. An indexed mode-1 link is refused.
+                        if connection.mode != 0 && destination.1 != b"dsm" {
+                            return Err(RemovalRefusal::NextAvailableIndex);
+                        }
+                        dropped_sets.push((destination.0, connection.mode));
+                        chunks.push(record.chunk);
+                        continue;
+                    }
+                }
+                let per_face = exact[1]
+                    && (normalized(destination.1, &[b"iog", b"og", b"gid"])
+                        || normalized(destination.1, &[b"iog", b"og", b"gco"]));
+                return Err(if per_face {
+                    RemovalRefusal::PerFaceShape
+                } else {
+                    RemovalRefusal::NamedElsewhere
+                });
             }
             _ => {}
+        }
+    }
+    for record in &facts.records {
+        let Data::Connection(connection) = &record.data else {
+            continue;
+        };
+        if chunks.contains(&record.chunk) {
+            continue;
+        }
+        let (node, attribute) = endpoint(&facts, &connection.destination);
+        for (_, dropped) in dropped_sets.iter().filter(|(set, _)| *set == node) {
+            if normalized(attribute, &[b"dagSetMembers"]) {
+                return Err(RemovalRefusal::NamedElsewhere);
+            }
+            let indexed = attribute != b"dsm";
+            if normalized(attribute, &[b"dsm"])
+                && ((*dropped == 0 && connection.mode == 1) || (*dropped == 1 && indexed))
+            {
+                return Err(RemovalRefusal::NextAvailableIndex);
+            }
         }
     }
     Ok(())

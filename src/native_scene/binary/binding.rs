@@ -14,7 +14,7 @@ use crate::{
 use std::ops::Range;
 
 mod custom;
-mod effects;
+pub(in crate::native_scene::binary) mod effects;
 mod geometry;
 mod sites;
 
