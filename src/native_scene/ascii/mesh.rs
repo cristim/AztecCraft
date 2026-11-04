@@ -58,8 +58,11 @@ impl Cursor<'_, '_> {
         }
         Ok(value)
     }
-    /// Decodes a polyFaces edge token: `t >= 0` is edge `t`, `t < 0` is edge `-t-1` reversed. The
-    /// arithmetic is in i64 so `i32::MIN` cannot overflow, and the edge must exist.
+    /// Decodes a polyFaces edge token: `t >= 0` is edge `t`, `t < 0` is edge `-t-1` reversed
+    /// (PROVISIONAL: the setAttr page says only that a negative id is reversed, which cannot
+    /// express edge 0; the one's-complement form is pinned by the writer and its tests, see
+    /// section 2 of the #321 plan). The arithmetic is in i64 so `i32::MIN` cannot overflow, and
+    /// the edge must exist.
     fn face_edge(&mut self, edges: usize) -> Result<DirectedEdge, AsciiError> {
         let token = i64::from(self.integer()?);
         let (id, reversed) = if token < 0 {

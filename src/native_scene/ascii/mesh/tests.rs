@@ -43,7 +43,7 @@ fn the_writers_points_edges_and_faces_read_back_bit_for_bit() {
     else {
         panic!("float points expected");
     };
-    assert_eq!(want_points.len(), 8);
+    assert_eq!((want_points.len(), got_points.len()), (8, 8));
     for (a, b) in want_points
         .iter()
         .flatten()
@@ -51,12 +51,11 @@ fn the_writers_points_edges_and_faces_read_back_bit_for_bit() {
     {
         assert_eq!(a.to_bits(), b.to_bits());
     }
-    assert_eq!(want.edges().len(), 12);
+    assert_eq!((want.edges().len(), got.edges().len()), (12, 12));
     for (a, b) in want.edges().iter().zip(got.edges()) {
         assert_eq!((a.endpoints(), a.smooth()), (b.endpoints(), b.smooth()));
     }
-    assert_eq!(want.faces().len(), 6);
-    assert_eq!(want.faces().len(), got.faces().len());
+    assert_eq!((want.faces().len(), got.faces().len()), (6, 6));
     for (a, b) in want.faces().iter().zip(got.faces()) {
         assert_eq!(a.outer(), b.outer());
         assert!(b.holes().is_empty());
