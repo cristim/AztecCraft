@@ -331,7 +331,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     let (mut editor, context, view) = setup(Key::R, 1.0);
     let origin = view.screen(Vec3::ZERO);
     press(&mut editor, &context, 1.0, origin);
-    assert_eq!(editor.status, "Uniform Scale");
+    assert_eq!(editor.status, "World Uniform Scale");
     moved(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
     let values = channels(&editor);
     near(values[6], 2.0, 1e-6);
