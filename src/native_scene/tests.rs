@@ -1459,3 +1459,114 @@ fn remove_many_takes_a_group_once_in_either_order_and_names_a_lone_child() {
         Err(NativeError::Legacy(SceneError::MissingNode(missing)))
     );
 }
+
+/// Group `g` with children `a` (owning shape `s`) and `b` (also showing `s`).
+fn group_sharing_a_shape() -> (NativeScene, NodeId, NativeId) {
+    let (mut scene, g, _, s) = grouped_shape();
+    let b = scene.create(Primitive::Cube, "b").unwrap();
+    let discarded = scene.shapes.pop().unwrap().id;
+    let (g_id, b_id) = (
+        scene.node(g).unwrap().transform_id,
+        scene.node(b).unwrap().transform_id,
+    );
+    scene
+        .dag
+        .retain(|edge| edge.child != discarded && !(edge.child == b_id && edge.parent.is_none()));
+    scene.dag.push(DagEdge {
+        parent: Some(g_id),
+        child: b_id,
+    });
+    scene.dag.push(DagEdge {
+        parent: Some(b_id),
+        child: s,
+    });
+    scene.validate().unwrap();
+    (scene, g, s)
+}
+
+#[test]
+fn a_deep_chain_goes_with_its_root() {
+    let (mut scene, root, _, _) = chain_of_three();
+    scene.remove(root).unwrap();
+    assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
+    scene.validate().unwrap();
+}
+
+#[test]
+fn a_shape_shared_by_two_removed_transforms_goes_and_the_scene_stays_valid() {
+    let (scene, g, s) = group_sharing_a_shape();
+    let mut removed = scene.clone();
+    removed.remove(g).unwrap();
+    removed.validate().unwrap();
+    assert!(removed.shape(s).is_err());
+    assert!(removed.nodes.is_empty() && removed.dag.is_empty());
+}
+
+#[test]
+fn a_shape_shared_with_a_survivor_stays_and_loses_only_the_removed_edges() {
+    let (mut scene, g, s) = group_sharing_a_shape();
+    let outsider = scene.create(Primitive::Cube, "outsider").unwrap();
+    let outsider_id = scene.node(outsider).unwrap().transform_id;
+    let discarded = scene.shapes.pop().unwrap().id;
+    scene.dag.retain(|edge| edge.child != discarded);
+    scene.dag.push(DagEdge {
+        parent: Some(outsider_id),
+        child: s,
+    });
+    scene.validate().unwrap();
+    scene.remove(g).unwrap();
+    scene.validate().unwrap();
+    assert!(scene.shape(s).is_ok());
+    assert_eq!(scene.nodes.len(), 1);
+    assert_eq!(
+        scene.dag.iter().filter(|edge| edge.child == s).count(),
+        1,
+        "{:?}",
+        scene.dag
+    );
+}
+
+#[test]
+fn a_descendant_transform_with_an_outside_edge_refuses_the_delete() {
+    for root_edge in [false, true] {
+        let (mut scene, root, child, _) = grouped_shape();
+        let child_id = scene.node(child).unwrap().transform_id;
+        let parent = if root_edge {
+            None
+        } else {
+            let other = scene.create(Primitive::Cube, "other").unwrap();
+            Some(scene.node(other).unwrap().transform_id)
+        };
+        scene.dag.push(DagEdge {
+            parent,
+            child: child_id,
+        });
+        scene.validate().unwrap();
+        let before = scene.clone();
+        assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
+        assert_eq!(scene, before);
+    }
+}
+
+#[test]
+fn remove_many_with_a_lone_child_among_deletable_roots_changes_nothing() {
+    let (mut scene, _, child, _) = grouped_shape();
+    let other = scene.create(Primitive::Cube, "other").unwrap();
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[other, child]),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_restricted_shape_in_the_subtree_refuses_the_delete() {
+    let (mut scene, root, _, _) = grouped_shape();
+    scene.shapes[0]
+        .restrictions
+        .push("unproved shape effect".into());
+    let before = scene.clone();
+    assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
+    assert_eq!(scene, before);
+}
