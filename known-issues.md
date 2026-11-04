@@ -1067,15 +1067,19 @@ reason except where noted:
 
 - A node with children or a parent, and any node of an opened ASCII scene.
 - Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
-  decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a numeric attribute payload (`DBLE`, `DBL2`, `DBL3`,
+  decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
   `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
   removed names (`STR `, `STR#`, the header tags `AUNI`, `LUNI`, `TUNI`, `BCSZ`, `CHNG`, `DATS`,
   `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
-  of a `SCRP` group). Any other tag, anywhere in the file, refuses the delete as "a '<tag>' record
-  that cannot be checked", even when it names nothing. A real file with other tags (for example
-  further typed-attribute tags) is not deletable until each tag is added with a reason.
+  of a `SCRP` group). A typed attribute payload is skipped only inside a bound transform or shape
+  group, whose layout the opener validated; in any other group it is scanned like text, so a few
+  false refusals are possible there. Any other tag, anywhere in the file, refuses the delete as "a
+  '<tag>' record that cannot be checked", even when it names nothing. A real file with other tags
+  (for example further typed-attribute tags) is not deletable until each tag is added with a reason.
   The vendored `file_owner_delete.mb` uses only listed tags; its four default cameras are
-  refused because each has a camera shape (`DCAM`) parented under it. `dummy_mesh.mb` does not open.
+  refused because each has a camera shape (`DCAM`) parented under it (the names `persp`, `top`,
+  `front` and `side` also occur in its text, so the scan would refuse them too). `dummy_mesh.mb`
+  does not open.
 - Instancing. The opener builds one parent edge per binding, so a shape with several parents
   cannot be read from the decoder. An extra instance parent would have to be a record naming
   the shape: an unknown tag is refused by the rule above (tested for a record naming the shape

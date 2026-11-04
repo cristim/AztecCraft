@@ -302,7 +302,8 @@ enum Kind {
     /// Decoded by `decode_records` and checked record by record (parents, selections, relations
     /// and connections).
     Modeled,
-    /// An attribute key followed by numbers or flags: it holds no node name.
+    /// An attribute key followed by numbers or flags. Skipped only inside a bound transform or
+    /// shape group, whose layout the opener validated; elsewhere it is scanned like text.
     Numeric,
     /// Free text or file metadata that can spell a node name: scanned with [`mentions`].
     Text,
@@ -316,7 +317,8 @@ fn kind(tag: [u8; 4], scripted: bool) -> Option<Kind> {
     Some(match &tag {
         b"CREA" | b"SLCT" | b"CWFL" | b"RELA" => Kind::Modeled,
         // Typed attribute payloads: doubles, floats, flags, int arrays, mesh data, compound
-        // attribute data and attribute definitions. Attribute names are not node names.
+        // attribute data and attribute definitions. The decoder checks their layout only inside
+        // bound groups, so only there are they known to hold no node name.
         b"DBLE" | b"DBL2" | b"DBL3" | b"FLT2" | b"FLT3" | b"FLGS" | b"I32#" | b"MESH" | b"CMP#"
         | b"CMPD" | b"ATTR" => Kind::Numeric,
         // String attributes and arrays, and the file header (units, version, file info, include
@@ -329,7 +331,8 @@ fn kind(tag: [u8; 4], scripted: bool) -> Option<Kind> {
 }
 
 /// Classifies every surviving leaf (outside the `removed` chunks). An unlisted tag anywhere is
-/// `UnrecognisedRecord`; a [`Kind::Text`] leaf that mentions a removed name is `TextReference`.
+/// `UnrecognisedRecord`; a [`Kind::Text`] leaf, or a [`Kind::Numeric`] one outside a bound group,
+/// that mentions a removed name is `TextReference`.
 /// Work is charged as bytes times names against `limit`.
 fn scan_text(
     container: &Container,
@@ -360,9 +363,14 @@ fn scan_text(
         if chunk.form().is_some() || dropped.iter().any(|range| range.contains(&start)) {
             continue;
         }
+        let bound = chunk
+            .parent()
+            .and_then(|parent| container.chunk(parent))
+            .is_some_and(|group| matches!(group.form(), Some(f) if f == *b"XFRM" || f == *b"DMSH"));
         match kind(chunk.tag(), in_script(chunk.parent())) {
             None => return Err(RemovalRefusal::UnrecognisedRecord(chunk.tag())),
             Some(Kind::Text) => {}
+            Some(Kind::Numeric) if !bound => {}
             Some(_) => continue,
         }
         let text = container.payload(index).ok_or(RemovalRefusal::Unreadable)?;

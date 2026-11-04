@@ -529,3 +529,30 @@ fn a_removed_transform_that_has_a_parent_is_refused() {
         Err(RemovalRefusal::ForeignChild)
     );
 }
+
+#[test]
+fn numeric_kinds_are_scanned_outside_bound_groups_and_header_tags_are_text() {
+    let shad = |tag: &[u8; 4], payload: &[u8]| group(b"SHAD", &chunk(tag, payload, 8), 4);
+    for extra in [
+        shad(b"CMPD", b"k\0\x20see a.t\0"),
+        shad(b"ATTR", b"aSTR\0a\0as\0"),
+        unknown_group(b"DBL2", b"k\0see as\0"),
+    ] {
+        assert_eq!(check(&extra), Err(RemovalRefusal::TextReference));
+    }
+    // The same kinds that name nothing do not block.
+    assert_eq!(check(&shad(b"CMPD", b"k\0\x20\x01\x02\0")), Ok(()));
+    // A header tag is text even inside a bound group, where a numeric tag is not scanned.
+    let header_in_bound = |tag: &[u8; 4]| {
+        let leaf = chunk(tag, b"see a.t\0", 8);
+        group(b"XFRM", &[creation(b"c", None), leaf].concat(), 4)
+    };
+    for tag in [b"FINF", b"INCL", b"AUNI", b"VERS"] {
+        assert_eq!(
+            check(&header_in_bound(tag)),
+            Err(RemovalRefusal::TextReference),
+            "{tag:?}"
+        );
+    }
+    assert_eq!(check(&header_in_bound(b"DBL2")), Ok(()));
+}
