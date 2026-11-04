@@ -3795,8 +3795,8 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
-  export_obj(all) => Ok(exported) | no state change
-  export_obj(selection) => Ok(exported) | no state change
+  export_obj(all) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
+  export_obj(selection) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
@@ -3908,8 +3908,8 @@
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
-  export_obj(all) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
-  export_obj(selection) => Ok(exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to OBJ"
+  export_obj(all) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
+  export_obj(selection) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change

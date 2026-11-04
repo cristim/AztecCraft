@@ -882,6 +882,8 @@ pub enum OperationError {
 pub enum ObjExportError {
     DestinationExists,
     NothingToExport,
+    /// The caller went away or its deadline passed before the file was installed.
+    Cancelled,
     Io(std::io::ErrorKind),
     /// Path-free reason the scene cannot be exported (non-finite or unsupported geometry).
     Invalid(String),
@@ -896,6 +898,7 @@ impl fmt::Display for ObjExportError {
             Self::NothingToExport => {
                 f.write_str("Nothing to export: no displayed polygon geometry")
             }
+            Self::Cancelled => f.write_str("OBJ export cancelled before the file was installed"),
             Self::Io(kind) => write!(f, "OBJ export failed: {kind}"),
             Self::Invalid(reason) => write!(f, "Cannot export OBJ: {reason}"),
         }

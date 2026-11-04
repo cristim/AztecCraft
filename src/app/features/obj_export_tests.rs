@@ -47,7 +47,7 @@ fn export_selection_writes_every_selected_object_once() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("two.obj");
 
-    let reply = editor.export_obj(&path, true).unwrap();
+    let reply = editor.export_obj(&path, true, &|| true).unwrap();
 
     assert!(matches!(
         reply,
@@ -77,7 +77,7 @@ fn export_selection_with_nothing_selected_refuses_without_writing() {
     let path = directory.path().join("none.obj");
 
     assert!(matches!(
-        editor.export_obj(&path, true),
+        editor.export_obj(&path, true, &|| true),
         Err(OperationError::NoSelection)
     ));
     assert!(!path.exists());
@@ -90,7 +90,7 @@ fn export_selection_of_a_parent_includes_its_nested_descendant_in_world_space() 
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("group.obj");
 
-    let reply = editor.export_obj(&path, true).unwrap();
+    let reply = editor.export_obj(&path, true, &|| true).unwrap();
 
     assert!(matches!(
         reply,
@@ -109,7 +109,7 @@ fn export_selection_of_a_parent_includes_its_nested_descendant_in_world_space() 
     let mut translated = deep_group_editor_with_leaf([0.0, 3.0, 0.0], [0.0; 3], [0.0; 3]);
     select_the_root_group(&mut translated);
     let moved = directory.path().join("moved.obj");
-    translated.export_obj(&moved, true).unwrap();
+    translated.export_obj(&moved, true, &|| true).unwrap();
     let expected: Vec<[f64; 3]> = base
         .iter()
         .map(|vertex| [vertex[0], vertex[1] + 3.0, vertex[2]])
@@ -123,7 +123,7 @@ fn a_nested_rotation_about_a_pivot_exports_in_world_space() {
     let mut plain = deep_group_editor();
     select_the_root_group(&mut plain);
     let base = directory.path().join("base.obj");
-    plain.export_obj(&base, true).unwrap();
+    plain.export_obj(&base, true, &|| true).unwrap();
     let mut rotated = deep_group_editor_with_leaf(
         [0.0; 3],
         [0.0, 0.0, std::f64::consts::FRAC_PI_2],
@@ -132,7 +132,7 @@ fn a_nested_rotation_about_a_pivot_exports_in_world_space() {
     select_the_root_group(&mut rotated);
     let path = directory.path().join("rotated.obj");
 
-    rotated.export_obj(&path, true).unwrap();
+    rotated.export_obj(&path, true, &|| true).unwrap();
 
     let group_x = 2.0;
     let pivot_x = 1.0;
@@ -155,7 +155,55 @@ fn a_parent_and_its_child_both_selected_export_the_child_once() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("once.obj");
 
-    editor.export_obj(&path, true).unwrap();
+    editor.export_obj(&path, true, &|| true).unwrap();
 
     assert_eq!(object_lines(&path).len(), 1);
+}
+
+fn remote_export(
+    editor: &mut Editor,
+    path: PathBuf,
+    may_install: &dyn Fn() -> bool,
+) -> Result<OperationReply, OperationError> {
+    editor.remote_operation_guarded(
+        crate::editor_operations::RemoteRequest {
+            expected_scene_token: Some(editor.scene_token),
+            operation: Operation::ExportObj {
+                path,
+                selection_only: false,
+            },
+        },
+        &eframe::egui::Context::default(),
+        may_install,
+    )
+}
+
+#[test]
+fn a_remote_export_whose_install_permission_is_revoked_installs_nothing() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("revoked.obj");
+    // Refused at the first check, and refused only after the staged file exists.
+    for allowed in [0usize, 1] {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let asked = std::cell::Cell::new(0usize);
+        let may_install = || {
+            asked.set(asked.get() + 1);
+            asked.get() <= allowed
+        };
+        let result = remote_export(&mut editor, path.clone(), &may_install);
+        assert!(
+            matches!(
+                result,
+                Err(OperationError::ObjExport(ObjExportError::Cancelled))
+            ),
+            "allowed {allowed}: {result:?}"
+        );
+        assert!(!path.exists());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    assert!(remote_export(&mut editor, path.clone(), &|| true).is_ok());
+    assert!(path.exists());
 }

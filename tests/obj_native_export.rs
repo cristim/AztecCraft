@@ -68,7 +68,7 @@ fn exports_exact_f64_world_positions_beyond_f32_precision() {
     let view = ViewScene::from_native(&scene, BUDGET).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("cube.obj");
-    let summary = export_native_new(&path, &scene, &all(&view)).unwrap();
+    let summary = export_native_new(&path, &scene, &all(&view), &|| true).unwrap();
     assert_eq!(
         summary,
         ExportSummary {
@@ -97,7 +97,7 @@ fn mirrored_instance_reverses_face_order() {
     for (index, scene) in [&mut plain, &mut mirrored].into_iter().enumerate() {
         let view = ViewScene::from_native(scene, BUDGET).unwrap();
         let path = directory.path().join(format!("{index}.obj"));
-        export_native_new(&path, scene, &all(&view)).unwrap();
+        export_native_new(&path, scene, &all(&view), &|| true).unwrap();
         faces.push(parse(&fs::read_to_string(&path).unwrap()).faces);
     }
     assert!(!faces[0].is_empty());
@@ -124,7 +124,7 @@ fn subset_offsets_indices_and_names_each_instance() {
         .collect();
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("subset.obj");
-    let summary = export_native_new(&path, &scene, &subset).unwrap();
+    let summary = export_native_new(&path, &scene, &subset, &|| true).unwrap();
     let parsed = parse(&fs::read_to_string(&path).unwrap());
     assert_eq!(parsed.names, ["first", "second"]);
     assert_eq!(summary.objects, 2);
@@ -142,19 +142,19 @@ fn occupied_destination_and_empty_selection_write_nothing() {
     let path = directory.path().join("taken.obj");
     fs::write(&path, b"keep me").unwrap();
     assert!(matches!(
-        export_native_new(&path, &scene, &all(&view)),
+        export_native_new(&path, &scene, &all(&view), &|| true),
         Err(ObjError::Io { source, .. }) if source.kind() == io::ErrorKind::AlreadyExists
     ));
     assert_eq!(fs::read(&path).unwrap(), b"keep me");
     let fresh = directory.path().join("fresh.obj");
     assert!(matches!(
-        export_native_new(&fresh, &scene, &[]),
+        export_native_new(&fresh, &scene, &[], &|| true),
         Err(ObjError::NothingToExport)
     ));
     assert!(!fresh.exists());
     let missing_folder = directory.path().join("missing").join("x.obj");
     assert!(matches!(
-        export_native_new(&missing_folder, &scene, &all(&view)),
+        export_native_new(&missing_folder, &scene, &all(&view), &|| true),
         Err(ObjError::Io { .. })
     ));
     assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
@@ -175,9 +175,32 @@ fn an_instance_without_faces_is_refused_and_writes_nothing() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("hollow.obj");
     assert!(matches!(
-        export_native_new(&path, &scene, &all(&view)),
+        export_native_new(&path, &scene, &all(&view), &|| true),
         Err(ObjError::NothingToExport)
     ));
     assert!(!path.exists());
     assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn a_refused_install_permission_stops_the_export_at_each_check_and_leaves_nothing() {
+    let scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    let view = ViewScene::from_native(&scene, BUDGET).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("cube.obj");
+    for allowed in [0usize, 1] {
+        let asked = std::cell::Cell::new(0usize);
+        let may_install = || {
+            asked.set(asked.get() + 1);
+            asked.get() <= allowed
+        };
+        assert!(matches!(
+            export_native_new(&path, &scene, &all(&view), &may_install),
+            Err(ObjError::Cancelled)
+        ));
+        assert!(!path.exists(), "allowed {allowed}");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+    export_native_new(&path, &scene, &all(&view), &|| true).unwrap();
+    assert!(path.exists());
 }

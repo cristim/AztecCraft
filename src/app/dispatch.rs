@@ -855,7 +855,7 @@ impl Editor {
             Operation::ExportObj {
                 path,
                 selection_only,
-            } => return self.export_obj(&path, selection_only),
+            } => return self.export_obj(&path, selection_only, may_install),
 
             Operation::SetCameraPose {
                 target,

@@ -1,12 +1,61 @@
 use crate::native_scene::{NativeError, NativeScene};
 use crate::scene::{Scene, SceneError};
 use crate::view_scene::ViewInstance;
+use craft_atomic::{AtomicFs, NewFilePermissions, RealFs, WriteOptions};
 use glam::DVec3;
 use std::{
+    cell::Cell,
     fmt,
+    fs::File,
     io::{self, BufWriter, Write},
     path::{Path, PathBuf},
 };
+
+/// The real file system, except that it asks `may_install` before it creates or links a file at
+/// the destination. A refusal is remembered so the caller can tell it from an I/O failure.
+struct GuardedFs<'a> {
+    may_install: &'a dyn Fn() -> bool,
+    refused: Cell<bool>,
+}
+
+impl GuardedFs<'_> {
+    fn permit(&self) -> io::Result<()> {
+        if (self.may_install)() {
+            return Ok(());
+        }
+        self.refused.set(true);
+        Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "export cancelled before install",
+        ))
+    }
+}
+
+impl AtomicFs for GuardedFs<'_> {
+    fn create_new(&self, path: &Path, permissions: NewFilePermissions) -> io::Result<File> {
+        self.permit()?;
+        RealFs.create_new(path, permissions)
+    }
+    fn sync(&self, file: &File) -> io::Result<()> {
+        RealFs.sync(file)
+    }
+    fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
+        RealFs.rename(from, to)
+    }
+    fn hard_link(&self, from: &Path, to: &Path) -> io::Result<()> {
+        self.permit()?;
+        RealFs.hard_link(from, to)
+    }
+    fn remove(&self, path: &Path) -> io::Result<()> {
+        RealFs.remove(path)
+    }
+    fn sync_dir(&self, dir: &Path) -> io::Result<()> {
+        RealFs.sync_dir(dir)
+    }
+    fn set_permissions(&self, file: &File, perms: std::fs::Permissions) -> io::Result<()> {
+        RealFs.set_permissions(file, perms)
+    }
+}
 
 fn refuse_occupied(path: &Path) -> Result<(), ObjError> {
     match std::fs::symlink_metadata(path) {
@@ -46,10 +95,13 @@ pub struct ExportSummary {
 /// (centimeters, Maya's internal unit) rather than taken from the f32 display vertices. A
 /// mirrored instance reverses its faces so they keep facing outward. Normals, UVs, groups and
 /// materials are not written. The destination must not exist; nothing is written on refusal.
+/// `may_install` is asked before the staged file is created and again before it is given the
+/// destination's name; a refusal returns [`ObjError::Cancelled`] and leaves nothing behind.
 pub fn export_native_new(
     path: &Path,
     scene: &NativeScene,
     instances: &[&ViewInstance],
+    may_install: &dyn Fn() -> bool,
 ) -> Result<ExportSummary, ObjError> {
     if instances.is_empty() {
         return Err(ObjError::NothingToExport);
@@ -103,44 +155,55 @@ pub fn export_native_new(
         return Err(ObjError::NothingToExport);
     }
     refuse_occupied(path)?;
-    craft_atomic::write_new_with(path, |file| {
-        let mut writer = BufWriter::new(file);
-        writeln!(
-            writer,
-            "# AztecCraft world-space polygon geometry (centimeters)"
-        )?;
-        let mut offset = 1usize;
-        for (name, points, instance, mirrored) in &objects {
-            write!(writer, "o ")?;
-            write_name(&mut writer, name)?;
-            writeln!(writer)?;
-            for point in points {
-                writeln!(writer, "v {} {} {}", point.x, point.y, point.z)?;
-            }
-            for face in instance.faces() {
-                write!(writer, "f")?;
-                let corners = face.corners();
-                let mut write_corner = |corner: usize| match corner.checked_add(offset) {
-                    Some(index) => write!(writer, " {index}"),
-                    None => Err(io::Error::from(io::ErrorKind::InvalidData)),
-                };
-                if *mirrored {
-                    corners.iter().rev().try_for_each(|&c| write_corner(c))?;
-                } else {
-                    corners.iter().try_for_each(|&c| write_corner(c))?;
-                }
+    let fs = GuardedFs {
+        may_install,
+        refused: Cell::new(false),
+    };
+    WriteOptions::default()
+        .write_new_with_custom(&fs, path, |file| {
+            let mut writer = BufWriter::new(file);
+            writeln!(
+                writer,
+                "# AztecCraft world-space polygon geometry (centimeters)"
+            )?;
+            let mut offset = 1usize;
+            for (name, points, instance, mirrored) in &objects {
+                write!(writer, "o ")?;
+                write_name(&mut writer, name)?;
                 writeln!(writer)?;
+                for point in points {
+                    writeln!(writer, "v {} {} {}", point.x, point.y, point.z)?;
+                }
+                for face in instance.faces() {
+                    write!(writer, "f")?;
+                    let corners = face.corners();
+                    let mut write_corner = |corner: usize| match corner.checked_add(offset) {
+                        Some(index) => write!(writer, " {index}"),
+                        None => Err(io::Error::from(io::ErrorKind::InvalidData)),
+                    };
+                    if *mirrored {
+                        corners.iter().rev().try_for_each(|&c| write_corner(c))?;
+                    } else {
+                        corners.iter().try_for_each(|&c| write_corner(c))?;
+                    }
+                    writeln!(writer)?;
+                }
+                offset = offset
+                    .checked_add(points.len())
+                    .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
             }
-            offset = offset
-                .checked_add(points.len())
-                .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidData))?;
-        }
-        writer.flush()
-    })
-    .map_err(|source| ObjError::Io {
-        path: path.into(),
-        source,
-    })?;
+            writer.flush()
+        })
+        .map_err(|source| {
+            if fs.refused.get() {
+                ObjError::Cancelled
+            } else {
+                ObjError::Io {
+                    path: path.into(),
+                    source,
+                }
+            }
+        })?;
     Ok(summary)
 }
 
@@ -193,10 +256,15 @@ pub fn export_new(path: &Path, scene: &Scene) -> Result<(), ObjError> {
 
 #[derive(Debug)]
 pub enum ObjError {
-    Io { path: PathBuf, source: io::Error },
+    Io {
+        path: PathBuf,
+        source: io::Error,
+    },
     Scene(SceneError),
     Native(NativeError),
     NothingToExport,
+    /// `may_install` refused; nothing was installed.
+    Cancelled,
     NonFinite,
     TooLarge,
 }
@@ -208,6 +276,7 @@ impl fmt::Display for ObjError {
             Self::Scene(source) => write!(f, "invalid scene for OBJ export: {source}"),
             Self::Native(source) => write!(f, "invalid scene for OBJ export: {source}"),
             Self::NothingToExport => f.write_str("no displayed polygon geometry to export"),
+            Self::Cancelled => f.write_str("export cancelled before the file was installed"),
             Self::NonFinite => f.write_str("a world-space position is not finite"),
             Self::TooLarge => f.write_str("the export exceeds addressable memory"),
         }
@@ -220,7 +289,7 @@ impl std::error::Error for ObjError {
             Self::Io { source, .. } => Some(source),
             Self::Scene(source) => Some(source),
             Self::Native(source) => Some(source),
-            Self::NothingToExport | Self::NonFinite | Self::TooLarge => None,
+            Self::NothingToExport | Self::Cancelled | Self::NonFinite | Self::TooLarge => None,
         }
     }
 }

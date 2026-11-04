@@ -37,6 +37,7 @@ impl Editor {
         &mut self,
         path: &Path,
         selection_only: bool,
+        may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
         validate_export_path(path)?;
         if self.files.is_modal() {
@@ -57,18 +58,20 @@ impl Editor {
                     .is_none_or(|paths| paths.iter().any(|path| instance.path().starts_with(path)))
             })
             .collect();
-        let summary = obj::export_native_new(path, scene, &instances).map_err(|error| {
-            OperationError::ObjExport(match error {
-                ObjError::Io { source, .. }
-                    if source.kind() == std::io::ErrorKind::AlreadyExists =>
-                {
-                    ObjExportError::DestinationExists
-                }
-                ObjError::Io { source, .. } => ObjExportError::Io(source.kind()),
-                ObjError::NothingToExport => ObjExportError::NothingToExport,
-                error => ObjExportError::Invalid(error.to_string()),
-            })
-        })?;
+        let summary =
+            obj::export_native_new(path, scene, &instances, may_install).map_err(|error| {
+                OperationError::ObjExport(match error {
+                    ObjError::Io { source, .. }
+                        if source.kind() == std::io::ErrorKind::AlreadyExists =>
+                    {
+                        ObjExportError::DestinationExists
+                    }
+                    ObjError::Io { source, .. } => ObjExportError::Io(source.kind()),
+                    ObjError::NothingToExport => ObjExportError::NothingToExport,
+                    ObjError::Cancelled => ObjExportError::Cancelled,
+                    error => ObjExportError::Invalid(error.to_string()),
+                })
+            })?;
         Ok(OperationReply::Exported {
             objects: summary.objects,
             vertices: summary.vertices,

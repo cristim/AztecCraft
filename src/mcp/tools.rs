@@ -116,6 +116,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     crate::editor_operations::ObjExportError::NothingToExport => {
                         "nothing_to_export"
                     }
+                    crate::editor_operations::ObjExportError::Cancelled => "export_cancelled",
                     crate::editor_operations::ObjExportError::Io(_) => "export_io",
                     crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
