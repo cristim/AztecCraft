@@ -522,3 +522,82 @@ fn session_material_edits_are_read_only_on_ascii_scenes() {
     }
     assert_eq!(scene, before);
 }
+
+const MESH_UID: &str = "rename -uid \"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\";";
+
+fn mesh_scene(body: &str) -> Result<NativeScene, AsciiError> {
+    decode_admitting_meshes(input(body))
+}
+
+#[test]
+fn mesh_declaration_binds_a_shape_under_its_transform_and_keeps_ids_unique() {
+    let scene = mesh_scene(&format!(
+        "{} createNode transform -n \"box\"; createNode mesh -n \"boxShape\" -p \"box\"; {MESH_UID} \
+         createNode transform -n \"second\"; createNode mesh -n \"secondShape\" -p \"second\";",
+        specimen()
+    ))
+    .unwrap();
+    scene.validate().unwrap();
+    assert_eq!(scene.shapes().len(), 2);
+    let shape = &scene.shapes()[0];
+    assert_eq!(shape.name(), "boxShape");
+    assert_eq!(
+        shape.uuid(),
+        Some(Uuid::from_u128(0xaaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa_aaaa))
+    );
+    assert!(shape.mesh().faces().is_empty());
+    let box_node = scene.nodes.iter().find(|n| n.name() == "box").unwrap();
+    assert!(
+        scene
+            .dag
+            .iter()
+            .any(|e| e.parent == Some(box_node.transform_id) && e.child == shape.id)
+    );
+    let mut ids: Vec<_> = scene
+        .nodes
+        .iter()
+        .map(|n| n.transform_id)
+        .chain(scene.curves.iter().map(|c| c.id))
+        .chain(scene.shapes.iter().map(|s| s.id))
+        .collect();
+    let count = ids.len();
+    ids.sort_by_key(|id| id.0);
+    ids.dedup();
+    assert_eq!(ids.len(), count);
+}
+
+#[test]
+fn mesh_declaration_refuses_unowned_shared_duplicate_and_misparented_shapes() {
+    let transform = "createNode transform -n \"a\";";
+    for body in [
+        // no parent, shared, a second shape under one transform, a non-transform parent
+        "createNode mesh -n \"aShape\";".to_string(),
+        format!("{transform} createNode mesh -s -n \"aShape\" -p \"a\";"),
+        format!(
+            "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"a\";"
+        ),
+        format!(
+            "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"s1\";"
+        ),
+        format!("{CREATE} createNode mesh -n \"s\" -p \"curveShape1\";"),
+        // an unknown parent, a name already taken and a built-in camera transform as parent
+        "createNode mesh -n \"s\" -p \"missing\";".to_string(),
+        format!("{transform} createNode mesh -n \"a\" -p \"a\";"),
+        "createNode transform -s -n \"persp\"; createNode mesh -n \"s\" -p \"persp\";".to_string(),
+        // a mesh and a transform may not share a uuid
+        format!(
+            "{transform} {MESH_UID} createNode transform -n \"b\"; createNode mesh -n \"bs\" -p \"b\"; {MESH_UID}"
+        ),
+    ] {
+        let error = mesh_scene(&body)
+            .err()
+            .unwrap_or_else(|| panic!("accepted: {body}"));
+        assert_eq!(error.kind(), ErrorKind::Unsupported, "{body}");
+    }
+}
+
+#[test]
+fn public_decode_still_refuses_mesh_declarations() {
+    let source = input("createNode transform -n \"a\"; createNode mesh -n \"aShape\" -p \"a\";");
+    assert_eq!(decode(source).unwrap_err().kind(), ErrorKind::Unsupported);
+}

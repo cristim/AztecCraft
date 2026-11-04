@@ -362,3 +362,49 @@ fn unsupported_channel_updates_and_new_float_overflow_refuse_without_mutation() 
         assert_eq!(mesh.validate(), Err(NativeError::NonFinite));
     }
 }
+
+#[test]
+fn from_parts_requires_every_edge_to_carry_the_stated_smoothing() {
+    let points = || vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+    let edges = |smooth| {
+        [[0, 1], [1, 2], [2, 0]]
+            .map(|endpoints| NativeEdge { endpoints, smooth })
+            .to_vec()
+    };
+    let face = || {
+        vec![NativeFace {
+            outer: (0..3)
+                .map(|edge| DirectedEdge {
+                    edge,
+                    reversed: false,
+                })
+                .collect(),
+            holes: Vec::new(),
+        }]
+    };
+    assert!(
+        NativeMesh::from_parts(
+            points(),
+            edges(Some(false)),
+            face(),
+            Vec::new(),
+            Some(false)
+        )
+        .is_ok()
+    );
+    for (stored, required) in [
+        (None, Some(false)),
+        (Some(false), None),
+        (Some(true), Some(false)),
+    ] {
+        assert_eq!(
+            NativeMesh::from_parts(points(), edges(stored), face(), Vec::new(), required),
+            Err(NativeError::UnsupportedEdit)
+        );
+    }
+    assert!(NativeMesh::from_binary_parts(points(), edges(None), face(), Vec::new()).is_ok());
+    assert_eq!(
+        NativeMesh::from_binary_parts(points(), edges(Some(false)), face(), Vec::new()),
+        Err(NativeError::UnsupportedEdit)
+    );
+}

@@ -1,6 +1,7 @@
 use super::{
-    DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeScene,
-    NativeTransform, NativeTransformNode, Scalar, TransformExtras, Units,
+    DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeMesh,
+    NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar, TransformExtras,
+    Units,
     admission::Budget,
     authored::BUILTINS,
     curve::CurveSource,
@@ -69,6 +70,7 @@ fn literal_equal(a: &[u8], b: &[u8], work: &mut Work) -> Result<bool, AsciiError
 enum Kind {
     Transform(usize),
     Curve(usize),
+    Mesh(usize),
     Camera,
     LightLinker,
     LayerManager,
@@ -78,6 +80,9 @@ enum Kind {
     Script,
     Builtin,
 }
+
+/// Owner attribute bit: a transform that already has a mesh child (bits 1..=1024 are channels).
+const HAS_SHAPE: u32 = 2048;
 
 struct Owner {
     name: Range<usize>,
@@ -317,6 +322,9 @@ struct Builder<'a, 'b> {
     owners: Vec<Owner>,
     selected: Option<usize>,
     units: bool,
+    /// Whether `createNode mesh` is admitted. False for every public decode until the read-back
+    /// gate exists; only the crate's own tests build meshes.
+    meshes: bool,
     requires: bool,
     file_info: Vec<Range<usize>>,
     connections: u8,
@@ -347,6 +355,17 @@ impl Builder<'_, '_> {
         }
         record.attributes |= bit;
         Ok(())
+    }
+    fn next_native_id(&self) -> Result<NativeId, AsciiError> {
+        let used = add(
+            add(self.scene.nodes.len(), self.scene.curves.len())?,
+            self.scene.shapes.len(),
+        )?;
+        let id = u64::try_from(used)
+            .map_err(|_| resource())?
+            .checked_add(1)
+            .ok_or_else(resource)?;
+        Ok(NativeId(id))
     }
     fn create(&mut self, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
         let class = c.word()?;
@@ -385,12 +404,7 @@ impl Builder<'_, '_> {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
                 let parent_id = self.parent(parent, c)?;
-                let id = NativeId(
-                    u64::try_from(add(self.scene.nodes.len(), self.scene.curves.len())?)
-                        .map_err(|_| resource())?
-                        .checked_add(1)
-                        .ok_or_else(resource)?,
-                );
+                let id = self.next_native_id()?;
                 let node_id = NodeId::new(
                     u64::try_from(self.scene.nodes.len())
                         .map_err(|_| resource())?
@@ -421,12 +435,7 @@ impl Builder<'_, '_> {
                 let parent_id = self
                     .parent(parent, c)?
                     .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
-                let id = NativeId(
-                    u64::try_from(add(self.scene.nodes.len(), self.scene.curves.len())?)
-                        .map_err(|_| resource())?
-                        .checked_add(1)
-                        .ok_or_else(resource)?,
-                );
+                let id = self.next_native_id()?;
                 let index = self.scene.curves.len();
                 self.scene.curves.push(NativeCurveShape {
                     id,
@@ -445,6 +454,42 @@ impl Builder<'_, '_> {
                     child: id,
                 });
                 Kind::Curve(index)
+            }
+            ("mesh", _) if self.meshes && !shared => {
+                let parent_index = parent.ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                let parent_id = self
+                    .parent(parent, c)?
+                    .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                let parent_name = self.source.get(self.owners[parent_index].name.clone());
+                // A shared transform is one of the four default camera transforms.
+                if parent_name
+                    .is_none_or(|text| matches!(text, b"persp" | b"top" | b"front" | b"side"))
+                {
+                    return Err(error(ErrorKind::Unsupported, c.offset));
+                }
+                self.mark(parent_index, HAS_SHAPE, c)?;
+                let id = self.next_native_id()?;
+                let index = self.scene.shapes.len();
+                self.scene.shapes.push(NativeMeshShape {
+                    id,
+                    uuid: None,
+                    name: self.budget.string(name).map_err(|_| resource())?,
+                    mesh: NativeMesh::from_parts(
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        Some(false),
+                    )
+                    .map_err(|_| error(ErrorKind::Malformed, c.offset))?,
+                    restrictions: Vec::new(),
+                    view: GeometryViewFacts::authored(),
+                });
+                self.scene.dag.push(DagEdge {
+                    parent: Some(parent_id),
+                    child: id,
+                });
+                Kind::Mesh(index)
             }
             ("camera", "perspShape" | "topShape" | "frontShape" | "sideShape") if shared => {
                 let parent = parent.ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
@@ -566,6 +611,7 @@ impl Builder<'_, '_> {
         match self.owners[owner].kind {
             Kind::Transform(index) => self.scene.nodes[index].transform_uuid = Some(uid),
             Kind::Curve(index) => self.scene.curves[index].uuid = Some(uid),
+            Kind::Mesh(index) => self.scene.shapes[index].uuid = Some(uid),
             _ => (),
         }
         self.owners[owner].uuid = Some(uid);
@@ -1010,7 +1056,7 @@ fn validation_admission(
     // Covers repeated identity/highwater, scalar, source-record and CV/knot validation visits.
     const LINEAR_VISITS: usize = 32;
     let transforms = scene.nodes.len();
-    let identities = add(transforms, scene.curves.len())?;
+    let identities = add(add(transforms, scene.curves.len())?, scene.shapes.len())?;
     let dag = scene.dag.len();
     let scratch =
         super::admission::validation_bytes(transforms, identities, dag).map_err(|_| resource())?;
@@ -1032,6 +1078,16 @@ fn validation_admission(
 }
 
 pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
+    decode_inner(source, false)
+}
+
+/// Decode that admits `createNode mesh`; reachable only from tests until the read-back gate lands.
+#[cfg(test)]
+pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
+    decode_inner(source, true)
+}
+
+fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiError> {
     let lex::Records {
         source,
         statements,
@@ -1040,7 +1096,8 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
         mut budget,
         mut work,
     } = lex::inspect(source)?;
-    let (mut owners, mut transforms, mut curves, mut file_info) = (0usize, 0usize, 0usize, 0usize);
+    let (mut owners, mut transforms, mut curves, mut shapes, mut file_info) =
+        (0usize, 0usize, 0usize, 0usize, 0usize);
     for statement in &statements {
         let mut c = Cursor {
             source: &source,
@@ -1057,6 +1114,7 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
                 match c.word()? {
                     "transform" => transforms = add(transforms, 1)?,
                     "nurbsCurve" => curves = add(curves, 1)?,
+                    "mesh" => shapes = add(shapes, 1)?,
                     _ => (),
                 }
             }
@@ -1064,7 +1122,7 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
             _ => (),
         }
     }
-    let dag = add(transforms, curves)?;
+    let dag = add(add(transforms, curves)?, shapes)?;
     let records = add(statements.len(), usize::from(!trailing.is_empty()))?;
     let mut retention = SourceRetention {
         sites: Vec::new(),
@@ -1084,6 +1142,7 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
     let scene = NativeScene {
         nodes: budget.vector(transforms).map_err(|_| resource())?,
         curves: budget.vector(curves).map_err(|_| resource())?,
+        shapes: budget.vector(shapes).map_err(|_| resource())?,
         dag: budget.vector(dag).map_err(|_| resource())?,
         source: Some(retention),
         units: Units::default(),
@@ -1100,6 +1159,7 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
         owners: owner_table,
         selected: None,
         units: false,
+        meshes,
         requires: false,
         file_info: info_table,
         connections: 0,
