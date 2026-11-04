@@ -128,6 +128,7 @@ mod official_client {
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod material;
+    mod multi_move;
     mod node_edit;
     mod pointer_hit;
     mod primitive_options;
