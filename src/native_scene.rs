@@ -1310,21 +1310,45 @@ impl NativeScene {
         self.validate()?;
         self.remove_validated(id)
     }
-    /// Removes every listed node, in order, after one preflight and one validation; a repeated id
-    /// is removed once. The first refusal is returned unchanged and earlier removals stay applied,
-    /// so callers run it on a candidate clone, as `History::execute` does.
+    /// Removes every listed node after one preflight and one validation; a repeated id is removed
+    /// once. A sourced scene analyses the union once and is all or nothing. An authored scene
+    /// removes in order and returns the first refusal with earlier removals applied, so callers
+    /// run it on a candidate clone, as `History::execute` does.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
         let mut seen = std::collections::HashSet::new();
-        for id in ids {
-            if seen.insert(*id) {
-                self.remove_validated(*id)?;
-            }
+        let unique: Vec<_> = ids.iter().filter(|id| seen.insert(**id)).collect();
+        if unique.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        if self.source.is_none() {
+            return unique
+                .into_iter()
+                .try_for_each(|id| self.remove_validated(*id));
+        }
+        let mut gone = Vec::new();
+        for id in unique {
+            gone.extend(self.removal_set(*id)?);
+        }
+        self.remove_set(gone)
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
+        let gone = self.removal_set(id)?;
+        self.remove_set(gone)
+    }
+    fn remove_set(&mut self, mut gone: Vec<NativeId>) -> Result<(), NativeError> {
+        gone.sort_unstable();
+        gone.dedup();
+        if self.source.is_some() {
+            self.check_source_removal(&gone)?;
+        }
+        self.apply_removal(&gone);
+        Ok(())
+    }
+    /// The transform and exclusive shapes that deleting `id` takes with it, after the checks that
+    /// do not depend on the source bytes.
+    fn removal_set(&self, id: NodeId) -> Result<Vec<NativeId>, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1367,17 +1391,15 @@ impl NativeScene {
             .collect();
         let mut gone = vec![transform];
         gone.extend(&exclusive);
-        if incoming.len() != 1 {
+        if incoming.len() != 1
+            || self
+                .source
+                .as_ref()
+                .is_some_and(|source| source.format != SourceFormat::Binary)
+        {
             return Err(NativeError::UnsupportedEdit);
         }
-        if let Some(source) = &self.source {
-            if source.format != SourceFormat::Binary {
-                return Err(NativeError::UnsupportedEdit);
-            }
-            self.check_source_removal(&gone)?;
-        }
-        self.apply_removal(&gone);
-        Ok(())
+        Ok(gone)
     }
     pub fn set_transform(
         &mut self,

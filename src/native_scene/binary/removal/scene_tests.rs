@@ -5,7 +5,11 @@ use crate::native_scene::{
     Channel, DeleteUnsupported, NativeError, NativeScene,
     binary::{
         decode,
-        tests::{appearance_fixture, site_fixture::*, wire_fixture::scene},
+        tests::{
+            appearance_fixture,
+            site_fixture::*,
+            wire_fixture::{chunk, creation, group, mesh_payload, scene},
+        },
     },
 };
 
@@ -37,6 +41,14 @@ fn removing_an_opened_node_drops_it_in_memory_and_keeps_the_source_bytes() {
 }
 
 #[test]
+fn removing_nothing_from_an_opened_scene_changes_nothing() {
+    let mut scene = opened();
+    let before = scene.clone();
+    assert_eq!(scene.remove_many(&[]), Ok(()));
+    assert_eq!(scene, before);
+}
+
+#[test]
 fn a_refused_removal_leaves_the_scene_untouched() {
     let linked = link(1, "as.iog.og[0]", ":initialShadingGroup.dsm[0]");
     let mut scene = decode(two_objects(&connections(&[linked]))).unwrap();
@@ -44,13 +56,45 @@ fn a_refused_removal_leaves_the_scene_untouched() {
     let a = scene.nodes[0].id;
     assert_eq!(scene.remove(a), refused(RemovalRefusal::NextAvailableIndex));
     assert_eq!(scene, before);
-    // `remove_many` keeps the members removed before the first refusal, as documented.
+    // A sourced `remove_many` analyses the union once and is all or nothing.
     let b = scene.nodes[1].id;
     assert_eq!(
         scene.remove_many(&[b, a]),
         refused(RemovalRefusal::NextAvailableIndex)
     );
-    assert_eq!(scene.removed, ids(&[3, 4]));
+    assert_eq!(scene, before);
+}
+
+/// A shape of `a` carries text that names `b`: once `a` is gone for good, it no longer stops `b`.
+#[test]
+fn an_earlier_removal_is_part_of_the_union_for_the_next_one() {
+    let text = chunk(b"STR ", b"dcc\0\x20see b.t\0", 8);
+    let mesh = chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8);
+    let a_shape = group(
+        b"DMSH",
+        &[creation(b"as", Some(b"a")), text, mesh].concat(),
+        4,
+    );
+    let bytes = scene(
+        &[
+            transform(b"a"),
+            a_shape,
+            transform(b"b"),
+            shape(b"bs", b"b"),
+        ]
+        .concat(),
+    );
+    let opened = decode(bytes).unwrap();
+    let (a, b) = (opened.nodes[0].id, opened.nodes[1].id);
+    let mut by_b = opened.clone();
+    assert_eq!(by_b.remove(b), refused(RemovalRefusal::TextReference));
+    let mut both = opened.clone();
+    assert_eq!(both.remove_many(&[a, b]), Ok(()));
+    let mut one_by_one = opened;
+    assert_eq!(one_by_one.remove(a), Ok(()));
+    assert_eq!(one_by_one.remove(b), Ok(()));
+    assert_eq!(one_by_one, both);
+    both.validate().unwrap();
 }
 
 #[test]
