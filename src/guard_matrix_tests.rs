@@ -451,6 +451,7 @@ fn build(state: State) -> Rig {
                     Operation::BeginMove {
                         target,
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                     &|| true,
                 )
@@ -531,6 +532,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::UpdateMove {
             id: t.move_id,
@@ -742,6 +744,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::BeginMove {
                     target: t.transform_target(),
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
             ),
             Sample {
@@ -751,6 +754,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                 )
             },

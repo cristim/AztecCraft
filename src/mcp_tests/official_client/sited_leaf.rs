@@ -562,6 +562,7 @@ async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseli
                 path: transform.path.clone(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::EditNode {
             id: object.id,

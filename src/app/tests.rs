@@ -1990,6 +1990,7 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             },
         )
         .unwrap();
@@ -6103,6 +6104,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
         .apply_operation(Operation::BeginMove {
             target,
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let move_id = editor.history.active_manipulation().unwrap().id;
@@ -6806,6 +6808,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         let move_id = editor.history.active_manipulation().unwrap().id;
@@ -9688,7 +9691,7 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_acts() {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -9697,6 +9700,7 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         0 => Operation::BeginMove {
             target: target.clone(),
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         1 => Operation::BeginRotate {
             target: target.clone(),
@@ -9710,13 +9714,23 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        assert!(
-            matches!(
-                editor.apply_operation(make(index)),
-                Err(OperationError::MultipleSelection)
-            ),
-            "native {label}"
-        );
+        if index == 0 {
+            // A native Move acts on the whole selection; cancelling restores the baseline.
+            editor.apply_operation(make(0)).unwrap();
+            assert_eq!(
+                editor.history.active_manipulation().unwrap().member_count(),
+                2
+            );
+            editor.cancel_move().unwrap();
+        } else {
+            assert!(
+                matches!(
+                    editor.apply_operation(make(index)),
+                    Err(OperationError::MultipleSelection)
+                ),
+                "native {label}"
+            );
+        }
         assert!(
             matches!(
                 remote(&mut editor, make(index)),

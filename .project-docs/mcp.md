@@ -503,7 +503,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Camera | Camera pose read (target, eye, distance, yaw/pitch, vertical field of view, clip planes) | supported | | `camera` | |
 | Camera | Orthographic views, field-of-view edits, camera bookmarks | unsupported | | | |
 | Tools | Select, Move, Rotate, Scale tool switch (Q W E R, Tool Box) | supported | `set_active_tool` | `manipulation.active_tool` | |
-| Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | |
+| Tools | Numeric Move, Rotate and Scale and drag manipulation, cancel | supported | `begin_manipulation`, `update_manipulation`, `finish_manipulation` | `manipulation` | Move acts on one object only here; a native Move of several selected objects (#325) has no MCP begin parameter yet and `begin_manipulation` still returns `multiple_selection` for them |
 | Tools | Rotate and Scale tool-settings space selector | supported | `set_tool_space` | `manipulation.rotate_space`, `manipulation.scale_space` | |
 | Tools | Persistent Rotate axis and Scale handle selection (tool-settings combo) | supported | `set_tool_handle` | `manipulation.rotate_axis`, `manipulation.scale_handle` | |
 | Tools | Handle pick under the pointer (hover highlight and unsupported-handle status) | supported | `inspect_scene` | `manipulation.viewport.pointer_hit`, `manipulation.viewport.pointer_disabled`, `manipulation.viewport.pointer_refusal` | Active tool only; null during a manipulation; the refusal is Rotate and Scale only and includes drag-begin refusals; the null list is not exhaustive (see the pointer fields paragraph); not gated by window focus, popups or file modals (painted highlight, not status text); null after a view build error |
@@ -580,7 +580,7 @@ space can get a different result); the `active` manipulation
 with `manipulation_id`, `kind`, node and instance path, `space`, `axis` or
 `handle`, `provenance`, the `parameter` name, its `value` and `unit` (after a remote update, `value` is the requested number exactly as given, in scene units; after a native drag it is derived from the internal parameter), `channels`
 (`translate`, `rotate` or `scale`) with the stored `baseline_channels` at begin
-and the live `current_channels`; and `refusal`, the reason the scene refused the
+and the live `current_channels` (the lead's own channels), plus `member_count` and `covered_count` (the selected objects a Move acts on, and the members that follow a selected ancestor; both are 1 and 0 for Rotate and Scale); and `refusal`, the reason the scene refused the
 last update of the active manipulation (the preview is unchanged), cleared by the
 next accepted update. Its optional `viewport` is explicitly labelled
 `last_native_viewport_capture` and is absent without a current capture or in

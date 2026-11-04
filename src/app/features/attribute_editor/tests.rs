@@ -415,6 +415,7 @@ fn an_active_move_refuses_both_operations_for_both_callers() {
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )

@@ -257,6 +257,7 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             Operation::BeginMove {
                 target: target(&node_id, instance_path)?,
                 axis: world_axis(axis),
+                expected_selection_generation: None,
             },
         ),
         BeginManipulationArgs::Rotate {

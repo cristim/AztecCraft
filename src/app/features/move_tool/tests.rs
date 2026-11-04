@@ -700,6 +700,7 @@ fn editor_move_guards_preserve_drafts_modal_close_tokens_and_failed_open_baselin
                 1 => Operation::BeginMove {
                     target,
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
                 2 => Operation::UpdateMove {
                     id: ManipulationId::from_decimal("1").unwrap(),
@@ -745,6 +746,7 @@ fn editor_move_guards_preserve_drafts_modal_close_tokens_and_failed_open_baselin
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1340,10 +1342,8 @@ fn face_mode_refuses_move_handles_native_and_numeric_and_keeps_face_click_workin
     assert_eq!(editor.status, FACE_MODE_REFUSAL);
     let target = editor.selected_move_target().unwrap();
     assert!(matches!(
-        editor.apply_operation(Operation::BeginMove {
-            target,
-            axis: WorldAxis::X
-        }),
+        editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+        , expected_selection_generation: None }),
         Err(OperationError::InvalidInput(message)) if message == FACE_MODE_REFUSAL
     ));
     assert!(editor.history.active_manipulation().is_none());
@@ -1380,10 +1380,8 @@ fn vertex_and_edge_modes_refuse_move_everywhere_face_does() {
         assert_eq!(editor.status, refusal);
         let target = editor.selected_move_target().unwrap();
         assert!(matches!(
-            editor.apply_operation(Operation::BeginMove {
-                target,
-                axis: WorldAxis::X
-            }),
+            editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+            , expected_selection_generation: None }),
             Err(OperationError::InvalidInput(message)) if message == refusal
         ));
         let inspected = editor.inspect_manipulation().unwrap();
@@ -1451,6 +1449,7 @@ fn native_face_mode_switch_cancels_an_active_native_move_and_remote_move_blocks_
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1536,7 +1535,8 @@ fn read_only_ascii_curve_scene_refuses_move_natively_and_numerically_with_the_co
     assert!(matches!(
         editor.apply_operation(Operation::BeginMove {
             target,
-            axis: WorldAxis::X
+            axis: WorldAxis::X,
+            expected_selection_generation: None
         }),
         Err(OperationError::Scene(NativeError::ReadOnlyFormat))
     ));
@@ -1814,6 +1814,7 @@ fn a_scene_refusal_mid_move_drag_keeps_the_last_valid_preview_and_other_errors_p
         .apply_operation(Operation::BeginMove {
             target,
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let id = editor.history.active_manipulation().unwrap().id;
@@ -1908,6 +1909,7 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1981,7 +1983,7 @@ fn editor_move_begins_on_a_sited_identity_node() {
     assert!(named("move").available, "{:?}", named("move"));
     assert_eq!(named("move").unavailable_reason, None);
     let started = editor
-        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native)
+        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native, None)
         .unwrap();
     assert!(matches!(
         started,

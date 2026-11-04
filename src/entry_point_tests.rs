@@ -12,7 +12,7 @@
 //! 2. `remote_operation_guarded(` is called only from `remote_operation` (a test wrapper) and the
 //!    MCP bridge, and nothing under `src/mcp*` reaches the editor any other way.
 //! 3. Every call site of the history mutators (`.execute(`, `.undo()`, `.redo()`,
-//!    `.begin_move(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
+//!    `.begin_move_many(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
 //!    and every `self.history =` assignment sits in an allowlisted function.
 //!
 //! Sources are found by walking `src/`, not by a fixed list, so `app.rs -> app/mod.rs` and files
@@ -278,7 +278,7 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     );
     expect("history undo", ".undo()", &["apply_operation_guarded"]);
     expect("history redo", ".redo()", &["apply_operation_guarded"]);
-    expect("move begin", ".begin_move(", &["begin_editor_move"]);
+    expect("move begin", ".begin_move_many(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);
     expect("scale begin", ".begin_scale(", &["begin_editor_scale"]);
     expect("move update", ".update_move(", &["update_editor_move"]);

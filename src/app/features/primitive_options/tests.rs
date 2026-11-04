@@ -544,6 +544,7 @@ fn escape_cancels_a_manipulation_and_keeps_the_window() {
         .apply_operation(Operation::BeginMove {
             target: editor.selected_move_target().unwrap(),
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     assert!(editor.history.active_manipulation().is_some());

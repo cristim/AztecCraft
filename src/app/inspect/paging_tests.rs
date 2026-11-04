@@ -143,6 +143,7 @@ fn every_scene_change_makes_a_cursor_stale_and_other_changes_do_not() {
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         editor.history.active_manipulation().unwrap().id

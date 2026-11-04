@@ -77,6 +77,7 @@ async fn sdk_inspection_matches_committed_snapshots() {
                 path: editor.selected_path().to_vec(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let OperationReply::ManipulationStarted {

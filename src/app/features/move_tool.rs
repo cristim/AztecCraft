@@ -141,6 +141,16 @@ impl Editor {
         })
     }
 
+    /// The lead as a Move target: the manipulator is drawn and pressed at the lead, and a begin
+    /// acts on the whole selection.
+    pub(in crate::app) fn selected_move_lead(&self) -> Result<TransformTarget, OperationError> {
+        let (node, path) = self.lead_target()?;
+        Ok(TransformTarget {
+            node,
+            path: path.to_vec(),
+        })
+    }
+
     // Returns whether a Move was actually cancelled. Only then is the current pointer sequence
     // consumed; an idle cancel must not swallow the next frame's input.
     pub(in crate::app) fn cancel_move(&mut self) -> Result<bool, OperationError> {
@@ -236,12 +246,13 @@ impl Editor {
         target: &TransformTarget,
         axis: WorldAxis,
         provenance: ManipulationProvenance,
+        expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
-        self.check_manipulation_target("Move", target)?;
+        self.check_move_target(target, provenance, expected_selection_generation)?;
         let id = self
             .history
-            .begin_move(
-                target,
+            .begin_move_many(
+                self.selection.members(),
                 axis,
                 self.scene_token,
                 provenance,
@@ -351,7 +362,10 @@ impl Editor {
                 self.selected_move_target()
             }
         };
-        let target = target_for("Move");
+        let target = match mode_refusal("Move", self.selection_mode) {
+            Some(refusal) => Err(OperationError::InvalidInput(refusal)),
+            None => self.selected_move_lead(),
+        };
         let rotate_target = target_for("Rotate");
         let scale_target = target_for("Scale");
         let frame = match &target {
@@ -385,11 +399,14 @@ impl Editor {
                 unavailable_reason,
             }
         };
+        let member_refusals = (self.selection.len() > 1)
+            .then(|| self.history.check_move_axes(self.selection.members()));
         let move_refusals = match &frame {
             Err(error) => Err(error.clone()),
             Ok(frame) => Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
                 .into_iter()
-                .map(|axis| {
+                .enumerate()
+                .map(|(index, axis)| {
                     (
                         match axis {
                             WorldAxis::X => "X axis",
@@ -399,7 +416,11 @@ impl Editor {
                         frame
                             .require_leaves(axis)
                             .err()
-                            .map(|error| error.to_string()),
+                            .map(|error| error.to_string())
+                            .or_else(|| match member_refusals.as_ref()? {
+                                Ok(axes) => axes[index].as_ref().map(ToString::to_string),
+                                Err(error) => Some(error.to_string()),
+                            }),
                     )
                 })
                 .collect()),
@@ -543,6 +564,8 @@ impl Editor {
                     current_channels: active.current_channels.ok_or_else(|| {
                         OperationError::InvalidInput("Manipulated node is unreadable".into())
                     })?,
+                    member_count: active.member_count(),
+                    covered_count: active.covered_count(),
                 })
             })
             .transpose()?;
@@ -946,7 +969,7 @@ impl Editor {
         if self.active_tool != ActiveTool::Move {
             return self.begin_native_manipulation(capture, position, pointer.released);
         }
-        let Ok(target) = self.selected_move_target() else {
+        let Ok(target) = self.selected_move_lead() else {
             return Ok(false);
         };
         let Ok(frame) = self.history.scene().world_move_frame(&target) else {
@@ -963,7 +986,11 @@ impl Editor {
         };
         let drag = AxisDrag::begin(capture, frame.origin_cm(), axis, position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-        self.apply_operation(Operation::BeginMove { target, axis })?;
+        self.apply_operation(Operation::BeginMove {
+            target,
+            axis,
+            expected_selection_generation: None,
+        })?;
         self.start_native_drag(NativeDrag::Move(drag), pointer.released)?;
         self.status = format!("World {} Move", axis_name(axis).to_uppercase());
         self.error = false;
@@ -983,7 +1010,7 @@ impl Editor {
             if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
                 return Err(OperationError::InvalidInput(refusal));
             }
-            let target = self.selected_move_target()?;
+            let target = self.selected_move_lead()?;
             let frame = self
                 .history
                 .scene()
@@ -1067,6 +1094,8 @@ impl Editor {
     }
 }
 
+#[cfg(test)]
+mod multi_tests;
 #[cfg(test)]
 #[path = "move_tool/tests.rs"]
 pub(in crate::app) mod tests;

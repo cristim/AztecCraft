@@ -284,9 +284,13 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Begins a Move of the selected objects with `target` as the lead. With several objects
+    /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
+    /// moves the current selection.
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,
+        expected_selection_generation: Option<u64>,
     },
     UpdateMove {
         id: ManipulationId,
@@ -675,6 +679,10 @@ pub struct ActiveManipulationInspection {
     pub channels: &'static str,
     pub baseline_channels: [f64; 3],
     pub current_channels: [f64; 3],
+    /// Selected objects a Move acts on (1 for Rotate and Scale), covered members included.
+    pub member_count: usize,
+    /// Members that follow a selected ancestor instead of getting their own translation.
+    pub covered_count: usize,
 }
 
 #[derive(Debug, Serialize)]
