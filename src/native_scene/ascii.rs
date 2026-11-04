@@ -327,6 +327,7 @@ struct Builder<'a, 'b> {
     /// Whether `createNode mesh` is admitted. False for every public decode until the read-back
     /// gate exists; only the crate's own tests build meshes.
     meshes: bool,
+    mesh_parts: Vec<mesh::MeshParts>,
     requires: bool,
     file_info: Vec<Range<usize>>,
     connections: u8,
@@ -501,6 +502,7 @@ impl Builder<'_, '_> {
                     parent: Some(parent_id),
                     child: id,
                 });
+                self.mesh_parts.push(mesh::MeshParts::default());
                 Kind::Mesh(index)
             }
             ("camera", "perspShape" | "topShape" | "frontShape" | "sideShape") if shared => {
@@ -920,6 +922,7 @@ impl Builder<'_, '_> {
                 c.done()?;
                 self.mark(owner, bit, c)?;
             }
+            Kind::Mesh(index) => self.mesh_attribute(owner, index, &flags, c, attribute)?,
             _ => return Err(error(ErrorKind::Unsupported, c.offset)),
         }
         Ok(())
@@ -1164,6 +1167,7 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
         .vector(add(owners, BUILTINS.len())?)
         .map_err(|_| resource())?;
     let info_table = budget.vector(file_info).map_err(|_| resource())?;
+    let mesh_parts = budget.vector(shapes).map_err(|_| resource())?;
     let mut builder = Builder {
         source: &source,
         budget: &mut budget,
@@ -1172,6 +1176,7 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
         selected: None,
         units: false,
         meshes,
+        mesh_parts,
         requires: false,
         file_info: info_table,
         connections: 0,
@@ -1192,6 +1197,7 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     if !builder.units {
         return Err(error(ErrorKind::Unsupported, 0));
     }
+    builder.finish_meshes()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
     NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
         NativeError::ResourceLimit => resource(),
@@ -1206,6 +1212,7 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     })
 }
 
+mod mesh;
 #[cfg(test)]
 mod tests;
 #[cfg(any(unix, test))]
