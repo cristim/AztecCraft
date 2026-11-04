@@ -433,13 +433,13 @@ fn text_work_beyond_the_limit_is_refused_not_skipped() {
     let bytes = two_objects(&text_chunk("quite long unrelated text"));
     let container = container::inspect(bytes).unwrap();
     let names: [&[u8]; 2] = [b"a", b"as"];
-    assert_eq!(scan_text(&container, &[], &names, 1000), Ok(()));
+    assert_eq!(scan_text(&container, &[], &[], &names, 1000), Ok(()));
     assert_eq!(
-        scan_text(&container, &[], &names, 10),
+        scan_text(&container, &[], &[], &names, 10),
         Err(RemovalRefusal::TextScanLimit)
     );
     assert_eq!(
-        scan_text(&container, &[], &[b""], 1000),
+        scan_text(&container, &[], &[], &[b""], 1000),
         Err(RemovalRefusal::Unreadable)
     );
 }
@@ -555,4 +555,7 @@ fn numeric_kinds_are_scanned_outside_bound_groups_and_header_tags_are_text() {
         );
     }
     assert_eq!(check(&header_in_bound(b"DBL2")), Ok(()));
+    // An XFRM group without a creation is not a binding: its numeric leaves are scanned.
+    let no_creation = group(b"XFRM", &chunk(b"CMPD", b"k\0\x20see a.t\0", 8), 4);
+    assert_eq!(check(&no_creation), Err(RemovalRefusal::TextReference));
 }

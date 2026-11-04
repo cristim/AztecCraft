@@ -272,7 +272,8 @@ pub(in crate::native_scene) fn check_removal(
             }
         }
     }
-    scan_text(&container, &chunks, &names, MAX_TEXT_WORK)?;
+    let groups = bound_groups(&container, &facts);
+    scan_text(&container, &groups, &chunks, &names, MAX_TEXT_WORK)?;
     prune_ranges(&container, &chunks)
 }
 
@@ -280,6 +281,17 @@ pub(in crate::native_scene) fn check_removal(
 pub(in crate::native_scene) struct PruneRange {
     pub(in crate::native_scene) range: Range<usize>,
     pub(in crate::native_scene) ancestors: Vec<usize>,
+}
+
+/// The chunks of the groups the opener built bindings from (a creation inside an XFRM or DMSH
+/// group), which are the only groups whose leaves it validated. A form tag alone proves nothing.
+fn bound_groups(container: &Container, facts: &WireFacts<'_>) -> Vec<usize> {
+    facts
+        .records
+        .iter()
+        .filter(|record| is_bound(container, record))
+        .map(|record| record.group)
+        .collect()
 }
 
 /// Bytes times names that [`scan_text`] may compare; more is refused rather than skipped.
@@ -331,11 +343,12 @@ fn kind(tag: [u8; 4], scripted: bool) -> Option<Kind> {
 }
 
 /// Classifies every surviving leaf (outside the `removed` chunks). An unlisted tag anywhere is
-/// `UnrecognisedRecord`; a [`Kind::Text`] leaf, or a [`Kind::Numeric`] one outside a bound group,
-/// that mentions a removed name is `TextReference`.
-/// Work is charged as bytes times names against `limit`.
+/// `UnrecognisedRecord`; a [`Kind::Text`] leaf, or a [`Kind::Numeric`] one outside the `bound`
+/// groups (see [`bound_groups`]), that mentions a removed name is `TextReference`. Work is charged
+/// as bytes times names against `limit`.
 fn scan_text(
     container: &Container,
+    bound: &[usize],
     removed: &[usize],
     names: &[&[u8]],
     limit: usize,
@@ -363,10 +376,7 @@ fn scan_text(
         if chunk.form().is_some() || dropped.iter().any(|range| range.contains(&start)) {
             continue;
         }
-        let bound = chunk
-            .parent()
-            .and_then(|parent| container.chunk(parent))
-            .is_some_and(|group| matches!(group.form(), Some(f) if f == *b"XFRM" || f == *b"DMSH"));
+        let bound = chunk.parent().is_some_and(|parent| bound.contains(&parent));
         match kind(chunk.tag(), in_script(chunk.parent())) {
             None => return Err(RemovalRefusal::UnrecognisedRecord(chunk.tag())),
             Some(Kind::Text) => {}
@@ -510,7 +520,8 @@ pub(super) fn assert_pruned(bytes: &Arc<[u8]>, names: &[&[u8]]) -> Result<(), Re
     if found {
         return Err(RemovalRefusal::NamedElsewhere);
     }
-    scan_text(&container, &[], names, MAX_TEXT_WORK)
+    let groups = bound_groups(&container, &facts);
+    scan_text(&container, &groups, &[], names, MAX_TEXT_WORK)
 }
 
 /// A removed shape must not be the only user of a material, and must not be the first user of one
