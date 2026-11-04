@@ -147,7 +147,7 @@ async fn sdk_delete_selected_refusals_keep_scene_selection_and_history() {
 async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete_node() {
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("grouped.mb");
-    std::fs::write(&source, super::selection::grouped_scene_bytes()).unwrap();
+    std::fs::write(&source, super::selection::linked_grouped_scene_bytes()).unwrap();
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let old_token = editor.scene_token.to_string();

@@ -596,6 +596,22 @@ fn links_inside_a_removed_subtree_are_dropped_and_to_a_survivor_refused() {
 }
 
 #[test]
+fn a_non_root_removal_refuses_links_and_selections_naming_the_subtree() {
+    for extra in [
+        connections(&[link(0, "b.t", "c.t")]),
+        connections(&[link(0, "c.t", "g.t")]),
+        selection(b":c"),
+        selection(b":cs.f[1]"),
+    ] {
+        assert_eq!(
+            subtree(&extra, &[2, 3]),
+            Err(RemovalRefusal::NamedElsewhere)
+        );
+    }
+    assert_eq!(subtree(&selection(b":b"), &[2, 3]), Ok(()));
+}
+
+#[test]
 fn two_removed_shapes_of_one_set_are_dropped_together() {
     let both = scene(
         &[

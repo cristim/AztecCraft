@@ -1379,11 +1379,6 @@ impl NativeScene {
         tops.retain(|id| !below.contains(id));
         tops.sort_unstable();
         tops.dedup();
-        for top in &tops {
-            if edges(top).iter().any(Option::is_some) {
-                return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
-            }
-        }
         let inside: HashSet<NativeId> = reached
             .iter()
             .copied()
@@ -1742,20 +1737,15 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
     Ok(value)
 }
 
-/// Why Delete refuses a node whose hierarchy it cannot yet remove.
+/// Why Delete refuses a node of an opened file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeleteUnsupported {
-    IsChild,
     Source(binary::RemovalRefusal),
 }
 impl fmt::Display for DeleteUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::IsChild => "Deleting a node that has a parent is not supported yet",
-            Self::Source(reason) => {
-                return write!(f, "Deleting this node is not supported yet: {reason}");
-            }
-        })
+        let Self::Source(reason) = self;
+        write!(f, "Deleting this node is not supported yet: {reason}")
     }
 }
 
