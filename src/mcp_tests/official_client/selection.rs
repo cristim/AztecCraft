@@ -243,7 +243,7 @@ pub(super) fn linked_grouped_scene_bytes() -> std::sync::Arc<[u8]> {
     grouped_scene_bytes_with(&group(b"DPLM", &chunk(b"STR ", b"note\0see child\0", 8), 4))
 }
 
-fn grouped_scene_bytes_with(extra: &[u8]) -> std::sync::Arc<[u8]> {
+pub(super) fn grouped_scene_bytes_with(extra: &[u8]) -> std::sync::Arc<[u8]> {
     use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
     scene(
         &[
