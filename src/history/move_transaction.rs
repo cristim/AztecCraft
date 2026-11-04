@@ -309,13 +309,9 @@ impl ManipulationBegin {
     }
 }
 
-fn member_error(
-    scene: &NativeScene,
-    target: &TransformTarget,
-    source: NativeError,
-) -> ManipulationError {
+fn member_error(scene: &NativeScene, node: NodeId, source: NativeError) -> ManipulationError {
     let name = scene
-        .node(target.node)
+        .node(node)
         .map_or_else(|_| String::from("?"), |node| node.name().to_string());
     ManipulationError::Member {
         name,
@@ -353,6 +349,89 @@ impl MoveTransaction {
         }
         Ok(())
     }
+}
+
+/// Frames, baselines and counts for a Move of `targets` (the last is `lead`), or the first refusal.
+fn plan_move(
+    scene: &NativeScene,
+    targets: &[TransformTarget],
+    axis: Option<WorldAxis>,
+    lead: &TransformTarget,
+) -> Result<ManipulationBegin, ManipulationError> {
+    if let ([target], Some(axis)) = (targets, axis) {
+        let (frame, baseline) = scene.begin_move_translation(target, axis)?;
+        return Ok(ManipulationBegin::new(
+            axis,
+            vec![(frame, baseline)],
+            None,
+            1,
+            0,
+            0,
+        ));
+    }
+    scene
+        .resolve_move_targets(targets)
+        .map_err(|error| match error {
+            MoveBeginError::Scene(error) => ManipulationError::Native(error),
+            MoveBeginError::Member { index, source } => {
+                member_error(scene, targets[index].node, source)
+            }
+        })?;
+    let mut seen: HashMap<NodeId, &TransformTarget> = HashMap::new();
+    for target in targets {
+        if let Some(first) = seen.insert(target.node, target) {
+            // The same object twice is a malformed request; the same object through
+            // two instances shares one translation and cannot move as two members.
+            let refusal = if first.path == target.path {
+                NativeError::from(SceneError::InvalidIds)
+            } else {
+                NativeError::UnsupportedMove(WorldMoveUnsupported::SharedInstances)
+            };
+            return Err(member_error(scene, target.node, refusal));
+        }
+    }
+    let selected: HashSet<NativeId> = targets
+        .iter()
+        .filter_map(|target| target.path.last().copied())
+        .collect();
+    let movers: Vec<&TransformTarget> = targets
+        .iter()
+        .filter(|target| {
+            let ancestors = &target.path[..target.path.len().saturating_sub(1)];
+            !ancestors.iter().any(|id| selected.contains(id))
+        })
+        .collect();
+    let frames = scene
+        .world_move_frames(&movers, axis)
+        .map_err(|error| match error {
+            MoveBeginError::Scene(error) => ManipulationError::Native(error),
+            MoveBeginError::Member { index, source } => {
+                member_error(scene, movers[index].node, source)
+            }
+        })?;
+    let mut member_bytes = 0usize;
+    for target in targets {
+        member_bytes = target
+            .path
+            .len()
+            .checked_mul(size_of::<NativeId>())
+            .and_then(|bytes| bytes.checked_add(MOVER_BYTES))
+            .and_then(|bytes| member_bytes.checked_add(bytes))
+            .ok_or(ViewError::ResourceLimit)?;
+    }
+    let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
+        None
+    } else {
+        Some(scene.translation_baseline(lead.node)?)
+    };
+    Ok(ManipulationBegin::new(
+        axis.unwrap_or(WorldAxis::X),
+        frames,
+        covered_lead,
+        targets.len(),
+        targets.len() - movers.len(),
+        member_bytes,
+    ))
 }
 
 impl History {
@@ -409,81 +488,32 @@ impl History {
             .last()
             .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
         self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
-            if let [target] = targets {
-                let (frame, baseline) = scene.begin_move_translation(target, axis)?;
-                return Ok(ManipulationBegin::new(
-                    axis,
-                    vec![(frame, baseline)],
-                    None,
-                    1,
-                    0,
-                    0,
-                ));
-            }
-            scene
-                .resolve_move_targets(targets)
-                .map_err(|error| match error {
-                    MoveBeginError::Scene(error) => ManipulationError::Native(error),
-                    MoveBeginError::Member { index, source } => {
-                        member_error(scene, &targets[index], source)
-                    }
-                })?;
-            let mut seen: HashMap<NodeId, &TransformTarget> = HashMap::new();
-            for target in targets {
-                if let Some(first) = seen.insert(target.node, target) {
-                    // The same object twice is a malformed request; the same object through
-                    // two instances shares one translation and cannot move as two members.
-                    let refusal = if first.path == target.path {
-                        NativeError::from(SceneError::InvalidIds)
-                    } else {
-                        NativeError::UnsupportedMove(WorldMoveUnsupported::SharedInstances)
-                    };
-                    return Err(member_error(scene, target, refusal));
-                }
-            }
-            let selected: HashSet<NativeId> = targets
-                .iter()
-                .filter_map(|target| target.path.last().copied())
-                .collect();
-            let movers: Vec<&TransformTarget> = targets
-                .iter()
-                .filter(|target| {
-                    let ancestors = &target.path[..target.path.len().saturating_sub(1)];
-                    !ancestors.iter().any(|id| selected.contains(id))
-                })
-                .collect();
-            let frames = scene
-                .world_move_frames(&movers, axis)
-                .map_err(|error| match error {
-                    MoveBeginError::Scene(error) => ManipulationError::Native(error),
-                    MoveBeginError::Member { index, source } => {
-                        member_error(scene, movers[index], source)
-                    }
-                })?;
-            let mut member_bytes = 0usize;
-            for target in targets {
-                member_bytes = target
-                    .path
-                    .len()
-                    .checked_mul(size_of::<NativeId>())
-                    .and_then(|bytes| bytes.checked_add(MOVER_BYTES))
-                    .and_then(|bytes| member_bytes.checked_add(bytes))
-                    .ok_or(ViewError::ResourceLimit)?;
-            }
-            let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
-                None
-            } else {
-                Some(scene.translation_baseline(lead.node)?)
-            };
-            Ok(ManipulationBegin::new(
-                axis,
-                frames,
-                covered_lead,
-                targets.len(),
-                targets.len() - movers.len(),
-                member_bytes,
-            ))
+            plan_move(scene, targets, Some(axis), lead)
         })
+    }
+
+    /// For each of X, Y and Z, the refusal a Move of `targets` along it would give, or `None`; the
+    /// plan is built once for all three axes and nothing is started or charged. `Err` is a refusal
+    /// that applies to every axis.
+    pub fn check_move_axes(
+        &self,
+        targets: &[TransformTarget],
+    ) -> Result<[Option<ManipulationError>; 3], ManipulationError> {
+        let lead = targets
+            .last()
+            .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
+        let plan = plan_move(&self.scene, targets, None, lead)?;
+        let ManipulationKind::Move { movers, .. } = &plan.kind else {
+            return Ok([None, None, None]);
+        };
+        Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z].map(|axis| {
+            movers.iter().find_map(|(frame, baseline)| {
+                frame
+                    .require_leaves(axis)
+                    .err()
+                    .map(|error| member_error(&self.scene, baseline.node(), error))
+            })
+        }))
     }
 
     /// Begins a rotation in object or world space; `update_move` then takes the angle in degrees.

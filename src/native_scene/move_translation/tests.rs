@@ -799,7 +799,7 @@ fn world_move_frames_reports_a_read_only_scene_once_and_unnamed() {
     );
     scene.nodes[0].channels[0].origin = Some(ScalarOrigin::Ascii { literal: 12..18 });
     assert!(matches!(
-        scene.world_move_frames(&refs, WorldAxis::X),
+        scene.world_move_frames(&refs, Some(WorldAxis::X)),
         Err(MoveBeginError::Scene(NativeError::ReadOnlyFormat))
     ));
 }
@@ -811,7 +811,7 @@ fn world_move_frames_names_the_index_of_the_refusing_target() {
     let targets = [target(&scene, plain), target(&scene, pivoted)];
     let refs: Vec<&TransformTarget> = targets.iter().collect();
     assert!(matches!(
-        scene.world_move_frames(&refs, WorldAxis::X),
+        scene.world_move_frames(&refs, Some(WorldAxis::X)),
         Err(MoveBeginError::Member {
             index: 1,
             source: NativeError::UnsupportedMove(WorldMoveUnsupported::SelectedPivot)
@@ -842,7 +842,7 @@ fn world_move_frames_validates_once_for_the_whole_set() {
     });
     assert_eq!(singles, 8);
     let batch = validations(&mut || {
-        scene.world_move_frames(&refs, WorldAxis::X).unwrap();
+        scene.world_move_frames(&refs, Some(WorldAxis::X)).unwrap();
     });
     assert_eq!(batch, 1);
 }

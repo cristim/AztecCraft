@@ -373,3 +373,63 @@ fn four_thousand_members_begin_within_the_budget_and_not_one_byte_less() {
     );
     assert!(history.active_manipulation().is_none());
 }
+
+#[test]
+fn check_move_axes_gives_the_refusal_a_begin_would_without_starting_one() {
+    let (mut scene, pivoted) = test_fixtures::pivoted_shape();
+    let plain = scene.create(Primitive::Cube, "plain").unwrap();
+    let history = History::new(scene);
+    let targets = [target_of(&history, plain), target_of(&history, pivoted)];
+    let before = history.scene.clone();
+    let both = history.check_move_axes(&targets);
+    assert!(
+        matches!(&both, Err(ManipulationError::Member { source, .. })
+        if **source == NativeError::UnsupportedMove(WorldMoveUnsupported::SelectedPivot))
+    );
+    let cubes = [target_of(&history, plain), target_of(&history, plain)];
+    assert!(
+        history
+            .check_move_axes(&cubes[..1])
+            .unwrap()
+            .iter()
+            .all(Option::is_none)
+    );
+    assert!(history.active_manipulation().is_none());
+    assert_eq!(history.scene, before);
+    assert_eq!(history.next_manipulation_id, 0);
+}
+
+#[test]
+fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
+    let (scene, full, bare) = test_fixtures::binary_cube_and_cube_without_leaf();
+    let history = History::new(scene.clone());
+    // The leafless node is not the lead, so only its own leaves can refuse; each world axis maps
+    // to a different local component, so the three refusals differ.
+    let targets = [target_of(&history, bare), target_of(&history, full)];
+    let name = history.scene.node(bare).unwrap().name().to_string();
+    let axes = history.check_move_axes(&targets).unwrap();
+    for (component, (axis, checked)) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+        .into_iter()
+        .zip(axes)
+        .enumerate()
+    {
+        assert_eq!(
+            checked,
+            Some(ManipulationError::Member {
+                name: name.clone(),
+                source: Box::new(NativeError::AbsentChannelLeaf {
+                    channel: crate::native_scene::ChannelLeaf::Translate,
+                    component,
+                }),
+            })
+        );
+        let mut fresh = History::new(scene.clone());
+        let begun = fresh
+            .begin_move_many(&targets, axis, Uuid::new_v4(), NATIVE, BUDGET)
+            .map(|_| ());
+        assert_eq!(begun.err(), checked, "{axis:?}");
+    }
+    // The complete node alone is available on every axis.
+    let alone = history.check_move_axes(&targets[1..]);
+    assert!(alone.unwrap().iter().all(Option::is_none));
+}

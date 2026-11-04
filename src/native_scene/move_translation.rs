@@ -495,7 +495,7 @@ impl NativeScene {
     pub(crate) fn world_move_frames(
         &self,
         targets: &[&TransformTarget],
-        axis: WorldAxis,
+        axis: Option<WorldAxis>,
     ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
         self.move_scene_check().map_err(MoveBeginError::Scene)?;
         let mut movers = Vec::new();
@@ -505,7 +505,9 @@ impl NativeScene {
         for (index, target) in targets.iter().enumerate() {
             let member = |source| MoveBeginError::Member { index, source };
             let frame = self.member_move_frame(target).map_err(member)?;
-            frame.require_leaves(axis).map_err(member)?;
+            if let Some(axis) = axis {
+                frame.require_leaves(axis).map_err(member)?;
+            }
             let node = self.node(target.node).map_err(member)?;
             movers.push((
                 frame,

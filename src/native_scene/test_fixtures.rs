@@ -315,3 +315,36 @@ pub(crate) fn many_roots(count: u64) -> NativeScene {
     scene.validate().unwrap();
     scene
 }
+
+/// Two cubes in a binary source: the first has its translate leaf, the second has none and cannot
+/// gain one (a leaf binds all three components, so a node lacks all of them or none). Returns the
+/// scene, the complete node and the leafless node.
+pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeId) {
+    use source::{SourceLeaf, Storage};
+    let mut scene = NativeScene::default();
+    let full = scene.create(Primitive::Cube, "full").unwrap();
+    let bare = scene.create(Primitive::Cube, "bare").unwrap();
+    let owner = scene.node(full).unwrap().transform_id;
+    scene.source = Some(SourceRetention {
+        sites: Vec::new(),
+        bytes: vec![0u8; 24].into(),
+        format: SourceFormat::Binary,
+        records: std::iter::once(0..24).collect(),
+        leaves: vec![SourceLeaf {
+            payload: 0..24,
+            numeric: 0..24,
+            owner,
+            field: TransformField::Translation,
+            storage: Storage::Centimeters,
+        }],
+        appearance: None,
+    });
+    let index = scene.nodes.iter().position(|n| n.id == full).unwrap();
+    for component in 0..3 {
+        scene.nodes[index].channels[component].origin =
+            Some(ScalarOrigin::Binary { leaf: 0, component });
+        scene.nodes[index].channels[component].replaced = false;
+    }
+    scene.validate().unwrap();
+    (scene, full, bare)
+}
