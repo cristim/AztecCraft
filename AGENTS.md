@@ -103,6 +103,48 @@ remain authoritative; sibling commands, crate layouts and tooling are not implie
 - Preserve tracked, untracked and ignored state. Sibling cleanup conventions do
   not authorize deleting assets, caches, logs, worktrees or build directories.
 
+### Maya parity research and version history
+
+- **Reference.** Compare against the Maya release pinned in
+  `.project-docs/reference.md` (currently 2027), using Autodesk's online
+  help: the user guide, What's New and release notes, the MEL and Python
+  command references, and the Developer Help (OpenMaya API 2.0). Cite a URL
+  for every behaviour claim, and mark anything the docs don't state as
+  PROVISIONAL.
+- **Version history.** For each feature or gap, record its behaviour across
+  Maya 2011 up to the pinned release: when it was introduced, changed,
+  deprecated or removed, with a version and URL each time. Keep it to a short
+  per-feature table. An older version whose docs are missing is "unsourced",
+  never assumed to be identical.
+- **Scripting parity is part of each feature.** Record the equivalent Python
+  (`maya.cmds`, OpenMaya API 2.0 and PyMEL where it applies) and MEL commands
+  and flags, plus `commandPort` exposure. Map each one to the AztecCraft MCP
+  tool that covers it, or note the gap. Follow Maya's command semantics
+  (names, flags, defaults, return values) where that's safe. The inert-script
+  rule above still applies: imported scene scripts and MEL are data, never
+  executed.
+- **Issue hygiene.** Put findings into the existing open issue that owns the
+  feature. Append a dated "Maya <release> parity and version history" section
+  with a gaps checklist, the version table and the sources, and never rewrite
+  the existing text.
+  - Open a new issue only for gaps in a feature that is already implemented,
+    one issue per feature area, with each gap as a checklist item.
+  - A gap with no fitting issue goes into the nearest umbrella issue (for
+    example #71) or to the maintainer for a decision.
+  - Don't open one issue per gap.
+- **Compatibility version.** AztecCraft exposes a "Maya compatibility version"
+  setting, selectable from Maya 2011 up to the pinned release in Preferences
+  and defaulting to the pinned release.
+  - Each feature declares the version range where it exists and the
+    behaviour it has per version.
+  - A feature outside the selected range is hidden or visibly unsupported,
+    never silently different.
+  - Changed behaviour follows the selected version, in the UI and in
+    scripting/MCP alike.
+  - MCP can query the setting. Setting it remotely obeys the same guards as
+    any other preference edit.
+  - Tests cover at least the boundary versions of each range.
+
 ### Sources inspected
 
 Adapted from pinned public guidance, without importing sibling-only tooling:
