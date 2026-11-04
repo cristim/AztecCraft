@@ -334,10 +334,10 @@ fn kind(tag: [u8; 4], scripted: bool) -> Option<Kind> {
         b"DBLE" | b"DBL2" | b"DBL3" | b"FLT2" | b"FLT3" | b"FLGS" | b"I32#" | b"MESH" | b"CMP#"
         | b"CMPD" | b"ATTR" => Kind::Numeric,
         // String attributes and arrays, and the file header (units, version, file info, include
-        // paths, object counts): text a node name could appear in.
+        // paths, object counts, plug-in requirements): text a node name could appear in.
         b"STR " | b"STR#" | b"AUNI" | b"LUNI" | b"TUNI" | b"BCSZ" | b"CHNG" | b"DATS" | b"FINF"
-        | b"ICON" | b"INCL" | b"INFO" | b"MADE" | b"OBJN" | b"SMTD" | b"TDUR" | b"UVER"
-        | b"VERS" => Kind::Text,
+        | b"ICON" | b"INCL" | b"INFO" | b"MADE" | b"OBJN" | b"PLUG" | b"SMTD" | b"TDUR"
+        | b"UVER" | b"VERS" => Kind::Text,
         _ => return None,
     })
 }

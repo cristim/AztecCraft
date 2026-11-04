@@ -558,4 +558,27 @@ fn numeric_kinds_are_scanned_outside_bound_groups_and_header_tags_are_text() {
     // An XFRM group without a creation is not a binding: its numeric leaves are scanned.
     let no_creation = group(b"XFRM", &chunk(b"CMPD", b"k\0\x20see a.t\0", 8), 4);
     assert_eq!(check(&no_creation), Err(RemovalRefusal::TextReference));
+    // A group holding a record is not bound unless it is a transform or shape binding.
+    let shad_with_creation = group(
+        b"SHAD",
+        &[creation(b"c", None), chunk(b"CMPD", b"k\0\x20see a.t\0", 8)].concat(),
+        4,
+    );
+    assert_eq!(
+        check(&shad_with_creation),
+        Err(RemovalRefusal::TextReference)
+    );
+}
+
+#[test]
+fn plug_in_requirements_are_header_text() {
+    let plug = |text: &[u8]| group(b"HEAD", &chunk(b"PLUG", text, 8), 4);
+    assert_eq!(
+        check(&plug(b"mtoa\0 5.5.3\0 -nodeType \"aiOptions\"\0")),
+        Ok(())
+    );
+    assert_eq!(
+        check(&plug(b"mtoa\0 5.5.3\0 -nodeType \"a\"\0")),
+        Err(RemovalRefusal::TextReference)
+    );
 }

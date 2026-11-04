@@ -1070,7 +1070,8 @@ reason except where noted:
   decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
   `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
   removed names (`STR `, `STR#`, the header tags `AUNI`, `LUNI`, `TUNI`, `BCSZ`, `CHNG`, `DATS`,
-  `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
+  `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `PLUG` (the plug-in requirements, present in
+  nearly every real file), `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
   of a `SCRP` group). A typed attribute payload is skipped only inside a bound transform or shape
   group, whose layout the opener validated; in any other group it is scanned like text, so a few
   false refusals are possible there. Any other tag, anywhere in the file, refuses the delete as "a
