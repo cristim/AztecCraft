@@ -1,17 +1,22 @@
-//! Mesh array attributes of the authored ASCII subset: `setAttr -s N ".vt[0:N-1]"` points and
-//! `setAttr -s N ".ed[0:N-1]"` edges. Every shape is exactly what the authored writer emits; the
+//! Mesh array attributes of the authored ASCII subset: `setAttr -s N ".vt[0:N-1]"` points,
+//! `setAttr -s N ".ed[0:N-1]"` edges and `setAttr -s N ".fc[0:N-1]" -type "polyFaces"` faces
+//! (`f n e...` rows only). Every shape is exactly what the authored writer emits; the
 //! admission gate that compares re-emitted bytes backs this strictness up.
 use super::{AsciiError, AttrFlags, Builder, Cursor, ErrorKind, error, mul, numeric, resource};
-use crate::native_scene::{NativeEdge, NativeMesh};
+use crate::native_scene::{DirectedEdge, NativeEdge, NativeFace, NativeMesh};
 
 /// Owner attribute bits for the mesh arrays already seen (bits 1..=4096 are taken).
 const VERTICES: u32 = 8192;
 const EDGES: u32 = 16384;
+const FACES: u32 = 32768;
+/// A face row is at least `f`, the count and three edge tokens.
+const MIN_FACE_TOKENS: usize = 5;
 
 #[derive(Default)]
 pub(super) struct MeshParts {
     points: Option<Vec<[f32; 3]>>,
     edges: Option<Vec<NativeEdge>>,
+    faces: Option<Vec<NativeFace>>,
 }
 
 /// Returns N for exactly `<name>[0:N-1]` with canonical digits and N equal to the `-s` size.
@@ -53,6 +58,21 @@ impl Cursor<'_, '_> {
         }
         Ok(value)
     }
+    /// Decodes a polyFaces edge token: `t >= 0` is edge `t`, `t < 0` is edge `-t-1` reversed. The
+    /// arithmetic is in i64 so `i32::MIN` cannot overflow, and the edge must exist.
+    fn face_edge(&mut self, edges: usize) -> Result<DirectedEdge, AsciiError> {
+        let token = i64::from(self.integer()?);
+        let (id, reversed) = if token < 0 {
+            (-token - 1, true)
+        } else {
+            (token, false)
+        };
+        let edge = usize::try_from(id)
+            .ok()
+            .filter(|edge| *edge < edges)
+            .ok_or_else(|| error(ErrorKind::Malformed, self.offset))?;
+        Ok(DirectedEdge { edge, reversed })
+    }
     fn vertex(&mut self) -> Result<usize, AsciiError> {
         usize::try_from(self.integer()?).map_err(|_| error(ErrorKind::Malformed, self.offset))
     }
@@ -67,10 +87,11 @@ impl Builder<'_, '_> {
         c: &mut Cursor<'_, '_>,
         attribute: &str,
     ) -> Result<(), AsciiError> {
-        if !self.units || flags.value_type.is_some() || flags.keyability {
+        if !self.units || flags.keyability {
             return Err(error(ErrorKind::Unsupported, c.offset));
         }
-        if let Some(rows) = array_count(attribute, ".vt", flags.size) {
+        let plain = flags.value_type.is_none();
+        if let (true, Some(rows)) = (plain, array_count(attribute, ".vt", flags.size)) {
             c.exact_rows(rows, 3)?;
             self.mark(owner, VERTICES, c)?;
             let mut points = self.budget.vector(rows).map_err(|_| resource())?;
@@ -78,7 +99,7 @@ impl Builder<'_, '_> {
                 points.push([c.float32()?, c.float32()?, c.float32()?]);
             }
             self.mesh_parts[index].points = Some(points);
-        } else if let Some(rows) = array_count(attribute, ".ed", flags.size) {
+        } else if let (true, Some(rows)) = (plain, array_count(attribute, ".ed", flags.size)) {
             c.exact_rows(rows, 3)?;
             self.mark(owner, EDGES, c)?;
             let mut edges = self.budget.vector(rows).map_err(|_| resource())?;
@@ -94,10 +115,56 @@ impl Builder<'_, '_> {
                 });
             }
             self.mesh_parts[index].edges = Some(edges);
+        } else if let (Some("polyFaces"), Some(rows)) =
+            (flags.value_type, array_count(attribute, ".fc", flags.size))
+        {
+            self.faces(owner, index, rows, c)?;
         } else {
             return Err(error(ErrorKind::Unsupported, c.offset));
         }
         c.done()
+    }
+
+    fn faces(
+        &mut self,
+        owner: usize,
+        index: usize,
+        rows: usize,
+        c: &mut Cursor<'_, '_>,
+    ) -> Result<(), AsciiError> {
+        // Faces name edges by index, so the edge array must already be known.
+        let edges = self.mesh_parts[index]
+            .edges
+            .as_ref()
+            .map(Vec::len)
+            .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+        let remaining = c.tokens.len().saturating_sub(c.position);
+        if mul(rows, MIN_FACE_TOKENS)? > remaining {
+            return Err(error(ErrorKind::Malformed, c.offset));
+        }
+        self.mark(owner, FACES, c)?;
+        let mut faces = self.budget.vector(rows).map_err(|_| resource())?;
+        for _ in 0..rows {
+            // Only `f` rows: holes (`h`), UV (`mu`, `mf`, `mh`) and colour (`mc`) are refused.
+            if c.word()? != "f" {
+                return Err(error(ErrorKind::Unsupported, c.offset));
+            }
+            let corners = c.count()?;
+            let left = c.tokens.len().saturating_sub(c.position);
+            if corners < 3 || corners > left {
+                return Err(error(ErrorKind::Malformed, c.offset));
+            }
+            let mut outer = self.budget.vector(corners).map_err(|_| resource())?;
+            for _ in 0..corners {
+                outer.push(c.face_edge(edges)?);
+            }
+            faces.push(NativeFace {
+                outer,
+                holes: Vec::new(),
+            });
+        }
+        self.mesh_parts[index].faces = Some(faces);
+        Ok(())
     }
 
     /// Replaces each placeholder mesh with the validated mesh its arrays describe.
@@ -106,7 +173,7 @@ impl Builder<'_, '_> {
             shape.mesh = NativeMesh::from_parts(
                 parts.points.unwrap_or_default(),
                 parts.edges.unwrap_or_default(),
-                Vec::new(),
+                parts.faces.unwrap_or_default(),
                 Vec::new(),
                 Some(false),
             )
