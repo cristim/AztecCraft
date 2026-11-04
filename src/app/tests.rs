@@ -11212,3 +11212,25 @@ mod frame_members {
         assert_eq!(editor.camera, expected);
     }
 }
+
+#[test]
+fn radians_keeping_stored_never_perturbs_an_unchanged_rotation() {
+    let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+    let mut drifted = 0;
+    for _ in 0..100_000 {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let stored = (state as f64 / u64::MAX as f64 - 0.5) * 20.0;
+        drifted += usize::from(stored.to_degrees().to_radians() != stored);
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, stored.to_degrees()).to_bits(),
+            stored.to_bits()
+        );
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, 12.5),
+            12.5_f64.to_radians()
+        );
+    }
+    assert!(drifted > 0, "the sample no longer exercises the drift");
+}
