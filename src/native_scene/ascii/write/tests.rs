@@ -1383,3 +1383,22 @@ fn assigned_session_materials_are_refused_before_ascii_output() {
         .unwrap();
     prefix(&scene).unwrap();
 }
+
+#[test]
+fn writer_output_is_not_yet_read_back_and_the_reader_names_the_mesh_statement() {
+    // Characterises the #321 blocker: the reader has no mesh support, so it refuses the
+    // writer's own output at `createNode mesh`. Flipped when the read-back gate lands.
+    let bytes = prefix(&scene(&["cube"])).unwrap();
+    let text = std::str::from_utf8(&bytes).unwrap();
+    let error = super::super::decode(Arc::from(bytes.clone())).unwrap_err();
+    assert_eq!(error.kind(), crate::maya_ascii::ErrorKind::Unsupported);
+    assert_eq!(error.offset(), text.find("createNode mesh"));
+    let transform_only = &bytes[..text.find("createNode mesh").unwrap()];
+    assert_eq!(
+        super::super::decode(Arc::from(transform_only.to_vec()))
+            .unwrap()
+            .nodes()
+            .len(),
+        1
+    );
+}
