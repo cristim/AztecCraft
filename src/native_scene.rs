@@ -1330,31 +1330,22 @@ impl NativeScene {
         self.validate()?;
         self.remove_validated(id)
     }
-    /// Removes every listed node after one preflight and one validation; a repeated id is removed
-    /// once. A sourced scene analyses the union once and is all or nothing. An authored scene
-    /// removes in order and returns the first refusal with earlier removals applied, so callers
-    /// run it on a candidate clone, as `History::execute` does.
+    /// Removes every listed node with its whole subtree after one preflight and one validation; a
+    /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
+    /// set is checked before anything changes, so a refusal leaves the scene as it was.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
         let mut seen = std::collections::HashSet::new();
-        let unique: Vec<_> = ids.iter().filter(|id| seen.insert(**id)).collect();
+        let unique: Vec<_> = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
         if unique.is_empty() {
             return Ok(());
         }
-        if self.source.is_none() {
-            return unique
-                .into_iter()
-                .try_for_each(|id| self.remove_validated(*id));
-        }
-        let mut gone = Vec::new();
-        for id in unique {
-            gone.extend(self.removal_set(*id)?);
-        }
+        let gone = self.removal_subtree(&unique)?;
         self.remove_set(gone)
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
-        let gone = self.removal_set(id)?;
+        let gone = self.removal_subtree(&[id])?;
         self.remove_set(gone)
     }
     fn remove_set(&mut self, mut gone: Vec<NativeId>) -> Result<(), NativeError> {
@@ -1366,52 +1357,81 @@ impl NativeScene {
         self.apply_removal(&gone);
         Ok(())
     }
-    /// The transform and exclusive shapes that deleting `id` takes with it, after the checks that
-    /// do not depend on the source bytes.
-    fn removal_set(&self, id: NodeId) -> Result<Vec<NativeId>, NativeError> {
-        let index = self
-            .nodes
-            .iter()
-            .position(|n| n.id == id)
-            .ok_or(SceneError::MissingNode(id))?;
-        let transform = self.nodes[index].transform_id;
-        let has_children = self.dag.iter().any(|edge| {
-            edge.parent == Some(transform)
-                && self
-                    .nodes
-                    .iter()
-                    .any(|node| node.transform_id == edge.child)
-        });
-        if has_children {
-            return Err(NativeError::UnsupportedDelete(
-                DeleteUnsupported::HasChildren,
-            ));
+    /// The identities that deleting `roots` takes with it: each root transform, every descendant
+    /// transform and every descendant shape whose parents all lie inside that subtree. A shape
+    /// that also hangs under a surviving transform stays and only loses the removed edges. A
+    /// descendant transform with an incoming edge from outside the subtree (a root edge counts as
+    /// outside) is refused. Checks that do not depend on the source bytes.
+    fn removal_subtree(&self, roots: &[NodeId]) -> Result<Vec<NativeId>, NativeError> {
+        use std::collections::{HashMap, HashSet};
+        let mut starts = Vec::with_capacity(roots.len());
+        for id in roots {
+            let node = self
+                .nodes
+                .iter()
+                .find(|n| n.id == *id)
+                .ok_or(SceneError::MissingNode(*id))?;
+            starts.push(node.transform_id);
         }
-        let incoming: Vec<_> = self
-            .dag
-            .iter()
-            .filter(|edge| edge.child == transform)
-            .collect();
-        if incoming.iter().any(|edge| edge.parent.is_some()) {
-            return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
+        let mut children: HashMap<NativeId, Vec<NativeId>> = HashMap::new();
+        let mut incoming: HashMap<NativeId, Vec<Option<NativeId>>> = HashMap::new();
+        for edge in &self.dag {
+            if let Some(parent) = edge.parent {
+                children.entry(parent).or_default().push(edge.child);
+            }
+            incoming.entry(edge.child).or_default().push(edge.parent);
         }
-        self.check_effects(transform)?;
-        let exclusive: Vec<_> = self
-            .dag
+        let edges = |id: &NativeId| incoming.get(id).map_or(&[][..], Vec::as_slice);
+        let mut reached = HashSet::new();
+        let mut below = HashSet::new();
+        let mut work = starts.clone();
+        while let Some(current) = work.pop() {
+            if !reached.insert(current) {
+                continue;
+            }
+            for child in children.get(&current).into_iter().flatten() {
+                below.insert(*child);
+                work.push(*child);
+            }
+        }
+        let transforms: HashSet<NativeId> = self.nodes.iter().map(|n| n.transform_id).collect();
+        let mut tops = starts;
+        tops.retain(|id| !below.contains(id));
+        tops.sort_unstable();
+        tops.dedup();
+        let inside: HashSet<NativeId> = reached
             .iter()
-            .filter(|edge| edge.parent == Some(transform))
-            .filter(|edge| {
-                self.dag
-                    .iter()
-                    .filter(|link| link.child == edge.child)
-                    .count()
-                    == 1
-            })
-            .map(|edge| edge.child)
+            .copied()
+            .filter(|id| transforms.contains(id))
             .collect();
-        let mut gone = vec![transform];
-        gone.extend(&exclusive);
-        if incoming.len() != 1
+        for id in &inside {
+            let outside = edges(id)
+                .iter()
+                .any(|parent| parent.is_none_or(|parent| !inside.contains(&parent)));
+            if outside && !tops.contains(id) {
+                return Err(NativeError::UnsupportedEdit);
+            }
+        }
+        for id in &reached {
+            let restricted = self.nodes.iter().any(|node| {
+                node.transform_id == *id
+                    && (!node.restrictions.is_empty() || !node.unsupported_transform.is_empty())
+            }) || self
+                .shapes
+                .iter()
+                .any(|shape| shape.id == *id && !shape.restrictions.is_empty());
+            if restricted {
+                return Err(NativeError::UnsupportedEdit);
+            }
+        }
+        let mut gone: Vec<NativeId> = inside.iter().copied().collect();
+        gone.extend(reached.iter().filter(|id| {
+            !transforms.contains(id)
+                && edges(id)
+                    .iter()
+                    .all(|parent| parent.is_some_and(|parent| inside.contains(&parent)))
+        }));
+        if tops.iter().any(|top| edges(top).len() != 1)
             || self
                 .source
                 .as_ref()
@@ -1419,6 +1439,7 @@ impl NativeScene {
         {
             return Err(NativeError::UnsupportedEdit);
         }
+        gone.sort_unstable();
         Ok(gone)
     }
     pub fn set_transform(
@@ -1736,22 +1757,15 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
     Ok(value)
 }
 
-/// Why Delete refuses a node whose hierarchy it cannot yet remove.
+/// Why Delete refuses a node of an opened file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeleteUnsupported {
-    HasChildren,
-    IsChild,
     Source(binary::RemovalRefusal),
 }
 impl fmt::Display for DeleteUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::HasChildren => "Deleting a node with children is not supported yet",
-            Self::IsChild => "Deleting a node that has a parent is not supported yet",
-            Self::Source(reason) => {
-                return write!(f, "Deleting this node is not supported yet: {reason}");
-            }
-        })
+        let Self::Source(reason) = self;
+        write!(f, "Deleting this node is not supported yet: {reason}")
     }
 }
 
@@ -1811,7 +1825,7 @@ impl fmt::Display for NativeError {
                 write!(f, "native mesh shape {} does not exist", id.to_decimal())
             }
             Self::InvalidInstancePath => {
-                f.write_str("face target does not match a valid full instance path")
+                f.write_str("target does not match a valid full instance path")
             }
             Self::UnsupportedLinearUnit => {
                 f.write_str("declared linear unit conversion is unsupported")

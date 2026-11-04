@@ -19,9 +19,10 @@ The size is session-only (no preferences store; it never dirties the scene or en
   Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
   within the radius; an enabled handle wins the overlap
   (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
-- An end-on Scale axis keeps its 5 px tip box next to the origin (about 1.4 px away in the test
-  camera), so it wins pixels just outside the 7 px centre box, out to about 16 px from the origin at
-  the 8 px radius. This pre-existing defect is tracked in #297.
+- A Scale axis whose tip lands inside the 7 px square centre box stays drawn but takes no hover
+  or press, so the ring just outside the centre box falls through to the other axes, a disabled
+  Scale plane (which consumes the click with its unsupported status) or the viewport (PROVISIONAL:
+  Maya's docs do not describe end-on axes).
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions
@@ -327,8 +328,8 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 
 - P1/P2: Select All selects every transform instance, nested children included, in scene order
   with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
-  scene therefore selects parent and children together, and Delete of that selection is refused
-  whole because a parent with children and a child each fail.
+  scene therefore selects parent and children together, and Delete of that selection removes each
+  subtree once.
 - P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
   Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
   `select_inverse_in_hierarchy_mode_swaps_roots_only`,
@@ -889,15 +890,16 @@ will carry no shading assignment. The invented items are the I rows of
 Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
 profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
 
-## Hierarchy delete is unsupported and its Maya semantics are provisional
+## Hierarchy delete: Maya semantics are provisional
 
 **Severity:** low
 **Area:** editor core
 **Issue:** cristim/AztecCraft#187
 
-Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
-Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
-found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+Delete removes a node with all its descendants, root or not, natively and over MCP; only a
+descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
+Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
+2026 page exists, and none states what a parent delete does to its children.
 
 ## Marquee drag feedback has PROVISIONAL edge cases
 
@@ -988,8 +990,6 @@ changes native behaviour and needs its own issue; the admission is an inline exp
 A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
 in the same frame returns before the view build, so the paint is skipped and the capture survives
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
-View build errors other than `ResourceLimit` leave `viewport_error`
-unchanged, tracked in #342.
 
 ## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
 
@@ -1033,10 +1033,13 @@ and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP
 (#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
-pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
-click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
-selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
-pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; Command
+counts as Ctrl. On macOS a hardware Ctrl-click reaches the app as an ordinary Ctrl-click
+(maintainer check, 2026-11-04: it removes a selected object in the viewport), while a secondary
+(right) click with Ctrl held is ignored; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native checks on 2026-11-04
+confirmed the viewport Shift, Ctrl and Command clicks, the Outliner Ctrl click and the lead
+colour; whether they match Maya stays PROVISIONAL. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
 whole set.
 
 ## Ambiguous selection is unreachable today
@@ -1099,12 +1102,16 @@ with Maya 2027.
 **Area:** native scene, Maya Binary save
 **Issue:** cristim/AztecCraft#272
 
-Delete removes a root transform and its exclusive shapes from an opened `.mb`, and Save writes
-the file without their records. Maya's acceptance of the pruned file is unproven (#5), so the
+Delete removes a transform, all its descendant transforms and their shapes (root or not) from an
+opened `.mb`, and Save writes the file without their records. A shape that hangs under a surviving
+transform stays. Maya's own handling of children on delete is not stated in the documentation
+(PROVISIONAL). Maya's acceptance of the pruned file is unproven (#5), so the
 behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
 reason except where noted:
 
-- A node with children or a parent, and any node of an opened ASCII scene.
+- Not an `unsupported_delete` reason: a descendant transform that also has a parent outside the
+  subtree returns `scene_error` (an opened `.mb` cannot produce one); so does any node of an
+  opened ASCII scene.
 - Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
   decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
   `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
@@ -1125,7 +1132,7 @@ reason except where noted:
   the shape: an unknown tag is refused by the rule above (tested for a record naming the shape
   of the deleted parent), and a selection, relation, connection or scanned text that names it is
   refused as a reference. Nothing more is claimed.
-- Another node parented under the transform; a selection, relation or connection that names a
+- A record that names a removed node as parent, such as a camera shape under a removed group; a selection, relation or connection that names a
   removed node (by `|` or `:` path component); per-face material links (group id and group colour),
   which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
   set members can be deleted today.

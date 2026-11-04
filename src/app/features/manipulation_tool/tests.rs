@@ -331,7 +331,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     let (mut editor, context, view) = setup(Key::R, 1.0);
     let origin = view.screen(Vec3::ZERO);
     press(&mut editor, &context, 1.0, origin);
-    assert_eq!(editor.status, "Uniform Scale");
+    assert_eq!(editor.status, "World Uniform Scale");
     moved(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
     let values = channels(&editor);
     near(values[6], 2.0, 1e-6);
@@ -2649,6 +2649,11 @@ fn a_view_build_error_clears_the_move_capture_for_every_tool() {
                 editor.move_viewport.is_none(),
                 "{name} polygon={polygon}: capture survived a view build error"
             );
+            assert_eq!(
+                editor.viewport_error,
+                Some(crate::viewport_renderer::ViewportError::SceneGeometry),
+                "{name} polygon={polygon}"
+            );
             assert!(
                 editor.inspect_manipulation().unwrap().viewport.is_none(),
                 "{name} polygon={polygon}"
@@ -2901,18 +2906,46 @@ fn an_edge_on_rotate_ring_reports_the_drag_refusal_before_the_scene_refusal() {
 
 // With the camera level (yaw 0, pitch 0) the offset-pivot scene's Object X ring is seen nearly
 // edge-on, and a press ray through its right-hand arc meets the ring plane behind the eye. The
-// pixel is on that arc in the 1.0-scale test window (at x 800 rows 471..478 are BehindRay,
-// between the edge-on row 470 and the ring's lower edge; 475 is at least 3 px inside); the hit-id
-// precondition fails loudly if the layout or camera moves it off the ring.
+// test scans a column of the real drag-begin for that run and presses its middle, so a layout or
+// projection change moves the pixel with it; the hit-id precondition keeps it on the ring.
 #[test]
 fn a_rotate_ring_plane_behind_the_eye_reports_the_drag_refusal() {
     let (mut editor, context, _) = offset_pivot_scene_for(ActiveTool::Rotate);
     editor.camera = camera_at(0.0, 0.0);
     idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let mut behind = Vec::new();
+    for row in 0..=900 {
+        let refused = azteccraft::manipulator_handles::RotateDrag::begin(
+            capture.clone(),
+            &frame,
+            RotateAxis::X,
+            glam::Vec2::new(800.0, row as f32),
+        )
+        .err()
+            == Some(azteccraft::move_handles::HandleError::BehindRay);
+        if refused {
+            moved(&mut editor, &context, 1.0, Pos2::new(800.0, row as f32));
+            let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+            if viewport.pointer_hit == Some("x") {
+                behind.push(row);
+            }
+        }
+    }
+    let first = *behind
+        .first()
+        .expect("no pointer on the x ring at x 800 meets the ring plane behind the eye");
+    let run = behind
+        .iter()
+        .zip(first..)
+        .take_while(|(row, expected)| **row == *expected)
+        .count();
+    let middle = first + run as i32 / 2;
     assert_drag_refusal_everywhere(
         &mut editor,
         &context,
-        Pos2::new(800.0, 475.0),
+        Pos2::new(800.0, middle as f32),
         "x",
         "Object X Rotate",
         "Rotate closest point lies behind the camera ray origin",

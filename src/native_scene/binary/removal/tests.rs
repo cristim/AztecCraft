@@ -520,13 +520,140 @@ fn a_file_of_only_listed_kinds_still_deletes() {
     assert_eq!(check(&extra), Ok(()));
 }
 
+pub(in crate::native_scene::binary) fn child_transform(name: &[u8], parent: &[u8]) -> Vec<u8> {
+    group(
+        b"XFRM",
+        &[creation(name, Some(parent)), triple(b"t", [1.0, 2.0, 3.0])].concat(),
+        4,
+    )
+}
+
+/// Group `g` (id 1) with child `c` (2) and its shape `cs` (3), then survivor `b` (4) and `bs` (5).
+pub(in crate::native_scene::binary) fn tree(extra: &[u8]) -> Arc<[u8]> {
+    scene(
+        &[
+            transform(b"g"),
+            child_transform(b"c", b"g"),
+            shape(b"cs", b"c"),
+            transform(b"b"),
+            shape(b"bs", b"b"),
+            extra.to_vec(),
+        ]
+        .concat(),
+    )
+}
+
+fn subtree(extra: &[u8], removed: &[u64]) -> Result<(), RemovalRefusal> {
+    removal(&tree(extra), &ids(removed))
+}
+
 #[test]
-fn a_removed_transform_that_has_a_parent_is_refused() {
-    let child = group(b"XFRM", &creation(b"c", Some(b"b")), 4);
-    let bytes = two_objects(&child);
+fn a_removed_transform_may_have_any_parent() {
+    assert_eq!(subtree(&[], &[1, 2, 3]), Ok(()));
+    assert_eq!(subtree(&[], &[3, 1, 2]), Ok(()));
+    // A child whose parent survives, and a shape-less child.
+    assert_eq!(subtree(&[], &[2, 3]), Ok(()));
+    let leaf = child_transform(b"leaf", b"b");
+    assert_eq!(removal(&two_objects(&leaf), &ids(&[5])), Ok(()));
+}
+
+#[test]
+fn a_removed_shape_without_a_parent_is_refused() {
+    let orphan = scene(&group(b"DMSH", &creation(b"s", None), 4));
     assert_eq!(
-        removal(&bytes, &ids(&[5])),
+        removal(&orphan, &ids(&[1])),
         Err(RemovalRefusal::ForeignChild)
+    );
+}
+
+#[test]
+fn a_survivor_naming_a_removed_node_as_parent_is_refused() {
+    for removed in [&[1][..], &[1, 2], &[2], &[1, 3]] {
+        assert_eq!(subtree(&[], removed), Err(RemovalRefusal::ForeignChild));
+    }
+    let camera = group(b"DCAM", &creation(b"cam", Some(b"c")), 4);
+    assert_eq!(
+        subtree(&camera, &[1, 2, 3]),
+        Err(RemovalRefusal::ForeignChild)
+    );
+}
+
+#[test]
+fn links_inside_a_removed_subtree_are_dropped_and_to_a_survivor_refused() {
+    for inside in [
+        link(0, "g.t", "c.t"),
+        link(0, "c.t", "cs.foo"),
+        link(0, "g.t", "cs.foo"),
+    ] {
+        assert_eq!(subtree(&connections(&[inside]), &[1, 2, 3]), Ok(()));
+    }
+    for outside in [link(0, "g.t", "b.t"), link(0, "b.t", "c.t")] {
+        assert_eq!(
+            subtree(&connections(&[outside]), &[1, 2, 3]),
+            Err(RemovalRefusal::NamedElsewhere)
+        );
+    }
+}
+
+#[test]
+fn a_non_root_removal_refuses_links_and_selections_naming_the_subtree() {
+    for extra in [
+        connections(&[link(0, "b.t", "c.t")]),
+        connections(&[link(0, "c.t", "g.t")]),
+        selection(b":c"),
+        selection(b":cs.f[1]"),
+    ] {
+        assert_eq!(
+            subtree(&extra, &[2, 3]),
+            Err(RemovalRefusal::NamedElsewhere)
+        );
+    }
+    assert_eq!(subtree(&selection(b":b"), &[2, 3]), Ok(()));
+}
+
+#[test]
+fn two_removed_shapes_of_one_set_are_dropped_together() {
+    let both = scene(
+        &[
+            transform(b"g"),
+            shape(b"s1", b"g"),
+            shape(b"s2", b"g"),
+            connections(&[
+                link(0, "s1.iog.og[0]", ":initialShadingGroup.dsm[0]"),
+                link(0, "s2.iog.og[0]", ":initialShadingGroup.dsm[1]"),
+            ]),
+        ]
+        .concat(),
+    );
+    assert_eq!(removal(&both, &ids(&[1, 2, 3])), Ok(()));
+    let unordered = scene(
+        &[
+            transform(b"g"),
+            shape(b"s1", b"g"),
+            shape(b"s2", b"g"),
+            connections(&[
+                link(1, "s1.iog", ":initialShadingGroup.dsm"),
+                link(1, "s2.iog", ":initialShadingGroup.dsm"),
+            ]),
+        ]
+        .concat(),
+    );
+    assert_eq!(removal(&unordered, &ids(&[1, 2, 3])), Ok(()));
+}
+
+#[test]
+fn a_removed_subtree_that_would_change_an_ancestor_padding_is_refused() {
+    let nested = |inner: Vec<u8>| group(b"DMTI", &group(b"CONS", &inner, 8), 4);
+    let chain = [
+        transform(b"g"),
+        child_transform(b"c", b"g"),
+        shape(b"cs", b"c"),
+    ]
+    .concat();
+    let bytes = scene(&nested(chain));
+    assert_eq!(
+        removal(&bytes, &ids(&[1, 2, 3])),
+        Err(RemovalRefusal::Alignment)
     );
 }
 
