@@ -520,7 +520,7 @@ fn a_file_of_only_listed_kinds_still_deletes() {
     assert_eq!(check(&extra), Ok(()));
 }
 
-fn child_transform(name: &[u8], parent: &[u8]) -> Vec<u8> {
+pub(in crate::native_scene::binary) fn child_transform(name: &[u8], parent: &[u8]) -> Vec<u8> {
     group(
         b"XFRM",
         &[creation(name, Some(parent)), triple(b"t", [1.0, 2.0, 3.0])].concat(),
@@ -529,7 +529,7 @@ fn child_transform(name: &[u8], parent: &[u8]) -> Vec<u8> {
 }
 
 /// Group `g` (id 1) with child `c` (2) and its shape `cs` (3), then survivor `b` (4) and `bs` (5).
-fn tree(extra: &[u8]) -> Arc<[u8]> {
+pub(in crate::native_scene::binary) fn tree(extra: &[u8]) -> Arc<[u8]> {
     scene(
         &[
             transform(b"g"),
