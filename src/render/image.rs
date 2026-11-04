@@ -1,5 +1,4 @@
 use glam::Vec3;
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -56,7 +55,10 @@ impl Image {
                 "samples must be greater than 0",
             ));
         }
-        let mut file = File::create(path)?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
         write!(file, "P6\n{} {}\n255\n", self.width, self.height)?;
 
         let mut buffer = Vec::with_capacity(self.pixels.len() * 3);
