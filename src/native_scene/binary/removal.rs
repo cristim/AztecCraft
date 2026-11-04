@@ -28,6 +28,10 @@ pub enum RemovalRefusal {
     NextAvailableIndex,
     /// A connection, relation or selection names a removed node in a way that is not droppable.
     NamedElsewhere,
+    /// A script or text value that stays in the file mentions a removed node.
+    TextReference,
+    /// The file's text is too large to check for such a mention within the work limit.
+    TextScanLimit,
     /// Removing the records would change the padding of an enclosing group.
     Alignment,
     /// The shape is the only user of a material.
@@ -46,6 +50,10 @@ impl fmt::Display for RemovalRefusal {
                 "A shape of this node is linked to a set by a next-available index"
             }
             Self::NamedElsewhere => "The file refers to this node by name from another record",
+            Self::TextReference => "A script or text value in the file mentions this node",
+            Self::TextScanLimit => {
+                "The file's text is too large to check for mentions of this node"
+            }
             Self::Alignment => "Removing this node would change the padding of its file group",
             Self::LastMaterialUser => "This node holds the only use of a material",
             Self::FirstMaterialUser => "Deleting this node would renumber the remaining materials",
@@ -248,7 +256,69 @@ pub(in crate::native_scene) fn check_removal(
             }
         }
     }
+    scan_text(&container, &chunks, &names, MAX_TEXT_WORK)?;
     check_alignment(&container, &chunks)
+}
+
+/// Bytes times names that [`scan_text`] may compare; more is refused rather than skipped.
+const MAX_TEXT_WORK: usize = 16 * 1024 * 1024;
+
+/// Whether `name` occurs in `text` with no identifier byte (`[A-Za-z0-9_]`) on either side.
+fn mentions(text: &[u8], name: &[u8]) -> bool {
+    let word = |byte: u8| byte.is_ascii_alphanumeric() || byte == b'_';
+    text.windows(name.len()).enumerate().any(|(at, window)| {
+        window == name
+            && (at == 0 || !word(text[at - 1]))
+            && text.get(at + name.len()).is_none_or(|byte| !word(*byte))
+    })
+}
+
+/// Refuses when a surviving `STR ` chunk or a leaf of a `SCRP` group mentions a removed name.
+/// Numeric payloads are never scanned. Work is charged as bytes times names against `limit`.
+fn scan_text(
+    container: &Container,
+    removed: &[usize],
+    names: &[&[u8]],
+    limit: usize,
+) -> Result<(), RemovalRefusal> {
+    if names.iter().any(|name| name.is_empty()) {
+        return Err(RemovalRefusal::Unreadable);
+    }
+    let dropped: Vec<Range<usize>> = removed
+        .iter()
+        .filter_map(|index| container.chunk(*index))
+        .map(|chunk| chunk.header_range().start..chunk.padding_range().end)
+        .collect();
+    let in_script = |mut parent: Option<usize>| {
+        while let Some(group) = parent.and_then(|index| container.chunk(index)) {
+            if group.form() == Some(*b"SCRP") {
+                return true;
+            }
+            parent = group.parent();
+        }
+        false
+    };
+    let mut work = 0usize;
+    for (index, chunk) in container.chunks().iter().enumerate() {
+        let start = chunk.header_range().start;
+        if chunk.form().is_some()
+            || (chunk.tag() != *b"STR " && !in_script(chunk.parent()))
+            || dropped.iter().any(|range| range.contains(&start))
+        {
+            continue;
+        }
+        let text = container.payload(index).ok_or(RemovalRefusal::Unreadable)?;
+        work = text
+            .len()
+            .checked_mul(names.len())
+            .and_then(|cost| work.checked_add(cost))
+            .filter(|work| *work <= limit)
+            .ok_or(RemovalRefusal::TextScanLimit)?;
+        if names.iter().any(|name| mentions(text, name)) {
+            return Err(RemovalRefusal::TextReference);
+        }
+    }
+    Ok(())
 }
 
 /// Every removed range must keep each enclosing group's padded size consistent: its length must be

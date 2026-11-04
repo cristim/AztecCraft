@@ -368,3 +368,71 @@ fn a_material_is_not_removed_with_its_only_or_first_user() {
     );
     assert_eq!(check_materials(pair, &[]), Ok(()));
 }
+
+fn text_chunk(value: &str) -> Vec<u8> {
+    chunk(
+        b"STR ",
+        &[&b"k\0\x20"[..], value.as_bytes(), &[0]].concat(),
+        4,
+    )
+}
+
+#[test]
+fn text_mentioning_a_removed_name_is_refused_on_identifier_boundaries() {
+    for value in ["see a.t", "a", ":a", "|a|as", "x,a;", "setAttr a.t 1"] {
+        assert_eq!(
+            check(&text_chunk(value)),
+            Err(RemovalRefusal::TextReference),
+            "{value}"
+        );
+    }
+    for value in ["xa", "a1", "a_b", "ba", "map1", ""] {
+        assert_eq!(check(&text_chunk(value)), Ok(()), "{value}");
+    }
+    let script = |value: &str| group(b"SCRP", &chunk(b"TEXT", value.as_bytes(), 8), 4);
+    assert_eq!(
+        check(&script("move a.t")),
+        Err(RemovalRefusal::TextReference)
+    );
+    assert_eq!(check(&script("move b.t")), Ok(()));
+}
+
+#[test]
+fn only_surviving_text_is_scanned_and_numeric_payloads_never() {
+    let note = chunk(b"STR ", b"k\0\x20a.t\0", 8);
+    let shape_with_text = group(
+        b"DMSH",
+        &[creation(b"as", Some(b"a")), note.clone()].concat(),
+        4,
+    );
+    let numeric = group(
+        b"XFRM",
+        &[creation(b"c", None), triple(b"a", [1.0; 3])].concat(),
+        4,
+    );
+    let bytes = scene(&[transform(b"a"), shape_with_text, numeric].concat());
+    assert_eq!(check_removal(&bytes, NativeId(1), &[NativeId(2)]), Ok(()));
+}
+
+#[test]
+fn the_production_text_limit_refuses_a_large_script_before_scanning_it() {
+    // Two removed names times this text exceed the limit, so the chunk is refused unread.
+    let big = text_chunk(&" ".repeat(MAX_TEXT_WORK / 2 + 16));
+    assert_eq!(check(&big), Err(RemovalRefusal::TextScanLimit));
+}
+
+#[test]
+fn text_work_beyond_the_limit_is_refused_not_skipped() {
+    let bytes = two_objects(&text_chunk("quite long unrelated text"));
+    let container = container::inspect(bytes).unwrap();
+    let names: [&[u8]; 2] = [b"a", b"as"];
+    assert_eq!(scan_text(&container, &[], &names, 1000), Ok(()));
+    assert_eq!(
+        scan_text(&container, &[], &names, 10),
+        Err(RemovalRefusal::TextScanLimit)
+    );
+    assert_eq!(
+        scan_text(&container, &[], &[b""], 1000),
+        Err(RemovalRefusal::Unreadable)
+    );
+}
