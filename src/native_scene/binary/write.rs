@@ -127,6 +127,9 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // `check_content_kind` refuses; without one `check_scene` rejects a non-empty table
         // as an invalid scene (tested), so nothing more is needed here.
         materials: _,
+        // Ids of deleted source nodes: recorded only in a sourced scene, which
+        // `check_content_kind` refuses.
+        removed: _,
         // Created, assigned or reassigned materials: the file has only the default pair, so
         // any difference from the default would be lost on reopen.
         session_materials,
