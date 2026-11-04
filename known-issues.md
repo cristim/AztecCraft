@@ -328,8 +328,8 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 
 - P1/P2: Select All selects every transform instance, nested children included, in scene order
   with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
-  scene therefore selects parent and children together, and Delete of that selection is refused
-  whole because a parent with children and a child each fail.
+  scene therefore selects parent and children together, and Delete of that selection removes each
+  subtree once.
 - P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
   Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
   `select_inverse_in_hierarchy_mode_swaps_roots_only`,
@@ -876,15 +876,16 @@ will carry no shading assignment. The invented items are the I rows of
 Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
 profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
 
-## Hierarchy delete is unsupported and its Maya semantics are provisional
+## Hierarchy delete: Maya semantics are provisional
 
 **Severity:** low
 **Area:** editor core
 **Issue:** cristim/AztecCraft#187
 
-Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
-Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
-found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+Delete removes a node with all its descendants, root or not, natively and over MCP; only a
+descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
+Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
+2026 page exists, and none states what a parent delete does to its children.
 
 ## Marquee drag feedback has PROVISIONAL edge cases
 
@@ -1059,12 +1060,16 @@ with Maya 2027.
 **Area:** native scene, Maya Binary save
 **Issue:** cristim/AztecCraft#272
 
-Delete removes a root transform and its exclusive shapes from an opened `.mb`, and Save writes
-the file without their records. Maya's acceptance of the pruned file is unproven (#5), so the
+Delete removes a transform, all its descendant transforms and their shapes (root or not) from an
+opened `.mb`, and Save writes the file without their records. A shape that hangs under a surviving
+transform stays. Maya's own handling of children on delete is not stated in the documentation
+(PROVISIONAL). Maya's acceptance of the pruned file is unproven (#5), so the
 behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
 reason except where noted:
 
-- A node with children or a parent, and any node of an opened ASCII scene.
+- Not an `unsupported_delete` reason: a descendant transform that also has a parent outside the
+  subtree returns `scene_error` (an opened `.mb` cannot produce one); so does any node of an
+  opened ASCII scene.
 - Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
   decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
   `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
@@ -1085,7 +1090,7 @@ reason except where noted:
   the shape: an unknown tag is refused by the rule above (tested for a record naming the shape
   of the deleted parent), and a selection, relation, connection or scanned text that names it is
   refused as a reference. Nothing more is claimed.
-- Another node parented under the transform; a selection, relation or connection that names a
+- A record that names a removed node as parent, such as a camera shape under a removed group; a selection, relation or connection that names a
   removed node (by `|` or `:` path component); per-face material links (group id and group colour),
   which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
   set members can be deleted today.
