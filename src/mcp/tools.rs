@@ -34,6 +34,23 @@ impl EditorServer {
     }
 }
 
+/// The code of a manipulation error; a refused member of a multi-object Move has the code of its
+/// cause, so the same refusal reads the same for one object and for several.
+fn manipulation_code(error: &ManipulationError) -> &'static str {
+    match error {
+        ManipulationError::StaleScene => "stale_scene",
+        ManipulationError::StaleManipulation => "stale_manipulation",
+        ManipulationError::WrongOwner => "manipulation_owner",
+        ManipulationError::Busy => "busy_manipulation",
+        ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => "absent_channel_leaf",
+        ManipulationError::Member { source, .. } => match source.as_ref() {
+            NativeError::AbsentChannelLeaf { .. } => "absent_channel_leaf",
+            _ => "manipulation_error",
+        },
+        _ => "manipulation_error",
+    }
+}
+
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
         json!({ "error": { "code": code, "message": message.to_string() } }),
@@ -57,16 +74,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
             let code = match &error {
                 OperationError::BusyEditing => "busy_editing",
                 OperationError::BusyManipulation => "busy_manipulation",
-                OperationError::Move(error) => match error {
-                    ManipulationError::StaleScene => "stale_scene",
-                    ManipulationError::StaleManipulation => "stale_manipulation",
-                    ManipulationError::WrongOwner => "manipulation_owner",
-                    ManipulationError::Busy => "busy_manipulation",
-                    ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => {
-                        "absent_channel_leaf"
-                    }
-                    _ => "manipulation_error",
-                },
+                OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
                 OperationError::SessionMaterial(error) => match error {
