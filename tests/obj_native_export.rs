@@ -159,3 +159,25 @@ fn occupied_destination_and_empty_selection_write_nothing() {
     ));
     assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
 }
+
+#[test]
+fn an_instance_without_faces_is_refused_and_writes_nothing() {
+    let mut legacy = azteccraft::scene::Scene::default();
+    legacy.create(Primitive::Cube, "hollow").unwrap();
+    let mut json = serde_json::to_value(&legacy).unwrap();
+    let mesh = &mut json["nodes"][0]["mesh"];
+    mesh["vertices"] = serde_json::json!([]);
+    mesh["faces"] = serde_json::json!([]);
+    let hollow: azteccraft::scene::Scene = serde_json::from_value(json).unwrap();
+    let scene = NativeScene::from_legacy(hollow).unwrap();
+    let view = ViewScene::from_native(&scene, BUDGET).unwrap();
+    assert_eq!(view.instances().len(), 1);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("hollow.obj");
+    assert!(matches!(
+        export_native_new(&path, &scene, &all(&view)),
+        Err(ObjError::NothingToExport)
+    ));
+    assert!(!path.exists());
+    assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+}

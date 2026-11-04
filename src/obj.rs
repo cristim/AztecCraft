@@ -99,6 +99,9 @@ pub fn export_native_new(
             .ok_or(ObjError::TooLarge)?;
         objects.push((name, points, *instance, mirrored));
     }
+    if summary.faces == 0 {
+        return Err(ObjError::NothingToExport);
+    }
     refuse_occupied(path)?;
     craft_atomic::write_new_with(path, |file| {
         let mut writer = BufWriter::new(file);
