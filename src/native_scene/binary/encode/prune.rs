@@ -14,7 +14,7 @@ use crate::native_scene::{
         admission::Budget,
         decode_with_retained_bytes,
         removal::assert_pruned,
-        removal::{check_dropped, check_removal},
+        removal::{PruneRange, check_dropped, check_removal},
         resource,
     },
     source::SourceRetention,
@@ -26,12 +26,25 @@ pub(super) fn prune(
     scene: &NativeScene,
     source: &SourceRetention,
     output: &[u8],
-    remap: &IdRemap,
-    names: &[String],
-    (retained, retained_appearance): (usize, usize),
+    proof: (&IdRemap, &[String]),
+    retained: (usize, usize),
     budget: &mut Budget,
 ) -> Result<Vec<u8>, BinaryError> {
     let ranges = check_removal(&source.bytes, &scene.removed).map_err(|_| unsupported())?;
+    write_pruned(scene, source, output, &ranges, proof, retained, budget)
+}
+
+/// Drops `ranges` from `output` and proves the result; the ranges are checked again against the
+/// original, not trusted, so a wrong analysis cannot reach the destination.
+fn write_pruned(
+    scene: &NativeScene,
+    source: &SourceRetention,
+    output: &[u8],
+    ranges: &[PruneRange],
+    (remap, names): (&IdRemap, &[String]),
+    (retained, retained_appearance): (usize, usize),
+    budget: &mut Budget,
+) -> Result<Vec<u8>, BinaryError> {
     let mut edits = budget.vector::<Edit>(ranges.len())?;
     edits.extend(ranges.iter().map(|prune| Edit {
         at: prune.range.start,
@@ -61,7 +74,7 @@ pub(super) fn prune(
     budget.charge(pruned.len())?;
     let names: Vec<&[u8]> = names.iter().map(String::as_bytes).collect();
     let written: Arc<[u8]> = Arc::from(pruned.as_slice());
-    check_dropped(&source.bytes, &scene.removed, &ranges, &written).map_err(|_| unsupported())?;
+    check_dropped(&source.bytes, &scene.removed, ranges, &written).map_err(|_| unsupported())?;
     assert_pruned(&written, &names).map_err(|_| unsupported())?;
     Ok(pruned)
 }

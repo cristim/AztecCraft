@@ -274,8 +274,7 @@ fn encode_with(
             scene,
             source,
             &output,
-            &remap,
-            &names,
+            (&remap, &names),
             (retained, retained_appearance),
             &mut budget,
         );

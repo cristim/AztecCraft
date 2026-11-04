@@ -1,17 +1,21 @@
+use super::write_pruned;
 use crate::native_scene::{
     Channel, NativeError, NativeId,
     binary::{
+        ErrorKind,
+        admission::Budget,
         decode, encode,
         removal::{
-            RemovalRefusal, assert_pruned,
+            PruneRange, RemovalRefusal, assert_pruned, check_removal,
             tests::{connections, link, shape, transform, two_objects},
         },
         tests::{
             appearance_fixture,
             site_fixture::{SITE_AUX, other_node_with_triple, sited_transform, triple_aux},
-            wire_fixture::{creation, group, scene, triple},
+            wire_fixture::{chunk, creation, group, scene, triple},
         },
     },
+    source_removal::IdRemap,
 };
 use std::sync::Arc;
 
@@ -126,4 +130,107 @@ fn a_prune_that_leaves_a_reference_would_be_caught_on_the_written_bytes() {
         assert_pruned(&Arc::from(saved.as_slice()), &kept),
         Err(RemovalRefusal::NamedElsewhere)
     );
+}
+
+/// Removes `a` and its shape from `bytes`, lets `adjust` doctor the ranges the analysis chose on
+/// `analysed` (a file whose groups before the doctored part sit at the same offsets), and writes them.
+fn write_doctored(
+    bytes: &Arc<[u8]>,
+    analysed: &Arc<[u8]>,
+    adjust: impl FnOnce(&mut Vec<PruneRange>, &crate::maya_binary::container::Container),
+) -> Result<Vec<u8>, crate::native_scene::binary::BinaryError> {
+    let original = decode(bytes.clone()).unwrap();
+    let mut opened = original.clone();
+    opened.apply_removal(&[NativeId(1), NativeId(2)]);
+    let mut ranges = check_removal(analysed, &opened.removed).unwrap();
+    let container = crate::maya_binary::container::inspect(bytes.clone()).unwrap();
+    adjust(&mut ranges, &container);
+    ranges.sort_by_key(|prune| prune.range.start);
+    let source = opened.source.as_ref().unwrap();
+    let remap = IdRemap::new(&opened.removed, &original);
+    let names = ["a".to_string(), "as".to_string()];
+    let mut budget = Budget::new(source.bytes.len() * 4).unwrap();
+    write_pruned(
+        &opened,
+        source,
+        bytes,
+        &ranges,
+        (&remap, &names),
+        (0, 0),
+        &mut budget,
+    )
+}
+
+/// A range for the `CWFL` whose payload starts with `prefix`, sharing the ancestors of `sibling`.
+fn link_range(
+    container: &crate::maya_binary::container::Container,
+    bytes: &[u8],
+    prefix: &[u8],
+    sibling: &PruneRange,
+) -> PruneRange {
+    let chunk = container
+        .chunks()
+        .iter()
+        .find(|c| c.tag() == *b"CWFL" && bytes[c.payload_range()].starts_with(prefix))
+        .unwrap();
+    PruneRange {
+        range: chunk.header_range().start..chunk.padding_range().end,
+        ancestors: sibling.ancestors.clone(),
+    }
+}
+
+#[test]
+fn an_over_wide_range_never_yields_bytes() {
+    let kept = link(0, ":time1.o", ":x.i");
+    let own = link(0, "as.iog.og[0]", &format!("{SET}.dsm[0]"));
+    let bytes = two_objects(&connections(&[own, kept]));
+    let written = write_doctored(&bytes, &bytes, |ranges, container| {
+        let wide = link_range(container, &bytes, b"\0:time1", ranges.last().unwrap());
+        ranges.push(wide);
+    });
+    assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
+}
+
+#[test]
+fn a_range_that_ends_beyond_the_removed_group_is_refused() {
+    let junk = group(b"DPLM", &chunk(b"TEXT", b"x", 8), 4);
+    let bytes = scene(
+        &[
+            transform(b"a"),
+            shape(b"as", b"a"),
+            junk,
+            transform(b"b"),
+            shape(b"bs", b"b"),
+        ]
+        .concat(),
+    );
+    let written = write_doctored(&bytes, &bytes, |ranges, container| {
+        // The shape's group plus the group after it, which has no record and is not removed.
+        let shape_range = ranges.pop().unwrap();
+        let next = container
+            .chunks()
+            .iter()
+            .find(|c| c.header_range().start == shape_range.range.end)
+            .unwrap();
+        ranges.push(PruneRange {
+            range: shape_range.range.start..next.padding_range().end,
+            ancestors: shape_range.ancestors,
+        });
+    });
+    assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
+}
+
+#[test]
+fn a_link_whose_node_only_shares_a_namespace_prefix_is_not_a_removed_link() {
+    let own = link(0, "as.iog.og[0]", &format!("{SET}.dsm[0]"));
+    let prefixed = link(0, "ns:a.msg", ":y.z");
+    let other = group(b"SHAD", &creation(b"ns:a", None), 4);
+    let file = |links: &[Vec<u8>]| two_objects(&[other.clone(), connections(links)].concat());
+    // The removal analysis refuses the prefixed link, so it runs on the file without it.
+    let (bytes, clean) = (file(&[own.clone(), prefixed]), file(&[own]));
+    let written = write_doctored(&bytes, &clean, |ranges, container| {
+        let wide = link_range(container, &bytes, b"\0ns:a", ranges.last().unwrap());
+        ranges.push(wide);
+    });
+    assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
 }

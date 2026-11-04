@@ -467,6 +467,12 @@ fn a_range_that_is_not_part_of_the_removed_nodes_is_not_accepted() {
         check_dropped(&bytes, &ids(&[1, 2]), &both, &bytes),
         Err(RemovalRefusal::UnexpectedDrop)
     );
+    // Bytes that really lack both the node and the unrelated link: only the range check refuses.
+    let lacking = scene(&[transform(b"b"), shape(b"bs", b"b")].concat());
+    assert_eq!(
+        check_dropped(&bytes, &ids(&[1, 2]), &both, &lacking),
+        Err(RemovalRefusal::UnexpectedDrop)
+    );
     // The right ranges with bytes that kept every record: the count disagrees.
     assert_eq!(
         check_dropped(&bytes, &ids(&[1, 2]), &ranges, &bytes),
