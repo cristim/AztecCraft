@@ -550,6 +550,9 @@ pub struct SceneInspection {
     /// Selected object instances in selection order; the last is the lead.
     pub selection: Vec<SelectionMemberInspection>,
     pub selection_count: usize,
+    /// Changes whenever the selected members or their order change, so a client can tell that the
+    /// selection it inspected has since been edited.
+    pub selection_generation: u64,
     pub selection_mode: SelectionMode,
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
@@ -1014,7 +1017,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     min_appearance_summary!(),
     r#","#,
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
-    r#""selection_count":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
+    r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
