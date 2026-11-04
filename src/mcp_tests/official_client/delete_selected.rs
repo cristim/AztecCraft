@@ -161,7 +161,8 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
     .await;
     let token = editor.scene_token.to_string();
     let paths = editor.history.scene().transform_paths().unwrap();
-    editor.set_selection_members_for_test(paths.clone());
+    let child = paths[1..2].to_vec();
+    editor.set_selection_members_for_test(child.clone());
     editor.sync_fields();
     frame(&mut editor, &context, vec![]);
     let scene = editor.history.scene().clone();
@@ -170,7 +171,7 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
         &context,
         client.peer(),
         "delete_node",
-        json!({"scene_token":token,"node_id":paths[0].node.to_decimal()}),
+        json!({"scene_token":token,"node_id":paths[1].node.to_decimal()}),
     )
     .await
     .structured_content
@@ -179,7 +180,7 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
     assert_eq!(many["error"], single["error"]);
     assert_eq!(many["error"]["code"], "unsupported_delete");
     assert_eq!(editor.history.scene(), &scene);
-    assert_eq!(editor.selection.members(), paths);
+    assert_eq!(editor.selection.members(), child);
     assert!(!editor.history.can_undo());
     client.cancel().await.unwrap();
     drop(editor);

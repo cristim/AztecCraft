@@ -579,7 +579,7 @@ fn shared_shape_extrusion_changes_one_owner_and_checks_the_other_instance() {
 }
 
 #[test]
-fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrites() {
+fn root_removal_preserves_shared_shapes_and_refuses_a_lone_child_or_source_rewrites() {
     let (mut scene, first, second, shape) = shared_shape();
     let preserved = scene.shape(shape).unwrap().clone();
     scene.remove(first).unwrap();
@@ -593,16 +593,13 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
     let (mut scene, root, child, _) = grouped_shape();
     let before = scene.clone();
     assert_eq!(
-        scene.remove(root),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
-    );
-    assert_eq!(
         scene.remove(child),
         Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
     );
     assert_eq!(scene, before);
+    scene.remove(root).unwrap();
+    assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
+    scene.validate().unwrap();
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
     let before = scene.clone();
@@ -625,14 +622,12 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
 }
 
 #[test]
-fn middle_node_with_parent_and_children_is_refused_as_has_children() {
+fn middle_node_with_a_parent_is_refused_as_a_child() {
     let (mut scene, _, mid, _) = chain_of_three();
     let before = scene.clone();
     assert_eq!(
         scene.remove(mid),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
     );
     assert_eq!(scene, before);
 }
@@ -1257,7 +1252,7 @@ fn root_transform_resolves_the_top_of_any_valid_path_and_refuses_others() {
 }
 
 #[test]
-fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
+fn a_restricted_descendant_refuses_the_subtree_delete_and_a_child_is_still_a_child() {
     for restricted in [0, 1] {
         let (mut scene, root, child, _) = grouped_shape();
         let at = scene
@@ -1269,12 +1264,7 @@ fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
             .unsupported_transform
             .push("unproved effect".into());
         let before = scene.clone();
-        assert_eq!(
-            scene.remove(root),
-            Err(NativeError::UnsupportedDelete(
-                DeleteUnsupported::HasChildren
-            ))
-        );
+        assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
         assert_eq!(
             scene.remove(child),
             Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
@@ -1441,18 +1431,24 @@ fn remove_many_deduplicates_repeated_ids_and_accepts_an_empty_list() {
 }
 
 #[test]
-fn remove_many_keeps_the_per_node_refusals_and_names_the_first_one() {
-    let (mut scene, root, child, _) = grouped_shape();
+fn remove_many_takes_a_group_once_in_either_order_and_names_a_lone_child() {
+    let (scene, root, child, _) = grouped_shape();
+    for order in [
+        vec![root, child],
+        vec![child, root],
+        vec![child, root, child],
+    ] {
+        let mut both = scene.clone();
+        both.remove_many(&order).unwrap();
+        assert!(both.nodes.is_empty() && both.shapes.is_empty() && both.dag.is_empty());
+        both.validate().unwrap();
+    }
+    let mut lone = scene.clone();
     assert_eq!(
-        scene.remove_many(&[root, child]),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
-    );
-    assert_eq!(
-        scene.remove_many(&[child, root]),
+        lone.remove_many(&[child]),
         Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
     );
+    assert_eq!(lone, scene);
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
     assert_eq!(scene.remove_many(&[id]), Err(NativeError::ReadOnlyFormat));

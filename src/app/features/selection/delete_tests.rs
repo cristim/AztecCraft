@@ -114,10 +114,10 @@ fn delete_selection_in_component_modes_is_refused_and_keeps_state() {
 fn delete_selection_refusals_match_single_delete_and_keep_state() {
     let mut editor = deep_group_editor();
     let all = editor.history.scene().transform_paths().unwrap();
-    editor.set_selection_members_for_test(all.clone());
+    editor.set_selection_members_for_test(all[1..2].to_vec());
     editor.sync_fields();
     let before = baseline(&editor);
-    let single = editor.apply_operation(Operation::Delete(all[0].node));
+    let single = editor.apply_operation(Operation::Delete(all[1].node));
     let many = editor.apply_operation(Operation::DeleteSelection);
     assert!(single.is_err());
     assert_eq!(format!("{single:?}"), format!("{many:?}"));

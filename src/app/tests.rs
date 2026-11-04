@@ -6576,7 +6576,7 @@ fn hierarchy_click_in_a_three_level_chain_selects_the_root_not_the_parent() {
 }
 
 #[test]
-fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
+fn delete_of_a_child_is_a_typed_error_without_mutation_in_hierarchy_mode() {
     let mut editor = group_editor();
     let root = editor.history.scene().transform_paths().unwrap()[0].node;
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
@@ -6598,29 +6598,25 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         )
     };
     let baseline = state(&editor);
-    for (node, message) in [
-        (root, "Deleting a node with children is not supported yet"),
-        (
-            child,
-            "Deleting a node that has a parent is not supported yet",
-        ),
-    ] {
-        let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
-        assert!(matches!(
-            error,
-            OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
-        ));
-        assert_eq!(error.to_string(), message);
-        editor.native_operation(Operation::Delete(node));
-        assert_eq!(editor.status, message);
-        assert!(editor.error);
-        assert_eq!(
-            state(&editor),
-            baseline,
-            "selection, history and dirty flag"
-        );
-        assert_eq!(editor.history.scene(), &scene);
-    }
+    let (node, message) = (
+        child,
+        "Deleting a node that has a parent is not supported yet",
+    );
+    let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
+    assert!(matches!(
+        error,
+        OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
+    ));
+    assert_eq!(error.to_string(), message);
+    editor.native_operation(Operation::Delete(node));
+    assert_eq!(editor.status, message);
+    assert!(editor.error);
+    assert_eq!(
+        state(&editor),
+        baseline,
+        "selection, history and dirty flag"
+    );
+    assert_eq!(editor.history.scene(), &scene);
 }
 
 #[test]
