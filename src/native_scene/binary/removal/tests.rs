@@ -399,6 +399,30 @@ fn text_mentioning_a_removed_name_is_refused_on_identifier_boundaries() {
     assert_eq!(check(&script("move b.t")), Ok(()));
 }
 
+fn unrecognised_link(payload: &[u8]) -> Vec<u8> {
+    chunk(b"PRNT", payload, 8)
+}
+
+#[test]
+fn an_unrecognised_connection_leaf_naming_a_removed_node_is_refused() {
+    for payload in [&b"\0as\0b\0"[..], b"b\0a.t\0"] {
+        let links = connections(&[unrecognised_link(payload)]);
+        assert_eq!(
+            check(&links),
+            Err(RemovalRefusal::UnrecognisedConnection),
+            "{payload:?}"
+        );
+    }
+}
+
+#[test]
+fn an_unrecognised_connection_leaf_naming_only_survivors_is_kept() {
+    let links = connections(&[unrecognised_link(b"\0bs\0b\0"), link(0, "a.t", "x.t")]);
+    assert_eq!(check(&links), Err(RemovalRefusal::NamedElsewhere));
+    let links = connections(&[unrecognised_link(b"\0bs\0b\0")]);
+    assert_eq!(check(&links), Ok(()));
+}
+
 #[test]
 fn only_surviving_text_is_scanned_and_numeric_payloads_never() {
     let note = chunk(b"STR ", b"k\0\x20a.t\0", 8);

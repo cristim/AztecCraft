@@ -123,6 +123,20 @@ fn the_pruned_bytes_are_checked_for_any_surviving_reference() {
 }
 
 #[test]
+fn the_pruned_bytes_are_checked_for_an_unrecognised_connection_leaf() {
+    let leaf = chunk(b"PRNT", b"\0as\0b\0", 8);
+    let survivors = [transform(b"b"), shape(b"bs", b"b"), connections(&[leaf])];
+    let bytes = scene(&survivors.concat());
+    let names: [&[u8]; 2] = [b"a", b"as"];
+    assert_eq!(
+        assert_pruned(&bytes, &names),
+        Err(RemovalRefusal::UnrecognisedConnection)
+    );
+    let kept: [&[u8]; 1] = [b"zz"];
+    assert_eq!(assert_pruned(&bytes, &kept), Ok(()));
+}
+
+#[test]
 fn a_prune_that_leaves_a_reference_would_be_caught_on_the_written_bytes() {
     let saved = save_without(two_objects(&[]), "a");
     let kept: [&[u8]; 1] = [b"b"];

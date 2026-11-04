@@ -30,6 +30,8 @@ pub enum RemovalRefusal {
     NamedElsewhere,
     /// A script or text value that stays in the file mentions a removed node.
     TextReference,
+    /// An unrecognised leaf of the connection list mentions a removed node.
+    UnrecognisedConnection,
     /// The file's text is too large to check for such a mention within the work limit.
     TextScanLimit,
     /// The prune would drop a record that does not belong to the removed nodes.
@@ -57,6 +59,9 @@ impl fmt::Display for RemovalRefusal {
             }
             Self::NamedElsewhere => "The file refers to this node by name from another record",
             Self::TextReference => "A script or text value in the file mentions this node",
+            Self::UnrecognisedConnection => {
+                "An unrecognised connection record in the file mentions this node"
+            }
             Self::TextScanLimit => {
                 "The file's text is too large to check for mentions of this node"
             }
@@ -286,8 +291,10 @@ fn mentions(text: &[u8], name: &[u8]) -> bool {
     })
 }
 
-/// Refuses when a surviving `STR ` chunk or a leaf of a `SCRP` group mentions a removed name.
-/// Numeric payloads and the leaves of other unbound groups are not scanned (PROVISIONAL). Work is charged as bytes times names against `limit`.
+/// Refuses when a surviving `STR ` chunk, a leaf of a `SCRP` group or a leaf of the `CONN` list
+/// that the opener does not decode mentions a removed name. Numeric payloads and the leaves of
+/// other unbound groups are not scanned (PROVISIONAL). Work is charged as bytes times names
+/// against `limit`.
 fn scan_text(
     container: &Container,
     removed: &[usize],
@@ -311,11 +318,18 @@ fn scan_text(
         }
         false
     };
+    let in_connections = |parent: Option<usize>| {
+        parent
+            .and_then(|index| container.chunk(index))
+            .is_some_and(|group| group.form() == Some(*b"CONN"))
+    };
     let mut work = 0usize;
     for (index, chunk) in container.chunks().iter().enumerate() {
         let start = chunk.header_range().start;
+        let text_leaf = chunk.tag() == *b"STR " || in_script(chunk.parent());
+        let skipped_link = !semantic::recognized(chunk.tag()) && in_connections(chunk.parent());
         if chunk.form().is_some()
-            || (chunk.tag() != *b"STR " && !in_script(chunk.parent()))
+            || !(text_leaf || skipped_link)
             || dropped.iter().any(|range| range.contains(&start))
         {
             continue;
@@ -328,7 +342,11 @@ fn scan_text(
             .filter(|work| *work <= limit)
             .ok_or(RemovalRefusal::TextScanLimit)?;
         if names.iter().any(|name| mentions(text, name)) {
-            return Err(RemovalRefusal::TextReference);
+            return Err(if text_leaf {
+                RemovalRefusal::TextReference
+            } else {
+                RemovalRefusal::UnrecognisedConnection
+            });
         }
     }
     Ok(())
@@ -437,7 +455,8 @@ pub(super) fn check_dropped(
 }
 
 /// The pruned file must not name a removed node anywhere a record can: a surviving creation,
-/// selection, relation or connection that does is a bug in the prune, not a user error.
+/// selection, relation, connection, text leaf or unrecognised connection leaf that does is a bug
+/// in the prune, not a user error.
 pub(super) fn assert_pruned(bytes: &Arc<[u8]>, names: &[&[u8]]) -> Result<(), RemovalRefusal> {
     let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
     let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
@@ -457,7 +476,7 @@ pub(super) fn assert_pruned(bytes: &Arc<[u8]>, names: &[&[u8]]) -> Result<(), Re
     if found {
         return Err(RemovalRefusal::NamedElsewhere);
     }
-    Ok(())
+    scan_text(&container, &[], names, MAX_TEXT_WORK)
 }
 
 /// A removed shape must not be the only user of a material, and must not be the first user of one
