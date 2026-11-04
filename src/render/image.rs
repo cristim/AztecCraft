@@ -6,7 +6,10 @@ use std::path::Path;
 pub enum RenderError {
     InvalidDimensions,
     ZeroSamples,
+    InvalidDepth,
+    InvalidCameraInput,
     ResourceLimit,
+    InvalidPixelCount,
 }
 
 impl std::fmt::Display for RenderError {
@@ -14,7 +17,12 @@ impl std::fmt::Display for RenderError {
         match self {
             Self::InvalidDimensions => f.write_str("width and height must be greater than 0"),
             Self::ZeroSamples => f.write_str("samples must be greater than 0"),
+            Self::InvalidDepth => f.write_str("max depth must be between 1 and 16"),
+            Self::InvalidCameraInput => {
+                f.write_str("camera projection is invalid for this aspect ratio")
+            }
             Self::ResourceLimit => f.write_str("image dimensions exceed resource limit"),
+            Self::InvalidPixelCount => f.write_str("pixel buffer size does not match dimensions"),
         }
     }
 }
@@ -34,14 +42,24 @@ impl Image {
         let size = (width as usize)
             .checked_mul(height as usize)
             .ok_or(RenderError::ResourceLimit)?;
+
+        let mut pixels = Vec::new();
+        pixels
+            .try_reserve_exact(size)
+            .map_err(|_| RenderError::ResourceLimit)?;
+        pixels.resize(size, Vec3::ZERO);
+
         Ok(Self {
             width,
             height,
-            pixels: vec![Vec3::ZERO; size],
+            pixels,
         })
     }
 
     pub fn add_sample(&mut self, x: u32, y: u32, color: Vec3) {
+        if x >= self.width || y >= self.height {
+            return; // Ignore out-of-bounds instead of panicking
+        }
         let index = (y as usize) * (self.width as usize) + (x as usize);
         if let Some(pixel) = self.pixels.get_mut(index) {
             *pixel += color;
@@ -55,10 +73,21 @@ impl Image {
                 "samples must be greater than 0",
             ));
         }
+
+        // Validate that the pixel buffer matches the dimensions
+        let expected_size = (self.width as usize) * (self.height as usize);
+        if self.pixels.len() != expected_size {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "pixel buffer size does not match width * height",
+            ));
+        }
+
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(path)?;
+
         write!(file, "P6\n{} {}\n255\n", self.width, self.height)?;
 
         let mut buffer = Vec::with_capacity(self.pixels.len() * 3);

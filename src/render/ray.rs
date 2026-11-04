@@ -14,8 +14,7 @@ fn ray_triangle(ray: &Ray, v0: Vec3, v1: Vec3, v2: Vec3) -> Option<f32> {
     let h = ray.direction.cross(edge2);
     let a = edge1.dot(h);
 
-    // Relative epsilon based on the size of the triangle for robustness in f32
-    let eps = 1e-8 * edge1.length().max(edge2.length()).max(1e-6);
+    let eps = 1e-8;
     if a > -eps && a < eps {
         return None;
     }
@@ -66,9 +65,16 @@ pub fn intersect(scene: &ViewScene, ray: &Ray) -> Option<Hit> {
                     && t < closest_t
                 {
                     closest_t = t;
+                    let point = ray.origin + ray.direction * t;
+
+                    let mut normal = instance.world_normal(face);
+                    if normal.length_squared() < 1e-12 {
+                        normal = (v1 - v0).cross(v2 - v0).normalize_or_zero();
+                    }
+
                     result = Some(Hit {
-                        point: ray.origin + ray.direction * t,
-                        normal: instance.world_normal(face),
+                        point,
+                        normal,
                         albedo,
                     });
                 }

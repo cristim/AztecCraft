@@ -35,45 +35,51 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
     if let Some(hit) = intersect(scene, ray) {
         let mut color = Vec3::ZERO;
 
-        // 1. Correct the normal to always point against the ray
         let normal = if hit.normal.dot(ray.direction) < 0.0 {
             hit.normal
         } else {
             -hit.normal
         };
 
-        // 2. Direct Lighting (with attenuation and normalization)
+        // 1. Direct Lighting
         let light_pos = Vec3::new(3.0, 5.0, 3.0);
         let light_color = Vec3::new(1.0, 1.0, 1.0);
         let to_light = light_pos - hit.point;
         let distance_sq = to_light.length_squared();
-        let light_dir = to_light / distance_sq.sqrt();
 
-        let shadow_ray = super::ray::Ray {
-            origin: hit.point + normal * 0.001,
-            direction: light_dir,
-        };
-        let in_shadow = if let Some(shadow_hit) = intersect(scene, &shadow_ray) {
-            (shadow_hit.point - hit.point).length_squared() < distance_sq
-        } else {
-            false
-        };
+        // Protection against division by zero (if the light is exactly at the hit point)
+        if distance_sq > 1e-8 {
+            let light_dir = to_light / distance_sq.sqrt();
 
-        if !in_shadow {
-            // Lambertian reflectance: L = (albedo / pi) * (N . L) * (1 / d^2)
-            let lambert = normal.dot(light_dir).max(0.0) / std::f32::consts::PI;
-            let attenuation = 1.0 / distance_sq;
-            color += hit.albedo * light_color * lambert * attenuation;
+            // Offset scale factor based on the distance from the origin to the hit point
+            let offset = normal * hit.point.length().max(1.0) * 1e-4;
+
+            let shadow_ray = super::ray::Ray {
+                origin: hit.point + offset,
+                direction: light_dir,
+            };
+            let in_shadow = if let Some(shadow_hit) = intersect(scene, &shadow_ray) {
+                (shadow_hit.point - hit.point).length_squared() < distance_sq
+            } else {
+                false
+            };
+
+            if !in_shadow {
+                let lambert = normal.dot(light_dir).max(0.0) / std::f32::consts::PI;
+                let attenuation = 1.0 / distance_sq;
+                color += hit.albedo * light_color * lambert * attenuation;
+            }
         }
 
-        // 3. Indirect Lighting (Cosine-weighted Sampling)
-        let mut next_dir = (normal + random_unit_vector(seed)).normalize();
+        // 2. Indirect Lighting (Path Tracing)
+        let mut next_dir = (normal + random_unit_vector(seed)).normalize_or_zero();
         if next_dir.dot(normal) < 0.0 {
             next_dir = -next_dir;
         }
 
+        let offset = normal * hit.point.length().max(1.0) * 1e-4;
         let next_ray = super::ray::Ray {
-            origin: hit.point + normal * 0.001,
+            origin: hit.point + offset,
             direction: next_dir,
         };
 
@@ -96,23 +102,31 @@ pub fn render(
     if settings.samples == 0 {
         return Err(RenderError::ZeroSamples);
     }
-    if settings.max_depth == 0 {
-        return Err(RenderError::InvalidDimensions);
+    if settings.max_depth == 0 || settings.max_depth > 16 {
+        return Err(RenderError::InvalidDepth);
     }
 
     let mut image = Image::new(settings.width, settings.height)?;
     let aspect = settings.width as f32 / settings.height as f32;
-    let threads = thread::available_parallelism().map_or(1, |n| n.get());
 
-    let mut rows: Vec<Vec<Vec3>> =
-        vec![vec![Vec3::ZERO; settings.width as usize]; settings.height as usize];
+    // Verify that the camera can generate a valid projection matrix for this aspect ratio
+    if camera.projection_matrix(aspect).is_err() {
+        return Err(RenderError::InvalidCameraInput);
+    }
+
+    let threads = thread::available_parallelism().map_or(1, |n| n.get());
+    let rows_per_thread = (settings.height as usize).div_ceil(threads);
+    let row_len = settings.width as usize;
 
     thread::scope(|s| {
-        let chunk_size = (settings.height as usize).div_ceil(threads);
-        for (chunk_index, chunk) in rows.chunks_mut(chunk_size).enumerate() {
-            let start_y = chunk_index * chunk_size;
+        for (chunk_idx, chunk) in image
+            .pixels
+            .chunks_mut(rows_per_thread * row_len)
+            .enumerate()
+        {
+            let start_y = chunk_idx * rows_per_thread;
             s.spawn(move || {
-                for (local_y, row) in chunk.iter_mut().enumerate() {
+                for (local_y, row) in chunk.chunks_mut(row_len).enumerate() {
                     let y = (start_y + local_y) as u32;
                     let mut seed = 12345u32.wrapping_add(y.wrapping_mul(2654435761));
                     for _ in 0..settings.samples {
@@ -135,12 +149,6 @@ pub fn render(
             });
         }
     });
-
-    for (y, row) in rows.into_iter().enumerate() {
-        for (x, color) in row.into_iter().enumerate() {
-            image.add_sample(x as u32, y as u32, color);
-        }
-    }
 
     Ok(image)
 }
@@ -185,14 +193,20 @@ mod tests {
         let image = render(&view_scene, &camera, settings).unwrap();
 
         let sky_color = Vec3::new(0.05, 0.05, 0.1);
-        // Verify that the top-left pixel is close to the sky color
         assert!(image.pixels[0].distance(sky_color * 4.0) < 0.01);
 
-        // Verify that at least one pixel hit the geometry
         let hit_geometry = image
             .pixels
             .iter()
             .any(|&p| p.distance(sky_color * 4.0) > 0.1);
         assert!(hit_geometry, "The render should hit the cube or floor");
+
+        // Optional: Save the file if requested via environment variable
+        if let Ok(path) = std::env::var("RENDER_DEMO_PPM") {
+            let dir = std::env::temp_dir();
+            let file_path = dir.join(path);
+            image.save_ppm(&file_path, settings.samples).unwrap();
+            println!("Path traced image saved at: {:?}", file_path);
+        }
     }
 }
