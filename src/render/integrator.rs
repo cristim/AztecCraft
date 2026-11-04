@@ -1,27 +1,25 @@
-use super::image::Image;
+use super::image::{Image, RenderError};
 use super::ray::intersect;
 use crate::view_scene::ViewScene;
 use crate::viewport::Camera;
 use glam::{Vec2, Vec3};
-use rayon::prelude::*;
+use std::thread;
 
 #[derive(Clone, Copy, Debug)]
 pub struct RenderSettings {
     pub width: u32,
     pub height: u32,
     pub samples: u32,
-    pub max_depth: u32, // Max number of bounces for indirect lighting
+    pub max_depth: u32,
 }
 
-// Simple pseudo-random number generator (PRNG) using xorshift
 fn rand_f32(seed: &mut u32) -> f32 {
     *seed ^= *seed << 13;
     *seed ^= *seed >> 17;
     *seed ^= *seed << 5;
-    (*seed as f32) / (u32::MAX as f32)
+    (*seed as f32) / (u32::MAX as f32 + 1.0)
 }
 
-// A random unit vector in 3D space
 fn random_unit_vector(seed: &mut u32) -> Vec3 {
     let theta = 2.0 * std::f32::consts::PI * rand_f32(seed);
     let z = 2.0 * rand_f32(seed) - 1.0;
@@ -29,7 +27,6 @@ fn random_unit_vector(seed: &mut u32) -> Vec3 {
     Vec3::new(r * theta.cos(), r * theta.sin(), z)
 }
 
-// Recursive function for Path Tracing
 fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u32) -> Vec3 {
     if depth == 0 {
         return Vec3::ZERO;
@@ -38,38 +35,39 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
     if let Some(hit) = intersect(scene, ray) {
         let mut color = Vec3::ZERO;
 
-        // 1. Direct lighting (hardcoded point light)
-        let light_pos = Vec3::new(3.0, 5.0, 3.0);
-        let light_color = Vec3::new(1.0, 1.0, 1.0);
-        let to_light = light_pos - hit.point;
-        let distance_to_light = to_light.length();
-        let light_dir = to_light / distance_to_light;
-
-        // Shadow ray: check if there is something between the point and the light
-        let shadow_ray = super::ray::Ray {
-            origin: hit.point + hit.normal * 0.001, // Offset for self-intersection
-            direction: light_dir,
-        };
-        let in_shadow = if let Some(shadow_hit) = intersect(scene, &shadow_ray) {
-            (shadow_hit.point - hit.point).length() < distance_to_light
-        } else {
-            false
-        };
-
-        if !in_shadow {
-            let diffuse = hit.normal.dot(light_dir).max(0.0);
-            color += hit.albedo * light_color * diffuse;
-        }
-
-        // 2. Indirect lighting (bounces)
+        // 1. Correct the normal to always point against the ray
         let normal = if hit.normal.dot(ray.direction) < 0.0 {
             hit.normal
         } else {
             -hit.normal
         };
 
-        // Generate a random direction in the hemisphere oriented by the normal
-        let mut next_dir = random_unit_vector(seed);
+        // 2. Direct Lighting (with attenuation and normalization)
+        let light_pos = Vec3::new(3.0, 5.0, 3.0);
+        let light_color = Vec3::new(1.0, 1.0, 1.0);
+        let to_light = light_pos - hit.point;
+        let distance_sq = to_light.length_squared();
+        let light_dir = to_light / distance_sq.sqrt();
+
+        let shadow_ray = super::ray::Ray {
+            origin: hit.point + normal * 0.001,
+            direction: light_dir,
+        };
+        let in_shadow = if let Some(shadow_hit) = intersect(scene, &shadow_ray) {
+            (shadow_hit.point - hit.point).length_squared() < distance_sq
+        } else {
+            false
+        };
+
+        if !in_shadow {
+            // Lambertian reflectance: L = (albedo / pi) * (N . L) * (1 / d^2)
+            let lambert = normal.dot(light_dir).max(0.0) / std::f32::consts::PI;
+            let attenuation = 1.0 / distance_sq;
+            color += hit.albedo * light_color * lambert * attenuation;
+        }
+
+        // 3. Indirect Lighting (Cosine-weighted Sampling)
+        let mut next_dir = (normal + random_unit_vector(seed)).normalize();
         if next_dir.dot(normal) < 0.0 {
             next_dir = -next_dir;
         }
@@ -79,62 +77,72 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
             direction: next_dir,
         };
 
-        // Russian Roulette: probabilistically terminate the path to avoid infinite recursion
         let p = hit.albedo.max_element().clamp(0.1, 1.0);
         if rand_f32(seed) < p {
-            // For cosine-weighted sampling, the contribution is albedo * L (without dividing by PI)
             color += hit.albedo * trace_path(scene, &next_ray, depth - 1, seed) / p;
         }
 
         return color;
     }
 
-    // Sky color background when the ray doesn't hit anything
     Vec3::new(0.05, 0.05, 0.1)
 }
 
-pub fn render(scene: &ViewScene, camera: &Camera, settings: RenderSettings) -> Image {
-    let mut image = Image::new(settings.width, settings.height);
+pub fn render(
+    scene: &ViewScene,
+    camera: &Camera,
+    settings: RenderSettings,
+) -> Result<Image, RenderError> {
+    if settings.samples == 0 {
+        return Err(RenderError::ZeroSamples);
+    }
+    if settings.max_depth == 0 {
+        return Err(RenderError::InvalidDimensions);
+    }
+
+    let mut image = Image::new(settings.width, settings.height)?;
     let aspect = settings.width as f32 / settings.height as f32;
+    let threads = thread::available_parallelism().map_or(1, |n| n.get());
 
-    // Parallelise the rows of the image using Rayon
-    let rows: Vec<Vec<Vec3>> = (0..settings.height)
-        .into_par_iter()
-        .map(|y| {
-            let mut row = vec![Vec3::ZERO; settings.width as usize];
-            let mut seed = 12345 + y; // Unique seed per row
+    let mut rows: Vec<Vec<Vec3>> =
+        vec![vec![Vec3::ZERO; settings.width as usize]; settings.height as usize];
 
-            for _ in 0..settings.samples {
-                for x in 0..settings.width {
-                    let jitter_x = rand_f32(&mut seed) - 0.5;
-                    let jitter_y = rand_f32(&mut seed) - 0.5;
+    thread::scope(|s| {
+        let chunk_size = (settings.height as usize).div_ceil(threads);
+        for (chunk_index, chunk) in rows.chunks_mut(chunk_size).enumerate() {
+            let start_y = chunk_index * chunk_size;
+            s.spawn(move || {
+                for (local_y, row) in chunk.iter_mut().enumerate() {
+                    let y = (start_y + local_y) as u32;
+                    let mut seed = 12345u32.wrapping_add(y.wrapping_mul(2654435761));
+                    for _ in 0..settings.samples {
+                        for x in 0..settings.width {
+                            let jitter_x = rand_f32(&mut seed) - 0.5;
+                            let jitter_y = rand_f32(&mut seed) - 0.5;
 
-                    let ndc = Vec2::new(
-                        2.0 * (x as f32 + 0.5 + jitter_x) / settings.width as f32 - 1.0,
-                        1.0 - 2.0 * (y as f32 + 0.5 + jitter_y) / settings.height as f32,
-                    );
+                            let ndc = Vec2::new(
+                                2.0 * (x as f32 + 0.5 + jitter_x) / settings.width as f32 - 1.0,
+                                1.0 - 2.0 * (y as f32 + 0.5 + jitter_y) / settings.height as f32,
+                            );
 
-                    let ray = match camera.ray(ndc, aspect) {
-                        Ok(ray) => ray,
-                        Err(_) => continue,
-                    };
-
-                    let color = trace_path(scene, &ray, settings.max_depth, &mut seed);
-                    row[x as usize] += color;
+                            if let Ok(ray) = camera.ray(ndc, aspect) {
+                                row[x as usize] +=
+                                    trace_path(scene, &ray, settings.max_depth, &mut seed);
+                            }
+                        }
+                    }
                 }
-            }
-            row
-        })
-        .collect();
+            });
+        }
+    });
 
-    // Knock over the rows into the image pixels
     for (y, row) in rows.into_iter().enumerate() {
         for (x, color) in row.into_iter().enumerate() {
-            image.pixels[y * settings.width as usize + x] = color;
+            image.add_sample(x as u32, y as u32, color);
         }
     }
 
-    image
+    Ok(image)
 }
 
 #[cfg(test)]
@@ -162,38 +170,29 @@ mod tests {
         scene.set_transform(cube_id, cube_transform).unwrap();
 
         let view_scene = ViewScene::from_native(&scene, 1024 * 1024).unwrap();
-
         let mut camera = Camera::default();
         camera
             .set_pose(Vec3::new(0.0, 1.0, 0.0), 6.0, 0.5, 0.3)
             .unwrap();
 
         let settings = RenderSettings {
-            width: 256,
-            height: 256,
-            samples: 10,
-            max_depth: 3,
+            width: 64,
+            height: 64,
+            samples: 4,
+            max_depth: 2,
         };
 
-        let image = render(&view_scene, &camera, settings);
+        let image = render(&view_scene, &camera, settings).unwrap();
 
-        // If the environment variable is defined, we save there to be able to inspect it.
-        // If not, we use a temporary directory to avoid cluttering the repository (CI).
-        if let Ok(path_str) = std::env::var("AZTECCRAFT_RENDER_OUTPUT") {
-            let path = std::path::PathBuf::from(path_str);
-            image.save_ppm(&path, settings.samples).unwrap();
-            println!(
-                "Imagen Path Traced guardada en: {:?}",
-                path.canonicalize().unwrap()
-            );
-        } else {
-            let dir = tempfile::tempdir().unwrap();
-            let path = dir.path().join("demo_render_path_traced.ppm");
-            image.save_ppm(&path, settings.samples).unwrap();
-            let metadata = std::fs::metadata(&path).unwrap();
-            assert!(metadata.len() > 0);
-            // Print the path to the temporary file for debugging.
-            println!("Imagen temporal Path Traced guardada en: {:?}", path);
-        }
+        let sky_color = Vec3::new(0.05, 0.05, 0.1);
+        // Verify that the top-left pixel is close to the sky color
+        assert!(image.pixels[0].distance(sky_color * 4.0) < 0.01);
+
+        // Verify that at least one pixel hit the geometry
+        let hit_geometry = image
+            .pixels
+            .iter()
+            .any(|&p| p.distance(sky_color * 4.0) > 0.1);
+        assert!(hit_geometry, "The render should hit the cube or floor");
     }
 }

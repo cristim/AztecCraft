@@ -14,7 +14,9 @@ fn ray_triangle(ray: &Ray, v0: Vec3, v1: Vec3, v2: Vec3) -> Option<f32> {
     let h = ray.direction.cross(edge2);
     let a = edge1.dot(h);
 
-    if a > -0.00001 && a < 0.00001 {
+    // Relative epsilon based on the size of the triangle for robustness in f32
+    let eps = 1e-8 * edge1.length().max(edge2.length()).max(1e-6);
+    if a > -eps && a < eps {
         return None;
     }
 
@@ -34,7 +36,7 @@ fn ray_triangle(ray: &Ray, v0: Vec3, v1: Vec3, v2: Vec3) -> Option<f32> {
     }
 
     let t = f * edge2.dot(q);
-    if t > 0.00001 { Some(t) } else { None }
+    if t > eps { Some(t) } else { None }
 }
 
 pub fn intersect(scene: &ViewScene, ray: &Ray) -> Option<Hit> {
@@ -52,9 +54,13 @@ pub fn intersect(scene: &ViewScene, ray: &Ray) -> Option<Hit> {
 
         for face in instance.faces() {
             for triangle in face.triangles() {
-                let v0 = vertices[triangle[0]];
-                let v1 = vertices[triangle[1]];
-                let v2 = vertices[triangle[2]];
+                let (Some(&v0), Some(&v1), Some(&v2)) = (
+                    vertices.get(triangle[0]),
+                    vertices.get(triangle[1]),
+                    vertices.get(triangle[2]),
+                ) else {
+                    continue;
+                };
 
                 if let Some(t) = ray_triangle(ray, v0, v1, v2)
                     && t < closest_t
@@ -70,4 +76,45 @@ pub fn intersect(scene: &ViewScene, ray: &Ray) -> Option<Hit> {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ray_triangle_hits() {
+        let ray = Ray {
+            origin: Vec3::new(0.0, 0.0, -1.0),
+            direction: Vec3::new(0.0, 0.0, 1.0),
+        };
+        let v0 = Vec3::new(-1.0, -1.0, 0.0);
+        let v1 = Vec3::new(1.0, -1.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        assert!(ray_triangle(&ray, v0, v1, v2).is_some());
+    }
+
+    #[test]
+    fn ray_triangle_misses() {
+        let ray = Ray {
+            origin: Vec3::new(0.0, 0.0, -1.0),
+            direction: Vec3::new(0.0, 1.0, 0.0),
+        };
+        let v0 = Vec3::new(-1.0, -1.0, 0.0);
+        let v1 = Vec3::new(1.0, -1.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        assert!(ray_triangle(&ray, v0, v1, v2).is_none());
+    }
+
+    #[test]
+    fn ray_triangle_parallel() {
+        let ray = Ray {
+            origin: Vec3::new(0.0, 0.0, -1.0),
+            direction: Vec3::new(1.0, 0.0, 0.0),
+        };
+        let v0 = Vec3::new(-1.0, -1.0, 0.0);
+        let v1 = Vec3::new(1.0, -1.0, 0.0);
+        let v2 = Vec3::new(0.0, 1.0, 0.0);
+        assert!(ray_triangle(&ray, v0, v1, v2).is_none());
+    }
 }
