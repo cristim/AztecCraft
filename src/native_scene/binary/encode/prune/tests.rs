@@ -193,7 +193,7 @@ fn an_over_wide_range_never_yields_bytes() {
 
 #[test]
 fn a_range_that_ends_beyond_the_removed_group_is_refused() {
-    let junk = group(b"DPLM", &chunk(b"TEXT", b"x", 8), 4);
+    let junk = group(b"DPLM", &chunk(b"FLGS", b"k\0", 8), 4);
     let bytes = scene(
         &[
             transform(b"a"),
@@ -233,4 +233,15 @@ fn a_link_whose_node_only_shares_a_namespace_prefix_is_not_a_removed_link() {
         ranges.push(wide);
     });
     assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
+}
+
+#[test]
+fn a_surviving_text_that_names_a_removed_node_is_caught_on_the_written_bytes() {
+    // The analysis ran on the file without the note, so only the scan of the written bytes sees it.
+    let note = chunk(b"STR ", b"k\0\x20see as.t\0", 4);
+    let analysed = two_objects(&[]);
+    let bytes = two_objects(&note);
+    let written = write_doctored(&bytes, &analysed, |_, _| {});
+    assert_eq!(written.unwrap_err().kind(), ErrorKind::Unsupported);
+    assert!(write_doctored(&analysed, &analysed, |_, _| {}).is_ok());
 }

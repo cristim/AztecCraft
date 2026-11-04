@@ -41,6 +41,29 @@ fn removing_an_opened_node_drops_it_in_memory_and_keeps_the_source_bytes() {
 }
 
 #[test]
+fn an_unrecognised_record_in_a_connection_group_refuses_the_delete_and_changes_nothing() {
+    let prnt = chunk(b"PRNT", b"\0as\0b\0", 8);
+    let extra = group(b"CONS", &group(b"CONN", &prnt, 4), 4);
+    let mut scene = decode(two_objects(&extra)).unwrap();
+    let before = scene.clone();
+    let a = scene.nodes[0].id;
+    assert_eq!(
+        scene.remove(a),
+        refused(RemovalRefusal::UnrecognisedRecord(*b"PRNT"))
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn removing_a_shape_drops_it_from_the_diffuse_users() {
+    let mut scene = decode(appearance_fixture::appearance_specimen_with_users(2).into()).unwrap();
+    let (kept, gone) = (scene.shapes[0].id, scene.shapes[1].id);
+    scene.apply_removal(&[gone]);
+    let appearance = scene.source.as_ref().unwrap().appearance.as_ref().unwrap();
+    assert_eq!(appearance.diffuse[0].shapes, [kept]);
+}
+
+#[test]
 fn removing_nothing_from_an_opened_scene_changes_nothing() {
     let mut scene = opened();
     let before = scene.clone();

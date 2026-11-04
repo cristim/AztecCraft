@@ -32,6 +32,8 @@ pub enum RemovalRefusal {
     TextReference,
     /// The file's text is too large to check for such a mention within the work limit.
     TextScanLimit,
+    /// A record the analysis does not model survives; it could name a removed node.
+    UnrecognisedRecord([u8; 4]),
     /// The prune would drop a record that does not belong to the removed nodes.
     UnexpectedDrop,
     /// Removing the records would change the padding of an enclosing group.
@@ -59,6 +61,13 @@ impl fmt::Display for RemovalRefusal {
             Self::TextReference => "A script or text value in the file mentions this node",
             Self::TextScanLimit => {
                 "The file's text is too large to check for mentions of this node"
+            }
+            Self::UnrecognisedRecord(tag) => {
+                return write!(
+                    f,
+                    "The file holds a '{}' record that cannot be checked for references to this node",
+                    String::from_utf8_lossy(tag)
+                );
             }
             Self::UnexpectedDrop => "The prune would drop a record that is not part of this node",
             Self::Alignment => "Removing this node would change the padding of its file group",
@@ -286,8 +295,42 @@ fn mentions(text: &[u8], name: &[u8]) -> bool {
     })
 }
 
-/// Refuses when a surviving `STR ` chunk or a leaf of a `SCRP` group mentions a removed name.
-/// Numeric payloads and the leaves of other unbound groups are not scanned (PROVISIONAL). Work is charged as bytes times names against `limit`.
+/// How the analysis treats a leaf tag. A tag that is not listed is refused, never skipped, so a
+/// record kind the analysis has not seen cannot hide a reference to a removed node.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    /// Decoded by `decode_records` and checked record by record (parents, selections, relations
+    /// and connections).
+    Modeled,
+    /// An attribute key followed by numbers or flags: it holds no node name.
+    Numeric,
+    /// Free text or file metadata that can spell a node name: scanned with [`mentions`].
+    Text,
+}
+
+fn kind(tag: [u8; 4], scripted: bool) -> Option<Kind> {
+    // Every leaf of a script group is script text, whatever its tag.
+    if scripted {
+        return Some(Kind::Text);
+    }
+    Some(match &tag {
+        b"CREA" | b"SLCT" | b"CWFL" | b"RELA" => Kind::Modeled,
+        // Typed attribute payloads: doubles, floats, flags, int arrays, mesh data, compound
+        // attribute data and attribute definitions. Attribute names are not node names.
+        b"DBLE" | b"DBL2" | b"DBL3" | b"FLT2" | b"FLT3" | b"FLGS" | b"I32#" | b"MESH" | b"CMP#"
+        | b"CMPD" | b"ATTR" => Kind::Numeric,
+        // String attributes and arrays, and the file header (units, version, file info, include
+        // paths, object counts): text a node name could appear in.
+        b"STR " | b"STR#" | b"AUNI" | b"LUNI" | b"TUNI" | b"BCSZ" | b"CHNG" | b"DATS" | b"FINF"
+        | b"ICON" | b"INCL" | b"INFO" | b"MADE" | b"OBJN" | b"SMTD" | b"TDUR" | b"UVER"
+        | b"VERS" => Kind::Text,
+        _ => return None,
+    })
+}
+
+/// Classifies every surviving leaf (outside the `removed` chunks). An unlisted tag anywhere is
+/// `UnrecognisedRecord`; a [`Kind::Text`] leaf that mentions a removed name is `TextReference`.
+/// Work is charged as bytes times names against `limit`.
 fn scan_text(
     container: &Container,
     removed: &[usize],
@@ -314,11 +357,13 @@ fn scan_text(
     let mut work = 0usize;
     for (index, chunk) in container.chunks().iter().enumerate() {
         let start = chunk.header_range().start;
-        if chunk.form().is_some()
-            || (chunk.tag() != *b"STR " && !in_script(chunk.parent()))
-            || dropped.iter().any(|range| range.contains(&start))
-        {
+        if chunk.form().is_some() || dropped.iter().any(|range| range.contains(&start)) {
             continue;
+        }
+        match kind(chunk.tag(), in_script(chunk.parent())) {
+            None => return Err(RemovalRefusal::UnrecognisedRecord(chunk.tag())),
+            Some(Kind::Text) => {}
+            Some(_) => continue,
         }
         let text = container.payload(index).ok_or(RemovalRefusal::Unreadable)?;
         work = text
@@ -457,7 +502,7 @@ pub(super) fn assert_pruned(bytes: &Arc<[u8]>, names: &[&[u8]]) -> Result<(), Re
     if found {
         return Err(RemovalRefusal::NamedElsewhere);
     }
-    Ok(())
+    scan_text(&container, &[], names, MAX_TEXT_WORK)
 }
 
 /// A removed shape must not be the only user of a material, and must not be the first user of one

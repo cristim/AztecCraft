@@ -162,6 +162,11 @@ fn links_between_removed_nodes_and_to_a_zero_mode_set_are_dropped() {
         Ok(())
     );
     assert_eq!(check_links(&[link(1, "bs.iog.og[0]", "sg.dsm")]), Ok(()));
+    // A set that is neither created in the file nor rooted with `:` is not droppable.
+    assert_eq!(
+        check_links(&[link(0, "as.iog.og[0]", "nowhere.dsm[0]")]),
+        Err(RemovalRefusal::NamedElsewhere)
+    );
 }
 
 #[test]
@@ -477,5 +482,50 @@ fn a_range_that_is_not_part_of_the_removed_nodes_is_not_accepted() {
     assert_eq!(
         check_dropped(&bytes, &ids(&[1, 2]), &ranges, &bytes),
         Err(RemovalRefusal::UnexpectedDrop)
+    );
+}
+
+fn unknown_group(tag: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+    group(b"DPLM", &chunk(tag, payload, 8), 4)
+}
+
+#[test]
+fn an_unrecognised_record_anywhere_refuses_the_removal() {
+    let in_conn = group(
+        b"CONS",
+        &group(b"CONN", &chunk(b"PRNT", b"\0as\0b\0", 8), 4),
+        4,
+    );
+    let cases = [
+        (in_conn, *b"PRNT"),
+        (unknown_group(b"PRNT", b"\0as\0"), *b"PRNT"),
+        (chunk(b"PRNT", b"\0as\0", 4), *b"PRNT"),
+        // An extra instance parent would be such a record: it refuses the delete of the parent.
+        (unknown_group(b"INST", b"as\0b\0"), *b"INST"),
+        // Fail closed also when the record names nothing.
+        (unknown_group(b"ZZZZ", b"x"), *b"ZZZZ"),
+    ];
+    for (extra, tag) in cases {
+        assert_eq!(check(&extra), Err(RemovalRefusal::UnrecognisedRecord(tag)));
+        let message = RemovalRefusal::UnrecognisedRecord(tag).to_string();
+        assert!(message.contains(&String::from_utf8_lossy(&tag).to_string()));
+    }
+}
+
+#[test]
+fn a_file_of_only_listed_kinds_still_deletes() {
+    let flags = chunk(b"FLGS", b"k\0\x28", 8);
+    let strings = chunk(b"STR#", b"k\0\x20one\0two\0", 8);
+    let extra = group(b"DPLM", &[flags, strings, text_chunk("note")].concat(), 4);
+    assert_eq!(check(&extra), Ok(()));
+}
+
+#[test]
+fn a_removed_transform_that_has_a_parent_is_refused() {
+    let child = group(b"XFRM", &creation(b"c", Some(b"b")), 4);
+    let bytes = two_objects(&child);
+    assert_eq!(
+        removal(&bytes, &ids(&[5])),
+        Err(RemovalRefusal::ForeignChild)
     );
 }
