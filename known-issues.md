@@ -1083,7 +1083,10 @@ reason except where noted:
   `CONS` or `CONN` group, by plain byte substring (refused as `UnrecognisedConnection`; a leaf that
   contains no removed name is kept byte-identical). Unrecognised leaves elsewhere, numeric payloads
   and other leaf types of unbound groups are not scanned, since real files hold many of them and
-  there is no public spec to say which name them (PROVISIONAL). The scan is bounded to 16 Mi
+  there is no public spec to say which name them (PROVISIONAL). A real example is the `SMTD` leaf
+  of the trailing `HEAD` group in the vendored `file_owner_delete.mb`, an external content row
+  that quotes a node and file attribute name; Maya is expected to write such rows only for nodes
+  with file attributes, which a deletable transform or mesh does not have (inferred, unverified). The scan is bounded to 16 Mi
   (bytes times the longest removed name), about 0.25 s in a debug build; a larger scan is refused
   as "too large to check" rather than skipped.
 - A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
