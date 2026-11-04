@@ -1306,7 +1306,12 @@ fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() 
     assert_eq!(scene, before);
     let (mut scene, present) = cube();
     binary(&mut scene);
-    assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
+    assert_eq!(
+        scene.remove(present),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+            crate::native_scene::binary::RemovalRefusal::Unreadable
+        )))
+    );
 }
 
 #[test]

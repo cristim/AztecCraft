@@ -2,8 +2,11 @@ mod admission;
 mod appearance;
 mod binding;
 mod encode;
+mod removal;
 mod write;
 pub use encode::encode;
+pub use removal::RemovalRefusal;
+pub(super) use removal::check_removal;
 #[cfg(test)]
 mod tests;
 

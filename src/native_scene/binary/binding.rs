@@ -7,7 +7,7 @@ use super::{
 use crate::{
     maya_binary::{
         container::Container,
-        semantic::{Data, WireFacts},
+        semantic::{Data, Record, WireFacts},
     },
     scene::NodeId,
 };
@@ -120,6 +120,14 @@ impl Owners {
         let index = self.resolve_name(facts, raw_owner, range.start)?;
         Ok((index, range.start + dot + 1..range.end))
     }
+}
+
+/// Whether a record creates a transform or a mesh shape, which is what receives a `NativeId`.
+pub(super) fn is_bound(container: &Container, record: &Record) -> bool {
+    matches!(record.data, Data::Create(_))
+        && container
+            .chunk(record.group)
+            .is_some_and(|c| matches!(c.form(), Some(form) if form == *b"XFRM" || form == *b"DMSH"))
 }
 
 const FIELDS: [TransformField; 5] = [
@@ -271,12 +279,7 @@ pub(super) fn construct(
     let count = facts
         .records
         .iter()
-        .filter(|record| {
-            matches!(record.data, Data::Create(_))
-                && container.chunk(record.group).is_some_and(
-                    |c| matches!(c.form(), Some(form) if form == *b"XFRM" || form == *b"DMSH"),
-                )
-        })
+        .filter(|record| is_bound(container, record))
         .count();
     let mut bindings = budget.vector::<Binding>(count)?;
     let mut counts = Counts {

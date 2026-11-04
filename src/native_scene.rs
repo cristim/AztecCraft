@@ -1343,9 +1343,6 @@ impl NativeScene {
             return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
         }
         self.check_effects(transform)?;
-        if self.source.is_some() || incoming.len() != 1 {
-            return Err(NativeError::UnsupportedEdit);
-        }
         let exclusive: Vec<_> = self
             .dag
             .iter()
@@ -1359,6 +1356,17 @@ impl NativeScene {
             })
             .map(|edge| edge.child)
             .collect();
+        if let Some(source) = &self.source {
+            if source.format == SourceFormat::Binary && incoming.len() == 1 {
+                let refuse =
+                    |reason| NativeError::UnsupportedDelete(DeleteUnsupported::Source(reason));
+                binary::check_removal(&source.bytes, transform, &exclusive).map_err(refuse)?;
+            }
+            return Err(NativeError::UnsupportedEdit);
+        }
+        if incoming.len() != 1 {
+            return Err(NativeError::UnsupportedEdit);
+        }
         let node = self.nodes.remove(index);
         self.shapes.retain(|shape| !exclusive.contains(&shape.id));
         self.session_materials.prune(&self.shapes);
@@ -1684,12 +1692,16 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
 pub enum DeleteUnsupported {
     HasChildren,
     IsChild,
+    Source(binary::RemovalRefusal),
 }
 impl fmt::Display for DeleteUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::HasChildren => "Deleting a node with children is not supported yet",
             Self::IsChild => "Deleting a node that has a parent is not supported yet",
+            Self::Source(reason) => {
+                return write!(f, "Deleting this node is not supported yet: {reason}");
+            }
         })
     }
 }
