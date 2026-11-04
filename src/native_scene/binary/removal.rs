@@ -1,5 +1,6 @@
-//! Reference analysis for dropping a root transform and its exclusive shapes from an opened
-//! Maya Binary (PROVISIONAL, issue #272).
+//! Reference analysis for dropping transforms and shapes from an opened Maya Binary: a removed
+//! transform may have any bound transform parent, a removed shape's parent must also be removed
+//! (PROVISIONAL, issue #272).
 //!
 //! Records name nodes by string, never by index, so a removal is safe only when every surviving
 //! record is shown not to name a removed node. Anything this analysis cannot prove is refused.
@@ -120,8 +121,9 @@ fn endpoint<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> (&'a [u8], &'a
     )
 }
 
-/// Checks that the transform `transform` and its exclusive `shapes` can be dropped from `bytes`
-/// without leaving a record that names them, and that the byte ranges to drop keep every enclosing
+/// Checks that the nodes `ids` can be dropped from `bytes` (a removed transform may have any bound
+/// transform parent; a removed shape's parent must also be removed) without leaving a record that
+/// names them, and that the byte ranges to drop keep every enclosing
 /// group's padding. Ids are the opener's binding order, `NativeId = binding index + 1`.
 pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
@@ -162,11 +164,12 @@ pub(in crate::native_scene) fn check_removal(
             _ => None,
         })
         .collect();
-    // A removed shape hangs under a removed transform; a removed transform has no parent.
+    // A removed shape hangs under a removed transform; a removed transform may sit under any bound
+    // transform (the opener resolves its parent by exact name).
     if removed.iter().any(
         |index| match (form(&facts, *index), parents[*index].map(plain)) {
             (Some(f), Some(parent)) if f == *b"DMSH" => !names.contains(&parent),
-            (Some(f), None) if f == *b"XFRM" => false,
+            (Some(f), _) if f == *b"XFRM" => false,
             _ => true,
         },
     ) {
