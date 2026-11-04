@@ -415,6 +415,86 @@ fn an_unrecognised_connection_leaf_naming_a_removed_node_is_refused() {
     }
 }
 
+const NAMES_A: &[u8] = b"\0a\0b\0";
+
+#[test]
+fn unrecognised_leaves_anywhere_under_cons_are_scanned() {
+    let leaf = || chunk(b"PRNT", NAMES_A, 8);
+    let nested = group(b"CONS", &group(b"CONN", &group(b"DPLM", &leaf(), 8), 4), 4);
+    let direct = group(b"CONS", &chunk(b"PRNT", NAMES_A, 4), 4);
+    let deep = group(b"CONS", &group(b"DPLM", &group(b"DPLM", &leaf(), 8), 4), 4);
+    for extra in [nested, direct, deep] {
+        assert_eq!(check(&extra), Err(RemovalRefusal::UnrecognisedConnection));
+    }
+}
+
+#[test]
+fn string_array_and_attribute_leaves_are_scanned_like_text() {
+    let in_node = |tag: &[u8; 4]| {
+        group(
+            b"XFRM",
+            &[creation(b"c", None), chunk(tag, NAMES_A, 8)].concat(),
+            4,
+        )
+    };
+    for tag in [b"STR#", b"ATTR"] {
+        assert_eq!(
+            check(&in_node(tag)),
+            Err(RemovalRefusal::TextReference),
+            "{tag:?}"
+        );
+    }
+    let selected = group(
+        b"SLCT",
+        &[chunk(b"SLCT", b":bs", 8), chunk(b"STR#", NAMES_A, 8)].concat(),
+        4,
+    );
+    assert_eq!(check(&selected), Err(RemovalRefusal::TextReference));
+}
+
+#[test]
+fn unrecognised_leaves_outside_cons_are_not_scanned() {
+    let loose = group(
+        b"XFRM",
+        &[creation(b"c", None), chunk(b"PRNT", NAMES_A, 8)].concat(),
+        4,
+    );
+    assert_eq!(check(&loose), Ok(()));
+}
+
+#[test]
+fn a_name_glued_to_binary_bytes_under_cons_is_still_a_mention() {
+    for payload in [&b"Aa\0"[..], b"a\x05\0", b"xay"] {
+        let links = connections(&[unrecognised_link(payload)]);
+        assert_eq!(
+            check(&links),
+            Err(RemovalRefusal::UnrecognisedConnection),
+            "{payload:?}"
+        );
+    }
+    let links = connections(&[unrecognised_link(b"Bs\0b\0")]);
+    assert_eq!(check(&links), Ok(()));
+}
+
+#[test]
+fn text_work_is_charged_by_the_longest_name() {
+    let bytes = two_objects(&text_chunk(&" ".repeat(100)));
+    let container = container::inspect(bytes).unwrap();
+    let names: [&[u8]; 1] = [b"aaaa"];
+    assert_eq!(scan_text(&container, &[], &names, 1000), Ok(()));
+    assert_eq!(
+        scan_text(&container, &[], &names, 300),
+        Err(RemovalRefusal::TextScanLimit)
+    );
+}
+
+#[test]
+fn a_leaf_nested_two_levels_under_a_script_group_is_scanned() {
+    let inner = group(b"DPLM", &chunk(b"TEXT", b"move a.t", 8), 8);
+    let outer = group(b"SCRP", &inner, 4);
+    assert_eq!(check(&outer), Err(RemovalRefusal::TextReference));
+}
+
 #[test]
 fn an_unrecognised_connection_leaf_naming_only_survivors_is_kept() {
     let links = connections(&[unrecognised_link(b"\0bs\0b\0"), link(0, "a.t", "x.t")]);

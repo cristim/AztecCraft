@@ -13,7 +13,12 @@ use crate::{
     },
     native_scene::{NativeId, appearance::*},
 };
-use std::{collections::HashMap, fmt, ops::Range, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    ops::Range,
+    sync::Arc,
+};
 
 /// Why a sourced Maya Binary node cannot be removed yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -248,11 +253,12 @@ pub(in crate::native_scene) fn check_removal(
             _ => {}
         }
     }
+    let dropped_chunks: HashSet<usize> = chunks.iter().copied().collect();
     for record in &facts.records {
         let Data::Connection(connection) = &record.data else {
             continue;
         };
-        if chunks.contains(&record.chunk) {
+        if dropped_chunks.contains(&record.chunk) {
             continue;
         }
         let (node, attribute) = endpoint(&facts, &connection.destination);
@@ -291,10 +297,17 @@ fn mentions(text: &[u8], name: &[u8]) -> bool {
     })
 }
 
-/// Refuses when a surviving `STR ` chunk, a leaf of a `SCRP` group or a leaf of the `CONN` list
-/// that the opener does not decode mentions a removed name. Numeric payloads and the leaves of
-/// other unbound groups are not scanned (PROVISIONAL). Work is charged as bytes times names
-/// against `limit`.
+/// Whether any occurrence of `name` is in `text`, with no boundary rule: fail closed for binary
+/// payloads whose layout is unknown.
+fn contains_bytes(text: &[u8], name: &[u8]) -> bool {
+    text.windows(name.len()).any(|window| window == name)
+}
+
+/// Refuses when a surviving text leaf (`STR `, `STR#`, `ATTR`, or any leaf of a `SCRP` group)
+/// mentions a removed name on identifier boundaries, or when a surviving leaf anywhere under the
+/// `CONS` subtree that the opener does not decode contains a removed name as a plain byte
+/// substring. Numeric payloads and unrecognised leaves outside `CONS` are not scanned
+/// (PROVISIONAL). Work is charged as bytes times the longest name against `limit`.
 fn scan_text(
     container: &Container,
     removed: &[usize],
@@ -304,49 +317,57 @@ fn scan_text(
     if names.iter().any(|name| name.is_empty()) {
         return Err(RemovalRefusal::Unreadable);
     }
-    let dropped: Vec<Range<usize>> = removed
+    let longest = names.iter().map(|name| name.len()).max().unwrap_or(0);
+    let mut dropped: Vec<Range<usize>> = removed
         .iter()
         .filter_map(|index| container.chunk(*index))
         .map(|chunk| chunk.header_range().start..chunk.padding_range().end)
         .collect();
-    let in_script = |mut parent: Option<usize>| {
+    dropped.sort_unstable_by_key(|range| range.start);
+    let mut merged: Vec<Range<usize>> = Vec::with_capacity(dropped.len());
+    for range in dropped {
+        match merged.last_mut() {
+            Some(last) if range.start <= last.end => last.end = last.end.max(range.end),
+            _ => merged.push(range),
+        }
+    }
+    let is_dropped = |at: usize| {
+        let after = merged.partition_point(|range| range.start <= at);
+        after > 0 && at < merged[after - 1].end
+    };
+    let under = |mut parent: Option<usize>, form: [u8; 4]| {
         while let Some(group) = parent.and_then(|index| container.chunk(index)) {
-            if group.form() == Some(*b"SCRP") {
+            if group.form() == Some(form) {
                 return true;
             }
             parent = group.parent();
         }
         false
     };
-    let in_connections = |parent: Option<usize>| {
-        parent
-            .and_then(|index| container.chunk(index))
-            .is_some_and(|group| group.form() == Some(*b"CONN"))
-    };
     let mut work = 0usize;
     for (index, chunk) in container.chunks().iter().enumerate() {
-        let start = chunk.header_range().start;
-        let text_leaf = chunk.tag() == *b"STR " || in_script(chunk.parent());
-        let skipped_link = !semantic::recognized(chunk.tag()) && in_connections(chunk.parent());
+        let text_leaf =
+            matches!(&chunk.tag(), b"STR " | b"STR#" | b"ATTR") || under(chunk.parent(), *b"SCRP");
+        let skipped_link = !semantic::recognized(chunk.tag()) && under(chunk.parent(), *b"CONS");
         if chunk.form().is_some()
             || !(text_leaf || skipped_link)
-            || dropped.iter().any(|range| range.contains(&start))
+            || is_dropped(chunk.header_range().start)
         {
             continue;
         }
         let text = container.payload(index).ok_or(RemovalRefusal::Unreadable)?;
         work = text
             .len()
-            .checked_mul(names.len())
+            .checked_mul(longest)
             .and_then(|cost| work.checked_add(cost))
             .filter(|work| *work <= limit)
             .ok_or(RemovalRefusal::TextScanLimit)?;
-        if names.iter().any(|name| mentions(text, name)) {
-            return Err(if text_leaf {
-                RemovalRefusal::TextReference
-            } else {
-                RemovalRefusal::UnrecognisedConnection
-            });
+        if text_leaf {
+            if names.iter().any(|name| mentions(text, name)) {
+                return Err(RemovalRefusal::TextReference);
+            }
+        } else if names.iter().any(|name| contains_bytes(text, name)) {
+            return Err(RemovalRefusal::UnrecognisedConnection);
         }
     }
     Ok(())
