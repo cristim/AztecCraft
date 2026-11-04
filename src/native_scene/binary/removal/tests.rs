@@ -429,6 +429,15 @@ fn unrecognised_leaves_anywhere_under_cons_are_scanned() {
 }
 
 #[test]
+fn a_conn_group_outside_cons_is_scanned_too() {
+    let stray = group(b"CONN", &chunk(b"PRNT", NAMES_A, 8), 4);
+    let nested = group(b"DPLM", &group(b"CONN", &chunk(b"PRNT", NAMES_A, 8), 8), 4);
+    for extra in [stray, nested] {
+        assert_eq!(check(&extra), Err(RemovalRefusal::UnrecognisedConnection));
+    }
+}
+
+#[test]
 fn string_array_and_attribute_leaves_are_scanned_like_text() {
     let in_node = |tag: &[u8; 4]| {
         group(

@@ -304,8 +304,8 @@ fn contains_bytes(text: &[u8], name: &[u8]) -> bool {
 }
 
 /// Refuses when a surviving text leaf (`STR `, `STR#`, `ATTR`, or any leaf of a `SCRP` group)
-/// mentions a removed name on identifier boundaries, or when a surviving leaf anywhere under the
-/// `CONS` subtree that the opener does not decode contains a removed name as a plain byte
+/// mentions a removed name on identifier boundaries, or when a surviving leaf anywhere under a
+/// `CONS` or `CONN` subtree that the opener does not decode contains a removed name as a plain byte
 /// substring. Numeric payloads and unrecognised leaves outside `CONS` are not scanned
 /// (PROVISIONAL). Work is charged as bytes times the longest name against `limit`.
 fn scan_text(
@@ -348,7 +348,8 @@ fn scan_text(
     for (index, chunk) in container.chunks().iter().enumerate() {
         let text_leaf =
             matches!(&chunk.tag(), b"STR " | b"STR#" | b"ATTR") || under(chunk.parent(), *b"SCRP");
-        let skipped_link = !semantic::recognized(chunk.tag()) && under(chunk.parent(), *b"CONS");
+        let skipped_link = !semantic::recognized(chunk.tag())
+            && (under(chunk.parent(), *b"CONS") || under(chunk.parent(), *b"CONN"));
         if chunk.form().is_some()
             || !(text_leaf || skipped_link)
             || is_dropped(chunk.header_range().start)
