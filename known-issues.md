@@ -567,7 +567,7 @@ edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
 effects are unsupported"). The refusal rate on real Maya files outside the
 five-file private corpus is unmeasured.
 
-Source-free scenes (new, OBJ) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
+Source-free scenes (new) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
 default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
