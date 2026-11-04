@@ -1065,7 +1065,9 @@ the file without their records. Maya's acceptance of the pruned file is unproven
 behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
 reason except where noted:
 
-- A node with children or a parent, an instanced shape, and any node of an opened ASCII scene.
+- A node with children or a parent, and any node of an opened ASCII scene. An instanced shape is
+  not detected for `.mb`: the opener builds one DAG edge per binding and does not decode instance
+  records, so an instance is caught only when a recognised or scanned leaf names the node (below).
 - Another node parented under the transform; a selection, relation or connection that names a
   removed node (by `|` or `:` path component); per-face material links (group id and group colour),
   which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
@@ -1076,8 +1078,10 @@ reason except where noted:
   (these are reached only after the per-face rule is lifted; they are pinned by direct tests).
 - A removed range that would change an enclosing group's padding, and an edit that needs a leaf
   inserted, before or after a Delete (the edit fails with `scene_error`).
-- Text: only `STR ` chunks and leaves of `SCRP` groups are scanned for removed names, so a name in
-  another leaf type of an unbound group is not found (PROVISIONAL). The scan is bounded to 16 Mi
+- Text: only `STR ` chunks, leaves of `SCRP` groups and leaves of the `CONN` list with a tag the
+  opener does not decode are scanned for removed names (an unrecognised connection leaf that names
+  one is refused, `UnrecognisedConnection`; one that names only survivors is kept byte-identical).
+  A name in another leaf type of an unbound group is not found (PROVISIONAL). The scan is bounded to 16 Mi
   (bytes times removed names), about 0.25 s in a debug build; a larger scan is refused as "too large
   to check" rather than skipped, so a file with 200 KB of script text refuses once more than about
   80 names are removed.
