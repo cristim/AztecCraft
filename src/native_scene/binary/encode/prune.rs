@@ -10,7 +10,11 @@ use super::{
 use crate::native_scene::{
     NativeScene,
     binary::{
-        BinaryError, admission::Budget, decode_with_retained_bytes, removal::check_removal,
+        BinaryError,
+        admission::Budget,
+        decode_with_retained_bytes,
+        removal::assert_pruned,
+        removal::{check_dropped, check_removal},
         resource,
     },
     source::SourceRetention,
@@ -23,8 +27,8 @@ pub(super) fn prune(
     source: &SourceRetention,
     output: &[u8],
     remap: &IdRemap,
-    retained: usize,
-    retained_appearance: usize,
+    names: &[String],
+    (retained, retained_appearance): (usize, usize),
     budget: &mut Budget,
 ) -> Result<Vec<u8>, BinaryError> {
     let ranges = check_removal(&source.bytes, &scene.removed).map_err(|_| unsupported())?;
@@ -54,6 +58,11 @@ pub(super) fn prune(
         Appearance::Relocated,
     )?;
     drop(reopened);
+    budget.charge(pruned.len())?;
+    let names: Vec<&[u8]> = names.iter().map(String::as_bytes).collect();
+    let written: Arc<[u8]> = Arc::from(pruned.as_slice());
+    check_dropped(&source.bytes, &scene.removed, &ranges, &written).map_err(|_| unsupported())?;
+    assert_pruned(&written, &names).map_err(|_| unsupported())?;
     Ok(pruned)
 }
 

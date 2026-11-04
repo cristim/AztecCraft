@@ -149,11 +149,12 @@ fn encode_with(
         .as_ref()
         .filter(|s| s.format == SourceFormat::Binary)
         .ok_or_else(unsupported)?;
-    let remap = {
+    let (remap, names) = {
         let retained_appearance = retained_material_metadata(scene)?;
         let mut original =
             decode_with_retained_bytes(source.bytes.clone(), 0, retained_appearance)?;
         let remap = IdRemap::new(&scene.removed, &original);
+        let names = original.removed_names(&scene.removed);
         if removing {
             original.apply_removal(&scene.removed);
         }
@@ -173,7 +174,7 @@ fn encode_with(
             }
         }
         scene.validate().map_err(|e| canonical(e, None))?;
-        remap
+        (remap, names)
     };
     let mut budget = Budget::new(
         source
@@ -274,8 +275,8 @@ fn encode_with(
             source,
             &output,
             &remap,
-            retained,
-            retained_appearance,
+            &names,
+            (retained, retained_appearance),
             &mut budget,
         );
     }

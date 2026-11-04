@@ -2,7 +2,10 @@ use crate::native_scene::{
     Channel, NativeId,
     binary::{
         ErrorKind, decode, encode,
-        removal::tests::{connections, link, shape, transform, two_objects},
+        removal::{
+            RemovalRefusal, assert_pruned,
+            tests::{connections, link, shape, transform, two_objects},
+        },
         tests::{
             appearance_fixture,
             site_fixture::{SITE_AUX, other_node_with_triple, sited_transform, triple_aux},
@@ -47,11 +50,11 @@ fn a_saved_scene_equals_the_file_that_never_had_the_node() {
 fn dropped_set_links_leave_the_surviving_links_and_their_groups_intact() {
     let links = |a: &[Vec<u8>], b: &[Vec<u8>]| connections(&[a, b].concat());
     let dsm = |mode, shape: &str, index: &str| link(mode, shape, &format!("{SET}.dsm{index}"));
-    let both = links(
-        &[dsm(0, "as.iog.og[0]", "[0]")],
-        &[dsm(0, "bs.iog.og[0]", "[1]")],
-    );
-    let only_b = links(&[], &[dsm(0, "bs.iog.og[0]", "[1]")]);
+    let time = link(0, ":time1.o", ":x.i");
+    let b_dsm = dsm(0, "bs.iog.og[0]", "[1]");
+    let survivors = [time, b_dsm];
+    let both = links(&[dsm(0, "as.iog.og[0]", "[0]")], &survivors);
+    let only_b = links(&[], &survivors);
     assert_eq!(save_without(two_objects(&both), "a"), without_a(&only_b));
     let both = links(&[dsm(1, "as.iog", "")], &[dsm(1, "bs.iog", "")]);
     let only_b = links(&[], &[dsm(1, "bs.iog", "")]);
@@ -99,4 +102,25 @@ fn an_edit_that_needs_an_insertion_cannot_be_saved_with_a_removal() {
     opened.remove(a).unwrap();
     opened.set_channel(c, Channel::TranslateX, 5.0).unwrap();
     assert_eq!(encode(&opened).unwrap_err().kind(), ErrorKind::Unsupported);
+}
+
+#[test]
+fn the_pruned_bytes_are_checked_for_any_surviving_reference() {
+    let named = two_objects(&connections(&[link(0, "a.t", "bs.f")]));
+    let names: [&[u8]; 2] = [b"a", b"as"];
+    assert_eq!(
+        assert_pruned(&named, &names),
+        Err(RemovalRefusal::NamedElsewhere)
+    );
+    assert_eq!(assert_pruned(&two_objects(&[]), &[b"zz"]), Ok(()));
+}
+
+#[test]
+fn a_prune_that_leaves_a_reference_would_be_caught_on_the_written_bytes() {
+    let saved = save_without(two_objects(&[]), "a");
+    let kept: [&[u8]; 1] = [b"b"];
+    assert_eq!(
+        assert_pruned(&Arc::from(saved.as_slice()), &kept),
+        Err(RemovalRefusal::NamedElsewhere)
+    );
 }

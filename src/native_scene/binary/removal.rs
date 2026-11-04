@@ -32,6 +32,8 @@ pub enum RemovalRefusal {
     TextReference,
     /// The file's text is too large to check for such a mention within the work limit.
     TextScanLimit,
+    /// The prune would drop a record that does not belong to the removed nodes.
+    UnexpectedDrop,
     /// Removing the records would change the padding of an enclosing group.
     Alignment,
     /// The shape is the only user of a diffuse-bound shader.
@@ -58,6 +60,7 @@ impl fmt::Display for RemovalRefusal {
             Self::TextScanLimit => {
                 "The file's text is too large to check for mentions of this node"
             }
+            Self::UnexpectedDrop => "The prune would drop a record that is not part of this node",
             Self::Alignment => "Removing this node would change the padding of its file group",
             Self::LastDiffuseUser => "This node holds the only use of a shader",
             Self::PendingInsertion => "Another node has an edit that still needs a record inserted",
@@ -365,6 +368,96 @@ fn prune_ranges(
         return Err(RemovalRefusal::Unreadable);
     }
     Ok(ranges)
+}
+
+/// Independent of how `check_removal` chose its ranges: each must be exactly the group of a removed
+/// binding or a connection with a removed endpoint, and the pruned bytes must hold the original's
+/// records minus the ones inside the ranges.
+pub(super) fn check_dropped(
+    original: &Arc<[u8]>,
+    ids: &[NativeId],
+    ranges: &[PruneRange],
+    pruned: &Arc<[u8]>,
+) -> Result<(), RemovalRefusal> {
+    let container = container::inspect(original.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
+    let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
+    let bound: Vec<usize> = (0..facts.records.len())
+        .filter(|index| is_bound(&container, &facts.records[*index]))
+        .collect();
+    let mut groups = Vec::with_capacity(ids.len());
+    let mut names: Vec<&[u8]> = Vec::with_capacity(ids.len());
+    for id in ids {
+        let index = usize::try_from(id.0)
+            .ok()
+            .and_then(|id| id.checked_sub(1))
+            .and_then(|id| bound.get(id))
+            .ok_or(RemovalRefusal::Unreadable)?;
+        let Data::Create(create) = &facts.records[*index].data else {
+            return Err(RemovalRefusal::Unreadable);
+        };
+        groups.push(facts.records[*index].group);
+        names.push(plain(text(&facts, &create.name)));
+    }
+    let removed_link = |chunk: usize| {
+        facts.records.iter().any(|record| {
+            record.chunk == chunk
+                && matches!(&record.data, Data::Connection(link)
+                    if [&link.source, &link.destination]
+                        .into_iter()
+                        .any(|span| names.contains(&endpoint(&facts, span).0)))
+        })
+    };
+    for prune in ranges {
+        let chunk = container
+            .chunks()
+            .iter()
+            .position(|chunk| {
+                chunk.header_range().start == prune.range.start
+                    && chunk.padding_range().end == prune.range.end
+            })
+            .ok_or(RemovalRefusal::UnexpectedDrop)?;
+        if !groups.contains(&chunk) && !removed_link(chunk) {
+            return Err(RemovalRefusal::UnexpectedDrop);
+        }
+    }
+    let inside = |chunk: usize| {
+        let start = container.chunks()[chunk].header_range().start;
+        ranges.iter().any(|prune| prune.range.contains(&start))
+    };
+    let dropped = facts.records.iter().filter(|r| inside(r.chunk)).count();
+    let after = container::inspect(pruned.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
+    let kept = semantic::decode_records(&after)
+        .map_err(|_| RemovalRefusal::Unreadable)?
+        .records
+        .len();
+    if kept != facts.records.len() - dropped {
+        return Err(RemovalRefusal::UnexpectedDrop);
+    }
+    Ok(())
+}
+
+/// The pruned file must not name a removed node anywhere a record can: a surviving creation,
+/// selection, relation or connection that does is a bug in the prune, not a user error.
+pub(super) fn assert_pruned(bytes: &Arc<[u8]>, names: &[&[u8]]) -> Result<(), RemovalRefusal> {
+    let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
+    let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
+    let named = |span: &Range<usize>| names_path(names, text(&facts, span));
+    let found = facts.records.iter().any(|record| match &record.data {
+        Data::Create(create) => {
+            names.contains(&plain(text(&facts, &create.name)))
+                || create.parent.as_ref().is_some_and(named)
+        }
+        Data::Selection(target) => named(target),
+        Data::Relation(relation) => [&relation.head, &relation.tails[0], &relation.tails[1]]
+            .into_iter()
+            .any(named),
+        Data::Connection(connection) => named(&connection.source) || named(&connection.destination),
+        _ => false,
+    });
+    if found {
+        return Err(RemovalRefusal::NamedElsewhere);
+    }
+    Ok(())
 }
 
 /// A removed shape must not be the only user of a material, and must not be the first user of one

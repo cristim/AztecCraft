@@ -69,6 +69,19 @@ impl NativeScene {
         Ok(())
     }
 
+    /// Names of the removed transforms and shapes, as the file spells them.
+    pub(super) fn removed_names(&self, removed: &[NativeId]) -> Vec<String> {
+        let nodes = self
+            .nodes
+            .iter()
+            .filter(|n| removed.contains(&n.transform_id));
+        let shapes = self.shapes.iter().filter(|s| removed.contains(&s.id));
+        nodes
+            .map(|n| n.name.clone())
+            .chain(shapes.map(|s| s.name.clone()))
+            .collect()
+    }
+
     /// This scene as a reopen of the pruned file would number it: removed entries are gone and the
     /// survivors are renumbered. Source offsets and leaves are not translated.
     pub(super) fn renumbered(&self, remap: &IdRemap) -> NativeScene {

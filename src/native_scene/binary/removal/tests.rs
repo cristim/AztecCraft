@@ -438,3 +438,38 @@ fn text_work_beyond_the_limit_is_refused_not_skipped() {
         Err(RemovalRefusal::Unreadable)
     );
 }
+
+#[test]
+fn a_range_that_is_not_part_of_the_removed_nodes_is_not_accepted() {
+    let kept = link(0, ":time1.o", ":x.i");
+    let own = link(0, "as.iog.og[0]", ":initialShadingGroup.dsm[0]");
+    let bytes = two_objects(&connections(&[own, kept]));
+    let ranges = check_removal(&bytes, &ids(&[1, 2])).unwrap();
+    let container = container::inspect(bytes.clone()).unwrap();
+    let unrelated = container
+        .chunks()
+        .iter()
+        .find(|c| c.tag() == *b"CWFL" && bytes[c.payload_range()].starts_with(b"\0:time1"))
+        .unwrap();
+    let wide = PruneRange {
+        range: unrelated.header_range().start..unrelated.padding_range().end,
+        ancestors: Vec::new(),
+    };
+    let both: Vec<_> = ranges
+        .iter()
+        .map(|r| PruneRange {
+            range: r.range.clone(),
+            ancestors: Vec::new(),
+        })
+        .chain([wide])
+        .collect();
+    assert_eq!(
+        check_dropped(&bytes, &ids(&[1, 2]), &both, &bytes),
+        Err(RemovalRefusal::UnexpectedDrop)
+    );
+    // The right ranges with bytes that kept every record: the count disagrees.
+    assert_eq!(
+        check_dropped(&bytes, &ids(&[1, 2]), &ranges, &bytes),
+        Err(RemovalRefusal::UnexpectedDrop)
+    );
+}
