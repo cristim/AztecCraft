@@ -15,6 +15,7 @@ use crate::{
     },
     scene::NodeId,
 };
+pub use document::{AsciiDecoded, AsciiDocumentError, AuthoredProjection, decode_document};
 use std::{ops::Range, sync::Arc};
 use uuid::Uuid;
 
@@ -1212,10 +1213,10 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     })
 }
 
+mod document;
 mod mesh;
 #[cfg(test)]
 mod tests;
-#[cfg(any(unix, test))]
 pub(crate) mod write;
 #[cfg(test)]
 pub(super) use write::{AsciiWriteRefusal, emit_geometry_prefix};

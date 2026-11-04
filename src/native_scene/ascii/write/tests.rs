@@ -1385,20 +1385,16 @@ fn assigned_session_materials_are_refused_before_ascii_output() {
 }
 
 #[test]
-fn writer_output_is_not_yet_read_back_and_the_reader_names_the_mesh_statement() {
-    // Characterises the #321 blocker: the reader has no mesh support, so it refuses the
-    // writer's own output at `createNode mesh`. Flipped when the read-back gate lands.
+fn public_decode_stays_closed_to_writer_output_while_the_gate_reads_it_back() {
+    // `decode` keeps refusing the writer's mesh output at `createNode mesh`; only the gated
+    // `decode_document` admits it, as an authored projection.
     let bytes = prefix(&scene(&["cube"])).unwrap();
     let text = std::str::from_utf8(&bytes).unwrap();
     let error = super::super::decode(Arc::from(bytes.clone())).unwrap_err();
     assert_eq!(error.kind(), crate::maya_ascii::ErrorKind::Unsupported);
     assert_eq!(error.offset(), text.find("createNode mesh"));
-    let transform_only = &bytes[..text.find("createNode mesh").unwrap()];
-    assert_eq!(
-        super::super::decode(Arc::from(transform_only.to_vec()))
-            .unwrap()
-            .nodes()
-            .len(),
-        1
-    );
+    assert!(matches!(
+        super::super::decode_document(Arc::from(bytes), true),
+        Ok(super::super::AsciiDecoded::Authored(_))
+    ));
 }
