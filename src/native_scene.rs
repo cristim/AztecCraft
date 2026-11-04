@@ -11,6 +11,7 @@ mod rotate_frame;
 mod scale_frame;
 mod session_material;
 mod source;
+mod source_removal;
 mod transform_extras;
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
@@ -539,6 +540,8 @@ pub struct NativeScene {
     source: Option<SourceRetention>,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
+    removed: Vec<NativeId>,
     next_id: u64,
     next_native_id: u64,
 }
@@ -626,6 +629,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.removed == other.removed
     }
 }
 
@@ -640,6 +644,7 @@ impl Default for NativeScene {
             source: None,
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            removed: Vec::new(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -1356,26 +1361,18 @@ impl NativeScene {
             })
             .map(|edge| edge.child)
             .collect();
-        if let Some(source) = &self.source {
-            if source.format == SourceFormat::Binary && incoming.len() == 1 {
-                let refuse =
-                    |reason| NativeError::UnsupportedDelete(DeleteUnsupported::Source(reason));
-                binary::check_removal(&source.bytes, transform, &exclusive).map_err(refuse)?;
-                if let Some(appearance) = &source.appearance {
-                    binary::check_materials(appearance, &exclusive).map_err(refuse)?;
-                }
-            }
-            return Err(NativeError::UnsupportedEdit);
-        }
+        let mut gone = vec![transform];
+        gone.extend(&exclusive);
         if incoming.len() != 1 {
             return Err(NativeError::UnsupportedEdit);
         }
-        let node = self.nodes.remove(index);
-        self.shapes.retain(|shape| !exclusive.contains(&shape.id));
-        self.session_materials.prune(&self.shapes);
-        self.dag.retain(|edge| {
-            edge.child != node.transform_id && edge.parent != Some(node.transform_id)
-        });
+        if let Some(source) = &self.source {
+            if source.format != SourceFormat::Binary {
+                return Err(NativeError::UnsupportedEdit);
+            }
+            self.check_source_removal(&gone)?;
+        }
+        self.apply_removal(&gone);
         Ok(())
     }
     pub fn set_transform(
@@ -1556,6 +1553,9 @@ impl NativeScene {
                 appearance.validate(self, source)?;
             }
             for (index, leaf) in source.leaves.iter().enumerate() {
+                if self.removed.binary_search(&leaf.owner).is_ok() {
+                    continue;
+                }
                 let node = self
                     .nodes
                     .iter()

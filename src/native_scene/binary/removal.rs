@@ -34,6 +34,10 @@ pub enum RemovalRefusal {
     TextScanLimit,
     /// Removing the records would change the padding of an enclosing group.
     Alignment,
+    /// The shape is the only user of a diffuse-bound shader.
+    LastDiffuseUser,
+    /// A surviving edit needs a record inserted, which cannot be combined with a removal.
+    PendingInsertion,
     /// The shape is the only user of a material.
     LastMaterialUser,
     /// Removing the shape would renumber the materials of the shapes that remain.
@@ -55,6 +59,8 @@ impl fmt::Display for RemovalRefusal {
                 "The file's text is too large to check for mentions of this node"
             }
             Self::Alignment => "Removing this node would change the padding of its file group",
+            Self::LastDiffuseUser => "This node holds the only use of a shader",
+            Self::PendingInsertion => "Another node has an edit that still needs a record inserted",
             Self::LastMaterialUser => "This node holds the only use of a material",
             Self::FirstMaterialUser => "Deleting this node would renumber the remaining materials",
         })
@@ -107,8 +113,7 @@ fn endpoint<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> (&'a [u8], &'a
 /// group's padding. Ids are the opener's binding order, `NativeId = binding index + 1`.
 pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
-    transform: NativeId,
-    shapes: &[NativeId],
+    ids: &[NativeId],
 ) -> Result<(), RemovalRefusal> {
     let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
     let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
@@ -122,17 +127,12 @@ pub(in crate::native_scene) fn check_removal(
             .and_then(|id| bound.get(id).copied())
             .ok_or(RemovalRefusal::Unreadable)
     };
-    let root = record_of(transform)?;
-    let mut removed = vec![root];
-    for shape in shapes {
-        removed.push(record_of(*shape)?);
-    }
-    if form(&facts, root) != Some(*b"XFRM")
-        || removed[1..]
-            .iter()
-            .any(|index| form(&facts, *index) != Some(*b"DMSH"))
-    {
+    if ids.is_empty() {
         return Err(RemovalRefusal::Unreadable);
+    }
+    let mut removed = Vec::with_capacity(ids.len());
+    for id in ids {
+        removed.push(record_of(*id)?);
     }
     let mut names: Vec<&[u8]> = Vec::with_capacity(removed.len());
     for index in &removed {
@@ -150,10 +150,14 @@ pub(in crate::native_scene) fn check_removal(
             _ => None,
         })
         .collect();
-    if removed[1..]
-        .iter()
-        .any(|index| parents[*index].map(plain) != Some(names[0]))
-    {
+    // A removed shape hangs under a removed transform; a removed transform has no parent.
+    if removed.iter().any(
+        |index| match (form(&facts, *index), parents[*index].map(plain)) {
+            (Some(f), Some(parent)) if f == *b"DMSH" => !names.contains(&parent),
+            (Some(f), None) if f == *b"XFRM" => false,
+            _ => true,
+        },
+    ) {
         return Err(RemovalRefusal::ForeignChild);
     }
     if parents.iter().enumerate().any(|(index, parent)| {
@@ -381,8 +385,16 @@ pub(in crate::native_scene) fn check_materials(
             return Err(RemovalRefusal::FirstMaterialUser);
         }
     }
+    // A diffuse-bound shader left without a user would not be listed after a reopen.
+    if appearance.diffuse.iter().any(|binding| {
+        !binding.shapes.is_empty() && binding.shapes.iter().all(|user| removed.contains(user))
+    }) {
+        return Err(RemovalRefusal::LastDiffuseUser);
+    }
     Ok(())
 }
 
+#[cfg(test)]
+mod scene_tests;
 #[cfg(test)]
 mod tests;

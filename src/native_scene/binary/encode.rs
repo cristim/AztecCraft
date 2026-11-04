@@ -130,7 +130,8 @@ fn encode_with(
     plan: &[Insertion],
     elided: &[(NativeId, TransformField)],
 ) -> Result<Vec<u8>, BinaryError> {
-    if !scene.curves.is_empty() {
+    // Saving a scene with removed nodes lands with the prune; refuse until then.
+    if !scene.curves.is_empty() || !scene.removed.is_empty() {
         return Err(unsupported());
     }
     let source = scene

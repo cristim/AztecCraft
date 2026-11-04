@@ -611,25 +611,12 @@ async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseli
 }
 
 #[tokio::test]
-async fn delete_node_on_an_opened_binary_root_leaf_is_refused_without_mutation() {
+async fn delete_node_on_an_opened_binary_removes_a_root_leaf() {
     let mut rig = Rig::open_bytes(siteless_bytes()).await;
-    let baseline = rig.baseline();
-    for name in ["object", "locked"] {
-        let node = rig.node(name);
-        let refused = rig
-            .call(
-                "delete_node",
-                json!({"scene_token":rig.token,"node_id":node.node}),
-            )
-            .await;
-        let error = &refused.structured_content.unwrap()["error"];
-        assert_eq!(error["code"], "scene_error", "{name}");
-        // The code alone also matches ReadOnlyFormat; the message pins UnsupportedEdit.
-        assert_eq!(
-            error["message"], "native ownership or edit effects are unsupported",
-            "{name}"
-        );
-        assert_eq!(rig.baseline(), baseline, "{name}");
-    }
+    let object = rig.node("object");
+    let args = json!({"scene_token":rig.token,"node_id":object.node});
+    let removed = rig.call("delete_node", args).await;
+    assert_eq!(removed.structured_content.unwrap()["outcome"], "changed");
+    assert!(rig.editor.is_dirty() && rig.editor.history.can_undo());
     rig.finish().await;
 }

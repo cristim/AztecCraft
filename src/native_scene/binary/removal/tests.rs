@@ -4,7 +4,7 @@ use crate::native_scene::{
     binary::tests::wire_fixture::*,
 };
 
-fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
+pub(super) fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
     chunk(
         b"CWFL",
         &[&[mode], from.as_bytes(), &[0], to.as_bytes(), &[0]].concat(),
@@ -12,11 +12,11 @@ fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
     )
 }
 
-fn connections(links: &[Vec<u8>]) -> Vec<u8> {
+pub(super) fn connections(links: &[Vec<u8>]) -> Vec<u8> {
     group(b"CONS", &group(b"CONN", &links.concat(), 4), 4)
 }
 
-fn transform(name: &[u8]) -> Vec<u8> {
+pub(super) fn transform(name: &[u8]) -> Vec<u8> {
     group(
         b"XFRM",
         &[creation(name, None), triple(b"t", [1.0, 2.0, 3.0])].concat(),
@@ -24,7 +24,7 @@ fn transform(name: &[u8]) -> Vec<u8> {
     )
 }
 
-fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
+pub(super) fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
     group(
         b"DMSH",
         &[
@@ -37,7 +37,7 @@ fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
 }
 
 /// `a` with shape `as` (ids 1 and 2) and a survivor `b` with shape `bs` (ids 3 and 4).
-fn two_objects(extra: &[u8]) -> Arc<[u8]> {
+pub(super) fn two_objects(extra: &[u8]) -> Arc<[u8]> {
     scene(
         &[
             transform(b"a"),
@@ -63,8 +63,12 @@ fn selection(target: &[u8]) -> Vec<u8> {
     group(b"SLCT", &chunk(b"SLCT", target, 8), 4)
 }
 
+pub(super) fn ids(ids: &[u64]) -> Vec<NativeId> {
+    ids.iter().copied().map(NativeId).collect()
+}
+
 fn check(extra: &[u8]) -> Result<(), RemovalRefusal> {
-    check_removal(&two_objects(extra), NativeId(1), &[NativeId(2)])
+    check_removal(&two_objects(extra), &ids(&[1, 2]))
 }
 
 fn check_links(links: &[Vec<u8>]) -> Result<(), RemovalRefusal> {
@@ -74,34 +78,31 @@ fn check_links(links: &[Vec<u8>]) -> Result<(), RemovalRefusal> {
 #[test]
 fn a_transform_and_shape_nothing_else_names_is_removable() {
     assert_eq!(check(&[]), Ok(()));
-    assert_eq!(
-        check_removal(&two_objects(&[]), NativeId(3), &[NativeId(4)]),
-        Ok(())
-    );
+    assert_eq!(check_removal(&two_objects(&[]), &ids(&[3, 4])), Ok(()));
 }
 
 #[test]
-fn ids_must_name_the_transform_and_its_shapes() {
+fn ids_must_name_removable_nodes_that_belong_together() {
     let bytes = two_objects(&[]);
-    for (transform, shapes) in [
-        (2, vec![]),
-        (1, vec![1]),
-        (9, vec![]),
-        (1, vec![9]),
-        (0, vec![]),
-    ] {
-        let shapes: Vec<_> = shapes.into_iter().map(NativeId).collect();
+    for unreadable in [&[1, 2, 2][..], &[9], &[1, 9], &[0], &[]] {
         assert_eq!(
-            check_removal(&bytes, NativeId(transform), &shapes),
-            Err(RemovalRefusal::Unreadable)
+            check_removal(&bytes, &ids(unreadable)),
+            Err(RemovalRefusal::Unreadable),
+            "{unreadable:?}"
         );
     }
+    for foreign in [&[2][..], &[1, 4], &[3]] {
+        assert_eq!(
+            check_removal(&bytes, &ids(foreign)),
+            Err(RemovalRefusal::ForeignChild),
+            "{foreign:?}"
+        );
+    }
+    for fine in [&[1, 2, 3, 4][..], &[4, 3]] {
+        assert_eq!(check_removal(&bytes, &ids(fine)), Ok(()));
+    }
     assert_eq!(
-        check_removal(&bytes, NativeId(1), &[NativeId(4)]),
-        Err(RemovalRefusal::ForeignChild)
-    );
-    assert_eq!(
-        check_removal(&Arc::from(&b"junk"[..]), NativeId(1), &[]),
+        check_removal(&Arc::from(&b"junk"[..]), &ids(&[1])),
         Err(RemovalRefusal::Unreadable)
     );
 }
@@ -252,17 +253,17 @@ fn a_removed_range_that_would_change_an_ancestor_padding_is_refused() {
     let nested = |inner: Vec<u8>| group(b"DMTI", &group(b"CONS", &inner, 8), 4);
     let bytes = scene(&[nested([transform(b"a"), shape(b"as", b"a")].concat())].concat());
     assert_eq!(
-        check_removal(&bytes, NativeId(1), &[NativeId(2)]),
+        check_removal(&bytes, &ids(&[1, 2])),
         Err(RemovalRefusal::Alignment)
     );
     let plain = scene(&[nested(transform(b"b")), transform(b"a"), shape(b"as", b"a")].concat());
-    assert_eq!(check_removal(&plain, NativeId(2), &[NativeId(3)]), Ok(()));
+    assert_eq!(check_removal(&plain, &ids(&[2, 3])), Ok(()));
 }
 
 #[test]
 fn a_repeated_shape_id_overlaps_its_own_range_and_is_refused() {
     assert_eq!(
-        check_removal(&two_objects(&[]), NativeId(1), &[NativeId(2), NativeId(2)]),
+        check_removal(&two_objects(&[]), &ids(&[1, 2, 2])),
         Err(RemovalRefusal::Unreadable)
     );
 }
@@ -284,11 +285,8 @@ fn an_opened_scene_reports_the_specific_reason_and_stays_untouched() {
         )))
     );
     assert_eq!(scene, baseline);
-    assert_eq!(
-        scene.remove(id(&baseline, 1)),
-        Err(NativeError::UnsupportedEdit)
-    );
-    assert_eq!(scene, baseline);
+    assert_eq!(scene.remove(id(&baseline, 1)), Ok(()));
+    assert_ne!(scene, baseline);
 }
 
 /// Measurement for issue #272: the recognised shading-group graph links a shape to `dsm` with mode
@@ -411,7 +409,7 @@ fn only_surviving_text_is_scanned_and_numeric_payloads_never() {
         4,
     );
     let bytes = scene(&[transform(b"a"), shape_with_text, numeric].concat());
-    assert_eq!(check_removal(&bytes, NativeId(1), &[NativeId(2)]), Ok(()));
+    assert_eq!(check_removal(&bytes, &ids(&[1, 2])), Ok(()));
 }
 
 #[test]
