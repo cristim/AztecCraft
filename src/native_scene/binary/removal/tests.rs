@@ -1,7 +1,7 @@
 use super::*;
 use crate::native_scene::{
-    DeleteUnsupported, NativeError,
-    binary::tests::{appearance_fixture, wire_fixture::*},
+    DeleteUnsupported, NativeError, binary::tests::appearance_fixture,
+    binary::tests::wire_fixture::*,
 };
 
 fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
@@ -141,22 +141,6 @@ fn long_and_absolute_paths_to_a_removed_node_are_refused() {
 }
 
 #[test]
-fn relations_and_selections_naming_a_removed_node_are_refused() {
-    let linked = |head, tail| connections(&[relation(head, tail)]);
-    assert_eq!(check(&linked("lightLinker1", "b")), Ok(()));
-    for extra in [
-        linked("a", "x"),
-        linked("x", "as.iog"),
-        linked("x", ":a"),
-        selection(b":a"),
-        selection(b":as.f[1]"),
-    ] {
-        assert_eq!(check(&extra), Err(RemovalRefusal::NamedElsewhere));
-    }
-    assert_eq!(check(&selection(b":b")), Ok(()));
-}
-
-#[test]
 fn links_between_removed_nodes_and_to_a_zero_mode_set_are_dropped() {
     let set = group(b"SHAD", &creation(b"sg", None), 4);
     assert_eq!(check_links(&[link(0, "a.t", "as.foo")]), Ok(()));
@@ -248,6 +232,42 @@ fn per_face_and_custom_links_naming_a_removed_node_are_refused() {
 }
 
 #[test]
+fn relations_and_selections_naming_a_removed_node_are_refused() {
+    let linked = |head, tail| connections(&[relation(head, tail)]);
+    assert_eq!(check(&linked("lightLinker1", "b")), Ok(()));
+    for extra in [
+        linked("a", "x"),
+        linked("x", "as.iog"),
+        linked("x", ":a"),
+        selection(b":a"),
+        selection(b":as.f[1]"),
+    ] {
+        assert_eq!(check(&extra), Err(RemovalRefusal::NamedElsewhere));
+    }
+    assert_eq!(check(&selection(b":b")), Ok(()));
+}
+
+#[test]
+fn a_removed_range_that_would_change_an_ancestor_padding_is_refused() {
+    let nested = |inner: Vec<u8>| group(b"DMTI", &group(b"CONS", &inner, 8), 4);
+    let bytes = scene(&[nested([transform(b"a"), shape(b"as", b"a")].concat())].concat());
+    assert_eq!(
+        check_removal(&bytes, NativeId(1), &[NativeId(2)]),
+        Err(RemovalRefusal::Alignment)
+    );
+    let plain = scene(&[nested(transform(b"b")), transform(b"a"), shape(b"as", b"a")].concat());
+    assert_eq!(check_removal(&plain, NativeId(2), &[NativeId(3)]), Ok(()));
+}
+
+#[test]
+fn a_repeated_shape_id_overlaps_its_own_range_and_is_refused() {
+    assert_eq!(
+        check_removal(&two_objects(&[]), NativeId(1), &[NativeId(2), NativeId(2)]),
+        Err(RemovalRefusal::Unreadable)
+    );
+}
+
+#[test]
 fn an_opened_scene_reports_the_specific_reason_and_stays_untouched() {
     let mut scene = crate::native_scene::binary::decode(two_objects(&connections(&[link(
         1,
@@ -306,4 +326,45 @@ fn the_recognised_shading_group_membership_link_is_mode_one() {
         ready(mode_zero.into()),
         AppearanceState::CheckedViewerSource
     );
+}
+
+#[test]
+fn a_material_is_not_removed_with_its_only_or_first_user() {
+    let appearance = |users| {
+        let scene = crate::native_scene::binary::decode(
+            appearance_fixture::appearance_specimen_with_users(users).into(),
+        )
+        .unwrap();
+        let ids: Vec<_> = scene.shapes().iter().map(|shape| shape.id()).collect();
+        (scene.source.unwrap().appearance.unwrap(), ids)
+    };
+    let (single, ids) = appearance(1);
+    assert_eq!(
+        check_materials(&single, &ids),
+        Err(RemovalRefusal::LastMaterialUser)
+    );
+    let (own, ids) = appearance(2);
+    assert_eq!(
+        check_materials(&own, &ids[..1]),
+        Err(RemovalRefusal::LastMaterialUser)
+    );
+    assert_eq!(
+        check_materials(&own, &ids[1..]),
+        Err(RemovalRefusal::LastMaterialUser)
+    );
+    // The fixture gives each shape its own shading group; point the second at the first's material.
+    let mut shared = (*own).clone();
+    let material = shared.shapes[0].binding.as_ref().unwrap().material;
+    shared.shapes[1].binding.as_mut().unwrap().material = material;
+    let pair = &shared;
+    assert_eq!(
+        check_materials(pair, &ids[..1]),
+        Err(RemovalRefusal::FirstMaterialUser)
+    );
+    assert_eq!(check_materials(pair, &ids[1..]), Ok(()));
+    assert_eq!(
+        check_materials(pair, &ids),
+        Err(RemovalRefusal::LastMaterialUser)
+    );
+    assert_eq!(check_materials(pair, &[]), Ok(()));
 }

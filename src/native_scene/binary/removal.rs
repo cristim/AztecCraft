@@ -8,10 +8,10 @@
 use super::binding::{effects::normalized, is_bound};
 use crate::{
     maya_binary::{
-        container::{self},
+        container::{self, Container},
         semantic::{self, Data, WireFacts},
     },
-    native_scene::NativeId,
+    native_scene::{NativeId, appearance::*},
 };
 use std::{collections::HashMap, fmt, ops::Range, sync::Arc};
 
@@ -28,6 +28,12 @@ pub enum RemovalRefusal {
     NextAvailableIndex,
     /// A connection, relation or selection names a removed node in a way that is not droppable.
     NamedElsewhere,
+    /// Removing the records would change the padding of an enclosing group.
+    Alignment,
+    /// The shape is the only user of a material.
+    LastMaterialUser,
+    /// Removing the shape would renumber the materials of the shapes that remain.
+    FirstMaterialUser,
 }
 
 impl fmt::Display for RemovalRefusal {
@@ -40,6 +46,9 @@ impl fmt::Display for RemovalRefusal {
                 "A shape of this node is linked to a set by a next-available index"
             }
             Self::NamedElsewhere => "The file refers to this node by name from another record",
+            Self::Alignment => "Removing this node would change the padding of its file group",
+            Self::LastMaterialUser => "This node holds the only use of a material",
+            Self::FirstMaterialUser => "Deleting this node would renumber the remaining materials",
         })
     }
 }
@@ -86,7 +95,8 @@ fn endpoint<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> (&'a [u8], &'a
 }
 
 /// Checks that the transform `transform` and its exclusive `shapes` can be dropped from `bytes`
-/// without leaving a record that names them. Ids are the opener's binding order, `NativeId = binding index + 1`.
+/// without leaving a record that names them, and that the byte ranges to drop keep every enclosing
+/// group's padding. Ids are the opener's binding order, `NativeId = binding index + 1`.
 pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
     transform: NativeId,
@@ -236,6 +246,69 @@ pub(in crate::native_scene) fn check_removal(
             {
                 return Err(RemovalRefusal::NextAvailableIndex);
             }
+        }
+    }
+    check_alignment(&container, &chunks)
+}
+
+/// Every removed range must keep each enclosing group's padded size consistent: its length must be
+/// a multiple of the child alignment of every ancestor frame, and ranges must not overlap.
+fn check_alignment(container: &Container, chunks: &[usize]) -> Result<(), RemovalRefusal> {
+    let mut ranges = Vec::with_capacity(chunks.len());
+    for index in chunks {
+        let chunk = container.chunk(*index).ok_or(RemovalRefusal::Unreadable)?;
+        let range = chunk.header_range().start..chunk.padding_range().end;
+        let mut ancestor = chunk.parent();
+        while let Some(parent) = ancestor.and_then(|index| container.chunk(index)) {
+            let alignment = parent
+                .form()
+                .and_then(|form| container::group_alignment(parent.tag(), form))
+                .ok_or(RemovalRefusal::Unreadable)?;
+            if !(range.end - range.start).is_multiple_of(alignment) {
+                return Err(RemovalRefusal::Alignment);
+            }
+            ancestor = parent.parent();
+        }
+        ranges.push(range);
+    }
+    ranges.sort_unstable_by_key(|range| range.start);
+    if ranges.windows(2).any(|pair| pair[0].end > pair[1].start) {
+        return Err(RemovalRefusal::Unreadable);
+    }
+    Ok(())
+}
+
+/// A removed shape must not be the only user of a material, and must not be the first user of one
+/// that other shapes keep: reopening numbers materials by first use, so either would renumber them.
+pub(in crate::native_scene) fn check_materials(
+    appearance: &SourceAppearance,
+    removed: &[NativeId],
+) -> Result<(), RemovalRefusal> {
+    for shape in removed {
+        let Some(Ok(binding)) = appearance
+            .shapes
+            .iter()
+            .find(|entry| entry.shape == *shape)
+            .map(|entry| &entry.binding)
+        else {
+            continue;
+        };
+        let users: Vec<NativeId> = appearance
+            .shapes
+            .iter()
+            .filter(|entry| {
+                entry
+                    .binding
+                    .as_ref()
+                    .is_ok_and(|b| b.material == binding.material)
+            })
+            .map(|entry| entry.shape)
+            .collect();
+        if users.iter().all(|user| removed.contains(user)) {
+            return Err(RemovalRefusal::LastMaterialUser);
+        }
+        if removed.contains(&users[0]) {
+            return Err(RemovalRefusal::FirstMaterialUser);
         }
     }
     Ok(())

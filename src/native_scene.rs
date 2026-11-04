@@ -1361,6 +1361,9 @@ impl NativeScene {
                 let refuse =
                     |reason| NativeError::UnsupportedDelete(DeleteUnsupported::Source(reason));
                 binary::check_removal(&source.bytes, transform, &exclusive).map_err(refuse)?;
+                if let Some(appearance) = &source.appearance {
+                    binary::check_materials(appearance, &exclusive).map_err(refuse)?;
+                }
             }
             return Err(NativeError::UnsupportedEdit);
         }
