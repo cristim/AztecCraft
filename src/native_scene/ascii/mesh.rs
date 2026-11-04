@@ -110,7 +110,10 @@ impl Builder<'_, '_> {
                 Vec::new(),
                 Some(false),
             )
-            .map_err(|_| error(ErrorKind::Malformed, 0))?;
+            .map_err(|_| AsciiError {
+                kind: ErrorKind::Malformed,
+                offset: None,
+            })?;
         }
         Ok(())
     }

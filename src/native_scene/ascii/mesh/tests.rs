@@ -77,50 +77,48 @@ fn point_values_keep_signed_zero_subnormals_and_the_f32_extremes() {
 
 #[test]
 fn malformed_or_oversized_array_claims_allocate_nothing_and_name_the_statement() {
-    for body in [
+    use ErrorKind::{Malformed as M, Unsupported as U};
+    for (body, kind) in [
         // a count far beyond the tokens present, a count that disagrees with the range
-        "setAttr -s 2147483647 \".vt[0:2147483646]\" 0 0 0;",
-        "setAttr -s 2 \".vt[0:2]\" 0 0 0 0 0 0;",
-        "setAttr -s 2 \".vt[0:0]\" 0 0 0;",
-        "setAttr -s 1 \".vt[0:1]\" 0 0 0 1 0 0;",
+        ("setAttr -s 2147483647 \".vt[0:2147483646]\" 0 0 0;", M),
+        ("setAttr -s 2 \".vt[0:2]\" 0 0 0 0 0 0;", U),
+        ("setAttr -s 2 \".vt[0:0]\" 0 0 0;", U),
+        ("setAttr -s 1 \".vt[0:1]\" 0 0 0 1 0 0;", U),
         // no size, no range, a split range, a leading zero, an empty array, a wrong name
-        "setAttr \".vt[0:0]\" 0 0 0;",
-        "setAttr -s 1 \".vt\" 0 0 0;",
-        "setAttr -s 2 \".vt[1:2]\" 0 0 0 0 0 0;",
-        "setAttr -s 1 \".vt[0:00]\" 0 0 0;",
-        "setAttr -s 0 \".vt[0:-1]\";",
-        "setAttr -s 1 \".pt[0:0]\" 0 0 0;",
+        ("setAttr \".vt[0:0]\" 0 0 0;", U),
+        ("setAttr -s 1 \".vt\" 0 0 0;", U),
+        ("setAttr -s 2 \".vt[1:2]\" 0 0 0 0 0 0;", U),
+        ("setAttr -s 1 \".vt[0:00]\" 0 0 0;", U),
+        ("setAttr -s 0 \".vt[0:-1]\";", U),
+        ("setAttr -s 1 \".pt[0:0]\" 0 0 0;", U),
         // missing, extra, non-finite and non-numeric values, typed and keyable forms
-        "setAttr -s 1 \".vt[0:0]\" 0 0;",
-        "setAttr -s 1 \".vt[0:0]\" 0 0 0 0;",
-        "setAttr -s 1 \".vt[0:0]\" 0 0 1e40;",
-        "setAttr -s 1 \".vt[0:0]\" 0 0 nan;",
-        "setAttr -s 1 \".vt[0:0]\" -type \"float3\" 0 0 0;",
-        "setAttr -k off -s 1 \".vt[0:0]\" 0 0 0;",
-        // a duplicate array, edge values beyond hard, negative endpoints, a point-count mismatch
-        "setAttr -s 1 \".vt[0:0]\" 0 0 0; setAttr -s 1 \".vt[0:0]\" 0 0 0;",
-        "setAttr -s 1 \".ed[0:0]\" 0 0 0; setAttr -s 1 \".ed[0:0]\" 0 0 0;",
-        "setAttr -s 2 \".vt[0:1]\" 0 0 0 1 0 0; setAttr -s 1 \".ed[0:0]\" 0 1 1;",
-        "setAttr -s 2 \".vt[0:1]\" 0 0 0 1 0 0; setAttr -s 1 \".ed[0:0]\" -1 1 0;",
-        "setAttr -s 1 \".ed[0:0]\" 0 1;",
+        ("setAttr -s 1 \".vt[0:0]\" 0 0;", M),
+        ("setAttr -s 1 \".vt[0:0]\" 0 0 0 0;", M),
+        ("setAttr -s 1 \".vt[0:0]\" 0 0 1e40;", M),
+        ("setAttr -s 1 \".vt[0:0]\" 0 0 nan;", M),
+        ("setAttr -s 1 \".vt[0:0]\" -type \"float3\" 0 0 0;", U),
+        ("setAttr -k off -s 1 \".vt[0:0]\" 0 0 0;", U),
+        // a duplicate array, edge values beyond hard, negative endpoints, a missing edge value
+        (
+            "setAttr -s 1 \".vt[0:0]\" 0 0 0; setAttr -s 1 \".vt[0:0]\" 0 0 0;",
+            U,
+        ),
+        (
+            "setAttr -s 1 \".ed[0:0]\" 0 0 0; setAttr -s 1 \".ed[0:0]\" 0 0 0;",
+            U,
+        ),
+        (
+            "setAttr -s 2 \".vt[0:1]\" 0 0 0 1 0 0; setAttr -s 1 \".ed[0:0]\" 0 1 1;",
+            U,
+        ),
+        (
+            "setAttr -s 2 \".vt[0:1]\" 0 0 0 1 0 0; setAttr -s 1 \".ed[0:0]\" -1 1 0;",
+            M,
+        ),
+        ("setAttr -s 1 \".ed[0:0]\" 0 1;", M),
     ] {
-        let kind = decode(body).err().map(|e| e.kind());
-        assert!(
-            matches!(kind, Some(ErrorKind::Malformed | ErrorKind::Unsupported)),
-            "{body}: {kind:?}"
-        );
+        refusal(body, kind);
     }
-}
-
-#[test]
-fn refusals_carry_the_kind_and_an_offset_inside_the_statement() {
-    refusal(
-        "setAttr -s 2147483647 \".vt[0:2147483646]\" 0 0 0;",
-        ErrorKind::Malformed,
-    );
-    refusal("setAttr -s 1 \".vt[0:0]\" 0 0 1e40;", ErrorKind::Malformed);
-    refusal("setAttr -s 1 \".ed[0:0]\" 0 1 1;", ErrorKind::Unsupported);
-    refusal("setAttr -s 1 \".pt[0:0]\" 0 0 0;", ErrorKind::Unsupported);
 }
 
 #[test]
@@ -128,7 +126,8 @@ fn an_edge_past_the_point_count_is_a_topology_error_not_a_panic() {
     let error = decode("setAttr -s 1 \".vt[0:0]\" 0 0 0; setAttr -s 1 \".ed[0:0]\" 0 5 0;")
         .err()
         .unwrap();
-    assert_eq!(error.kind(), ErrorKind::Malformed);
+    // The failure belongs to no single statement, so no offset is reported.
+    assert_eq!((error.kind(), error.offset()), (ErrorKind::Malformed, None));
 }
 
 #[test]
