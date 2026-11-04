@@ -200,7 +200,37 @@ fn a_refused_install_permission_stops_the_export_at_each_check_and_leaves_nothin
         ));
         assert!(!path.exists(), "allowed {allowed}");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
+        // Staging and linking are the only checks; a refusal at the link ends the export.
+        assert_eq!(asked.get(), allowed + 1);
     }
     export_native_new(&path, &scene, &all(&view), &|| true).unwrap();
     assert!(path.exists());
+}
+
+#[test]
+fn a_faceless_instance_beside_a_solid_one_is_written_as_a_vertex_only_object() {
+    let mut legacy = azteccraft::scene::Scene::default();
+    legacy.create(Primitive::Cube, "hollow").unwrap();
+    legacy.create(Primitive::Cube, "solid").unwrap();
+    let mut json = serde_json::to_value(&legacy).unwrap();
+    json["nodes"][0]["mesh"]["faces"] = serde_json::json!([]);
+    let mixed: azteccraft::scene::Scene = serde_json::from_value(json).unwrap();
+    let scene = NativeScene::from_legacy(mixed).unwrap();
+    let view = ViewScene::from_native(&scene, BUDGET).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("mixed.obj");
+    let summary = export_native_new(&path, &scene, &all(&view), &|| true).unwrap();
+    assert_eq!(
+        summary,
+        ExportSummary {
+            objects: 2,
+            vertices: 16,
+            faces: 6
+        }
+    );
+    let parsed = parse(&fs::read_to_string(&path).unwrap());
+    assert_eq!(parsed.names, ["hollow", "solid"]);
+    assert_eq!(parsed.vertices.len(), 16);
+    assert_eq!(parsed.faces.len(), 6);
+    assert!(parsed.faces.iter().flatten().all(|index| *index > 8));
 }

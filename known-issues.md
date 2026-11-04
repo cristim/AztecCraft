@@ -881,7 +881,10 @@ cannot display (for example a concave n-gon) fails every export, including Expor
 Selection of another object. The Windows save dialog may first ask whether to
 replace an existing file; confirming still fails with "destination already exists"
 and the file is left untouched. The output has not been compared with
-Maya's objExport plug-in; OBJ import is unsupported.
+Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at all is refused
+(`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
+group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
+valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
 
 ## Authored Maya Binary writer: unproven profile
 
