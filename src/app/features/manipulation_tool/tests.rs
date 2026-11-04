@@ -2649,6 +2649,11 @@ fn a_view_build_error_clears_the_move_capture_for_every_tool() {
                 editor.move_viewport.is_none(),
                 "{name} polygon={polygon}: capture survived a view build error"
             );
+            assert_eq!(
+                editor.viewport_error,
+                Some(crate::viewport_renderer::ViewportError::SceneGeometry),
+                "{name} polygon={polygon}"
+            );
             assert!(
                 editor.inspect_manipulation().unwrap().viewport.is_none(),
                 "{name} polygon={polygon}"

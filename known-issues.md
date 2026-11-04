@@ -974,8 +974,6 @@ changes native behaviour and needs its own issue; the admission is an inline exp
 A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
 in the same frame returns before the view build, so the paint is skipped and the capture survives
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
-View build errors other than `ResourceLimit` leave `viewport_error`
-unchanged, tracked in #342.
 
 ## Multi-object selection colours and group descendants are PROVISIONAL
 

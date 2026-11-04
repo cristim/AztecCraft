@@ -366,7 +366,9 @@ selection and the navigation tools. Inspection reports `viewport_backend` as
 device-free test Editors. `depth_complete` and `clipping_complete` describe a
 healthy initialized backend; both become false on a terminal backend failure.
 `viewport_error` is null or one fixed category: `uninitialized`, `backend_failed`,
-`camera_input`, `non_finite_clip` or `resource_limit`. Inspection reads the live
+`camera_input`, `non_finite_clip`, `resource_limit` or `scene_geometry` (the view
+build failed on geometry or a transform the viewport cannot represent, for example a
+scale of 1e300), set by every failed view build. Inspection reads the live
 backend latch even while hidden, without exposing driver messages. A successful
 submission clears a recoverable category; it cannot clear a terminal failure.
 
