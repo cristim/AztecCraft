@@ -412,6 +412,7 @@ fn scale_index(handle: ScaleHandle) -> Option<usize> {
 pub struct ScaleBox {
     pub handle: ScaleHandle,
     geometry: Result<ScaleGeometry, HandleError>,
+    collapsed: bool,
 }
 
 pub struct ScaleGeometry {
@@ -453,6 +454,9 @@ impl ScaleHandles {
             capture.axis_screen_vector(frame.origin, clip, axis)
         });
         let axes = [0, 1, 2].map(|index| {
+            let collapsed = directions[index].is_ok_and(|(direction, length)| {
+                (direction * length).abs().max_element() <= CENTER_BOX_HALF
+            });
             let geometry = directions[index].map(|(direction, length)| {
                 let tip = origin + direction * length;
                 let shaft_end = origin + direction * (length - BOX_HALF).max(0.0);
@@ -474,6 +478,7 @@ impl ScaleHandles {
             ScaleBox {
                 handle: SCALE_HANDLES[index],
                 geometry,
+                collapsed,
             }
         });
         let disabled = [(0, 1), (1, 2), (2, 0)]
@@ -515,7 +520,8 @@ impl ScaleHandles {
         &self.disabled
     }
 
-    /// The center box wins inside its square; otherwise the nearest axis box or shaft.
+    /// The center box wins inside its square; otherwise the nearest axis box or shaft, leaving out
+    /// an axis collapsed into the center box.
     pub fn hit_test(&self, pixel: DVec2) -> Option<ScaleHandle> {
         if !inside_viewport(pixel, self.size) {
             return None;
@@ -525,7 +531,7 @@ impl ScaleHandles {
         }
         let mut closest = HIT_RADIUS * HIT_RADIUS;
         let mut selected = None;
-        for handle in &self.axes {
+        for handle in self.axes.iter().filter(|handle| !handle.collapsed) {
             if let Some(geometry) = handle.geometry() {
                 for segment in geometry.segments() {
                     let distance = segment_distance_squared(*segment, pixel);

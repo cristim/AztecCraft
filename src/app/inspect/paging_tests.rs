@@ -448,3 +448,79 @@ fn a_full_selection_inspects_with_a_small_node_limit() {
     assert!(bytes <= crate::editor_operations::MAX_REPLY_BYTES);
     assert!(editor.inspect_page(false, Some(&page(250, None))).is_err());
 }
+
+/// One ratio sample: the minimum of 3 timings of each closure, taken interleaved so a noisy
+/// period hits both. The median of 5 samples is returned, so one disturbed sample cannot decide.
+fn median_ratio(small: &dyn Fn(), large: &dyn Fn()) -> f64 {
+    let time = |run: &dyn Fn()| {
+        let start = std::time::Instant::now();
+        run();
+        start.elapsed().as_secs_f64()
+    };
+    let mut ratios: Vec<f64> = (0..5)
+        .map(|_| {
+            let (mut small_min, mut large_min) = (f64::MAX, f64::MAX);
+            for _ in 0..3 {
+                small_min = small_min.min(time(small));
+                large_min = large_min.min(time(large));
+            }
+            large_min / small_min
+        })
+        .collect();
+    ratios.sort_by(f64::total_cmp);
+    ratios[2]
+}
+
+#[test]
+fn a_4096_node_scene_pages_completely_within_the_reply_limit() {
+    let large = cubes(4096);
+    let pages = walk(&large, 200);
+    assert_eq!(pages.len(), 21);
+    let nodes: Vec<_> = pages
+        .iter()
+        .flat_map(|p| p.nodes.iter().map(|n| n.id.clone()))
+        .collect();
+    assert_eq!(nodes, node_ids(&large));
+    assert!(!pages[20].page.as_ref().unwrap().truncated);
+    let scene = large.history.scene();
+    for (index, inspection) in pages.iter().enumerate() {
+        let range = index * 200..((index + 1) * 200).min(scene.nodes().len());
+        let paths = page_paths(&large, &range);
+        let bound = inspection_page_lower_bound(scene, range) + large.path_lower_bound(&paths);
+        let real = serde_json::to_vec(inspection).unwrap().len();
+        assert!(bound <= real, "page {index}: {bound} > {real}");
+        assert!(
+            real <= crate::editor_operations::MAX_REPLY_BYTES,
+            "page {index}: {real}"
+        );
+    }
+}
+
+/// The regression guard of record for #340: the scene is 8x larger, so linear cost gives about 8x
+/// and 6x; the old per-edge scans measured 57x to 69x (transform_paths) and 34x (one page). The
+/// bounds sit between the two, generous for noise. Wall-clock ratios flake under parallel load, so
+/// this is `#[ignore]`d and CI runs it alone with `--ignored --test-threads=1`.
+#[test]
+#[ignore = "timing guard; run single-threaded in CI"]
+fn page_cost_timing_guard() {
+    let large = cubes(4096);
+    let small = cubes(512);
+    let first = page(200, None);
+    let paths = median_ratio(
+        &|| drop(small.history.scene().transform_paths().unwrap()),
+        &|| drop(large.history.scene().transform_paths().unwrap()),
+    );
+    assert!(
+        paths < 30.0,
+        "transform_paths cost ratio {paths:.1} for 8x the scene"
+    );
+    let inspect = median_ratio(
+        &|| drop(small.inspect_page(false, Some(&first)).unwrap()),
+        &|| drop(large.inspect_page(false, Some(&first)).unwrap()),
+    );
+    assert!(
+        inspect < 25.0,
+        "inspect_page cost ratio {inspect:.1} for 8x the scene"
+    );
+    eprintln!("median ratios: transform_paths {paths:.1}, inspect_page {inspect:.1}");
+}

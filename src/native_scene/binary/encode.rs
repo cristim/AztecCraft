@@ -6,8 +6,10 @@ use crate::native_scene::{
     NativeId, NativeScene, NativeTransformNode,
     appearance::SourceAppearance,
     source::{SourceFormat, TransformField},
+    source_removal::IdRemap,
 };
 use insert::{Insertion, check_inverse, splice};
+use prune::prune;
 use std::sync::Arc;
 
 const FIELDS: [super::super::TransformField; 5] = [
@@ -117,7 +119,15 @@ pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
         .as_ref()
         .filter(|source| source.format == SourceFormat::Binary)
     {
-        Some(source) => plan::plan(scene, source, plan::INSERTABLE)?,
+        Some(source) => {
+            // An insertion cannot be combined with a removal yet; the unplanned edit is refused.
+            let gate = if scene.removed.is_empty() {
+                plan::INSERTABLE
+            } else {
+                &[]
+            };
+            plan::plan(scene, source, gate)?
+        }
         None => plan::Planned::default(),
     };
     encode_with(scene, &planned.insertions, &planned.elided)
@@ -130,7 +140,8 @@ fn encode_with(
     plan: &[Insertion],
     elided: &[(NativeId, TransformField)],
 ) -> Result<Vec<u8>, BinaryError> {
-    if !scene.curves.is_empty() {
+    let removing = !scene.removed.is_empty();
+    if !scene.curves.is_empty() || (removing && !plan.is_empty()) {
         return Err(unsupported());
     }
     let source = scene
@@ -138,10 +149,19 @@ fn encode_with(
         .as_ref()
         .filter(|s| s.format == SourceFormat::Binary)
         .ok_or_else(unsupported)?;
-    {
+    let (remap, names) = {
         let retained_appearance = retained_material_metadata(scene)?;
-        let original = decode_with_retained_bytes(source.bytes.clone(), 0, retained_appearance)?;
-        if !same_structure(scene, &original) || original.source.as_ref() != Some(source) {
+        let mut original =
+            decode_with_retained_bytes(source.bytes.clone(), 0, retained_appearance)?;
+        let remap = IdRemap::new(&scene.removed, &original);
+        let names = original.removed_names(&scene.removed);
+        if removing {
+            original.apply_removal(&scene.removed);
+        }
+        if !same_structure(scene, &original)
+            || original.source.as_ref() != Some(source)
+            || original.removed != scene.removed
+        {
             return Err(unsupported());
         }
         for (node, old) in scene.nodes.iter().zip(&original.nodes) {
@@ -154,7 +174,8 @@ fn encode_with(
             }
         }
         scene.validate().map_err(|e| canonical(e, None))?;
-    }
+        (remap, names)
+    };
     let mut budget = Budget::new(
         source
             .bytes
@@ -240,11 +261,24 @@ fn encode_with(
     // Reparse while retaining both the live source and the returned output buffer.
     budget.charge(output.len())?;
     let retained_appearance = retained_material_metadata(scene)?;
-    let parsed =
+    let mut parsed =
         decode_with_retained_bytes(Arc::from(output.as_slice()), retained, retained_appearance)?;
-    verify(scene, source, &parsed, &planned, Appearance::Exact)?;
+    if removing {
+        parsed.apply_removal(&scene.removed);
+    }
+    verify(scene, scene, source, &parsed, &planned, Appearance::Exact)?;
     // Its Arc copy of `output` is not counted in `retained` below, so release it first.
     drop(parsed);
+    if removing {
+        return prune(
+            scene,
+            source,
+            &output,
+            (&remap, &names),
+            (retained, retained_appearance),
+            &mut budget,
+        );
+    }
     if plan.is_empty() {
         return Ok(output);
     }
@@ -257,7 +291,7 @@ fn encode_with(
     budget.charge(spliced.len())?;
     let reparsed =
         decode_with_retained_bytes(Arc::from(spliced.as_slice()), retained, retained_appearance)?;
-    verify(scene, source, &reparsed, &[], Appearance::Relocated)?;
+    verify(scene, scene, source, &reparsed, &[], Appearance::Relocated)?;
     drop(reparsed);
     // Live here: source, output, spliced and an Arc copy of the last two. The 2 * MAX_BYTES check
     // above bounds source + output + spliced, so the total stays under 4 * MAX_BYTES.
@@ -298,20 +332,22 @@ fn has_field(
 }
 
 /// Compares a reparse with the scene. Fields named in owner-sorted `skip` are still absent in `parsed`.
+/// `structure` is the scene as the reparse should number it (the scene itself unless ids moved).
 fn verify(
     scene: &NativeScene,
+    structure: &NativeScene,
     source: &crate::native_scene::source::SourceRetention,
     parsed: &NativeScene,
     skip: &[(NativeId, TransformField)],
     appearance: Appearance,
 ) -> Result<(), BinaryError> {
-    if !same_structure(scene, parsed) {
+    if !same_structure(structure, parsed) {
         return Err(unsupported());
     }
     if appearance == Appearance::Exact {
-        check_appearance_metadata(scene, parsed)?;
+        check_appearance_metadata(structure, parsed)?;
     } else if !same_appearance_shape(
-        scene
+        structure
             .source
             .as_ref()
             .and_then(|source| source.appearance.as_deref()),
@@ -375,5 +411,6 @@ fn verify(
 mod insert;
 mod place;
 mod plan;
+mod prune;
 #[cfg(test)]
 mod tests;
