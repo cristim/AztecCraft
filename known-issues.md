@@ -488,6 +488,17 @@ PROVISIONAL until native Save QA on Windows:
   stay Unix-only, because Windows refuses that move; the Windows core tests cover
   the same receipt through injected faults.
 
+## Save of a very large new scene is refused (#380)
+
+**Severity:** low
+**Area:** native document lifecycle
+
+Saving a new scene as Maya Binary decodes the written bytes to check them, and the
+decoder's resource budget rejects a scene of more than a few hundred objects (400
+cubes fail). Save refuses with the too-large message, writes nothing and leaves the
+scene open and unsaved. Split the scene or save it in pieces until the budget limit
+in `src/native_scene/admission.rs` is revisited (#380).
+
 ## Native MCP idle responsiveness remains unverified
 
 **Severity:** medium

@@ -98,7 +98,7 @@ impl fmt::Display for AuthoredRefusalCode {
             Self::EdgeSmoothing => "a mesh has edge smoothing that a new .mb cannot carry",
             Self::FaceHoles => "a mesh has face holes",
             Self::UnsupportedMeshChannels => "a mesh has channels a new .mb cannot carry",
-            Self::TooLarge => "the scene is too large for a new .mb",
+            Self::TooLarge => "the scene is too large to write and verify as a new .mb",
             Self::MissingUuid => "a node has no identity to write",
             Self::SessionMaterials => {
                 "the scene has session materials, which a new .mb cannot carry"
