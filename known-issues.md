@@ -496,8 +496,8 @@ PROVISIONAL until native Save QA on Windows:
 Saving a new scene as Maya Binary decodes the written bytes to check them, and the
 decoder's resource budget rejects a scene of more than a few hundred objects (400
 cubes fail). Save refuses with the too-large message, writes nothing and leaves the
-scene open and unsaved. Split the scene or save it in pieces until the budget limit
-in `src/native_scene/admission.rs` is revisited (#380).
+scene open and unsaved. Split the scene or save it in pieces until the appearance
+binding step meter (`MAX_STEPS` in `src/native_scene/binary/appearance.rs`) is revisited (#380).
 
 ## Native MCP idle responsiveness remains unverified
 
