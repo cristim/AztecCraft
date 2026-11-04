@@ -569,30 +569,73 @@ fn mesh_declaration_binds_a_shape_under_its_transform_and_keeps_ids_unique() {
 #[test]
 fn mesh_declaration_refuses_unowned_shared_duplicate_and_misparented_shapes() {
     let transform = "createNode transform -n \"a\";";
-    for body in [
+    let curve = "createNode nurbsCurve -n \"c\" -p \"a\";";
+    let mesh = "createNode mesh -n \"m\" -p \"a\";";
+    // Each body ends with the statement that must be refused.
+    for (body, refused) in [
         // no parent, shared, a second shape under one transform, a non-transform parent
-        "createNode mesh -n \"aShape\";".to_string(),
-        format!("{transform} createNode mesh -s -n \"aShape\" -p \"a\";"),
-        format!(
-            "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"a\";"
+        (
+            "createNode mesh -n \"aShape\";".to_string(),
+            "createNode mesh -n \"aShape\";",
         ),
-        format!(
-            "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"s1\";"
+        (
+            format!("{transform} createNode mesh -s -n \"aShape\" -p \"a\";"),
+            "createNode mesh -s -n \"aShape\" -p \"a\";",
         ),
-        format!("{CREATE} createNode mesh -n \"s\" -p \"curveShape1\";"),
+        (
+            format!(
+                "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"a\";"
+            ),
+            "createNode mesh -n \"s2\" -p \"a\";",
+        ),
+        (
+            format!(
+                "{transform} createNode mesh -n \"s1\" -p \"a\"; createNode mesh -n \"s2\" -p \"s1\";"
+            ),
+            "createNode mesh -n \"s2\" -p \"s1\";",
+        ),
+        (
+            format!("{CREATE} createNode mesh -n \"s\" -p \"curveShape1\";"),
+            "createNode mesh -n \"s\" -p \"curveShape1\";",
+        ),
+        // a transform may hold one shape: a curve then a mesh, and a mesh then a curve
+        (format!("{transform} {curve} {mesh}"), mesh),
+        (format!("{transform} {mesh} {curve}"), curve),
         // an unknown parent, a name already taken and a built-in camera transform as parent
-        "createNode mesh -n \"s\" -p \"missing\";".to_string(),
-        format!("{transform} createNode mesh -n \"a\" -p \"a\";"),
-        "createNode transform -s -n \"persp\"; createNode mesh -n \"s\" -p \"persp\";".to_string(),
+        (
+            "createNode mesh -n \"s\" -p \"missing\";".to_string(),
+            "createNode mesh -n \"s\" -p \"missing\";",
+        ),
+        (
+            format!("{transform} createNode mesh -n \"a\" -p \"a\";"),
+            "createNode mesh -n \"a\" -p \"a\";",
+        ),
+        (
+            "createNode transform -s -n \"persp\"; createNode mesh -n \"s\" -p \"persp\";"
+                .to_string(),
+            "createNode mesh -n \"s\" -p \"persp\";",
+        ),
         // a mesh and a transform may not share a uuid
-        format!(
-            "{transform} {MESH_UID} createNode transform -n \"b\"; createNode mesh -n \"bs\" -p \"b\"; {MESH_UID}"
+        (
+            format!(
+                "{transform} {MESH_UID} createNode transform -n \"b\"; createNode mesh -n \"bs\" -p \"b\"; {MESH_UID}"
+            ),
+            MESH_UID,
         ),
     ] {
         let error = mesh_scene(&body)
             .err()
             .unwrap_or_else(|| panic!("accepted: {body}"));
         assert_eq!(error.kind(), ErrorKind::Unsupported, "{body}");
+        let text = String::from_utf8(input(&body).to_vec()).unwrap();
+        let start = text.rfind(refused).unwrap();
+        let offset = error
+            .offset()
+            .unwrap_or_else(|| panic!("no offset: {body}"));
+        assert!(
+            (start..=start + refused.len()).contains(&offset),
+            "offset {offset} outside `{refused}` ({start}): {body}"
+        );
     }
 }
 
@@ -600,4 +643,13 @@ fn mesh_declaration_refuses_unowned_shared_duplicate_and_misparented_shapes() {
 fn public_decode_still_refuses_mesh_declarations() {
     let source = input("createNode transform -n \"a\"; createNode mesh -n \"aShape\" -p \"a\";");
     assert_eq!(decode(source).unwrap_err().kind(), ErrorKind::Unsupported);
+}
+
+#[test]
+fn several_curves_may_still_share_one_transform() {
+    let source = input(&format!(
+        "createNode transform -n \"a\"; createNode nurbsCurve -n \"c1\" -p \"a\"; {CC} \
+         createNode nurbsCurve -n \"c2\" -p \"a\"; {CC}"
+    ));
+    assert_eq!(decode(source).unwrap().curves().len(), 2);
 }

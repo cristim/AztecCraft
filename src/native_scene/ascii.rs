@@ -81,8 +81,10 @@ enum Kind {
     Builtin,
 }
 
-/// Owner attribute bit: a transform that already has a mesh child (bits 1..=1024 are channels).
-const HAS_SHAPE: u32 = 2048;
+/// Owner attribute bits (1..=1024 are channels): a transform that already has a mesh child, or a
+/// curve child. A mesh needs a transform with no other shape; several curves may share one.
+const HAS_MESH: u32 = 2048;
+const HAS_CURVE: u32 = 4096;
 
 struct Owner {
     name: Range<usize>,
@@ -435,6 +437,13 @@ impl Builder<'_, '_> {
                 let parent_id = self
                     .parent(parent, c)?
                     .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                if let Some(parent_index) = parent {
+                    let owner = &mut self.owners[parent_index];
+                    if owner.attributes & HAS_MESH != 0 {
+                        return Err(error(ErrorKind::Unsupported, c.offset));
+                    }
+                    owner.attributes |= HAS_CURVE;
+                }
                 let id = self.next_native_id()?;
                 let index = self.scene.curves.len();
                 self.scene.curves.push(NativeCurveShape {
@@ -467,7 +476,10 @@ impl Builder<'_, '_> {
                 {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
-                self.mark(parent_index, HAS_SHAPE, c)?;
+                if self.owners[parent_index].attributes & HAS_CURVE != 0 {
+                    return Err(error(ErrorKind::Unsupported, c.offset));
+                }
+                self.mark(parent_index, HAS_MESH, c)?;
                 let id = self.next_native_id()?;
                 let index = self.scene.shapes.len();
                 self.scene.shapes.push(NativeMeshShape {
