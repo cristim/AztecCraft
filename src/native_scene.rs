@@ -11,6 +11,7 @@ mod rotate_frame;
 mod scale_frame;
 mod session_material;
 mod source;
+mod source_removal;
 mod transform_extras;
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
@@ -33,6 +34,7 @@ pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras}
 use crate::primitive_options::PrimitiveOptions;
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};
 use glam::{DMat3, DMat4, DVec3, Vec3};
+use std::collections::HashMap;
 use std::fmt;
 #[cfg(test)]
 use std::ops::Range;
@@ -229,7 +231,11 @@ impl Scalar {
             && value.to_bits() != self.value.to_bits()
             && !source.is_some_and(|source| source.can_insert(owner, field))
         {
-            return Err(NativeError::UnsupportedEdit);
+            return Err(if source.is_some_and(|source| source.has_removals) {
+                NativeError::InsertionAfterDelete
+            } else {
+                NativeError::UnsupportedEdit
+            });
         }
         let mut next = self.clone();
         if self.value.to_bits() != value.to_bits() || self.origin.is_some() {
@@ -459,6 +465,26 @@ impl NativeMeshShape {
     }
 }
 
+/// Lookup index over a scene's transforms and parent edges, built by `NativeScene::dag_index`.
+/// Only lookups are offered, so hash order cannot reach a result. `validate_dag` (#367) is expected to
+/// reuse it instead of building its own parent-to-children map.
+pub(crate) struct DagIndex {
+    by_transform: HashMap<NativeId, NodeId>,
+    children: HashMap<Option<NativeId>, Vec<NativeId>>,
+}
+
+impl DagIndex {
+    /// The node owning a transform id; the first node wins.
+    pub(crate) fn node(&self, transform_id: NativeId) -> Option<NodeId> {
+        self.by_transform.get(&transform_id).copied()
+    }
+
+    /// Children of `parent` in dag order; `None` is the scene root.
+    pub(crate) fn children(&self, parent: Option<NativeId>) -> &[NativeId] {
+        self.children.get(&parent).map_or(&[], Vec::as_slice)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DagEdge {
     parent: Option<NativeId>,
@@ -518,6 +544,8 @@ pub struct NativeScene {
     source: Option<SourceRetention>,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
+    removed: Vec<NativeId>,
     next_id: u64,
     next_native_id: u64,
 }
@@ -605,6 +633,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.removed == other.removed
     }
 }
 
@@ -619,6 +648,7 @@ impl Default for NativeScene {
             source: None,
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            removed: Vec::new(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -752,14 +782,33 @@ impl NativeScene {
             .map(|node| node.id)
             .ok_or(NativeError::InvalidInstancePath)
     }
+    /// Index the transform and parent relations once, for callers that would otherwise scan
+    /// `nodes` or `dag` per lookup.
+    pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        let mut by_transform = HashMap::new();
+        by_transform
+            .try_reserve(self.nodes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for node in &self.nodes {
+            by_transform.entry(node.transform_id).or_insert(node.id);
+        }
+        let mut children = HashMap::<Option<NativeId>, Vec<NativeId>>::new();
+        children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for edge in &self.dag {
+            children.entry(edge.parent).or_default().push(edge.child);
+        }
+        Ok(DagIndex {
+            by_transform,
+            children,
+        })
+    }
     pub fn transform_paths(&self) -> Result<Vec<TransformTarget>, NativeError> {
+        let index = self.dag_index()?;
         let mut paths = Vec::<TransformTarget>::new();
-        for root in self.dag.iter().filter(|edge| edge.parent.is_none()) {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == root.child)
-                .ok_or(NativeError::InvalidInstancePath)?;
+        for &root in index.children(None) {
+            let node = index.node(root).ok_or(NativeError::InvalidInstancePath)?;
             if paths.len() == MAX_TRANSFORM_PATHS {
                 return Err(NativeError::ResourceLimit);
             }
@@ -769,11 +818,8 @@ impl NativeScene {
             let mut path = Vec::new();
             path.try_reserve_exact(1)
                 .map_err(|_| NativeError::ResourceLimit)?;
-            path.push(root.child);
-            paths.push(TransformTarget {
-                node: node.id,
-                path,
-            });
+            path.push(root);
+            paths.push(TransformTarget { node, path });
         }
         let mut identities = paths.len();
         let mut cursor = 0;
@@ -782,12 +828,8 @@ impl NativeScene {
                 .path
                 .last()
                 .ok_or(NativeError::InvalidInstancePath)?;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
-                let Some(node) = self
-                    .nodes
-                    .iter()
-                    .find(|node| node.transform_id == edge.child)
-                else {
+            for &child in index.children(Some(parent)) {
+                let Some(node) = index.node(child) else {
                     continue;
                 };
                 let depth = paths[cursor]
@@ -808,14 +850,11 @@ impl NativeScene {
                 path.try_reserve_exact(depth)
                     .map_err(|_| NativeError::ResourceLimit)?;
                 path.extend_from_slice(&paths[cursor].path);
-                path.push(edge.child);
+                path.push(child);
                 paths
                     .try_reserve(1)
                     .map_err(|_| NativeError::ResourceLimit)?;
-                paths.push(TransformTarget {
-                    node: node.id,
-                    path,
-                });
+                paths.push(TransformTarget { node, path });
             }
             cursor += 1;
         }
@@ -1271,21 +1310,45 @@ impl NativeScene {
         self.validate()?;
         self.remove_validated(id)
     }
-    /// Removes every listed node, in order, after one preflight and one validation; a repeated id
-    /// is removed once. The first refusal is returned unchanged and earlier removals stay applied,
-    /// so callers run it on a candidate clone, as `History::execute` does.
+    /// Removes every listed node after one preflight and one validation; a repeated id is removed
+    /// once. A sourced scene analyses the union once and is all or nothing. An authored scene
+    /// removes in order and returns the first refusal with earlier removals applied, so callers
+    /// run it on a candidate clone, as `History::execute` does.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
         let mut seen = std::collections::HashSet::new();
-        for id in ids {
-            if seen.insert(*id) {
-                self.remove_validated(*id)?;
-            }
+        let unique: Vec<_> = ids.iter().filter(|id| seen.insert(**id)).collect();
+        if unique.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        if self.source.is_none() {
+            return unique
+                .into_iter()
+                .try_for_each(|id| self.remove_validated(*id));
+        }
+        let mut gone = Vec::new();
+        for id in unique {
+            gone.extend(self.removal_set(*id)?);
+        }
+        self.remove_set(gone)
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
+        let gone = self.removal_set(id)?;
+        self.remove_set(gone)
+    }
+    fn remove_set(&mut self, mut gone: Vec<NativeId>) -> Result<(), NativeError> {
+        gone.sort_unstable();
+        gone.dedup();
+        if self.source.is_some() {
+            self.check_source_removal(&gone)?;
+        }
+        self.apply_removal(&gone);
+        Ok(())
+    }
+    /// The transform and exclusive shapes that deleting `id` takes with it, after the checks that
+    /// do not depend on the source bytes.
+    fn removal_set(&self, id: NodeId) -> Result<Vec<NativeId>, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1313,9 +1376,6 @@ impl NativeScene {
             return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
         }
         self.check_effects(transform)?;
-        if self.source.is_some() || incoming.len() != 1 {
-            return Err(NativeError::UnsupportedEdit);
-        }
         let exclusive: Vec<_> = self
             .dag
             .iter()
@@ -1329,13 +1389,17 @@ impl NativeScene {
             })
             .map(|edge| edge.child)
             .collect();
-        let node = self.nodes.remove(index);
-        self.shapes.retain(|shape| !exclusive.contains(&shape.id));
-        self.session_materials.prune(&self.shapes);
-        self.dag.retain(|edge| {
-            edge.child != node.transform_id && edge.parent != Some(node.transform_id)
-        });
-        Ok(())
+        let mut gone = vec![transform];
+        gone.extend(&exclusive);
+        if incoming.len() != 1
+            || self
+                .source
+                .as_ref()
+                .is_some_and(|source| source.format != SourceFormat::Binary)
+        {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        Ok(gone)
     }
     pub fn set_transform(
         &mut self,
@@ -1515,6 +1579,9 @@ impl NativeScene {
                 appearance.validate(self, source)?;
             }
             for (index, leaf) in source.leaves.iter().enumerate() {
+                if self.removed.binary_search(&leaf.owner).is_ok() {
+                    continue;
+                }
                 let node = self
                     .nodes
                     .iter()
@@ -1654,12 +1721,16 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
 pub enum DeleteUnsupported {
     HasChildren,
     IsChild,
+    Source(binary::RemovalRefusal),
 }
 impl fmt::Display for DeleteUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::HasChildren => "Deleting a node with children is not supported yet",
             Self::IsChild => "Deleting a node that has a parent is not supported yet",
+            Self::Source(reason) => {
+                return write!(f, "Deleting this node is not supported yet: {reason}");
+            }
         })
     }
 }
@@ -1681,6 +1752,8 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
+    InsertionAfterDelete,
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
@@ -1718,7 +1791,7 @@ impl fmt::Display for NativeError {
                 write!(f, "native mesh shape {} does not exist", id.to_decimal())
             }
             Self::InvalidInstancePath => {
-                f.write_str("face target does not match a valid full instance path")
+                f.write_str("target does not match a valid full instance path")
             }
             Self::UnsupportedLinearUnit => {
                 f.write_str("declared linear unit conversion is unsupported")
@@ -1731,6 +1804,9 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::InsertionAfterDelete => f.write_str(
+                "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
+            ),
             Self::ReadOnlyFormat => f.write_str("Maya ASCII scenes are read-only in this version"),
             Self::UnknownSessionMaterial(id) => {
                 write!(f, "session material {} does not exist", id.index())

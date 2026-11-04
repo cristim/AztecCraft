@@ -435,6 +435,47 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
 
 #[test]
 #[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_a_failed_view_build_reports_scene_geometry_until_undo() {
+    use crate::viewport_renderer::ViewportError;
+    let context = egui::Context::default();
+    let creation = creation_context(context.clone());
+    let mut editor = Editor::new(&creation).unwrap();
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(editor.inspect(false).unwrap().viewport_error, None);
+    editor
+        .apply_operation(Operation::SetTransform {
+            id,
+            transform: TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0; 3],
+                scale: [1e300; 3],
+            },
+        })
+        .unwrap();
+
+    // A stale category from an earlier frame must not survive this failure.
+    editor.viewport_error = Some(ViewportError::ResourceLimit);
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(
+        editor.inspect(false).unwrap().viewport_error,
+        Some(ViewportError::SceneGeometry)
+    );
+
+    assert!(editor.history.undo());
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(editor.inspect(false).unwrap().viewport_error, None);
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_recoverable_clip_error_clears_after_typed_transform_repair() {
     let context = egui::Context::default();
     let creation = creation_context(context.clone());

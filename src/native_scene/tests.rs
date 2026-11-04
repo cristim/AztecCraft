@@ -2,6 +2,14 @@ use super::test_fixtures::{chain_of_three, cube, grouped_shape, shared_shape};
 use super::*;
 
 #[test]
+fn an_invalid_instance_path_error_names_no_target_kind() {
+    assert_eq!(
+        NativeError::InvalidInstancePath.to_string(),
+        "target does not match a valid full instance path"
+    );
+}
+
+#[test]
 fn transform_path_discovery_includes_hidden_groups_and_every_transform_instance() {
     let (mut scene, root, child, _) = test_fixtures::hidden_group();
     let root_id = scene.node(root).unwrap().transform_id;
@@ -65,8 +73,221 @@ fn transform_path_discovery_refuses_excess_depth_without_a_partial_result() {
     ));
 }
 
+/// The pre-index algorithm, kept verbatim as the equality oracle for `transform_paths`.
+fn transform_paths_oracle(scene: &NativeScene) -> Result<Vec<TransformTarget>, NativeError> {
+    let mut paths = Vec::<TransformTarget>::new();
+    for root in scene.dag.iter().filter(|edge| edge.parent.is_none()) {
+        let node = scene
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == root.child)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        if paths.len() == MAX_TRANSFORM_PATHS {
+            return Err(NativeError::ResourceLimit);
+        }
+        paths
+            .try_reserve(1)
+            .map_err(|_| NativeError::ResourceLimit)?;
+        let mut path = Vec::new();
+        path.try_reserve_exact(1)
+            .map_err(|_| NativeError::ResourceLimit)?;
+        path.push(root.child);
+        paths.push(TransformTarget {
+            node: node.id,
+            path,
+        });
+    }
+    let mut identities = paths.len();
+    let mut cursor = 0;
+    while cursor < paths.len() {
+        let parent = *paths[cursor]
+            .path
+            .last()
+            .ok_or(NativeError::InvalidInstancePath)?;
+        for edge in scene.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            let Some(node) = scene
+                .nodes
+                .iter()
+                .find(|node| node.transform_id == edge.child)
+            else {
+                continue;
+            };
+            let depth = paths[cursor]
+                .path
+                .len()
+                .checked_add(1)
+                .ok_or(NativeError::ResourceLimit)?;
+            identities = identities
+                .checked_add(depth)
+                .ok_or(NativeError::ResourceLimit)?;
+            if depth > MAX_TRANSFORM_DEPTH
+                || paths.len() == MAX_TRANSFORM_PATHS
+                || identities > MAX_PATH_IDENTITIES
+            {
+                return Err(NativeError::ResourceLimit);
+            }
+            let mut path = Vec::new();
+            path.try_reserve_exact(depth)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            path.extend_from_slice(&paths[cursor].path);
+            path.push(edge.child);
+            paths
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            paths.push(TransformTarget {
+                node: node.id,
+                path,
+            });
+        }
+        cursor += 1;
+    }
+    paths.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+    Ok(paths)
+}
+
+fn flat_cubes(count: usize) -> NativeScene {
+    let mut legacy = Scene::default();
+    for index in 0..count {
+        legacy
+            .create(Primitive::Cube, &format!("cube_{index:04}"))
+            .unwrap();
+    }
+    NativeScene::from_legacy(legacy).unwrap()
+}
+
+fn transform_ids(scene: &NativeScene) -> Vec<NativeId> {
+    scene.nodes.iter().map(|node| node.transform_id).collect()
+}
+
+fn instance(scene: &mut NativeScene, parent: NativeId, child: NativeId, keep_root: bool) {
+    if !keep_root {
+        scene
+            .dag
+            .retain(|edge| !(edge.parent.is_none() && edge.child == child));
+    }
+    scene.dag.push(DagEdge {
+        parent: Some(parent),
+        child,
+    });
+}
+
+fn assert_matches_oracle(scene: &NativeScene) -> Vec<TransformTarget> {
+    let paths = scene.transform_paths().unwrap();
+    assert_eq!(paths, transform_paths_oracle(scene).unwrap());
+    paths
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_an_empty_scene() {
+    let scene = NativeScene::from_legacy(Scene::default()).unwrap();
+    assert_eq!(assert_matches_oracle(&scene), vec![]);
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_a_flat_scene() {
+    let scene = flat_cubes(1500);
+    assert_eq!(assert_matches_oracle(&scene).len(), 1500);
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_nested_instancing_in_any_dag_order() {
+    let mut scene = flat_cubes(300);
+    let t = transform_ids(&scene);
+    for i in 1..=10 {
+        instance(&mut scene, t[0], t[i], false);
+    }
+    for i in 11..=60 {
+        instance(&mut scene, t[1 + (i - 11) % 10], t[i], false);
+    }
+    for i in 61..=100 {
+        instance(&mut scene, t[11 + (i - 61) % 50], t[i], false);
+    }
+    for i in 101..=200 {
+        instance(&mut scene, t[1 + i % 10], t[i], false);
+        instance(&mut scene, t[11 + i % 50], t[i], true);
+    }
+    // A group that has its own children is itself instanced under a second parent.
+    instance(&mut scene, t[3], t[2], true);
+    scene.validate().unwrap();
+    let paths = assert_matches_oracle(&scene);
+    let count = |index: usize| {
+        paths
+            .iter()
+            .filter(|target| target.node == scene.nodes[index].id)
+            .count()
+    };
+    assert!(count(2) > 1);
+    assert!(count(12) > 1, "a child of the instanced group");
+    for rotation in [1, 97] {
+        scene.dag.rotate_left(rotation);
+        assert_eq!(assert_matches_oracle(&scene), paths);
+    }
+}
+
+#[test]
+fn transform_paths_accept_exactly_the_path_cap_and_refuse_one_more_root() {
+    let at_cap = flat_cubes(MAX_TRANSFORM_PATHS);
+    at_cap.validate().unwrap();
+    assert_eq!(assert_matches_oracle(&at_cap).len(), MAX_TRANSFORM_PATHS);
+    let over = flat_cubes(MAX_TRANSFORM_PATHS + 1);
+    over.validate().unwrap();
+    assert!(matches!(
+        over.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&over),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
+fn transform_paths_refuse_an_instance_edge_past_the_path_cap() {
+    let mut scene = flat_cubes(MAX_TRANSFORM_PATHS);
+    let t = transform_ids(&scene);
+    instance(&mut scene, t[0], t[1], true);
+    scene.validate().unwrap();
+    assert!(matches!(
+        scene.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&scene),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
+fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
+    let mut scene = flat_cubes(MAX_TRANSFORM_DEPTH + 1);
+    let t = transform_ids(&scene);
+    instance(&mut scene, t[0], t[2], false);
+    for group in 3..t.len() {
+        instance(&mut scene, t[group - 1], t[group], false);
+    }
+    scene.validate().unwrap();
+    // One root over the chain: the deepest path is exactly at the depth cap and the path count is
+    // far under its cap, so neither can be what fails below.
+    assert_eq!(scene.transform_paths().unwrap().len(), t.len());
+    // The second root shares the chain: 2 roots, then each chain path adds its depth, twice.
+    instance(&mut scene, t[1], t[2], true);
+    scene.validate().unwrap();
+    let identities = 2 + 2 * (2..t.len()).sum::<usize>();
+    assert!(identities > MAX_PATH_IDENTITIES);
+    assert!(2 * t.len() - 2 < MAX_TRANSFORM_PATHS);
+    assert!(matches!(
+        scene.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&scene),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
 fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Ascii,
@@ -237,6 +458,7 @@ fn unit_conversion_only_changes_derived_view() {
 fn retained_ranges_and_exhausted_allocators_are_checked() {
     let (mut scene, _) = cube();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -246,6 +468,7 @@ fn retained_ranges_and_exhausted_allocators_are_checked() {
     });
     assert_eq!(scene.validate(), Err(NativeError::InvalidRetention));
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -927,6 +1150,7 @@ fn binary_candidate_finishes_once_preserving_source_and_runtime_identity() {
     candidate.shapes[0].uuid = None;
     candidate.nodes[0].name = "native:arbitrary exact name".into();
     candidate.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: std::sync::Arc::from(&b"opaque original identity"[..]),
         format: SourceFormat::Binary,
@@ -1074,6 +1298,7 @@ fn read_only_format_wins_over_the_hierarchy_refusal_on_an_ascii_scene() {
 fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() {
     let binary = |scene: &mut NativeScene| {
         scene.source = Some(SourceRetention {
+            has_removals: false,
             sites: Vec::new(),
             bytes: std::sync::Arc::from(&b"original"[..]),
             format: SourceFormat::Binary,
@@ -1094,7 +1319,12 @@ fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() 
     assert_eq!(scene, before);
     let (mut scene, present) = cube();
     binary(&mut scene);
-    assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
+    assert_eq!(
+        scene.remove(present),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+            crate::native_scene::binary::RemovalRefusal::Unreadable
+        )))
+    );
 }
 
 #[test]

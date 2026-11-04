@@ -322,15 +322,26 @@ impl SourceAppearance {
         Ok(bytes)
     }
 
+    /// The shape entries of the shapes still in `scene`; removed shapes keep their entries.
+    fn kept_shapes<'a>(
+        &'a self,
+        scene: &'a NativeScene,
+    ) -> impl Iterator<Item = &'a ShapeAppearance> {
+        self.shapes
+            .iter()
+            .filter(|entry| scene.removed.binary_search(&entry.shape).is_err())
+    }
+
     pub(super) fn validate(
         &self,
         scene: &NativeScene,
         source: &SourceRetention,
     ) -> Result<(), NativeError> {
-        if self.shapes.len() != scene.shapes.len() {
+        let kept: Vec<_> = self.kept_shapes(scene).collect();
+        if kept.len() != scene.shapes.len() {
             return Err(NativeError::InvalidRetention);
         }
-        for (entry, shape) in self.shapes.iter().zip(&scene.shapes) {
+        for (entry, shape) in kept.into_iter().zip(&scene.shapes) {
             if entry.shape != shape.id || entry.source_group >= source.records.len() {
                 return Err(NativeError::InvalidRetention);
             }
@@ -439,7 +450,7 @@ impl SourceAppearance {
                 return Err(NativeError::InvalidRetention);
             }
             let mut users = 0usize;
-            for shape in &self.shapes {
+            for shape in self.kept_shapes(scene) {
                 let Ok(surface) = &shape.binding else {
                     continue;
                 };
