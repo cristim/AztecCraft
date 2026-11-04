@@ -200,7 +200,7 @@ fn adoption_is_a_caller_decision_and_never_masks_a_gate_refusal() {
 }
 
 #[test]
-fn only_a_refusal_at_a_mesh_statement_reaches_the_gate() {
+fn a_refusal_unrelated_to_meshes_stands_without_reaching_the_gate() {
     let other = "//Maya ASCII 2026 scene\nrequires maya \"2026\";\ncurrentUnit -l centimeter -a degree -t film;\ncreateNode transform -n \"a\";\ncreateNode locator -n \"l\" -p \"a\";\n";
     assert!(matches!(
         decode(other.as_bytes(), true).unwrap_err(),

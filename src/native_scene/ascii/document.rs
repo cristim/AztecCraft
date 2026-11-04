@@ -63,19 +63,10 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let refused = match decode_inner(source.clone(), false) {
-        Ok(scene) => return Ok(AsciiDecoded::Retained(scene)),
-        Err(error) => error,
-    };
-    // Only a refusal at a mesh statement can be a gated file; any other refusal stands.
-    let at_mesh = refused
-        .offset()
-        .and_then(|offset| source.get(offset..))
-        .is_some_and(|rest| rest.starts_with(b"createNode mesh"));
-    if !at_mesh {
-        return Err(AsciiDocumentError::Ascii(refused));
-    }
     let mut scene = decode_inner(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    if scene.shapes.is_empty() {
+        return Ok(AsciiDecoded::Retained(scene));
+    }
     scene.source = None;
     scene.validate().map_err(|_| unsupported())?;
     let emitted = emit_geometry_prefix(&scene).map_err(|_| unsupported())?;
