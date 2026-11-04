@@ -19,18 +19,21 @@ struct GuardedFs<'a> {
 }
 
 impl GuardedFs<'_> {
-    fn permit(&self, kind: io::ErrorKind) -> io::Result<()> {
+    fn permit(&self) -> io::Result<()> {
         if (self.may_install)() {
             return Ok(());
         }
         self.refused.set(true);
-        Err(io::Error::new(kind, "export cancelled before install"))
+        Err(io::Error::new(
+            io::ErrorKind::Interrupted,
+            "export cancelled before install",
+        ))
     }
 }
 
 impl AtomicFs for GuardedFs<'_> {
     fn create_new(&self, path: &Path, permissions: NewFilePermissions) -> io::Result<File> {
-        self.permit(io::ErrorKind::Interrupted)?;
+        self.permit()?;
         RealFs.create_new(path, permissions)
     }
     fn sync(&self, file: &File) -> io::Result<()> {
@@ -40,9 +43,7 @@ impl AtomicFs for GuardedFs<'_> {
         RealFs.rename(from, to)
     }
     fn hard_link(&self, from: &Path, to: &Path) -> io::Result<()> {
-        // AlreadyExists is the one error craft-atomic does not retry as a copy into the
-        // destination, so a refusal here ends the export without a third guard check.
-        self.permit(io::ErrorKind::AlreadyExists)?;
+        self.permit()?;
         RealFs.hard_link(from, to)
     }
     fn remove(&self, path: &Path) -> io::Result<()> {

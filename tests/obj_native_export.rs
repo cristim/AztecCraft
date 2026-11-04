@@ -200,8 +200,9 @@ fn a_refused_install_permission_stops_the_export_at_each_check_and_leaves_nothin
         ));
         assert!(!path.exists(), "allowed {allowed}");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
-        // Staging and linking are the only checks; a refusal at the link ends the export.
-        assert_eq!(asked.get(), allowed + 1);
+        // Refused at staging: one check. Refused at the link: craft-atomic then tries a copy
+        // into the destination, whose creation asks again and is refused again.
+        assert_eq!(asked.get(), if allowed == 0 { 1 } else { 3 });
     }
     export_native_new(&path, &scene, &all(&view), &|| true).unwrap();
     assert!(path.exists());
