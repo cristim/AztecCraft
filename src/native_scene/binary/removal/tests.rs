@@ -4,7 +4,7 @@ use crate::native_scene::{
     binary::tests::wire_fixture::*,
 };
 
-pub(super) fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
+pub(in crate::native_scene::binary) fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
     chunk(
         b"CWFL",
         &[&[mode], from.as_bytes(), &[0], to.as_bytes(), &[0]].concat(),
@@ -12,11 +12,11 @@ pub(super) fn link(mode: u8, from: &str, to: &str) -> Vec<u8> {
     )
 }
 
-pub(super) fn connections(links: &[Vec<u8>]) -> Vec<u8> {
+pub(in crate::native_scene::binary) fn connections(links: &[Vec<u8>]) -> Vec<u8> {
     group(b"CONS", &group(b"CONN", &links.concat(), 4), 4)
 }
 
-pub(super) fn transform(name: &[u8]) -> Vec<u8> {
+pub(in crate::native_scene::binary) fn transform(name: &[u8]) -> Vec<u8> {
     group(
         b"XFRM",
         &[creation(name, None), triple(b"t", [1.0, 2.0, 3.0])].concat(),
@@ -24,7 +24,7 @@ pub(super) fn transform(name: &[u8]) -> Vec<u8> {
     )
 }
 
-pub(super) fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
+pub(in crate::native_scene::binary) fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
     group(
         b"DMSH",
         &[
@@ -37,7 +37,7 @@ pub(super) fn shape(name: &[u8], parent: &[u8]) -> Vec<u8> {
 }
 
 /// `a` with shape `as` (ids 1 and 2) and a survivor `b` with shape `bs` (ids 3 and 4).
-pub(super) fn two_objects(extra: &[u8]) -> Arc<[u8]> {
+pub(in crate::native_scene::binary) fn two_objects(extra: &[u8]) -> Arc<[u8]> {
     scene(
         &[
             transform(b"a"),
@@ -63,12 +63,16 @@ fn selection(target: &[u8]) -> Vec<u8> {
     group(b"SLCT", &chunk(b"SLCT", target, 8), 4)
 }
 
-pub(super) fn ids(ids: &[u64]) -> Vec<NativeId> {
+fn removal(bytes: &Arc<[u8]>, ids: &[NativeId]) -> Result<(), RemovalRefusal> {
+    check_removal(bytes, ids).map(drop)
+}
+
+pub(in crate::native_scene::binary) fn ids(ids: &[u64]) -> Vec<NativeId> {
     ids.iter().copied().map(NativeId).collect()
 }
 
 fn check(extra: &[u8]) -> Result<(), RemovalRefusal> {
-    check_removal(&two_objects(extra), &ids(&[1, 2]))
+    removal(&two_objects(extra), &ids(&[1, 2]))
 }
 
 fn check_links(links: &[Vec<u8>]) -> Result<(), RemovalRefusal> {
@@ -78,7 +82,7 @@ fn check_links(links: &[Vec<u8>]) -> Result<(), RemovalRefusal> {
 #[test]
 fn a_transform_and_shape_nothing_else_names_is_removable() {
     assert_eq!(check(&[]), Ok(()));
-    assert_eq!(check_removal(&two_objects(&[]), &ids(&[3, 4])), Ok(()));
+    assert_eq!(removal(&two_objects(&[]), &ids(&[3, 4])), Ok(()));
 }
 
 #[test]
@@ -86,23 +90,23 @@ fn ids_must_name_removable_nodes_that_belong_together() {
     let bytes = two_objects(&[]);
     for unreadable in [&[1, 2, 2][..], &[9], &[1, 9], &[0], &[]] {
         assert_eq!(
-            check_removal(&bytes, &ids(unreadable)),
+            removal(&bytes, &ids(unreadable)),
             Err(RemovalRefusal::Unreadable),
             "{unreadable:?}"
         );
     }
     for foreign in [&[2][..], &[1, 4], &[3]] {
         assert_eq!(
-            check_removal(&bytes, &ids(foreign)),
+            removal(&bytes, &ids(foreign)),
             Err(RemovalRefusal::ForeignChild),
             "{foreign:?}"
         );
     }
     for fine in [&[1, 2, 3, 4][..], &[4, 3]] {
-        assert_eq!(check_removal(&bytes, &ids(fine)), Ok(()));
+        assert_eq!(removal(&bytes, &ids(fine)), Ok(()));
     }
     assert_eq!(
-        check_removal(&Arc::from(&b"junk"[..]), &ids(&[1])),
+        removal(&Arc::from(&b"junk"[..]), &ids(&[1])),
         Err(RemovalRefusal::Unreadable)
     );
 }
@@ -253,17 +257,17 @@ fn a_removed_range_that_would_change_an_ancestor_padding_is_refused() {
     let nested = |inner: Vec<u8>| group(b"DMTI", &group(b"CONS", &inner, 8), 4);
     let bytes = scene(&[nested([transform(b"a"), shape(b"as", b"a")].concat())].concat());
     assert_eq!(
-        check_removal(&bytes, &ids(&[1, 2])),
+        removal(&bytes, &ids(&[1, 2])),
         Err(RemovalRefusal::Alignment)
     );
     let plain = scene(&[nested(transform(b"b")), transform(b"a"), shape(b"as", b"a")].concat());
-    assert_eq!(check_removal(&plain, &ids(&[2, 3])), Ok(()));
+    assert_eq!(removal(&plain, &ids(&[2, 3])), Ok(()));
 }
 
 #[test]
 fn a_repeated_shape_id_overlaps_its_own_range_and_is_refused() {
     assert_eq!(
-        check_removal(&two_objects(&[]), &ids(&[1, 2, 2])),
+        removal(&two_objects(&[]), &ids(&[1, 2, 2])),
         Err(RemovalRefusal::Unreadable)
     );
 }
@@ -409,7 +413,7 @@ fn only_surviving_text_is_scanned_and_numeric_payloads_never() {
         4,
     );
     let bytes = scene(&[transform(b"a"), shape_with_text, numeric].concat());
-    assert_eq!(check_removal(&bytes, &ids(&[1, 2])), Ok(()));
+    assert_eq!(removal(&bytes, &ids(&[1, 2])), Ok(()));
 }
 
 #[test]

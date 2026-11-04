@@ -114,7 +114,7 @@ fn endpoint<'a>(facts: &'a WireFacts<'_>, span: &Range<usize>) -> (&'a [u8], &'a
 pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
     ids: &[NativeId],
-) -> Result<(), RemovalRefusal> {
+) -> Result<Vec<PruneRange>, RemovalRefusal> {
     let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
     let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
     let bound: Vec<usize> = (0..facts.records.len())
@@ -261,7 +261,13 @@ pub(in crate::native_scene) fn check_removal(
         }
     }
     scan_text(&container, &chunks, &names, MAX_TEXT_WORK)?;
-    check_alignment(&container, &chunks)
+    prune_ranges(&container, &chunks)
+}
+
+/// A byte range to drop, and the header starts of the groups whose size words shrink with it.
+pub(in crate::native_scene) struct PruneRange {
+    pub(in crate::native_scene) range: Range<usize>,
+    pub(in crate::native_scene) ancestors: Vec<usize>,
 }
 
 /// Bytes times names that [`scan_text`] may compare; more is refused rather than skipped.
@@ -326,12 +332,17 @@ fn scan_text(
 }
 
 /// Every removed range must keep each enclosing group's padded size consistent: its length must be
-/// a multiple of the child alignment of every ancestor frame, and ranges must not overlap.
-fn check_alignment(container: &Container, chunks: &[usize]) -> Result<(), RemovalRefusal> {
+/// a multiple of the child alignment of every ancestor frame, and ranges must not overlap. Returns
+/// the ranges ascending.
+fn prune_ranges(
+    container: &Container,
+    chunks: &[usize],
+) -> Result<Vec<PruneRange>, RemovalRefusal> {
     let mut ranges = Vec::with_capacity(chunks.len());
     for index in chunks {
         let chunk = container.chunk(*index).ok_or(RemovalRefusal::Unreadable)?;
         let range = chunk.header_range().start..chunk.padding_range().end;
+        let mut ancestors = Vec::new();
         let mut ancestor = chunk.parent();
         while let Some(parent) = ancestor.and_then(|index| container.chunk(index)) {
             let alignment = parent
@@ -341,15 +352,19 @@ fn check_alignment(container: &Container, chunks: &[usize]) -> Result<(), Remova
             if !(range.end - range.start).is_multiple_of(alignment) {
                 return Err(RemovalRefusal::Alignment);
             }
+            ancestors.push(parent.header_range().start);
             ancestor = parent.parent();
         }
-        ranges.push(range);
+        ranges.push(PruneRange { range, ancestors });
     }
-    ranges.sort_unstable_by_key(|range| range.start);
-    if ranges.windows(2).any(|pair| pair[0].end > pair[1].start) {
+    ranges.sort_unstable_by_key(|prune| prune.range.start);
+    if ranges
+        .windows(2)
+        .any(|pair| pair[0].range.end > pair[1].range.start)
+    {
         return Err(RemovalRefusal::Unreadable);
     }
-    Ok(())
+    Ok(ranges)
 }
 
 /// A removed shape must not be the only user of a material, and must not be the first user of one
@@ -397,4 +412,4 @@ pub(in crate::native_scene) fn check_materials(
 #[cfg(test)]
 mod scene_tests;
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;
