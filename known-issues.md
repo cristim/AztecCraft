@@ -19,9 +19,10 @@ The size is session-only (no preferences store; it never dirties the scene or en
   Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
   within the radius; an enabled handle wins the overlap
   (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
-- An end-on Scale axis keeps its 5 px tip box next to the origin (about 1.4 px away in the test
-  camera), so it wins pixels just outside the 7 px centre box, out to about 16 px from the origin at
-  the 8 px radius. This pre-existing defect is tracked in #297.
+- A Scale axis whose tip lands inside the 7 px square centre box stays drawn but takes no hover
+  or press, so the ring just outside the centre box falls through to the other axes, a disabled
+  Scale plane (which consumes the click with its unsupported status) or the viewport (PROVISIONAL:
+  Maya's docs do not describe end-on axes).
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions
