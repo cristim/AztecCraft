@@ -1053,3 +1053,33 @@ point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ign
 and a selection where any one member owns geometry frames the geometry only
 (`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
 with Maya 2027.
+
+## Delete on an opened Maya Binary
+
+**Severity:** medium
+**Area:** native scene, Maya Binary save
+**Issue:** cristim/AztecCraft#272
+
+Delete removes a root transform and its exclusive shapes from an opened `.mb`, and Save writes
+the file without their records. Maya's acceptance of the pruned file is unproven (#5), so the
+behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
+reason except where noted:
+
+- A node with children or a parent, an instanced shape, and any node of an opened ASCII scene.
+- Another node parented under the transform; a selection, relation or connection that names a
+  removed node (by `|` or `:` path component); per-face material links (group id and group colour),
+  which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
+  set members can be deleted today.
+- A mode-1 set link with an index, a surviving explicit-index link beside a dropped mode-1 link, a
+  surviving mode-1 link beside a dropped mode-0 link, and any `dagSetMembers` alias into the set.
+- A shape that is the first or only user of a material or the only user of a diffuse-bound shader
+  (these are reached only after the per-face rule is lifted; they are pinned by direct tests).
+- A removed range that would change an enclosing group's padding, and an edit that needs a leaf
+  inserted, before or after a Delete (the edit fails with `scene_error`).
+- Text: only `STR ` chunks and leaves of `SCRP` groups are scanned for removed names, so a name in
+  another leaf type of an unbound group is not found (PROVISIONAL). The scan is bounded to 16 Mi
+  (bytes times removed names), about 0.25 s in a debug build; a larger scan is refused as "too large
+  to check" rather than skipped, so a file with 200 KB of script text refuses once more than about
+  80 names are removed.
+- A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
+  scene bound to the original bytes, so repeat saves are identical.

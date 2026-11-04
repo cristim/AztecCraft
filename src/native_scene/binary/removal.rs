@@ -3,7 +3,7 @@
 //!
 //! Records name nodes by string, never by index, so a removal is safe only when every surviving
 //! record is shown not to name a removed node. Anything this analysis cannot prove is refused.
-//! Grammar and the PROVISIONAL list: `.project-docs/binary-prune.md` (added with the feature).
+//! The refusals and limits are listed in `known-issues.md`, "Delete on an opened Maya Binary".
 
 use super::binding::{effects::normalized, is_bound};
 use crate::{
@@ -287,7 +287,7 @@ fn mentions(text: &[u8], name: &[u8]) -> bool {
 }
 
 /// Refuses when a surviving `STR ` chunk or a leaf of a `SCRP` group mentions a removed name.
-/// Numeric payloads are never scanned. Work is charged as bytes times names against `limit`.
+/// Numeric payloads and the leaves of other unbound groups are not scanned (PROVISIONAL). Work is charged as bytes times names against `limit`.
 fn scan_text(
     container: &Container,
     removed: &[usize],
