@@ -263,3 +263,30 @@ fn a_planned_insertion_is_refused_when_a_removal_is_pending() {
     assert_eq!(error.kind(), ErrorKind::Unsupported);
     assert!(encode_with(&opened, &[], &[]).is_ok());
 }
+
+#[test]
+fn a_bound_numeric_payload_that_spells_a_removed_name_neither_blocks_delete_nor_save() {
+    // A finite double whose bytes read `\0as\0`: the delete-time and save-time scans must agree.
+    let spelled = f64::from_be_bytes([0, b'a', b's', 0, 0, 0, 0, 0]);
+    assert!(spelled.is_finite());
+    let kept = |t: [f64; 3]| {
+        group(
+            b"XFRM",
+            &[creation(b"b", None), triple(b"t", t)].concat(),
+            4,
+        )
+    };
+    let with_a = scene(
+        &[
+            transform(b"a"),
+            shape(b"as", b"a"),
+            kept([spelled, 0.0, 0.0]),
+            shape(b"bs", b"b"),
+        ]
+        .concat(),
+    );
+    let saved = save_without(with_a, "a");
+    let expected = scene(&[kept([spelled, 0.0, 0.0]), shape(b"bs", b"b")].concat());
+    assert_eq!(saved, expected.to_vec());
+    assert!(decode(saved.into()).is_ok());
+}
