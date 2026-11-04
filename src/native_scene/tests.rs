@@ -2,6 +2,14 @@ use super::test_fixtures::{chain_of_three, cube, grouped_shape, shared_shape};
 use super::*;
 
 #[test]
+fn an_invalid_instance_path_error_names_no_target_kind() {
+    assert_eq!(
+        NativeError::InvalidInstancePath.to_string(),
+        "target does not match a valid full instance path"
+    );
+}
+
+#[test]
 fn transform_path_discovery_includes_hidden_groups_and_every_transform_instance() {
     let (mut scene, root, child, _) = test_fixtures::hidden_group();
     let root_id = scene.node(root).unwrap().transform_id;
