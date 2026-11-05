@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::tests::{deep_group_editor, remote};
+use crate::app::tests::{linked_deep_group_editor, remote};
 
 fn cubes(count: usize) -> (Editor, Vec<TransformTarget>) {
     let mut editor = Editor::default();
@@ -112,19 +112,15 @@ fn delete_selection_in_component_modes_is_refused_and_keeps_state() {
 /// the same node, naming it, and leaves scene, selection and history untouched.
 #[test]
 fn delete_selection_refusals_match_single_delete_and_keep_state() {
-    let mut editor = deep_group_editor();
+    let mut editor = linked_deep_group_editor();
     let all = editor.history.scene().transform_paths().unwrap();
-    editor.set_selection_members_for_test(all.clone());
+    editor.set_selection_members_for_test(all[1..2].to_vec());
     editor.sync_fields();
     let before = baseline(&editor);
-    let single = editor
-        .apply_operation(Operation::Delete(all[0].node))
-        .unwrap_err();
-    let many = editor
-        .apply_operation(Operation::DeleteSelection)
-        .unwrap_err();
-    let name = editor.history.scene().node(all[0].node).unwrap().name();
-    assert_eq!(many.to_string(), format!("{name}: {single}"));
+    let single = editor.apply_operation(Operation::Delete(all[1].node));
+    let many = editor.apply_operation(Operation::DeleteSelection);
+    assert!(single.is_err());
+    assert_eq!(format!("{single:?}"), format!("{many:?}"));
     assert_eq!(baseline(&editor), before);
 }
 

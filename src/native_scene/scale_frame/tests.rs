@@ -197,6 +197,7 @@ fn retain_scale(scene: &mut NativeScene, node: NodeId) {
     let values = scene.internal_transform(node).unwrap().scale;
     let bytes: Vec<_> = values.into_iter().flat_map(f64::to_be_bytes).collect();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Binary,
@@ -252,6 +253,7 @@ fn refusals_leave_the_scene_untouched() {
 
     let mut ascii = scene.clone();
     ascii.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: [1].into(),
         format: SourceFormat::Ascii,
@@ -309,6 +311,7 @@ fn leaf_rules_follow_the_handle() {
 fn binary_source_without_scale_leaves_is_refused_on_every_handle() {
     let (mut scene, node) = test_fixtures::cube();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: [1].into(),
         format: SourceFormat::Binary,

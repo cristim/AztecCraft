@@ -129,6 +129,8 @@ mod official_client {
     mod manipulator_size;
     mod material;
     mod node_edit;
+    mod obj_export;
+
     mod pointer_hit;
     mod primitive_options;
     mod select_by_rule;
@@ -141,6 +143,7 @@ mod official_client {
     mod snapshots;
     mod sphere;
     mod status_line;
+    mod subtree_delete;
     mod tool_handle;
     mod tool_space;
     mod vertex_edge;

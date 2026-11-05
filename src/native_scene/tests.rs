@@ -2,27 +2,36 @@ use super::test_fixtures::{chain_of_three, cube, grouped_shape, shared_shape};
 use super::*;
 
 #[test]
-fn a_refused_multi_delete_names_the_refusing_node() {
-    let (mut scene, parent, _) = test_fixtures::group_with_own_shape_and_child();
-    let first = scene.create(Primitive::Cube, "first").unwrap();
-    let last = scene.create(Primitive::Cube, "last").unwrap();
-    let name = scene.node(parent).unwrap().name().to_string();
+fn an_invalid_instance_path_error_names_no_target_kind() {
+    assert_eq!(
+        NativeError::InvalidInstancePath.to_string(),
+        "target does not match a valid full instance path"
+    );
+}
 
-    let error = scene.remove_many(&[first, parent, last]).unwrap_err();
+#[test]
+fn a_refused_multi_delete_names_the_refusing_node() {
+    let (mut scene, _) = cube();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let bad = scene.create(Primitive::Cube, "bad").unwrap();
+    let last = scene.create(Primitive::Cube, "last").unwrap();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    let before = scene.clone();
+
+    let error = scene.remove_many(&[first, bad, last]).unwrap_err();
 
     assert_eq!(
         error,
         NativeError::DeleteMemberRefused {
-            node: name.clone(),
-            reason: Box::new(NativeError::UnsupportedDelete(
-                DeleteUnsupported::HasChildren
-            )),
+            node: "bad".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
         }
     );
     assert_eq!(
         error.to_string(),
-        format!("{name}: Deleting a node with children is not supported yet")
+        "bad: native ownership or edit effects are unsupported"
     );
+    assert_eq!(scene, before);
 }
 
 #[test]
@@ -38,12 +47,11 @@ fn a_refusal_name_is_bounded_on_a_character_boundary_without_control_characters(
 
 #[test]
 fn a_refused_delete_of_one_distinct_node_keeps_the_plain_error() {
-    let (mut scene, parent, _) = test_fixtures::group_with_own_shape_and_child();
+    let (mut scene, bad) = cube();
+    test_fixtures::restrict_transform(&mut scene, bad);
     assert_eq!(
-        scene.remove_many(&[parent, parent]),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
+        scene.remove_many(&[bad, bad]),
+        Err(NativeError::UnsupportedEdit)
     );
 }
 
@@ -111,8 +119,221 @@ fn transform_path_discovery_refuses_excess_depth_without_a_partial_result() {
     ));
 }
 
+/// The pre-index algorithm, kept verbatim as the equality oracle for `transform_paths`.
+fn transform_paths_oracle(scene: &NativeScene) -> Result<Vec<TransformTarget>, NativeError> {
+    let mut paths = Vec::<TransformTarget>::new();
+    for root in scene.dag.iter().filter(|edge| edge.parent.is_none()) {
+        let node = scene
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == root.child)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        if paths.len() == MAX_TRANSFORM_PATHS {
+            return Err(NativeError::ResourceLimit);
+        }
+        paths
+            .try_reserve(1)
+            .map_err(|_| NativeError::ResourceLimit)?;
+        let mut path = Vec::new();
+        path.try_reserve_exact(1)
+            .map_err(|_| NativeError::ResourceLimit)?;
+        path.push(root.child);
+        paths.push(TransformTarget {
+            node: node.id,
+            path,
+        });
+    }
+    let mut identities = paths.len();
+    let mut cursor = 0;
+    while cursor < paths.len() {
+        let parent = *paths[cursor]
+            .path
+            .last()
+            .ok_or(NativeError::InvalidInstancePath)?;
+        for edge in scene.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            let Some(node) = scene
+                .nodes
+                .iter()
+                .find(|node| node.transform_id == edge.child)
+            else {
+                continue;
+            };
+            let depth = paths[cursor]
+                .path
+                .len()
+                .checked_add(1)
+                .ok_or(NativeError::ResourceLimit)?;
+            identities = identities
+                .checked_add(depth)
+                .ok_or(NativeError::ResourceLimit)?;
+            if depth > MAX_TRANSFORM_DEPTH
+                || paths.len() == MAX_TRANSFORM_PATHS
+                || identities > MAX_PATH_IDENTITIES
+            {
+                return Err(NativeError::ResourceLimit);
+            }
+            let mut path = Vec::new();
+            path.try_reserve_exact(depth)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            path.extend_from_slice(&paths[cursor].path);
+            path.push(edge.child);
+            paths
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            paths.push(TransformTarget {
+                node: node.id,
+                path,
+            });
+        }
+        cursor += 1;
+    }
+    paths.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+    Ok(paths)
+}
+
+fn flat_cubes(count: usize) -> NativeScene {
+    let mut legacy = Scene::default();
+    for index in 0..count {
+        legacy
+            .create(Primitive::Cube, &format!("cube_{index:04}"))
+            .unwrap();
+    }
+    NativeScene::from_legacy(legacy).unwrap()
+}
+
+fn transform_ids(scene: &NativeScene) -> Vec<NativeId> {
+    scene.nodes.iter().map(|node| node.transform_id).collect()
+}
+
+fn instance(scene: &mut NativeScene, parent: NativeId, child: NativeId, keep_root: bool) {
+    if !keep_root {
+        scene
+            .dag
+            .retain(|edge| !(edge.parent.is_none() && edge.child == child));
+    }
+    scene.dag.push(DagEdge {
+        parent: Some(parent),
+        child,
+    });
+}
+
+fn assert_matches_oracle(scene: &NativeScene) -> Vec<TransformTarget> {
+    let paths = scene.transform_paths().unwrap();
+    assert_eq!(paths, transform_paths_oracle(scene).unwrap());
+    paths
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_an_empty_scene() {
+    let scene = NativeScene::from_legacy(Scene::default()).unwrap();
+    assert_eq!(assert_matches_oracle(&scene), vec![]);
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_a_flat_scene() {
+    let scene = flat_cubes(1500);
+    assert_eq!(assert_matches_oracle(&scene).len(), 1500);
+}
+
+#[test]
+fn transform_paths_equal_the_oracle_for_nested_instancing_in_any_dag_order() {
+    let mut scene = flat_cubes(300);
+    let t = transform_ids(&scene);
+    for i in 1..=10 {
+        instance(&mut scene, t[0], t[i], false);
+    }
+    for i in 11..=60 {
+        instance(&mut scene, t[1 + (i - 11) % 10], t[i], false);
+    }
+    for i in 61..=100 {
+        instance(&mut scene, t[11 + (i - 61) % 50], t[i], false);
+    }
+    for i in 101..=200 {
+        instance(&mut scene, t[1 + i % 10], t[i], false);
+        instance(&mut scene, t[11 + i % 50], t[i], true);
+    }
+    // A group that has its own children is itself instanced under a second parent.
+    instance(&mut scene, t[3], t[2], true);
+    scene.validate().unwrap();
+    let paths = assert_matches_oracle(&scene);
+    let count = |index: usize| {
+        paths
+            .iter()
+            .filter(|target| target.node == scene.nodes[index].id)
+            .count()
+    };
+    assert!(count(2) > 1);
+    assert!(count(12) > 1, "a child of the instanced group");
+    for rotation in [1, 97] {
+        scene.dag.rotate_left(rotation);
+        assert_eq!(assert_matches_oracle(&scene), paths);
+    }
+}
+
+#[test]
+fn transform_paths_accept_exactly_the_path_cap_and_refuse_one_more_root() {
+    let at_cap = flat_cubes(MAX_TRANSFORM_PATHS);
+    at_cap.validate().unwrap();
+    assert_eq!(assert_matches_oracle(&at_cap).len(), MAX_TRANSFORM_PATHS);
+    let over = flat_cubes(MAX_TRANSFORM_PATHS + 1);
+    over.validate().unwrap();
+    assert!(matches!(
+        over.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&over),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
+fn transform_paths_refuse_an_instance_edge_past_the_path_cap() {
+    let mut scene = flat_cubes(MAX_TRANSFORM_PATHS);
+    let t = transform_ids(&scene);
+    instance(&mut scene, t[0], t[1], true);
+    scene.validate().unwrap();
+    assert!(matches!(
+        scene.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&scene),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
+fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
+    let mut scene = flat_cubes(MAX_TRANSFORM_DEPTH + 1);
+    let t = transform_ids(&scene);
+    instance(&mut scene, t[0], t[2], false);
+    for group in 3..t.len() {
+        instance(&mut scene, t[group - 1], t[group], false);
+    }
+    scene.validate().unwrap();
+    // One root over the chain: the deepest path is exactly at the depth cap and the path count is
+    // far under its cap, so neither can be what fails below.
+    assert_eq!(scene.transform_paths().unwrap().len(), t.len());
+    // The second root shares the chain: 2 roots, then each chain path adds its depth, twice.
+    instance(&mut scene, t[1], t[2], true);
+    scene.validate().unwrap();
+    let identities = 2 + 2 * (2..t.len()).sum::<usize>();
+    assert!(identities > MAX_PATH_IDENTITIES);
+    assert!(2 * t.len() - 2 < MAX_TRANSFORM_PATHS);
+    assert!(matches!(
+        scene.transform_paths(),
+        Err(NativeError::ResourceLimit)
+    ));
+    assert_eq!(
+        transform_paths_oracle(&scene),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
 fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Ascii,
@@ -283,6 +504,7 @@ fn unit_conversion_only_changes_derived_view() {
 fn retained_ranges_and_exhausted_allocators_are_checked() {
     let (mut scene, _) = cube();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -292,6 +514,7 @@ fn retained_ranges_and_exhausted_allocators_are_checked() {
     });
     assert_eq!(scene.validate(), Err(NativeError::InvalidRetention));
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: vec![0; 4].into(),
         format: SourceFormat::Ascii,
@@ -402,7 +625,7 @@ fn shared_shape_extrusion_changes_one_owner_and_checks_the_other_instance() {
 }
 
 #[test]
-fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrites() {
+fn removal_preserves_shared_shapes_and_refuses_source_rewrites() {
     let (mut scene, first, second, shape) = shared_shape();
     let preserved = scene.shape(shape).unwrap().clone();
     scene.remove(first).unwrap();
@@ -414,18 +637,12 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
     assert!(scene.dag.is_empty());
     scene.validate().unwrap();
     let (mut scene, root, child, _) = grouped_shape();
-    let before = scene.clone();
-    assert_eq!(
-        scene.remove(root),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
-    );
-    assert_eq!(
-        scene.remove(child),
-        Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
-    );
-    assert_eq!(scene, before);
+    scene.remove(child).unwrap();
+    scene.validate().unwrap();
+    assert_eq!((scene.nodes.len(), scene.shapes.len()), (1, 0));
+    scene.remove(root).unwrap();
+    assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
+    scene.validate().unwrap();
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
     let before = scene.clone();
@@ -448,16 +665,13 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
 }
 
 #[test]
-fn middle_node_with_parent_and_children_is_refused_as_has_children() {
-    let (mut scene, _, mid, _) = chain_of_three();
-    let before = scene.clone();
-    assert_eq!(
-        scene.remove(mid),
-        Err(NativeError::UnsupportedDelete(
-            DeleteUnsupported::HasChildren
-        ))
-    );
-    assert_eq!(scene, before);
+fn a_middle_node_goes_with_its_descendants_and_leaves_its_parent() {
+    let (mut scene, root, mid, _) = chain_of_three();
+    scene.remove(mid).unwrap();
+    scene.validate().unwrap();
+    assert_eq!(scene.nodes.len(), 1);
+    assert!(scene.node(root).is_ok() && scene.shapes.is_empty());
+    assert_eq!(scene.dag.len(), 1);
 }
 
 #[test]
@@ -973,6 +1187,7 @@ fn binary_candidate_finishes_once_preserving_source_and_runtime_identity() {
     candidate.shapes[0].uuid = None;
     candidate.nodes[0].name = "native:arbitrary exact name".into();
     candidate.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: std::sync::Arc::from(&b"opaque original identity"[..]),
         format: SourceFormat::Binary,
@@ -1079,7 +1294,7 @@ fn root_transform_resolves_the_top_of_any_valid_path_and_refuses_others() {
 }
 
 #[test]
-fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
+fn a_restricted_descendant_refuses_the_subtree_delete_but_a_restricted_ancestor_does_not() {
     for restricted in [0, 1] {
         let (mut scene, root, child, _) = grouped_shape();
         let at = scene
@@ -1091,17 +1306,18 @@ fn hierarchy_refusal_wins_over_a_restricted_ancestor_or_descendant() {
             .unsupported_transform
             .push("unproved effect".into());
         let before = scene.clone();
-        assert_eq!(
-            scene.remove(root),
-            Err(NativeError::UnsupportedDelete(
-                DeleteUnsupported::HasChildren
-            ))
-        );
-        assert_eq!(
-            scene.remove(child),
-            Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild))
-        );
+        assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
         assert_eq!(scene, before);
+        let child_removed = scene.remove(child);
+        if restricted == 0 {
+            // Only the subtree is checked: a restricted ancestor does not matter to a child delete.
+            child_removed.unwrap();
+            scene.validate().unwrap();
+            assert_eq!(scene.nodes.len(), 1);
+        } else {
+            assert_eq!(child_removed, Err(NativeError::UnsupportedEdit));
+            assert_eq!(scene, before);
+        }
     }
 }
 
@@ -1120,6 +1336,7 @@ fn read_only_format_wins_over_the_hierarchy_refusal_on_an_ascii_scene() {
 fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() {
     let binary = |scene: &mut NativeScene| {
         scene.source = Some(SourceRetention {
+            has_removals: false,
             sites: Vec::new(),
             bytes: std::sync::Arc::from(&b"original"[..]),
             format: SourceFormat::Binary,
@@ -1140,7 +1357,12 @@ fn missing_node_on_a_binary_source_scene_is_missing_node_not_unsupported_edit() 
     assert_eq!(scene, before);
     let (mut scene, present) = cube();
     binary(&mut scene);
-    assert_eq!(scene.remove(present), Err(NativeError::UnsupportedEdit));
+    assert_eq!(
+        scene.remove(present),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+            crate::native_scene::binary::RemovalRefusal::Unreadable
+        )))
+    );
 }
 
 #[test]
@@ -1257,22 +1479,21 @@ fn remove_many_deduplicates_repeated_ids_and_accepts_an_empty_list() {
 }
 
 #[test]
-fn remove_many_keeps_the_per_node_refusals_and_names_the_first_one() {
-    let (mut scene, root, child, _) = grouped_shape();
-    let refused = |scene: &NativeScene, id, reason| {
-        Err(NativeError::DeleteMemberRefused {
-            node: scene.node(id).unwrap().name().to_string(),
-            reason: Box::new(NativeError::UnsupportedDelete(reason)),
-        })
-    };
-    assert_eq!(
-        scene.remove_many(&[root, child]),
-        refused(&scene, root, DeleteUnsupported::HasChildren)
-    );
-    assert_eq!(
-        scene.remove_many(&[child, root]),
-        refused(&scene, child, DeleteUnsupported::IsChild)
-    );
+fn remove_many_takes_a_group_once_in_either_order_and_a_lone_child_alone() {
+    let (scene, root, child, _) = grouped_shape();
+    for order in [
+        vec![root, child],
+        vec![child, root],
+        vec![child, root, child],
+    ] {
+        let mut both = scene.clone();
+        both.remove_many(&order).unwrap();
+        assert!(both.nodes.is_empty() && both.shapes.is_empty() && both.dag.is_empty());
+        both.validate().unwrap();
+    }
+    let mut lone = scene.clone();
+    lone.remove_many(&[child]).unwrap();
+    assert_eq!(lone.nodes.len(), 1);
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
     assert_eq!(scene.remove_many(&[id]), Err(NativeError::ReadOnlyFormat));
@@ -1282,4 +1503,355 @@ fn remove_many_keeps_the_per_node_refusals_and_names_the_first_one() {
         scene.remove_many(&[ids[0], missing]),
         Err(NativeError::Legacy(SceneError::MissingNode(missing)))
     );
+}
+
+/// The scanning form `geometry_view_admission_indexed` replaced (#341), kept verbatim so the
+/// indexed form can be proved identical rather than merely plausible.
+fn admission_by_scanning(
+    scene: &NativeScene,
+    path: &[NativeId],
+) -> Result<GeometryViewAdmission, NativeError> {
+    fn transform_prefix(scene: &NativeScene, path: &[NativeId]) -> Result<(), NativeError> {
+        if path.is_empty()
+            || !scene
+                .dag
+                .iter()
+                .any(|edge| edge.parent.is_none() && edge.child == path[0])
+            || path.iter().enumerate().any(|(index, id)| {
+                path[..index].contains(id)
+                    || !scene.nodes.iter().any(|node| node.transform_id == *id)
+            })
+            || path.windows(2).any(|pair| {
+                !scene
+                    .dag
+                    .iter()
+                    .any(|edge| edge.parent == Some(pair[0]) && edge.child == pair[1])
+            })
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(())
+    }
+    if path.len() < 2 {
+        return Err(NativeError::InvalidInstancePath);
+    }
+    transform_prefix(scene, &path[..path.len() - 1])?;
+    if path[..path.len() - 1].contains(&path[path.len() - 1])
+        || !scene.dag.contains(&DagEdge {
+            parent: Some(path[path.len() - 2]),
+            child: path[path.len() - 1],
+        })
+    {
+        return Err(NativeError::InvalidInstancePath);
+    }
+    let id = path[path.len() - 1];
+    let facts = scene
+        .shapes
+        .iter()
+        .find(|shape| shape.id == id)
+        .map(|shape| &shape.view)
+        .or_else(|| {
+            scene
+                .curves
+                .iter()
+                .find(|curve| curve.id == id)
+                .map(|curve| &curve.view)
+        })
+        .ok_or(NativeError::InvalidInstancePath)?;
+    let mut visible = facts.visible()?;
+    for id in &path[..path.len() - 1] {
+        let node = scene
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == *id)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        if !node.unsupported_transform.is_empty() {
+            return Err(NativeError::UnsupportedView("unproved transform effects"));
+        }
+        visible &= node.view.visible()?;
+    }
+    Ok(GeometryViewAdmission {
+        visible,
+        appearance_incomplete: scene.appearance_incomplete(),
+    })
+}
+
+#[test]
+fn the_admission_index_matches_the_scanning_form_on_valid_and_malformed_paths() {
+    let unknown = NativeId(u64::MAX);
+    // A node carrying unsupported transform effects, so the `UnsupportedView` arm is exercised;
+    // no shared fixture sets one. The deeper node is chosen so the ancestor walk must reach past
+    // the first element to find it.
+    let unsupported_leaf = {
+        let (mut scene, _, _, _) = chain_of_three();
+        let last = scene.nodes.len() - 1;
+        scene.nodes[last].unsupported_transform = vec!["shear".to_string()];
+        scene
+    };
+    let unsupported_root = {
+        let (mut scene, _, _, _) = chain_of_three();
+        scene.nodes[0].unsupported_transform = vec!["shear".to_string()];
+        scene
+    };
+    // Visibility hidden at the deepest ancestor rather than the root, so a walk that stops early
+    // reports the wrong answer instead of the same one.
+    let hidden_leaf = {
+        let (mut scene, _, _, _) = chain_of_three();
+        let last = scene.nodes.len() - 1;
+        scene.nodes[last].view.local_visibility = Some(false);
+        scene
+    };
+    for (label, scene) in [
+        ("grouped", grouped_shape().0),
+        ("hidden group", test_fixtures::hidden_group().0),
+        ("hidden shape", test_fixtures::hidden_shape().0),
+        ("unproved group", test_fixtures::unproved_group().0),
+        ("shared shape", shared_shape().0),
+        ("chain of three", chain_of_three().0),
+        ("unsupported leaf", unsupported_leaf),
+        ("unsupported root", unsupported_root),
+        ("hidden leaf", hidden_leaf),
+    ] {
+        let index = ViewAdmissionIndex::new(&scene).unwrap();
+        let mut probes: Vec<Vec<NativeId>> = Vec::new();
+        // Every real instance path in the scene.
+        for target in scene.transform_paths().unwrap() {
+            let prefix = target.path.clone();
+            probes.push(prefix.clone());
+            for shape in &scene.shapes {
+                let mut path = prefix.clone();
+                path.push(shape.id);
+                probes.push(path);
+            }
+            for curve in &scene.curves {
+                let mut path = prefix.clone();
+                path.push(curve.id);
+                probes.push(path);
+            }
+        }
+        let roots: Vec<NativeId> = scene.nodes.iter().map(|node| node.transform_id).collect();
+        // Malformed paths: empty, too short, unknown ids, repeated ids, non-adjacent pairs.
+        probes.push(Vec::new());
+        probes.push(vec![roots[0]]);
+        probes.push(vec![unknown, unknown]);
+        probes.push(vec![roots[0], unknown]);
+        probes.push(vec![unknown, roots[0]]);
+        probes.push(vec![roots[0], roots[0]]);
+        if let Some(shape) = scene.shapes.first() {
+            probes.push(vec![shape.id, shape.id]);
+            probes.push(vec![roots[0], shape.id, shape.id]);
+            probes.push(vec![shape.id, roots[0]]);
+        }
+        for a in &roots {
+            for b in &roots {
+                probes.push(vec![*a, *b]);
+                if let Some(shape) = scene.shapes.first() {
+                    probes.push(vec![*a, *b, shape.id]);
+                }
+            }
+        }
+        // Each malformed shape below is rejected by exactly one check, so a dropped check shows up
+        // as a difference rather than being masked by an earlier one.
+        for target in scene.transform_paths().unwrap() {
+            let prefix = &target.path;
+            // Repeated transform id with every element still a real, adjacent transform: only the
+            // cycle check rejects it. A self-loop on the last element keeps adjacency plausible.
+            for index in 0..prefix.len() {
+                let mut looped = prefix.clone();
+                looped.insert(index, prefix[index]);
+                probes.push(looped.clone());
+                for shape in &scene.shapes {
+                    let mut path = looped.clone();
+                    path.push(shape.id);
+                    probes.push(path);
+                }
+            }
+            // A one-element path and a bare prefix: only the length check rejects the former.
+            probes.push(prefix.clone());
+            if let Some(first) = prefix.first() {
+                probes.push(vec![*first]);
+            }
+        }
+        // A shape id used where a transform belongs: only the unknown-transform check rejects it.
+        for shape in &scene.shapes {
+            probes.push(vec![shape.id, shape.id]);
+            probes.push(vec![shape.id]);
+            for root in &roots {
+                probes.push(vec![shape.id, *root]);
+                probes.push(vec![*root, shape.id, shape.id]);
+            }
+        }
+        for path in probes {
+            assert_eq!(
+                scene.geometry_view_admission_indexed(&index, &path),
+                admission_by_scanning(&scene, &path),
+                "{label}: path {path:?}"
+            );
+        }
+    }
+}
+
+/// Group `g` with children `a` (owning shape `s`) and `b` (also showing `s`).
+fn group_sharing_a_shape() -> (NativeScene, NodeId, NativeId) {
+    let (mut scene, g, _, s) = grouped_shape();
+    let b = scene.create(Primitive::Cube, "b").unwrap();
+    let discarded = scene.shapes.pop().unwrap().id;
+    let (g_id, b_id) = (
+        scene.node(g).unwrap().transform_id,
+        scene.node(b).unwrap().transform_id,
+    );
+    scene
+        .dag
+        .retain(|edge| edge.child != discarded && !(edge.child == b_id && edge.parent.is_none()));
+    scene.dag.push(DagEdge {
+        parent: Some(g_id),
+        child: b_id,
+    });
+    scene.dag.push(DagEdge {
+        parent: Some(b_id),
+        child: s,
+    });
+    scene.validate().unwrap();
+    (scene, g, s)
+}
+
+#[test]
+fn a_deep_chain_goes_with_its_root() {
+    let (mut scene, root, _, _) = chain_of_three();
+    scene.remove(root).unwrap();
+    assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
+    scene.validate().unwrap();
+}
+
+#[test]
+fn a_shape_shared_by_two_removed_transforms_goes_and_the_scene_stays_valid() {
+    let (scene, g, s) = group_sharing_a_shape();
+    let mut removed = scene.clone();
+    removed.remove(g).unwrap();
+    removed.validate().unwrap();
+    assert!(removed.shape(s).is_err());
+    assert!(removed.nodes.is_empty() && removed.dag.is_empty());
+}
+
+#[test]
+fn a_shape_shared_with_a_survivor_stays_and_loses_only_the_removed_edges() {
+    let (mut scene, g, s) = group_sharing_a_shape();
+    let outsider = scene.create(Primitive::Cube, "outsider").unwrap();
+    let outsider_id = scene.node(outsider).unwrap().transform_id;
+    let discarded = scene.shapes.pop().unwrap().id;
+    scene.dag.retain(|edge| edge.child != discarded);
+    scene.dag.push(DagEdge {
+        parent: Some(outsider_id),
+        child: s,
+    });
+    scene.validate().unwrap();
+    scene.remove(g).unwrap();
+    scene.validate().unwrap();
+    assert!(scene.shape(s).is_ok());
+    assert_eq!(scene.nodes.len(), 1);
+    assert_eq!(
+        scene.dag.iter().filter(|edge| edge.child == s).count(),
+        1,
+        "{:?}",
+        scene.dag
+    );
+}
+
+#[test]
+fn a_descendant_transform_with_an_outside_edge_refuses_the_delete() {
+    for root_edge in [false, true] {
+        let (mut scene, root, child, _) = grouped_shape();
+        let child_id = scene.node(child).unwrap().transform_id;
+        let parent = if root_edge {
+            None
+        } else {
+            let other = scene.create(Primitive::Cube, "other").unwrap();
+            Some(scene.node(other).unwrap().transform_id)
+        };
+        scene.dag.push(DagEdge {
+            parent,
+            child: child_id,
+        });
+        scene.validate().unwrap();
+        let before = scene.clone();
+        assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
+        assert_eq!(scene, before);
+        // Deleting the instanced transform itself would remove it from both parents.
+        assert_eq!(scene.remove(child), Err(NativeError::UnsupportedEdit));
+        assert_eq!(scene, before);
+    }
+}
+
+#[test]
+fn remove_many_with_a_refused_member_among_deletable_ones_changes_nothing() {
+    let (mut scene, _, child, _) = grouped_shape();
+    let other = scene.create(Primitive::Cube, "other").unwrap();
+    test_fixtures::restrict_transform(&mut scene, other);
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[child, other]),
+        Err(NativeError::DeleteMemberRefused {
+            node: "other".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        })
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_restricted_shape_in_the_subtree_refuses_the_delete() {
+    let (mut scene, root, _, _) = grouped_shape();
+    scene.shapes[0]
+        .restrictions
+        .push("unproved shape effect".into());
+    let before = scene.clone();
+    assert_eq!(scene.remove(root), Err(NativeError::UnsupportedEdit));
+    assert_eq!(scene, before);
+}
+
+/// `root` with three cube children `a`, `b`, `c` in that order.
+fn root_with_three_children() -> (NativeScene, NodeId, [NodeId; 3]) {
+    let (mut scene, root) = cube();
+    let root_id = scene.node(root).unwrap().transform_id;
+    let kids = ["a", "b", "c"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    for kid in kids {
+        let id = scene.node(kid).unwrap().transform_id;
+        scene
+            .dag
+            .iter_mut()
+            .find(|edge| edge.child == id)
+            .unwrap()
+            .parent = Some(root_id);
+    }
+    scene.validate().unwrap();
+    (scene, root, kids)
+}
+
+#[test]
+fn deleting_a_middle_child_keeps_the_parent_its_other_children_and_their_order() {
+    let (mut scene, root, [a, b, c]) = root_with_three_children();
+    scene.remove(b).unwrap();
+    scene.validate().unwrap();
+    let order: Vec<_> = scene
+        .transform_paths()
+        .unwrap()
+        .iter()
+        .map(|t| t.node)
+        .collect();
+    assert_eq!(order, [root, a, c]);
+    scene.set_channel(root, Channel::TranslateX, 5.0).unwrap();
+    scene.remove(a).unwrap();
+    assert_eq!(scene.nodes.len(), 2);
+}
+
+#[test]
+fn siblings_are_deleted_together_and_the_parent_survives() {
+    let (scene, root, [a, b, c]) = root_with_three_children();
+    for ids in [vec![a, c], vec![c, a, b]] {
+        let mut both = scene.clone();
+        both.remove_many(&ids).unwrap();
+        both.validate().unwrap();
+        assert_eq!(both.nodes.len(), 4 - ids.len());
+        assert!(both.node(root).is_ok());
+    }
 }
