@@ -186,6 +186,8 @@ fn dialog_body(ui: &mut egui::Ui, dialog: &mut Dialog, refusal: Option<&str>) ->
             )
             .labelled_by(label.id);
             ui.end_row();
+            // Taper 1 and Twist 0 are the polyExtrudeFacet node defaults, not values the 2027
+            // Extrude Options page states (PROVISIONAL); the rows are disabled either way.
             for (label, value) in [
                 ("Divisions", "1"),
                 ("Offset", "0"),

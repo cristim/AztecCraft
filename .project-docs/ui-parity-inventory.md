@@ -14,7 +14,7 @@ Precedence: [inventory-seed.md](inventory-seed.md) and [parity.md](parity.md) ow
 - Priority: P1 is frequent and blocking in a modeler's daily loop. P2 is regular use. P3 is occasional or outside the modeling loop.
 - Visible-unsupported rows confirmed in a native macOS screenshot on 2026-10-16 of a build whose application code is identical to ef86b64: Tool Box Move/Rotate/Scale (and a Snap placeholder removed since), shelf Extrude/Bevel/Materials, five Time Slider buttons. The screenshot shows the menu-bar labels only, with no menu open, so menu contents were checked from source. Rows tagged source-verified are not shown in that screenshot.
 - On this SHA, Move, Rotate and Scale in the Tool Box are disabled. PR #77 (Move) is not included. The Tool Box rows in section 4 were updated for the icon-only Tool Box change and are cited at that branch.
-- MCP is ahead of the native UI; the shelf Extrude is deliberately disabled (known-issues.md). Enabling it is a backlog item.
+- The shelf Extrude opens the Extrude Options window when a face is picked in Face mode and is otherwise disabled with the reason (`src/app/features/extrude_options/tests.rs "the_shelf_button_is_disabled_without_a_face_and_opens_the_window_with_one"`); Ctrl+E and the Edit Mesh menu are still missing (#44).
 - Names of tools come from `src/mcp/tools.rs`.
 
 
@@ -92,7 +92,7 @@ One fixed shelf row exists under the menu bar. Tab order and the Poly Modeling t
 | Poly Modeling tab: primitive creation icons (cube) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "UiIcon::PolyCube"`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: primitive creation icons (plane) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "button(ui, \"Plane\""`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Other primitive icons (sphere, cylinder and others) | [shelf] UNCONFIRMED contents | Visible-unsupported | no shelf icon; Create > Polygon Primitives > Sphere, Cylinder and Cone exist (provisional, #43), and the other ten primitives are disabled rows in that submenu | none | P2 | S7 Shelf (#65) |
-| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Visible-unsupported | MCP ahead of native UI; native control deliberately disabled (known-issues.md, `src/app/menus.rs "egui::Button::new(\"Extrude\")"`) | `extrude_face` | P1 | S7 Shelf (#65) |
+| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Partial | Enabled in Face mode with a picked face, where it opens the Extrude Options window (Thickness only, PROVISIONAL); disabled with the blocker text otherwise (`src/app/menus.rs "Open Extrude Options"`, `src/app/features/extrude_options/tests.rs`) | `extrude_face` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: Bevel icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Bevel"` (disabled) | none | P2 | S7 Shelf (#65) |
 | Materials icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Materials"` (disabled) | none | P3 | S7 Shelf (#65) |
 | Undo and redo buttons: AztecCraft-native shelf buttons; not documented on the Maya Status Line (Maya has Edit > Undo and Redo) | [menus] | Supported | `src/app/menus.rs "UiIcon::Undo"`, `src/app/menus.rs "UiIcon::Redo"` | `undo`, `redo` | P1 | S7 Shelf (#65) |
@@ -254,7 +254,7 @@ No Modeling Toolkit panel exists. Default dock is UNCONFIRMED for 2026.
 | Section: Selection options | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Selection constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Transform constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Commands and tools | [toolkit] | Missing | absent; Extrude is disabled at `src/app/menus.rs "egui::Button::new(\"Extrude\")"` | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
+| Section: Commands and tools | [toolkit] | Missing | absent; the shelf Extrude button exists (`src/app/menus.rs "Open Extrude Options"`) but there is no Modeling Toolkit panel | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
 | Section: Transform tool settings | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Custom shelf | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Hotkeys | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |

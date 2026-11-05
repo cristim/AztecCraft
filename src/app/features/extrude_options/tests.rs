@@ -2,6 +2,7 @@ use super::*;
 use crate::app::tests::remote;
 use crate::editor_operations::OperationError;
 use azteccraft::native_scene::FaceTarget;
+use eframe::egui::accesskit;
 
 /// A face-mode editor with face 0 of a new `primitive` picked.
 fn face_editor(primitive: Primitive) -> (Editor, FaceTarget) {
@@ -229,4 +230,69 @@ fn escape_closes_the_window_when_nothing_else_wants_it() {
     };
     frame(&mut editor, &ctx, vec![escape]);
     assert!(editor.extrude_options.dialog.is_none());
+}
+
+/// The shelf button: the topmost enabled-state of the control labelled "Extrude".
+fn shelf_button(output: &egui::FullOutput) -> (egui::Pos2, bool) {
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    update
+        .nodes
+        .iter()
+        .filter(|(_, node)| {
+            node.role() == accesskit::Role::Button && node.label() == Some("Extrude")
+        })
+        .filter_map(|(_, node)| node.bounds().map(|b| (b, node.is_disabled())))
+        .min_by(|a, b| a.0.y0.total_cmp(&b.0.y0))
+        .map(|(b, disabled)| {
+            (
+                egui::pos2(((b.x0 + b.x1) / 2.0) as f32, ((b.y0 + b.y1) / 2.0) as f32),
+                disabled,
+            )
+        })
+        .unwrap()
+}
+
+fn window_open(output: &egui::FullOutput) -> bool {
+    let update = output.platform_output.accesskit_update.as_ref().unwrap();
+    update
+        .nodes
+        .iter()
+        .any(|(_, node)| node.label() == Some("Extrude Options"))
+}
+
+#[test]
+fn the_shelf_button_is_disabled_without_a_face_and_opens_the_window_with_one() {
+    let size = egui::vec2(1200.0, 800.0);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let (_, disabled) = shelf_button(&crate::app::tests::frame_with(
+        &mut editor,
+        &ctx,
+        size,
+        1.0,
+        vec![],
+    ));
+    assert!(disabled, "Object mode");
+    assert_eq!(editor.extrude_blocker(), Some(ExtrudeBlocker::NotFaceMode));
+    editor.selection_mode = SelectionMode::Face;
+    let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(shelf_button(&output).1, "Face mode, no face");
+    assert!(editor.extrude_options.dialog.is_none());
+
+    let (mut editor, _) = face_editor(Primitive::Cube);
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    let (at, disabled) = shelf_button(&output);
+    assert!(!disabled && !window_open(&output));
+    let baseline = editor.history.scene().clone();
+    crate::app::tests::click_at(&mut editor, &ctx, size, at);
+    assert!(editor.extrude_options.dialog.is_some(), "{}", editor.status);
+    assert_eq!(editor.history.scene(), &baseline, "opening changes nothing");
 }
