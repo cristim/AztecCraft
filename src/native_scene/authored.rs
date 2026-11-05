@@ -83,6 +83,9 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
     if !scene.curves.is_empty() {
         return Err(AuthoredIneligible::Curves);
     }
+    if !scene.session_uvs.is_empty() {
+        return Err(AuthoredIneligible::UnsupportedMeshChannels);
+    }
     Ok(())
 }
 
