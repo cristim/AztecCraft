@@ -334,3 +334,78 @@ fn hierarchy_mode_moves_the_selection_and_face_mode_still_refuses() {
     ));
     assert_eq!(editor.history.scene(), &scene);
 }
+
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+/// A group at x = 2 holding a child at x = 1 whose rotate pivot is (0, 3, 0); both have a
+/// translate leaf. Returns the editor with the group selected first and the child as the lead.
+fn group_and_pivoted_child() -> Editor {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let bytes = scene(
+        &[
+            group(
+                b"XFRM",
+                &[creation(b"group", None), triple(b"t", [2.0, 0.0, 0.0])].concat(),
+                4,
+            ),
+            group(
+                b"XFRM",
+                &[
+                    creation(b"child", Some(b"group")),
+                    triple(b"t", [1.0, 0.0, 0.0]),
+                    triple(b"rp", [0.0, 3.0, 0.0]),
+                ]
+                .concat(),
+                4,
+            ),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"shape", Some(b"child")),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    let scene = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let parent = paths.iter().find(|p| p.path.len() == 1).unwrap().clone();
+    let child = paths.iter().find(|p| p.path.len() == 2).unwrap().clone();
+    editor.set_selection_members_for_test(vec![parent, child]);
+    editor
+}
+
+#[test]
+fn a_covered_lead_with_a_rotate_pivot_has_its_handle_at_the_pivot_and_move_is_available() {
+    let editor = group_and_pivoted_child();
+    let lead = editor.selected_move_lead().unwrap();
+    // World pivot: the group's T (2) + the child's T (1) on x, and RP (3) on y.
+    let origin = editor.move_handle_origin(&lead).unwrap();
+    assert_eq!(origin, glam::DVec3::new(3.0, 3.0, 0.0));
+    let kinds = editor.inspect(false).unwrap().manipulation.kinds;
+    let mv = kinds.iter().find(|k| k.kind == "move").unwrap();
+    assert!(mv.available, "{:?}", mv.unavailable_reason);
+}
+
+#[test]
+fn an_uncovered_lead_keeps_refusing_a_rotate_pivot() {
+    let mut editor = group_and_pivoted_child();
+    let child = editor.selection.lead().unwrap().clone();
+    editor.set_selection_members_for_test(vec![child]);
+    let kinds = editor.inspect(false).unwrap().manipulation.kinds;
+    let mv = kinds.iter().find(|k| k.kind == "move").unwrap();
+    assert!(!mv.available);
+}

@@ -351,6 +351,22 @@ impl MoveTransaction {
     }
 }
 
+/// The transform ids of the selected targets: a target is covered when one of these is among its
+/// ancestors (P20, by node identity, not path prefix).
+pub fn selected_transform_ids(targets: &[TransformTarget]) -> HashSet<NativeId> {
+    targets
+        .iter()
+        .filter_map(|target| target.path.last().copied())
+        .collect()
+}
+
+/// Whether `target` follows a selected ancestor instead of getting its own translation. The one
+/// predicate begin and the handle drawing share.
+pub fn is_covered(selected: &HashSet<NativeId>, target: &TransformTarget) -> bool {
+    let ancestors = &target.path[..target.path.len().saturating_sub(1)];
+    ancestors.iter().any(|id| selected.contains(id))
+}
+
 /// An uncovered mover whose node is also reachable through another path under a selected node
 /// would be moved a second time there: its translation is shared by all its instances. Refuse the
 /// whole Move. A covered member is exempt, since it gets no translation of its own.
@@ -416,16 +432,10 @@ fn plan_move(
             return Err(member_error(scene, target.node, refusal));
         }
     }
-    let selected: HashSet<NativeId> = targets
-        .iter()
-        .filter_map(|target| target.path.last().copied())
-        .collect();
+    let selected = selected_transform_ids(targets);
     let movers: Vec<&TransformTarget> = targets
         .iter()
-        .filter(|target| {
-            let ancestors = &target.path[..target.path.len().saturating_sub(1)];
-            !ancestors.iter().any(|id| selected.contains(id))
-        })
+        .filter(|target| !is_covered(&selected, target))
         .collect();
     refuse_alternate_path_ancestors(scene, &movers, &selected)?;
     let frames = scene

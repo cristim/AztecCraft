@@ -467,3 +467,23 @@ fn an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused() {
         })
     );
 }
+
+#[test]
+fn the_shared_coverage_predicate_agrees_with_what_begin_covers() {
+    let (scene, parent, child) = test_fixtures::group_with_own_shape_and_child();
+    let history = History::new(scene);
+    let targets = [
+        path_of(&history, &[parent, child]),
+        path_of(&history, &[parent]),
+    ];
+    let selected = super::selected_transform_ids(&targets);
+    assert!(super::is_covered(&selected, &targets[0]));
+    assert!(!super::is_covered(&selected, &targets[1]));
+    // The instanced case: node a through x1 covers b through x2/a/b by identity.
+    let (scene, x1, x2, a, b) = test_fixtures::instanced_chain();
+    let history = History::new(scene);
+    let targets = [path_of(&history, &[x1, a]), path_of(&history, &[x2, a, b])];
+    let selected = super::selected_transform_ids(&targets);
+    assert!(super::is_covered(&selected, &targets[1]));
+    assert!(!super::is_covered(&selected, &targets[0]));
+}
