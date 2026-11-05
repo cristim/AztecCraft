@@ -1459,6 +1459,192 @@ fn remove_many_takes_a_group_once_in_either_order_and_a_lone_child_alone() {
     );
 }
 
+/// The scanning form `geometry_view_admission_indexed` replaced (#341), kept verbatim so the
+/// indexed form can be proved identical rather than merely plausible.
+fn admission_by_scanning(
+    scene: &NativeScene,
+    path: &[NativeId],
+) -> Result<GeometryViewAdmission, NativeError> {
+    fn transform_prefix(scene: &NativeScene, path: &[NativeId]) -> Result<(), NativeError> {
+        if path.is_empty()
+            || !scene
+                .dag
+                .iter()
+                .any(|edge| edge.parent.is_none() && edge.child == path[0])
+            || path.iter().enumerate().any(|(index, id)| {
+                path[..index].contains(id)
+                    || !scene.nodes.iter().any(|node| node.transform_id == *id)
+            })
+            || path.windows(2).any(|pair| {
+                !scene
+                    .dag
+                    .iter()
+                    .any(|edge| edge.parent == Some(pair[0]) && edge.child == pair[1])
+            })
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(())
+    }
+    if path.len() < 2 {
+        return Err(NativeError::InvalidInstancePath);
+    }
+    transform_prefix(scene, &path[..path.len() - 1])?;
+    if path[..path.len() - 1].contains(&path[path.len() - 1])
+        || !scene.dag.contains(&DagEdge {
+            parent: Some(path[path.len() - 2]),
+            child: path[path.len() - 1],
+        })
+    {
+        return Err(NativeError::InvalidInstancePath);
+    }
+    let id = path[path.len() - 1];
+    let facts = scene
+        .shapes
+        .iter()
+        .find(|shape| shape.id == id)
+        .map(|shape| &shape.view)
+        .or_else(|| {
+            scene
+                .curves
+                .iter()
+                .find(|curve| curve.id == id)
+                .map(|curve| &curve.view)
+        })
+        .ok_or(NativeError::InvalidInstancePath)?;
+    let mut visible = facts.visible()?;
+    for id in &path[..path.len() - 1] {
+        let node = scene
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == *id)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        if !node.unsupported_transform.is_empty() {
+            return Err(NativeError::UnsupportedView("unproved transform effects"));
+        }
+        visible &= node.view.visible()?;
+    }
+    Ok(GeometryViewAdmission {
+        visible,
+        appearance_incomplete: scene.appearance_incomplete(),
+    })
+}
+
+#[test]
+fn the_admission_index_matches_the_scanning_form_on_valid_and_malformed_paths() {
+    let unknown = NativeId(u64::MAX);
+    // A node carrying unsupported transform effects, so the `UnsupportedView` arm is exercised;
+    // no shared fixture sets one. The deeper node is chosen so the ancestor walk must reach past
+    // the first element to find it.
+    let unsupported_leaf = {
+        let (mut scene, _, _, _) = chain_of_three();
+        let last = scene.nodes.len() - 1;
+        scene.nodes[last].unsupported_transform = vec!["shear".to_string()];
+        scene
+    };
+    let unsupported_root = {
+        let (mut scene, _, _, _) = chain_of_three();
+        scene.nodes[0].unsupported_transform = vec!["shear".to_string()];
+        scene
+    };
+    // Visibility hidden at the deepest ancestor rather than the root, so a walk that stops early
+    // reports the wrong answer instead of the same one.
+    let hidden_leaf = {
+        let (mut scene, _, _, _) = chain_of_three();
+        let last = scene.nodes.len() - 1;
+        scene.nodes[last].view.local_visibility = Some(false);
+        scene
+    };
+    for (label, scene) in [
+        ("grouped", grouped_shape().0),
+        ("hidden group", test_fixtures::hidden_group().0),
+        ("hidden shape", test_fixtures::hidden_shape().0),
+        ("unproved group", test_fixtures::unproved_group().0),
+        ("shared shape", shared_shape().0),
+        ("chain of three", chain_of_three().0),
+        ("unsupported leaf", unsupported_leaf),
+        ("unsupported root", unsupported_root),
+        ("hidden leaf", hidden_leaf),
+    ] {
+        let index = ViewAdmissionIndex::new(&scene).unwrap();
+        let mut probes: Vec<Vec<NativeId>> = Vec::new();
+        // Every real instance path in the scene.
+        for target in scene.transform_paths().unwrap() {
+            let prefix = target.path.clone();
+            probes.push(prefix.clone());
+            for shape in &scene.shapes {
+                let mut path = prefix.clone();
+                path.push(shape.id);
+                probes.push(path);
+            }
+            for curve in &scene.curves {
+                let mut path = prefix.clone();
+                path.push(curve.id);
+                probes.push(path);
+            }
+        }
+        let roots: Vec<NativeId> = scene.nodes.iter().map(|node| node.transform_id).collect();
+        // Malformed paths: empty, too short, unknown ids, repeated ids, non-adjacent pairs.
+        probes.push(Vec::new());
+        probes.push(vec![roots[0]]);
+        probes.push(vec![unknown, unknown]);
+        probes.push(vec![roots[0], unknown]);
+        probes.push(vec![unknown, roots[0]]);
+        probes.push(vec![roots[0], roots[0]]);
+        if let Some(shape) = scene.shapes.first() {
+            probes.push(vec![shape.id, shape.id]);
+            probes.push(vec![roots[0], shape.id, shape.id]);
+            probes.push(vec![shape.id, roots[0]]);
+        }
+        for a in &roots {
+            for b in &roots {
+                probes.push(vec![*a, *b]);
+                if let Some(shape) = scene.shapes.first() {
+                    probes.push(vec![*a, *b, shape.id]);
+                }
+            }
+        }
+        // Each malformed shape below is rejected by exactly one check, so a dropped check shows up
+        // as a difference rather than being masked by an earlier one.
+        for target in scene.transform_paths().unwrap() {
+            let prefix = &target.path;
+            // Repeated transform id with every element still a real, adjacent transform: only the
+            // cycle check rejects it. A self-loop on the last element keeps adjacency plausible.
+            for index in 0..prefix.len() {
+                let mut looped = prefix.clone();
+                looped.insert(index, prefix[index]);
+                probes.push(looped.clone());
+                for shape in &scene.shapes {
+                    let mut path = looped.clone();
+                    path.push(shape.id);
+                    probes.push(path);
+                }
+            }
+            // A one-element path and a bare prefix: only the length check rejects the former.
+            probes.push(prefix.clone());
+            if let Some(first) = prefix.first() {
+                probes.push(vec![*first]);
+            }
+        }
+        // A shape id used where a transform belongs: only the unknown-transform check rejects it.
+        for shape in &scene.shapes {
+            probes.push(vec![shape.id, shape.id]);
+            probes.push(vec![shape.id]);
+            for root in &roots {
+                probes.push(vec![shape.id, *root]);
+                probes.push(vec![*root, shape.id, shape.id]);
+            }
+        }
+        for path in probes {
+            assert_eq!(
+                scene.geometry_view_admission_indexed(&index, &path),
+                admission_by_scanning(&scene, &path),
+                "{label}: path {path:?}"
+            );
+        }
+    }
+}
+
 /// Group `g` with children `a` (owning shape `s`) and `b` (also showing `s`).
 fn group_sharing_a_shape() -> (NativeScene, NodeId, NativeId) {
     let (mut scene, g, _, s) = grouped_shape();

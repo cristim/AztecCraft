@@ -112,6 +112,10 @@ impl ViewScene {
     /// Applies the caller's derived-view byte budget before expanding instance paths.
     pub fn from_native(scene: &NativeScene, byte_budget: usize) -> Result<Self, ViewError> {
         let graph = Graph::prepare(scene, byte_budget)?;
+        // Built once for the whole walk: admission below is called per instance, and scanning the
+        // scene for each one made the build quadratic (#341).
+        let admission_index =
+            crate::native_scene::ViewAdmissionIndex::new(scene).map_err(ViewError::Native)?;
         let requirements = graph.requirements(byte_budget)?;
         let mut paths = reserve(requirements.paths)?;
         for root in graph.children(None) {
@@ -167,7 +171,7 @@ impl ViewScene {
                 }
                 path.reverse();
                 let admission = scene
-                    .geometry_view_admission(&path)
+                    .geometry_view_admission_indexed(&admission_index, &path)
                     .map_err(ViewError::Native)?;
                 if admission.visible() {
                     let parent = paths[cursor].parent.ok_or(ViewError::InvalidGeometry)?;

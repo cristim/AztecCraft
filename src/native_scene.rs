@@ -987,25 +987,29 @@ impl NativeScene {
         &self,
         path: &[NativeId],
     ) -> Result<GeometryViewAdmission, NativeError> {
-        let id = self.instance_geometry_id(path)?;
-        let facts = self
-            .shapes
-            .iter()
-            .find(|shape| shape.id == id)
-            .map(|shape| &shape.view)
-            .or_else(|| {
-                self.curves
-                    .iter()
-                    .find(|curve| curve.id == id)
-                    .map(|curve| &curve.view)
-            })
+        self.geometry_view_admission_indexed(&ViewAdmissionIndex::new(self)?, path)
+    }
+    /// [`geometry_view_admission`](Self::geometry_view_admission) against an index built once for
+    /// a whole view build, so a scene of N instances costs O(N) lookups rather than O(N) scans
+    /// each (#341). Every check, and the order they run in, matches the scanning form exactly, so
+    /// the accepted paths and the returned errors are the same.
+    pub(crate) fn geometry_view_admission_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        path: &[NativeId],
+    ) -> Result<GeometryViewAdmission, NativeError> {
+        let id = index.instance_geometry_id(path)?;
+        let facts = index
+            .geometry
+            .get(&id)
+            .copied()
             .ok_or(NativeError::InvalidInstancePath)?;
         let mut visible = facts.visible()?;
         for id in &path[..path.len() - 1] {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == *id)
+            let node = index
+                .transforms
+                .get(id)
+                .copied()
                 .ok_or(NativeError::InvalidInstancePath)?;
             if !node.unsupported_transform.is_empty() {
                 return Err(NativeError::UnsupportedView("unproved transform effects"));
@@ -1711,6 +1715,98 @@ impl NativeScene {
     }
 }
 
+/// Lookup tables built once from a scene so a whole view build resolves instance admission with
+/// hash lookups instead of a linear scan per instance (#341). It borrows the scene, so it cannot
+/// outlive or diverge from the data it indexes.
+pub(crate) struct ViewAdmissionIndex<'a> {
+    geometry: std::collections::HashMap<NativeId, &'a GeometryViewFacts>,
+    transforms: std::collections::HashMap<NativeId, &'a NativeTransformNode>,
+    root_edges: std::collections::HashSet<NativeId>,
+    edges: std::collections::HashSet<(NativeId, NativeId)>,
+}
+
+impl<'a> ViewAdmissionIndex<'a> {
+    /// Builds the tables for `scene`. Reservation is fallible and maps to
+    /// [`NativeError::ResourceLimit`], matching the rest of the scene allocation policy.
+    pub(crate) fn new(scene: &'a NativeScene) -> Result<Self, NativeError> {
+        #[cfg(test)]
+        VIEW_ADMISSION_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
+        let limit = |_| NativeError::ResourceLimit;
+        let mut geometry = std::collections::HashMap::new();
+        geometry
+            .try_reserve(scene.shapes.len().saturating_add(scene.curves.len()))
+            .map_err(limit)?;
+        // `validate` puts every node, shape and curve id in one uniqueness set, so no id collides
+        // and insertion order cannot change a lookup. The `or_insert` forms keep the scanning
+        // form's first-match rule anyway, so an unvalidated scene still resolves identically.
+        for shape in &scene.shapes {
+            geometry.entry(shape.id).or_insert(&shape.view);
+        }
+        for curve in &scene.curves {
+            geometry.entry(curve.id).or_insert(&curve.view);
+        }
+        let mut transforms = std::collections::HashMap::new();
+        transforms.try_reserve(scene.nodes.len()).map_err(limit)?;
+        for node in &scene.nodes {
+            transforms.entry(node.transform_id).or_insert(node);
+        }
+        let mut root_edges = std::collections::HashSet::new();
+        root_edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        let mut edges = std::collections::HashSet::new();
+        edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        for edge in &scene.dag {
+            match edge.parent {
+                None => {
+                    root_edges.insert(edge.child);
+                }
+                Some(parent) => {
+                    edges.insert((parent, edge.child));
+                }
+            }
+        }
+        Ok(Self {
+            geometry,
+            transforms,
+            root_edges,
+            edges,
+        })
+    }
+
+    /// [`NativeScene::transform_prefix`] against the index, with the same checks in the same order.
+    fn transform_prefix(&self, path: &[NativeId]) -> Result<(), NativeError> {
+        if path.is_empty()
+            || !self.root_edges.contains(&path[0])
+            || path
+                .iter()
+                .enumerate()
+                .any(|(index, id)| path[..index].contains(id) || !self.transforms.contains_key(id))
+            || path
+                .windows(2)
+                .any(|pair| !self.edges.contains(&(pair[0], pair[1])))
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(())
+    }
+
+    /// [`NativeScene::instance_geometry_id`] against the index, with the same checks in the same
+    /// order.
+    fn instance_geometry_id(&self, path: &[NativeId]) -> Result<NativeId, NativeError> {
+        if path.len() < 2 {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        self.transform_prefix(&path[..path.len() - 1])?;
+        if path[..path.len() - 1].contains(&path[path.len() - 1])
+            || !self
+                .edges
+                .contains(&(path[path.len() - 2], path[path.len() - 1]))
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(path[path.len() - 1])
+    }
+}
+
 /// The shape name for a shape whose transform is renamed from `old` to `new`, or `None` when
 /// the shape name is not derived from `old` and stays as it is. The rule is inferred from
 /// Maya 2025.1 `rename` observations (PROVISIONAL, #175).
@@ -1864,4 +1960,11 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static VIEW_ADMISSION_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// `ViewAdmissionIndex::new` calls on this thread, so a test can pin one build per view (#341).
+#[cfg(test)]
+pub(crate) fn view_admission_index_builds() -> usize {
+    VIEW_ADMISSION_INDEX_BUILDS.with(std::cell::Cell::get)
 }

@@ -1073,6 +1073,16 @@ per-edge scans measured 57x to 72x). It is `#[ignore]`d and runs alone as a sing
 `check` job, in a release build (about 80 s more compile than debug locally, and more stable timings),
 because timing ratios flake under parallel load.
 
+## A view build still looks up each transform by linear scan
+
+Since #341 a view build indexes instance admission once (`ViewAdmissionIndex`), and
+`a_view_build_indexes_admission_once_for_every_instance` pins one index build per view. The build
+still calls `NativeScene::internal_transform` for every transform path record
+(`src/view_scene.rs`), and that resolves the node through `NativeScene::node`, a linear
+`nodes.iter().find`. So the view build remains O(T^2) in transforms. Measured release ratios for
+16x the scene (256 to 4096 cubes) were about 26x after #341 against 65x before; the remaining
+superlinear part is this lookup. Not fixed here; the build-count pin does not cover it.
+
 ## Frame origin for a mixed selection is PROVISIONAL
 
 F (frame without descendants, #338) frames the objects' origins when no selected object owns visible
