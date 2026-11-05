@@ -537,9 +537,9 @@ Outcome: the registered catalogue covers every implemented file, creation, selec
 
 <!-- coderabbit-ai-generated:v1 -->
 
-<!-- coderabbit-ai-generated-section:v1:ec25e4a26b81835461b3855197f44a643be04a53ecd2f09113acf0f45e4f5ac2 -->
+<!-- coderabbit-ai-generated-section:v1:18262ec70a1503219c02e4076a5faaab9862ff1f00527e0c562cdf41a7a5d9cf -->
 
-Select and Move are native tools activated by their vector buttons or unmodified Q/W outside text fields and dialogs. Move supports one or more selected full transform instances in object mode, using World X/Y/Z shafts. Rotation and scale, plane and center handles, components, snapping, alternate orientations and modified drags remain unsupported by Move. Independently moved objects with unsupported transforms, driven data, nonzero pivots, unstable parents or source translations without retained existing words refuse the gesture. This bounded policy has not established Maya parity.
+Select and Move are native tools activated by their vector buttons or unmodified Q/W outside text fields and dialogs. Move supports one or more selected full transform instances in object mode, using World X/Y/Z shafts. Rotation and scale, plane and center handles, components, snapping, alternate orientations and modified drags remain unsupported by Move. Independently moved objects with unsupported transforms, driven data, nonzero pivots or unstable parents refuse the gesture. A required source translation component also refuses the gesture if it has neither a retained existing word nor a recorded insertion site; with a recorded site, the binary writer can insert the missing translation. This bounded policy has not established Maya parity.
 
 <!-- /coderabbit-ai-generated:v1 -->
 
