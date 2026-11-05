@@ -146,7 +146,7 @@ ASCII or structural rewrites, and still needs native Save QA. Windows limits are
 listed under "Windows binary Save limits".
 Recovery, autosave and camera/history persistence remain
 pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
-tests don't establish native persistence. GUI Export remains disabled. Structural
+tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
 The camera core is connected to a depth-tested opaque GPU geometry viewport with hardware clipping. Materials, transparency, normal shading, textures, document color management and reference navigation parity remain pending. Backend failures remain explicit with no CPU fallback. These limits are described in [development instructions](.project-docs/development.md).
@@ -860,6 +860,32 @@ text includes the path. No remote operation takes a path today, so remote calls 
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
 
+## OBJ export limits
+
+File > Export All and Export Selection (and MCP `export_obj`) write only the
+displayed polygon geometry: world-space positions in centimetres and polygon faces,
+one `o` group per instance. Hidden or non-displayed instances are not exported
+(PROVISIONAL for Export All: the Maya docs do not say whether hidden instances are
+included). Export Selection also filters to displayed instances, so selecting a hidden
+object can produce nothing to export (PROVISIONAL: Maya's docs do not describe this
+case). In Face, Vertex or Edge selection mode, Export Selection writes the whole
+selected object's geometry (PROVISIONAL: Maya's docs do not state how component
+selection affects OBJ export). Export Selection covers every selected object and its
+descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
+the docs give no export order). Maya's options page says the parents of selected nodes are
+also exported; a parent's own mesh is not written here unless it is selected, so that is
+unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered (the option boxes are disabled), and export never overwrites an
+existing file. The view of the whole scene is built first, so one mesh the viewport
+cannot display (for example a concave n-gon) fails every export, including Export
+Selection of another object. The Windows save dialog may first ask whether to
+replace an existing file; confirming still fails with "destination already exists"
+and the file is left untouched. The output has not been compared with
+Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at all is refused
+(`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
+group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
+valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
+
 ## Authored Maya Binary writer: unproven profile
 
 **Severity:** medium
@@ -994,10 +1020,13 @@ and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP
 (#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
-pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
-click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
-selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
-pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; Command
+counts as Ctrl. On macOS a hardware Ctrl-click reaches the app as an ordinary Ctrl-click
+(maintainer check, 2026-11-04: it removes a selected object in the viewport), while a secondary
+(right) click with Ctrl held is ignored; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native checks on 2026-11-04
+confirmed the viewport Shift, Ctrl and Command clicks, the Outliner Ctrl click and the lead
+colour; whether they match Maya stays PROVISIONAL. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
 whole set.
 
 ## Ambiguous selection is unreachable today
@@ -1043,6 +1072,16 @@ interleaved ratios between 512 and 4096 nodes (limits 30x for `transform_paths`,
 per-edge scans measured 57x to 72x). It is `#[ignore]`d and runs alone as a single-threaded step of the
 `check` job, in a release build (about 80 s more compile than debug locally, and more stable timings),
 because timing ratios flake under parallel load.
+
+## A view build still looks up each transform by linear scan
+
+Since #341 a view build indexes instance admission once (`ViewAdmissionIndex`), and
+`a_view_build_indexes_admission_once_for_every_instance` pins one index build per view. The build
+still calls `NativeScene::internal_transform` for every transform path record
+(`src/view_scene.rs`), and that resolves the node through `NativeScene::node`, a linear
+`nodes.iter().find`. So the view build remains O(T^2) in transforms. Measured release ratios for
+16x the scene (256 to 4096 cubes) were about 26x after #341 against 65x before; the remaining
+superlinear part is this lookup. Not fixed here; the build-count pin does not cover it.
 
 ## Frame origin for a mixed selection is PROVISIONAL
 
