@@ -1,13 +1,14 @@
 use super::write_pruned;
+use crate::history::{Command, History};
 use crate::native_scene::{
-    Channel, NativeError, NativeId,
+    Channel, DeleteUnsupported, NativeError, NativeId,
     binary::{
         ErrorKind,
         admission::Budget,
         decode, encode,
         removal::{
             PruneRange, RemovalRefusal, assert_pruned, check_removal,
-            tests::{connections, link, shape, transform, two_objects},
+            tests::{child_transform, connections, link, shape, transform, tree, two_objects},
         },
         tests::{
             appearance_fixture,
@@ -289,4 +290,110 @@ fn a_bound_numeric_payload_that_spells_a_removed_name_neither_blocks_delete_nor_
     let expected = scene(&[kept([spelled, 0.0, 0.0]), shape(b"bs", b"b")].concat());
     assert_eq!(saved, expected.to_vec());
     assert!(decode(saved.into()).is_ok());
+}
+
+fn id_of(opened: &crate::native_scene::NativeScene, name: &str) -> crate::scene::NodeId {
+    opened
+        .nodes()
+        .iter()
+        .find(|n| n.name() == name)
+        .unwrap()
+        .id()
+}
+
+fn save_removing(bytes: Arc<[u8]>, names: &[&str]) -> Vec<u8> {
+    let mut opened = decode(bytes).unwrap();
+    let ids: Vec<_> = names.iter().map(|name| id_of(&opened, name)).collect();
+    opened.remove_many(&ids).unwrap();
+    encode(&opened).unwrap()
+}
+
+/// `g` > `c` > `cs`, then `b` > `bs`, as written by `tree`.
+fn tree_parts(keep: &[&str]) -> Arc<[u8]> {
+    let parts = [
+        ("g", transform(b"g")),
+        ("c", child_transform(b"c", b"g")),
+        ("cs", shape(b"cs", b"c")),
+        ("b", transform(b"b")),
+        ("bs", shape(b"bs", b"b")),
+    ];
+    let kept: Vec<u8> = parts
+        .into_iter()
+        .filter(|(name, _)| keep.contains(name))
+        .flat_map(|(_, bytes)| bytes)
+        .collect();
+    scene(&kept)
+}
+
+#[test]
+fn a_saved_group_subtree_delete_equals_the_file_that_never_had_it() {
+    let expected = tree_parts(&["b", "bs"]).to_vec();
+    assert_eq!(save_removing(tree(&[]), &["g"]), expected);
+    // The descendant listed too, in either order, is taken once.
+    assert_eq!(save_removing(tree(&[]), &["g", "c"]), expected);
+    assert_eq!(save_removing(tree(&[]), &["c", "g"]), expected);
+    let reopened = decode(expected.into()).unwrap();
+    assert_eq!(reopened.nodes()[0].name(), "b");
+    assert_eq!(reopened.nodes()[0].transform_id, NativeId(1));
+    assert_eq!(reopened.shapes()[0].id, NativeId(2));
+}
+
+#[test]
+fn a_saved_non_root_delete_keeps_the_parent_and_renumbers_what_follows() {
+    let saved = save_removing(tree(&[]), &["c"]);
+    assert_eq!(saved, tree_parts(&["g", "b", "bs"]).to_vec());
+    let saved_again = saved.clone();
+    let reopened = decode(saved.into()).unwrap();
+    let names: Vec<_> = reopened.nodes().iter().map(|n| n.name()).collect();
+    assert_eq!(names, ["g", "b"]);
+    assert_eq!(reopened.nodes()[1].transform_id, NativeId(2));
+    assert_eq!(reopened.shapes()[0].id, NativeId(3));
+    let mut deleted = decode(tree(&[])).unwrap();
+    let c = id_of(&deleted, "c");
+    deleted.remove(c).unwrap();
+    assert_eq!(encode(&deleted).unwrap(), encode(&deleted).unwrap());
+    assert_eq!(encode(&deleted).unwrap(), saved_again);
+}
+
+#[test]
+fn undo_of_a_non_root_delete_restores_the_scene_and_the_original_bytes() {
+    let original = tree(&[]);
+    let opened = decode(original.clone()).unwrap();
+    let c = id_of(&opened, "c");
+    let mut history = History::new(opened.clone());
+    history.execute(Command::Remove(c)).unwrap();
+    let deleted = history.scene().clone();
+    assert_eq!(
+        encode(&deleted).unwrap(),
+        tree_parts(&["g", "b", "bs"]).to_vec()
+    );
+    assert!(history.undo());
+    assert_eq!(*history.scene(), opened);
+    assert_eq!(encode(history.scene()).unwrap(), original.to_vec());
+    assert!(history.redo());
+    assert_eq!(*history.scene(), deleted);
+    assert_eq!(
+        encode(history.scene()).unwrap(),
+        tree_parts(&["g", "b", "bs"]).to_vec()
+    );
+}
+
+#[test]
+fn a_refused_subtree_delete_leaves_the_scene_and_its_saved_bytes_alone() {
+    let named = tree(&connections(&[link(
+        1,
+        "cs.iog.og[0]",
+        ":initialShadingGroup.dsm[0]",
+    )]));
+    let mut opened = decode(named.clone()).unwrap();
+    let before = opened.clone();
+    let ids = [id_of(&opened, "g"), id_of(&opened, "c")];
+    assert_eq!(
+        opened.remove_many(&ids),
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+            RemovalRefusal::NextAvailableIndex
+        )))
+    );
+    assert_eq!(opened, before);
+    assert_eq!(encode(&opened).unwrap(), named.to_vec());
 }

@@ -1,4 +1,4 @@
-use super::tests::{connections, ids, link, shape, transform, two_objects};
+use super::tests::{connections, ids, link, shape, transform, tree, two_objects};
 use super::*;
 use crate::history::{Command, History};
 use crate::native_scene::{
@@ -205,4 +205,28 @@ fn a_diffuse_shader_left_without_a_user_is_refused() {
         check_materials(&shared, &ids[1..]),
         Err(RemovalRefusal::LastDiffuseUser)
     );
+}
+
+#[test]
+fn a_group_a_child_and_ancestor_with_descendant_delete_from_an_opened_scene() {
+    let opened = decode(tree(&[])).unwrap();
+    let id = |name: &str| opened.nodes.iter().find(|n| n.name == name).unwrap().id;
+    let (g, c) = (id("g"), id("c"));
+    for (targets, gone) in [
+        (vec![g], ids(&[1, 2, 3])),
+        (vec![c], ids(&[2, 3])),
+        (vec![g, c], ids(&[1, 2, 3])),
+        (vec![c, g], ids(&[1, 2, 3])),
+    ] {
+        let mut scene = opened.clone();
+        scene.remove_many(&targets).unwrap();
+        scene.validate().unwrap();
+        assert_eq!(scene.removed, gone, "{targets:?}");
+        let mut history = History::new(opened.clone());
+        history.execute(Command::RemoveMany(targets)).unwrap();
+        assert_eq!(*history.scene(), scene);
+        assert!(history.undo());
+        assert!(history.scene().removed.is_empty());
+        assert_eq!(*history.scene(), opened);
+    }
 }
