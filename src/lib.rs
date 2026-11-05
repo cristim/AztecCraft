@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod compatibility;
 pub mod document;
 pub mod history;
 pub mod manipulator_handles;
