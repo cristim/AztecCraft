@@ -88,7 +88,7 @@ a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes
 New/Open use the shared native document lifecycle. This candidate enables
 eligible Unix and Windows Maya binary Save/Save As through that same lifecycle and ordinary
 vendored writer; current integration and native Save QA remain pending. No derived JSON save is substituted.
-GUI Export and unfinished modeling/animation/material controls are disabled.
+Unfinished modeling/animation/material controls are disabled.
 Docking and full Maya interaction parity aren't implemented or verified.
 
 The checkable Grid button controls this single viewport's fixed XZ ground grid.
@@ -492,8 +492,9 @@ recovery, autosave, history and camera persistence remain pending.
 index offsets and winding reversed for reflected transforms. Object names use
 UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
-exports geometry only, without UVs, normals or materials. OBJ import and the GUI
-Export action aren't implemented.
+exports geometry only, without UVs, normals or materials. File > Export All and
+Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
+OBJ import isn't implemented.
 
 ## Camera core
 
