@@ -1088,6 +1088,7 @@ The pages say little about several objects, so these choices are pinned by tests
 - P23: MCP `update_manipulation distance` applies the same World displacement to every member (`sdk_move_with_the_current_generation_moves_every_selected_object_in_one_undo_step`).
 - P24: not done: Object and Parent axis orientations (each object moving along its own axes) need a Move orientation setting, which does not exist; only World is available.
 - P25: when the lead is covered by a selected ancestor, the pivot is still the lead's own origin and the inspection reports the lead's own channels (`the_lead_may_be_the_covered_member`).
+- P26: an uncovered selected object that a selected ancestor also carries through another instance path is refused whole with `AlternatePathAncestor` (see "Move: a selected ancestor on another instance path of an uncovered object is refused" below; `an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`).
 
 Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and one update about 45 ms
 (`four_thousand_members_begin_within_the_budget_and_not_one_byte_less`); the inspection checks Move availability over every member once per request.
@@ -1156,3 +1157,5 @@ naming the object. A member that is covered through its own path is not refused,
 translation of its own (`move_instanced_ancestor_covers_descendant_by_identity`; refusal:
 `an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`). Maya's behaviour for
 instanced selections is not documented, so this is a conservative choice.
+
+Cost: a multi-object begin enumerates every transform path of the scene once (`transform_paths()`, linear since #347 and bounded by the path limit, so an oversized scene is refused with `ResourceLimit` rather than scanned). Begin does not hold that list otherwise, so it is not reused; the scan is a few milliseconds at 4096 paths in a debug build and runs once per begin, not per update.

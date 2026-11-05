@@ -454,7 +454,16 @@ fn an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused() {
     );
     assert_eq!(history.scene, before);
     assert!(history.active_manipulation().is_none());
-    // The same pair reversed in order is refused alike.
+    // The same pair reversed in order is refused alike, with the same member and cause.
     let reversed = [targets[1].clone(), targets[0].clone()];
-    assert!(begin(&mut history, &reversed, Uuid::new_v4()).is_err());
+    let name = history.scene.node(b).unwrap().name().to_string();
+    assert_eq!(
+        begin(&mut history, &reversed, Uuid::new_v4()),
+        Err(ManipulationError::Member {
+            name,
+            source: Box::new(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::AlternatePathAncestor
+            )),
+        })
+    );
 }

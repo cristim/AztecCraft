@@ -469,3 +469,50 @@ async fn sdk_multi_move_refused_member_has_its_cause_code_and_names_the_member()
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_uncovered_mover_under_a_selected_ancestor_on_another_path_is_alternate_path_ancestor()
+{
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let mut scene = azteccraft::native_scene::NativeScene::default();
+    let [x1, x2, a, b] =
+        ["x1", "x2", "a", "b"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    scene.set_parents_for_test(a, &[x1, x2]).unwrap();
+    scene.set_parents_for_test(b, &[a]).unwrap();
+    editor.history = azteccraft::history::History::new(scene);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let id =
+        |node: azteccraft::scene::NodeId| editor.history.scene().node(node).unwrap().transform_id();
+    let root = paths.iter().find(|p| p.path == [id(x1)]).unwrap().clone();
+    let deep = paths
+        .iter()
+        .find(|p| p.path == [id(x2), id(a), id(b)])
+        .unwrap()
+        .clone();
+    editor.set_selection_members_for_test(vec![root, deep.clone()]);
+    frame(&mut editor, &context, vec![]);
+    let current = generation(&mut editor, &context, &client).await;
+    let scene = editor.history.scene().clone();
+    let name = scene.node(b).unwrap().name().to_string();
+    let args = begin_args(&editor, &deep, Some(json!(current)));
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        args,
+    )
+    .await;
+    let error = &refused.structured_content.unwrap()["error"];
+    assert_eq!(error["code"], "alternate_path_ancestor");
+    assert!(
+        error["message"].as_str().unwrap().contains(&name),
+        "{error}"
+    );
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

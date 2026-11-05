@@ -1023,6 +1023,30 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
+    }
+
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
