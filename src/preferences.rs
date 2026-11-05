@@ -30,6 +30,11 @@ pub enum PreferencesError {
     Malformed,
     UnknownSchema,
     VersionOutOfRange,
+    /// The file differs from what this store loaded or last wrote.
+    ChangedOnDisk,
+    Write(io::ErrorKind),
+    /// Only a `Writable` store can save.
+    NotWritable,
 }
 
 impl fmt::Display for PreferencesError {
@@ -43,6 +48,9 @@ impl fmt::Display for PreferencesError {
             Self::Malformed => "the preferences file is not valid",
             Self::UnknownSchema => "the preferences file has an unknown schema",
             Self::VersionOutOfRange => "the preferences file names an unsupported Maya version",
+            Self::ChangedOnDisk => "the preferences file changed on disk since it was read",
+            Self::Write(_) => "the preferences file could not be written",
+            Self::NotWritable => "the preferences file is not writable in this session",
         })
     }
 }
@@ -220,5 +228,67 @@ pub fn load(path: &Path) -> Loaded {
             },
             Err(error) => blocked(error, Some(bytes)),
         },
+    }
+}
+
+/// Reduce an `atomic_write` failure to its kind; its message names the path.
+fn write_error(e: &io::Error) -> PreferencesError {
+    PreferencesError::Write(e.kind())
+}
+
+impl Preferences {
+    fn to_json(&self) -> Vec<u8> {
+        format!(
+            "{{\"schema\":{SCHEMA},\"maya_compatibility_version\":{}}}\n",
+            self.maya_compatibility_version.year()
+        )
+        .into_bytes()
+    }
+}
+
+impl Store {
+    /// Persist `preferences`. Re-reads the file first: if it no longer matches what this store
+    /// loaded or last wrote (another instance, possibly a newer schema), nothing is written and
+    /// the store becomes `Blocked` so Reset can move the file aside. A failed write leaves the
+    /// file and the store unchanged. A change between the re-read and the rename is not caught.
+    pub fn save_with(
+        &mut self,
+        preferences: &Preferences,
+        fs: &dyn craft_atomic::AtomicFs,
+    ) -> Result<(), PreferencesError> {
+        let Store::Writable { path, baseline } = self else {
+            return Err(PreferencesError::NotWritable);
+        };
+        let seen = match observe(path) {
+            Observed::Missing if *baseline == Baseline::Missing => None,
+            Observed::Bytes(b) if *baseline == Baseline::Bytes(b.clone()) => None,
+            Observed::Bytes(b) => Some(Some(b)),
+            Observed::Symlink
+            | Observed::NotRegular
+            | Observed::Unreadable(_)
+            | Observed::Missing => Some(None),
+        };
+        if let Some(seen) = seen {
+            *self = Store::Blocked {
+                path: std::mem::take(path),
+                error: PreferencesError::ChangedOnDisk,
+                seen,
+            };
+            return Err(PreferencesError::ChangedOnDisk);
+        }
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            std::fs::create_dir_all(dir).map_err(|e| write_error(&e))?;
+        }
+        let bytes = preferences.to_json();
+        craft_atomic::WriteOptions::default()
+            .with_new_file_permissions(craft_atomic::NewFilePermissions::Private)
+            .atomic_write_custom(fs, craft_atomic::RenameRetry::platform(), path, &bytes)
+            .map_err(|e| write_error(&e))?;
+        *baseline = Baseline::Bytes(bytes);
+        Ok(())
+    }
+
+    pub fn save(&mut self, preferences: &Preferences) -> Result<(), PreferencesError> {
+        self.save_with(preferences, &craft_atomic::RealFs)
     }
 }

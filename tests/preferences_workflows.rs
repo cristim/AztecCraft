@@ -209,3 +209,168 @@ fn empty_or_relative_roots_have_no_config_dir() {
         Err(PreferencesError::NoConfigDir)
     );
 }
+
+mod save {
+    use super::*;
+    use craft_atomic::{AtomicFs, NewFilePermissions, RealFs};
+    use std::fs::File;
+    use std::io;
+
+    pub fn v(year: u64) -> Preferences {
+        Preferences {
+            maya_compatibility_version: MayaVersion::try_from(year).unwrap(),
+        }
+    }
+
+    /// Real file system except for one operation, which fails with `kind`.
+    #[derive(Default)]
+    pub struct FailingFs {
+        pub fail_create: bool,
+        pub fail_rename: bool,
+        pub fail_remove: bool,
+    }
+
+    impl AtomicFs for FailingFs {
+        fn create_new(&self, path: &Path, p: NewFilePermissions) -> io::Result<File> {
+            if self.fail_create {
+                return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+            }
+            RealFs.create_new(path, p)
+        }
+        fn sync(&self, file: &File) -> io::Result<()> {
+            RealFs.sync(file)
+        }
+        fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
+            if self.fail_rename {
+                return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+            }
+            RealFs.rename(from, to)
+        }
+        fn hard_link(&self, from: &Path, to: &Path) -> io::Result<()> {
+            RealFs.hard_link(from, to)
+        }
+        fn remove(&self, path: &Path) -> io::Result<()> {
+            if self.fail_remove {
+                return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+            }
+            RealFs.remove(path)
+        }
+        fn sync_dir(&self, dir: &Path) -> io::Result<()> {
+            RealFs.sync_dir(dir)
+        }
+        fn set_permissions(&self, file: &File, perms: fs::Permissions) -> io::Result<()> {
+            RealFs.set_permissions(file, perms)
+        }
+    }
+
+    pub fn leftovers(dir: &Path) -> Vec<String> {
+        let mut names: Vec<_> = fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+}
+
+#[test]
+fn save_then_load_round_trips_and_creates_the_parent() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nested").join("preferences.json");
+    let mut store = load(&path).store;
+    store.save(&save::v(2015)).unwrap();
+    assert_eq!(
+        fs::read(&path).unwrap(),
+        b"{\"schema\":1,\"maya_compatibility_version\":2015}\n"
+    );
+    let loaded = load(&path);
+    assert_eq!(year(&loaded.preferences), 2015);
+    store.save(&save::v(2018)).unwrap();
+    assert_eq!(year(&load(&path).preferences), 2018);
+}
+
+#[test]
+fn a_failing_stage_or_rename_keeps_the_old_bytes_and_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    let old = br#"{"schema":1,"maya_compatibility_version":2015}"#;
+    fs::write(&path, old).unwrap();
+    let mut store = load(&path).store;
+    let before = store.clone();
+    for (create, rename) in [(true, false), (false, true)] {
+        let fs_ = save::FailingFs {
+            fail_create: create,
+            fail_rename: rename,
+            ..Default::default()
+        };
+        let err = store.save_with(&save::v(2020), &fs_).unwrap_err();
+        assert_eq!(
+            err,
+            PreferencesError::Write(std::io::ErrorKind::PermissionDenied)
+        );
+        assert_eq!(fs::read(&path).unwrap(), old);
+        assert_eq!(store, before);
+        assert_eq!(save::leftovers(dir.path()), ["preferences.json"]);
+        let dir_text = dir.path().to_string_lossy().into_owned();
+        assert!(!format!("{err} {err:?}").contains(&dir_text));
+    }
+    store.save(&save::v(2020)).unwrap();
+    assert_eq!(year(&load(&path).preferences), 2020);
+}
+
+#[test]
+fn a_file_changed_since_load_is_not_overwritten_and_blocks_the_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    fs::write(&path, br#"{"schema":1,"maya_compatibility_version":2015}"#).unwrap();
+    let mut store = load(&path).store;
+    let newer = br#"{"schema":2,"maya_compatibility_version":2015}"#;
+    fs::write(&path, newer).unwrap();
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::ChangedOnDisk)
+    );
+    assert_eq!(fs::read(&path).unwrap(), newer);
+    let (error, seen) = blocked(&store);
+    assert_eq!(*error, PreferencesError::ChangedOnDisk);
+    assert_eq!(seen, Some(&newer[..]));
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::NotWritable)
+    );
+}
+
+#[test]
+fn a_file_created_after_a_missing_load_is_changed_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    let mut store = load(&path).store;
+    let created = br#"{"schema":1,"maya_compatibility_version":2012}"#;
+    fs::write(&path, created).unwrap();
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::ChangedOnDisk)
+    );
+    assert_eq!(fs::read(&path).unwrap(), created);
+    assert!(matches!(store, Store::Blocked { .. }));
+}
+
+#[test]
+fn a_file_removed_after_load_is_changed_on_disk() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    fs::write(&path, br#"{"schema":1,"maya_compatibility_version":2015}"#).unwrap();
+    let mut store = load(&path).store;
+    fs::remove_file(&path).unwrap();
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::ChangedOnDisk)
+    );
+    assert!(!path.exists());
+}
+
+#[test]
+fn saving_into_a_blocked_or_session_only_store_is_a_typed_error() {
+    let mut s = Store::SessionOnly;
+    assert_eq!(s.save(&save::v(2020)), Err(PreferencesError::NotWritable));
+}
