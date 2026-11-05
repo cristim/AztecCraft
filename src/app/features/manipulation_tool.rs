@@ -336,10 +336,10 @@ impl Editor {
         if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
             return Err(OperationError::InvalidInput(refusal));
         }
+        self.check_generation(expected_generation)?;
         if self.selection.lead() != Some(target) {
             return Err(OperationError::MultipleSelection);
         }
-        self.check_generation(expected_generation)?;
         if expected_generation.is_none() && provenance == ManipulationProvenance::Remote {
             return Err(OperationError::MultipleSelection);
         }

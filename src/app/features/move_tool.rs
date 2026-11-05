@@ -151,6 +151,35 @@ impl Editor {
         })
     }
 
+    fn move_lead_is_covered(&self, target: &TransformTarget) -> bool {
+        target.path[..target.path.len().saturating_sub(1)]
+            .iter()
+            .any(|ancestor| {
+                self.selection
+                    .members()
+                    .iter()
+                    .any(|member| member.path.last() == Some(ancestor))
+            })
+    }
+
+    /// Use the lead's geometric origin when an ancestor moves it; the lead itself
+    /// does not need to satisfy the restrictions on a standalone mover.
+    fn move_handle_origin(&self, target: &TransformTarget) -> Result<glam::DVec3, OperationError> {
+        if self.move_lead_is_covered(target) {
+            self.history
+                .scene()
+                .manipulator_frame(target)
+                .map(|frame| frame.origin_cm)
+                .map_err(OperationError::Scene)
+        } else {
+            self.history
+                .scene()
+                .world_move_frame(target)
+                .map(|frame| frame.origin_cm())
+                .map_err(OperationError::Scene)
+        }
+    }
+
     // Returns whether a Move was actually cancelled. Only then is the current pointer sequence
     // consumed; an idle cancel must not swallow the next frame's input.
     pub(in crate::app) fn cancel_move(&mut self) -> Result<bool, OperationError> {
@@ -368,14 +397,13 @@ impl Editor {
         };
         let rotate_target = target_for("Rotate");
         let scale_target = target_for("Scale");
-        let frame = match &target {
-            Err(error) => Err(error.to_string()),
-            Ok(target) => self
-                .history
-                .scene()
-                .world_move_frame(target)
-                .map_err(|error| error.to_string()),
-        };
+        let origin = target
+            .as_ref()
+            .map_err(ToString::to_string)
+            .and_then(|target| {
+                self.move_handle_origin(target)
+                    .map_err(|error| error.to_string())
+            });
         // A kind is available when any of its handles could begin; otherwise the reasons are joined.
         let availability = |kind, refusals: Result<Vec<(&str, Option<String>)>, String>| {
             let (available, unavailable_reason) = match refusals {
@@ -399,31 +427,38 @@ impl Editor {
                 unavailable_reason,
             }
         };
-        let member_refusals = (self.selection.len() > 1)
-            .then(|| self.history.check_move_axes(self.selection.members()));
-        let move_refusals = match &frame {
-            Err(error) => Err(error.clone()),
-            Ok(frame) => Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
-                .into_iter()
-                .enumerate()
-                .map(|(index, axis)| {
-                    (
-                        match axis {
-                            WorldAxis::X => "X axis",
-                            WorldAxis::Y => "Y axis",
-                            WorldAxis::Z => "Z axis",
-                        },
-                        frame
-                            .require_leaves(axis)
-                            .err()
-                            .map(|error| error.to_string())
-                            .or_else(|| match member_refusals.as_ref()? {
-                                Ok(axes) => axes[index].as_ref().map(ToString::to_string),
-                                Err(error) => Some(error.to_string()),
-                            }),
-                    )
-                })
-                .collect()),
+        let move_refusals = match &target {
+            Err(error) => Err(error.to_string()),
+            Ok(target) if self.selection.len() <= 1 => self
+                .history
+                .scene()
+                .world_move_frame(target)
+                .map_err(|error| error.to_string())
+                .map(|frame| {
+                    [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+                        .into_iter()
+                        .map(|axis| {
+                            (
+                                match axis {
+                                    WorldAxis::X => "X axis",
+                                    WorldAxis::Y => "Y axis",
+                                    WorldAxis::Z => "Z axis",
+                                },
+                                frame.require_leaves(axis).err().map(|e| e.to_string()),
+                            )
+                        })
+                        .collect()
+                }),
+            Ok(_) => self
+                .history
+                .check_move_axes(self.selection.members())
+                .map_err(|error| error.to_string())
+                .map(|axes| {
+                    ["X axis", "Y axis", "Z axis"]
+                        .into_iter()
+                        .zip(axes.into_iter().map(|error| error.map(|e| e.to_string())))
+                        .collect()
+                }),
         };
         let rotate_space = self.manipulation.space(ActiveTool::Rotate).rotate();
         let rotate_refusals = match &rotate_target {
@@ -581,9 +616,8 @@ impl Editor {
             })
             .filter(|_| mode_refusal("", self.selection_mode).is_none())
             .map(|feedback| {
-                let geometry = frame.as_ref().map_err(Clone::clone).and_then(|frame| {
-                    WorldHandles::new(&feedback.capture, frame.origin_cm())
-                        .map_err(|error| error.to_string())
+                let geometry = origin.as_ref().map_err(Clone::clone).and_then(|origin| {
+                    WorldHandles::new(&feedback.capture, *origin).map_err(|error| error.to_string())
                 });
                 let pointer = feedback
                     .pointer
@@ -972,10 +1006,10 @@ impl Editor {
         let Ok(target) = self.selected_move_lead() else {
             return Ok(false);
         };
-        let Ok(frame) = self.history.scene().world_move_frame(&target) else {
+        let Ok(origin) = self.move_handle_origin(&target) else {
             return Ok(false);
         };
-        let Ok(handles) = WorldHandles::new(&capture, frame.origin_cm()) else {
+        let Ok(handles) = WorldHandles::new(&capture, origin) else {
             return Ok(false);
         };
         let pixel = capture
@@ -984,13 +1018,16 @@ impl Editor {
         let Some(axis) = handles.hit_test(pixel) else {
             return Ok(false);
         };
-        let drag = AxisDrag::begin(capture, frame.origin_cm(), axis, position)
+        let drag = AxisDrag::begin(capture, origin, axis, position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-        self.apply_operation(Operation::BeginMove {
+        if let Err(error) = self.apply_operation(Operation::BeginMove {
             target,
             axis,
             expected_selection_generation: None,
-        })?;
+        }) {
+            self.consume_pointer_sequence();
+            return Err(error);
+        }
         self.start_native_drag(NativeDrag::Move(drag), pointer.released)?;
         self.status = format!("World {} Move", axis_name(axis).to_uppercase());
         self.error = false;
@@ -1011,22 +1048,25 @@ impl Editor {
                 return Err(OperationError::InvalidInput(refusal));
             }
             let target = self.selected_move_lead()?;
-            let frame = self
-                .history
-                .scene()
-                .world_move_frame(&target)
-                .map_err(OperationError::Scene)?;
-            let mut refusals: Vec<_> = [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
-                .into_iter()
-                .filter_map(|axis| frame.require_leaves(axis).err())
-                .collect();
-            if refusals.len() == 3 {
-                return Err(OperationError::Scene(refusals.swap_remove(0)));
+            let origin = self.move_handle_origin(&target)?;
+            if !self.move_lead_is_covered(&target) {
+                let frame = self
+                    .history
+                    .scene()
+                    .world_move_frame(&target)
+                    .map_err(OperationError::Scene)?;
+                let mut refusals: Vec<_> = [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+                    .into_iter()
+                    .filter_map(|axis| frame.require_leaves(axis).err())
+                    .collect();
+                if refusals.len() == 3 {
+                    return Err(OperationError::Scene(refusals.swap_remove(0)));
+                }
             }
             let capture = input
                 .move_capture(&self.camera, self.manipulation.manipulator_size())
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-            let handles = WorldHandles::new(&capture, frame.origin_cm())
+            let handles = WorldHandles::new(&capture, origin)
                 .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
             Ok::<_, OperationError>((capture, handles))
         })();

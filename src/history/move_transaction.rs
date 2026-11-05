@@ -309,10 +309,20 @@ impl ManipulationBegin {
     }
 }
 
+fn bounded_member_name(name: &str) -> &str {
+    const MAX_BYTES: usize = 64;
+    let mut end = name.len().min(MAX_BYTES);
+    while !name.is_char_boundary(end) {
+        end -= 1;
+    }
+    &name[..end]
+}
+
 fn member_error(scene: &NativeScene, node: NodeId, source: NativeError) -> ManipulationError {
-    let name = scene
-        .node(node)
-        .map_or_else(|_| String::from("?"), |node| node.name().to_string());
+    let name = scene.node(node).map_or_else(
+        |_| String::from("?"),
+        |node| bounded_member_name(node.name()).to_string(),
+    );
     ManipulationError::Member {
         name,
         source: Box::new(source),
@@ -366,7 +376,7 @@ fn plan_move(
             None,
             1,
             0,
-            0,
+            MOVER_BYTES,
         ));
     }
     scene
@@ -394,6 +404,22 @@ fn plan_move(
         .iter()
         .filter_map(|target| target.path.last().copied())
         .collect();
+    // A selected ancestor on another instance path can move only some instances of
+    // a selected descendant. Refuse the whole operation before covering or moving it.
+    for path in scene.transform_paths()? {
+        if let Some(target) = seen.get(&path.node)
+            && path.path != target.path
+            && path.path[..path.path.len().saturating_sub(1)]
+                .iter()
+                .any(|id| selected.contains(id))
+        {
+            return Err(member_error(
+                scene,
+                target.node,
+                NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor),
+            ));
+        }
+    }
     let movers: Vec<&TransformTarget> = targets
         .iter()
         .filter(|target| {

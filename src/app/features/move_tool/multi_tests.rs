@@ -334,3 +334,101 @@ fn hierarchy_mode_moves_the_selection_and_face_mode_still_refuses() {
     ));
     assert_eq!(editor.history.scene(), &scene);
 }
+
+#[test]
+fn stale_generation_is_reported_when_the_lead_changed() {
+    let (mut editor, _, _) = two_selected();
+    editor.create(Primitive::Cube);
+    let members = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(members.clone());
+    let stale = editor.selection.generation();
+    toggle(&mut editor, &members[2]);
+    for provenance_remote in [false, true] {
+        let operation = begin_op(members[2].clone(), Some(stale));
+        let result = if provenance_remote {
+            remote(&mut editor, operation)
+        } else {
+            editor.apply_operation(operation)
+        };
+        assert!(
+            matches!(result, Err(OperationError::InvalidInput(_))),
+            "{result:?}"
+        );
+    }
+}
+
+#[test]
+fn a_refused_move_begin_consumes_the_pointer_sequence() {
+    let (mut editor, context, rect) = two_selected();
+    let members = editor.selection.members().to_vec();
+    let mut bad = members[0].clone();
+    bad.path = members[1].path.clone();
+    editor.set_selection_members_for_test(vec![bad, members[1].clone()]);
+    let position = rect.center() + egui::vec2(40.0, 0.0);
+    gesture_frame(&mut editor, &context, button(position, true));
+    assert!(editor.native_move.is_none());
+    assert!(editor.move_suppress_primary);
+    gesture_frame(&mut editor, &context, button(position, false));
+    assert_eq!(editor.selection.len(), 2);
+}
+
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+#[test]
+fn covered_pivoted_lead_has_available_handles_and_starts_native_move() {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let bytes = scene(
+        &[
+            group(
+                b"XFRM",
+                &[creation(b"parent", None), triple(b"t", [0.0; 3])].concat(),
+                4,
+            ),
+            group(
+                b"XFRM",
+                &[
+                    creation(b"child", Some(b"parent")),
+                    triple(b"rp", [1.0, 0.0, 0.0]),
+                ]
+                .concat(),
+                4,
+            ),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"shape", Some(b"child")),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    let scene = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    let members = scene.transform_paths().unwrap();
+    assert_eq!(members.len(), 2);
+    let (mut editor, context, rect) = setup(1.0);
+    editor.history = azteccraft::history::History::new(scene);
+    editor.set_selection_members_for_test(members);
+    editor.sync_fields();
+    assert!(editor.inspect(false).unwrap().manipulation.kinds[0].available);
+    let begin = press_x(&mut editor, &context, rect, 1.0);
+    let state = editor.history.active_manipulation().unwrap();
+    assert_eq!((state.member_count(), state.covered_count()), (2, 1));
+    gesture_frame(
+        &mut editor,
+        &context,
+        vec![Event::PointerMoved(
+            begin + egui::vec2(rect.height() / 20.0, 0.0),
+        )],
+    );
+    assert!((xs(&editor)[0] - 1.0).abs() < 2e-5);
+    assert_eq!(xs(&editor)[1], 0.0);
+}
