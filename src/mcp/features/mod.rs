@@ -9,4 +9,5 @@ mod primitive_args;
 pub(super) mod rigging;
 pub(super) mod selection;
 pub(super) mod status_line;
+pub(super) mod uv;
 pub(super) mod view;

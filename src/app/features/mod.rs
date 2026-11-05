@@ -12,3 +12,4 @@ pub(in crate::app) mod primitive_options;
 pub(in crate::app) mod rigging;
 mod selection;
 mod status_line;
+pub(in crate::app) mod uv;

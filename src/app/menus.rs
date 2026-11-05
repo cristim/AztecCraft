@@ -472,7 +472,11 @@ impl Editor {
             match self.menu_set {
                 MenuSet::Modeling => {
                     for label in MODELING_SET_MENUS {
-                        placeholder_menu(ui, label);
+                        if label == "UV" {
+                            self.uv_menu(ui);
+                        } else {
+                            placeholder_menu(ui, label);
+                        }
                     }
                 }
                 MenuSet::Rigging => {

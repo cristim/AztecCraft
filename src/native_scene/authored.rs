@@ -88,6 +88,9 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
     }
+    if !scene.session_uvs.is_empty() {
+        return Err(AuthoredIneligible::UnsupportedMeshChannels);
+    }
     Ok(())
 }
 

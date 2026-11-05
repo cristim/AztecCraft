@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
         JointRequest, MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform,
-        SessionMaterialId, TransformTarget,
+        SessionMaterialId, TransformTarget, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -63,6 +63,13 @@ pub enum Command {
         distance: f64,
     },
     CreateJoint(JointRequest),
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
 }
 
 impl Command {
@@ -84,6 +91,9 @@ impl Command {
             | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
+            Self::DeleteUvs { .. } => "Delete UVs".to_string(),
         }
     }
 }
@@ -258,6 +268,14 @@ impl History {
             }
             Command::CreateJoint(request) => {
                 EditOutcome::CreatedJoint(candidate.create_joint(&request)?)
+            }
+            Command::ProjectUvPlanar { shape, axis } => {
+                candidate.project_uv_planar(shape, axis)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteUvs { shape } => {
+                candidate.delete_uvs(shape)?;
+                EditOutcome::Changed
             }
         };
         if self.scene == candidate {
