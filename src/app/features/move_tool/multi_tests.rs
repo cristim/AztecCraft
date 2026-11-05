@@ -409,3 +409,74 @@ fn an_uncovered_lead_keeps_refusing_a_rotate_pivot() {
     let mv = kinds.iter().find(|k| k.kind == "move").unwrap();
     assert!(!mv.available);
 }
+
+/// Two objects in a binary scene: `full` has a translate leaf, `bare` has none.
+fn full_and_bare() -> Editor {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let object = |name: &[u8], shape: &[u8], translate: bool| {
+        let mut transform = creation(name, None);
+        if translate {
+            transform.extend(triple(b"t", [1.0, 0.0, 0.0]));
+        }
+        [
+            group(b"XFRM", &transform, 4),
+            group(
+                b"DMSH",
+                &[
+                    creation(shape, Some(name)),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat()
+    };
+    let bytes = scene(
+        &[
+            object(b"bare", b"bare_shape", false),
+            object(b"full", b"full_shape", true),
+        ]
+        .concat(),
+    );
+    let scene = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    }
+}
+
+fn move_kind(editor: &Editor) -> (bool, Option<String>) {
+    let kinds = editor.inspect(false).unwrap().manipulation.kinds;
+    let mv = kinds.into_iter().find(|k| k.kind == "move").unwrap();
+    (mv.available, mv.unavailable_reason)
+}
+
+#[test]
+fn inspection_checks_every_member_so_a_bare_non_lead_member_makes_move_unavailable() {
+    let mut editor = full_and_bare();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let name = |t: &TransformTarget| {
+        editor
+            .history
+            .scene()
+            .node(t.node)
+            .unwrap()
+            .name()
+            .to_string()
+    };
+    let bare = paths.iter().find(|t| name(t) == "bare").unwrap().clone();
+    let full = paths.iter().find(|t| name(t) == "full").unwrap().clone();
+    // The lead alone is movable.
+    editor.set_selection_members_for_test(vec![full.clone()]);
+    assert!(move_kind(&editor).0);
+    // With the bare member selected too, every axis is refused and the reason names it.
+    editor.set_selection_members_for_test(vec![bare, full]);
+    let (available, reason) = move_kind(&editor);
+    assert!(!available);
+    let reason = reason.unwrap();
+    assert!(
+        reason.contains("bare") && reason.contains("X axis") && reason.contains("Z axis"),
+        "{reason}"
+    );
+}
