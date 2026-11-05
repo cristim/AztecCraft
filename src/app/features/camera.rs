@@ -12,14 +12,7 @@ impl Editor {
         &mut self,
         children: FrameChildren,
     ) -> Result<(), OperationError> {
-        if self.selection.is_empty() {
-            return Err(OperationError::NoSelection);
-        }
-        let mut paths = Vec::with_capacity(self.selection.len());
-        for member in self.selection.members() {
-            let path = (!member.path.is_empty()).then(|| member.path.clone());
-            paths.push(self.selection_path(member.node, path)?);
-        }
+        let paths = self.selected_member_paths()?;
         let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
             .map_err(|error| OperationError::View(error.to_string()))?;
         let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();

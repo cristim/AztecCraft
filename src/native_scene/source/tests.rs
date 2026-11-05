@@ -58,6 +58,7 @@ fn binary(fields: &[(TransformField, [f64; 3])]) -> (NativeScene, NodeId) {
         });
     }
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: bytes.into(),
         format: SourceFormat::Binary,

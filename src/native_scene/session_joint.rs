@@ -338,42 +338,6 @@ impl NativeScene {
         }
         Ok((edge, local.to_array()))
     }
-
-    /// Removes a joint with every joint below it (PROVISIONAL: the 2027 `delete` page is silent)
-    /// and returns the removed nodes. The closure is computed once.
-    pub(super) fn remove_joint_subtree(
-        &mut self,
-        root: NativeId,
-    ) -> Result<Vec<NodeId>, NativeError> {
-        self.check_effects(root)?;
-        if self.source.is_some() {
-            return Err(NativeError::UnsupportedEdit);
-        }
-        let mut closure = HashSet::new();
-        closure
-            .try_reserve(self.session_joints.joints.len())
-            .map_err(|_| NativeError::ResourceLimit)?;
-        closure.insert(root);
-        let mut queue = vec![root];
-        while let Some(current) = queue.pop() {
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(current)) {
-                if closure.insert(edge.child) {
-                    queue.push(edge.child);
-                }
-            }
-        }
-        let removed = self
-            .nodes
-            .iter()
-            .filter(|node| closure.contains(&node.transform_id))
-            .map(|node| node.id)
-            .collect();
-        self.nodes
-            .retain(|node| !closure.contains(&node.transform_id));
-        self.dag.retain(|edge| !closure.contains(&edge.child));
-        self.session_joints.prune(&closure);
-        Ok(removed)
-    }
 }
 
 #[cfg(test)]

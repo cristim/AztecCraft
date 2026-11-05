@@ -273,3 +273,11 @@ pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
     scene.validate().unwrap();
     (scene, cube, empty)
 }
+
+/// Marks a transform's effect as unproved, so deleting it or an ancestor is refused.
+pub(crate) fn restrict_transform(scene: &mut NativeScene, id: NodeId) {
+    let at = scene.nodes.iter().position(|node| node.id == id).unwrap();
+    scene.nodes[at]
+        .unsupported_transform
+        .push("unproved effect".into());
+}

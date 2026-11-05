@@ -21,6 +21,21 @@ impl Editor {
         self.lead_target()
     }
 
+    /// Every selected object's full instance path, in selection order. Refuses an empty selection.
+    pub(in crate::app) fn selected_member_paths(
+        &self,
+    ) -> Result<Vec<Vec<NativeId>>, OperationError> {
+        if self.selection.is_empty() {
+            return Err(OperationError::NoSelection);
+        }
+        let mut paths = Vec::with_capacity(self.selection.len());
+        for member in self.selection.members() {
+            let path = (!member.path.is_empty()).then(|| member.path.clone());
+            paths.push(self.selection_path(member.node, path)?);
+        }
+        Ok(paths)
+    }
+
     #[cfg(test)]
     pub(in crate::app) fn selected(&self) -> Option<NodeId> {
         self.selection_presentation().0

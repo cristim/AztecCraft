@@ -319,6 +319,8 @@ pub enum ViewportError {
     CameraInput,
     NonFiniteClip,
     ResourceLimit,
+    /// The scene holds geometry or a transform the viewport cannot represent.
+    SceneGeometry,
 }
 
 impl RenderError {

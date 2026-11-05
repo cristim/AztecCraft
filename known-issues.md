@@ -19,9 +19,10 @@ The size is session-only (no preferences store; it never dirties the scene or en
   Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
   within the radius; an enabled handle wins the overlap
   (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
-- An end-on Scale axis keeps its 5 px tip box next to the origin (about 1.4 px away in the test
-  camera), so it wins pixels just outside the 7 px centre box, out to about 16 px from the origin at
-  the 8 px radius. This pre-existing defect is tracked in #297.
+- A Scale axis whose tip lands inside the 7 px square centre box stays drawn but takes no hover
+  or press, so the ring just outside the centre box falls through to the other axes, a disabled
+  Scale plane (which consumes the click with its unsupported status) or the viewport (PROVISIONAL:
+  Maya's docs do not describe end-on axes).
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions
@@ -145,7 +146,7 @@ ASCII or structural rewrites, and still needs native Save QA. Windows limits are
 listed under "Windows binary Save limits".
 Recovery, autosave and camera/history persistence remain
 pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
-tests don't establish native persistence. GUI Export remains disabled. Structural
+tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
 The camera core is connected to a depth-tested opaque GPU geometry viewport with hardware clipping. Materials, transparency, normal shading, textures, document color management and reference navigation parity remain pending. Backend failures remain explicit with no CPU fallback. These limits are described in [development instructions](.project-docs/development.md).
@@ -327,8 +328,8 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 
 - P1/P2: Select All selects every transform instance, nested children included, in scene order
   with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
-  scene therefore selects parent and children together, and Delete of that selection is refused
-  whole because a parent with children and a child each fail.
+  scene therefore selects parent and children together, and Delete of that selection removes each
+  subtree once.
 - P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
   Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
   `select_inverse_in_hierarchy_mode_swaps_roots_only`,
@@ -859,6 +860,32 @@ text includes the path. No remote operation takes a path today, so remote calls 
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
 
+## OBJ export limits
+
+File > Export All and Export Selection (and MCP `export_obj`) write only the
+displayed polygon geometry: world-space positions in centimetres and polygon faces,
+one `o` group per instance. Hidden or non-displayed instances are not exported
+(PROVISIONAL for Export All: the Maya docs do not say whether hidden instances are
+included). Export Selection also filters to displayed instances, so selecting a hidden
+object can produce nothing to export (PROVISIONAL: Maya's docs do not describe this
+case). In Face, Vertex or Edge selection mode, Export Selection writes the whole
+selected object's geometry (PROVISIONAL: Maya's docs do not state how component
+selection affects OBJ export). Export Selection covers every selected object and its
+descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
+the docs give no export order). Maya's options page says the parents of selected nodes are
+also exported; a parent's own mesh is not written here unless it is selected, so that is
+unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered (the option boxes are disabled), and export never overwrites an
+existing file. The view of the whole scene is built first, so one mesh the viewport
+cannot display (for example a concave n-gon) fails every export, including Export
+Selection of another object. The Windows save dialog may first ask whether to
+replace an existing file; confirming still fails with "destination already exists"
+and the file is left untouched. The output has not been compared with
+Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at all is refused
+(`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
+group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
+valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
+
 ## Authored Maya Binary writer: unproven profile
 
 **Severity:** medium
@@ -875,16 +902,17 @@ will carry no shading assignment. The invented items are the I rows of
 Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
 profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
 
-## Hierarchy delete is unsupported and its Maya semantics are provisional
+## Hierarchy delete: Maya semantics are provisional
 
 **Severity:** low
 **Area:** editor core
 **Issue:** cristim/AztecCraft#187
 
-Delete refuses any non-joint node with children or a parent (`unsupported_delete`), natively and
-over MCP. Session joints are the exception: deleting one removes everything below it (#363), which
-is PROVISIONAL because the 2027 `delete` command page does not say. Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
-found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+Delete removes a node with all its descendants, root or not, natively and over MCP; only a
+descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
+Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
+2026 page exists, and none states what a parent delete does to its children. A session joint is deleted with everything below it like any other
+node (#363).
 
 ## Joints are session-only with PROVISIONAL display and defaults
 
@@ -994,8 +1022,6 @@ changes native behaviour and needs its own issue; the admission is an inline exp
 A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
 in the same frame returns before the view build, so the paint is skipped and the capture survives
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
-View build errors other than `ResourceLimit` leave `viewport_error`
-unchanged, tracked in #342.
 
 ## Multi-object selection colours and group descendants are PROVISIONAL
 
@@ -1014,10 +1040,13 @@ and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP
 (#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
-pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
-click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
-selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
-pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; Command
+counts as Ctrl. On macOS a hardware Ctrl-click reaches the app as an ordinary Ctrl-click
+(maintainer check, 2026-11-04: it removes a selected object in the viewport), while a secondary
+(right) click with Ctrl held is ignored; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native checks on 2026-11-04
+confirmed the viewport Shift, Ctrl and Command clicks, the Outliner Ctrl click and the lead
+colour; whether they match Maya stays PROVISIONAL. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
 whole set.
 
 ## Ambiguous selection is unreachable today
@@ -1047,7 +1076,32 @@ Each `NativeScene::create` runs a full `validate()` through `structural_edit`, a
 every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
 O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
 `azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
-fixed by the paging work.
+fixed by the paging work. The remaining cost is `validate_dag`: its "every identity has an edge" check
+(identities x dag) and the Kahn loop's per-parent dag filter are both O(N*E). It runs on every structural
+edit, not on the per-frame or inspect path; #345 tracks it.
+
+## Paged inspect cost and the decision not to cache transform paths
+
+After #340 `NativeScene::transform_paths` indexes nodes and children once per call, so one
+`inspect_scene` page costs about 2.6 ms at the 4096-node cap in a release build (0.6 ms of it
+`transform_paths`) and a 21-page walk about 75 ms; it was 40 ms per page and 859 ms per walk. Nothing is
+cached per `History::revision()`: the cache would need invalidation on every mutation, load and undo for
+about 1 ms. Revisit if a measurement shows `transform_paths` above about 5 ms at the 4096 cap.
+The regression guard of record is `page_cost_timing_guard`, a wall-clock check on the median of 5
+interleaved ratios between 512 and 4096 nodes (limits 30x for `transform_paths`, 25x for one page; the
+per-edge scans measured 57x to 72x). It is `#[ignore]`d and runs alone as a single-threaded step of the
+`check` job, in a release build (about 80 s more compile than debug locally, and more stable timings),
+because timing ratios flake under parallel load.
+
+## A view build still looks up each transform by linear scan
+
+Since #341 a view build indexes instance admission once (`ViewAdmissionIndex`), and
+`a_view_build_indexes_admission_once_for_every_instance` pins one index build per view. The build
+still calls `NativeScene::internal_transform` for every transform path record
+(`src/view_scene.rs`), and that resolves the node through `NativeScene::node`, a linear
+`nodes.iter().find`. So the view build remains O(T^2) in transforms. Measured release ratios for
+16x the scene (256 to 4096 cubes) were about 26x after #341 against 65x before; the remaining
+superlinear part is this lookup. Not fixed here; the build-count pin does not cover it.
 
 ## Frame origin for a mixed selection is PROVISIONAL
 
@@ -1058,3 +1112,57 @@ point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ign
 and a selection where any one member owns geometry frames the geometry only
 (`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
 with Maya 2027.
+
+## Delete on an opened Maya Binary
+
+**Severity:** medium
+**Area:** native scene, Maya Binary save
+**Issue:** cristim/AztecCraft#272
+
+Delete removes a transform, all its descendant transforms and their shapes (root or not) from an
+opened `.mb`, and Save writes the file without their records. A shape that hangs under a surviving
+transform stays. Maya's own handling of children on delete is not stated in the documentation
+(PROVISIONAL). Maya's acceptance of the pruned file is unproven (#5), so the
+behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
+reason except where noted:
+
+- Not an `unsupported_delete` reason: a descendant transform that also has a parent outside the
+  subtree returns `scene_error` (an opened `.mb` cannot produce one); so does any node of an
+  opened ASCII scene.
+- Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
+  decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
+  `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
+  removed names (`STR `, `STR#`, the header tags `AUNI`, `LUNI`, `TUNI`, `BCSZ`, `CHNG`, `DATS`,
+  `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `PLUG` (the plug-in requirements, present in
+  nearly every real file), `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
+  of a `SCRP` group). A typed attribute payload is skipped only inside a bound transform or shape
+  group, whose layout the opener validated; in any other group it is scanned like text, so a few
+  false refusals are possible there. Any other tag, anywhere in the file, refuses the delete as "a
+  '<tag>' record that cannot be checked", even when it names nothing. A real file with other tags
+  (for example further typed-attribute tags) is not deletable until each tag is added with a reason.
+  The vendored `file_owner_delete.mb` uses only listed tags; its four default cameras are
+  refused because each has a camera shape (`DCAM`) parented under it (the names `persp`, `top`,
+  `front` and `side` also occur in its text, so the scan would refuse them too). `dummy_mesh.mb`
+  does not open.
+- Instancing. The opener builds one parent edge per binding, so a shape with several parents
+  cannot be read from the decoder. An extra instance parent would have to be a record naming
+  the shape: an unknown tag is refused by the rule above (tested for a record naming the shape
+  of the deleted parent), and a selection, relation, connection or scanned text that names it is
+  refused as a reference. Nothing more is claimed.
+- A record that names a removed node as parent, such as a camera shape under a removed group; a selection, relation or connection that names a
+  removed node (by `|` or `:` path component); per-face material links (group id and group colour),
+  which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
+  set members can be deleted today.
+- A mode-1 set link with an index, a surviving explicit-index link beside a dropped mode-1 link, a
+  surviving mode-1 link beside a dropped mode-0 link, any `dagSetMembers` alias into the set, and a
+  set that is neither created in the file nor `:`-rooted.
+- A shape that is the first or only user of a material or the only user of a diffuse-bound shader
+  (reached only after the per-face rule is lifted; pinned by direct tests).
+- A removed range that would change an enclosing group's padding, and an edit that needs a leaf
+  inserted, before or after a Delete (the edit fails with `scene_error`).
+- Text scanning is bounded to 16 Mi (bytes times removed names), about 0.25 s in a debug build;
+  a larger scan is refused as "too large to check" rather than skipped, so a file with 200 KB of
+  script text refuses once more than about 80 names are removed. Free text in a listed kind that
+  holds a removed name (for example a `TEXT` leaf in a `SCRP` or an `STR` in any group) is refused.
+- A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
+  scene bound to the original bytes, so repeat saves are identical.

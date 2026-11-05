@@ -180,7 +180,7 @@ async fn sparse_imported_edit_preserves_raw_radians_and_only_changes_requested_w
     let normalized = inspected["inspection"]["nodes"][0]["transform"]["rotation_degrees"].clone();
     let result = call(&mut editor, &context, client.peer(), "set_transform", json!({"scene_token":token,"node_id":id.to_decimal(),"translation":[16777219.375,-2,3],"rotation_degrees":normalized,"scale":[1,1,1]})).await;
     assert_eq!(result.is_error, Some(false));
-    assert_ne!(
+    assert_eq!(
         editor
             .history
             .scene()
@@ -189,7 +189,7 @@ async fn sparse_imported_edit_preserves_raw_radians_and_only_changes_requested_w
             .rotation_radians[0]
             .to_bits(),
         original_internal.rotation_radians[0].to_bits(),
-        "normalized whole-transform workflow must expose precision loss"
+        "an inspected rotation sent back must keep the stored radians"
     );
     call(
         &mut editor,

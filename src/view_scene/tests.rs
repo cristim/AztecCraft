@@ -2556,3 +2556,23 @@ mod joints {
         );
     }
 }
+
+// #341: admission is checked per instance, so the index must be built once per view, not once per
+// instance; a per-instance build makes the view build quadratic. Counting builds pins that without
+// a wall-clock assertion.
+#[test]
+fn a_view_build_indexes_admission_once_for_every_instance() {
+    let mut scene = NativeScene::default();
+    for index in 0..64 {
+        scene
+            .create(Primitive::Cube, &format!("cube_{index}"))
+            .unwrap();
+    }
+    let before = crate::native_scene::view_admission_index_builds();
+    let view = ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
+    assert_eq!(
+        crate::native_scene::view_admission_index_builds() - before,
+        1
+    );
+    assert_eq!(view.instances().len(), 64);
+}

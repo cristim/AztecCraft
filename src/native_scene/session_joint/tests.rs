@@ -576,23 +576,6 @@ fn remove_many_still_refuses_an_unknown_id_after_a_chain() {
 }
 
 #[test]
-fn delete_rules_for_mesh_hierarchies_are_untouched() {
-    let (mut scene, root, child, _) = crate::native_scene::test_fixtures::grouped_shape();
-    assert_eq!(
-        scene.remove(root),
-        Err(NativeError::UnsupportedDelete(
-            crate::native_scene::DeleteUnsupported::HasChildren
-        ))
-    );
-    assert_eq!(
-        scene.remove(child),
-        Err(NativeError::UnsupportedDelete(
-            crate::native_scene::DeleteUnsupported::IsChild
-        ))
-    );
-}
-
-#[test]
 fn a_radius_past_the_safety_bound_is_refused_before_mutation() {
     let mut scene = NativeScene::default();
     let before = scene.clone();
