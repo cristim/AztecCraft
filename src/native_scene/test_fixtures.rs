@@ -338,6 +338,7 @@ pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeI
             storage: Storage::Centimeters,
         }],
         appearance: None,
+        has_removals: false,
     });
     let index = scene.nodes.iter().position(|n| n.id == full).unwrap();
     for component in 0..3 {
@@ -347,4 +348,12 @@ pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeI
     }
     scene.validate().unwrap();
     (scene, full, bare)
+}
+
+/// Marks a transform's effect as unproved, so deleting it or an ancestor is refused.
+pub(crate) fn restrict_transform(scene: &mut NativeScene, id: NodeId) {
+    let at = scene.nodes.iter().position(|node| node.id == id).unwrap();
+    scene.nodes[at]
+        .unsupported_transform
+        .push("unproved effect".into());
 }

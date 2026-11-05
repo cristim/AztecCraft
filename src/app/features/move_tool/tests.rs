@@ -2121,3 +2121,52 @@ fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
     assert_eq!(editor.history.undo_label(), undo);
     assert_eq!(editor.history.can_redo(), redo);
 }
+
+// `missing_move_viewport` cancels an active native move and restores the baseline. No caller can
+// reach this with a drag active today (a preview that would fail the view build is refused first,
+// and remote edits are refused during a manipulation), so the branch is defensive and is pinned
+// here directly rather than through a caller (#346).
+#[test]
+fn missing_move_viewport_cancels_an_active_move_and_restores_the_baseline() {
+    let (mut editor, context, rect) = setup(1.0);
+    let baseline = editor.history.scene().clone();
+    let position = press_x(&mut editor, &context, rect, 1.0);
+
+    // Drag away from the press so the cancel has something to restore.
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            vec![Event::PointerMoved(position + egui::vec2(60.0, 0.0))],
+        ),
+    );
+    assert!(editor.native_move.is_some(), "{}", editor.status);
+    assert!(editor.move_viewport.is_some());
+    assert_ne!(
+        editor.history.scene(),
+        &baseline,
+        "the drag must move the scene off the baseline"
+    );
+
+    editor.missing_move_viewport().unwrap();
+
+    assert!(editor.native_move.is_none(), "the move stays active");
+    assert!(
+        editor.history.active_manipulation().is_none(),
+        "the manipulation stays open"
+    );
+    assert!(editor.move_viewport.is_none(), "the capture survived");
+    assert_eq!(
+        editor.history.scene(),
+        &baseline,
+        "the cancel did not restore the baseline"
+    );
+    assert_eq!(
+        editor.status,
+        "Move cancelled: viewport capture is unavailable"
+    );
+    assert!(editor.error);
+}

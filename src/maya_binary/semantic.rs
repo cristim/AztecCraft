@@ -159,10 +159,7 @@ pub(crate) enum Data {
     Double(records::Double),
     Selection(Span),
     Connection(records::Connection),
-    Relation {
-        #[cfg(test)]
-        value: records::Relation,
-    },
+    Relation(records::Relation),
     Mesh(mesh::Mesh),
 }
 
@@ -329,13 +326,7 @@ pub(crate) fn decode_records(container: &Container) -> Result<WireFacts<'_>, Bin
             }
             b"RELA" => {
                 require_connection_group(container, chunk)?;
-                {
-                    let _relation = records::decode_relation(&mut cursor)?;
-                    Data::Relation {
-                        #[cfg(test)]
-                        value: _relation,
-                    }
-                }
+                Data::Relation(records::decode_relation(&mut cursor)?)
             }
             _ => unreachable!(),
         };
