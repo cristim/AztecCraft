@@ -408,7 +408,7 @@ fn plan_move(
             None,
             1,
             0,
-            0,
+            MOVER_BYTES,
         ));
     }
     scene

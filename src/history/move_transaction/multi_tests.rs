@@ -487,3 +487,27 @@ fn the_shared_coverage_predicate_agrees_with_what_begin_covers() {
     assert!(super::is_covered(&selected, &targets[1]));
     assert!(!super::is_covered(&selected, &targets[0]));
 }
+
+#[test]
+fn single_move_charges_the_retained_mover_like_a_multi_move() {
+    let (mut history, targets) = cubes(1);
+    let (mut low, mut high) = (0, BUDGET);
+    while low < high {
+        let mid = low + (high - low) / 2;
+        if crate::view_scene::ViewScene::from_native(&history.scene, mid).is_ok() {
+            high = mid;
+        } else {
+            low = mid + 1;
+        }
+    }
+    let metadata = targets[0].path.len() * size_of::<NativeId>() + size_of::<MoveTransaction>();
+    let needed = low + metadata + MOVER_BYTES;
+    assert_eq!(
+        history.begin_move_many(&targets, WorldAxis::X, Uuid::new_v4(), NATIVE, needed - 1),
+        Err(ManipulationError::View(ViewError::ResourceLimit))
+    );
+    assert!(history.active_manipulation().is_none());
+    history
+        .begin_move_many(&targets, WorldAxis::X, Uuid::new_v4(), NATIVE, needed)
+        .unwrap();
+}
