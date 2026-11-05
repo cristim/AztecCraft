@@ -491,6 +491,7 @@ async fn sdk_uncovered_mover_under_a_selected_ancestor_on_another_path_is_altern
         .unwrap()
         .clone();
     editor.set_selection_members_for_test(vec![root, deep.clone()]);
+    editor.sync_fields();
     frame(&mut editor, &context, vec![]);
     let current = generation(&mut editor, &context, &client).await;
     let scene = editor.history.scene().clone();
