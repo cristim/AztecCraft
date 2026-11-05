@@ -35,6 +35,10 @@ pub enum PreferencesError {
     Write(io::ErrorKind),
     /// Only a `Writable` store can save.
     NotWritable,
+    ResetChanged,
+    ResetSymlink,
+    ResetBackup(io::ErrorKind),
+    ResetRemove(io::ErrorKind),
 }
 
 impl fmt::Display for PreferencesError {
@@ -51,6 +55,10 @@ impl fmt::Display for PreferencesError {
             Self::ChangedOnDisk => "the preferences file changed on disk since it was read",
             Self::Write(_) => "the preferences file could not be written",
             Self::NotWritable => "the preferences file is not writable in this session",
+            Self::ResetChanged => "the preferences file changed, so it was not moved",
+            Self::ResetSymlink => "the preferences file is a symbolic link; resolve it by hand",
+            Self::ResetBackup(_) => "a backup of the preferences file could not be made",
+            Self::ResetRemove(_) => "the preferences file could not be moved aside",
         })
     }
 }
@@ -290,5 +298,67 @@ impl Store {
 
     pub fn save(&mut self, preferences: &Preferences) -> Result<(), PreferencesError> {
         self.save_with(preferences, &craft_atomic::RealFs)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResetOutcome {
+    Unchanged,
+    MovedAside { backup_index: u32 },
+}
+
+const MAX_BACKUPS: u32 = 1000;
+
+impl Store {
+    /// Move a blocked file aside as `preferences.json.bad-<n>`, then start from defaults. The
+    /// backup is a no-clobber hard link taken before the original is removed, so a failure at
+    /// either step leaves the original and every older backup as they were. The bytes are
+    /// compared with what blocked the store first, so a file edited since is not moved.
+    pub fn reset_with(
+        &mut self,
+        fs: &dyn craft_atomic::AtomicFs,
+    ) -> Result<ResetOutcome, PreferencesError> {
+        let Store::Blocked { path, seen, .. } = self else {
+            return Ok(ResetOutcome::Unchanged);
+        };
+        match (observe(path), seen.as_deref()) {
+            (Observed::Symlink, _) => return Err(PreferencesError::ResetSymlink),
+            (Observed::Bytes(now), Some(then)) if now == then => {}
+            (Observed::NotRegular | Observed::Unreadable(_), None) => {}
+            _ => return Err(PreferencesError::ResetChanged),
+        }
+        let name = path
+            .file_name()
+            .ok_or(PreferencesError::ResetBackup(io::ErrorKind::InvalidInput))?
+            .to_string_lossy()
+            .into_owned();
+        let (index, backup) = (1..=MAX_BACKUPS)
+            .find_map(|n| {
+                let backup = path.with_file_name(format!("{name}.bad-{n}"));
+                match fs.hard_link(path, &backup) {
+                    Ok(()) => Some(Ok((n, backup))),
+                    Err(e) if e.kind() == io::ErrorKind::AlreadyExists => None,
+                    Err(e) => Some(Err(PreferencesError::ResetBackup(e.kind()))),
+                }
+            })
+            .unwrap_or(Err(PreferencesError::ResetBackup(
+                io::ErrorKind::AlreadyExists,
+            )))?;
+        if let Err(e) = fs.remove(path) {
+            // The link is ours; drop it so a retry does not pile up backups.
+            let _ = fs.remove(&backup);
+            return Err(PreferencesError::ResetRemove(e.kind()));
+        }
+        *self = Store::Writable {
+            path: std::mem::take(path),
+            baseline: Baseline::Missing,
+        };
+        Ok(ResetOutcome::MovedAside {
+            backup_index: index,
+        })
+    }
+
+    pub fn reset(&mut self) -> Result<ResetOutcome, PreferencesError> {
+        self.reset_with(&craft_atomic::RealFs)
     }
 }

@@ -1,6 +1,7 @@
 use azteccraft::compatibility::MayaVersion;
 use azteccraft::preferences::{
-    MAX_FILE_BYTES, Os, Preferences, PreferencesError, Store, load, platform_path,
+    Baseline, MAX_FILE_BYTES, Os, Preferences, PreferencesError, ResetOutcome, Store, load,
+    platform_path,
 };
 use std::ffi::OsString;
 use std::fs;
@@ -228,6 +229,7 @@ mod save {
         pub fail_create: bool,
         pub fail_rename: bool,
         pub fail_remove: bool,
+        pub fail_link: bool,
     }
 
     impl AtomicFs for FailingFs {
@@ -247,10 +249,14 @@ mod save {
             RealFs.rename(from, to)
         }
         fn hard_link(&self, from: &Path, to: &Path) -> io::Result<()> {
+            if self.fail_link {
+                return Err(io::Error::from(io::ErrorKind::PermissionDenied));
+            }
             RealFs.hard_link(from, to)
         }
         fn remove(&self, path: &Path) -> io::Result<()> {
-            if self.fail_remove {
+            // Only the original fails; the backup link must stay removable.
+            if self.fail_remove && !path.to_string_lossy().contains(".bad-") {
                 return Err(io::Error::from(io::ErrorKind::PermissionDenied));
             }
             RealFs.remove(path)
@@ -373,4 +379,177 @@ fn a_file_removed_after_load_is_changed_on_disk() {
 fn saving_into_a_blocked_or_session_only_store_is_a_typed_error() {
     let mut s = Store::SessionOnly;
     assert_eq!(s.save(&save::v(2020)), Err(PreferencesError::NotWritable));
+}
+
+mod reset {
+    use super::*;
+
+    pub const BAD: &[u8] = b"{not json";
+
+    pub fn blocked_store(dir: &Path) -> (std::path::PathBuf, Store) {
+        let path = dir.join("preferences.json");
+        fs::write(&path, BAD).unwrap();
+        let store = load(&path).store;
+        assert!(matches!(store, Store::Blocked { .. }));
+        (path, store)
+    }
+}
+
+#[test]
+fn reset_moves_the_bad_file_to_the_first_free_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, mut store) = reset::blocked_store(dir.path());
+    let outcome = store.reset().unwrap();
+    assert_eq!(outcome, ResetOutcome::MovedAside { backup_index: 1 });
+    assert!(!path.exists());
+    assert_eq!(
+        fs::read(dir.path().join("preferences.json.bad-1")).unwrap(),
+        reset::BAD
+    );
+    assert!(matches!(
+        &store,
+        Store::Writable {
+            baseline: Baseline::Missing,
+            ..
+        }
+    ));
+    store.save(&save::v(2015)).unwrap();
+    assert_eq!(year(&load(&path).preferences), 2015);
+}
+
+#[test]
+fn reset_never_clobbers_an_existing_backup() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("preferences.json.bad-1"), b"older").unwrap();
+    let (_, mut store) = reset::blocked_store(dir.path());
+    assert_eq!(
+        store.reset().unwrap(),
+        ResetOutcome::MovedAside { backup_index: 2 }
+    );
+    assert_eq!(
+        fs::read(dir.path().join("preferences.json.bad-1")).unwrap(),
+        b"older"
+    );
+    assert_eq!(
+        fs::read(dir.path().join("preferences.json.bad-2")).unwrap(),
+        reset::BAD
+    );
+}
+
+#[test]
+fn reset_refuses_a_file_edited_since_it_was_seen() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, mut store) = reset::blocked_store(dir.path());
+    let before = store.clone();
+    fs::write(&path, b"{edited").unwrap();
+    assert_eq!(store.reset(), Err(PreferencesError::ResetChanged));
+    assert_eq!(fs::read(&path).unwrap(), b"{edited");
+    assert_eq!(save::leftovers(dir.path()), ["preferences.json"]);
+    assert_eq!(store, before);
+    fs::remove_file(&path).unwrap();
+    assert_eq!(store.reset(), Err(PreferencesError::ResetChanged));
+}
+
+#[test]
+fn a_failing_remove_leaves_the_original_and_older_backups_and_drops_the_new_link() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(dir.path().join("preferences.json.bad-1"), b"older").unwrap();
+    let (path, mut store) = reset::blocked_store(dir.path());
+    let before = store.clone();
+    let fs_ = save::FailingFs {
+        fail_remove: true,
+        ..Default::default()
+    };
+    assert_eq!(
+        store.reset_with(&fs_),
+        Err(PreferencesError::ResetRemove(
+            std::io::ErrorKind::PermissionDenied
+        ))
+    );
+    assert_eq!(fs::read(&path).unwrap(), reset::BAD);
+    assert_eq!(
+        fs::read(dir.path().join("preferences.json.bad-1")).unwrap(),
+        b"older"
+    );
+    assert_eq!(
+        save::leftovers(dir.path()),
+        ["preferences.json", "preferences.json.bad-1"]
+    );
+    assert_eq!(store, before);
+}
+
+#[test]
+fn a_failing_link_changes_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, mut store) = reset::blocked_store(dir.path());
+    let before = store.clone();
+    let fs_ = save::FailingFs {
+        fail_link: true,
+        ..Default::default()
+    };
+    assert_eq!(
+        store.reset_with(&fs_),
+        Err(PreferencesError::ResetBackup(
+            std::io::ErrorKind::PermissionDenied
+        ))
+    );
+    assert_eq!(fs::read(&path).unwrap(), reset::BAD);
+    assert_eq!(save::leftovers(dir.path()), ["preferences.json"]);
+    assert_eq!(store, before);
+}
+
+#[cfg(unix)]
+#[test]
+fn reset_refuses_a_symlink() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("target.json");
+    fs::write(&target, reset::BAD).unwrap();
+    let path = dir.path().join("preferences.json");
+    std::os::unix::fs::symlink(&target, &path).unwrap();
+    let mut store = load(&path).store;
+    assert_eq!(store.reset(), Err(PreferencesError::ResetSymlink));
+    assert!(
+        fs::symlink_metadata(&path)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(
+        save::leftovers(dir.path()),
+        ["preferences.json", "target.json"]
+    );
+}
+
+#[test]
+fn reset_of_a_store_that_is_not_blocked_is_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    fs::write(&path, br#"{"schema":1,"maya_compatibility_version":2015}"#).unwrap();
+    let mut store = load(&path).store;
+    let before = store.clone();
+    assert_eq!(store.reset(), Ok(ResetOutcome::Unchanged));
+    assert_eq!(store, before);
+    assert_eq!(Store::SessionOnly.reset(), Ok(ResetOutcome::Unchanged));
+    assert_eq!(save::leftovers(dir.path()), ["preferences.json"]);
+}
+
+#[test]
+fn the_reset_after_a_changed_on_disk_block_moves_the_newer_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    let mut store = load(&path).store;
+    let newer = br#"{"schema":2}"#;
+    fs::write(&path, newer).unwrap();
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::ChangedOnDisk)
+    );
+    assert_eq!(
+        store.reset().unwrap(),
+        ResetOutcome::MovedAside { backup_index: 1 }
+    );
+    assert_eq!(
+        fs::read(dir.path().join("preferences.json.bad-1")).unwrap(),
+        newer
+    );
 }
