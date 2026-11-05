@@ -98,6 +98,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 }
                 OperationError::Scene(NativeError::KeyLimit) => "key_limit",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
+                OperationError::Scene(NativeError::DegenerateUvProjection) => {
+                    "degenerate_uv_projection"
+                }
+                OperationError::Scene(NativeError::UnsupportedUvTopology) => {
+                    "unsupported_uv_topology"
+                }
+                OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
+                    "uvs_block_topology_edit"
+                }
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -633,7 +642,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_keys"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -684,6 +693,9 @@ mod tests {
                 "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
                 "inspect_keys" => json!({}),
+                "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
+                "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "inspect_uvs" => json!({"shape_id":"2"}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
@@ -802,6 +814,8 @@ mod tests {
                     | "set_playback_range"
                     | "play_timeline"
                     | "stop_timeline"
+                    | "project_uv_planar"
+                    | "delete_uvs"
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"

@@ -19,7 +19,7 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, WorldAxis,
+    TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -601,6 +601,15 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             node: None,
             cursor: None,
         },
+        Operation::ProjectUvPlanar {
+            shape: t.shape,
+            axis: UvProjectAxis::Y,
+        },
+        Operation::DeleteUvs { shape: t.shape },
+        Operation::InspectUvs {
+            shape: t.shape,
+            cursor: None,
+        },
         Operation::Create {
             primitive: Primitive::Plane,
             options: None,
@@ -989,6 +998,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 node: None,
                 cursor: None,
             },
+        )],
+        Operation::InspectUvs { .. } => vec![sample(
+            "inspect_uvs",
+            Operation::InspectUvs {
+                shape: t.shape,
+                cursor: None,
+            },
+        )],
+        Operation::ProjectUvPlanar { .. } => vec![sample(
+            "project_uv_planar",
+            Operation::ProjectUvPlanar {
+                shape: t.shape,
+                axis: UvProjectAxis::Y,
+            },
+        )],
+        Operation::DeleteUvs { .. } => vec![sample(
+            "delete_uvs",
+            Operation::DeleteUvs { shape: t.shape },
         )],
         Operation::Create { .. } => vec![
             sample(

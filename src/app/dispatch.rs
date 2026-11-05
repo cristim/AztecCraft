@@ -228,6 +228,11 @@ impl Editor {
                 inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
             });
         }
+        if let Operation::InspectUvs { shape, cursor } = &request.operation {
+            return Ok(OperationReply::Uvs {
+                inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
+            });
+        }
         if request.expected_scene_token != Some(self.scene_token) {
             return Err(OperationError::StaleScene);
         }
@@ -557,6 +562,8 @@ impl Editor {
                 time,
                 channels,
             } => self.delete_keys_command(nodes, time, channels)?,
+            Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
+            Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -959,6 +966,12 @@ impl Editor {
             Operation::InspectKeys { node, cursor } => {
                 return Ok(OperationReply::Keys {
                     inspection: Box::new(self.inspect_keys(node, cursor.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectUvs { shape, cursor } => {
+                return Ok(OperationReply::Uvs {
+                    inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

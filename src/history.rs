@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, MaterialChoice, NativeError, NativeId, NativeScene,
-        NativeTransform, SessionMaterialId,
+        NativeTransform, SessionMaterialId, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -76,6 +76,13 @@ pub enum Command {
         channels: ChannelMask,
         current_frame: i32,
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
 }
 
 impl Command {
@@ -97,6 +104,8 @@ impl Command {
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::SetKeys { .. } => "Set Key".to_string(),
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
+            Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
+            Self::DeleteUvs { .. } => "Delete UVs".to_string(),
         }
     }
 }
@@ -299,6 +308,14 @@ impl History {
                 current_frame,
             } => {
                 candidate.delete_keys(&nodes, frame, channels, current_frame)?;
+                EditOutcome::Changed
+            }
+            Command::ProjectUvPlanar { shape, axis } => {
+                candidate.project_uv_planar(shape, axis)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteUvs { shape } => {
+                candidate.delete_uvs(shape)?;
                 EditOutcome::Changed
             }
         };

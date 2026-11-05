@@ -128,6 +128,7 @@ impl NativeScene {
         });
         self.session_materials.prune(&self.shapes);
         self.session_keys.prune(&self.nodes);
+        self.session_uvs.prune(&self.shapes);
         if let Some(source) = &mut self.source {
             source.has_removals = true;
             if let Some(appearance) = &mut source.appearance {

@@ -12,3 +12,4 @@ pub(in crate::app) mod primitive_options;
 mod selection;
 mod status_line;
 pub(in crate::app) mod timeline;
+pub(in crate::app) mod uv;

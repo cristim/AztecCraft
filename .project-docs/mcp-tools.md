@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-53 tools.
+56 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -34,6 +34,9 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `play_timeline` | mutating | yes | Start playback at 24 fps, looping continuously over the playback range, skipping frames rather than slowing down (rate and loop PROVISIONAL). A time outside the range starts at the range start. It advances only while the native window renders. It stops on a manipulation, a focused text field, a draft, a file modal, close or any mutating operation; read `timeline.playing`. Each frame that moves a keyed channel changes the revision, so paged cursors go stale during playback |
 | `stop_timeline` | mutating | yes | Stop playback, leaving the current time where it is |
 | `inspect_keys` | read-only | no | Read stored keys in node, channel and frame order, optionally for one object. On a sourced scene `unavailable_reason` says source animation curves are not exposed or evaluated, which does not mean there are none. A large table is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes, including on playback ticks |
+| `project_uv_planar` | mutating | yes | Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the shape's bounding box so u and v fill 0 through 1. The axis-to-(u, v) assignment and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection |
+| `delete_uvs` | mutating | yes | Remove a shape's session-only map1. A shape without UVs returns unchanged |
+| `inspect_uvs` | read-only | no | Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order. `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes |
 | `set_material_diffuse` | mutating | no | Edit the checked saved Phong diffuse scalar for an exact shape through shared undo history. Requires complete shared-shader users; affects all those shapes. Values are finite and nonnegative, may exceed one, and do not enable rendered materials |
 | `create_session_material` | mutating | no | Create a session-only lambert material (not saved; Untitled scenes only, sourced and Maya ASCII scenes refuse) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |
 | `assign_session_material` | mutating | no | Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved; sourced and Maya ASCII scenes refuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits |

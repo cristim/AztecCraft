@@ -163,11 +163,6 @@ impl NativeScene {
         }
     }
 
-    /// True for a scene read from a file, whose animation this table does not hold.
-    pub fn has_source(&self) -> bool {
-        self.source.is_some()
-    }
-
     pub fn session_key_count(&self) -> usize {
         self.session_keys.len()
     }

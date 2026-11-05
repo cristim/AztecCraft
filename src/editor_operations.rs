@@ -357,6 +357,13 @@ pub enum Operation {
         time: Option<f64>,
         channels: azteccraft::native_scene::ChannelMask,
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: azteccraft::native_scene::UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
         page: Option<InspectPage>,
@@ -365,6 +372,12 @@ pub enum Operation {
     #[cfg(any(test, feature = "mcp"))]
     InspectKeys {
         node: Option<NodeId>,
+        cursor: Option<PageCursor>,
+    },
+    /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectUvs {
+        shape: NativeId,
         cursor: Option<PageCursor>,
     },
     Create {
@@ -494,6 +507,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Keys {
         inspection: Box<KeysInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Uvs {
+        inspection: Box<UvInspection>,
     },
     Created {
         node_id: String,
@@ -868,6 +885,33 @@ pub struct ShapeInspection {
     pub material: Option<MaterialInspection>,
     /// Session material id every instance of this shape shows; null on sourced scenes.
     pub session_material: Option<String>,
+    /// The session UV set; null without UVs, and on sourced scenes, whose UVs are not exposed.
+    pub uv_set: Option<&'static str>,
+}
+
+/// Most UV corners in one `inspect_uvs` reply. A corner takes at most about 50 bytes of JSON, so
+/// a page stays inside the tool reply limit of 256 KiB, with room for the envelope and the face
+/// brackets; `a_full_page_of_the_longest_uvs_fits_the_reply_limit` pins it.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct UvInspection {
+    /// With `revision`, tells a client which document state this read belongs to: the read passes
+    /// no token guard, and ids can recur after New.
+    pub scene_token: String,
+    pub revision: u64,
+    pub shape_id: String,
+    /// Null when the shape has no UVs or they are not exposed.
+    pub uv_set: Option<&'static str>,
+    /// Why UVs cannot be read here; null does not mean the shape has UVs.
+    pub unavailable_reason: Option<&'static str>,
+    pub faces_total: usize,
+    pub face_offset: usize,
+    /// One [u, v] per outer corner, for faces `face_offset` onward.
+    pub faces: Vec<Vec<[f64; 2]>>,
+    pub next_cursor: Option<String>,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -1088,7 +1132,7 @@ const MIN_SHAPE: &str = concat!(
     r#""source_appearance":"#,
     min_appearance_summary!(),
     r#","#,
-    r#""material":null,"session_material":"0"}"#
+    r#""material":null,"session_material":"0","uv_set":null}"#
 );
 #[cfg(any(test, feature = "mcp"))]
 const MIN_CURVE: &str = concat!(
@@ -1334,6 +1378,7 @@ mod tests {
             source_appearance: summary,
             material: None,
             session_material: Some("0".into()),
+            uv_set: None,
         };
         assert_eq!(serde_json::to_string(&shape).unwrap(), MIN_SHAPE);
         let curve = CurveInspection {

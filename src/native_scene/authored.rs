@@ -88,6 +88,9 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);
     }
+    if !scene.session_uvs.is_empty() {
+        return Err(AuthoredIneligible::UnsupportedMeshChannels);
+    }
     Ok(())
 }
 
