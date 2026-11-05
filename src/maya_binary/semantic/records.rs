@@ -85,11 +85,9 @@ pub(crate) fn decode_connection(cursor: &mut Cursor<'_>) -> Result<Connection, B
 pub(crate) struct Relation {
     #[cfg(test)]
     pub kind: Span,
-    #[cfg(test)]
     pub head: Span,
     #[cfg(test)]
     pub count_word: Span,
-    #[cfg(test)]
     pub tails: [Span; 2],
 }
 
@@ -98,21 +96,19 @@ pub(crate) fn decode_relation(cursor: &mut Cursor<'_>) -> Result<Relation, Binar
     if !matches!(&cursor.source[kind.clone()], b"link" | b"shadowLink") {
         return Err(error(kind.start, ErrorKind::Unsupported));
     }
-    let _head = cursor.string()?;
+    let head = cursor.string()?;
     let offset = cursor.position;
     if cursor.u32()? != 2 {
         return Err(error(offset, ErrorKind::Unsupported));
     }
     let _count_word = offset..cursor.position;
-    let _tails = [cursor.string()?, cursor.string()?];
+    let tails = [cursor.string()?, cursor.string()?];
     Ok(Relation {
         #[cfg(test)]
         kind,
-        #[cfg(test)]
-        head: _head,
+        head,
         #[cfg(test)]
         count_word: _count_word,
-        #[cfg(test)]
-        tails: _tails,
+        tails,
     })
 }

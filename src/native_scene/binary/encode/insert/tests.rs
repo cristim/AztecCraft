@@ -239,3 +239,139 @@ fn the_inverse_check_accepts_a_good_splice_and_rejects_tampering() {
         );
     }
 }
+
+/// The `DBL3` of the first transform removed again: the exact mirror of the one-record insertion.
+#[test]
+fn a_removal_shrinks_each_ancestor_by_the_removed_length_and_reverses() {
+    let original = file();
+    let (xfrm, triple) = layout(&original)[0];
+    let ancestors = [xfrm, 0];
+    let grown = splice(
+        &original,
+        &[Insertion {
+            owner: NativeId(1),
+            field: TransformField::Translation,
+            at: triple,
+            bytes: record([4.0, 5.0, 6.0]),
+            ancestors: ancestors.to_vec(),
+        }],
+        &mut budget(),
+    )
+    .unwrap();
+    let plan = [Edit {
+        at: triple,
+        remove_len: 48,
+        bytes: &[],
+        ancestors: &ancestors,
+    }];
+    let pruned = splice_edits(&grown, &plan, &mut budget()).unwrap();
+    assert_eq!(pruned, original);
+    assert!(check_inverse_edits(&pruned, &grown, &plan, &mut budget()).is_ok());
+    let mut size = pruned.clone();
+    size[xfrm + 15] ^= 1;
+    let mut outside = pruned.clone();
+    outside[pruned.len() - 1] ^= 1;
+    for bad in [size, outside, pruned[..pruned.len() - 1].to_vec()] {
+        assert!(check_inverse_edits(&bad, &grown, &plan, &mut budget()).is_err());
+    }
+}
+
+#[test]
+fn a_replacement_uses_the_net_delta_and_overlaps_are_refused() {
+    let original = file();
+    let (xfrm, triple) = layout(&original)[0];
+    let bytes = record([7.0; 3]);
+    let edit = |at, remove_len, bytes: &'static [u8]| Edit {
+        at,
+        remove_len,
+        bytes,
+        ancestors: &[],
+    };
+    let net = Edit {
+        at: triple,
+        remove_len: 48,
+        bytes: &bytes[..40],
+        ancestors: &[0],
+    };
+    let output = splice_edits(&original, &[net], &mut budget()).unwrap();
+    assert_eq!(output.len(), original.len() - 8);
+    assert_eq!(word(&output, 0), word(&original, 0) - 8);
+    let refused = |plan: &[Edit]| {
+        splice_edits(&original, plan, &mut budget())
+            .unwrap_err()
+            .kind()
+    };
+    for plan in [
+        [edit(triple, 48, &[]), edit(triple + 47, 1, &[])],
+        [edit(triple, 48, &[]), edit(triple, 0, &[1])],
+        [edit(triple, 0, &[1]), edit(triple, 0, &[1])],
+        [
+            edit(original.len() - 1, 2, &[]),
+            edit(original.len(), 0, &[]),
+        ],
+    ] {
+        assert_eq!(refused(&plan), ErrorKind::Unsupported);
+    }
+    let inside = Edit {
+        at: xfrm + 16,
+        remove_len: 8,
+        bytes: &[],
+        ancestors: &[xfrm + 2],
+    };
+    assert_eq!(refused(&[inside]), ErrorKind::Unsupported);
+    let shrink_below_zero = Edit {
+        ancestors: &[xfrm],
+        ..edit(triple, 48, &[])
+    };
+    let mut tiny = original.clone();
+    tiny[xfrm + 8..xfrm + 16].copy_from_slice(&47u64.to_be_bytes());
+    assert_eq!(
+        splice_edits(&tiny, &[shrink_below_zero], &mut budget())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::ResourceLimit
+    );
+}
+
+/// Removing the whole second transform and naming its header as an ancestor of a later edit. The
+/// two transforms are the same length, so without the refusal the shifted offset would land on the
+/// first transform's real header and resize the wrong group.
+#[test]
+fn an_ancestor_header_inside_an_earlier_removed_range_is_refused() {
+    let original = file();
+    let layout = layout(&original);
+    let (first, second) = (layout[0].0, layout[1].0);
+    let inspected = container::inspect(original.clone().into()).unwrap();
+    let end = inspected
+        .chunks()
+        .iter()
+        .find(|chunk| chunk.header_range().start == second)
+        .unwrap()
+        .padding_range()
+        .end;
+    assert_eq!(end - second, second - first);
+    let ancestors = [second];
+    let plan = [
+        Edit {
+            at: second,
+            remove_len: end - second,
+            bytes: &[],
+            ancestors: &[],
+        },
+        Edit {
+            at: end,
+            remove_len: 0,
+            bytes: &[0; 8],
+            ancestors: &ancestors,
+        },
+    ];
+    let error = splice_edits(&original, &plan, &mut budget()).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Unsupported);
+    assert_eq!(original, file());
+    let ancestors = [first];
+    let plan = [Edit {
+        ancestors: &ancestors,
+        ..plan[1]
+    }];
+    assert!(splice_edits(&original, &plan, &mut budget()).is_ok());
+}
