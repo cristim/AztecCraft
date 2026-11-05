@@ -520,7 +520,7 @@ fn private_wire_fixture_spans_and_mesh_trace_match_audit() {
                     assert_eq!(value.destination.end - base, number(&row[4]));
                     counts[2] += 1;
                 }
-                Data::Relation { value } => {
+                Data::Relation(value) => {
                     let row = expected["rela"]
                         .as_array()
                         .unwrap()

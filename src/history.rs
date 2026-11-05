@@ -425,12 +425,16 @@ mod tests {
 
     #[test]
     fn remove_many_with_a_refused_member_leaves_scene_and_stacks_untouched() {
-        let (scene, root, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+        let (mut scene, _, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+        let other = scene
+            .create(crate::scene::Primitive::Cube, "other")
+            .unwrap();
+        crate::native_scene::test_fixtures::restrict_transform(&mut scene, other);
         let mut history = History::new(scene);
         let before = history.scene().clone();
         assert!(matches!(
-            history.execute(Command::RemoveMany(vec![root, child])),
-            Err(NativeError::UnsupportedDelete(_))
+            history.execute(Command::RemoveMany(vec![child, other])),
+            Err(NativeError::UnsupportedEdit)
         ));
         assert_eq!(history.scene(), &before);
         assert!(!history.can_undo() && !history.can_redo());

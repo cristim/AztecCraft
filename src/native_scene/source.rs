@@ -91,6 +91,8 @@ pub(super) struct InsertSite {
 
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct SourceRetention {
+    /// Set by the first removal: the prune shifts offsets, so no record can be inserted afterwards.
+    pub(super) has_removals: bool,
     pub(super) bytes: Arc<[u8]>,
     pub(super) format: SourceFormat,
     pub(super) records: Vec<Range<usize>>,
@@ -199,7 +201,9 @@ impl SourceRetention {
     }
     /// Whether an edit of `owner`'s absent `field` leaf can be saved by inserting a record.
     pub(super) fn can_insert(&self, owner: NativeId, field: TransformField) -> bool {
-        INSERTABLE.contains(&field) && self.insert_site(owner, field).is_some()
+        !self.has_removals
+            && INSERTABLE.contains(&field)
+            && self.insert_site(owner, field).is_some()
     }
     pub(super) fn binary_leaf(
         &self,
