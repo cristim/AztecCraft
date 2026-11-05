@@ -158,7 +158,7 @@ click replaces or clears the face; modified selection and ambiguous coalesced
 primary releases are unsupported. Alt camera navigation remains available.
 F11 and Select > Components > Face enter Face mode; F8 goes from Object or Hierarchy to Face and from Vertex, Edge or Face to Object (provisional).
 Exact Maya CBS, numeric, visual and event-order parity remain unverified. Native
-Extrude remains disabled pending a real history/manipulator workflow; the
+Native Extrude of the selected face runs from the shelf button and the Extrude Options window (Thickness only); a manipulator and several faces are still missing. The
 existing explicit `extrude_face` tool keeps its checked authoring semantics.
 
 Supported static cubic Maya ASCII `.ma` scenes open through the same native
@@ -481,7 +481,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Files | Maya ASCII and new-scene Save, ASCII writing | unsupported | | | |
 | Create | Sphere, Cube, Cylinder, Cone, Plane (Create > Polygon Primitives, shelf Cube and Plane) | supported | `create_primitive` | `nodes` | |
 | Create | Torus, Disc, Platonic Solid, Pyramid, Prism, Pipe, Helix, Gear, Soccer Ball, Super Shapes, Interactive Creation and Exit on Completion (disabled rows in Create > Polygon Primitives); Bevel, shelf Materials, Mesh and other placeholder menus | unsupported | | | |
-| Modeling | Extrude face (shelf button disabled; operation exposed) | supported | `extrude_face` | `shapes` | |
+| Modeling | Extrude face (shelf button and Extrude Options window for one picked face; operation exposed) | supported | `extrude_face` | `shapes` | |
 | Modeling | Construction history and Inputs | unsupported | | | |
 | Nodes | Rename (Channel Box name) | supported | `rename_node` | `nodes` | |
 | Nodes | Translate, rotate and scale channels; on an opened `.mb`, an absent translate leaf is inserted at save when the node has a recorded site, while rotate, scale and siteless nodes refuse (`absent_channel_leaf` from `begin_manipulation`, `scene_error` from `edit_node` and `set_transform`) | supported | `set_transform`, `edit_node`, `begin_manipulation`, `save_scene`, `save_scene_as` | `nodes`, `units` | #19 |

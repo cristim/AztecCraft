@@ -308,7 +308,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 4. **S4 Attribute Editor and Channel Box** (#60): Attribute Editor panel with node tabs and attribute list, Ctrl+A, and the Visibility channel in the Channel Box.
 5. **S5 Hotkeys** (#32): one key map module for Q, W, E, R, A and the existing bindings, with MCP parity for each action.
 6. **S6 Menu content** (#66): Modify menu content and a Display menu. Edit already has Undo, Redo and Delete.
-7. **S7 Shelf** (#65): a native Extrude control wired to the existing `extrude_face` operation, so UI and MCP match.
+7. **S7 Shelf** (#65): the native Extrude control is wired to the existing `extrude_face` operation for one picked face (issue #44 slice 1); the manipulator remains.
 8. **S8 Panels and quick layouts** (#48 / #69): View and Shading panel menus and the Shading group of the Panel Toolbar (Wireframe, Smooth Shade All).
 
 ### P2

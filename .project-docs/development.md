@@ -138,8 +138,8 @@ topology. A mesh with only one face, such as the legacy Scene plane or a
 its Maya default behavior needs a pinned fixture. Undefined normals, invalid
 indices/distances and coordinate overflow
 leave the scene/history unchanged. World/region extrusion, divisions, taper,
-offset, UVs/normals, construction-history nodes and native Extrude controls remain
-pending. Tests establish this subset's geometry, not Maya parity.
+offset, UVs/normals, construction-history nodes, the Extrude manipulator and multi-face Extrude remain
+pending (the shelf button and Options window extrude one picked face by Thickness). Tests establish this subset's geometry, not Maya parity.
 
 `examples/extruded-cube.aztec` was generated through cube creation and two
 History extrusion commands: front face 1 by +0.5, then its right side face 7 by
@@ -193,7 +193,7 @@ event owner or commit a draft solely for that refusal. Alt camera navigation
 remains on its established route. Delete refuses the whole object under any
 component mode (Face, Vertex or Edge), natively and over MCP, with the same
 shared guard; return to Object or Hierarchy selection to delete the object.
-Native Extrude stays disabled pending real history/manipulator behavior.
+Native Extrude of one picked face is available from the shelf button; the manipulator workflow is still missing.
 
 Focused actual framebuffer proofs can be selected with `cargo test --locked
 --bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,

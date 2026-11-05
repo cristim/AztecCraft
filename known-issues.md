@@ -163,7 +163,7 @@ The extrusion API supports one quad with signed object-space normal displacement
 including zero-distance topology. All-face extrusion, including a one-quad plane,
 is explicitly unsupported until a pinned Maya fixture establishes default behavior.
 Region/world extrusion, divisions, offset/taper, UVs/normals, construction-history
-nodes and native Extrude controls remain pending.
+nodes, the Extrude manipulator and multi-face Extrude remain pending (native single-face Extrude with a Thickness field exists, see the component selection entry).
 
 The synthetic extruded-cube example and core journey tests exercise geometry,
 history, document persistence, OBJ export and camera picking. They don't replace
@@ -212,8 +212,7 @@ unobstructed finite degenerate centers can be selected.
 Other component masks, multiple-face gestures, marquee, hover and marking menus
 are unsupported. The same holds in Vertex and Edge modes: a Shift or Ctrl click is refused
 with ModifiedClick and leaves the selection unchanged. Maya supports modified clicks to add
-to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude remains disabled until a real history and
-manipulator workflow exists.
+to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude of the single selected face is live (issue #44, slice 1): the shelf Extrude button opens an Extrude Options window with Thickness only (default 0, applied as the normal displacement, PROVISIONAL). The other option rows, including Taper 1 and Twist 0 (polyExtrudeFacet node defaults, PROVISIONAL), are disabled. There is no manipulator, no multi-face region and no all-face extrusion; a Thickness of 0 gives a coplanar cap with zero-height walls, and its disclosure in the status line is a later step.
 
 Ambiguous coalesced primary releases are refused with an actionable single-click
 retry rather than guessed coordinates/modifiers. This limitation was reproduced
