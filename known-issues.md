@@ -1145,3 +1145,14 @@ reason except where noted:
   holds a removed name (for example a `TEXT` leaf in a `SCRP` or an `STR` in any group) is refused.
 - A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
   scene bound to the original bytes, so repeat saves are identical.
+
+## Move: a selected ancestor on another instance path of an uncovered object is refused (PROVISIONAL, #325 slice B)
+
+A node's translation is shared by all its instances. When an uncovered selected object (no selected
+ancestor on its own selected path) is also reachable under a selected node through another path, a
+Move would apply its own translation and its ancestor's, so that instance would move twice.
+`begin` refuses the whole Move with `AlternatePathAncestor` (MCP code `alternate_path_ancestor`),
+naming the object. A member that is covered through its own path is not refused, because it gets no
+translation of its own (`move_instanced_ancestor_covers_descendant_by_identity`; refusal:
+`an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`). Maya's behaviour for
+instanced selections is not documented, so this is a conservative choice.

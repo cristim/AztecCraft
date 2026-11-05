@@ -433,3 +433,28 @@ fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
     let alone = history.check_move_axes(&targets[1..]);
     assert!(alone.unwrap().iter().all(Option::is_none));
 }
+
+#[test]
+fn an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused() {
+    let (scene, x1, x2, a, b) = test_fixtures::instanced_chain();
+    let mut history = History::new(scene);
+    // b is selected through x2/a/b, where no selected node is an ancestor, so it is uncovered; but
+    // x1 is selected and carries b in x1/a/b, so b would move twice there.
+    let targets = [path_of(&history, &[x1]), path_of(&history, &[x2, a, b])];
+    let before = history.scene.clone();
+    let name = history.scene.node(b).unwrap().name().to_string();
+    assert_eq!(
+        begin(&mut history, &targets, Uuid::new_v4()),
+        Err(ManipulationError::Member {
+            name,
+            source: Box::new(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::AlternatePathAncestor
+            )),
+        })
+    );
+    assert_eq!(history.scene, before);
+    assert!(history.active_manipulation().is_none());
+    // The same pair reversed in order is refused alike.
+    let reversed = [targets[1].clone(), targets[0].clone()];
+    assert!(begin(&mut history, &reversed, Uuid::new_v4()).is_err());
+}

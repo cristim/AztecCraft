@@ -351,6 +351,32 @@ impl MoveTransaction {
     }
 }
 
+/// An uncovered mover whose node is also reachable through another path under a selected node
+/// would be moved a second time there: its translation is shared by all its instances. Refuse the
+/// whole Move. A covered member is exempt, since it gets no translation of its own.
+fn refuse_alternate_path_ancestors(
+    scene: &NativeScene,
+    movers: &[&TransformTarget],
+    selected: &HashSet<NativeId>,
+) -> Result<(), ManipulationError> {
+    let uncovered: HashMap<NodeId, &TransformTarget> =
+        movers.iter().map(|target| (target.node, *target)).collect();
+    for path in scene.transform_paths()? {
+        let Some(target) = uncovered.get(&path.node) else {
+            continue;
+        };
+        let ancestors = &path.path[..path.path.len().saturating_sub(1)];
+        if path.path != target.path && ancestors.iter().any(|id| selected.contains(id)) {
+            return Err(member_error(
+                scene,
+                target.node,
+                NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Frames, baselines and counts for a Move of `targets` (the last is `lead`), or the first refusal.
 fn plan_move(
     scene: &NativeScene,
@@ -401,6 +427,7 @@ fn plan_move(
             !ancestors.iter().any(|id| selected.contains(id))
         })
         .collect();
+    refuse_alternate_path_ancestors(scene, &movers, &selected)?;
     let frames = scene
         .world_move_frames(&movers, axis)
         .map_err(|error| match error {

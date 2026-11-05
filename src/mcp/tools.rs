@@ -4,7 +4,11 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
-use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
+use azteccraft::{
+    history::ManipulationError,
+    native_scene::{NativeError, WorldMoveUnsupported},
+    scene::SceneError,
+};
 use rmcp::{
     RoleServer, ServerHandler,
     model::{
@@ -45,6 +49,9 @@ fn manipulation_code(error: &ManipulationError) -> &'static str {
         ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => "absent_channel_leaf",
         ManipulationError::Member { source, .. } => match source.as_ref() {
             NativeError::AbsentChannelLeaf { .. } => "absent_channel_leaf",
+            NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor) => {
+                "alternate_path_ancestor"
+            }
             _ => "manipulation_error",
         },
         _ => "manipulation_error",
@@ -234,6 +241,33 @@ mod tests {
     use azteccraft::native_scene::{RotateAxis, ScaleHandle};
     use rmcp::model::{ErrorCode, JsonObject};
     use uuid::Uuid;
+
+    #[test]
+    fn a_refused_member_keeps_the_code_of_its_cause() {
+        let member = |source| ManipulationError::Member {
+            name: "b".into(),
+            source: Box::new(source),
+        };
+        let code = |source| {
+            let result = tool_reply(Err(OperationError::Move(member(source))));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(
+            code(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::AlternatePathAncestor
+            )),
+            "alternate_path_ancestor"
+        );
+        assert_eq!(
+            code(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::SelectedPivot
+            )),
+            "manipulation_error"
+        );
+    }
 
     #[test]
     fn file_errors_withhold_private_paths_and_keep_the_code() {
