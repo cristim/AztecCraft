@@ -1018,11 +1018,14 @@ impl Editor {
         };
         let drag = AxisDrag::begin(capture, origin, axis, position)
             .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
-        self.apply_operation(Operation::BeginMove {
+        if let Err(error) = self.apply_operation(Operation::BeginMove {
             target,
             axis,
             expected_selection_generation: None,
-        })?;
+        }) {
+            self.consume_pointer_sequence();
+            return Err(error);
+        }
         self.start_native_drag(NativeDrag::Move(drag), pointer.released)?;
         self.status = format!("World {} Move", axis_name(axis).to_uppercase());
         self.error = false;

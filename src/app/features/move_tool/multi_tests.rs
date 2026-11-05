@@ -505,3 +505,27 @@ fn a_stale_generation_is_refused_before_the_mode_and_lead_checks() {
         "{result:?}"
     );
 }
+
+#[test]
+fn a_refused_move_press_consumes_the_pointer_sequence() {
+    let (mut editor, context, rect) = two_selected();
+    let members = editor.selection.members().to_vec();
+    // The lead's handle is hit, then the begin refuses a non-lead member whose path is not its own.
+    let mut bad = members[0].clone();
+    bad.path = members[1].path.clone();
+    editor.set_selection_members_for_test(vec![bad, members[1].clone()]);
+    let position = rect.center() + egui::vec2(40.0, 0.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            button(position, true),
+        ),
+    );
+    assert!(editor.native_move.is_none());
+    assert!(editor.move_suppress_primary, "{}", editor.status);
+    assert!(editor.history.active_manipulation().is_none());
+}
