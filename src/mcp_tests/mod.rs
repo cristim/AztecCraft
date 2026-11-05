@@ -129,6 +129,8 @@ mod official_client {
     mod manipulator_size;
     mod material;
     mod node_edit;
+    mod obj_export;
+
     mod pointer_hit;
     mod primitive_options;
     mod save_new_scene;
@@ -145,6 +147,7 @@ mod official_client {
     mod subtree_delete;
     mod tool_handle;
     mod tool_space;
+    mod uv;
     mod vertex_edge;
 
     async fn call_response(

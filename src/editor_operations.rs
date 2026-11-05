@@ -330,9 +330,22 @@ pub enum Operation {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: azteccraft::native_scene::UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
         page: Option<InspectPage>,
+    },
+    /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectUvs {
+        shape: NativeId,
+        cursor: Option<PageCursor>,
     },
     Create {
         primitive: Primitive,
@@ -373,6 +386,11 @@ pub enum Operation {
     SaveScene,
     SaveSceneAs {
         path: PathBuf,
+    },
+    /// File > Export All or Export Selection as a new OBJ file; never edits the scene.
+    ExportObj {
+        path: PathBuf,
+        selection_only: bool,
     },
     ResolveFileAction {
         pending_id: uuid::Uuid,
@@ -453,6 +471,10 @@ pub enum OperationReply {
     Scene {
         inspection: Box<SceneInspection>,
     },
+    #[cfg(any(test, feature = "mcp"))]
+    Uvs {
+        inspection: Box<UvInspection>,
+    },
     Created {
         node_id: String,
     },
@@ -495,6 +517,11 @@ pub enum OperationReply {
         scene_token: String,
         dirty: bool,
         pending_action_status: PendingActionStatus,
+    },
+    Exported {
+        objects: usize,
+        vertices: usize,
+        faces: usize,
     },
 }
 
@@ -776,6 +803,33 @@ pub struct ShapeInspection {
     pub material: Option<MaterialInspection>,
     /// Session material id every instance of this shape shows; null on sourced scenes.
     pub session_material: Option<String>,
+    /// The session UV set; null without UVs, and on sourced scenes, whose UVs are not exposed.
+    pub uv_set: Option<&'static str>,
+}
+
+/// Most UV corners in one `inspect_uvs` reply. A corner takes at most about 50 bytes of JSON, so
+/// a page stays inside the tool reply limit of 256 KiB, with room for the envelope and the face
+/// brackets; `a_full_page_of_the_longest_uvs_fits_the_reply_limit` pins it.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct UvInspection {
+    /// With `revision`, tells a client which document state this read belongs to: the read passes
+    /// no token guard, and ids can recur after New.
+    pub scene_token: String,
+    pub revision: u64,
+    pub shape_id: String,
+    /// Null when the shape has no UVs or they are not exposed.
+    pub uv_set: Option<&'static str>,
+    /// Why UVs cannot be read here; null does not mean the shape has UVs.
+    pub unavailable_reason: Option<&'static str>,
+    pub faces_total: usize,
+    pub face_offset: usize,
+    /// One [u, v] per outer corner, for faces `face_offset` onward.
+    pub faces: Vec<Vec<[f64; 2]>>,
+    pub next_cursor: Option<String>,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -854,6 +908,8 @@ pub enum OperationError {
     /// Text may carry a filesystem path (`DocumentError`, `ObjError`); never expose it remotely.
     File(String),
     NativeSave(azteccraft::document::NativeSaveError),
+    /// OBJ export refusal or failure; its text never carries the path.
+    ObjExport(ObjExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -864,6 +920,33 @@ pub enum OperationError {
         parameter: &'static str,
         active: &'static str,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObjExportError {
+    DestinationExists,
+    NothingToExport,
+    /// The caller went away or its deadline passed before the file was installed.
+    Cancelled,
+    Io(std::io::ErrorKind),
+    /// Path-free reason the scene cannot be exported (non-finite or unsupported geometry).
+    Invalid(String),
+}
+
+impl fmt::Display for ObjExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DestinationExists => {
+                f.write_str("Export destination already exists; choose a new file name")
+            }
+            Self::NothingToExport => {
+                f.write_str("Nothing to export: no displayed polygon geometry")
+            }
+            Self::Cancelled => f.write_str("OBJ export cancelled before the file was installed"),
+            Self::Io(kind) => write!(f, "OBJ export failed: {kind}"),
+            Self::Invalid(reason) => write!(f, "Cannot export OBJ: {reason}"),
+        }
+    }
 }
 
 impl OperationError {
@@ -884,7 +967,7 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::StaleScene => f.write_str("Scene token is stale; inspect the current document"),
             #[cfg(any(test, feature = "mcp"))]
-            Self::TooLarge => f.write_str("Scene inspection exceeds the prototype response limit"),
+            Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
@@ -894,6 +977,7 @@ impl fmt::Display for OperationError {
             Self::Scene(error) => error.fmt(f),
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
+            Self::ObjExport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }
@@ -966,7 +1050,7 @@ const MIN_SHAPE: &str = concat!(
     r#""source_appearance":"#,
     min_appearance_summary!(),
     r#","#,
-    r#""material":null,"session_material":"0"}"#
+    r#""material":null,"session_material":"0","uv_set":null}"#
 );
 #[cfg(any(test, feature = "mcp"))]
 const MIN_CURVE: &str = concat!(
@@ -1210,6 +1294,7 @@ mod tests {
             source_appearance: summary,
             material: None,
             session_material: Some("0".into()),
+            uv_set: None,
         };
         assert_eq!(serde_json::to_string(&shape).unwrap(), MIN_SHAPE);
         let curve = CurveInspection {

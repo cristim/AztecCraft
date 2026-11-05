@@ -133,6 +133,9 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Created, assigned or reassigned materials: the file has only the default pair, so
         // any difference from the default would be lost on reopen.
         session_materials,
+        // Session UVs make `check_content_kind` refuse the scene (`UnsupportedMeshChannels`),
+        // so none reach this writer.
+        session_uvs: _,
     } = scene;
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);
