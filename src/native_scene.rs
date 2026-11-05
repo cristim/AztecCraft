@@ -1729,6 +1729,8 @@ impl<'a> ViewAdmissionIndex<'a> {
     /// Builds the tables for `scene`. Reservation is fallible and maps to
     /// [`NativeError::ResourceLimit`], matching the rest of the scene allocation policy.
     pub(crate) fn new(scene: &'a NativeScene) -> Result<Self, NativeError> {
+        #[cfg(test)]
+        VIEW_ADMISSION_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
         let limit = |_| NativeError::ResourceLimit;
         let mut geometry = std::collections::HashMap::new();
         geometry
@@ -1958,4 +1960,11 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static VIEW_ADMISSION_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// `ViewAdmissionIndex::new` calls on this thread, so a test can pin one build per view (#341).
+#[cfg(test)]
+pub(crate) fn view_admission_index_builds() -> usize {
+    VIEW_ADMISSION_INDEX_BUILDS.with(std::cell::Cell::get)
 }
