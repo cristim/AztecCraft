@@ -993,7 +993,7 @@ impl NativeScene {
     /// a whole view build, so a scene of N instances costs O(N) lookups rather than O(N) scans
     /// each (#341). Every check, and the order they run in, matches the scanning form exactly, so
     /// the accepted paths and the returned errors are the same.
-    pub fn geometry_view_admission_indexed(
+    pub(crate) fn geometry_view_admission_indexed(
         &self,
         index: &ViewAdmissionIndex<'_>,
         path: &[NativeId],
@@ -1718,7 +1718,7 @@ impl NativeScene {
 /// Lookup tables built once from a scene so a whole view build resolves instance admission with
 /// hash lookups instead of a linear scan per instance (#341). It borrows the scene, so it cannot
 /// outlive or diverge from the data it indexes.
-pub struct ViewAdmissionIndex<'a> {
+pub(crate) struct ViewAdmissionIndex<'a> {
     geometry: std::collections::HashMap<NativeId, &'a GeometryViewFacts>,
     transforms: std::collections::HashMap<NativeId, &'a NativeTransformNode>,
     root_edges: std::collections::HashSet<NativeId>,
@@ -1728,7 +1728,7 @@ pub struct ViewAdmissionIndex<'a> {
 impl<'a> ViewAdmissionIndex<'a> {
     /// Builds the tables for `scene`. Reservation is fallible and maps to
     /// [`NativeError::ResourceLimit`], matching the rest of the scene allocation policy.
-    pub fn new(scene: &'a NativeScene) -> Result<Self, NativeError> {
+    pub(crate) fn new(scene: &'a NativeScene) -> Result<Self, NativeError> {
         let limit = |_| NativeError::ResourceLimit;
         let mut geometry = std::collections::HashMap::new();
         geometry
