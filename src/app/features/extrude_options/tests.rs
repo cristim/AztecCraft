@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::tests::remote;
 use crate::editor_operations::OperationError;
 use azteccraft::native_scene::FaceTarget;
 
@@ -28,6 +29,10 @@ fn pick_face_zero(mut editor: Editor) -> (Editor, FaceTarget) {
     });
     assert_eq!(editor.remembered_face, Some(target.clone()));
     (editor, target)
+}
+
+fn frame(editor: &mut Editor, ctx: &egui::Context, events: Vec<egui::Event>) {
+    crate::app::tests::frame_with(editor, ctx, egui::vec2(1200.0, 800.0), 1.0, events);
 }
 
 fn points(editor: &Editor) -> usize {
@@ -90,6 +95,16 @@ fn the_two_blockers_return_their_variants_and_change_nothing() {
     assert_eq!(editor.history.scene(), &baseline);
     assert!(editor.history.can_redo(), "the redo stack is kept");
     assert_eq!(editor.channels[0], "2", "the draft is kept");
+    assert_eq!(
+        (
+            ExtrudeBlocker::NotFaceMode.to_string(),
+            ExtrudeBlocker::NoFaceSelected.to_string()
+        ),
+        (
+            "Extrude needs Face selection mode (F11)".into(),
+            "Select a face first".into()
+        )
+    );
 }
 
 #[test]
@@ -143,4 +158,75 @@ fn a_valid_channel_draft_is_committed_first_and_an_invalid_one_refuses() {
     assert!(editor.error);
     assert_eq!(editor.channels[0], "nan");
     assert_eq!(editor.history.scene(), &baseline);
+}
+
+#[test]
+fn the_window_reports_a_bad_thickness_dispatches_nothing_then_extrudes_a_good_one() {
+    let (mut editor, _) = face_editor(Primitive::Cube);
+    let baseline = editor.history.scene().clone();
+    editor.open_extrude_options();
+    for text in ["", "abc", "NaN", "inf", "1e400", "1,5"] {
+        editor.extrude_options.dialog.as_mut().unwrap().thickness = text.into();
+        editor.extrude_from_dialog();
+        let message = editor
+            .extrude_options
+            .dialog
+            .as_ref()
+            .unwrap()
+            .message
+            .clone();
+        assert!(
+            message.is_some_and(|message| message.starts_with("Thickness must be")),
+            "{text:?}"
+        );
+        assert!(editor.error, "{text:?}");
+        assert_eq!(editor.history.scene(), &baseline, "{text:?}");
+    }
+    assert!(
+        !editor.history.can_redo() && editor.history.undo_label().as_deref() != Some("Extrude")
+    );
+}
+
+#[test]
+fn a_focused_thickness_field_makes_a_remote_edit_busy() {
+    let (mut editor, _) = face_editor(Primitive::Cube);
+    let ctx = egui::Context::default();
+    editor.open_extrude_options();
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let reply = remote(&mut editor, Operation::SetGridVisible { visible: false });
+    assert!(reply.is_ok());
+    ctx.memory_mut(|memory| memory.request_focus(thickness_field_id()));
+    frame(&mut editor, &ctx, vec![]);
+    let busy = editor
+        .remote_operation(
+            crate::editor_operations::RemoteRequest {
+                expected_scene_token: Some(editor.scene_token),
+                operation: Operation::SetGridVisible { visible: true },
+            },
+            &ctx,
+        )
+        .unwrap_err();
+    assert!(matches!(busy, OperationError::BusyEditing));
+}
+
+#[test]
+fn escape_closes_the_window_when_nothing_else_wants_it() {
+    let (mut editor, _) = face_editor(Primitive::Cube);
+    let ctx = egui::Context::default();
+    editor.open_extrude_options();
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    assert!(editor.extrude_options.dialog.is_some());
+    let escape = egui::Event::Key {
+        key: Key::Escape,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::NONE,
+    };
+    frame(&mut editor, &ctx, vec![escape]);
+    assert!(editor.extrude_options.dialog.is_none());
 }
