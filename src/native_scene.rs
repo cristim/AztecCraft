@@ -1508,12 +1508,7 @@ impl NativeScene {
         self.authoring_preflight()?;
         self.validate()?;
         for (id, channels) in edits {
-            let index = self
-                .nodes
-                .iter()
-                .position(|n| n.id == *id)
-                .ok_or(SceneError::MissingNode(*id))?;
-            self.check_effects(self.nodes[index].transform_id)?;
+            let index = self.editable_node(*id)?;
             self.nodes[index].channels = self.replacement_channels(index, *channels)?;
         }
         Ok(())

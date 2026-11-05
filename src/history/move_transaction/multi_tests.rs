@@ -511,3 +511,48 @@ fn single_move_charges_the_retained_mover_like_a_multi_move() {
         .begin_move_many(&targets, WorldAxis::X, Uuid::new_v4(), NATIVE, needed)
         .unwrap();
 }
+
+#[test]
+fn multi_move_on_an_opened_ascii_scene_is_refused_like_a_single_move() {
+    let curve = |name: &str| {
+        format!(
+            "createNode transform -n \"{name}\"; createNode nurbsCurve -n \"{name}Shape\" -p \"{name}\"; \
+             setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 -0 0 1 2 3 4 -3 2 6 0 -1;"
+        )
+    };
+    let text = format!(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; {} {}",
+        curve("a"),
+        curve("b")
+    );
+    let scene = crate::native_scene::ascii::decode(text.into_bytes().into()).unwrap();
+    let mut history = History::new(scene);
+    let targets = history.scene.transform_paths().unwrap();
+    assert_eq!(targets.len(), 2);
+    let before = history.scene.clone();
+    let single =
+        history.begin_move_many(&targets[..1], WorldAxis::X, Uuid::new_v4(), NATIVE, BUDGET);
+    assert_eq!(
+        single,
+        Err(ManipulationError::Native(NativeError::ReadOnlyFormat))
+    );
+    let multi = begin(&mut history, &targets, Uuid::new_v4());
+    assert_eq!(
+        multi,
+        Err(ManipulationError::Native(NativeError::ReadOnlyFormat))
+    );
+    assert_eq!(history.scene, before);
+    assert!(history.active_manipulation().is_none());
+}
+
+#[test]
+fn a_huge_distance_on_two_members_is_refused_and_leaves_the_preview_intact() {
+    let (mut history, targets) = cubes(2);
+    let token = Uuid::new_v4();
+    let id = begin(&mut history, &targets, token).unwrap();
+    history.update_move(token, id, NATIVE, 3.0).unwrap();
+    let preview = history.scene.clone();
+    assert!(history.update_move(token, id, NATIVE, 1e300).is_err());
+    assert_eq!(history.scene, preview);
+    assert!(history.active_manipulation().is_some());
+}

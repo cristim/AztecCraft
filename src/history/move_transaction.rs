@@ -437,6 +437,10 @@ fn plan_move(
         .iter()
         .filter(|target| !is_covered(&selected, target))
         .collect();
+    debug_assert!(
+        !movers.is_empty(),
+        "a selection always has an uncovered mover"
+    );
     refuse_alternate_path_ancestors(scene, &movers, &selected)?;
     let frames = scene
         .world_move_frames(&movers, axis)
