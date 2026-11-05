@@ -615,7 +615,6 @@ impl Editor {
                     transform: new_transform,
                 }
             }
-            #[cfg(any(test, feature = "mcp"))]
             Operation::ExtrudeFace { target, distance } => {
                 if !(2..=azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1)
                     .contains(&target.path.len())

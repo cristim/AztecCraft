@@ -99,6 +99,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    extrude_options: features::extrude_options::ExtrudeOptionsUi,
     native_input_pending: bool,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
@@ -149,6 +150,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            extrude_options: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
@@ -324,6 +326,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .into_iter()
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
+    .chain([features::extrude_options::thickness_field_id()])
 }
 
 fn text_edit_focused(ctx: &egui::Context) -> bool {

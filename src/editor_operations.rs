@@ -396,7 +396,6 @@ pub enum Operation {
         rotation_degrees: [Option<f64>; 3],
         scale: [Option<f64>; 3],
     },
-    #[cfg(any(test, feature = "mcp"))]
     ExtrudeFace {
         target: FaceTarget,
         distance: f64,
