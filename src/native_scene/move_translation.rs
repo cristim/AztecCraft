@@ -55,8 +55,6 @@ pub enum WorldMoveUnsupported {
     NumericalDisplacement,
     /// One object selected through several instances: its instances share channels.
     SharedInstances,
-    /// A selected ancestor affects another instance path of a selected descendant.
-    AlternatePathAncestor,
 }
 
 impl fmt::Display for WorldMoveUnsupported {
@@ -68,9 +66,6 @@ impl fmt::Display for WorldMoveUnsupported {
             Self::NumericalDisplacement => "displacement cannot be represented accurately",
             Self::SharedInstances => {
                 "the same object is selected through several instances and shares one translation"
-            }
-            Self::AlternatePathAncestor => {
-                "a selected ancestor affects another instance path of this object"
             }
         })
     }

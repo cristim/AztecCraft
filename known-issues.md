@@ -518,13 +518,13 @@ SIGTERM (macOS and Linux) starts the same close guard. PROVISIONAL policy: the f
 
 ## Bounded World-axis Move candidate
 
-<!-- coderabbit-ai-generated:v1 -->
-
-<!-- coderabbit-ai-generated-section:v1:dd55235904221bff893ba5c2975e55e068ebebe19c496438b7fd44b972924fd5 -->
-
-Move supports one or more selected object transforms in object mode, using World X/Y/Z arrows and one guarded preview transaction through native UI and MCP. Plane, center and component handles, snapping and other orientations remain unavailable. Independently moved objects with nonzero pivots, driven data, unsupported or unstable parents or translations with unproved retained source words reject editing. MA and general source authoring remain subject to their existing read-only and source guards. The 72-physical-pixel geometry and near-parallel threshold are application policies, not Maya parity.
-
-<!-- /coderabbit-ai-generated:v1 -->
+Move currently implements one selected object transform, World X/Y/Z arrows and
+one guarded preview transaction through native UI and MCP. Plane/center/component
+handles, snapping, other orientations and Rotate/Scale tools are unavailable.
+Selected pivots, driven data, unsupported/unstable parents and translations with
+unproved retained source words reject editing. MA and general source authoring
+remain subject to their existing read-only/source guards. The 72-physical-pixel
+geometry and near-parallel threshold are application policies, not Maya parity.
 
 Native/SDK tests for this candidate are in the workspace and mcp-test-client
 suites; CI for the current head is the record of their status. Native
@@ -1079,13 +1079,7 @@ The pages say little about several objects, so these choices are pinned by tests
 
 - P18: the manipulator is drawn and hit-tested at the lead (last selected) object's pivot only (`the_press_frame_is_the_leads_even_when_the_first_member_is_elsewhere`).
 - P19: a World-axis translation is pivot independent, so every moved member shifts by the same world displacement (`several_movers_preview_commit_one_labelled_undo_entry_and_undo_redo_bit_identically`).
-<!-- coderabbit-ai-generated:v1 -->
-
-<!-- coderabbit-ai-generated-section:v1:6ddd8c8c92a2a5d4353f722bca4ccd184ecfef2c14071c1ca4c61f7c69c2e226 -->
-
-- P20: a selected parent and descendant move the descendant once: it follows its ancestor and gets no translation of its own. Ancestry uses node identity on the selected path. A selected ancestor on another instance path of the descendant refuses the selection (`a_parent_and_child_both_selected_move_the_child_once`, `selected_ancestor_on_an_alternate_path_refuses_the_descendant`).
-
-<!-- /coderabbit-ai-generated:v1 -->
+- P20: a selected parent and descendant move the descendant once: it follows its ancestor and gets no translation of its own. Ancestry is decided by node identity, not path prefix (`a_parent_and_child_both_selected_move_the_child_once`, `move_instanced_ancestor_covers_descendant_by_identity`).
 - P21: one node selected through two instances is refused whole, naming the node, because its instances share channels; the same target twice is `InvalidIds` (`move_refuses_two_instances_of_one_node`, `the_same_target_twice_is_invalid_ids`).
 - P22: one undo entry, labelled Move, for the whole set (`several_movers_preview_commit_one_labelled_undo_entry_and_undo_redo_bit_identically`).
 - P23: MCP `update_manipulation distance` applies the same World displacement to every member (`sdk_move_with_the_current_generation_moves_every_selected_object_in_one_undo_step`).

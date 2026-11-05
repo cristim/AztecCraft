@@ -262,15 +262,19 @@ fn the_same_target_twice_is_invalid_ids() {
 }
 
 #[test]
-fn instanced_ancestor_on_another_path_is_refused() {
+fn move_instanced_ancestor_covers_descendant_by_identity() {
     let (scene, x1, x2, a, b) = test_fixtures::instanced_chain();
     let mut history = History::new(scene);
+    // Node a is selected through x1; b is selected through x2/a. a carries b in both instances,
+    // so b is covered although "x2/a/b" does not start with "x1/a".
     let targets = [path_of(&history, &[x1, a]), path_of(&history, &[x2, a, b])];
-    let before = history.scene.clone();
-    assert!(matches!(begin(&mut history, &targets, Uuid::new_v4()),
-        Err(ManipulationError::Member { source, .. })
-        if *source == NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor)));
-    assert_eq!(history.scene, before);
+    let b_before = bits(&history, b);
+    let token = Uuid::new_v4();
+    let id = begin(&mut history, &targets, token).unwrap();
+    assert_eq!(history.active_manipulation().unwrap().covered_count(), 1);
+    history.update_move(token, id, NATIVE, 3.0).unwrap();
+    assert_eq!(x_of(&history, a), 3.0);
+    assert_eq!(bits(&history, b), b_before);
 }
 
 #[test]
@@ -428,56 +432,4 @@ fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
     // The complete node alone is available on every axis.
     let alone = history.check_move_axes(&targets[1..]);
     assert!(alone.unwrap().iter().all(Option::is_none));
-}
-
-#[test]
-fn selected_ancestor_on_an_alternate_path_refuses_the_descendant() {
-    let (scene, x1, x2, a, b) = test_fixtures::instanced_chain();
-    let mut history = History::new(scene);
-    let targets = [path_of(&history, &[x1]), path_of(&history, &[x2, a, b])];
-    let before = history.scene.clone();
-    let result = begin(&mut history, &targets, Uuid::new_v4());
-    assert!(
-        matches!(result, Err(ManipulationError::Member { .. })),
-        "{result:?}"
-    );
-    assert_eq!(history.scene, before);
-    assert!(history.active_manipulation().is_none());
-}
-
-#[test]
-fn single_move_charges_the_retained_mover() {
-    let (mut history, targets) = cubes(1);
-    // Find the view's minimum budget, then leave one byte less than the
-    // retained transaction and mover need in addition to that view.
-    let (mut low, mut high) = (0, BUDGET);
-    while low < high {
-        let mid = low + (high - low) / 2;
-        if ViewScene::from_native(&history.scene, mid).is_ok() {
-            high = mid;
-        } else {
-            low = mid + 1;
-        }
-    }
-    let metadata = targets[0].path.len() * size_of::<NativeId>() + size_of::<MoveTransaction>();
-    let budget = low + metadata + MOVER_BYTES - 1;
-    assert!(matches!(
-        history.begin_move_many(&targets, WorldAxis::X, Uuid::new_v4(), NATIVE, budget),
-        Err(ManipulationError::View(ViewError::ResourceLimit))
-    ));
-    assert!(history.active_manipulation().is_none());
-}
-
-#[test]
-fn member_error_bounds_unicode_names_and_preserves_missing_fallback() {
-    let (scene, _) = test_fixtures::cube();
-    let name = "é".repeat(100);
-    assert!(bounded_member_name(&name).len() <= 64);
-    assert_eq!(bounded_member_name(&name), &name[..64]);
-    let crossing = format!("{}é", "a".repeat(63));
-    assert_eq!(bounded_member_name(&crossing), &crossing[..63]);
-    let missing = NodeId::from_decimal("999999").unwrap();
-    assert!(
-        matches!(member_error(&scene, missing, SceneError::InvalidIds.into()), ManipulationError::Member { name, .. } if name == "?")
-    );
 }

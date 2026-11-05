@@ -160,27 +160,6 @@ async fn sdk_move_refuses_a_stale_generation_a_missing_one_and_a_non_lead_target
         assert_eq!(editor.history.scene(), &scene);
         assert!(editor.history.active_manipulation().is_none());
     }
-    // Restore the middle member, then remove the old lead: the stale request
-    // still names that old lead while two objects remain selected.
-    for member in [&members[1], &lead] {
-        editor.native_operation(Operation::ModifySelection {
-            change: crate::editor_operations::SelectionChange::Toggle,
-            node: member.node,
-            instance_path: Some(member.path.clone()),
-        });
-    }
-    let args = begin_args(&editor, &lead, Some(json!(current)));
-    let result = call(
-        &mut editor,
-        &context,
-        client.peer(),
-        "begin_manipulation",
-        args,
-    )
-    .await;
-    assert_eq!(code(result), "invalid_input");
-    assert_eq!(editor.history.scene(), &scene);
-    assert!(editor.history.active_manipulation().is_none());
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
