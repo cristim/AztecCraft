@@ -329,8 +329,8 @@ impl Editor {
         provenance: ManipulationProvenance,
         expected_generation: Option<u64>,
     ) -> Result<(), OperationError> {
+        self.check_generation(expected_generation)?;
         if self.selection.len() <= 1 {
-            self.check_generation(expected_generation)?;
             return self.check_manipulation_target("Move", target);
         }
         if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
@@ -339,7 +339,6 @@ impl Editor {
         if self.selection.lead() != Some(target) {
             return Err(OperationError::MultipleSelection);
         }
-        self.check_generation(expected_generation)?;
         if expected_generation.is_none() && provenance == ManipulationProvenance::Remote {
             return Err(OperationError::MultipleSelection);
         }
@@ -350,10 +349,10 @@ impl Editor {
     fn check_generation(&self, expected: Option<u64>) -> Result<(), OperationError> {
         match expected {
             Some(expected) if expected != self.selection.generation() => {
-                Err(OperationError::InvalidInput(format!(
-                    "Selection changed: expected generation {expected}, current {}",
-                    self.selection.generation()
-                )))
+                Err(OperationError::StaleSelection {
+                    expected,
+                    current: self.selection.generation(),
+                })
             }
             _ => Ok(()),
         }

@@ -856,6 +856,11 @@ pub enum OperationError {
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
+    /// A caller's expected selection generation no longer matches the selection.
+    StaleSelection {
+        expected: u64,
+        current: u64,
+    },
     /// Frame All on a scene without any mesh or curve instance.
     NothingToFrame,
     InvalidInput(String),
@@ -900,6 +905,10 @@ impl fmt::Display for OperationError {
             Self::SessionMaterial(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
+            Self::StaleSelection { expected, current } => write!(
+                f,
+                "Selection changed: expected generation {expected}, current {current}"
+            ),
             Self::NothingToFrame => f.write_str("The scene has no objects to frame"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),

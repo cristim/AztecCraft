@@ -143,7 +143,7 @@ async fn sdk_move_refuses_a_stale_generation_a_missing_one_and_a_non_lead_target
     assert_ne!(stale, current);
     let scene = editor.history.scene().clone();
     for (target, argument, expected) in [
-        (&lead, Some(json!(stale)), "invalid_input"),
+        (&lead, Some(json!(stale)), "stale_selection"),
         (&lead, None, "multiple_selection"),
         (&members[0], Some(json!(current)), "multiple_selection"),
     ] {
@@ -190,7 +190,7 @@ async fn sdk_move_of_one_selected_object_checks_the_generation_when_given() {
             );
             editor.cancel_move().unwrap();
         } else {
-            assert_eq!(code(result), "invalid_input");
+            assert_eq!(code(result), "stale_selection");
             assert!(editor.history.active_manipulation().is_none());
         }
     }

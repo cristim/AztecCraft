@@ -98,6 +98,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 },
                 OperationError::NoSelection => "no_selection",
                 OperationError::MultipleSelection => "multiple_selection",
+                OperationError::StaleSelection { .. } => "stale_selection",
                 OperationError::NothingToFrame => "nothing_to_frame",
                 OperationError::InvalidInput(_) => "invalid_input",
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {

@@ -197,7 +197,7 @@ fn a_native_toggle_of_a_non_lead_member_makes_the_inspected_generation_stale() {
             editor.apply_operation(op)
         };
         assert!(
-            matches!(result, Err(OperationError::InvalidInput(m)) if m.contains(&stale.to_string()))
+            matches!(result, Err(OperationError::StaleSelection { expected, .. }) if expected == stale)
         );
         assert_eq!(editor.history.scene(), &scene);
         assert!(editor.history.active_manipulation().is_none());
@@ -220,7 +220,7 @@ fn a_generation_naming_a_larger_selection_is_refused_after_the_selection_shrinks
             editor.apply_operation(op)
         };
         assert!(
-            matches!(result, Err(OperationError::InvalidInput(_))),
+            matches!(result, Err(OperationError::StaleSelection { .. })),
             "{result:?}"
         );
         assert_eq!(editor.history.scene(), &scene);
@@ -478,5 +478,30 @@ fn inspection_checks_every_member_so_a_bare_non_lead_member_makes_move_unavailab
     assert!(
         reason.contains("bare") && reason.contains("X axis") && reason.contains("Z axis"),
         "{reason}"
+    );
+}
+
+#[test]
+fn a_stale_generation_is_refused_before_the_mode_and_lead_checks() {
+    let (mut editor, _, _) = two_selected();
+    let members = editor.selection.members().to_vec();
+    let stale = editor.selection.generation();
+    toggle(&mut editor, &members[0]);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths.clone());
+    // Wrong lead: a stale generation is StaleSelection, not MultipleSelection.
+    let result = editor.apply_operation(begin_op(paths[0].clone(), Some(stale)));
+    assert!(
+        matches!(&result, Err(OperationError::StaleSelection { expected, .. }) if *expected == stale),
+        "{result:?}"
+    );
+    // Face selection would refuse too, but the stale generation is named first.
+    editor.selection_mode = crate::editor_operations::SelectionMode::Face;
+    let lead = editor.selection.lead().unwrap().clone();
+    let result = editor.apply_operation(begin_op(lead, Some(stale)));
+    assert!(
+        matches!(&result, Err(OperationError::StaleSelection { expected, .. }) if *expected == stale),
+        "{result:?}"
     );
 }
