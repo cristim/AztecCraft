@@ -799,7 +799,11 @@ impl NativeScene {
             .try_reserve(self.dag.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
-            children.entry(edge.parent).or_default().push(edge.child);
+            let siblings = children.entry(edge.parent).or_default();
+            siblings
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            siblings.push(edge.child);
         }
         Ok(DagIndex {
             by_transform,
