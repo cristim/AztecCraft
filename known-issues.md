@@ -1027,11 +1027,14 @@ Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
 ## Creating N objects costs O(N^2)
 
 Each `NativeScene::create` runs a full `validate()` through `structural_edit`, so building N cubes one
-by one is O(N^2). `validate_dag` itself is linear in the edges since #345 (it builds an
-identity-to-edge and a parent-to-children index once per call instead of scanning `self.dag` for every
-identity and every pending parent), which took 4096 cubes from 36.7 s to 3.1 s in a release build. The
-remaining quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a
-large scene still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
+by one is O(N^2). `validate_dag` itself is linear in the edges since #345: it looks up transforms and
+each parent's children through the `NativeScene::dag_index` that `transform_paths` also uses (#347),
+and builds one identity-has-an-edge set, instead of scanning `self.dag` for every identity and every
+pending parent. In a release build one `validate()` measured about 9x for 8x the scene (512 to 4096
+cubes) against 45x before. `validate_indexes_the_dag_once_however_many_identities` pins one index
+build per validation; it does not catch a new per-identity scan added beside the index. The remaining
+quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a large scene
+still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
 
 ## Paged inspect cost and the decision not to cache transform paths
 

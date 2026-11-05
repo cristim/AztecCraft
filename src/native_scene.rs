@@ -785,6 +785,8 @@ impl NativeScene {
     /// Index the transform and parent relations once, for callers that would otherwise scan
     /// `nodes` or `dag` per lookup.
     pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        #[cfg(test)]
+        DAG_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
         let mut by_transform = HashMap::new();
         by_transform
             .try_reserve(self.nodes.len())
@@ -1863,4 +1865,5 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static DAG_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }

@@ -850,6 +850,24 @@ fn validate_accepts_a_large_flat_scene_and_still_refuses_a_broken_edge() {
     );
 }
 
+// #345: `validate_dag` runs on every structural edit, so it must index the dag once per call and
+// look up each identity's edge and each parent's children, rather than rescan `self.dag` per
+// identity. Counting index builds pins one per validation without a wall-clock assertion; it does
+// not catch a new per-identity `self.dag` scan beside the index, which only review guards.
+#[test]
+fn validate_indexes_the_dag_once_however_many_identities() {
+    for count in [1, 64] {
+        let scene = flat_cubes(count);
+        let before = DAG_INDEX_BUILDS.with(std::cell::Cell::get);
+        scene.validate().unwrap();
+        assert_eq!(
+            DAG_INDEX_BUILDS.with(std::cell::Cell::get) - before,
+            1,
+            "{count} cubes"
+        );
+    }
+}
+
 #[test]
 fn validate_walks_a_deep_parent_chain_to_every_descendant() {
     // A chain deeper than one level: only a walk that follows each parent's own children reaches
