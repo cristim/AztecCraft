@@ -123,6 +123,13 @@ remain authoritative; sibling commands, crate layouts and tooling are not implie
   (names, flags, defaults, return values) where that's safe. The inert-script
   rule above still applies: imported scene scripts and MEL are data, never
   executed.
+  - A `commandPort`-compatible listener is allowed on localhost, with a
+    configurable network interface. Binding beyond localhost needs an
+    explicit user setting, and the listener follows the automation rules
+    above: it's opt-in, uses the same typed operations and guards as MCP, and
+    never puts secrets in logs.
+  - Compatibility versions 2011 to 2021 emulate Python 2 semantics; 2022
+    onward use Python 3.
 - **Issue hygiene.** Put findings into the existing open issue that owns the
   feature. Append a dated "Maya <release> parity and version history" section
   with a gaps checklist, the version table and the sources, and never rewrite
