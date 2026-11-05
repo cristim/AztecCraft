@@ -132,6 +132,7 @@ impl Editor {
             Operation::RequestClose => None,
             Operation::SaveScene
             | Operation::SaveSceneAs { .. }
+            | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             _ => Some("Scene edited"),
         };
@@ -154,6 +155,16 @@ impl Editor {
             fixed,
         } = feedback;
         match result {
+            Ok(OperationReply::Exported {
+                objects,
+                vertices,
+                faces,
+            }) => {
+                self.status = format!(
+                    "Exported {objects} object(s), {vertices} vertices and {faces} faces to OBJ"
+                );
+                self.error = false;
+            }
             Ok(reply) => {
                 if let (Some(status), true) = (status, fixed) {
                     self.status = status.into();
@@ -306,6 +317,9 @@ impl Editor {
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
+        }
+        if let Operation::ExportObj { path, .. } = &operation {
+            super::features::obj_export::validate_export_path(path)?;
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
@@ -838,6 +852,11 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
+            Operation::ExportObj {
+                path,
+                selection_only,
+            } => return self.export_obj(&path, selection_only, may_install),
+
             Operation::SetCameraPose {
                 target,
                 distance,
