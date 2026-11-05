@@ -10,6 +10,17 @@ struct StatusFeedback {
     fixed: bool,
 }
 
+/// Radians for a rotation request in degrees. A request equal to the stored angle in degrees keeps
+/// the stored radians, because `to_degrees` then `to_radians` can land 1 ulp away.
+#[cfg(any(test, feature = "mcp"))]
+pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
+    if stored.to_degrees() == degrees {
+        stored
+    } else {
+        degrees.to_radians()
+    }
+}
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -127,6 +138,7 @@ impl Editor {
             Operation::RequestClose => None,
             Operation::SaveScene
             | Operation::SaveSceneAs { .. }
+            | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             _ => Some("Scene edited"),
         };
@@ -149,6 +161,16 @@ impl Editor {
             fixed,
         } = feedback;
         match result {
+            Ok(OperationReply::Exported {
+                objects,
+                vertices,
+                faces,
+            }) => {
+                self.status = format!(
+                    "Exported {objects} object(s), {vertices} vertices and {faces} faces to OBJ"
+                );
+                self.error = false;
+            }
             Ok(reply) => {
                 if let (Some(status), true) = (status, fixed) {
                     self.status = status.into();
@@ -243,6 +265,13 @@ impl Editor {
         result
     }
     #[cfg(any(test, feature = "mcp"))]
+    fn rotation_radians(&self, id: NodeId, axis: usize, degrees: f64) -> f64 {
+        match self.history.scene().node(id) {
+            Ok(node) => radians_keeping_stored(node.transform().rotation[axis], degrees),
+            Err(_) => degrees.to_radians(),
+        }
+    }
+    #[cfg(any(test, feature = "mcp"))]
     pub(super) fn transform_input(
         &self,
         transform: NativeTransform,
@@ -302,6 +331,9 @@ impl Editor {
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
+        }
+        if let Operation::ExportObj { path, .. } = &operation {
+            super::features::obj_export::validate_export_path(path)?;
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
@@ -606,7 +638,7 @@ impl Editor {
                     if let Some(value) = value {
                         let value = match self.history.scene().units().angular {
                             AngularUnit::Degree => value,
-                            AngularUnit::Radian => value.to_radians(),
+                            AngularUnit::Radian => self.rotation_radians(id, index, value),
                             AngularUnit::Unsupported(_) => {
                                 return Err(OperationError::InvalidInput(
                                     "Declared angular unit is unsupported".into(),
@@ -628,7 +660,9 @@ impl Editor {
             Operation::SetTransform { id, transform } => {
                 let rotation = match self.history.scene().units().angular {
                     AngularUnit::Degree => transform.rotation_degrees,
-                    AngularUnit::Radian => transform.rotation_degrees.map(f64::to_radians),
+                    AngularUnit::Radian => std::array::from_fn(|axis| {
+                        self.rotation_radians(id, axis, transform.rotation_degrees[axis])
+                    }),
                     AngularUnit::Unsupported(_) => {
                         return Err(OperationError::InvalidInput(
                             "Declared angular unit is unsupported".into(),
@@ -877,6 +911,11 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
+            Operation::ExportObj {
+                path,
+                selection_only,
+            } => return self.export_obj(&path, selection_only, may_install),
+
             Operation::SetCameraPose {
                 target,
                 distance,
