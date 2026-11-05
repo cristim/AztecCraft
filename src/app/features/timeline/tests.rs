@@ -82,6 +82,54 @@ fn the_workflow_keys_scrubs_and_undoes_through_the_shared_pipeline() {
     assert_eq!(tx(&editor, id), 12.0);
 }
 
+/// Refs #361: Undo and Redo give back the recorded state; a held edit is not re-evaluated away
+/// while the time has not moved.
+#[test]
+fn undo_and_redo_of_a_held_edit_restore_it_at_an_unchanged_time() {
+    let (mut editor, id) = cube();
+    key(&mut editor).unwrap();
+    set_tx(&mut editor, id, 5.0);
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert_eq!(tx(&editor, id), 0.0);
+    assert!(matches!(
+        editor.apply_operation(Operation::Redo),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(tx(&editor, id), 5.0);
+
+    editor.apply_operation(Operation::Undo).unwrap();
+    key(&mut editor).unwrap();
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert_eq!(
+        tx(&editor, id),
+        0.0,
+        "undoing the key restores its snapshot"
+    );
+}
+
+#[test]
+fn undo_of_a_key_restores_a_held_edit_made_before_it() {
+    let (mut editor, id) = cube();
+    key(&mut editor).unwrap();
+    set_tx(&mut editor, id, 5.0);
+    key(&mut editor).unwrap();
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert_eq!(tx(&editor, id), 5.0);
+}
+
+#[test]
+fn undo_and_redo_after_a_time_change_still_evaluate_at_the_current_time() {
+    let (mut editor, id) = cube();
+    key(&mut editor).unwrap();
+    set_tx(&mut editor, id, 5.0);
+    go(&mut editor, 30.0).unwrap();
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert_eq!(editor.timeline.current, 30);
+    assert_eq!(tx(&editor, id), 0.0);
+    editor.apply_operation(Operation::Redo).unwrap();
+    assert_eq!(tx(&editor, id), 0.0);
+}
+
 #[test]
 fn a_time_change_is_no_undo_step_and_does_not_dirty_a_scene_without_keys() {
     let mut editor = Editor::default();

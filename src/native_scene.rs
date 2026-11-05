@@ -27,8 +27,8 @@ pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_keys::SessionKeys;
 pub use session_keys::{
-    ALL_CHANNELS, ChannelMask, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME, MAX_SESSION_KEYS,
-    whole_frame,
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
+    MAX_SESSION_KEYS, whole_frame,
 };
 use session_material::SessionMaterials;
 pub use session_material::{

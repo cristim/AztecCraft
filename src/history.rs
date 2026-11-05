@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
-        ChannelMask, MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform,
-        SessionMaterialId,
+        ChannelMask, DEFAULT_FRAME, MaterialChoice, NativeError, NativeId, NativeScene,
+        NativeTransform, SessionMaterialId,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -124,6 +124,8 @@ fn transform_label(before: &NativeTransform, after: &NativeTransform) -> &'stati
 struct Entry {
     scene: NativeScene,
     label: String,
+    /// The frame `scene`'s keyed channels were last evaluated at.
+    pose_frame: i32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -138,7 +140,6 @@ pub enum EditOutcome {
 /// (Preferences > Undo > Queue size = 50). Older steps are dropped silently.
 pub const UNDO_LIMIT: usize = 50;
 
-#[derive(Default)]
 pub struct History {
     scene: NativeScene,
     undo: VecDeque<Entry>,
@@ -148,6 +149,15 @@ pub struct History {
     /// Counts every write to `scene`, so a reader can tell that the scene changed between two
     /// reads. Replacing the whole `History` starts again at 0.
     revision: u64,
+    /// The frame the scene's keyed channels were last evaluated at, so Undo and Redo can tell a
+    /// restored snapshot that is stale for the current time from one that already is current.
+    pose_frame: i32,
+}
+
+impl Default for History {
+    fn default() -> Self {
+        Self::new(NativeScene::default())
+    }
 }
 
 impl History {
@@ -159,7 +169,13 @@ impl History {
             active_manipulation: None,
             next_manipulation_id: 0,
             revision: 0,
+            pose_frame: DEFAULT_FRAME,
         }
+    }
+
+    /// The frame the scene's keyed channels were last evaluated at.
+    pub fn pose_frame(&self) -> i32 {
+        self.pose_frame
     }
 
     pub fn scene(&self) -> &NativeScene {
@@ -305,6 +321,7 @@ impl History {
         self.undo.push_back(Entry {
             scene: previous,
             label,
+            pose_frame: self.pose_frame,
         });
         self.redo.clear();
         Ok(outcome)
@@ -318,6 +335,7 @@ impl History {
             return Err(NativeError::BusyManipulation);
         }
         let writes = self.scene.evaluated_writes(frame)?;
+        self.pose_frame = frame;
         if writes.is_empty() {
             return Ok(false);
         }
@@ -335,7 +353,9 @@ impl History {
         self.redo.push(Entry {
             scene: self.scene.clone(),
             label: previous.label,
+            pose_frame: self.pose_frame,
         });
+        self.pose_frame = previous.pose_frame;
         self.scene_mut().restore_authoring(previous.scene);
         true
     }
@@ -350,7 +370,9 @@ impl History {
         self.undo.push_back(Entry {
             scene: self.scene.clone(),
             label: next.label,
+            pose_frame: self.pose_frame,
         });
+        self.pose_frame = next.pose_frame;
         self.scene_mut().restore_authoring(next.scene);
         true
     }

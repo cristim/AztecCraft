@@ -13,6 +13,8 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 /// Bound on keys per scene, so undo snapshots and a playback tick stay small.
 pub const MAX_SESSION_KEYS: usize = 1 << 16;
 /// Bound on frames, an AztecCraft choice. It keeps every frame inside `i32` arithmetic.
+/// The frame a new timeline starts at, and the frame a new `History` counts its pose from.
+pub const DEFAULT_FRAME: i32 = 1;
 pub const MAX_FRAME: i32 = 1_000_000;
 
 /// The keyable channels, in `NativeTransform::values` order.

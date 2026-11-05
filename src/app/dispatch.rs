@@ -831,8 +831,9 @@ impl Editor {
                 } else {
                     self.history.undo()
                 };
-                // The restored snapshot holds the pose of its own time, not the current one.
-                let evaluated = if changed {
+                // A snapshot taken at another time holds that time's pose, so it is re-evaluated;
+                // one taken at the current time is the recorded state, held edits included.
+                let evaluated = if changed && self.history.pose_frame() != self.timeline.current {
                     self.history.apply_evaluated(self.timeline.current)
                 } else {
                     Ok(false)

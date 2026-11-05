@@ -9,7 +9,7 @@ use azteccraft::native_scene::{ALL_CHANNELS, ChannelMask, NativeError, whole_fra
 pub(in crate::app) const FRAMES_PER_SECOND: f64 = 24.0;
 /// The Maya 2027 New Scene Options default animation start and end. The docs state no playback
 /// range default, so this range starts equal to them (PROVISIONAL).
-const DEFAULT_START: i32 = 1;
+const DEFAULT_START: i32 = azteccraft::native_scene::DEFAULT_FRAME;
 const DEFAULT_END: i32 = 48;
 
 pub(in crate::app) struct Timeline {
