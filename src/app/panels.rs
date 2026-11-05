@@ -464,10 +464,12 @@ impl Editor {
             let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
                 Ok(view) => view,
                 Err(e) => {
-                    if matches!(e, azteccraft::view_scene::ViewError::ResourceLimit) {
-                        self.viewport_error =
-                            Some(crate::viewport_renderer::ViewportError::ResourceLimit);
-                    }
+                    self.viewport_error = Some(match e {
+                        azteccraft::view_scene::ViewError::ResourceLimit => {
+                            crate::viewport_renderer::ViewportError::ResourceLimit
+                        }
+                        _ => crate::viewport_renderer::ViewportError::SceneGeometry,
+                    });
                     // No handles are painted this frame, so the capture must not outlive them.
                     self.missing_move_viewport()?;
                     return Err(OperationError::View(e.to_string()));

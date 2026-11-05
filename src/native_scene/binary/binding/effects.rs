@@ -13,7 +13,7 @@ pub(super) fn key<'a>(
     Ok(&payload[..end])
 }
 
-fn normalized(key: &[u8], pattern: &[&[u8]]) -> bool {
+pub(in crate::native_scene::binary) fn normalized(key: &[u8], pattern: &[&[u8]]) -> bool {
     let mut pieces = key.split(|byte| *byte == b'.');
     for expected in pattern {
         let Some(piece) = pieces.next() else {
