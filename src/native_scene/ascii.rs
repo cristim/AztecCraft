@@ -1067,6 +1067,7 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
     let dag = add(transforms, curves)?;
     let records = add(statements.len(), usize::from(!trailing.is_empty()))?;
     let mut retention = SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: source.clone(),
         format: SourceFormat::Ascii,

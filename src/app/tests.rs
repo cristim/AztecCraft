@@ -6432,16 +6432,36 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
 /// A group (translate x = 2) holding a child transform that owns one triangle mesh.
 /// Mirrored by `grouped_scene_bytes()` in src/mcp_tests/official_client/selection.rs; this module builds without the mcp feature, so the builder cannot be shared.
 fn group_editor() -> Editor {
-    nested_group_editor(&[b"child"])
+    nested_group_editor(&[b"child"], &[])
+}
+
+/// A script text mentioning `node`; the file refers to it by name, so Delete refuses it.
+fn selection_naming(node: &[u8]) -> Vec<u8> {
+    use material_wire as wire;
+    wire::group(
+        b"DPLM",
+        &wire::chunk(b"STR ", &[b"note\0see ", node, b"\0"].concat(), 8),
+        4,
+    )
+}
+
+/// `group_editor()` whose child a selection record names, so deleting it is refused.
+pub(in crate::app) fn linked_group_editor() -> Editor {
+    nested_group_editor(&[b"child"], &selection_naming(b"child"))
+}
+
+/// `deep_group_editor()` with the same refusing record on the deepest transform.
+pub(in crate::app) fn linked_deep_group_editor() -> Editor {
+    nested_group_editor(&[b"mid", b"child"], &selection_naming(b"child"))
 }
 
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
 pub(in crate::app) fn deep_group_editor() -> Editor {
-    nested_group_editor(&[b"mid", b"child"])
+    nested_group_editor(&[b"mid", b"child"], &[])
 }
 
 /// A group (translate x = 2) holding the chain `names` of transforms; the last owns one triangle mesh.
-fn nested_group_editor(names: &[&[u8]]) -> Editor {
+fn nested_group_editor(names: &[&[u8]], extra: &[u8]) -> Editor {
     use material_wire as wire;
     let mut parent: &[u8] = b"group";
     let mut chain = wire::group(
@@ -6466,6 +6486,7 @@ fn nested_group_editor(names: &[&[u8]]) -> Editor {
         .concat(),
         4,
     ));
+    chain.extend(extra);
     let scene = azteccraft::native_scene::binary::decode(wire::scene(&chain)).unwrap();
     Editor {
         history: History::new(scene),
@@ -6576,8 +6597,8 @@ fn hierarchy_click_in_a_three_level_chain_selects_the_root_not_the_parent() {
 }
 
 #[test]
-fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
-    let mut editor = group_editor();
+fn delete_of_a_linked_child_is_a_typed_error_without_mutation_in_hierarchy_mode() {
+    let mut editor = linked_group_editor();
     let root = editor.history.scene().transform_paths().unwrap()[0].node;
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     editor.native_operation(Operation::Select {
@@ -6598,29 +6619,23 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         )
     };
     let baseline = state(&editor);
-    for (node, message) in [
-        (root, "Deleting a node with children is not supported yet"),
-        (
-            child,
-            "Deleting a node that has a parent is not supported yet",
-        ),
-    ] {
-        let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
-        assert!(matches!(
-            error,
-            OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
-        ));
-        assert_eq!(error.to_string(), message);
-        editor.native_operation(Operation::Delete(node));
-        assert_eq!(editor.status, message);
-        assert!(editor.error);
-        assert_eq!(
-            state(&editor),
-            baseline,
-            "selection, history and dirty flag"
-        );
-        assert_eq!(editor.history.scene(), &scene);
-    }
+    let node = child;
+    let message = "Deleting this node is not supported yet: A script or text value in the file mentions this node";
+    let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
+    assert!(matches!(
+        error,
+        OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
+    ));
+    assert_eq!(error.to_string(), message);
+    editor.native_operation(Operation::Delete(node));
+    assert_eq!(editor.status, message);
+    assert!(editor.error);
+    assert_eq!(
+        state(&editor),
+        baseline,
+        "selection, history and dirty flag"
+    );
+    assert_eq!(editor.history.scene(), &scene);
 }
 
 #[test]
@@ -11211,4 +11226,26 @@ mod frame_members {
         face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
         assert_eq!(editor.camera, expected);
     }
+}
+
+#[test]
+fn radians_keeping_stored_never_perturbs_an_unchanged_rotation() {
+    let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+    let mut drifted = 0;
+    for _ in 0..100_000 {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let stored = (state as f64 / u64::MAX as f64 - 0.5) * 20.0;
+        drifted += usize::from(stored.to_degrees().to_radians() != stored);
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, stored.to_degrees()).to_bits(),
+            stored.to_bits()
+        );
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, 12.5),
+            12.5_f64.to_radians()
+        );
+    }
+    assert!(drifted > 0, "the sample no longer exercises the drift");
 }
