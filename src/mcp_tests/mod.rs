@@ -146,6 +146,7 @@ mod official_client {
     mod subtree_delete;
     mod tool_handle;
     mod tool_space;
+    mod uv;
     mod vertex_edge;
 
     async fn call_response(

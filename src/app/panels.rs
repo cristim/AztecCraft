@@ -318,6 +318,7 @@ impl Editor {
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());
         self.extrude_options_window(ui.ctx());
+        self.uv_windows(ui.ctx());
         let sidebar_request = self.sidebar_panel_request.take();
         let tab_request = self.attribute_editor_tab_request.take();
         if grid_requested && self.scene_token == frame_token {
