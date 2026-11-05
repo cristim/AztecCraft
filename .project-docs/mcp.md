@@ -538,12 +538,14 @@ Outcome: the registered catalogue covers every implemented file, creation, selec
 ## World-axis Move candidate
 
 Select and Move are real native tools, activated with their vector buttons or
-unmodified Q/W outside text fields and dialogs. Move supports one selected full
-transform instance in object mode, with World X/Y/Z shafts only. Rotation, scale,
-plane/center handles, components, snapping, alternate orientations and modified
-drags remain unsupported. Unsupported transforms, driven data, selected pivots,
-unstable parents and source translations without retained existing words refuse
-the gesture. This is a bounded application policy, not verified Maya parity.
+unmodified Q/W outside text fields and dialogs. Move supports one or more selected
+full transform instances in object mode, with World X/Y/Z shafts only. Rotation,
+scale, plane/center handles, components, snapping, alternate orientations and
+modified drags remain unsupported by Move. If any independently moved object has an
+unsupported transform, driven data, a selected pivot, an unstable parent or a source
+translation without a retained existing word, the whole gesture is refused. A
+refused press consumes the pointer sequence, so it does not fall through to another
+tool or to selection. This is a bounded application policy, not verified Maya parity.
 
 The three manipulation tools share native Editor operations and one canonical History
 transaction for Move, Rotate and Scale. `begin_manipulation` returns a decimal
