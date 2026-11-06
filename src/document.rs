@@ -297,7 +297,12 @@ fn load_native_with(
             Ok(ascii::AsciiDecoded::Retained(scene)) => scene,
             // View only until Save arrives: the proved projection opens without a retained
             // source and keeps the read-only Ascii origin.
-            Ok(ascii::AsciiDecoded::Authored(projection)) => projection.into_scene(),
+            Ok(ascii::AsciiDecoded::Authored(projection)) => {
+                let mut scene = projection.into_scene();
+                // T5 removes this when Save for reopened files lands (#321).
+                scene.mark_view_only();
+                scene
+            }
             Err(ascii::AsciiDocumentError::Ascii(error)) => {
                 return Err(NativeLoadError::Ascii(error));
             }
@@ -527,6 +532,7 @@ mod native_open_tests {
         assert!(matches!(document.origin, NativeOrigin::Ascii(_)));
         assert!(!document.origin.active_save_available());
         assert!(!document.origin.save_as_available());
+        assert!(document.scene.authoring_read_only_reason().is_some());
         assert_eq!(document.scene.shapes().len(), 1);
         assert_eq!(document.scene.nodes()[0].name(), "box");
         let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();

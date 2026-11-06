@@ -1166,6 +1166,41 @@ fn native_open_of_an_authored_ma_shows_its_mesh_and_claims_no_save() {
 }
 
 #[test]
+fn a_reopened_authored_ma_refuses_native_edits_and_stays_clean() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("authored.ma");
+    let mut authored = Editor::default();
+    authored.create(Primitive::Cube);
+    authored
+        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let inspection = editor.inspect(false).unwrap();
+    assert!(inspection.read_only_reason.unwrap().contains("read-only"));
+    let before = editor.history.scene().clone();
+    let id = editor.history.scene().nodes()[0].id();
+    for operation in [
+        Operation::Create {
+            primitive: Primitive::Cube,
+            name: None,
+            options: None,
+        },
+        Operation::Rename {
+            id,
+            name: "renamed".into(),
+        },
+        Operation::Delete(id),
+    ] {
+        assert!(remote(&mut editor, operation).is_err());
+    }
+    assert_eq!(editor.history.scene(), &before);
+    assert!(!editor.is_dirty() && !editor.history.can_undo());
+}
+
+#[test]
 fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claims() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("curve.ma");

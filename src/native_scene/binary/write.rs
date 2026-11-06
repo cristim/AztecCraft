@@ -136,6 +136,8 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Session UVs make `check_content_kind` refuse the scene (`UnsupportedMeshChannels`),
         // so none reach this writer.
         session_uvs: _,
+        // Refused by `check_content_kind`: a view-only scene is not an authored document yet.
+        view_only: _,
     } = scene;
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);

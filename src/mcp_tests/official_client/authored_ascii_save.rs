@@ -213,6 +213,24 @@ async fn authored_ascii_sdk_open_and_inspect_show_the_mesh_and_refuse_a_hand_edi
         node["id"].as_str().unwrap()
     );
 
+    for (name, args) in [
+        ("rename_node", json!({"node_id":node["id"],"name":"nope"})),
+        ("create_primitive", json!({"primitive":"cube"})),
+        ("delete_node", json!({"node_id":node["id"]})),
+    ] {
+        let refused = tool(&mut editor, &context, &client, name, args).await;
+        assert_eq!(refused["error"]["code"], "scene_error", "{name}");
+        assert!(
+            refused["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("read-only")
+        );
+    }
+    assert!(!editor.is_dirty() && !editor.history.can_undo());
+    let reason = inspection["read_only_reason"].as_str().unwrap();
+    assert!(reason.contains("read-only"), "{reason}");
+
     let mut edited = bytes.clone();
     edited.extend_from_slice(b"// hand edit\n");
     let hand = directory.path().join("hand.ma");

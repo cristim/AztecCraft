@@ -77,7 +77,7 @@ pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>
 
 /// The first checks: a retained source or curve content cannot be written as authored.
 pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
-    if scene.source.is_some() {
+    if scene.source.is_some() || scene.view_only {
         return Err(AuthoredIneligible::SourcedScene);
     }
     if !scene.curves.is_empty() {
