@@ -550,3 +550,33 @@ async fn animation_sdk_a_full_key_table_answers_key_limit_and_changes_nothing() 
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn animation_sdk_a_scene_in_another_time_unit_refuses_every_time_tool() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    // The ASCII reader only takes film, so patch the one TUNI token of a committed Maya Binary
+    // fixture from film to ntsc (the same four bytes).
+    let mut bytes =
+        include_bytes!("../../../tests/fixtures/mayascenekit/file_owner_delete.mb").to_vec();
+    let at = bytes.windows(4).position(|word| word == b"film").unwrap();
+    bytes[at..at + 4].copy_from_slice(b"ntsc");
+    let scene = azteccraft::native_scene::binary::decode(bytes.into()).unwrap();
+    assert_eq!(scene.units().time, "ntsc");
+    editor.history = azteccraft::history::History::new(scene);
+    let id = editor.history.scene().nodes()[0].id().to_decimal();
+    for (name, args) in [
+        ("set_current_time", json!({"time": 2})),
+        ("set_playback_range", json!({"start": 1, "end": 5})),
+        ("play_timeline", json!({})),
+        ("set_keyframe", json!({"node_ids": [id.clone()]})),
+        ("delete_keys", json!({"node_ids": [id.clone()]})),
+    ] {
+        let refused = tool(&mut editor, &context, &client, name, args).await;
+        assert_eq!(refused.is_error, Some(true), "{name}");
+        assert_eq!(error_code(&refused), "unsupported_time_unit", "{name}");
+    }
+    assert_eq!(editor.timeline.current, 1);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
