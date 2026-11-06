@@ -326,3 +326,16 @@ fn deleting_nothing_does_not_re_evaluate_over_a_held_edit() {
     assert_eq!(scene, before.clone());
     assert_eq!(tx(&scene, id), 99.0);
 }
+
+#[test]
+fn an_empty_table_still_refuses_a_frame_outside_the_bound() {
+    let scene = NativeScene::default();
+    assert!(scene.evaluated_writes(1).unwrap().is_empty());
+    assert!(matches!(
+        scene.evaluated_writes(MAX_FRAME + 1),
+        Err(NativeError::InvalidFrame)
+    ));
+    let mut history = crate::history::History::new(scene);
+    assert!(history.apply_evaluated(i32::MAX).is_err());
+    assert_eq!(history.pose_frame(), DEFAULT_FRAME);
+}

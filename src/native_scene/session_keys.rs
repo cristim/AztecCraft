@@ -320,11 +320,11 @@ impl NativeScene {
         frame: i32,
         only: Option<(&[NodeId], ChannelMask)>,
     ) -> Result<EvaluatedWrites, NativeError> {
+        check_frame(frame)?;
         let mut writes = Vec::new();
         if keys.is_empty() {
             return Ok(EvaluatedWrites(writes));
         }
-        check_frame(frame)?;
         let only = only.map(|(nodes, mask)| (nodes.iter().copied().collect::<HashSet<_>>(), mask));
         let indices: HashMap<NodeId, usize> = self
             .nodes
