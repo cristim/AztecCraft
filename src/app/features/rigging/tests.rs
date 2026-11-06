@@ -515,3 +515,41 @@ fn the_last_menu_set_key_of_a_frame_wins() {
     run(&mut editor, &ctx, vec![key(Key::F3), key(Key::F2)]);
     assert_eq!(editor.menu_set, MenuSet::Modeling);
 }
+
+#[test]
+fn escape_keeps_the_relative_order_of_the_two_windows_under_a_third_window_in_front() {
+    let (mut editor, ctx) = setup();
+    open_both(&mut editor, &ctx, false);
+    // A third window raised above both becomes the topmost window layer.
+    let third = egui::Id::new("third_window");
+    let frame = |editor: &mut Editor, events: Vec<Event>| {
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SIZE)),
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            editor.render(ui);
+            egui::Window::new("third")
+                .id(third)
+                .fixed_pos(Pos2::new(700.0, 500.0))
+                .fixed_size(Vec2::splat(20.0))
+                .show(ui.ctx(), |ui| {
+                    ui.label("x");
+                });
+        });
+        output.textures_delta.clear();
+    };
+    frame(&mut editor, vec![]);
+    frame(&mut editor, vec![]);
+    ctx.move_to_top(egui::LayerId::new(egui::Order::Middle, third));
+    frame(&mut editor, vec![]);
+    assert_eq!(
+        ctx.memory(|memory| memory.areas().top_layer_id(egui::Order::Middle)),
+        Some(egui::LayerId::new(egui::Order::Middle, third))
+    );
+    frame(&mut editor, vec![key(Key::Escape)]);
+    // The joint window was opened last, so it is in front of the primitive window.
+    assert!(editor.primitive_options.is_open());
+    assert!(editor.joint_options.dialog.is_none());
+}

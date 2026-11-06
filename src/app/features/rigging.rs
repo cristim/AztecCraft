@@ -56,7 +56,7 @@ fn joint_field_id(index: usize) -> egui::Id {
     egui::Id::new(("joint_option", index))
 }
 
-pub(in crate::app) fn window_id() -> egui::Id {
+fn window_id() -> egui::Id {
     egui::Id::new("joint_options_window")
 }
 
@@ -100,6 +100,10 @@ pub(in crate::app) struct JointOptionsUi {
     dialog: Option<Dialog>,
     /// Any text field held focus at the end of the last frame; see `PrimitiveOptionsUi`.
     typing: bool,
+    /// The joint window was the topmost of the two option windows the last time either was the
+    /// topmost window layer. egui exposes only the global top, and a window changes order only by
+    /// being raised to the top, so this stays exact while a third window is in front.
+    joint_over_primitive: bool,
 }
 
 /// What Create would do with the current selection, or why it cannot.
@@ -166,18 +170,24 @@ impl Editor {
         closes
     }
 
-    /// Escape closes one option window: the frontmost by egui's layer order, so a window the user
-    /// just opened or clicked closes before one behind it.
+    /// Records which option window was raised last; call once per frame before Escape is read.
+    pub(in crate::app) fn note_front_options_window(&mut self, ctx: &egui::Context) {
+        let top = ctx.memory(|memory| memory.areas().top_layer_id(egui::Order::Middle));
+        if top == Some(egui::LayerId::new(egui::Order::Middle, window_id())) {
+            self.joint_options.joint_over_primitive = true;
+        } else if top.is_some() && top == self.primitive_options.open_window_layer() {
+            self.joint_options.joint_over_primitive = false;
+        }
+    }
+
+    /// Escape closes one option window: the one raised last, so a window the user just opened or
+    /// clicked closes before one behind it, whatever third window is in front.
     pub(in crate::app) fn escape_closes_frontmost_options_window(
         &mut self,
         ctx: &egui::Context,
     ) -> bool {
-        // egui's topmost window layer; when neither option window is it, the primitive window
-        // keeps the order it had before this check existed.
-        let top = ctx.memory(|memory| memory.areas().top_layer_id(egui::Order::Middle));
         let joint_in_front = self.joint_options.dialog.is_some()
-            && (!self.primitive_options.is_open()
-                || top == Some(egui::LayerId::new(egui::Order::Middle, window_id())));
+            && (!self.primitive_options.is_open() || self.joint_options.joint_over_primitive);
         if joint_in_front {
             self.escape_closes_joint_window(ctx)
         } else {
