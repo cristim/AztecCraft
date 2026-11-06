@@ -573,18 +573,27 @@ impl Editor {
                 ui.weak("Keys are session-only and block Save");
             });
         });
-        if let Some(text) = typed_time {
-            match text.parse::<f64>() {
-                Ok(frame) if frame.fract() == 0.0 && frame.abs() <= 2_147_483_647.0 => {
-                    action = Some(TimelineAction::GoTo(frame as i32));
-                }
-                _ => self.refuse_frame_text(),
-            }
-        }
         if let Some((start, end)) = typed_range {
             match (start.parse::<f64>(), end.parse::<f64>()) {
                 (Ok(start), Ok(end)) => {
                     self.native_operation(Operation::SetPlaybackRange { start, end });
+                }
+                _ => self.refuse_frame_text(),
+            }
+        }
+        self.run_frame_requests(typed_time, action);
+    }
+
+    /// A frame's typed time runs first, then the click, so neither replaces the other.
+    pub(in crate::app) fn run_frame_requests(
+        &mut self,
+        typed_time: Option<String>,
+        action: Option<TimelineAction>,
+    ) {
+        if let Some(text) = typed_time {
+            match text.parse::<f64>() {
+                Ok(frame) if frame.fract() == 0.0 && frame.abs() <= 2_147_483_647.0 => {
+                    self.run_timeline_action(TimelineAction::GoTo(frame as i32));
                 }
                 _ => self.refuse_frame_text(),
             }

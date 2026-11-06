@@ -1164,3 +1164,26 @@ fn a_refused_re_evaluation_after_undo_survives_the_status_feedback_native_and_re
     assert!(!plain.error);
     assert!(plain.status_message().unwrap().starts_with("Undo "));
 }
+
+#[test]
+fn a_typed_time_is_applied_before_a_click_in_the_same_frame() {
+    let (mut editor, id) = keyed();
+    editor.run_frame_requests(Some("13".into()), Some(TimelineAction::SetKey));
+    assert_eq!(editor.timeline.current, 13);
+    assert!(editor.history.scene().key_frames(&[id]).contains(&13));
+
+    editor.run_frame_requests(Some("5".into()), Some(TimelineAction::DeleteKey));
+    assert_eq!(editor.timeline.current, 5);
+    assert!(editor.history.scene().key_frames(&[id]).contains(&13));
+
+    editor.run_frame_requests(Some("13".into()), Some(TimelineAction::DeleteKey));
+    assert!(!editor.history.scene().key_frames(&[id]).contains(&13));
+
+    editor.run_frame_requests(Some("2".into()), Some(TimelineAction::TogglePlay));
+    assert_eq!(editor.timeline.current, 2);
+    assert!(editor.timeline.playing);
+
+    editor.run_frame_requests(Some("1.5".into()), None);
+    assert!(editor.error);
+    assert_eq!(editor.timeline.current, 2);
+}
