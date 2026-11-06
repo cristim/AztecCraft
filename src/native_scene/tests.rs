@@ -1998,3 +1998,20 @@ fn siblings_are_deleted_together_and_the_parent_survives() {
         assert!(both.node(root).is_ok());
     }
 }
+
+#[test]
+fn edit_nodes_refuses_a_member_with_unproved_effects_and_leaves_it_unchanged() {
+    // Earlier members may stay edited (callers use a candidate clone); the refused one must not.
+    let (mut scene, _) = cube();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let bad = scene.create(Primitive::Cube, "bad").unwrap();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    let before = scene.node(bad).unwrap().clone();
+    let moved = [Some(1.0), None, None, None, None, None, None, None, None];
+
+    assert_eq!(
+        scene.edit_nodes(&[(first, moved), (bad, moved)]),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene.node(bad).unwrap(), &before);
+}
