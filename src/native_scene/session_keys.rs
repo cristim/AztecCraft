@@ -208,6 +208,7 @@ impl NativeScene {
     ) -> Result<(), NativeError> {
         self.check_time_unit()?;
         check_frame(frame)?;
+        check_frame(current_frame)?;
         self.structural_edit()?;
         let mut unique = HashSet::new();
         let mut targets = Vec::new();
@@ -239,16 +240,21 @@ impl NativeScene {
         if self.session_keys.len().saturating_add(added) > MAX_SESSION_KEYS {
             return Err(NativeError::KeyLimit);
         }
+        if !channels.contains(&true) {
+            return Ok(());
+        }
+        let touched: Vec<NodeId> = targets.iter().map(|(id, _)| *id).collect();
+        let mut keys = self.session_keys.clone();
         for (id, values) in &targets {
-            let curves = self.session_keys.curves.entry(*id).or_default();
+            let curves = keys.curves.entry(*id).or_default();
             for (channel, keyed) in channels.iter().enumerate() {
                 if *keyed {
                     curves[channel].insert(frame, values[channel]);
                 }
             }
         }
-        let touched: Vec<NodeId> = targets.iter().map(|(id, _)| *id).collect();
-        let writes = self.evaluated_writes_for(current_frame, Some((&touched, channels)))?;
+        let writes = self.evaluated_writes_for(&keys, current_frame, Some((&touched, channels)))?;
+        self.session_keys = keys;
         self.apply_evaluated(writes);
         Ok(())
     }
@@ -267,12 +273,14 @@ impl NativeScene {
         if let Some(frame) = frame {
             check_frame(frame)?;
         }
+        check_frame(current_frame)?;
         self.structural_edit()?;
         for id in nodes {
             self.node(*id)?;
         }
+        let mut keys = self.session_keys.clone();
         for id in nodes {
-            let Some(curves) = self.session_keys.curves.get_mut(id) else {
+            let Some(curves) = keys.curves.get_mut(id) else {
                 continue;
             };
             for (curve, keyed) in curves.iter_mut().zip(channels) {
@@ -285,10 +293,11 @@ impl NativeScene {
                 }
             }
             if curves.iter().all(BTreeMap::is_empty) {
-                self.session_keys.curves.remove(id);
+                keys.curves.remove(id);
             }
         }
-        let writes = self.evaluated_writes_for(current_frame, Some((nodes, channels)))?;
+        let writes = self.evaluated_writes_for(&keys, current_frame, Some((nodes, channels)))?;
+        self.session_keys = keys;
         self.apply_evaluated(writes);
         Ok(())
     }
@@ -296,29 +305,33 @@ impl NativeScene {
     /// What evaluating every keyed channel at `frame` would write. A channel already at its value
     /// writes nothing.
     pub fn evaluated_writes(&self, frame: i32) -> Result<EvaluatedWrites, NativeError> {
-        self.evaluated_writes_for(frame, None)
+        self.evaluated_writes_for(&self.session_keys, frame, None)
     }
 
+    /// Evaluates `keys`, which a command passes before it installs them, so a refusal leaves the
+    /// scene's own table untouched.
     fn evaluated_writes_for(
         &self,
+        keys: &SessionKeys,
         frame: i32,
         only: Option<(&[NodeId], ChannelMask)>,
     ) -> Result<EvaluatedWrites, NativeError> {
         let mut writes = Vec::new();
-        if self.session_keys.is_empty() {
+        if keys.is_empty() {
             return Ok(EvaluatedWrites(writes));
         }
         check_frame(frame)?;
+        let only = only.map(|(nodes, mask)| (nodes.iter().copied().collect::<HashSet<_>>(), mask));
         let indices: HashMap<NodeId, usize> = self
             .nodes
             .iter()
             .enumerate()
             .map(|(index, node)| (node.id, index))
             .collect();
-        for (id, curves) in &self.session_keys.curves {
-            let mask = match only {
+        for (id, curves) in &keys.curves {
+            let mask = match &only {
                 Some((nodes, _)) if !nodes.contains(id) => continue,
-                Some((_, mask)) => mask,
+                Some((_, mask)) => *mask,
                 None => ALL_CHANNELS,
             };
             let index = *indices.get(id).ok_or(NativeError::InvalidSessionKeys)?;

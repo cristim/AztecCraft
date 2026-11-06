@@ -280,3 +280,30 @@ fn a_write_keeps_the_other_channels_of_the_node() {
         [2.0, 4.0, 5.0]
     );
 }
+
+#[test]
+fn a_refused_evaluation_leaves_the_key_table_and_scene_unchanged() {
+    let (mut scene, id) = keyed_cube();
+    let before = scene.clone();
+    assert_eq!(
+        scene.set_keys(&[id], 8, FX, MAX_FRAME + 1),
+        Err(NativeError::InvalidFrame)
+    );
+    assert_eq!(scene, before);
+    assert_eq!(
+        scene.delete_keys(&[id], Some(1), FX, MAX_FRAME + 1),
+        Err(NativeError::InvalidFrame)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn an_empty_channel_mask_keys_nothing_and_leaves_a_valid_table() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    let before = scene.clone();
+    scene.set_keys(&[id], 1, [false; 9], 1).unwrap();
+    assert_eq!(scene.session_key_count(), 0);
+    assert_eq!(scene, before);
+    scene.session_keys.validate(&scene.nodes, false).unwrap();
+}
