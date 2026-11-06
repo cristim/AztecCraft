@@ -10,6 +10,67 @@ fn an_invalid_instance_path_error_names_no_target_kind() {
 }
 
 #[test]
+fn a_refused_multi_delete_names_the_refusing_node() {
+    let (mut scene, _) = cube();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let bad = scene.create(Primitive::Cube, "bad").unwrap();
+    let last = scene.create(Primitive::Cube, "last").unwrap();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    let before = scene.clone();
+
+    let error = scene.remove_many(&[first, bad, last]).unwrap_err();
+
+    assert_eq!(
+        error,
+        NativeError::DeleteMemberRefused {
+            node: "bad".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "bad: native ownership or edit effects are unsupported"
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn two_independently_refused_members_leave_the_refusal_unnamed() {
+    let (mut scene, first) = cube();
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    let fine = scene.create(Primitive::Cube, "fine").unwrap();
+    test_fixtures::restrict_transform(&mut scene, first);
+    test_fixtures::restrict_transform(&mut scene, second);
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[first, second, fine]),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_refusal_name_is_bounded_on_a_character_boundary_without_control_characters() {
+    let plain = "a".repeat(MAX_REFUSAL_NAME_BYTES);
+    assert_eq!(refusal_name(&plain), plain);
+    assert_eq!(refusal_name(&format!("{plain}a")), plain);
+    let wide = format!("{}é", "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name(&wide), "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name("a\nb\u{7}c"), "abc");
+    assert_eq!(refusal_name(""), "");
+}
+
+#[test]
+fn a_refused_delete_of_one_distinct_node_keeps_the_plain_error() {
+    let (mut scene, bad) = cube();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    assert_eq!(
+        scene.remove_many(&[bad, bad]),
+        Err(NativeError::UnsupportedEdit)
+    );
+}
+
+#[test]
 fn transform_path_discovery_includes_hidden_groups_and_every_transform_instance() {
     let (mut scene, root, child, _) = test_fixtures::hidden_group();
     let root_id = scene.node(root).unwrap().transform_id;
@@ -807,6 +868,93 @@ fn invalid_dag_cycles_duplicates_roles_and_dangling_ids_are_rejected() {
     let mut scene = original;
     scene.dag.retain(|edge| edge.child != child_native);
     assert_eq!(scene.validate(), Err(NativeError::InvalidIdentity));
+}
+
+#[test]
+fn validate_accepts_a_large_flat_scene_and_still_refuses_a_broken_edge() {
+    // The indexes added for #345 must not change which scenes validate. A scene far larger than
+    // the fixtures above exercises the indexed paths, and the same scene with one edge removed or
+    // one cycle added must still be refused.
+    let mut scene = NativeScene::default();
+    for index in 0..256 {
+        scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+    }
+    assert_eq!(scene.validate(), Ok(()));
+
+    let orphaned = scene.nodes()[128].transform_id;
+    let mut missing_edge = scene.clone();
+    missing_edge.dag.retain(|edge| edge.child != orphaned);
+    assert_eq!(
+        missing_edge.validate(),
+        Err(NativeError::InvalidIdentity),
+        "an identity with no edge must still be refused"
+    );
+
+    let mut cycle = scene.clone();
+    let first = cycle.nodes()[0].transform_id;
+    let second = cycle.nodes()[1].transform_id;
+    cycle
+        .dag
+        .retain(|edge| edge.child != first && edge.child != second);
+    cycle.dag.push(DagEdge {
+        parent: Some(second),
+        child: first,
+    });
+    cycle.dag.push(DagEdge {
+        parent: Some(first),
+        child: second,
+    });
+    assert_eq!(
+        cycle.validate(),
+        Err(NativeError::InvalidIdentity),
+        "a cycle must still be refused"
+    );
+}
+
+// #345: `validate_dag` runs on every structural edit, so it must index the dag once per call and
+// look up each identity's edge and each parent's children, rather than rescan `self.dag` per
+// identity. Counting index builds pins one per validation without a wall-clock assertion; it does
+// not catch a new per-identity `self.dag` scan beside the index, which only review guards.
+#[test]
+fn validate_indexes_the_dag_once_however_many_identities() {
+    for count in [1, 64] {
+        let scene = flat_cubes(count);
+        let before = DAG_INDEX_BUILDS.with(std::cell::Cell::get);
+        scene.validate().unwrap();
+        assert_eq!(
+            DAG_INDEX_BUILDS.with(std::cell::Cell::get) - before,
+            1,
+            "{count} cubes"
+        );
+    }
+}
+
+#[test]
+fn validate_walks_a_deep_parent_chain_to_every_descendant() {
+    // A chain deeper than one level: only a walk that follows each parent's own children reaches
+    // the leaf, so a walk that looks up the wrong parent leaves nodes unvisited and refuses a
+    // valid scene. This pins the indexed Kahn walk added for #345.
+    let mut scene = NativeScene::default();
+    let mut transforms = Vec::new();
+    for index in 0..32 {
+        let node = scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+        transforms.push(scene.node(node).unwrap().transform_id);
+    }
+    for pair in transforms.windows(2) {
+        let (parent, child) = (pair[0], pair[1]);
+        scene
+            .dag
+            .retain(|edge| !(edge.child == child && edge.parent.is_none()));
+        scene.dag.push(DagEdge {
+            parent: Some(parent),
+            child,
+        });
+    }
+    assert_eq!(
+        scene.validate(),
+        Ok(()),
+        "a deep valid chain must still be accepted"
+    );
 }
 
 #[test]
@@ -1744,7 +1892,10 @@ fn remove_many_with_a_refused_member_among_deletable_ones_changes_nothing() {
     let before = scene.clone();
     assert_eq!(
         scene.remove_many(&[child, other]),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::DeleteMemberRefused {
+            node: "other".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        })
     );
     assert_eq!(scene, before);
 }

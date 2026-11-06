@@ -488,6 +488,17 @@ PROVISIONAL until native Save QA on Windows:
   stay Unix-only, because Windows refuses that move; the Windows core tests cover
   the same receipt through injected faults.
 
+## Save of a very large new scene is refused (#380)
+
+**Severity:** low
+**Area:** native document lifecycle
+
+Saving a new scene as Maya Binary decodes the written bytes to check them, and the
+decoder's resource budget rejects a scene of more than a few hundred objects (400
+cubes fail). Save refuses with the too-large message, writes nothing and leaves the
+scene open and unsaved. Split the scene or save it in pieces until the appearance
+binding step meter (`MAX_STEPS` in `src/native_scene/binary/appearance.rs`) is revisited (#380).
+
 ## Native MCP idle responsiveness remains unverified
 
 **Severity:** medium
@@ -556,8 +567,7 @@ edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
 effects are unsupported"). The refusal rate on real Maya files outside the
 five-file private corpus is unmeasured.
 
-Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
-binary. Setting every inserted word to +0.0 inserts nothing, because that is the
+Source-free scenes (new) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
 default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
@@ -623,9 +633,10 @@ Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build 
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
-so the viewport looks faceted. There are no UVs or normals, and
-new nodes are not persisted (Save is unavailable for created scenes, as for the
-cube). Pole triangles cannot be extruded; body quads can. The new node is named
+so the viewport looks faceted. There are no UVs or normals. On Unix, new scenes require
+an initial Save As to a fresh Maya binary file; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Pole triangles cannot be extruded; body quads can.
+The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
@@ -666,8 +677,9 @@ lists sz 1 instead, so a Maya-default cylinder may have different counts, and th
 cap topology of both solids is derived, not verified against Maya 2026 (#5). The cone
 has 21 points, 40 edges and 21 faces (20 side triangles and a 20-gon base) with its apex
 at (0, 1, 0) and its base at y=-1. Vertex and face order and winding are not claimed to
-match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals,
-and new nodes are not persisted. Caps and cone side triangles cannot
+match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals.
+On Unix, new scenes require an initial Save As; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
 `pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
@@ -779,9 +791,10 @@ sphere, cylinder and cone, and each built Create > Polygon Primitives row has an
 "Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
 and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
-pages do not say), session only and never saved. Created
-primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
-limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
+pages do not say), session only and never saved. On Unix, scenes with created primitives
+require an initial Save As; subsequent Save operations persist changes (see "Mesh Save is
+PROVISIONAL"). The AztecCraft limits (size 1e-6 to 1e6 cm, subdivisions up to 128,
+at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
 interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
@@ -821,7 +834,8 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (Untitled scenes have no save), sourced binary scenes
+session-only lambert table. It is not saved (a new scene refuses Save and Save As with `save_unwritable` while any
+session material has been created or assigned, because the file cannot carry it; undo the material to save), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
@@ -894,7 +908,7 @@ valid OBJ, and the Maya docs do not say what objExport writes for a mesh without
 The fresh `.mb` writer (`src/native_scene/binary/write.rs`) takes its profile (`VERS` and the aux word
 of each chunk kind) from one public Maya 2025 file and emits groups shorter than any Maya wrote. Files
 it produces are Maya 2025-format; that Maya 2026 opens them, and that Maya accepts them at all, is
-PROVISIONAL and unproven. AztecCraft's own decoder reopening a file is the only check. Saved meshes
+PROVISIONAL and unproven. AztecCraft's own decoder provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader but does not establish Maya acceptance. Saved meshes
 will carry no shading assignment. The invented items are the I rows of
 `.project-docs/binary-authored-writer.md`.
 
@@ -911,6 +925,23 @@ Delete removes a node with all its descendants, root or not, natively and over M
 descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
 Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
 2026 page exists, and none states what a parent delete does to its children.
+
+## Naming the refusing member of a multi-object Delete costs N to 2N checks
+
+**Severity:** low
+**Area:** editor core
+**Issue:** cristim/AztecCraft#336
+
+A refused Delete of N selected objects names the one member whose absence clears the refusal. A
+scene-wide pending-insertion refusal names nobody and skips the analysis. Otherwise the refusal path
+decodes the source once, then checks each member alone and, only for a member that fails alone with
+the combined refusal, the set without it. That is N checks plus one per such member: N+1 when one
+member explains the refusal, up to 2N when many members fail alone but none clears it. The checks
+run one at a time in one reused id buffer (O(N) memory) and stop at a second qualifying member. On
+an opened binary scene each check scans the source text, up to 16 MiB, and they run synchronously,
+so a refused Delete of many objects in a large file can still briefly stall the UI. A successful
+Delete pays nothing extra. Not capped: no member count is documented as the point where naming
+stops being useful.
 
 ## Marquee drag feedback has PROVISIONAL edge cases
 
@@ -1002,6 +1033,31 @@ A view build error now clears the pointer capture (`missing_move_viewport`, #310
 in the same frame returns before the view build, so the paint is skipped and the capture survives
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
 
+## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
+
+**Severity:** medium
+**Area:** file format, Save As
+**Issue:** cristim/AztecCraft#156
+
+On Unix, a new (Untitled) scene requires an initial Save As, which writes a fresh Maya
+2025-format `.mb` through the writer above. Subsequent Save operations persist changes
+to that file. Saving Untitled scenes is unsupported on Windows.
+Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
+documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
+`.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
+acceptance is unproven. MayaSceneKit (a third-party reader, not Maya; pinned commit 95a11db) decodes the Maya-written
+`tests/fixtures/gt-tools/dummy_mesh.mb` (no MESH issue, an exact DMSH/MESH decode) but reports the
+writer's cube MESH/DMSH as unsupported ("no decoder registered for chunk tag"). The empty UV set is the
+INFERRED cause, from the reader's mesh decoder source (it requires a nonzero UV count) plus that
+contrast; no probe that adds UVs has been run. The ignored test `msk_decodes_maya_meshes_but_not_the_writers_mesh`
+(`AZTECCRAFT_MSK_BIN`, see `.project-docs/mayascenekit-crosscheck.md`) pins the contrast so a change
+becomes visible. The
+`save_scene_as` MCP description carries the same PROVISIONAL note.
+
+Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
+MayaSceneKit starts decoding these meshes (the cross-check test flips); a public, licensed Maya
+file shows a mesh without a UV block or with default primitive UVs.
+
 ## Multi-object selection colours and group descendants are PROVISIONAL
 
 With several objects selected, the lead and the other members are drawn in our own colours
@@ -1049,15 +1105,17 @@ tokenless recovery except clearing the selection in the native UI (a plain click
 Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
 `a_full_selection_is_inspectable_with_a_small_node_limit`.
 
-## Creating N objects costs O(N^3)
+## Creating N objects costs O(N^2)
 
-Each `NativeScene::create` runs a full `validate()` through `structural_edit`, and `validate_dag` scans
-every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
-O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
-`azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
-fixed by the paging work. The remaining cost is `validate_dag`: its "every identity has an edge" check
-(identities x dag) and the Kahn loop's per-parent dag filter are both O(N*E). It runs on every structural
-edit, not on the per-frame or inspect path; #345 tracks it.
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, so building N cubes one
+by one is O(N^2). `validate_dag` itself is linear in the edges since #345: it looks up transforms and
+each parent's children through the `NativeScene::dag_index` that `transform_paths` also uses (#347),
+and builds one identity-has-an-edge set, instead of scanning `self.dag` for every identity and every
+pending parent. In a release build one `validate()` measured about 9x for 8x the scene (512 to 4096
+cubes) against 45x before. `validate_indexes_the_dag_once_however_many_identities` pins one index
+build per validation; it does not catch a new per-identity scan added beside the index. The remaining
+quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a large scene
+still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
 
 ## Paged inspect cost and the decision not to cache transform paths
 

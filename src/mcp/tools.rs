@@ -92,6 +92,11 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
+                    if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
+                {
+                    "unsupported_delete"
+                }
                 OperationError::Scene(NativeError::DegenerateUvProjection) => {
                     "degenerate_uv_projection"
                 }
@@ -107,6 +112,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
                     azteccraft::document::NativeSaveError::Unsupported => "save_unsupported",
+                    azteccraft::document::NativeSaveError::NoDestination => "save_needs_path",
                     azteccraft::document::NativeSaveError::InvalidDestination => {
                         "invalid_destination"
                     }
@@ -117,6 +123,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
                 },
                 OperationError::ObjExport(error) => match error {
                     crate::editor_operations::ObjExportError::DestinationExists => {
