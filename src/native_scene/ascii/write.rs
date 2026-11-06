@@ -32,6 +32,7 @@ const ARRAY_END: &[u8] = b";\n";
 pub(crate) enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
+    Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -60,6 +61,7 @@ impl fmt::Display for AsciiWriteRefusal {
         f.write_str(match self {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
+            Self::Keys => "session keys are not saved",
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
             Self::NonAuthoredHierarchy => "only flat transform-over-mesh ownership is supported",
@@ -187,6 +189,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
         match ineligible {
             I::SourcedScene => Self::SourcedScene,
             I::Curves => Self::Curves,
+            I::Keys => Self::Keys,
             I::InvalidScene(error) => Self::InvalidScene(error),
             I::UnsupportedUnits => Self::UnsupportedUnits,
             I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,

@@ -84,6 +84,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
+                OperationError::ReadOnlyKeys => "read_only_format",
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -108,6 +109,12 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
+                OperationError::Scene(NativeError::InvalidPlaybackRange) => {
+                    "invalid_playback_range"
+                }
+                OperationError::Scene(NativeError::KeyLimit) => "key_limit",
+                OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
                     if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
                 {
@@ -686,7 +693,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_uvs"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -733,6 +740,10 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "set_current_time" => json!({"scene_token":token,"time":1}),
+                "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
+                "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
+                "inspect_keys" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
@@ -848,6 +859,11 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "set_current_time"
+                    | "delete_keys"
+                    | "set_playback_range"
+                    | "play_timeline"
+                    | "stop_timeline"
                     | "project_uv_planar"
                     | "delete_uvs"
                     | "select_vertex"

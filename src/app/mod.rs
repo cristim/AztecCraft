@@ -99,6 +99,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    timeline: features::timeline::Timeline,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     status: String,
@@ -106,6 +107,9 @@ pub struct Editor {
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
     /// stale when a later message replaces the status.
     status_withholds_path: Option<String>,
+    /// A refusal raised after an operation already changed state (a pose re-evaluation after
+    /// Undo). The success feedback that follows must not overwrite it; the next operation clears it.
+    refusal_after_change: Option<(&'static str, OperationError)>,
     error: bool,
     aspect: f32,
     files: files::FileState,
@@ -150,10 +154,12 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            timeline: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
+            refusal_after_change: None,
             error: false,
             aspect: 1.0,
             files: files::FileState::default(),
@@ -166,7 +172,12 @@ impl Default for Editor {
 impl Editor {
     /// The single place an `OperationError` becomes status text.
     fn set_error_status(&mut self, error: &OperationError) {
-        self.status = error.to_string();
+        self.set_error_text(error.to_string(), error);
+    }
+    /// `set_error_status` with the text already built, so a prefixed message is withheld by the
+    /// same rule as the bare one.
+    fn set_error_text(&mut self, text: String, error: &OperationError) {
+        self.status = text;
         self.status_withholds_path =
             matches!(error, OperationError::File(_)).then(|| self.status.clone());
     }
@@ -288,6 +299,8 @@ impl eframe::App for Editor {
             self.handle_close(ctx);
             #[cfg(feature = "mcp")]
             self.process_mcp(ctx);
+            // No tick runs while hidden, so `playing` must not claim otherwise.
+            self.stop_playback();
         }
     }
 
@@ -327,6 +340,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .into_iter()
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
+    .chain(features::timeline::field_ids())
 }
 
 /// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,
