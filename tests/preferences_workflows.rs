@@ -446,8 +446,39 @@ fn reset_refuses_a_file_edited_since_it_was_seen() {
     assert_eq!(fs::read(&path).unwrap(), b"{edited");
     assert_eq!(save::leftovers(dir.path()), ["preferences.json"]);
     assert_eq!(store, before);
+}
+
+#[test]
+fn reset_after_the_blocking_file_was_deleted_unblocks_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let (path, mut store) = reset::blocked_store(dir.path());
     fs::remove_file(&path).unwrap();
-    assert_eq!(store.reset(), Err(PreferencesError::ResetChanged));
+    assert_eq!(store.reset(), Ok(ResetOutcome::NothingToMove));
+    assert!(matches!(
+        &store,
+        Store::Writable {
+            baseline: Baseline::Missing,
+            ..
+        }
+    ));
+    store.save(&save::v(2015)).unwrap();
+    assert_eq!(year(&load(&path).preferences), 2015);
+}
+
+#[test]
+fn reset_after_changed_on_disk_with_the_file_gone_unblocks_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("preferences.json");
+    fs::write(&path, br#"{"schema":1,"maya_compatibility_version":2015}"#).unwrap();
+    let mut store = load(&path).store;
+    fs::remove_file(&path).unwrap();
+    assert_eq!(
+        store.save(&save::v(2020)),
+        Err(PreferencesError::ChangedOnDisk)
+    );
+    assert_eq!(store.reset(), Ok(ResetOutcome::NothingToMove));
+    store.save(&save::v(2020)).unwrap();
+    assert_eq!(year(&load(&path).preferences), 2020);
 }
 
 #[test]

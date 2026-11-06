@@ -388,7 +388,11 @@ impl Store {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResetOutcome {
     Unchanged,
-    MovedAside { backup_index: u32 },
+    MovedAside {
+        backup_index: u32,
+    },
+    /// The file is already gone; the store is writable again.
+    NothingToMove,
 }
 
 const MAX_BACKUPS: u32 = 1000;
@@ -407,6 +411,13 @@ impl Store {
         };
         match (observe(path), seen.as_deref()) {
             (Observed::Symlink, _) => return Err(PreferencesError::ResetSymlink),
+            (Observed::Missing, _) => {
+                *self = Store::Writable {
+                    path: std::mem::take(path),
+                    baseline: Baseline::Missing,
+                };
+                return Ok(ResetOutcome::NothingToMove);
+            }
             (Observed::Bytes(now), Some(then)) if now == then => {}
             (Observed::NotRegular | Observed::Unreadable(_), None) => {}
             _ => return Err(PreferencesError::ResetChanged),
