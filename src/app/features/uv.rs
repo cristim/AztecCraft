@@ -165,7 +165,7 @@ impl Editor {
         let reason = self.uv_target().err();
         let mut axis = self.uv.axis;
         egui::Window::new("Planar Mapping Options")
-            .id(egui::Id::new("planar_options_window"))
+            .id(egui::Id::unique("planar_options_window"))
             .default_pos(PLANAR_WINDOW_POSITION)
             .open(&mut open)
             .collapsible(false)
@@ -218,7 +218,7 @@ impl Editor {
         let sourced = scene.has_source();
         let set = shape.ok().and_then(|shape| scene.uv_set(shape));
         egui::Window::new("UV Editor")
-            .id(egui::Id::new("uv_editor_window"))
+            .id(egui::Id::unique("uv_editor_window"))
             .default_pos(EDITOR_WINDOW_POSITION)
             .open(&mut open)
             .default_size([320.0, 340.0])
