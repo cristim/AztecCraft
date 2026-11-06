@@ -1,5 +1,5 @@
 use super::{NativeOrigin, NativeScene};
-use crate::native_scene::binary;
+use crate::native_scene::binary::{self, AuthoredRefusalCode};
 use std::{
     fmt, io,
     path::{Path, PathBuf},
@@ -22,18 +22,23 @@ pub enum SaveDestination<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NativeSaveError {
     Unsupported,
+    /// Save on a scene that has no file yet; the caller needs a path (Save As).
+    NoDestination,
     InvalidDestination,
     SourceChanged,
     DestinationExists,
     Cancelled,
     Io(io::ErrorKind),
     Encode(binary::BinaryError),
+    /// A new scene cannot be written as a Maya Binary file; nothing was written.
+    Unwritable(AuthoredRefusalCode),
 }
 
 impl fmt::Display for NativeSaveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unsupported => f.write_str("this native scene or platform cannot be written"),
+            Self::NoDestination => f.write_str("this scene has no file yet; use Save As"),
             Self::InvalidDestination => f.write_str("Save As requires a new .mb destination"),
             Self::SourceChanged => {
                 f.write_str("scene file or directory identity or contents changed")
@@ -42,6 +47,7 @@ impl fmt::Display for NativeSaveError {
             Self::Cancelled => f.write_str("save cancelled before installation"),
             Self::Io(kind) => write!(f, "native scene IO failed: {kind:?}"),
             Self::Encode(error) => error.fmt(f),
+            Self::Unwritable(code) => write!(f, "cannot write this scene as a new .mb: {code}"),
         }
     }
 }

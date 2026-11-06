@@ -280,7 +280,13 @@ async fn sdk_save_refuses_a_scene_holding_joints() {
         json!({"scene_token":token,"path":path}),
     )
     .await;
-    assert_eq!(error_code(&result), "save_unsupported");
+    assert_eq!(error_code(&result), "save_unwritable");
+    assert!(
+        result.structured_content.as_ref().unwrap()["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("joints")
+    );
     assert!(editor.is_dirty() && editor.history.can_undo());
     assert!(!path.exists());
     assert_eq!(

@@ -43,8 +43,17 @@ pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String)
 }
 
 /// Why the prompt's Save is disabled outside reconciliation.
-pub(super) const PROMPT_SAVE_UNAVAILABLE: &str =
-    "Not available: this build saves in place only an opened Maya Binary scene (#156, #15)";
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene or, on Unix, a new scene through Save As (#156, #289)";
+
+/// A scene with no retained source was written by the authored writer, whose files Maya has
+/// not been shown to accept.
+fn saved_status(base: &str, written: &NativeScene) -> String {
+    if written.retained_source_bytes() == 0 {
+        format!("{base} (PROVISIONAL: Maya acceptance of new-scene files is unproven)")
+    } else {
+        base.into()
+    }
+}
 
 #[cfg(all(test, any(unix, windows)))]
 mod binary_fixture {
@@ -181,7 +190,7 @@ impl Editor {
             self.files.origin = origin;
             self.files.path = Some(path);
             self.files.uncertain = None;
-            self.status = "Save reconciled".into();
+            self.status = saved_status("Save reconciled", &self.files.saved);
             self.error = false;
             return Ok(OperationReply::SaveReconciled {
                 scene_token: self.scene_token.to_string(),
@@ -198,7 +207,7 @@ impl Editor {
                 self.files.saved = written;
                 self.files.origin = origin;
                 self.files.path = Some(path);
-                self.status = "Scene saved".into();
+                self.status = saved_status("Scene saved", &self.files.saved);
                 self.error = false;
                 Ok(OperationReply::Saved {
                     scene_token: scene_token.to_string(),
@@ -818,6 +827,7 @@ mod tests {
                 ..
             }
         ));
+        assert_eq!(editor.status, "Scene saved");
         assert_eq!(editor.scene_token, token);
         assert_eq!(editor.camera, camera);
         assert_eq!(editor.history.scene(), &first);
@@ -1435,6 +1445,73 @@ mod tests {
             .unwrap();
         assert_eq!(editor.history.scene(), &first);
         assert!(!editor.is_dirty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn untitled_scene_enables_save_as_and_its_title_follows_the_saved_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("fresh.mb");
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        assert!(editor.files.save_as_available());
+        assert!(!editor.files.save_available());
+        assert_eq!(editor.document_title(), "AztecCraft | Untitled *");
+        assert!(matches!(
+            editor.apply_operation(Operation::SaveScene),
+            Err(OperationError::NativeSave(NativeSaveError::NoDestination))
+        ));
+        assert!(editor.is_dirty());
+        assert!(matches!(
+            editor
+                .apply_operation(Operation::SaveSceneAs {
+                    path: destination.clone()
+                })
+                .unwrap(),
+            OperationReply::Saved { dirty: false, .. }
+        ));
+        assert_eq!(editor.document_title(), "AztecCraft | fresh.mb");
+        assert!(editor.files.save_available() && editor.files.save_as_available());
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+        assert!(!editor.error);
+        editor.apply_operation(Operation::SaveScene).unwrap();
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+    }
+
+    #[test]
+    fn saved_status_carries_the_caveat_only_for_scenes_without_a_retained_source() {
+        let new = azteccraft::native_scene::NativeScene::default();
+        assert_eq!(
+            saved_status("Scene saved", &new),
+            "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
+        assert_eq!(
+            saved_status("Save reconciled", &new),
+            "Save reconciled (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_as_refuses_a_created_material_keeps_the_scene_dirty_and_writes_nothing() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor
+            .apply_operation(Operation::CreateSessionMaterial {
+                color: [0.1, 0.2, 0.3],
+            })
+            .unwrap();
+        let result = editor.apply_operation(Operation::SaveSceneAs {
+            path: directory.path().join("fresh.mb"),
+        });
+        let Err(OperationError::NativeSave(error)) = result else {
+            panic!("a created material must refuse, got {result:?}");
+        };
+        assert!(error.to_string().contains("session materials"), "{error}");
+        assert!(editor.is_dirty());
+        assert!(!editor.files.save_available());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
     }
 
     #[cfg(any(unix, windows))]

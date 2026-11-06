@@ -443,7 +443,8 @@ mod tests {
         let before = history.scene().clone();
         assert!(matches!(
             history.execute(Command::RemoveMany(vec![child, other])),
-            Err(NativeError::UnsupportedEdit)
+            Err(NativeError::DeleteMemberRefused { reason, .. })
+                if *reason == NativeError::UnsupportedEdit
         ));
         assert_eq!(history.scene(), &before);
         assert!(!history.can_undo() && !history.can_redo());
