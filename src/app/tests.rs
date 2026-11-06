@@ -1990,6 +1990,7 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             },
         )
         .unwrap();
@@ -4179,7 +4180,7 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
     // instead of reaching rfd.
     assert!(
         editor.files.is_closing()
-            && !editor.files.save_as_available()
+            && editor.files.save_as_available() == cfg!(unix)
             && editor.history.active_manipulation().is_some()
     );
     editor.save_as_dialog();
@@ -6272,6 +6273,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
         .apply_operation(Operation::BeginMove {
             target,
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let move_id = editor.history.active_manipulation().unwrap().id;
@@ -6622,6 +6624,31 @@ pub(in crate::app) fn linked_group_editor() -> Editor {
 /// `deep_group_editor()` with the same refusing record on the deepest transform.
 pub(in crate::app) fn linked_deep_group_editor() -> Editor {
     nested_group_editor(&[b"mid", b"child"], &selection_naming(b"child"))
+}
+
+/// Two independent root cubes, `keep` and `linked`; a selection record names `linked`, so deleting
+/// it is refused while `keep` alone deletes fine.
+pub(in crate::app) fn keep_and_linked_roots_editor() -> Editor {
+    use material_wire as wire;
+    let mut bytes = Vec::new();
+    for name in [&b"keep"[..], &b"linked"[..]] {
+        bytes.extend(wire::group(b"XFRM", &wire::creation(name, None), 4));
+        bytes.extend(wire::group(
+            b"DMSH",
+            &[
+                wire::creation(&[name, b"Shape"].concat(), Some(name)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    bytes.extend(selection_naming(b"linked"));
+    let scene = azteccraft::native_scene::binary::decode(wire::scene(&bytes)).unwrap();
+    Editor {
+        history: History::new(scene),
+        ..Editor::default()
+    }
 }
 
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
@@ -7017,6 +7044,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         let move_id = editor.history.active_manipulation().unwrap().id;
@@ -9257,7 +9285,7 @@ mod primitive_options_create {
     }
 
     #[test]
-    fn save_and_save_as_stay_refused_and_write_nothing_after_an_optioned_create() {
+    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene_on_unix_only() {
         let directory = tempfile::tempdir().unwrap();
         let destination = directory.path().join("created.mb");
         let mut editor = Editor::default();
@@ -9273,12 +9301,21 @@ mod primitive_options_create {
                 path: destination.clone(),
             },
         );
-        assert!(
-            matches!(save_as, Err(OperationError::NativeSave(_))),
-            "{save_as:?}"
-        );
-        assert!(!destination.exists());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        if cfg!(unix) {
+            assert!(
+                matches!(save_as, Ok(OperationReply::Saved { .. })),
+                "{save_as:?}"
+            );
+            assert!(destination.is_file());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        } else {
+            assert!(
+                matches!(save_as, Err(OperationError::NativeSave(_))),
+                "{save_as:?}"
+            );
+            assert!(!destination.exists());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        }
     }
 
     #[test]
@@ -9899,7 +9936,7 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_acts() {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -9908,6 +9945,7 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         0 => Operation::BeginMove {
             target: target.clone(),
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         1 => Operation::BeginRotate {
             target: target.clone(),
@@ -9921,13 +9959,23 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        assert!(
-            matches!(
-                editor.apply_operation(make(index)),
-                Err(OperationError::MultipleSelection)
-            ),
-            "native {label}"
-        );
+        if index == 0 {
+            // A native Move acts on the whole selection; cancelling restores the baseline.
+            editor.apply_operation(make(0)).unwrap();
+            assert_eq!(
+                editor.history.active_manipulation().unwrap().member_count(),
+                2
+            );
+            editor.cancel_move().unwrap();
+        } else {
+            assert!(
+                matches!(
+                    editor.apply_operation(make(index)),
+                    Err(OperationError::MultipleSelection)
+                ),
+                "native {label}"
+            );
+        }
         assert!(
             matches!(
                 remote(&mut editor, make(index)),

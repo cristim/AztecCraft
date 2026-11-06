@@ -187,6 +187,14 @@ fn the_self_check_runs_on_the_built_bytes() {
 }
 
 #[test]
+fn a_scene_too_large_for_the_decoder_budget_is_refused_as_too_large() {
+    // The self-check decodes the bytes it just wrote; the decoder's resource budget
+    // rejects them, which must not read as a writer bug.
+    let scene = meshed(&[Primitive::Cube; 400]);
+    assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::TooLarge));
+}
+
+#[test]
 fn a_meshed_scene_file_reopens_with_every_node_and_shape_in_order() {
     let primitives = [
         Primitive::Cube,
@@ -229,20 +237,23 @@ fn with_material(assign: bool) -> NativeScene {
 }
 
 #[test]
-fn a_shape_assigned_a_non_initial_shading_group_is_refused() {
+fn a_shape_assigned_a_created_material_is_refused() {
     assert_eq!(
         encode_authored(&with_material(true)),
-        Err(AuthoredBinaryRefusal::MaterialAssigned)
+        Err(AuthoredBinaryRefusal::SessionMaterials)
     );
 }
 
 #[test]
-fn a_created_but_unassigned_material_does_not_refuse() {
-    encode_authored(&with_material(false)).unwrap();
+fn a_created_but_unassigned_material_is_refused() {
+    assert_eq!(
+        encode_authored(&with_material(false)),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
 }
 
 #[test]
-fn reassigning_back_to_the_initial_group_does_not_refuse() {
+fn reassigning_back_to_the_initial_group_still_refuses_while_the_material_exists() {
     use crate::native_scene::MaterialChoice;
     let mut scene = with_material(true);
     let shape = scene.shapes()[0].id();
@@ -253,7 +264,40 @@ fn reassigning_back_to_the_initial_group_does_not_refuse() {
     scene
         .assign_session_material(shape, MaterialChoice::Existing(default))
         .unwrap();
-    encode_authored(&scene).unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
+}
+
+#[test]
+fn deleting_the_assigned_shape_leaves_the_material_and_still_refuses() {
+    let mut scene = with_material(true);
+    let transform = scene.nodes()[0].id();
+    scene.remove(transform).unwrap();
+    assert!(scene.shapes().is_empty());
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
+}
+
+#[test]
+fn a_diffuse_table_without_a_source_is_refused_as_an_invalid_scene() {
+    let mut scene = meshed(&[Primitive::Cube]);
+    scene
+        .materials
+        .push(crate::native_scene::appearance::MaterialDiffuse {
+            binding: 0,
+            value: 0.5,
+            replaced: true,
+        });
+    assert!(matches!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::InvalidScene(_)
+        ))
+    ));
 }
 
 #[test]

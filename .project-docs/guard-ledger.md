@@ -76,7 +76,15 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   (`read_only_ascii`, `binary_dirty`, `no_install`) report it instead of the read-only or ownership
   error. The Move, Rotate and
   Scale Face-mode refusal is in the shared target check
-  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells).
+  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells). `begin_move(multi)` begins a Move of
+  several selected objects with the lead as target and the current selection generation, in the Idle and StaleToken states (the multi-selection setup itself needs an editable editor)
+  (`check_move_target`, `src/app/features/manipulation_tool.rs "fn check_move_target"`); the modal,
+  draft, closing, dirty and scene-token guards run before it exactly as for `begin_move`. The
+  observer does not record member counts, so the three cells read the same as the `begin_move`
+  cells; a regression to the single-object refusal changes them (they would print
+  `MultipleSelection`).
+- The selection-agnostic guards (modal, closing, draft, focus, busy and scene token) run before
+  `check_move_target`, so the 37 `begin_move` cells also cover a multi begin.
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
   `apply_operation`, not `native_operation`, so a pick takes the shared guards like any other native operation.
 - The `read_only_ascii` fixture is a curve-only scene with no mesh. `set_material_diffuse`,

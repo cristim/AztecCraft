@@ -22,7 +22,7 @@ pub use appearance::{
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::ManipulatorFrame;
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::ChannelBaseline;
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
@@ -475,8 +475,8 @@ impl NativeMeshShape {
 }
 
 /// Lookup index over a scene's transforms and parent edges, built by `NativeScene::dag_index`.
-/// Only lookups are offered, so hash order cannot reach a result. `validate_dag` (#367) is expected to
-/// reuse it instead of building its own parent-to-children map.
+/// Only lookups are offered, so hash order cannot reach a result. `transform_paths` and
+/// `validate_dag` share it.
 pub(crate) struct DagIndex {
     by_transform: HashMap<NativeId, NodeId>,
     children: HashMap<Option<NativeId>, Vec<NativeId>>,
@@ -543,6 +543,17 @@ pub struct TransformTarget {
     pub path: Vec<NativeId>,
 }
 
+/// Private save authority for one authored document, preserved by scene/history clones.
+/// It is metadata, excluded from scene equality, Debug and file serialization.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AuthoredDocumentId(Uuid);
+
+impl AuthoredDocumentId {
+    fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
 #[derive(Clone)]
 pub struct NativeScene {
     nodes: Vec<NativeTransformNode>,
@@ -551,6 +562,8 @@ pub struct NativeScene {
     dag: Vec<DagEdge>,
     units: Units,
     source: Option<SourceRetention>,
+    #[cfg_attr(not(unix), expect(dead_code, reason = "authored saving is Unix-only"))]
+    authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
     session_keys: SessionKeys,
@@ -634,6 +647,7 @@ impl InternalTransform {
     }
 }
 
+// Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
         self.nodes == other.nodes
@@ -659,6 +673,7 @@ impl Default for NativeScene {
             dag: Vec::new(),
             units: Units::default(),
             source: None,
+            authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
             session_keys: SessionKeys::default(),
@@ -676,6 +691,11 @@ impl NativeScene {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
+    }
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
     }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate
@@ -800,6 +820,8 @@ impl NativeScene {
     /// Index the transform and parent relations once, for callers that would otherwise scan
     /// `nodes` or `dag` per lookup.
     pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        #[cfg(test)]
+        DAG_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
         let mut by_transform = HashMap::new();
         by_transform
             .try_reserve(self.nodes.len())
@@ -812,7 +834,11 @@ impl NativeScene {
             .try_reserve(self.dag.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
-            children.entry(edge.parent).or_default().push(edge.child);
+            let siblings = children.entry(edge.parent).or_default();
+            siblings
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            siblings.push(edge.child);
         }
         Ok(DagIndex {
             by_transform,
@@ -1042,6 +1068,30 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
+    }
+
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
@@ -1165,6 +1215,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1331,7 +1385,9 @@ impl NativeScene {
     }
     /// Removes every listed node with its whole subtree after one preflight and one validation; a
     /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
-    /// set is checked before anything changes, so a refusal leaves the scene as it was.
+    /// set is checked before anything changes, so a refusal leaves the scene as it was. When
+    /// several distinct nodes are listed, a refusal that exactly one of them explains (see
+    /// `name_refusing_member`) names that node.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
@@ -1340,8 +1396,73 @@ impl NativeScene {
         if unique.is_empty() {
             return Ok(());
         }
-        let gone = self.removal_subtree(&unique)?;
-        self.remove_set(gone)
+        let result = self
+            .removal_subtree(&unique)
+            .and_then(|gone| self.remove_set(gone));
+        match result {
+            Err(reason) if unique.len() > 1 => Err(self.name_refusing_member(&unique, reason)),
+            other => other,
+        }
+    }
+    /// `combined` tagged with the name of the one member that explains it: alone it fails with
+    /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
+    /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
+    /// time in a single reused id buffer against one decode of the source, and the search stops at
+    /// the second qualifier, so memory stays O(N) and the checks number N plus one per member
+    /// that fails alone with `combined`.
+    fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
+        // A pending insertion on a node outside the set blocks every subset too, so no member can
+        // explain it.
+        if combined
+            == NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                binary::RemovalRefusal::PendingInsertion,
+            ))
+        {
+            return combined;
+        }
+        #[cfg(test)]
+        attribution_probe::buffer();
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
+        let found = self.with_source_removal_checker(|source_check| {
+            let verdict = |set: &[NodeId]| {
+                #[cfg(test)]
+                attribution_probe::checked(1);
+                let gone = self.removal_subtree(set)?;
+                if self.source.is_some() {
+                    source_check(&gone)?;
+                }
+                Ok(())
+            };
+            let mut explaining = None;
+            for (at, id) in ids.iter().enumerate() {
+                candidate.clear();
+                candidate.push(*id);
+                if verdict(&candidate) != Err(combined.clone()) {
+                    continue;
+                }
+                candidate.clear();
+                candidate.extend(
+                    ids.iter()
+                        .enumerate()
+                        .filter(|(i, _)| *i != at)
+                        .map(|(_, id)| *id),
+                );
+                if verdict(&candidate).is_err() {
+                    continue;
+                }
+                if explaining.replace(at).is_some() {
+                    return None;
+                }
+            }
+            explaining
+        });
+        match found.map(|at| self.node(ids[at])) {
+            Some(Ok(node)) => NativeError::DeleteMemberRefused {
+                node: refusal_name(node.name()),
+                reason: Box::new(combined),
+            },
+            _ => combined,
+        }
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
         let gone = self.removal_subtree(&[id])?;
@@ -1475,6 +1596,40 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self.editable_node(*id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1494,11 +1649,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
@@ -1677,11 +1828,10 @@ impl NativeScene {
         &self,
         identities: &std::collections::HashSet<NativeId>,
     ) -> Result<(), NativeError> {
-        let mut transforms = std::collections::HashSet::new();
-        transforms
-            .try_reserve(self.nodes.len())
-            .map_err(|_| NativeError::ResourceLimit)?;
-        transforms.extend(self.nodes.iter().map(|node| node.transform_id));
+        // One index for transform lookups and the Kahn walk's children, shared with
+        // `transform_paths` (#347), so neither check scans `self.dag` per identity (#345).
+        let index = self.dag_index()?;
+        let is_transform = |id: NativeId| index.node(id).is_some();
         let mut edges = std::collections::HashSet::new();
         edges
             .try_reserve(self.dag.len())
@@ -1691,13 +1841,15 @@ impl NativeScene {
             .try_reserve(identities.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         incoming.extend(identities.iter().map(|id| (*id, 0usize)));
+        let mut edge_children = std::collections::HashSet::new();
+        edge_children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
             if !identities.contains(&edge.child)
                 || !edges.insert((edge.parent, edge.child))
-                || edge
-                    .parent
-                    .is_some_and(|parent| !transforms.contains(&parent))
-                || (edge.parent.is_none() && !transforms.contains(&edge.child))
+                || edge.parent.is_some_and(|parent| !is_transform(parent))
+                || (edge.parent.is_none() && !is_transform(edge.child))
             {
                 return Err(NativeError::InvalidIdentity);
             }
@@ -1706,11 +1858,9 @@ impl NativeScene {
                     .get_mut(&edge.child)
                     .ok_or(NativeError::InvalidIdentity)? += 1;
             }
+            edge_children.insert(edge.child);
         }
-        if identities
-            .iter()
-            .any(|id| !self.dag.iter().any(|edge| edge.child == *id))
-        {
+        if identities.iter().any(|id| !edge_children.contains(id)) {
             return Err(NativeError::InvalidIdentity);
         }
         let mut pending = std::collections::VecDeque::new();
@@ -1726,13 +1876,13 @@ impl NativeScene {
         let mut visited = 0;
         while let Some(parent) = pending.pop_front() {
             visited += 1;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            for child in index.children(Some(parent)) {
                 let count = incoming
-                    .get_mut(&edge.child)
+                    .get_mut(child)
                     .ok_or(NativeError::InvalidIdentity)?;
                 *count -= 1;
                 if *count == 0 {
-                    pending.push_back(edge.child);
+                    pending.push_back(*child);
                 }
             }
         }
@@ -1873,6 +2023,21 @@ impl fmt::Display for DeleteUnsupported {
     }
 }
 
+const MAX_REFUSAL_NAME_BYTES: usize = 256;
+
+/// A node name for one line of refusal text. Opened names are unbounded, so it drops control
+/// characters and stops at `MAX_REFUSAL_NAME_BYTES`, on a character boundary.
+fn refusal_name(name: &str) -> String {
+    let mut bounded = String::new();
+    for character in name.chars().filter(|character| !character.is_control()) {
+        if bounded.len() + character.len_utf8() > MAX_REFUSAL_NAME_BYTES {
+            break;
+        }
+        bounded.push(character);
+    }
+    bounded
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeError {
     Legacy(SceneError),
@@ -1890,6 +2055,11 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// One node of a delete of several refused; `reason` is that node's own refusal.
+    DeleteMemberRefused {
+        node: String,
+        reason: Box<NativeError>,
+    },
     /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
     InsertionAfterDelete,
     ReadOnlyFormat,
@@ -1951,6 +2121,7 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
                 "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
             ),
@@ -2010,6 +2181,37 @@ impl fmt::Display for NativeError {
 }
 impl std::error::Error for NativeError {}
 
+/// Counters for `name_refusing_member`, so tests pin its cost without timing (#336).
+#[cfg(test)]
+pub(crate) mod attribution_probe {
+    use std::cell::Cell;
+    std::thread_local! {
+        static DECODES: Cell<usize> = const { Cell::new(0) };
+        static CHECKS: Cell<usize> = const { Cell::new(0) };
+        static BUFFERS: Cell<usize> = const { Cell::new(0) };
+    }
+    pub(crate) fn reset() {
+        for cell in [&DECODES, &CHECKS, &BUFFERS] {
+            cell.with(|c| c.set(0));
+        }
+    }
+    pub(crate) fn decoded() {
+        DECODES.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn checked(count: usize) {
+        CHECKS.with(|c| c.set(c.get() + count));
+    }
+    /// One candidate id buffer allocated.
+    pub(crate) fn buffer() {
+        BUFFERS.with(|c| c.set(c.get() + 1));
+    }
+    /// `(source decodes, candidate checks, candidate id buffers allocated)`.
+    pub(crate) fn counts() -> (usize, usize, usize) {
+        let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
+        (get(&DECODES), get(&CHECKS), get(&BUFFERS))
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -2023,6 +2225,7 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static DAG_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static VIEW_ADMISSION_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 

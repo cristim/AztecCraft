@@ -5,6 +5,10 @@ use super::*;
 pub struct ManipulatorFrame {
     /// Move and Rotate pivot: the parents' map of T + RT (Move and Rotate refuse a rotate pivot).
     pub origin_cm: DVec3,
+    /// The rotate pivot in the world, RP included: the parents' map of T + RT + RP. It equals
+    /// `origin_cm` unless the node has a rotate pivot, which only a Move member covered by a
+    /// selected ancestor may have; that member's handle sits here.
+    pub pivot_cm: DVec3,
     /// Where the node's scale leaves the world fixed: the world image of its scale pivot, which
     /// Scale requires to be zero. Differs from `origin_cm` with scalePivotTranslate, or a rotate
     /// pivot under a rotation.
@@ -31,6 +35,8 @@ impl NativeScene {
         let refused = NativeError::UnsupportedMove(WorldMoveUnsupported::ParentTransform);
         let parent_world = self.ancestor_world(target)?.ok_or(refused.clone())?;
         let origin_cm = parent_world.transform_point3(transform.origin_cm());
+        let pivot_cm = parent_world
+            .transform_point3(transform.origin_cm() + DVec3::from_array(transform.rotate_pivot_cm));
         let scale_origin_cm = transform
             .matrix()
             .map(|local| {
@@ -42,11 +48,15 @@ impl NativeScene {
             .map(|rotation| DMat3::from_mat4(parent_world) * rotation)
             .ok_or(refused.clone())?;
         let object_axes = [axes.x_axis, axes.y_axis, axes.z_axis];
-        if !origin_cm.is_finite() || object_axes.iter().any(|axis| !axis.is_finite()) {
+        if !origin_cm.is_finite()
+            || !pivot_cm.is_finite()
+            || object_axes.iter().any(|axis| !axis.is_finite())
+        {
             return Err(refused);
         }
         Ok(ManipulatorFrame {
             origin_cm,
+            pivot_cm,
             scale_origin_cm,
             object_axes,
         })

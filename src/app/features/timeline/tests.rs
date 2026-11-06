@@ -355,6 +355,7 @@ fn a_manipulation_refuses_a_time_change() {
         .apply_operation(Operation::BeginMove {
             target: TransformTarget { node: id, path },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     assert!(matches!(
@@ -504,6 +505,7 @@ fn playback_stops_on_a_focused_field_a_manipulation_and_a_file_modal() {
         .apply_operation(Operation::BeginMove {
             target: TransformTarget { node: id, path },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     // Beginning the move already stopped playback, and a remote manipulation cannot restart it.
@@ -594,13 +596,23 @@ fn new_resets_the_timeline() {
 #[test]
 fn a_scene_with_keys_cannot_be_saved_and_stays_dirty() {
     let (mut editor, _) = keyed();
-    let result = editor.apply_operation(Operation::SaveScene);
-    assert!(matches!(
-        result,
-        Err(OperationError::NativeSave(
-            azteccraft::document::NativeSaveError::Unsupported
-        ))
-    ));
+    use azteccraft::document::NativeSaveError;
+    // Save As of a new scene writes a new .mb on Unix, which refuses session keys; other
+    // platforms cannot write at all. Nothing is created in either case.
+    let path = std::env::temp_dir().join("azteccraft-keys-never-written.mb");
+    let result = editor.apply_operation(Operation::SaveSceneAs { path: path.clone() });
+    assert!(
+        matches!(
+            result,
+            Err(OperationError::NativeSave(
+                NativeSaveError::Unwritable(
+                    azteccraft::native_scene::binary::AuthoredRefusalCode::Keys
+                ) | NativeSaveError::Unsupported
+            ))
+        ),
+        "{result:?}"
+    );
+    assert!(!path.exists());
     assert!(editor.is_dirty());
 }
 
