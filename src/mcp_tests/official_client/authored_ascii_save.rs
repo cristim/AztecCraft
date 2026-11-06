@@ -147,3 +147,87 @@ async fn authored_ascii_sdk_material_refusal_preserves_dirty_scene_and_destinati
         server.await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn authored_ascii_sdk_open_and_inspect_show_the_mesh_and_refuse_a_hand_edit() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("authored.ma");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_primitive",
+        json!({"primitive":"cube"}),
+    )
+    .await;
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path":path}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    let bytes = std::fs::read(&path).unwrap();
+
+    let opened = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path":path}),
+    )
+    .await;
+    assert_eq!(opened["outcome"], "document_applied");
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let inspection = &inspected["inspection"];
+    assert_eq!(inspection["document_origin"], "maya_ascii");
+    assert_eq!(inspection["shapes"].as_array().unwrap().len(), 1);
+    assert_eq!(inspection["curves"].as_array().unwrap().len(), 0);
+    assert_eq!(inspection["save_available"], false);
+    assert_eq!(inspection["save_as_available"], false);
+    let node = &inspection["nodes"][0];
+    let selected = tool(
+        &mut editor,
+        &context,
+        &client,
+        "select_node",
+        json!({"node_id":node["id"],"instance_path":node["instance_paths"][0]}),
+    )
+    .await;
+    assert_eq!(selected["outcome"], "changed");
+    assert_eq!(
+        editor.selected().unwrap().to_decimal(),
+        node["id"].as_str().unwrap()
+    );
+
+    let mut edited = bytes.clone();
+    edited.extend_from_slice(b"// hand edit\n");
+    let hand = directory.path().join("hand.ma");
+    std::fs::write(&hand, &edited).unwrap();
+    let refused = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path":hand}),
+    )
+    .await;
+    assert!(refused["error"].is_object(), "{refused}");
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

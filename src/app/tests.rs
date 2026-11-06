@@ -1137,6 +1137,35 @@ mod ascii_fixture {
 }
 
 #[test]
+fn native_open_of_an_authored_ma_shows_its_mesh_and_claims_no_save() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("authored.ma");
+    let mut authored = Editor::default();
+    authored.create(Primitive::Cube);
+    authored
+        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    assert!(path.exists());
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let inspection = editor.inspect(false).unwrap();
+    assert_eq!(
+        inspection.document_origin,
+        crate::editor_operations::DocumentOrigin::MayaAscii
+    );
+    assert_eq!(inspection.nodes.len(), 1);
+    assert_eq!(inspection.shapes.len(), 1);
+    assert!(inspection.curves.is_empty());
+    assert!(!inspection.save_available && !inspection.save_as_available);
+    let id = editor.history.scene().nodes()[0].id();
+    editor.select(Some(id));
+    assert_eq!(editor.selected(), Some(id));
+    assert!(!editor.is_dirty());
+}
+
+#[test]
 fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claims() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("curve.ma");
