@@ -185,10 +185,76 @@ fn observe(path: &Path) -> Observed {
     if !meta.is_file() {
         return Observed::NotRegular;
     }
+    read_regular(path)
+}
+
+// std has no portable no-follow open and libc is not a direct dependency, so the Unix flag
+// values are spelled out per target; elsewhere the fstat check below is the only guard.
+#[cfg(unix)]
+const OPEN_FLAGS: i32 = {
+    const NONBLOCK: i32 = if cfg!(any(target_os = "linux", target_os = "android")) {
+        0o4000
+    } else {
+        0x4
+    };
+    const NOFOLLOW: i32 = if cfg!(any(
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+        target_os = "dragonfly"
+    )) {
+        0x100
+    } else if cfg!(all(
+        any(target_os = "linux", target_os = "android"),
+        any(target_arch = "aarch64", target_arch = "arm")
+    )) {
+        0o100000
+    } else if cfg!(all(
+        any(target_os = "linux", target_os = "android"),
+        any(
+            target_arch = "x86_64",
+            target_arch = "x86",
+            target_arch = "riscv64"
+        )
+    )) {
+        0o400000
+    } else {
+        0
+    };
+    NONBLOCK | NOFOLLOW
+};
+
+/// Open without following a link or blocking on a FIFO, then check the opened handle, so a
+/// file swapped in after the `symlink_metadata` call is still refused.
+fn read_regular(path: &Path) -> Observed {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(OPEN_FLAGS);
+    }
+    let file = match options.open(path) {
+        Ok(f) => f,
+        Err(e) => {
+            let swapped_for_link =
+                std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink());
+            return if swapped_for_link {
+                Observed::Symlink
+            } else {
+                Observed::Unreadable(e.kind())
+            };
+        }
+    };
+    match file.metadata() {
+        Ok(m) if m.is_file() => {}
+        Ok(_) => return Observed::NotRegular,
+        Err(e) => return Observed::Unreadable(e.kind()),
+    }
     let mut bytes = Vec::new();
-    let read =
-        std::fs::File::open(path).and_then(|f| f.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes));
-    match read {
+    match file.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes) {
         Ok(_) => Observed::Bytes(bytes),
         Err(e) => Observed::Unreadable(e.kind()),
     }
@@ -378,5 +444,29 @@ impl Store {
 
     pub fn reset(&mut self) -> Result<ResetOutcome, PreferencesError> {
         self.reset_with(&craft_atomic::RealFs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_or_fifo_swapped_in_after_the_metadata_check_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("t.json");
+        std::fs::write(&target, b"{}").unwrap();
+        let link = dir.path().join("link.json");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(matches!(read_regular(&link), Observed::Symlink));
+
+        let fifo = dir.path().join("fifo.json");
+        let made = std::process::Command::new("mkfifo")
+            .arg(&fifo)
+            .status()
+            .unwrap();
+        assert!(made.success());
+        assert!(matches!(read_regular(&fifo), Observed::NotRegular));
     }
 }
