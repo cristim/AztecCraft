@@ -900,6 +900,26 @@ Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at 
 group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
 valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
 
+## Authored Maya ASCII: only the AztecCraft-written subset reopens
+
+**Severity:** medium
+**Area:** file format
+**Issue:** cristim/AztecCraft#156
+
+Save As `.ma` (macOS and Linux only) writes the authored-scene subset: one transform over one mesh per
+object, centimeter/degree/film units, no UVs, no session materials, no curves. Reopening admits a mesh
+`.ma` only when the file is byte-identical to what the writer would emit for the scene it decodes to
+(`src/native_scene/ascii/document.rs`). That makes the reader exactly as wide as the writer: a `.ma`
+with meshes written by Maya, hand-edited, reformatted or saved by another tool is refused, not
+approximated, and Maya-authored mesh files (UVs, shading connections, smooth edges, history) stay
+unsupported. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
+the written files is PROVISIONAL and unproven. A reopened file is an authored document: Save rewrites it,
+and any edit the writer cannot carry (session material, UVs, curves) refuses Save and keeps the scene
+dirty.
+
+Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), UV or material writing, or a
+public Maya acceptance check (issue #5).
+
 ## Authored Maya Binary writer: unproven profile
 
 **Severity:** medium
