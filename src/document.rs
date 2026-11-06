@@ -572,6 +572,23 @@ mod native_open_tests {
     }
 
     #[test]
+    fn an_empty_authored_ma_reopens_as_an_authored_document_where_adoption_is_supported() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("empty.ma");
+        let bytes = ascii::write::emit_geometry_prefix(&NativeScene::default()).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        #[cfg(unix)]
+        assert!(matches!(
+            load_native_with(&path, true).unwrap().origin,
+            NativeOrigin::AuthoredAscii(_)
+        ));
+        // Mesh-free files never need adoption, so a platform without it still opens them.
+        let document = load_native_with(&path, false).unwrap();
+        assert!(matches!(document.origin, NativeOrigin::Ascii(_)));
+        assert!(document.scene.nodes().is_empty());
+    }
+
+    #[test]
     fn a_mesh_ma_that_fails_the_gate_is_refused_not_opened() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("edited.ma");

@@ -63,20 +63,28 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let mut scene = decode_inner(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
-    if scene.shapes.is_empty() {
-        return Ok(AsciiDecoded::Retained(scene));
-    }
-    scene.source = None;
-    scene.validate().map_err(|_| unsupported())?;
-    let emitted = emit_geometry_prefix(&scene).map_err(|_| unsupported())?;
-    if emitted.as_slice() != &*source {
-        return Err(unsupported());
+    let sourced = decode_inner(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    let mut candidate = sourced.clone();
+    candidate.source = None;
+    // An empty scene the writer emits (a document whose last object was deleted) is an
+    // authored document too: it must reopen the way it was saved.
+    let proved = candidate.validate().is_ok()
+        && emit_geometry_prefix(&candidate).is_ok_and(|emitted| emitted.as_slice() == &*source);
+    if !proved {
+        return if sourced.shapes.is_empty() {
+            Ok(AsciiDecoded::Retained(sourced))
+        } else {
+            Err(unsupported())
+        };
     }
     if !adoption_supported {
-        return Err(AsciiDocumentError::AdoptionUnsupported);
+        return if sourced.shapes.is_empty() {
+            Ok(AsciiDecoded::Retained(sourced))
+        } else {
+            Err(AsciiDocumentError::AdoptionUnsupported)
+        };
     }
-    Ok(AsciiDecoded::Authored(AuthoredProjection(scene)))
+    Ok(AsciiDecoded::Authored(AuthoredProjection(candidate)))
 }
 
 #[cfg(test)]
