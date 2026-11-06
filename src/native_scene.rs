@@ -1056,14 +1056,23 @@ impl NativeScene {
         })
     }
     /// Whether a joint at the full transform `path` draws. A joint has no shape at the path end,
-    /// so `geometry_view_admission` cannot answer for it.
+    /// so `geometry_view_admission` cannot answer for it. Builds an index per call; a view build
+    /// uses [`joint_view_admission_indexed`](Self::joint_view_admission_indexed) with its own.
     pub fn joint_view_admission(&self, path: &[NativeId]) -> Result<bool, NativeError> {
+        self.joint_view_admission_indexed(&ViewAdmissionIndex::new(self)?, path)
+    }
+    /// [`joint_view_admission`](Self::joint_view_admission) against an index built once for a
+    /// whole view build, so a rig costs O(path length) lookups per joint rather than a node scan
+    /// per path element (#365). Checks and their order match the scanning form.
+    pub(crate) fn joint_view_admission_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        path: &[NativeId],
+    ) -> Result<bool, NativeError> {
         let mut visible = true;
         for id in path {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == *id)
+            let node = index
+                .transform(*id)
                 .ok_or(NativeError::InvalidInstancePath)?;
             if !node.unsupported_transform.is_empty() {
                 return Err(NativeError::UnsupportedView("unproved transform effects"));
@@ -1836,6 +1845,12 @@ impl<'a> ViewAdmissionIndex<'a> {
         })
     }
 
+    fn transform(&self, id: NativeId) -> Option<&'a NativeTransformNode> {
+        #[cfg(test)]
+        ADMISSION_TRANSFORM_LOOKUPS.with(|count| count.set(count.get() + 1));
+        self.transforms.get(&id).copied()
+    }
+
     /// [`NativeScene::transform_prefix`] against the index, with the same checks in the same order.
     fn transform_prefix(&self, path: &[NativeId]) -> Result<(), NativeError> {
         if path.is_empty()
@@ -2047,4 +2062,14 @@ std::thread_local! {
 #[cfg(test)]
 pub(crate) fn view_admission_index_builds() -> usize {
     VIEW_ADMISSION_INDEX_BUILDS.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static ADMISSION_TRANSFORM_LOOKUPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+/// Joint-admission transform lookups on this thread, so a test can pin linear work (#365).
+#[cfg(test)]
+pub(crate) fn admission_transform_lookups() -> usize {
+    ADMISSION_TRANSFORM_LOOKUPS.with(std::cell::Cell::get)
 }

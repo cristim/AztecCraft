@@ -2555,6 +2555,33 @@ mod joints {
                 .is_empty()
         );
     }
+
+    // #365: joint admission once scanned every node per path element per joint, which is cubic
+    // in chain length. Counting index lookups pins linear work without a wall-clock assertion.
+    #[test]
+    fn joint_admission_work_is_linear_in_joint_path_elements() {
+        let mut scene = NativeScene::default();
+        let mut parent = None;
+        let mut path_elements = 0;
+        for depth in 1..=200 {
+            parent = Some(joint(&mut scene, parent, [0.0; 3]));
+            path_elements += depth;
+        }
+        for _ in 0..800 {
+            joint(&mut scene, None, [0.0; 3]);
+            path_elements += 1;
+        }
+        let before = crate::native_scene::admission_transform_lookups();
+        let builds = crate::native_scene::view_admission_index_builds();
+        let view = ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
+        let lookups = crate::native_scene::admission_transform_lookups() - before;
+        assert_eq!(view.joints().len(), 1000);
+        assert_eq!(
+            crate::native_scene::view_admission_index_builds() - builds,
+            1
+        );
+        assert_eq!(lookups, path_elements);
+    }
 }
 
 // #341: admission is checked per instance, so the index must be built once per view, not once per

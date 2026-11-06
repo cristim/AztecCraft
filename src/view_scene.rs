@@ -204,7 +204,7 @@ impl ViewScene {
             {
                 let path = record_path(&graph, &paths, cursor)?;
                 if scene
-                    .joint_view_admission(&path)
+                    .joint_view_admission_indexed(&admission_index, &path)
                     .map_err(ViewError::Native)?
                 {
                     let parent_center = paths[cursor]
