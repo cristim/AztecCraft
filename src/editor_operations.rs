@@ -215,15 +215,25 @@ pub struct InspectPage {
 }
 
 /// Where the next page starts, bound to the document and the scene revision it was issued for.
-/// The text form is `v1.<scene token>.<revision in hex>.<offset>`, plus `.<node id>` when the
-/// page reads one node's keys, so that cursor cannot be replayed against another filter.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`, plus `.keys` or
+/// `.keys.<node id>` for a key page, so a cursor cannot be replayed into another tool or against
+/// another node filter.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageCursor {
     pub scene_token: Uuid,
     pub revision: u64,
     pub offset: usize,
-    pub node: Option<NodeId>,
+    pub scope: CursorScope,
+}
+
+/// What a cursor pages. `Page` is the original text form, which the node and UV pages use.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CursorScope {
+    Page,
+    /// Stored keys, of this node only when given.
+    Keys(Option<NodeId>),
 }
 
 #[cfg(any(test, feature = "mcp"))]
@@ -245,9 +255,10 @@ impl fmt::Display for PageCursor {
             "v1.{}.{:x}.{}",
             self.scene_token, self.revision, self.offset
         )?;
-        match self.node {
-            Some(node) => write!(f, ".{}", node.to_decimal()),
-            None => Ok(()),
+        match self.scope {
+            CursorScope::Page => Ok(()),
+            CursorScope::Keys(None) => f.write_str(".keys"),
+            CursorScope::Keys(Some(node)) => write!(f, ".keys.{}", node.to_decimal()),
         }
     }
 }
@@ -269,10 +280,15 @@ impl std::str::FromStr for PageCursor {
             scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
             revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
             offset: offset.parse().map_err(|_| PageCursorError)?,
-            node: parts
-                .next()
-                .map(|node| NodeId::from_decimal(node).map_err(|_| PageCursorError))
-                .transpose()?,
+            scope: match parts.next() {
+                None => CursorScope::Page,
+                Some("keys") => CursorScope::Keys(None),
+                Some(rest) => CursorScope::Keys(Some(
+                    rest.strip_prefix("keys.")
+                        .and_then(|node| NodeId::from_decimal(node).ok())
+                        .ok_or(PageCursorError)?,
+                )),
+            },
         };
         if cursor.to_string() == text {
             Ok(cursor)
@@ -1477,7 +1493,7 @@ mod tests {
             scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
             revision: 0xab_cdef,
             offset: 4096,
-            node: None,
+            scope: CursorScope::Page,
         };
         let text = cursor.to_string();
         assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
@@ -1486,18 +1502,23 @@ mod tests {
             scene_token: Uuid::nil(),
             revision: u64::MAX,
             offset: usize::MAX,
-            node: None,
+            scope: CursorScope::Page,
         };
         assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
-        let scoped = PageCursor {
-            node: Some(NodeId::from_decimal("42").unwrap()),
-            ..cursor
-        };
-        assert_eq!(
-            scoped.to_string(),
-            "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096.42"
-        );
-        assert_eq!(scoped.to_string().parse::<PageCursor>(), Ok(scoped));
+        for (scope, suffix) in [
+            (CursorScope::Keys(None), ".keys"),
+            (
+                CursorScope::Keys(Some(NodeId::from_decimal("42").unwrap())),
+                ".keys.42",
+            ),
+        ] {
+            let keys = PageCursor { scope, ..cursor };
+            assert_eq!(
+                keys.to_string(),
+                format!("v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096{suffix}")
+            );
+            assert_eq!(keys.to_string().parse::<PageCursor>(), Ok(keys));
+        }
     }
 
     #[test]
@@ -1518,10 +1539,13 @@ mod tests {
             format!("v1.{id}.1.-1"),
             format!("v1.{id}.1.+1"),
             format!("v1.{id}.1.01"),
-            format!("v1.{id}.1.1.1.1"),
-            format!("v1.{id}.1.1.01"),
-            format!("v1.{id}.1.1.x"),
-            format!("v1.{id}.1.1.-1"),
+            format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1.key"),
+            format!("v1.{id}.1.1.keys.01"),
+            format!("v1.{id}.1.1.keys.x"),
+            format!("v1.{id}.1.1.keys.-1"),
+            format!("v1.{id}.1.1.keys.1.1"),
+            format!("v1.{id}.1.1.keys."),
             format!("v1.{id}.1.1."),
             format!("v1.{id}.1.99999999999999999999999"),
             format!("v1.{id}.1.1 "),

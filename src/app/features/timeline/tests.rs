@@ -632,7 +632,10 @@ fn a_page_of_keys_ends_on_the_limit_and_its_cursor_binds_the_revision() {
     assert_eq!(last.next_cursor, None);
     let scoped = editor.inspect_keys(Some(id), None).unwrap();
     let scoped_cursor: PageCursor = scoped.next_cursor.unwrap().parse().unwrap();
-    assert_eq!(scoped_cursor.node, Some(id));
+    assert_eq!(
+        scoped_cursor.scope,
+        crate::editor_operations::CursorScope::Keys(Some(id))
+    );
     assert!(matches!(
         editor.inspect_keys(None, Some(&scoped_cursor)),
         Err(OperationError::InvalidInput(_))

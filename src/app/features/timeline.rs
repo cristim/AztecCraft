@@ -681,7 +681,7 @@ impl Editor {
         cursor: Option<&crate::editor_operations::PageCursor>,
     ) -> Result<crate::editor_operations::KeysInspection, OperationError> {
         use crate::editor_operations::{
-            KeyInspection, KeysInspection, MAX_KEYS_PER_PAGE, PageCursor,
+            CursorScope, KeyInspection, KeysInspection, MAX_KEYS_PER_PAGE, PageCursor,
         };
         use azteccraft::native_scene::KEY_CHANNELS;
         let scene = self.history.scene();
@@ -697,9 +697,9 @@ impl Editor {
                 {
                     return Err(OperationError::StaleScene);
                 }
-                if cursor.node != node {
+                if cursor.scope != CursorScope::Keys(node) {
                     return Err(OperationError::InvalidInput(
-                        "cursor was issued for a different node_id".into(),
+                        "cursor was not issued for this tool and node_id".into(),
                     ));
                 }
                 if cursor.offset > keys_total {
@@ -736,7 +736,7 @@ impl Editor {
                     scene_token: self.scene_token,
                     revision: self.history.revision(),
                     offset: end,
-                    node,
+                    scope: CursorScope::Keys(node),
                 }
                 .to_string()
             }),
