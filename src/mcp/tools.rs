@@ -92,6 +92,15 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::DegenerateUvProjection) => {
+                    "degenerate_uv_projection"
+                }
+                OperationError::Scene(NativeError::UnsupportedUvTopology) => {
+                    "unsupported_uv_topology"
+                }
+                OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
+                    "uvs_block_topology_edit"
+                }
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -108,6 +117,17 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                },
+                OperationError::ObjExport(error) => match error {
+                    crate::editor_operations::ObjExportError::DestinationExists => {
+                        "destination_exists"
+                    }
+                    crate::editor_operations::ObjExportError::NothingToExport => {
+                        "nothing_to_export"
+                    }
+                    crate::editor_operations::ObjExportError::Cancelled => "export_cancelled",
+                    crate::editor_operations::ObjExportError::Io(_) => "export_io",
+                    crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
@@ -614,7 +634,10 @@ mod tests {
             }
             assert_eq!(
                 tool.annotations.as_ref().unwrap().read_only_hint,
-                Some(tool.name == "inspect_scene")
+                Some(matches!(
+                    tool.name.as_ref(),
+                    "inspect_scene" | "inspect_uvs"
+                ))
             );
             let args = match tool.name.as_ref() {
                 "inspect_scene" => json!({}),
@@ -660,6 +683,9 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
+                "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "inspect_uvs" => json!({"shape_id":"2"}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
@@ -680,6 +706,7 @@ mod tests {
                     json!({"scene_token":token,"tab":{"kind":"transform","id":"1"}})
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
+                "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -771,6 +798,8 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "project_uv_planar"
+                    | "delete_uvs"
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
@@ -1298,7 +1327,7 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as"] {
+            for tool in ["open_scene", "save_scene_as", "export_obj"] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }

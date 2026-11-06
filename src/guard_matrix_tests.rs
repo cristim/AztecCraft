@@ -19,7 +19,7 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
-    WorldAxis,
+    UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -229,6 +229,7 @@ struct Targets {
     pending_id: Uuid,
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
+    export: std::path::PathBuf,
 }
 
 impl Targets {
@@ -314,6 +315,7 @@ fn targets(rig: &Rig) -> Targets {
             .map_or(Uuid::nil(), |pending| pending.id.parse().unwrap()),
         ascii: rig.directory.path().join("curve.ma"),
         save_as: rig.directory.path().join("saved.mb"),
+        export: rig.directory.path().join("export.obj"),
     }
 }
 
@@ -571,7 +573,16 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
+        Operation::ProjectUvPlanar {
+            shape: t.shape,
+            axis: UvProjectAxis::Y,
+        },
+        Operation::DeleteUvs { shape: t.shape },
         Operation::Inspect { page: None },
+        Operation::InspectUvs {
+            shape: t.shape,
+            cursor: None,
+        },
         Operation::Create {
             primitive: Primitive::Plane,
             options: None,
@@ -606,6 +617,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::SaveScene,
         Operation::SaveSceneAs {
             path: t.save_as.clone(),
+        },
+        Operation::ExportObj {
+            path: t.export.clone(),
+            selection_only: false,
         },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
@@ -896,6 +911,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::Inspect { .. } => {
             vec![sample("inspect", Operation::Inspect { page: None })]
         }
+        Operation::InspectUvs { .. } => vec![sample(
+            "inspect_uvs",
+            Operation::InspectUvs {
+                shape: t.shape,
+                cursor: None,
+            },
+        )],
+        Operation::ProjectUvPlanar { .. } => vec![sample(
+            "project_uv_planar",
+            Operation::ProjectUvPlanar {
+                shape: t.shape,
+                axis: UvProjectAxis::Y,
+            },
+        )],
+        Operation::DeleteUvs { .. } => vec![sample(
+            "delete_uvs",
+            Operation::DeleteUvs { shape: t.shape },
+        )],
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",
@@ -1200,6 +1233,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             )
         }],
+        Operation::ExportObj { .. } => vec![
+            sample(
+                "export_obj(all)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: false,
+                },
+            ),
+            sample(
+                "export_obj(selection)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_obj(not_obj)",
+                Operation::ExportObj {
+                    path: t.save_as.clone(),
+                    selection_only: false,
+                },
+            ),
+        ],
         Operation::ResolveFileAction { .. } => vec![
             sample(
                 "resolve_file_action(cancel)",
