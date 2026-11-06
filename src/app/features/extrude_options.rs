@@ -5,9 +5,20 @@
 //! so the human-draft and `commit_pending` rules apply. PROVISIONAL: Maya's docs do not say whether
 //! the window stays open after Extrude (here it does), and for one planar face Thickness is applied
 //! as the core `distance`, the normal displacement (polyExtrudeFacet `localTranslateZ`).
+//! Also PROVISIONAL, with no Maya source: the shelf button opens the Options window instead of
+//! extruding (Maya's extrudes at once), and the disabled Divisions 1, Offset 0, Smoothing angle 30
+//! and Curve Selected values are display defaults, not documented ones.
 
 use crate::app::*;
 use std::fmt;
+
+/// Why `extrude_selected_face` did not extrude.
+#[derive(Debug)]
+pub(in crate::app) enum ExtrudeFailure {
+    Blocked(ExtrudeBlocker),
+    /// The shared operation refused (stale face, all faces, bad draft, read-only scene, ...).
+    Refused(OperationError),
+}
 
 /// Why Extrude cannot run from the UI; every other refusal arrives as an `OperationError`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,26 +79,27 @@ impl Editor {
         }
     }
 
-    /// Extrudes the selected face by `thickness` through the shared typed operation. Core refusals
-    /// (all faces, undefined normal, stale face) set the error status and change nothing.
+    /// Extrudes the selected face by `thickness` through the shared typed operation. A blocker or
+    /// a core refusal sets the error status, changes nothing and is returned.
     pub(in crate::app) fn extrude_selected_face(
         &mut self,
         thickness: f64,
-    ) -> Result<(), ExtrudeBlocker> {
+    ) -> Result<(), ExtrudeFailure> {
         if let Some(blocker) = self.extrude_blocker() {
             self.status = blocker.to_string();
             self.error = true;
-            return Err(blocker);
+            return Err(ExtrudeFailure::Blocked(blocker));
         }
         let target = self
             .remembered_face
             .clone()
-            .ok_or(ExtrudeBlocker::NoFaceSelected)?;
-        self.native_operation(Operation::ExtrudeFace {
+            .ok_or(ExtrudeFailure::Blocked(ExtrudeBlocker::NoFaceSelected))?;
+        self.native_operation_result(Operation::ExtrudeFace {
             target,
             distance: thickness,
-        });
-        Ok(())
+        })
+        .map(drop)
+        .map_err(ExtrudeFailure::Refused)
     }
 
     pub(in crate::app) fn open_extrude_options(&mut self) {
@@ -165,8 +177,9 @@ impl Editor {
                 Some(message)
             }
             Ok(thickness) => match self.extrude_selected_face(thickness) {
-                Err(blocker) => Some(blocker.to_string()),
-                Ok(()) => self.error.then(|| self.status.clone()),
+                Ok(()) => None,
+                Err(ExtrudeFailure::Blocked(blocker)) => Some(blocker.to_string()),
+                Err(ExtrudeFailure::Refused(error)) => Some(error.to_string()),
             },
         };
         self.extrude_options.dialog = Some(dialog);

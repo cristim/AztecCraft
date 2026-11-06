@@ -53,7 +53,7 @@ fn extruding_the_picked_face_moves_the_cap_by_the_thickness_in_one_undo_step() {
     let baseline = editor.history.scene().clone();
     let before = editor.history.undo_label();
     assert_eq!(lowest_z(&editor), -0.5);
-    assert_eq!(editor.extrude_selected_face(0.5), Ok(()));
+    editor.extrude_selected_face(0.5).unwrap();
     assert!(!editor.error, "{}", editor.status);
     assert_eq!(points(&editor), 12);
     assert_eq!(
@@ -80,19 +80,19 @@ fn the_two_blockers_return_their_variants_and_change_nothing() {
     editor.channels[0] = "2".into();
     let baseline = editor.history.scene().clone();
     assert_eq!(editor.extrude_blocker(), Some(ExtrudeBlocker::NotFaceMode));
-    assert_eq!(
+    assert!(matches!(
         editor.extrude_selected_face(1.0),
-        Err(ExtrudeBlocker::NotFaceMode)
-    );
+        Err(ExtrudeFailure::Blocked(ExtrudeBlocker::NotFaceMode))
+    ));
     editor.selection_mode = SelectionMode::Face;
     assert_eq!(
         editor.extrude_blocker(),
         Some(ExtrudeBlocker::NoFaceSelected)
     );
-    assert_eq!(
+    assert!(matches!(
         editor.extrude_selected_face(1.0),
-        Err(ExtrudeBlocker::NoFaceSelected)
-    );
+        Err(ExtrudeFailure::Blocked(ExtrudeBlocker::NoFaceSelected))
+    ));
     assert_eq!(editor.history.scene(), &baseline);
     assert!(editor.history.can_redo(), "the redo stack is kept");
     assert_eq!(editor.channels[0], "2", "the draft is kept");
@@ -116,7 +116,10 @@ fn a_stale_face_and_an_all_face_extrusion_are_refused_with_the_baseline_kept() {
         face_index: 99,
         ..target
     });
-    assert_eq!(editor.extrude_selected_face(1.0), Ok(()));
+    assert!(matches!(
+        editor.extrude_selected_face(1.0),
+        Err(ExtrudeFailure::Refused(OperationError::Scene(_)))
+    ));
     assert!(editor.error);
     assert_eq!(editor.history.scene(), &baseline);
     assert!(!editor.history.can_redo());
@@ -129,7 +132,10 @@ fn a_stale_face_and_an_all_face_extrusion_are_refused_with_the_baseline_kept() {
     });
     let (mut plane, _) = pick_face_zero(single);
     let baseline = plane.history.scene().clone();
-    assert_eq!(plane.extrude_selected_face(1.0), Ok(()));
+    assert!(matches!(
+        plane.extrude_selected_face(1.0),
+        Err(ExtrudeFailure::Refused(OperationError::Scene(_)))
+    ));
     assert!(plane.error, "{}", plane.status);
     assert_eq!(
         plane.status,
@@ -145,7 +151,7 @@ fn a_stale_face_and_an_all_face_extrusion_are_refused_with_the_baseline_kept() {
 fn a_valid_channel_draft_is_committed_first_and_an_invalid_one_refuses() {
     let (mut editor, _) = face_editor(Primitive::Cube);
     editor.channels[0] = "2".into();
-    assert_eq!(editor.extrude_selected_face(0.5), Ok(()));
+    editor.extrude_selected_face(0.5).unwrap();
     assert!(!editor.error, "{}", editor.status);
     assert_eq!(points(&editor), 12);
     let id = editor.selected().unwrap();
@@ -155,7 +161,10 @@ fn a_valid_channel_draft_is_committed_first_and_an_invalid_one_refuses() {
     let (mut editor, _) = face_editor(Primitive::Cube);
     let baseline = editor.history.scene().clone();
     editor.channels[0] = "nan".into();
-    assert_eq!(editor.extrude_selected_face(0.5), Ok(()));
+    assert!(matches!(
+        editor.extrude_selected_face(0.5),
+        Err(ExtrudeFailure::Refused(_))
+    ));
     assert!(editor.error);
     assert_eq!(editor.channels[0], "nan");
     assert_eq!(editor.history.scene(), &baseline);
@@ -186,6 +195,37 @@ fn the_window_reports_a_bad_thickness_dispatches_nothing_then_extrudes_a_good_on
     assert!(
         !editor.history.can_redo() && editor.history.undo_label().as_deref() != Some("Extrude")
     );
+    // The window's success path: a good value extrudes, clears the message and stays open.
+    let low = lowest_z(&editor);
+    editor.extrude_options.dialog.as_mut().unwrap().thickness = "0.25".into();
+    editor.extrude_from_dialog();
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(lowest_z(&editor), low - 0.25);
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Extrude"));
+    let dialog = editor.extrude_options.dialog.as_ref().unwrap();
+    assert!(dialog.message.is_none(), "the window stays open");
+}
+
+#[test]
+fn a_core_refusal_from_the_window_shows_its_message_and_the_function_returns_it() {
+    let mut single = Editor::default();
+    single.native_operation(Operation::Create {
+        primitive: Primitive::Plane,
+        options: Some(azteccraft::primitive_options::SINGLE_QUAD_PLANE),
+        name: None,
+    });
+    let (mut editor, _) = pick_face_zero(single);
+    editor.open_extrude_options();
+    editor.extrude_from_dialog();
+    let message = editor
+        .extrude_options
+        .dialog
+        .as_ref()
+        .unwrap()
+        .message
+        .clone();
+    assert_eq!(message.as_deref(), Some(editor.status.as_str()));
+    assert!(editor.error);
 }
 
 #[test]
@@ -295,4 +335,44 @@ fn the_shelf_button_is_disabled_without_a_face_and_opens_the_window_with_one() {
     crate::app::tests::click_at(&mut editor, &ctx, size, at);
     assert!(editor.extrude_options.dialog.is_some(), "{}", editor.status);
     assert_eq!(editor.history.scene(), &baseline, "opening changes nothing");
+}
+
+#[test]
+fn the_shelf_button_is_disabled_with_the_read_only_reason_on_an_ascii_scene() {
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+    let size = egui::vec2(1200.0, 800.0);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let (_, target) = face_editor(Primitive::Cube);
+    let mut editor = Editor::default();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert!(
+        editor
+            .history
+            .scene()
+            .authoring_read_only_reason()
+            .is_some()
+    );
+    editor.selection_mode = SelectionMode::Face;
+    editor.remembered_face = Some(target);
+    assert_eq!(
+        editor.extrude_blocker(),
+        None,
+        "only the read-only state refuses"
+    );
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(shelf_button(&output).1, "disabled");
 }

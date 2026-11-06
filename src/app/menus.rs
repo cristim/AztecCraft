@@ -542,11 +542,13 @@ impl Editor {
                 self.frame_selected(false);
             }
             ui.separator();
-            let blocker = self.extrude_blocker();
+            let refusal = read_only_reason
+                .clone()
+                .or_else(|| self.extrude_blocker().map(|blocker| blocker.to_string()));
             let extrude = ui
-                .add_enabled(blocker.is_none(), egui::Button::new("Extrude"))
+                .add_enabled(refusal.is_none(), egui::Button::new("Extrude"))
                 .on_hover_text("Open Extrude Options")
-                .on_disabled_hover_text(blocker.map(|b| b.to_string()).unwrap_or_default());
+                .on_disabled_hover_text(refusal.unwrap_or_default());
             if extrude.clicked() {
                 self.open_extrude_options();
             }

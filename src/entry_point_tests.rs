@@ -207,7 +207,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native wrapper",
         "apply_operation(",
         &[
-            "native_operation",
+            "native_operation_result",
             "viewport",
             "file_modal",
             "finish_native_sample",
@@ -226,7 +226,6 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "uv_menu",
             "create_from_dialog",
             "default_view",
-            "extrude_selected_face",
             "file_actions",
             "frame_all",
             "frame_selected",
