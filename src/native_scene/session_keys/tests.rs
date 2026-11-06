@@ -307,3 +307,22 @@ fn an_empty_channel_mask_keys_nothing_and_leaves_a_valid_table() {
     assert_eq!(scene, before);
     scene.session_keys.validate(&scene.nodes, false).unwrap();
 }
+
+#[test]
+fn deleting_nothing_does_not_re_evaluate_over_a_held_edit() {
+    let (mut scene, id) = keyed_cube();
+    evaluate_at(&mut scene, 3);
+    scene.set_channel(id, Channel::TranslateX, 99.0).unwrap();
+    let before = scene.clone();
+    // No key at frame 9, none on the other channels, and an unkeyed node's call is a no-op too.
+    scene.delete_keys(&[id], Some(9), FX, 3).unwrap();
+    assert_eq!(scene, before);
+    assert_eq!(tx(&scene, id), 99.0);
+    let other = cube(&mut scene, "b");
+    let before = scene.clone();
+    scene.delete_keys(&[other], None, ALL_CHANNELS, 3).unwrap();
+    assert_eq!(scene, before);
+    scene.delete_keys(&[id], Some(1), [false; 9], 3).unwrap();
+    assert_eq!(scene, before.clone());
+    assert_eq!(tx(&scene, id), 99.0);
+}

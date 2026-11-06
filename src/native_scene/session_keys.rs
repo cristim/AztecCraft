@@ -296,6 +296,10 @@ impl NativeScene {
                 keys.curves.remove(id);
             }
         }
+        // Nothing removed: re-evaluating would overwrite a held edit for no reason.
+        if keys == self.session_keys {
+            return Ok(());
+        }
         let writes = self.evaluated_writes_for(&keys, current_frame, Some((nodes, channels)))?;
         self.session_keys = keys;
         self.apply_evaluated(writes);
