@@ -593,9 +593,15 @@ impl Editor {
         if let Some(text) = typed_time {
             match text.parse::<f64>() {
                 Ok(frame) if frame.fract() == 0.0 && frame.abs() <= 2_147_483_647.0 => {
+                    self.error = false;
                     self.run_timeline_action(TimelineAction::GoTo(frame as i32));
                 }
                 _ => self.refuse_frame_text(),
+            }
+            // The click was meant for the typed frame; running it at the old one would key or
+            // delete the wrong frame, and its status would hide the time error.
+            if self.error {
+                return;
             }
         }
         if let Some(action) = action {

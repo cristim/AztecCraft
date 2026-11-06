@@ -1202,3 +1202,18 @@ fn a_prefixed_refusal_keeps_the_path_withholding_of_its_error() {
         Some(crate::editor_operations::STATUS_MESSAGE_WITHHELD)
     );
 }
+
+#[test]
+fn a_refused_typed_time_skips_the_click_and_keeps_the_time_error() {
+    let (mut editor, _) = keyed();
+    let keys = editor.history.scene().session_key_count();
+    let revision = editor.history.revision();
+    for text in ["x", "1.5", "2000000"] {
+        editor.run_frame_requests(Some(text.into()), Some(TimelineAction::SetKey));
+        assert_eq!(editor.history.scene().session_key_count(), keys, "{text}");
+        assert_eq!(editor.history.revision(), revision, "{text}");
+        assert_eq!(editor.timeline.current, 1, "{text}");
+        assert!(editor.error, "{text}");
+    }
+    assert!(editor.status.starts_with("a time must be a whole frame"));
+}
