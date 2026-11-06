@@ -1,6 +1,7 @@
 use crate::{
     native_scene::{
         MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform, SessionMaterialId,
+        UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -61,6 +62,13 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
 }
 
 impl Command {
@@ -79,6 +87,9 @@ impl Command {
             | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
+            Self::DeleteUvs { .. } => "Delete UVs".to_string(),
         }
     }
 }
@@ -247,6 +258,14 @@ impl History {
                 distance,
             } => {
                 candidate.extrude_face(shape, face_index, distance)?;
+                EditOutcome::Changed
+            }
+            Command::ProjectUvPlanar { shape, axis } => {
+                candidate.project_uv_planar(shape, axis)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteUvs { shape } => {
+                candidate.delete_uvs(shape)?;
                 EditOutcome::Changed
             }
         };

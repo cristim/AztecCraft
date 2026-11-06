@@ -25,6 +25,80 @@ impl Editor {
             )
             .collect()
     }
+    /// One page of a shape's UVs. Pages end on a face boundary, always hold at least one face and
+    /// bind to the document and revision, because a read passes no scene token guard.
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn inspect_uvs(
+        &self,
+        shape: NativeId,
+        cursor: Option<&crate::editor_operations::PageCursor>,
+    ) -> Result<crate::editor_operations::UvInspection, OperationError> {
+        use crate::editor_operations::{MAX_UV_CORNERS_PER_PAGE, PageCursor, UvInspection};
+        let scene = self.history.scene();
+        let faces_total = scene
+            .shape(shape)
+            .map_err(OperationError::Scene)?
+            .mesh()
+            .faces()
+            .len();
+        let start = match cursor {
+            None => 0,
+            Some(cursor) => {
+                if cursor.scene_token != self.scene_token
+                    || cursor.revision != self.history.revision()
+                {
+                    return Err(OperationError::StaleScene);
+                }
+                if cursor.offset > faces_total {
+                    return Err(OperationError::InvalidInput(
+                        "cursor offset is past the last face".into(),
+                    ));
+                }
+                cursor.offset
+            }
+        };
+        let mut inspection = UvInspection {
+            scene_token: self.scene_token.to_string(),
+            revision: self.history.revision(),
+            shape_id: shape.to_decimal(),
+            uv_set: None,
+            unavailable_reason: None,
+            faces_total,
+            face_offset: 0,
+            faces: Vec::new(),
+            next_cursor: None,
+        };
+        if scene.has_source() {
+            inspection.unavailable_reason =
+                Some("UVs of a sourced scene are not exposed, which does not mean there are none");
+            return Ok(inspection);
+        }
+        let Some(set) = scene.uv_set(shape) else {
+            return Ok(inspection);
+        };
+        let mut end = start;
+        let mut corners = 0usize;
+        let remaining = set.faces().get(start..).unwrap_or_default();
+        for face in remaining {
+            if end > start && corners.saturating_add(face.len()) > MAX_UV_CORNERS_PER_PAGE {
+                break;
+            }
+            corners = corners.saturating_add(face.len());
+            end += 1;
+        }
+        inspection.uv_set = Some(azteccraft::native_scene::DEFAULT_UV_SET);
+        inspection.face_offset = start;
+        inspection.faces = remaining[..end - start].to_vec();
+        inspection.next_cursor = (end < faces_total).then(|| {
+            PageCursor {
+                scene_token: self.scene_token,
+                revision: self.history.revision(),
+                offset: end,
+            }
+            .to_string()
+        });
+        Ok(inspection)
+    }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn current_viewport_error(&self) -> Option<crate::viewport_renderer::ViewportError> {
         use crate::viewport_renderer::ViewportError;
@@ -311,6 +385,11 @@ impl Editor {
                             .scene()
                             .session_material_id(shape)
                             .map(|id| id.index().to_string()),
+                        uv_set: self
+                            .history
+                            .scene()
+                            .uv_set(shape.id())
+                            .map(|_| azteccraft::native_scene::DEFAULT_UV_SET),
                         material: match self.history.scene().material_for_shape(shape.id()) {
                             Ok(value) => Some(crate::editor_operations::MaterialInspection {
                                 shader: match value.shader {
