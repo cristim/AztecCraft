@@ -1179,3 +1179,18 @@ reason except where noted:
   holds a removed name (for example a `TEXT` leaf in a `SCRP` or an `STR` in any group) is refused.
 - A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
   scene bound to the original bytes, so repeat saves are identical.
+
+## Joint creation: untyped name and parent errors, and edit_node positions (#363)
+
+- `create_joint` through MCP reports an invalid name and an unknown parent id as the generic
+  `scene_error`, as the other node tools do on `main`; only a joint-specific refusal (parent not a
+  joint, singular parent, radius, position range) is `unsupported_joint`. Typing those two is
+  deferred with the same gap in the other tools.
+- `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
+  one such joint would fail every view build. `edit_node` still accepts translations beyond f32
+  range on `main` (code outside the rigging slice), with the same effect on the view build; it is
+  not changed here.
+- Undo and redo do not restore the object selection: undoing a joint creation leaves nothing
+  selected and redo does not reselect the joints, and undoing a delete does not reselect the
+  deleted chain. Maya's selection undo behaviour is not documented for these operations
+  (PROVISIONAL); the redo tests pin the current behaviour.
