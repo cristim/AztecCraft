@@ -691,3 +691,23 @@ fn edits_reach_joints_through_the_ordinary_node_paths() {
     assert_eq!(scene.node(nodes[1]).unwrap().name(), "elbow");
     scene.validate().unwrap();
 }
+
+#[test]
+fn a_position_beyond_f32_range_is_refused_and_leaves_the_scene_unchanged() {
+    let mut scene = NativeScene::default();
+    let root = joint(&mut scene, None, [0.0; 3]);
+    let before = scene.clone();
+    for case in [
+        request(None, [1.0e300, 0.0, 0.0]),
+        JointRequest {
+            relative: true,
+            ..request(Some(root), [0.0, -1.0e300, 0.0])
+        },
+    ] {
+        assert_eq!(
+            scene.create_joint(&case).err(),
+            Some(NativeError::UnsupportedJoint(JointUnsupported::Position))
+        );
+        assert_eq!(scene, before);
+    }
+}

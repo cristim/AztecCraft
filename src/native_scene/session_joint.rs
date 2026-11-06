@@ -59,6 +59,7 @@ pub enum JointUnsupported {
     ParentNotJoint,
     SingularParent,
     Radius,
+    Position,
 }
 
 impl fmt::Display for JointUnsupported {
@@ -73,6 +74,7 @@ impl fmt::Display for JointUnsupported {
             Self::Radius => {
                 "the joint radius must be greater than 0 and at most 1000000"
             }
+            Self::Position => "the joint position is outside the range the view can draw",
         })
     }
 }
@@ -262,6 +264,10 @@ impl NativeScene {
             Some(parent) => self.joint_placement(parent, request)?,
             None => (None, request.position),
         };
+        // The view draws in f32, so one unrepresentable joint would fail every view build.
+        if translation.iter().any(|value| !(*value as f32).is_finite()) {
+            return Err(NativeError::UnsupportedJoint(JointUnsupported::Position));
+        }
         let next_id = self
             .next_id
             .checked_add(1)
