@@ -30,15 +30,27 @@ enum KeyChannel {
     ScaleZ,
 }
 
-fn channel_mask(channels: Option<Vec<KeyChannel>>) -> ChannelMask {
+/// The schema allows one to nine distinct channels, so the parser refuses what it forbids.
+fn channel_mask(channels: Option<Vec<KeyChannel>>) -> Result<ChannelMask, ErrorData> {
     let Some(channels) = channels else {
-        return ALL_CHANNELS;
+        return Ok(ALL_CHANNELS);
     };
+    if channels.is_empty() || channels.len() > ALL_CHANNELS.len() {
+        return Err(ErrorData::invalid_params(
+            "channels must name one to nine channels",
+            None,
+        ));
+    }
     let mut mask = [false; 9];
     for channel in channels {
-        mask[channel as usize] = true;
+        if std::mem::replace(&mut mask[channel as usize], true) {
+            return Err(ErrorData::invalid_params(
+                "channels must not repeat a channel",
+                None,
+            ));
+        }
     }
-    mask
+    Ok(mask)
 }
 
 fn node_ids(ids: Option<Vec<String>>) -> Result<Option<Vec<NodeId>>, ErrorData> {
@@ -120,7 +132,7 @@ fn parse_set_keyframe(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
         Operation::SetKeyframe {
             nodes: node_ids(args.node_ids)?,
             time: args.time,
-            channels: channel_mask(args.channels),
+            channels: channel_mask(args.channels)?,
         },
     ))
 }
@@ -132,7 +144,7 @@ fn parse_delete_keys(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
         Operation::DeleteKeys {
             nodes: node_ids(args.node_ids)?,
             time: args.time,
-            channels: channel_mask(args.channels),
+            channels: channel_mask(args.channels)?,
         },
     ))
 }

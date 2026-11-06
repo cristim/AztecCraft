@@ -430,3 +430,50 @@ fn a_full_page_of_the_longest_keys_fits_the_reply_limits() {
         text.len() + copy.len()
     );
 }
+
+#[tokio::test]
+async fn animation_sdk_refuses_a_channel_list_the_schema_does_not_allow() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let before = editor.history.scene().clone();
+    let all = [
+        "translate_x",
+        "translate_y",
+        "translate_z",
+        "rotate_x",
+        "rotate_y",
+        "rotate_z",
+        "scale_x",
+        "scale_y",
+        "scale_z",
+    ];
+    let mut too_many = all.to_vec();
+    too_many.push("scale_z");
+    for (name, channels) in [
+        ("set_keyframe", json!(too_many)),
+        ("set_keyframe", json!(["translate_x", "translate_x"])),
+        ("set_keyframe", json!([])),
+        ("delete_keys", json!(too_many)),
+        ("delete_keys", json!(["rotate_y", "rotate_y"])),
+    ] {
+        let mut arguments = json!({"channels": channels});
+        arguments["scene_token"] = json!(editor.scene_token.to_string());
+        let refused = call_response(&mut editor, &context, client.peer(), name, arguments).await;
+        assert!(refused.is_err(), "{name} {channels}");
+        assert_eq!(editor.history.scene().session_key_count(), 0, "{name}");
+    }
+    assert!(*editor.history.scene() == before);
+    let ok = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"channels": all}),
+    )
+    .await;
+    assert_ne!(ok.is_error, Some(true));
+    assert_eq!(editor.history.scene().session_key_count(), 9);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
