@@ -1112,3 +1112,40 @@ fn undo_that_moved_history_reports_it_even_when_re_evaluation_fails() {
     assert!(matches!(reply, Ok(OperationReply::Changed)));
     assert_eq!(editor.history.scene().session_key_count(), 18);
 }
+
+#[test]
+fn a_refused_re_evaluation_after_undo_survives_the_status_feedback_native_and_remote() {
+    let refused = |editor: &Editor| {
+        assert!(editor.error, "the error flag is kept");
+        let status = editor.status_message().unwrap();
+        assert!(!status.starts_with("Undo "), "{status}");
+        assert!(!status.starts_with("Redo "), "{status}");
+    };
+    let (mut native, _) = keyed();
+    native.timeline.current = MAX_FRAME + 1;
+    native.native_operation(Operation::Undo);
+    assert_eq!(native.history.scene().session_key_count(), 9);
+    refused(&native);
+
+    let (mut remote, _) = keyed();
+    remote.timeline.current = MAX_FRAME + 1;
+    let token = remote.scene_token;
+    let reply = remote
+        .remote_operation(
+            RemoteRequest {
+                expected_scene_token: Some(token),
+                operation: Operation::Undo,
+            },
+            &egui::Context::default(),
+        )
+        .unwrap();
+    assert!(matches!(reply, OperationReply::Changed));
+    assert_eq!(remote.history.scene().session_key_count(), 9);
+    refused(&remote);
+
+    // Without a refusal the normal feedback is unchanged.
+    let (mut plain, _) = keyed();
+    plain.native_operation(Operation::Undo);
+    assert!(!plain.error);
+    assert!(plain.status_message().unwrap().starts_with("Undo "));
+}

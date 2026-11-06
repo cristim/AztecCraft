@@ -201,6 +201,10 @@ impl Editor {
                 self.error = true;
             }
         }
+        if let Some(error) = self.refusal_after_change.take() {
+            self.set_error_status(&error);
+            self.error = true;
+        }
     }
     #[cfg(test)]
     pub(crate) fn remote_operation(
@@ -313,6 +317,7 @@ impl Editor {
         operation: Operation,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
+        self.refusal_after_change = None;
         if features::timeline::stops_playback(&operation) {
             self.stop_playback();
         }
@@ -848,9 +853,12 @@ impl Editor {
                 self.sync_fields();
                 // History has already moved, so a refused re-evaluation is reported in the status
                 // line, like a playback tick, and the reply stays truthful about the change.
+                // `record_feedback` re-applies it after its own success text.
                 if let Err(error) = evaluated {
-                    self.set_error_status(&OperationError::from_history(error));
+                    let error = OperationError::from_history(error);
+                    self.set_error_status(&error);
                     self.error = true;
+                    self.refusal_after_change = Some(error);
                 }
                 return Ok(if changed {
                     OperationReply::Changed

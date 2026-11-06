@@ -107,6 +107,9 @@ pub struct Editor {
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
     /// stale when a later message replaces the status.
     status_withholds_path: Option<String>,
+    /// A refusal raised after an operation already changed state (a pose re-evaluation after
+    /// Undo). The success feedback that follows must not overwrite it; the next operation clears it.
+    refusal_after_change: Option<OperationError>,
     error: bool,
     aspect: f32,
     files: files::FileState,
@@ -156,6 +159,7 @@ impl Default for Editor {
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
+            refusal_after_change: None,
             error: false,
             aspect: 1.0,
             files: files::FileState::default(),
