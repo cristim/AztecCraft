@@ -111,7 +111,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
 | 7 | Animation | [07-animation.md](07-animation.md) | ANM | #52, #62 |
-| 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
+| 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54, #363 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
 | 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300 |
