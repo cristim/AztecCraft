@@ -4,7 +4,11 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
-use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
+use azteccraft::{
+    history::ManipulationError,
+    native_scene::{NativeError, WorldMoveUnsupported},
+    scene::SceneError,
+};
 use rmcp::{
     RoleServer, ServerHandler,
     model::{
@@ -34,6 +38,26 @@ impl EditorServer {
     }
 }
 
+/// The code of a manipulation error; a refused member of a multi-object Move has the code of its
+/// cause, so the same refusal reads the same for one object and for several.
+fn manipulation_code(error: &ManipulationError) -> &'static str {
+    match error {
+        ManipulationError::StaleScene => "stale_scene",
+        ManipulationError::StaleManipulation => "stale_manipulation",
+        ManipulationError::WrongOwner => "manipulation_owner",
+        ManipulationError::Busy => "busy_manipulation",
+        ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => "absent_channel_leaf",
+        ManipulationError::Member { source, .. } => match source.as_ref() {
+            NativeError::AbsentChannelLeaf { .. } => "absent_channel_leaf",
+            NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor) => {
+                "alternate_path_ancestor"
+            }
+            _ => "manipulation_error",
+        },
+        _ => "manipulation_error",
+    }
+}
+
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
         json!({ "error": { "code": code, "message": message.to_string() } }),
@@ -57,16 +81,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
             let code = match &error {
                 OperationError::BusyEditing => "busy_editing",
                 OperationError::BusyManipulation => "busy_manipulation",
-                OperationError::Move(error) => match error {
-                    ManipulationError::StaleScene => "stale_scene",
-                    ManipulationError::StaleManipulation => "stale_manipulation",
-                    ManipulationError::WrongOwner => "manipulation_owner",
-                    ManipulationError::Busy => "busy_manipulation",
-                    ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => {
-                        "absent_channel_leaf"
-                    }
-                    _ => "manipulation_error",
-                },
+                OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
                 OperationError::SessionMaterial(error) => match error {
@@ -83,6 +98,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 },
                 OperationError::NoSelection => "no_selection",
                 OperationError::MultipleSelection => "multiple_selection",
+                OperationError::StaleSelection { .. } => "stale_selection",
                 OperationError::NothingToFrame => "nothing_to_frame",
                 OperationError::InvalidInput(_) => "invalid_input",
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {
@@ -253,6 +269,33 @@ mod tests {
     use azteccraft::native_scene::{RotateAxis, ScaleHandle};
     use rmcp::model::{ErrorCode, JsonObject};
     use uuid::Uuid;
+
+    #[test]
+    fn a_refused_member_keeps_the_code_of_its_cause() {
+        let member = |source| ManipulationError::Member {
+            name: "b".into(),
+            source: Box::new(source),
+        };
+        let code = |source| {
+            let result = tool_reply(Err(OperationError::Move(member(source))));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(
+            code(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::AlternatePathAncestor
+            )),
+            "alternate_path_ancestor"
+        );
+        assert_eq!(
+            code(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::SelectedPivot
+            )),
+            "manipulation_error"
+        );
+    }
 
     #[test]
     fn file_errors_withhold_private_paths_and_keep_the_code() {

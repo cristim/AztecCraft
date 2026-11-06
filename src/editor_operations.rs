@@ -284,9 +284,13 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Begins a Move of the selected objects with `target` as the lead. With several objects
+    /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
+    /// moves the current selection.
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,
+        expected_selection_generation: Option<u64>,
     },
     UpdateMove {
         id: ManipulationId,
@@ -577,6 +581,9 @@ pub struct SceneInspection {
     /// Selected object instances in selection order; the last is the lead.
     pub selection: Vec<SelectionMemberInspection>,
     pub selection_count: usize,
+    /// Changes whenever the selected members or their order change, so a client can tell that the
+    /// selection it inspected has since been edited.
+    pub selection_generation: u64,
     pub selection_mode: SelectionMode,
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
@@ -699,6 +706,10 @@ pub struct ActiveManipulationInspection {
     pub channels: &'static str,
     pub baseline_channels: [f64; 3],
     pub current_channels: [f64; 3],
+    /// Selected objects a Move acts on (1 for Rotate and Scale), covered members included.
+    pub member_count: usize,
+    /// Members that follow a selected ancestor instead of getting their own translation.
+    pub covered_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -899,6 +910,11 @@ pub enum OperationError {
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
+    /// A caller's expected selection generation no longer matches the selection.
+    StaleSelection {
+        expected: u64,
+        current: u64,
+    },
     /// Frame All on a scene without any mesh or curve instance.
     NothingToFrame,
     InvalidInput(String),
@@ -972,6 +988,10 @@ impl fmt::Display for OperationError {
             Self::SessionMaterial(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
+            Self::StaleSelection { expected, current } => write!(
+                f,
+                "Selection changed: expected generation {expected}, current {current}"
+            ),
             Self::NothingToFrame => f.write_str("The scene has no objects to frame"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),
@@ -1098,7 +1118,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     min_appearance_summary!(),
     r#","#,
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
-    r#""selection_count":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
+    r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,

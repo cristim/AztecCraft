@@ -470,8 +470,17 @@ impl Editor {
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
-            Operation::BeginMove { target, axis } => {
-                return self.begin_editor_move(&target, axis, provenance);
+            Operation::BeginMove {
+                target,
+                axis,
+                expected_selection_generation,
+            } => {
+                return self.begin_editor_move(
+                    &target,
+                    axis,
+                    provenance,
+                    expected_selection_generation,
+                );
             }
             Operation::UpdateMove { id, distance } => {
                 return self.update_editor_move(id, distance, provenance);

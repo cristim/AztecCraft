@@ -27,6 +27,7 @@
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> native
+  begin_move(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
@@ -148,6 +149,7 @@
   set_manipulator_size(2) => Ok(changed) | manipulator_size: 1 -> 2
   set_manipulator_size(1) => Ok(unchanged) | no state change
   begin_move => Ok(manipulation_started) | active_move: none -> remote
+  begin_move(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
   begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
@@ -2341,6 +2343,7 @@
   set_manipulator_size(2) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_manipulator_size(1) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_move(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_move(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_move => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_rotate(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4280,4 +4283,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 3823
+cells: 3826

@@ -230,6 +230,8 @@ struct Targets {
     /// Second node and its shape when the scene has one; otherwise the first node's.
     other: (azteccraft::scene::NodeId, Vec<NativeId>, NativeId),
     move_id: ManipulationId,
+    /// The selection generation a remote Move of several objects must name.
+    selection_generation: u64,
     pending_id: Uuid,
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
@@ -313,6 +315,7 @@ fn targets(rig: &Rig) -> Targets {
             || ManipulationId::from_decimal("999").unwrap(),
             |active| active.id,
         ),
+        selection_generation: editor.selection.generation(),
         pending_id: editor
             .files
             .pending_inspection()
@@ -457,6 +460,7 @@ fn build(state: State) -> Rig {
                     Operation::BeginMove {
                         target,
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                     &|| true,
                 )
@@ -537,6 +541,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::UpdateMove {
             id: t.move_id,
@@ -761,8 +766,23 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::BeginMove {
                     target: t.transform_target(),
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
             ),
+            // Several objects selected: both pipelines move the whole selection, the remote one
+            // because it names the current generation. The guards match the single-object cells.
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "begin_move(multi)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
             Sample {
                 pre: Pre::FaceMode,
                 ..sample(
@@ -770,6 +790,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                 )
             },
