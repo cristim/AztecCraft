@@ -2,7 +2,7 @@ use super::{add, mul, resource};
 use crate::maya_ascii::{AsciiError, MAX_BYTES, Work};
 use crate::native_scene::{
     DirectedEdge, NativeError, NativeMesh, NativeMeshShape, NativeScene, NativeTransformNode,
-    Points,
+    Points, SessionMaterials,
     admission::{self, Budget},
     authored::{self, AuthoredIneligible, names},
 };
@@ -32,7 +32,7 @@ const ARRAY_END: &[u8] = b";\n";
 pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
-    MaterialAssigned,
+    SessionMaterials,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -61,8 +61,8 @@ impl fmt::Display for AsciiWriteRefusal {
         f.write_str(match self {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
-            Self::MaterialAssigned => {
-                "a shape is assigned a non-initial shading group, which authored ASCII cannot carry"
+            Self::SessionMaterials => {
+                "the scene has session materials, which authored ASCII cannot carry"
             }
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
@@ -182,13 +182,9 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     authored::check_content_kind(scene)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
-    if scene
-        .session_materials
-        .assignments
-        .values()
-        .any(|group| *group != 0)
-    {
-        return Err(AsciiWriteRefusal::MaterialAssigned);
+    // Created, assigned or reassigned materials: the file has only the default pair.
+    if scene.session_materials != SessionMaterials::default() {
+        return Err(AsciiWriteRefusal::SessionMaterials);
     }
     Ok(())
 }
