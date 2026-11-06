@@ -913,6 +913,18 @@ descendant transform shared with a node outside the subtree is refused (`scene_e
 Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
 2026 page exists, and none states what a parent delete does to its children.
 
+## Naming the refusing member of a multi-object Delete costs 2N checks
+
+**Severity:** low
+**Area:** editor core
+**Issue:** cristim/AztecCraft#336
+
+A refused Delete of N selected objects names the one member whose absence clears the refusal. To
+find it, the refusal path runs 2N removal checks (each member alone, and the set without it), and
+on an opened binary scene each check scans the source text, up to 16 MiB. A successful Delete pays
+nothing extra. With a large file and many selected objects, a refused Delete can briefly stall the
+UI. Not capped: no member count is documented as the point where naming stops being useful.
+
 ## Marquee drag feedback has PROVISIONAL edge cases
 
 **Severity:** low
