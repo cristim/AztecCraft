@@ -561,9 +561,6 @@ pub struct NativeScene {
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
     session_uvs: SessionUvs,
-    /// A reopened authored Maya ASCII scene that opens for viewing only.
-    // T5 removes this when Save for reopened files lands (#321).
-    view_only: bool,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
     next_id: u64,
@@ -655,7 +652,6 @@ impl PartialEq for NativeScene {
             && self.materials == other.materials
             && self.session_materials == other.session_materials
             && self.session_uvs == other.session_uvs
-            && self.view_only == other.view_only
             && self.removed == other.removed
     }
 }
@@ -673,7 +669,6 @@ impl Default for NativeScene {
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
             session_uvs: SessionUvs::default(),
-            view_only: false,
             removed: Vec::new(),
             next_id: 1,
             next_native_id: 1,
@@ -1237,17 +1232,11 @@ impl NativeScene {
         }
         Ok(())
     }
-    /// Marks a reopened authored ASCII scene as viewable only until T5 (#321) wires its Save.
-    pub(crate) fn mark_view_only(&mut self) {
-        self.view_only = true;
-    }
     pub fn authoring_read_only_reason(&self) -> Option<NativeError> {
-        (self.view_only
-            || self
-                .source
-                .as_ref()
-                .is_some_and(|source| source.format == SourceFormat::Ascii))
-        .then_some(NativeError::ReadOnlyFormat)
+        self.source
+            .as_ref()
+            .is_some_and(|source| source.format == SourceFormat::Ascii)
+            .then_some(NativeError::ReadOnlyFormat)
     }
     pub fn retained_source_bytes(&self) -> usize {
         self.source.as_ref().map_or(0, |source| source.bytes.len())

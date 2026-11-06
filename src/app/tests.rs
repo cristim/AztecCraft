@@ -1137,7 +1137,7 @@ mod ascii_fixture {
 }
 
 #[test]
-fn native_open_of_an_authored_ma_shows_its_mesh_and_claims_no_save() {
+fn native_open_edit_save_of_an_authored_ma_round_trips_and_stays_clean() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("authored.ma");
     let mut authored = Editor::default();
@@ -1145,59 +1145,42 @@ fn native_open_of_an_authored_ma_shows_its_mesh_and_claims_no_save() {
     authored
         .apply_operation(Operation::SaveSceneAs { path: path.clone() })
         .unwrap();
-    assert!(path.exists());
+    let first = std::fs::read(&path).unwrap();
     let mut editor = Editor::default();
     editor
-        .apply_operation(Operation::OpenScene { path })
+        .apply_operation(Operation::OpenScene { path: path.clone() })
         .unwrap();
     let inspection = editor.inspect(false).unwrap();
     assert_eq!(
         inspection.document_origin,
         crate::editor_operations::DocumentOrigin::MayaAscii
     );
-    assert_eq!(inspection.nodes.len(), 1);
     assert_eq!(inspection.shapes.len(), 1);
-    assert!(inspection.curves.is_empty());
-    assert!(!inspection.save_available && !inspection.save_as_available);
-    let id = editor.history.scene().nodes()[0].id();
-    editor.select(Some(id));
-    assert_eq!(editor.selected(), Some(id));
+    assert!(inspection.read_only_reason.is_none());
+    assert!(inspection.save_available && inspection.save_as_available);
     assert!(!editor.is_dirty());
-}
-
-#[test]
-fn a_reopened_authored_ma_refuses_native_edits_and_stays_clean() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("authored.ma");
-    let mut authored = Editor::default();
-    authored.create(Primitive::Cube);
-    authored
-        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
-        .unwrap();
-    let mut editor = Editor::default();
-    editor
-        .apply_operation(Operation::OpenScene { path })
-        .unwrap();
-    let inspection = editor.inspect(false).unwrap();
-    assert!(inspection.read_only_reason.unwrap().contains("read-only"));
-    let before = editor.history.scene().clone();
     let id = editor.history.scene().nodes()[0].id();
-    for operation in [
-        Operation::Create {
-            primitive: Primitive::Cube,
-            name: None,
-            options: None,
-        },
-        Operation::Rename {
+    editor
+        .apply_operation(Operation::Rename {
             id,
             name: "renamed".into(),
-        },
-        Operation::Delete(id),
-    ] {
-        assert!(remote(&mut editor, operation).is_err());
-    }
-    assert_eq!(editor.history.scene(), &before);
-    assert!(!editor.is_dirty() && !editor.history.can_undo());
+        })
+        .unwrap();
+    assert!(editor.is_dirty());
+    editor.apply_operation(Operation::SaveScene).unwrap();
+    assert!(!editor.is_dirty());
+    let second = std::fs::read(&path).unwrap();
+    assert_ne!(first, second);
+    assert!(
+        String::from_utf8(second.clone())
+            .unwrap()
+            .contains("renamed")
+    );
+    let mut again = Editor::default();
+    again
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert_eq!(again.history.scene().nodes()[0].name(), "renamed");
 }
 
 #[test]

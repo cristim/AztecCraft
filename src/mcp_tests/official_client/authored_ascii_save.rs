@@ -196,8 +196,9 @@ async fn authored_ascii_sdk_open_and_inspect_show_the_mesh_and_refuse_a_hand_edi
     assert_eq!(inspection["document_origin"], "maya_ascii");
     assert_eq!(inspection["shapes"].as_array().unwrap().len(), 1);
     assert_eq!(inspection["curves"].as_array().unwrap().len(), 0);
-    assert_eq!(inspection["save_available"], false);
-    assert_eq!(inspection["save_as_available"], false);
+    assert_eq!(inspection["save_available"], true);
+    assert_eq!(inspection["save_as_available"], true);
+    assert!(inspection["read_only_reason"].is_null());
     let node = &inspection["nodes"][0];
     let selected = tool(
         &mut editor,
@@ -213,23 +214,18 @@ async fn authored_ascii_sdk_open_and_inspect_show_the_mesh_and_refuse_a_hand_edi
         node["id"].as_str().unwrap()
     );
 
-    for (name, args) in [
-        ("rename_node", json!({"node_id":node["id"],"name":"nope"})),
-        ("create_primitive", json!({"primitive":"cube"})),
-        ("delete_node", json!({"node_id":node["id"]})),
-    ] {
-        let refused = tool(&mut editor, &context, &client, name, args).await;
-        assert_eq!(refused["error"]["code"], "scene_error", "{name}");
-        assert!(
-            refused["error"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("read-only")
-        );
-    }
-    assert!(!editor.is_dirty() && !editor.history.can_undo());
-    let reason = inspection["read_only_reason"].as_str().unwrap();
-    assert!(reason.contains("read-only"), "{reason}");
+    let renamed = tool(
+        &mut editor,
+        &context,
+        &client,
+        "rename_node",
+        json!({"node_id":node["id"],"name":"renamed"}),
+    )
+    .await;
+    assert_eq!(renamed["outcome"], "changed");
+    assert!(editor.is_dirty());
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert!(!editor.is_dirty());
 
     let mut edited = bytes.clone();
     edited.extend_from_slice(b"// hand edit\n");

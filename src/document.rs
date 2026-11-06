@@ -290,18 +290,29 @@ fn load_native_with(
         return Err(NativeLoadError::TooLarge);
     }
     let bytes: Arc<[u8]> = bytes.into();
+    #[cfg(unix)]
+    let mut adopted = None;
     let scene = if binary_format {
         binary::decode(bytes.clone()).map_err(NativeLoadError::Binary)?
     } else if ascii_format {
         match ascii::decode_document(bytes.clone(), adoption_supported) {
             Ok(ascii::AsciiDecoded::Retained(scene)) => scene,
-            // View only until Save arrives: the proved projection opens without a retained
-            // source and keeps the read-only Ascii origin.
+            // The proved projection is the edited scene itself: no second conversion, and
+            // its document id binds the baseline below.
             Ok(ascii::AsciiDecoded::Authored(projection)) => {
-                let mut scene = projection.into_scene();
-                // T5 removes this when Save for reopened files lands (#321).
-                scene.mark_view_only();
-                scene
+                #[cfg(unix)]
+                {
+                    let scene = projection.into_scene();
+                    adopted = scene.authored_document_id();
+                    scene
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = projection;
+                    return Err(NativeLoadError::AsciiAdoption(
+                        ascii::AsciiDocumentError::AdoptionUnsupported,
+                    ));
+                }
             }
             Err(ascii::AsciiDocumentError::Ascii(error)) => {
                 return Err(NativeLoadError::Ascii(error));
@@ -332,10 +343,19 @@ fn load_native_with(
     };
     #[cfg(not(any(unix, windows)))]
     drop(file);
-    let source = SourceBaseline {
-        retention: Retention::Source {
+    #[cfg(unix)]
+    let retention = match adopted {
+        Some(document_id) => Retention::Authored { document_id },
+        None => Retention::Source {
             parse_bytes: bytes.clone(),
         },
+    };
+    #[cfg(not(unix))]
+    let retention = Retention::Source {
+        parse_bytes: bytes.clone(),
+    };
+    let source = SourceBaseline {
+        retention,
         bytes,
         metadata,
         link,
@@ -349,6 +369,13 @@ fn load_native_with(
         origin: if binary_format {
             NativeOrigin::Binary(source)
         } else if ascii_format {
+            #[cfg(unix)]
+            if adopted.is_some() {
+                NativeOrigin::AuthoredAscii(source)
+            } else {
+                NativeOrigin::Ascii(source)
+            }
+            #[cfg(not(unix))]
             NativeOrigin::Ascii(source)
         } else {
             NativeOrigin::Legacy(source)
@@ -529,10 +556,11 @@ mod native_open_tests {
         std::fs::write(&path, &source).unwrap();
         let document = load_native_with(&path, true).unwrap();
         assert_eq!(document.origin.kind(), "maya_ascii");
-        assert!(matches!(document.origin, NativeOrigin::Ascii(_)));
-        assert!(!document.origin.active_save_available());
-        assert!(!document.origin.save_as_available());
-        assert!(document.scene.authoring_read_only_reason().is_some());
+        assert!(matches!(document.origin, NativeOrigin::AuthoredAscii(_)));
+        assert!(document.origin.active_save_available());
+        assert!(document.origin.save_as_available());
+        assert!(document.scene.authoring_read_only_reason().is_none());
+        assert!(document.scene.authored_document_id().is_some());
         assert_eq!(document.scene.shapes().len(), 1);
         assert_eq!(document.scene.nodes()[0].name(), "box");
         let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();

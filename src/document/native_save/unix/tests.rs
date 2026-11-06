@@ -1532,3 +1532,168 @@ fn uncertain_authored_ascii_save_reconciles_with_the_same_document_authority() {
     ));
     assert_ne!(std::fs::read(&path).unwrap(), original);
 }
+
+fn reopened_ascii(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
+    let mut scene = NativeScene::default();
+    scene.create(crate::scene::Primitive::Cube, "box").unwrap();
+    let path = directory.join("reopened.ma");
+    saved(crate::document::save_native(
+        &NativeOrigin::Untitled,
+        &scene,
+        SaveDestination::As(&path),
+        &|| true,
+    ));
+    let document = load_native(&path).unwrap();
+    assert!(matches!(document.origin, NativeOrigin::AuthoredAscii(_)));
+    (path, document)
+}
+
+#[test]
+fn a_reopened_ascii_document_saves_edits_and_regates() {
+    let directory = tempfile::tempdir().unwrap();
+    let (path, mut document) = reopened_ascii(directory.path());
+    let original = std::fs::read(&path).unwrap();
+    let id = document.scene.nodes()[0].id();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 2.5)
+        .unwrap();
+    let (origin, _) = saved(crate::document::save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    let edited = std::fs::read(&path).unwrap();
+    assert_ne!(edited, original);
+    let reopened = load_native(&path).unwrap();
+    assert!(matches!(reopened.origin, NativeOrigin::AuthoredAscii(_)));
+    // `==` also compares edit markers; the reopened scene is the same document when it emits
+    // the same bytes and carries the edited value.
+    assert_eq!(
+        crate::native_scene::ascii::write::emit_geometry_prefix(&reopened.scene).unwrap(),
+        edited
+    );
+    assert_eq!(reopened.scene.nodes()[0].transform().translation[0], 2.5);
+    // The second Save from the new baseline writes the same bytes.
+    saved(crate::document::save_native(
+        &origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&path).unwrap(), edited);
+}
+
+#[test]
+fn a_reopened_ascii_document_is_bound_to_its_own_scene_and_file() {
+    let directory = tempfile::tempdir().unwrap();
+    let (path, document) = reopened_ascii(directory.path());
+    let original = std::fs::read(&path).unwrap();
+    // Another authored scene, even an equal one, is not this document.
+    let mut stranger = NativeScene::default();
+    stranger
+        .create(crate::scene::Primitive::Cube, "box")
+        .unwrap();
+    assert_eq!(
+        crate::document::save_native(
+            &document.origin,
+            &stranger,
+            SaveDestination::Active,
+            &|| true
+        )
+        .unwrap_err(),
+        Error::SourceChanged
+    );
+    // The file changed on disk since Open.
+    let mut changed = original.clone();
+    changed.extend_from_slice(b"// outside edit\n");
+    std::fs::write(&path, &changed).unwrap();
+    assert_eq!(
+        crate::document::save_native(
+            &document.origin,
+            &document.scene,
+            SaveDestination::Active,
+            &|| true
+        )
+        .unwrap_err(),
+        Error::SourceChanged
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), changed);
+}
+
+#[test]
+fn a_reopened_ascii_document_saves_as_either_extension() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, document) = reopened_ascii(directory.path());
+    let mb = directory.path().join("copy.mb");
+    let (origin, _) = saved(crate::document::save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&mb),
+        &|| true,
+    ));
+    assert_eq!(origin.kind(), "maya_binary");
+    assert_eq!(&std::fs::read(&mb).unwrap()[..4], b"FOR8");
+    let ma = directory.path().join("copy.ma");
+    saved(crate::document::save_native(
+        &document.origin,
+        &document.scene,
+        SaveDestination::As(&ma),
+        &|| true,
+    ));
+    assert_eq!(
+        std::fs::read(&ma).unwrap(),
+        std::fs::read(directory.path().join("reopened.ma")).unwrap()
+    );
+}
+
+#[test]
+fn an_uncertain_save_of_a_reopened_ascii_document_reconciles_like_a_fresh_one() {
+    let directory = tempfile::tempdir().unwrap();
+    let (path, mut document) = reopened_ascii(directory.path());
+    let original = std::fs::read(&path).unwrap();
+    let id = document.scene.nodes()[0].id();
+    document
+        .scene
+        .set_channel(id, Channel::TranslateX, 1.5)
+        .unwrap();
+    let transaction = prepare_authored(
+        &document.origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    )
+    .unwrap();
+    let fs = FaultFs {
+        inner: &transaction,
+        fault: Fault::DirectorySync,
+        renames: Cell::new(0),
+        after_sync: None,
+    };
+    let SaveOutcome::Uncertain { receipt, .. } =
+        transaction.run(&fs, RenameRetry::platform()).unwrap()
+    else {
+        panic!("expected uncertainty")
+    };
+    let (origin, _) = receipt.reconcile().unwrap();
+    assert_ne!(std::fs::read(&path).unwrap(), original);
+    // The reconciled origin keeps the document's identity: a stranger is refused, the
+    // document itself saves again.
+    assert_eq!(
+        crate::document::save_native(
+            &origin,
+            &NativeScene::default(),
+            SaveDestination::Active,
+            &|| true
+        )
+        .unwrap_err(),
+        Error::SourceChanged
+    );
+    saved(crate::document::save_native(
+        &origin,
+        &document.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+}
