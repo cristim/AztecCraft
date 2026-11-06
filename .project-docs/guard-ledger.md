@@ -105,10 +105,14 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - `SetMenuSet` follows Grid: session-only, idempotent, never dirty, never a scene-token change, and
   New and Open keep it. Handler is in `src/app/dispatch.rs`; matrix cell is
   `set_menu_set(rigging)`.
-- `CreateJoint` in a component selection mode is `InvalidInput` for both pipelines, checked before
-  `guard_move_dispatch` (`src/app/dispatch.rs "JOINT_COMPONENT_REASON"`), so that refusal outranks
-  the Move guards. Native Create in the window is disabled for the same reason. Matrix cells are
-  `create_joint(root)`, `create_joint(mesh_parent)` and `create_joint(face_mode)`.
+- `CreateJoint` in a component selection mode is `InvalidInput`
+  (`src/app/dispatch.rs "JOINT_COMPONENT_REASON"`), checked before `guard_move_dispatch`, so that
+  refusal outranks the Move guards. The pipelines differ in order. Native checks the mode refusal
+  first. Remote runs its shared gates first (stale token, then `BusyManipulation` for any active
+  manipulation, then `BusyEditing`), so `create_joint(face_mode)` during a Move is
+  `BusyManipulation` and the mode refusal appears only once those pass. Native Create in the
+  window is disabled for the same reason. Matrix cells are `create_joint(root)`,
+  `create_joint(mesh_parent)` and `create_joint(face_mode)`.
 - `SetSidebarPanelVisible` follows Grid: remote refuses a stale token, a Move (`BusyManipulation`), a
   draft of any kind (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), text focus, modal and closing (`BusyEditing`); native refuses closing and modal
   before any draft commit (the closing and modal checks at the top of `src/app/dispatch.rs "fn apply_operation_guarded"`), is
