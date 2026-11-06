@@ -1093,3 +1093,22 @@ fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_o
         assert!(stops_playback(&stops));
     }
 }
+
+#[test]
+fn undo_that_moved_history_reports_it_even_when_re_evaluation_fails() {
+    let (mut editor, _) = keyed();
+    assert_eq!(editor.history.scene().session_key_count(), 18);
+    // No operation sets a time outside the bound, so plant one to make the re-evaluation refuse.
+    editor.timeline.current = MAX_FRAME + 1;
+    let reply = editor.apply_operation(Operation::Undo);
+    assert!(
+        matches!(reply, Ok(OperationReply::Changed)),
+        "undo moved history, so it must not report a failure"
+    );
+    assert_eq!(editor.history.scene().session_key_count(), 9);
+    assert!(editor.error, "the failed re-evaluation is still reported");
+    assert!(!editor.status.is_empty());
+    let reply = editor.apply_operation(Operation::Redo);
+    assert!(matches!(reply, Ok(OperationReply::Changed)));
+    assert_eq!(editor.history.scene().session_key_count(), 18);
+}

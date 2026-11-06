@@ -846,7 +846,12 @@ impl Editor {
                     Ok(false)
                 };
                 self.sync_fields();
-                evaluated.map_err(OperationError::from_history)?;
+                // History has already moved, so a refused re-evaluation is reported in the status
+                // line, like a playback tick, and the reply stays truthful about the change.
+                if let Err(error) = evaluated {
+                    self.set_error_status(&OperationError::from_history(error));
+                    self.error = true;
+                }
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
