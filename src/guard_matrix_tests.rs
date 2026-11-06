@@ -1288,6 +1288,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     },
                 )
             },
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as(ascii)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.with_extension("ma"),
+                    },
+                )
+            },
         ],
         Operation::ExportObj { .. } => vec![
             sample(

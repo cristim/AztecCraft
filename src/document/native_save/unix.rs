@@ -1,7 +1,11 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
     document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
-    native_scene::{NativeScene, ascii::write::emit_geometry_prefix, binary},
+    native_scene::{
+        NativeScene,
+        ascii::write::{AsciiWriteRefusal, emit_geometry_prefix},
+        binary,
+    },
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
 use rustix::fs::{self, AtFlags, Mode, OFlags};
@@ -494,6 +498,14 @@ fn prepare<'a>(
 ) -> Result<Transaction<'a>, Error> {
     let source = match origin {
         NativeOrigin::Binary(source) => source,
+        // Active Save of an ASCII document is routed to `prepare_authored`; only Save As to a
+        // fresh .mb reaches here, and `tied` below binds it to this document.
+        NativeOrigin::AuthoredAscii(source) => {
+            if matches!(destination, SaveDestination::Active) {
+                return Err(Error::Unsupported);
+            }
+            source
+        }
         NativeOrigin::Untitled => {
             let SaveDestination::As(path) = destination else {
                 return Err(Error::NoDestination);
@@ -560,8 +572,27 @@ pub(super) fn save_native(
     destination: SaveDestination<'_>,
     may_install: &dyn Fn() -> bool,
 ) -> Result<SaveOutcome, Error> {
-    let transaction = prepare(origin, scene, destination, may_install)?;
+    let transaction = if writes_ascii(origin, &destination) {
+        prepare_authored(origin, scene, destination, may_install)?
+    } else {
+        prepare(origin, scene, destination, may_install)?
+    };
     transaction.run(&transaction, RenameRetry::platform())
+}
+
+fn has_extension(path: &Path, wanted: &str) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(wanted))
+}
+
+/// The one place the destination extension picks the authored writer: `.ma` is Maya ASCII,
+/// anything else goes to the Maya Binary path, which refuses what is not `.mb`. Active Save
+/// keeps the format of the document's own file.
+fn writes_ascii(origin: &NativeOrigin, destination: &SaveDestination<'_>) -> bool {
+    match destination {
+        SaveDestination::As(path) => has_extension(path, "ma"),
+        SaveDestination::Active => matches!(origin, NativeOrigin::AuthoredAscii(_)),
+    }
 }
 
 fn prepare_authored<'a>(
@@ -574,11 +605,14 @@ fn prepare_authored<'a>(
     // reopen authored meshes. Bind every later save to this document.
     match origin {
         NativeOrigin::Untitled => {}
-        NativeOrigin::AuthoredAscii(source) => {
-            let id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+        NativeOrigin::AuthoredAscii(source) | NativeOrigin::Binary(source) => {
             match &source.retention {
-                Retention::Authored { document_id } if *document_id == id => {}
-                _ => return Err(Error::SourceChanged),
+                Retention::Authored { document_id }
+                    if scene.authored_document_id() == Some(*document_id) => {}
+                Retention::Authored { .. } => return Err(Error::SourceChanged),
+                Retention::Source { .. } => {
+                    return Err(Error::AsciiWrite(AsciiWriteRefusal::SourcedScene));
+                }
             }
         }
         _ => return Err(Error::Unsupported),
@@ -596,10 +630,7 @@ fn prepare_authored<'a>(
     };
 
     // Validate that the destination has a .ma extension (case-insensitive)
-    if !path
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("ma"))
-    {
+    if !has_extension(&path, "ma") {
         return Err(Error::InvalidDestination);
     }
 
@@ -643,66 +674,6 @@ fn prepare_authored<'a>(
     };
 
     Ok(transaction)
-}
-
-pub(super) fn save_authored(
-    origin: &NativeOrigin,
-    scene: &NativeScene,
-    destination: SaveDestination<'_>,
-    may_install: &dyn Fn() -> bool,
-) -> Result<SaveOutcome, Error> {
-    let transaction = prepare_authored(origin, scene, destination, may_install)?;
-    transaction.run(&transaction, RenameRetry::platform())
-}
-
-#[cfg(test)]
-mod tests_authored {
-    use super::*;
-    use crate::native_scene::NativeScene;
-    use crate::scene::Primitive;
-
-    #[test]
-    fn authored_scene_saves_as_maya_ascii() {
-        let directory = tempfile::tempdir().unwrap();
-        let destination = directory.path().join("untitled.ma");
-
-        // 1. Create a new legacy scene and add a cube
-        let mut legacy = crate::scene::Scene::default();
-        legacy.create(Primitive::Cube, "cube").unwrap();
-
-        // 2. Convert to NativeScene
-        let scene = NativeScene::from_legacy(legacy).unwrap();
-
-        // 3. Verify that the scene is "without origin" (Untitled)
-        let origin = NativeOrigin::Untitled;
-        assert!(origin.save_as_available());
-
-        // 4. Save
-        let result = crate::document::save_native(
-            &origin,
-            &scene,
-            SaveDestination::As(&destination),
-            &|| true,
-        );
-
-        // 5. Verify that the file exists and is the expected path
-        match result.expect("save should succeed") {
-            SaveOutcome::Saved { path, .. } => {
-                assert_eq!(path, destination.canonicalize().unwrap());
-            }
-            other => panic!("expected Saved, got {other:?}"),
-        }
-
-        // 6. Verify the content of the .ma file
-        let contents = std::fs::read_to_string(&destination).unwrap();
-        assert!(contents.contains("//Maya ASCII 2026 scene"));
-        assert!(contents.contains("createNode transform"));
-        assert!(contents.contains("createNode mesh"));
-
-        // 7. Round-trip (Open) is not yet supported: the ASCII reader supports
-        // only a narrower subset (curves) than the writer. This is tracked separately.
-        // The file is valid Maya ASCII and can be opened in Maya.
-    }
 }
 
 #[cfg(test)]

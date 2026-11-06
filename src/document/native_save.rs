@@ -43,6 +43,9 @@ impl fmt::Display for NativeSaveError {
         match self {
             Self::Unsupported => f.write_str("this native scene or platform cannot be written"),
             Self::NoDestination => f.write_str("this scene has no file yet; use Save As"),
+            Self::InvalidDestination if cfg!(unix) => {
+                f.write_str("Save As requires a new .ma or .mb destination")
+            }
             Self::InvalidDestination => f.write_str("Save As requires a new .mb destination"),
             Self::SourceChanged => {
                 f.write_str("scene file or directory identity or contents changed")
@@ -117,18 +120,7 @@ pub fn save_native(
 ) -> Result<SaveOutcome, NativeSaveError> {
     #[cfg(unix)]
     {
-        let ascii = match (origin, &destination) {
-            (NativeOrigin::AuthoredAscii(_), _) => true,
-            (NativeOrigin::Untitled, SaveDestination::As(path)) => path
-                .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("ma")),
-            _ => false,
-        };
-        if ascii {
-            unix::save_authored(origin, scene, destination, may_install)
-        } else {
-            unix::save_native(origin, scene, destination, may_install)
-        }
+        unix::save_native(origin, scene, destination, may_install)
     }
     #[cfg(windows)]
     {
