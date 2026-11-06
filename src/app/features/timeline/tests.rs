@@ -1002,3 +1002,38 @@ fn ruler_labels_near_the_right_edge_stay_inside_it() {
     let (x, align) = ruler_label_anchor(100.0, 1000.0);
     assert_eq!((x, align), (102.0, egui::Align2::LEFT_TOP));
 }
+
+#[test]
+fn playback_keeps_playing_through_selection_tool_camera_and_grid_requests_only() {
+    use crate::editor_operations::ActiveTool;
+    for keeps in [
+        Operation::Select {
+            node: None,
+            instance_path: None,
+        },
+        Operation::SetActiveTool(ActiveTool::Move),
+        Operation::SetSelectionMode(SelectionMode::Vertex),
+        Operation::SetGridVisible { visible: false },
+        Operation::SetCameraPose {
+            target: [0.0; 3],
+            distance: 5.0,
+            yaw: 0.0,
+            pitch: 0.0,
+        },
+    ] {
+        assert!(!stops_playback(&keeps));
+    }
+    for stops in [
+        Operation::ExportObj {
+            path: "a.obj".into(),
+            selection_only: false,
+        },
+        Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+    ] {
+        assert!(stops_playback(&stops));
+    }
+}

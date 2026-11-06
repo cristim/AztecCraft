@@ -212,7 +212,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "play_timeline",
-        description: "Start playback at 24 fps, looping continuously over the playback range, skipping frames rather than slowing down (rate and loop PROVISIONAL). A time outside the range starts at the range start. It advances only while the native window renders. It stops on a manipulation, a focused text field, a draft, a file modal, close or any mutating operation; read `timeline.playing`. Each frame that moves a keyed channel changes the revision, so paged cursors go stale during playback",
+        description: "Start playback at 24 fps, looping continuously over the playback range, skipping frames rather than slowing down (rate and loop PROVISIONAL). A time outside the range starts at the range start. It advances only while the native window renders. It stops on a manipulation, a focused text field, a draft, a file modal or close. Of the requests, selection, tool settings, selection mode, framing, grid and view settings and set_camera_pose keep it playing; every other one stops it before it runs, even when it is then refused, and so does export_obj. Read `timeline.playing`. Each frame that moves a keyed channel changes the revision, so paged cursors go stale during playback",
         schema: schema::<MutationArgs>,
         parse: parse_play,
         idempotent: true,
