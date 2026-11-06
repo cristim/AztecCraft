@@ -51,9 +51,9 @@ pub fn icon_button(
 /// Width of an icon-only column (icon plus button and panel margins), measured from the live style.
 pub fn toolbox_width(ui: &Ui) -> f32 {
     let style = ui.style();
-    let button_margin = style.spacing.button_padding.x * 2.0
-        + style.visuals.widgets.noninteractive.bg_stroke.width * 2.0
-        + style.visuals.widgets.noninteractive.expansion * 2.0;
+    // A button frame's total margin is exactly button_padding: egui shifts its stroke and
+    // expansion inside the padding (0.36 and 0.37 alike).
+    let button_margin = style.spacing.button_padding.x * 2.0;
     let panel = egui::Frame::side_top_panel(ui.style());
     (TOOL_ICON
         + button_margin
@@ -66,6 +66,23 @@ pub fn toolbox_width(ui: &Ui) -> f32 {
 mod tests {
     use super::*;
     use eframe::egui::{Pos2, Rect};
+
+    /// The column keeps its egui 0.36 width: 24 icon + 2 x button_padding.x (the button frame
+    /// margin) + 16 side-panel margin + 1 stroke.
+    #[test]
+    fn toolbox_width_keeps_the_egui_0_36_column() {
+        for (padding, want) in [(egui::vec2(8.0, 4.0), 57.0), (egui::vec2(4.0, 2.0), 49.0)] {
+            let ctx = egui::Context::default();
+            let mut style = egui::Style::default();
+            style.spacing.button_padding = padding;
+            ctx.set_style_of(egui::Theme::Dark, style);
+            ctx.set_theme(egui::Theme::Dark);
+            let mut width = 0.0;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| width = toolbox_width(ui));
+            output.textures_delta.clear();
+            assert_eq!(width, want, "button_padding {padding:?}");
+        }
+    }
 
     #[test]
     fn toolbox_buttons_fit_at_minimum_window_and_enlarged_text() {
