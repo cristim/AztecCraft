@@ -43,35 +43,23 @@ impl NativeScene {
     /// Whether `gone` (a transform and its shapes) can leave the opened file, together with the
     /// nodes already removed. Refusals are typed and leave the scene untouched.
     pub(super) fn check_source_removal(&self, gone: &[NativeId]) -> Result<(), NativeError> {
-        self.check_source_removals(&[gone.to_vec()])
-            .pop()
-            .unwrap_or(Err(NativeError::UnsupportedEdit))
+        self.with_source_removal_checker(|check| check(gone))
     }
 
-    /// [`Self::check_source_removal`] for several candidate sets, decoding the source once.
-    pub(super) fn check_source_removals(
+    /// Decodes the source once and hands `with` a [`Self::check_source_removal`] for one candidate
+    /// set at a time, so a caller that tries many sets keeps one set in memory.
+    pub(super) fn with_source_removal_checker<T>(
         &self,
-        sets: &[Vec<NativeId>],
-    ) -> Vec<Result<(), NativeError>> {
+        with: impl FnOnce(&dyn Fn(&[NativeId]) -> Result<(), NativeError>) -> T,
+    ) -> T {
         let Some(source) = self.source.as_ref() else {
-            return sets
-                .iter()
-                .map(|_| Err(NativeError::UnsupportedEdit))
-                .collect();
+            return with(&|_| Err(NativeError::UnsupportedEdit));
         };
         let refuse = |reason: RemovalRefusal| {
             NativeError::UnsupportedDelete(DeleteUnsupported::Source(reason))
         };
-        let alls: Vec<Vec<NativeId>> = sets
-            .iter()
-            .map(|gone| self.removed.iter().chain(gone).copied().collect())
-            .collect();
-        let refs: Vec<&[NativeId]> = alls.iter().map(Vec::as_slice).collect();
-        let decoded = binary::check_removal_sets(&source.bytes, &refs);
-        sets.iter()
-            .zip(&alls)
-            .enumerate()
-            .map(|(index, (gone, all))| {
+        binary::with_removal_checker(&source.bytes, |decoded| {
+            with(&|gone| {
                 let pending = self
                     .nodes
                     .iter()
@@ -86,19 +74,15 @@ impl NativeScene {
                 if pending {
                     return Err(refuse(RemovalRefusal::PendingInsertion));
                 }
-                match &decoded {
-                    Err(reason) => return Err(refuse(*reason)),
-                    Ok(outcomes) => outcomes[index]
-                        .as_ref()
-                        .map(drop)
-                        .map_err(|reason| refuse(*reason))?,
-                }
+                let all: Vec<NativeId> = self.removed.iter().chain(gone).copied().collect();
+                let check = decoded.map_err(refuse)?;
+                check(&all).map_err(refuse)?;
                 if let Some(appearance) = &source.appearance {
-                    binary::check_materials(appearance, all).map_err(refuse)?;
+                    binary::check_materials(appearance, &all).map_err(refuse)?;
                 }
                 Ok(())
             })
-            .collect()
+        })
     }
 
     /// Names of the removed transforms and shapes, as the file spells them.

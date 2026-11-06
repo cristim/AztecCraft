@@ -1343,47 +1343,54 @@ impl NativeScene {
     }
     /// `combined` tagged with the name of the one member that explains it: alone it fails with
     /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
-    /// qualifies, `combined` comes back unchanged. Refusal path only; the source is decoded once.
+    /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
+    /// time in a single reused id buffer against one decode of the source, and the search stops at
+    /// the second qualifier, so memory stays O(N) and the checks number at most N plus one per
+    /// member that fails alone with `combined`.
     fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
-        let alone = ids.iter().map(|id| vec![*id]);
-        let without = (0..ids.len()).map(|skip| {
-            let rest = ids.iter().enumerate().filter(|(at, _)| *at != skip);
-            rest.map(|(_, id)| *id).collect::<Vec<_>>()
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
+        #[cfg(test)]
+        attribution_probe::held(1);
+        let found = self.with_source_removal_checker(|source_check| {
+            let verdict = |set: &[NodeId]| {
+                #[cfg(test)]
+                attribution_probe::checked(1);
+                let gone = self.removal_subtree(set)?;
+                if self.source.is_some() {
+                    source_check(&gone)?;
+                }
+                Ok(())
+            };
+            let mut explaining = None;
+            for (at, id) in ids.iter().enumerate() {
+                candidate.clear();
+                candidate.push(*id);
+                if verdict(&candidate) != Err(combined.clone()) {
+                    continue;
+                }
+                candidate.clear();
+                candidate.extend(
+                    ids.iter()
+                        .enumerate()
+                        .filter(|(i, _)| *i != at)
+                        .map(|(_, id)| *id),
+                );
+                if verdict(&candidate).is_err() {
+                    continue;
+                }
+                if explaining.replace(at).is_some() {
+                    return None;
+                }
+            }
+            explaining
         });
-        let sets: Vec<Vec<NodeId>> = alone.chain(without).collect();
-        let verdicts = self.removal_verdicts(&sets);
-        let (alone, without) = verdicts.split_at(ids.len());
-        let mut explaining =
-            (0..ids.len()).filter(|at| alone[*at] == Err(combined.clone()) && without[*at].is_ok());
-        match (explaining.next(), explaining.next()) {
-            (Some(at), None) => match self.node(ids[at]) {
-                Ok(node) => NativeError::DeleteMemberRefused {
-                    node: refusal_name(node.name()),
-                    reason: Box::new(combined),
-                },
-                Err(_) => combined,
+        match found.map(|at| self.node(ids[at])) {
+            Some(Ok(node)) => NativeError::DeleteMemberRefused {
+                node: refusal_name(node.name()),
+                reason: Box::new(combined),
             },
             _ => combined,
         }
-    }
-    /// Whether removing each set would be accepted, subtree rules and source check included.
-    fn removal_verdicts(&self, sets: &[Vec<NodeId>]) -> Vec<Result<(), NativeError>> {
-        let gones: Vec<Result<Vec<NativeId>, NativeError>> =
-            sets.iter().map(|set| self.removal_subtree(set)).collect();
-        if self.source.is_none() {
-            return gones.into_iter().map(|gone| gone.map(drop)).collect();
-        }
-        let accepted: Vec<Vec<NativeId>> = gones
-            .iter()
-            .filter_map(|gone| gone.as_ref().ok().cloned())
-            .collect();
-        let mut checked = self.check_source_removals(&accepted).into_iter();
-        gones
-            .into_iter()
-            .map(|gone| {
-                gone.and_then(|_| checked.next().unwrap_or(Err(NativeError::UnsupportedEdit)))
-            })
-            .collect()
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
         let gone = self.removal_subtree(&[id])?;
@@ -2044,6 +2051,36 @@ impl fmt::Display for NativeError {
     }
 }
 impl std::error::Error for NativeError {}
+
+/// Counters for `name_refusing_member`, so tests pin its cost without timing (#336).
+#[cfg(test)]
+pub(crate) mod attribution_probe {
+    use std::cell::Cell;
+    std::thread_local! {
+        static DECODES: Cell<usize> = const { Cell::new(0) };
+        static CHECKS: Cell<usize> = const { Cell::new(0) };
+        static PEAK_SETS: Cell<usize> = const { Cell::new(0) };
+    }
+    pub(crate) fn reset() {
+        for cell in [&DECODES, &CHECKS, &PEAK_SETS] {
+            cell.with(|c| c.set(0));
+        }
+    }
+    pub(crate) fn decoded() {
+        DECODES.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn checked(count: usize) {
+        CHECKS.with(|c| c.set(c.get() + count));
+    }
+    pub(crate) fn held(sets: usize) {
+        PEAK_SETS.with(|c| c.set(c.get().max(sets)));
+    }
+    /// `(source decodes, candidate checks, most candidate id sets held at once)`.
+    pub(crate) fn counts() -> (usize, usize, usize) {
+        let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
+        (get(&DECODES), get(&CHECKS), get(&PEAK_SETS))
+    }
+}
 
 #[cfg(test)]
 mod tests;

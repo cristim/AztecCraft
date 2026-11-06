@@ -129,26 +129,29 @@ pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
     ids: &[NativeId],
 ) -> Result<Vec<PruneRange>, RemovalRefusal> {
-    check_removal_sets(bytes, &[ids])
-        .and_then(|mut outcomes| outcomes.pop().ok_or(RemovalRefusal::Unreadable))
-        .and_then(|outcome| outcome)
+    with_removal_checker(bytes, |check| check?(ids))
 }
 
-/// [`check_removal`] for several candidate id sets against one decode of `bytes`; the outer error
-/// is an unreadable file, each inner result is that set's own verdict.
-pub(in crate::native_scene) fn check_removal_sets(
+/// Decodes `bytes` once and hands `with` a checker for one candidate id set at a time; the checker
+/// yields that set's own verdict. `with` gets the refusal instead when the file is unreadable.
+pub(in crate::native_scene) fn with_removal_checker<T>(
     bytes: &Arc<[u8]>,
-    sets: &[&[NativeId]],
-) -> Result<Vec<Result<Vec<PruneRange>, RemovalRefusal>>, RemovalRefusal> {
-    let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
-    let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
+    with: impl FnOnce(
+        Result<&dyn Fn(&[NativeId]) -> Result<Vec<PruneRange>, RemovalRefusal>, RemovalRefusal>,
+    ) -> T,
+) -> T {
+    #[cfg(test)]
+    crate::native_scene::attribution_probe::decoded();
+    let Ok(container) = container::inspect(bytes.clone()) else {
+        return with(Err(RemovalRefusal::Unreadable));
+    };
+    let Ok(facts) = semantic::decode_records(&container) else {
+        return with(Err(RemovalRefusal::Unreadable));
+    };
     let bound: Vec<usize> = (0..facts.records.len())
         .filter(|index| is_bound(&container, &facts.records[*index]))
         .collect();
-    Ok(sets
-        .iter()
-        .map(|ids| check_removal_in(&container, &facts, &bound, ids))
-        .collect())
+    with(Ok(&|ids| check_removal_in(&container, &facts, &bound, ids)))
 }
 
 fn check_removal_in(

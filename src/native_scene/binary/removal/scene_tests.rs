@@ -289,6 +289,46 @@ fn a_combined_refusal_no_member_reproduces_stays_unnamed() {
     );
 }
 
+/// `members` plain objects followed by the restricted `r`, which alone explains the refusal.
+fn many_objects_and_a_restricted_one(members: usize) -> (NativeScene, Vec<NodeId>) {
+    let names: Vec<String> = (0..members).map(|at| format!("n{at}")).collect();
+    let children: Vec<u8> = names
+        .iter()
+        .flat_map(|name| {
+            let shape_name = format!("{name}s");
+            [
+                transform(name.as_bytes()),
+                shape(shape_name.as_bytes(), name.as_bytes()),
+            ]
+            .concat()
+        })
+        .collect();
+    let mut scene = decode(scene(&children)).unwrap();
+    scene.nodes[members - 1]
+        .unsupported_transform
+        .push("unproved effect".into());
+    let ids = scene.nodes.iter().map(|node| node.id).collect();
+    (scene, ids)
+}
+
+/// Attribution decodes the source once and never holds every leave-one-out set at once (the old
+/// shape built N+N sets of up to N ids, about 128 MiB of ids at 4096 members).
+#[test]
+fn naming_a_refusing_member_decodes_once_and_holds_one_candidate_set() {
+    let (scene, ids) = many_objects_and_a_restricted_one(48);
+    crate::native_scene::attribution_probe::reset();
+    assert_eq!(
+        scene.name_refusing_member(&ids, NativeError::UnsupportedEdit),
+        NativeError::DeleteMemberRefused {
+            node: "n47".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        }
+    );
+    let (decodes, checks, held) = crate::native_scene::attribution_probe::counts();
+    assert_eq!((decodes, held), (1, 1));
+    assert!(checks <= ids.len() + 1, "{checks} checks");
+}
+
 /// `a` and `b` share set `S` (fine as a pair); `c` shares set `T` with the survivor `d`. A, b and c
 /// each fail alone with `NextAvailableIndex`, but only the set without `c` is accepted.
 #[test]
