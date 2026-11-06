@@ -1217,3 +1217,46 @@ fn a_refused_typed_time_skips_the_click_and_keeps_the_time_error() {
     }
     assert!(editor.status.starts_with("a time must be a whole frame"));
 }
+
+#[test]
+fn playback_survives_a_stale_token_and_a_repeated_play_and_stop_ends_it_itself() {
+    let (mut editor, _) = keyed();
+    editor.apply_operation(Operation::Play).unwrap();
+    let remote = |editor: &mut Editor, token, operation| {
+        editor.remote_operation(
+            RemoteRequest {
+                expected_scene_token: Some(token),
+                operation,
+            },
+            &egui::Context::default(),
+        )
+    };
+    // A remote request refused by the scene token never reaches the stop check.
+    let stale = remote(&mut editor, Uuid::new_v4(), Operation::DeselectAll);
+    assert!(matches!(stale, Err(OperationError::StaleScene)));
+    let stale = remote(
+        &mut editor,
+        Uuid::new_v4(),
+        Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+    );
+    assert!(matches!(stale, Err(OperationError::StaleScene)));
+    assert!(editor.timeline.playing);
+    // A repeated play is Unchanged and leaves playback running.
+    let token = editor.scene_token;
+    let again = remote(&mut editor, token, Operation::Play);
+    assert!(matches!(again, Ok(OperationReply::Unchanged)));
+    assert!(editor.timeline.playing);
+    // Stop ends playback itself and reports the change.
+    let stopped = remote(&mut editor, token, Operation::Stop);
+    assert!(matches!(stopped, Ok(OperationReply::Changed)));
+    assert!(!editor.timeline.playing);
+    // A request that passes the guards stops playback even when a later check refuses it.
+    editor.apply_operation(Operation::Play).unwrap();
+    let refused = remote(&mut editor, token, Operation::SetCurrentTime { time: 1.5 });
+    assert!(refused.is_err());
+    assert!(!editor.timeline.playing);
+}
