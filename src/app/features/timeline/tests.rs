@@ -1031,7 +1031,7 @@ fn ruler_labels_near_the_right_edge_stay_inside_it() {
 }
 
 #[test]
-fn playback_keeps_playing_through_selection_tool_camera_and_grid_requests_only() {
+fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_only() {
     use crate::editor_operations::ActiveTool;
     for keeps in [
         Operation::Select {
@@ -1041,6 +1041,31 @@ fn playback_keeps_playing_through_selection_tool_camera_and_grid_requests_only()
         Operation::SetActiveTool(ActiveTool::Move),
         Operation::SetSelectionMode(SelectionMode::Vertex),
         Operation::SetGridVisible { visible: false },
+        Operation::DeselectAll,
+        Operation::FrameAll,
+        Operation::FrameSelected {
+            with_children: false,
+        },
+        Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+        Operation::SetSidebarPanelVisible {
+            panel: crate::editor_operations::SidebarPanel::ChannelBox,
+            visible: true,
+        },
+        Operation::SelectAttributeEditorTab {
+            tab: crate::editor_operations::AttributeEditorTab::Transform(
+                NodeId::from_decimal("1").unwrap(),
+            ),
+        },
+        Operation::Orbit { radians: [0.1; 2] },
+        Operation::Pan {
+            world_units: [0.1; 2],
+        },
+        Operation::Dolly { factor: 1.1 },
+        Operation::Inspect { page: None },
+        Operation::InspectKeys {
+            node: None,
+            cursor: None,
+        },
         Operation::InspectUvs {
             shape: azteccraft::native_scene::NativeId::from_decimal("1").unwrap(),
             cursor: None,
