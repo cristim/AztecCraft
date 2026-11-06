@@ -82,6 +82,7 @@ pub struct FeatureRange {
 
 pub const FEATURE_RANGES: [FeatureRange; 1] = [FeatureRange {
     feature: FeatureId::FrameSelectionChildrenSplit,
+    // PROVISIONAL: 2015 is unsourced (docs unavailable), so 2016 is the first year with a page.
     since: 2016,
     absent_in: 2014,
     present_in: 2016,
