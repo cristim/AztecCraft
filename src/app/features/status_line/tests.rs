@@ -134,7 +134,7 @@ fn snapshot(editor: &Editor) -> (uuid::Uuid, String, bool, SelectionMode, Option
         editor.status.clone(),
         editor.error,
         editor.selection_mode,
-        editor.selected,
+        editor.selected(),
     )
 }
 
@@ -473,7 +473,7 @@ fn same_frame_shortcuts_beat_the_strip_click_exactly_like_the_select_toggle_menu
         assert_eq!(reference.history.scene(), &reference_scene, "{label}");
         assert_eq!(editor.status, reference.status, "{label}");
         assert_eq!(editor.error, reference.error, "{label}");
-        assert_eq!(editor.selected, reference.selected, "{label}");
+        assert_eq!(editor.selected(), reference.selected(), "{label}");
     }
 }
 
@@ -481,13 +481,13 @@ fn same_frame_shortcuts_beat_the_strip_click_exactly_like_the_select_toggle_menu
 fn valid_draft_commits_to_the_old_target_and_invalid_draft_refuses() {
     let (mut editor, context) = setup();
     let output = strip_output(&mut editor, &context);
-    let target = editor.selected.expect("cube selected");
+    let target = editor.selected().expect("cube selected");
     editor.channels[0] = "2".into();
     editor.channel_intents[0] = true;
     click(&mut editor, &context, button_center(&output, COMPONENT));
     assert_eq!(editor.selection_mode, SelectionMode::Face);
     assert!(!editor.has_draft());
-    assert_eq!(editor.selected, Some(target));
+    assert_eq!(editor.selected(), Some(target));
     assert_eq!(
         editor.history.scene().nodes()[0].transform().translation[0],
         2.0
@@ -717,7 +717,7 @@ fn f8_from_hierarchy_goes_to_face_and_back_to_object() {
 fn same_frame_hierarchy_click_and_delete_deletes_the_selection_once() {
     let (mut editor, context) = setup();
     let output = strip_output(&mut editor, &context);
-    assert!(editor.selected.is_some());
+    assert!(editor.selected().is_some());
     click_with_keys(
         &mut editor,
         &context,
@@ -727,7 +727,7 @@ fn same_frame_hierarchy_click_and_delete_deletes_the_selection_once() {
     assert_eq!(editor.selection_mode, SelectionMode::Hierarchy);
     assert!(!editor.error, "{}", editor.status);
     assert!(editor.history.scene().nodes().is_empty());
-    assert_eq!(editor.selected, None);
+    assert_eq!(editor.selected(), None);
 }
 
 #[test]

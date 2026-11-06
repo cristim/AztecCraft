@@ -3,7 +3,7 @@ use crate::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     view_scene::{
         EDGE_CLICK_PIXELS, FACE_CENTER_CLICK_PIXELS, VERTEX_CLICK_PIXELS, ViewError, ViewFace,
-        ViewInstance, ViewScene,
+        ViewInstance, ViewScene, is_direct_instance,
     },
 };
 use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
@@ -11,6 +11,13 @@ use std::fmt;
 
 mod lens;
 pub use lens::Lens;
+
+/// Whether framing a selected transform takes in the geometry of its descendants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrameChildren {
+    Include,
+    Exclude,
+}
 
 const MAX_FACE_CENTER_INTERSECTIONS: usize = 1_000_000;
 
@@ -344,21 +351,52 @@ impl Camera {
         prefix: Option<&[crate::native_scene::NativeId]>,
         aspect: f32,
     ) -> Result<(), InvalidCameraInput> {
+        self.frame_matching(
+            scene,
+            move |path| prefix.is_none_or(|prefix| path.starts_with(prefix)),
+            aspect,
+        )
+    }
+
+    /// Frames the union of the instances of `prefixes`: with `Include` everything below each
+    /// member (as `frame_view` does), with `Exclude` only the member's own direct shapes.
+    /// Members with no matching geometry add nothing; if none has any, it errors.
+    pub fn frame_view_many(
+        &mut self,
+        scene: &ViewScene,
+        prefixes: &[&[crate::native_scene::NativeId]],
+        children: FrameChildren,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        self.frame_matching(
+            scene,
+            move |path| {
+                prefixes.iter().any(|prefix| match children {
+                    FrameChildren::Include => path.starts_with(prefix),
+                    FrameChildren::Exclude => is_direct_instance(path, prefix),
+                })
+            },
+            aspect,
+        )
+    }
+
+    fn frame_matching(
+        &mut self,
+        scene: &ViewScene,
+        keep: impl Fn(&[crate::native_scene::NativeId]) -> bool + Copy,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
         self.frame_iter(
             scene
                 .instances()
                 .iter()
-                .filter(move |instance| {
-                    prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
-                })
+                .filter(move |instance| keep(instance.path()))
                 .flat_map(|instance| instance.world_vertices().iter().copied())
                 .chain(
                     scene
                         .curve_instances()
                         .iter()
-                        .filter(move |instance| {
-                            prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
-                        })
+                        .filter(move |instance| keep(instance.path()))
                         .flat_map(|instance| {
                             let [low, high] = instance.bounds();
                             (0..8).map(move |corner| {

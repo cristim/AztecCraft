@@ -43,8 +43,17 @@ pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String)
 }
 
 /// Why the prompt's Save is disabled outside reconciliation.
-pub(super) const PROMPT_SAVE_UNAVAILABLE: &str =
-    "Not available: this build saves in place only an opened Maya Binary scene (#156, #15)";
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene or, on Unix, a new scene through Save As (#156, #289)";
+
+/// A scene with no retained source was written by the authored writer, whose files Maya has
+/// not been shown to accept.
+fn saved_status(base: &str, written: &NativeScene) -> String {
+    if written.retained_source_bytes() == 0 {
+        format!("{base} (PROVISIONAL: Maya acceptance of new-scene files is unproven)")
+    } else {
+        base.into()
+    }
+}
 
 #[cfg(all(test, any(unix, windows)))]
 mod binary_fixture {
@@ -181,7 +190,7 @@ impl Editor {
             self.files.origin = origin;
             self.files.path = Some(path);
             self.files.uncertain = None;
-            self.status = "Save reconciled".into();
+            self.status = saved_status("Save reconciled", &self.files.saved);
             self.error = false;
             return Ok(OperationReply::SaveReconciled {
                 scene_token: self.scene_token.to_string(),
@@ -198,7 +207,7 @@ impl Editor {
                 self.files.saved = written;
                 self.files.origin = origin;
                 self.files.path = Some(path);
-                self.status = "Scene saved".into();
+                self.status = saved_status("Scene saved", &self.files.saved);
                 self.error = false;
                 Ok(OperationReply::Saved {
                     scene_token: scene_token.to_string(),
@@ -392,8 +401,7 @@ impl Editor {
         self.move_viewport = None;
         self.manipulation.declared = None;
         self.clear_manipulation_hover();
-        self.selected = None;
-        self.selected_path.clear();
+        self.selection.clear();
         self.clear_remembered_components();
         self.name.clear();
         self.channels = Default::default();
@@ -819,6 +827,7 @@ mod tests {
                 ..
             }
         ));
+        assert_eq!(editor.status, "Scene saved");
         assert_eq!(editor.scene_token, token);
         assert_eq!(editor.camera, camera);
         assert_eq!(editor.history.scene(), &first);
@@ -1438,6 +1447,73 @@ mod tests {
         assert!(!editor.is_dirty());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn untitled_scene_enables_save_as_and_its_title_follows_the_saved_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("fresh.mb");
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        assert!(editor.files.save_as_available());
+        assert!(!editor.files.save_available());
+        assert_eq!(editor.document_title(), "AztecCraft | Untitled *");
+        assert!(matches!(
+            editor.apply_operation(Operation::SaveScene),
+            Err(OperationError::NativeSave(NativeSaveError::NoDestination))
+        ));
+        assert!(editor.is_dirty());
+        assert!(matches!(
+            editor
+                .apply_operation(Operation::SaveSceneAs {
+                    path: destination.clone()
+                })
+                .unwrap(),
+            OperationReply::Saved { dirty: false, .. }
+        ));
+        assert_eq!(editor.document_title(), "AztecCraft | fresh.mb");
+        assert!(editor.files.save_available() && editor.files.save_as_available());
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+        assert!(!editor.error);
+        editor.apply_operation(Operation::SaveScene).unwrap();
+        assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
+    }
+
+    #[test]
+    fn saved_status_carries_the_caveat_only_for_scenes_without_a_retained_source() {
+        let new = azteccraft::native_scene::NativeScene::default();
+        assert_eq!(
+            saved_status("Scene saved", &new),
+            "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
+        assert_eq!(
+            saved_status("Save reconciled", &new),
+            "Save reconciled (PROVISIONAL: Maya acceptance of new-scene files is unproven)"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_as_refuses_a_created_material_keeps_the_scene_dirty_and_writes_nothing() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor
+            .apply_operation(Operation::CreateSessionMaterial {
+                color: [0.1, 0.2, 0.3],
+            })
+            .unwrap();
+        let result = editor.apply_operation(Operation::SaveSceneAs {
+            path: directory.path().join("fresh.mb"),
+        });
+        let Err(OperationError::NativeSave(error)) = result else {
+            panic!("a created material must refuse, got {result:?}");
+        };
+        assert!(error.to_string().contains("session materials"), "{error}");
+        assert!(editor.is_dirty());
+        assert!(!editor.files.save_available());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+    }
+
     #[cfg(any(unix, windows))]
     #[test]
     fn native_save_as_from_read_through_symlink_preserves_original_and_verifies_origin() {
@@ -1638,16 +1714,16 @@ mod tests {
             assert!(!editor.history.can_redo());
         }
         let selection = (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.remembered_face.clone(),
         );
         editor.open_path(&bad);
         assert!(editor.error);
         assert_eq!(
             (
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone()
             ),
             selection
@@ -1664,8 +1740,8 @@ mod tests {
             assert_eq!(editor.selection_mode, SelectionMode::Face);
             assert_eq!(
                 (
-                    editor.selected,
-                    editor.selected_path.clone(),
+                    editor.selected(),
+                    editor.selected_path().to_vec(),
                     editor.remembered_face.clone()
                 ),
                 selection
@@ -1687,8 +1763,8 @@ mod tests {
         editor.name = name;
         editor.new_document().unwrap();
         assert_eq!(editor.selection_mode, SelectionMode::Face);
-        assert_eq!(editor.selected, None);
-        assert!(editor.selected_path.is_empty());
+        assert_eq!(editor.selected(), None);
+        assert!(editor.selected_path().is_empty());
         assert_eq!(editor.remembered_face, None);
         assert_ne!(editor.scene_token, token);
         editor.open_path(&path);
@@ -1709,8 +1785,8 @@ mod tests {
         editor.open_path(&other);
         assert!(!editor.error);
         assert_eq!(editor.selection_mode, SelectionMode::Face);
-        assert_eq!(editor.selected, None);
-        assert!(editor.selected_path.is_empty());
+        assert_eq!(editor.selected(), None);
+        assert!(editor.selected_path().is_empty());
         assert_eq!(editor.remembered_face, None);
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
 
@@ -1730,8 +1806,8 @@ mod tests {
         let legacy_token = editor.scene_token;
         let legacy_camera = editor.camera.clone();
         let legacy_selection = (
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.remembered_face.clone(),
         );
         editor.name = "committed_before_cancel".into();
@@ -1755,8 +1831,8 @@ mod tests {
             assert_eq!(editor.selection_mode, SelectionMode::Face);
             assert_eq!(
                 (
-                    editor.selected,
-                    editor.selected_path.clone(),
+                    editor.selected(),
+                    editor.selected_path().to_vec(),
                     editor.remembered_face.clone()
                 ),
                 legacy_selection
@@ -1785,7 +1861,7 @@ mod tests {
         std::fs::write(&path, &source).unwrap();
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
-        let id = editor.selected.unwrap();
+        let id = editor.selected().unwrap();
         editor
             .apply_operation(Operation::Rename {
                 id,
@@ -1796,13 +1872,16 @@ mod tests {
         editor.name = "human draft".into();
         let before = editor.history.scene().clone();
         let camera = editor.camera.clone();
-        let selected = (editor.selected, editor.selected_path.clone());
+        let selected = (editor.selected(), editor.selected_path().to_vec());
         let fields = (editor.name.clone(), editor.channels.clone());
         let token = editor.scene_token;
         assert!(editor.open_candidate(&path).is_err());
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
-        assert_eq!((editor.selected, editor.selected_path.clone()), selected);
+        assert_eq!(
+            (editor.selected(), editor.selected_path().to_vec()),
+            selected
+        );
         assert_eq!((editor.name, editor.channels), fields);
         assert_eq!(editor.scene_token, token);
         assert!(editor.history.can_undo() && editor.history.can_redo());
@@ -1840,7 +1919,7 @@ mod tests {
         assert_eq!(editor.files.origin.source_bytes().unwrap().as_ref(), source);
         assert_eq!(editor.files.document_origin(), DocumentOrigin::MayaAscii);
         assert!(!editor.is_dirty() && !editor.history.can_undo());
-        assert!(editor.selected.is_none() && editor.selected_path.is_empty());
+        assert!(editor.selected().is_none() && editor.selected_path().is_empty());
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
         for point in view.curve_instances()[0].segments().iter().flatten() {
             let ndc = editor
@@ -2116,7 +2195,7 @@ mod tests {
         let saved = std::fs::read(&path).unwrap();
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
-        let cube = editor.selected.unwrap();
+        let cube = editor.selected().unwrap();
         editor.channels[0] = "2".into();
         let unsaved = dir.path().join("unsaved.mb");
         assert!(!editor.inspect(false).unwrap().save_available);
@@ -2134,7 +2213,7 @@ mod tests {
         editor.open_path(&bad);
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.channels, draft);
-        assert_eq!(editor.selected, Some(cube));
+        assert_eq!(editor.selected(), Some(cube));
         assert!(editor.history.can_undo());
         editor.open_path(&path);
         assert!(editor.files.is_modal());
@@ -2276,7 +2355,7 @@ mod tests {
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
         editor.sync_fields();
         editor.native_operation(Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "changed".into(),
         });
         assert!(editor.is_dirty());

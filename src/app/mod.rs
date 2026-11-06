@@ -1,6 +1,6 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectionMode,
-    ShadingMode, SidebarPanel,
+    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectRule,
+    SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
@@ -12,10 +12,11 @@ use crate::editor_operations::{
 use azteccraft::native_scene::{LinearUnit, NativeTransform};
 use azteccraft::{
     history::{Command, EditOutcome, History, ManipulationProvenance},
-    native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, VertexTarget},
+    native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
     scene::{NodeId, Primitive},
+    selection::ObjectSelection,
     view_scene::ViewScene,
-    viewport::Camera,
+    viewport::{Camera, FrameChildren},
 };
 use eframe::egui::{self, Color32, Key, RichText};
 #[cfg(test)]
@@ -65,8 +66,7 @@ pub struct Editor {
     mcp: Option<crate::mcp::UiBridge>,
     scene_token: Uuid,
     history: History,
-    selected: Option<NodeId>,
-    selected_path: Vec<NativeId>,
+    selection: ObjectSelection,
     selection_mode: SelectionMode,
     remembered_face: Option<FaceTarget>,
     remembered_vertex: Option<VertexTarget>,
@@ -99,6 +99,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    uv: features::uv::UvUi,
     native_input_pending: bool,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
@@ -119,8 +120,7 @@ impl Default for Editor {
             mcp: None,
             scene_token: Uuid::new_v4(),
             history: History::default(),
-            selected: None,
-            selected_path: Vec::new(),
+            selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             remembered_face: None,
             remembered_vertex: None,
@@ -150,6 +150,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            uv: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,

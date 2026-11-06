@@ -80,13 +80,37 @@ impl Editor {
         let (history, frame, frame_all) = ctx.input(|i| {
             (
                 history_chord(&i.events),
-                i.events.iter().any(|event| {
-                    matches!(event, egui::Event::Key {
+                // F frames parents only, Ctrl+F with children; explicit Ctrl like Ctrl+A, and each
+                // event is judged by its own modifiers (egui keeps only the frame-final ones).
+                i.events.iter().find_map(|event| match event {
+                    egui::Event::Key {
                         key: Key::F,
                         pressed: true,
                         modifiers,
                         ..
-                    } if modifiers.is_none())
+                    } if modifiers.is_none() => Some(false),
+                    // Shift+F and Ctrl+Shift+F frame in all views; with one view they alias F and
+                    // Ctrl+F (PROVISIONAL until multiple views exist).
+                    egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.shift
+                        && !modifiers.ctrl
+                        && !modifiers.alt
+                        && !modifiers.command
+                        && !modifiers.mac_cmd =>
+                    {
+                        Some(false)
+                    }
+                    egui::Event::Key {
+                        key: Key::F,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } if modifiers.ctrl && !modifiers.mac_cmd && !modifiers.alt => Some(true),
+                    _ => None,
                 }),
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
@@ -117,10 +141,10 @@ impl Editor {
                 visible: true,
             });
         }
-        // Maya 2025.1 hotkeySetup.mel binds Alt+D to SelectNone and Ctrl+Shift+A (Cmd on macOS)
-        // to Select_All (#167). Option+D on macOS relies on egui-winit's physical-key fallback,
-        // PROVISIONAL.
-        let (deselect_all, select_all) = ctx.input(|i| {
+        // Maya 2025.1 hotkeySetup.mel binds Alt+D to SelectNone, Ctrl+Shift+A (Cmd on macOS) to
+        // Select_All and Ctrl+Shift+I to Select_Inverse. Option+D on macOS relies on egui-winit's
+        // physical-key fallback, PROVISIONAL.
+        let (deselect_all, select_all, select_inverse) = ctx.input(|i| {
             let chord = |key: Key, held: fn(&egui::Modifiers) -> bool| {
                 i.events.iter().any(|event| {
                     matches!(event, egui::Event::Key {
@@ -135,14 +159,17 @@ impl Editor {
             (
                 chord(Key::D, |m| m.alt && !m.ctrl && !m.command && !m.shift),
                 chord(Key::A, |m| m.command && m.shift && !m.alt),
+                chord(Key::I, |m| m.command && m.shift && !m.alt),
             )
         });
         if deselect_all {
             self.deselect_all();
         }
         if select_all {
-            self.status = super::menus::SELECT_ALL_STATUS.into();
-            self.error = false;
+            self.native_select_by_rule(SelectRule::All);
+        }
+        if select_inverse {
+            self.native_select_by_rule(SelectRule::Inverse);
         }
         match shading_key {
             Some(Key::Num4) => {
@@ -163,8 +190,8 @@ impl Editor {
         if let Some(operation) = history {
             self.native_operation(operation);
         }
-        if frame {
-            self.frame_selected();
+        if let Some(with_children) = frame {
+            self.frame_selected(with_children);
         }
         if frame_all {
             self.frame_all();

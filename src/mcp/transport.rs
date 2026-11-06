@@ -25,7 +25,7 @@ use tokio_util::{
 };
 
 pub(super) const MAX_INGRESS_BYTES: usize = 64 * 1024;
-pub(super) const MAX_EGRESS_BYTES: usize = 1024 * 1024;
+pub(crate) const MAX_EGRESS_BYTES: usize = 1024 * 1024;
 pub(super) const MAX_REQUESTS: usize = 16;
 pub(super) const MAX_CONTROLS: usize = 16;
 

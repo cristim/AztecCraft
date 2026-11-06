@@ -141,7 +141,7 @@ async fn sdk_tab_selection_resolves_reports_and_refuses() {
     editor.create(Primitive::Plane);
     frame(&mut editor, &context, vec![]);
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     assert_ne!(node, "1");
     let shape = editor.history.scene().shapes()[1].id().to_decimal();
     assert_ne!(shape, "1");
@@ -256,7 +256,7 @@ async fn sdk_attribute_editor_operations_are_guarded_like_the_other_view_setters
     editor.sidebar_dock = Some(AE);
     frame(&mut editor, &context, vec![]);
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let tab = json!({"kind": "transform", "id": node});
     let scene = editor.history.scene().clone();
     let baseline = inspect(&mut editor, &context, &client).await;
@@ -346,7 +346,7 @@ async fn sdk_attribute_editor_operations_are_busy_during_an_active_move() {
     .unwrap();
     editor.sidebar_dock = Some(AE);
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

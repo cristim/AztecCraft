@@ -30,7 +30,11 @@ fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
             instance_path: None,
         })
         .unwrap();
-    editor.apply_operation(Operation::FrameSelected).unwrap();
+    editor
+        .apply_operation(Operation::FrameSelected {
+            with_children: true,
+        })
+        .unwrap();
     let baseline = editor.history.scene().clone();
     let token = editor.scene_token;
     let output = context.run_ui(input(Vec::new(), egui::Vec2::splat(128.0)), |ui| {
@@ -70,7 +74,7 @@ fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
     }
     assert_eq!(editor.history.scene(), &baseline);
     assert_eq!(editor.scene_token, token);
-    assert_eq!(editor.selected, Some(owner));
+    assert_eq!(editor.selected(), Some(owner));
     assert!(!editor.is_dirty() && !editor.history.can_undo());
     assert_eq!(std::fs::read(path).unwrap(), source);
 }
@@ -289,7 +293,7 @@ fn replacement_frame_token_discards_navigation_and_click_for_old_document() {
     );
     output.textures_delta.clear();
     assert_eq!(editor.camera, camera);
-    assert!(editor.selected.is_none());
+    assert!(editor.selected().is_none());
 }
 
 #[test]
@@ -427,8 +431,49 @@ fn headless_gpu_resize_and_keyboard_discard_open_fit_the_current_viewport() {
             );
         }
         assert_eq!(submission.surfaces, 0..36);
-        assert!(editor.selected.is_none());
+        assert!(editor.selected().is_none());
     }
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_a_failed_view_build_reports_scene_geometry_until_undo() {
+    use crate::viewport_renderer::ViewportError;
+    let context = egui::Context::default();
+    let creation = creation_context(context.clone());
+    let mut editor = Editor::new(&creation).unwrap();
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap();
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(editor.inspect(false).unwrap().viewport_error, None);
+    editor
+        .apply_operation(Operation::SetTransform {
+            id,
+            transform: TransformInput {
+                translation: [0.0; 3],
+                rotation_degrees: [0.0; 3],
+                scale: [1e300; 3],
+            },
+        })
+        .unwrap();
+
+    // A stale category from an earlier frame must not survive this failure.
+    editor.viewport_error = Some(ViewportError::ResourceLimit);
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(
+        editor.inspect(false).unwrap().viewport_error,
+        Some(ViewportError::SceneGeometry)
+    );
+
+    assert!(editor.history.undo());
+    render(&mut editor, &context, Vec::new())
+        .textures_delta
+        .clear();
+    assert_eq!(editor.inspect(false).unwrap().viewport_error, None);
 }
 
 #[test]
@@ -438,7 +483,7 @@ fn headless_gpu_recoverable_clip_error_clears_after_typed_transform_repair() {
     let creation = creation_context(context.clone());
     let mut editor = Editor::new(&creation).unwrap();
     editor.create(Primitive::Cube);
-    let id = editor.selected.unwrap();
+    let id = editor.selected().unwrap();
     editor.camera = Camera::new(
         glam::Vec3::ZERO,
         0.0,

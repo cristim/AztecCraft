@@ -10,6 +10,7 @@ fn candidate() -> (NativeScene, crate::scene::NodeId) {
     let bytes: Arc<[u8]> = Arc::from(&b"setAttr geometry;"[..]);
     let end = bytes.len();
     scene.source = Some(SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         records: std::iter::once(0..bytes.len()).collect(),
         bytes,
@@ -215,7 +216,6 @@ fn all_ascii_authoring_refuses_and_preserves_exact_curve_source() {
         history.execute(crate::history::Command::SetTransform {
             id: node,
             transform: NativeTransform::default(),
-            label: None,
         }),
         Err(NativeError::ReadOnlyFormat)
     );

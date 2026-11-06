@@ -34,6 +34,27 @@ pub enum AttributeEditorTab {
     Material(NativeId),
 }
 
+/// Which objects `Operation::SelectByRule` selects, after Maya's Select menu rows. All selects
+/// every transform instance, Hierarchy adds the descendants of the selection (the lead stays the
+/// lead) and Inverse swaps selected and unselected. In Hierarchy selection mode All and Inverse
+/// see only the roots and Hierarchy changes nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectRule {
+    All,
+    Hierarchy,
+    Inverse,
+}
+
+/// How `Operation::ModifySelection` changes the object selection. Add appends an absent instance
+/// as the lead, or moves a present one to the end; Toggle flips membership; Remove drops a member
+/// and leaves an absent instance alone. Removing the lead promotes the previous member.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectionChange {
+    Add,
+    Toggle,
+    Remove,
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct TransformInput {
@@ -115,6 +136,15 @@ use uuid::Uuid;
 pub const MAX_NAME_BYTES: usize = 4096;
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_RESULT_BYTES: usize = 512 * 1024;
+/// Early reject for a tool reply, before it is turned into a `serde_json::Value`, and the limit of
+/// the inspection preflight. The `CallToolResult` carries the reply twice (the structured value
+/// and a compact text copy that escapes every `"` and `\`, about 1.1 times the reply for
+/// `inspect_scene`), so a reply near this cap makes a result of about 2.1 times its size. That
+/// result is the authoritative bound: it must stay within `MAX_RESULT_BYTES`, and the 1 MiB
+/// transport frame is the result plus about 100 bytes of envelope. This cap only bounds the
+/// allocation made before the exact check, so it never admits more than that check would.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_REPLY_BYTES: usize = MAX_RESULT_BYTES / 2;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, Serialize)]
 #[cfg_attr(feature = "mcp", derive(rmcp::schemars::JsonSchema))]
@@ -175,6 +205,73 @@ pub enum ToolHandle {
     ScaleHandle(ScaleHandle),
 }
 
+/// A page of `inspect_scene` nodes: at most `limit` nodes from the position `cursor` names (the
+/// start when absent).
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InspectPage {
+    pub limit: usize,
+    pub cursor: Option<PageCursor>,
+}
+
+/// Where the next page starts, bound to the document and the scene revision it was issued for.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursor {
+    pub scene_token: Uuid,
+    pub revision: u64,
+    pub offset: usize,
+}
+
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PageCursorError;
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursorError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("malformed cursor")
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for PageCursor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "v1.{}.{:x}.{}",
+            self.scene_token, self.revision, self.offset
+        )
+    }
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl std::str::FromStr for PageCursor {
+    type Err = PageCursorError;
+
+    /// Untrusted text. Each part is parsed, then the canonical text is compared with the input, so
+    /// signs, padding, upper case, braces and extra segments are all refused.
+    fn from_str(text: &str) -> Result<Self, PageCursorError> {
+        let mut parts = text.splitn(4, '.');
+        let (Some("v1"), Some(token), Some(revision), Some(offset)) =
+            (parts.next(), parts.next(), parts.next(), parts.next())
+        else {
+            return Err(PageCursorError);
+        };
+        let cursor = PageCursor {
+            scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
+            revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
+            offset: offset.parse().map_err(|_| PageCursorError)?,
+        };
+        if cursor.to_string() == text {
+            Ok(cursor)
+        } else {
+            Err(PageCursorError)
+        }
+    }
+}
+
 pub enum Operation {
     SetActiveTool(ActiveTool),
     /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
@@ -233,8 +330,23 @@ pub enum Operation {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: azteccraft::native_scene::UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
     #[cfg(any(test, feature = "mcp"))]
-    Inspect,
+    Inspect {
+        page: Option<InspectPage>,
+    },
+    /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectUvs {
+        shape: NativeId,
+        cursor: Option<PageCursor>,
+    },
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -244,9 +356,18 @@ pub enum Operation {
         node: Option<NodeId>,
         instance_path: Option<Vec<NativeId>>,
     },
+    /// Adds, toggles or removes one object instance in the ordered object selection; the last
+    /// member is the lead. Object and Hierarchy modes only.
+    ModifySelection {
+        change: SelectionChange,
+        node: NodeId,
+        instance_path: Option<Vec<NativeId>>,
+    },
+    /// Replaces the object selection by a rule (Select > All, Hierarchy, Inverse). Object and Hierarchy modes only.
+    SelectByRule(SelectRule),
     SetSelectionMode(SelectionMode),
     /// Maya's Select > Deselect All (`SelectNone`, Alt+D): clears the object and component
-    /// selection and returns to Object selection mode (#167).
+    /// selection and returns to Object selection mode.
     DeselectAll,
     SelectFace {
         target: Option<FaceTarget>,
@@ -265,6 +386,11 @@ pub enum Operation {
     SaveScene,
     SaveSceneAs {
         path: PathBuf,
+    },
+    /// File > Export All or Export Selection as a new OBJ file; never edits the scene.
+    ExportObj {
+        path: PathBuf,
+        selection_only: bool,
     },
     ResolveFileAction {
         pending_id: uuid::Uuid,
@@ -293,10 +419,20 @@ pub enum Operation {
         target: FaceTarget,
         distance: f64,
     },
+    /// Deletes one node by id; only MCP `delete_node` and tests build it, the UI deletes through
+    /// `DeleteSelection`.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     Delete(NodeId),
+    /// Edit > Delete on the whole object selection: every selected node is removed as one undo
+    /// step, or none is. Object and Hierarchy modes only.
+    DeleteSelection,
     Undo,
     Redo,
-    FrameSelected,
+    /// F frames the selected objects without their descendants, Ctrl+F (`with_children`) with
+    /// them. Component modes frame the component and ignore the flag.
+    FrameSelected {
+        with_children: bool,
+    },
     FrameAll,
     SetGridVisible {
         visible: bool,
@@ -334,6 +470,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Scene {
         inspection: Box<SceneInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Uvs {
+        inspection: Box<UvInspection>,
     },
     Created {
         node_id: String,
@@ -378,6 +518,22 @@ pub enum OperationReply {
         dirty: bool,
         pending_action_status: PendingActionStatus,
     },
+    Exported {
+        objects: usize,
+        vertices: usize,
+        faces: usize,
+    },
+}
+
+/// Present only on a paged reply. `truncated` means more node pages follow.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PageInspection {
+    pub nodes_total: usize,
+    pub node_offset: usize,
+    pub node_count: usize,
+    pub next_cursor: Option<String>,
+    pub truncated: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -415,8 +571,12 @@ pub struct SceneInspection {
     pub appearance_incomplete: bool,
     pub source_appearance: azteccraft::native_scene::AppearanceSummary,
     pub pending_action: Option<PendingInspection>,
+    /// The lead of the ordered object selection (`selection`'s last member), if any.
     pub selected_node: Option<String>,
     pub selected_instance_path: Vec<String>,
+    /// Selected object instances in selection order; the last is the lead.
+    pub selection: Vec<SelectionMemberInspection>,
+    pub selection_count: usize,
     pub selection_mode: SelectionMode,
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
@@ -434,6 +594,8 @@ pub struct SceneInspection {
     /// The native status line text, or a fixed notice when the text would carry a local path.
     pub status_message: Option<String>,
     pub camera: CameraInspection,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<PageInspection>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -570,6 +732,13 @@ pub struct MoveAxisInspection {
 
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
+pub struct SelectionMemberInspection {
+    pub node: String,
+    pub instance_path: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
 pub struct NodeInspection {
     pub id: String,
     pub name: String,
@@ -634,6 +803,33 @@ pub struct ShapeInspection {
     pub material: Option<MaterialInspection>,
     /// Session material id every instance of this shape shows; null on sourced scenes.
     pub session_material: Option<String>,
+    /// The session UV set; null without UVs, and on sourced scenes, whose UVs are not exposed.
+    pub uv_set: Option<&'static str>,
+}
+
+/// Most UV corners in one `inspect_uvs` reply. A corner takes at most about 50 bytes of JSON, so
+/// a page stays inside the tool reply limit of 256 KiB, with room for the envelope and the face
+/// brackets; `a_full_page_of_the_longest_uvs_fits_the_reply_limit` pins it.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct UvInspection {
+    /// With `revision`, tells a client which document state this read belongs to: the read passes
+    /// no token guard, and ids can recur after New.
+    pub scene_token: String,
+    pub revision: u64,
+    pub shape_id: String,
+    /// Null when the shape has no UVs or they are not exposed.
+    pub uv_set: Option<&'static str>,
+    /// Why UVs cannot be read here; null does not mean the shape has UVs.
+    pub unavailable_reason: Option<&'static str>,
+    pub faces_total: usize,
+    pub face_offset: usize,
+    /// One [u, v] per outer corner, for faces `face_offset` onward.
+    pub faces: Vec<Vec<[f64; 2]>>,
+    pub next_cursor: Option<String>,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -701,6 +897,8 @@ pub enum OperationError {
     #[cfg(any(test, feature = "mcp"))]
     SessionMaterial(NativeError),
     NoSelection,
+    /// An action that needs exactly one object ran while several were selected.
+    MultipleSelection,
     /// Frame All on a scene without any mesh or curve instance.
     NothingToFrame,
     InvalidInput(String),
@@ -710,6 +908,8 @@ pub enum OperationError {
     /// Text may carry a filesystem path (`DocumentError`, `ObjError`); never expose it remotely.
     File(String),
     NativeSave(azteccraft::document::NativeSaveError),
+    /// OBJ export refusal or failure; its text never carries the path.
+    ObjExport(ObjExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -720,6 +920,33 @@ pub enum OperationError {
         parameter: &'static str,
         active: &'static str,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObjExportError {
+    DestinationExists,
+    NothingToExport,
+    /// The caller went away or its deadline passed before the file was installed.
+    Cancelled,
+    Io(std::io::ErrorKind),
+    /// Path-free reason the scene cannot be exported (non-finite or unsupported geometry).
+    Invalid(String),
+}
+
+impl fmt::Display for ObjExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DestinationExists => {
+                f.write_str("Export destination already exists; choose a new file name")
+            }
+            Self::NothingToExport => {
+                f.write_str("Nothing to export: no displayed polygon geometry")
+            }
+            Self::Cancelled => f.write_str("OBJ export cancelled before the file was installed"),
+            Self::Io(kind) => write!(f, "OBJ export failed: {kind}"),
+            Self::Invalid(reason) => write!(f, "Cannot export OBJ: {reason}"),
+        }
+    }
 }
 
 impl OperationError {
@@ -740,15 +967,17 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::StaleScene => f.write_str("Scene token is stale; inspect the current document"),
             #[cfg(any(test, feature = "mcp"))]
-            Self::TooLarge => f.write_str("Scene inspection exceeds the prototype response limit"),
+            Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
+            Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::NothingToFrame => f.write_str("The scene has no objects to frame"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
+            Self::ObjExport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }
@@ -779,77 +1008,182 @@ pub struct RemoteRequest {
 }
 
 #[cfg(any(test, feature = "mcp"))]
-const APPEARANCE_SUMMARY_MAX_BYTES: usize = 1024;
-#[cfg(any(test, feature = "mcp"))]
-/// Worst case of the serialized `transform_attributes` object plus its key, asserted by a test.
-const NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES: usize = 640;
-#[cfg(any(test, feature = "mcp"))]
-const NODE_VISIBLE_FIELD_MAX_BYTES: usize = "\"visible\":false,".len();
-#[cfg(any(test, feature = "mcp"))]
 pub const STATUS_MESSAGE_MAX_CHARS: usize = 512;
 #[cfg(any(test, feature = "mcp"))]
 pub const STATUS_MESSAGE_WITHHELD: &str = "File operation failed (details withheld)";
-/// Six bytes per character covers JSON escaping of control characters.
-#[cfg(any(test, feature = "mcp"))]
-const STATUS_MESSAGE_MAX_BYTES: usize = STATUS_MESSAGE_MAX_CHARS * 6 + 32;
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 pub(crate) const MOVE_INSPECTION_MAX_BYTES: usize = 32 * 1024;
-/// Nine f32 values (at most 15 JSON bytes each), three f64 degree values (at most 24) and the
-/// field names: about 330 bytes in the worst case.
-#[cfg(any(test, feature = "mcp"))]
-const CAMERA_INSPECTION_MAX_BYTES: usize = 512;
-
-#[cfg(any(test, feature = "mcp"))]
+#[cfg(test)]
 const SESSION_MATERIAL_INSPECTION_MAX_BYTES: usize = 192;
 
+// The inspection preflight is a guaranteed minimum: each constant below is the serialized length
+// of the smallest value the DTO can take, so the sum never exceeds what `inspect_scene` writes and
+// can never refuse a scene that would fit. It only has to bound the clone memory (a hostile scene
+// can carry huge names); `tool_reply` measures the real reply. Per-field minima: `null` and `true`
+// are 4 bytes (`false` is 5), floats `0.0` are 3, `[]` is 2, an `Option<String>` is `""` (2), a
+// decimal id is `"1"` (3), and every key counts with its quotes and colon. Commas and fields
+// skipped with `skip_serializing_if` count 0. Names add `len()` unescaped, which JSON can only
+// lengthen.
 #[cfg(any(test, feature = "mcp"))]
-pub fn check_inspection_size(
+macro_rules! min_appearance_summary {
+    () => {
+        concat!(
+            r#"{"state":"unbound","shapes":0,"checked_source_bindings":0,"unavailable":0,"unbound":0,"#,
+            r#""issues":{"missing_membership":true,"overlapping_membership":true,"#,
+            r#""unsupported_shader":true,"unsupported_graph":true,"ambiguous_instance":true,"#,
+            r#""unsupported_settings":true,"uv_mismatch":true,"malformed_data":true,"#,
+            r#""evaluation_unavailable":true,"quadratic_filtering_unproved":true,"#,
+            r#""color_processor_unavailable":true}}"#
+        )
+    };
+}
+#[cfg(any(test, feature = "mcp"))]
+const MIN_NODE: &str = concat!(
+    r#"{"id":"1","name":"","transform_id":"1","visible":null,"#,
+    r#""transform":{"translation":[0.0,0.0,0.0],"rotation_degrees":[0.0,0.0,0.0],"scale":[0.0,0.0,0.0]},"#,
+    r#""authoring_transform":{"translation":[0.0,0.0,0.0],"rotation":[0.0,0.0,0.0],"scale":[0.0,0.0,0.0]},"#,
+    r#""instance_paths":[],"shape_ids":[]}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_SHAPE: &str = concat!(
+    r#"{"id":"1","name":"","points":0,"edges":0,"faces":0,"smoothing_known":true,"#,
+    r#""source_appearance":"#,
+    min_appearance_summary!(),
+    r#","#,
+    r#""material":null,"session_material":"0","uv_set":null}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_CURVE: &str = concat!(
+    r#"{"id":"1","name":"","degree":0,"form":"open","control_vertices":0,"knots":0,"#,
+    r#""domain":[0.0,0.0],"read_only":true,"draw_available":true}"#
+);
+#[cfg(any(test, feature = "mcp"))]
+const MIN_SESSION_MATERIAL: &str =
+    r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true}"#;
+/// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
+/// 4L + 1 bytes (the last element has no comma), so a member or target already counted with `[]`
+/// adds 4L - 1; a node's `instance_paths` entry is a whole array and is charged 4L.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_PATH_ELEMENT: usize = r#""1","#.len();
+/// A `null` that a present remembered target replaces.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_NULL: usize = "null".len();
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_SELECTION_MEMBER: &str = r#"{"node":"1","instance_path":[]}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_FACE_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"face_index":0}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_VERTEX_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"vertex_index":0}"#;
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_EDGE_TARGET: &str =
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"edge_index":0}"#;
+/// Everything in `SceneInspection` except the four lists; nested fixed objects at their minimum.
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_FIXED: &str = concat!(
+    r#"{"scene_token":"00000000-0000-0000-0000-000000000000","#,
+    r#""manipulation":{"active_tool":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
+    r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
+    r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
+    r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,
+    r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
+    r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
+    r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","#,
+    r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
+    r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
+    r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,
+    r#""source_appearance":"#,
+    min_appearance_summary!(),
+    r#","#,
+    r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
+    r#""selection_count":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
+    r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
+    r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""text_focused":true,"modal":true,"status_message":"","#,
+    r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0}}"#
+);
+
+/// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part
+/// plus the minimum of every node, shape, curve and session material and each name's length.
+#[cfg(test)]
+pub fn inspection_lower_bound(scene: &azteccraft::native_scene::NativeScene) -> usize {
+    inspection_page_lower_bound(scene, 0..scene.nodes().len())
+}
+
+/// The same bound for one page: the nodes in `nodes` (clamped to the scene) and the shapes and
+/// curves those nodes hold (each once). Every shape and curve is the child of a node edge
+/// (`validate_dag`), so the whole range covers all of them.
+#[cfg(any(test, feature = "mcp"))]
+pub fn inspection_page_lower_bound(
     scene: &azteccraft::native_scene::NativeScene,
-) -> Result<(), OperationError> {
-    let limit = MAX_RESULT_BYTES / 2;
-    let mut estimated_bytes = APPEARANCE_SUMMARY_MAX_BYTES
-        + MOVE_INSPECTION_MAX_BYTES
-        + STATUS_MESSAGE_MAX_BYTES
-        + CAMERA_INSPECTION_MAX_BYTES;
-    for node in scene.nodes() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(1024)
-            .saturating_add(node.name().len().saturating_mul(6))
-            .saturating_add(512)
-            .saturating_add(NODE_VISIBLE_FIELD_MAX_BYTES);
-        if !node.extras().is_default() {
-            estimated_bytes = estimated_bytes.saturating_add(NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES);
-        }
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
-        }
-    }
-    for shape in scene.shapes() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(512)
-            .saturating_add(256)
-            .saturating_add(APPEARANCE_SUMMARY_MAX_BYTES)
-            .saturating_add(shape.name().len().saturating_mul(6));
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
+    nodes: std::ops::Range<usize>,
+) -> usize {
+    use std::collections::HashSet;
+    let all = scene.nodes();
+    let end = nodes.end.min(all.len());
+    let page = &all[nodes.start.min(end)..end];
+    let page_nodes = page.iter().fold(0usize, |sum, node| {
+        sum.saturating_add(MIN_NODE.len())
+            .saturating_add(node.name().len())
+    });
+    let on_page: HashSet<NativeId> = page.iter().map(|node| node.transform_id()).collect();
+    let mut held_by_page = HashSet::new();
+    for edge in scene.dag_edges() {
+        let Some(parent) = edge.parent() else {
+            continue;
+        };
+        if on_page.contains(&parent) {
+            held_by_page.insert(edge.child());
         }
     }
-    for curve in scene.curves() {
-        estimated_bytes = estimated_bytes
-            .saturating_add(512)
-            .saturating_add(curve.name().len().saturating_mul(6));
-        if estimated_bytes > limit {
-            return Err(OperationError::TooLarge);
-        }
-    }
-    estimated_bytes = estimated_bytes.saturating_add(
+    let shapes = scene
+        .shapes()
+        .iter()
+        .filter(|shape| held_by_page.contains(&shape.id()))
+        .fold(0usize, |sum, shape| {
+            sum.saturating_add(MIN_SHAPE.len())
+                .saturating_add(shape.name().len())
+        });
+    let curves = scene
+        .curves()
+        .iter()
+        .filter(|curve| held_by_page.contains(&curve.id()))
+        .fold(0usize, |sum, curve| {
+            sum.saturating_add(MIN_CURVE.len())
+                .saturating_add(curve.name().len())
+        });
+    // Sourced scenes (appearance incomplete) report an empty table.
+    let materials = if scene.appearance_incomplete() {
+        0
+    } else {
         scene
             .session_materials()
             .len()
-            .saturating_mul(SESSION_MATERIAL_INSPECTION_MAX_BYTES),
-    );
-    estimated_bytes = estimated_bytes.saturating_add(scene.dag_edges().len().saturating_mul(24));
-    if estimated_bytes > limit {
+            .saturating_mul(MIN_SESSION_MATERIAL.len())
+    };
+    [page_nodes, shapes, curves, materials]
+        .into_iter()
+        .fold(MIN_FIXED.len(), usize::saturating_add)
+}
+
+/// Refuses before any clone when even the guaranteed minimum exceeds the reply ceiling.
+#[cfg(test)]
+pub fn check_inspection_size(
+    scene: &azteccraft::native_scene::NativeScene,
+) -> Result<(), OperationError> {
+    check_inspection_page(scene, 0..scene.nodes().len())
+}
+
+/// `check_inspection_size` for one page.
+#[cfg(any(test, feature = "mcp"))]
+pub fn check_inspection_page(
+    scene: &azteccraft::native_scene::NativeScene,
+    nodes: std::ops::Range<usize>,
+) -> Result<(), OperationError> {
+    if inspection_page_lower_bound(scene, nodes) > MAX_REPLY_BYTES {
         return Err(OperationError::TooLarge);
     }
     Ok(())
@@ -862,7 +1196,7 @@ mod tests {
     #[test]
     fn a_full_session_material_table_stays_well_inside_the_inspection_budget() {
         let materials = azteccraft::native_scene::MAX_SESSION_MATERIALS;
-        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_RESULT_BYTES / 2);
+        assert!(materials * SESSION_MATERIAL_INSPECTION_MAX_BYTES * 2 <= MAX_REPLY_BYTES);
         let widest = SessionMaterialInspection {
             id: (materials - 1).to_string(),
             // Material numbers are u32 (adding past u32::MAX is a resource-limit refusal).
@@ -901,25 +1235,320 @@ mod tests {
         }
     }
 
+    fn zeros() -> [f64; 3] {
+        [0.0; 3]
+    }
+
     #[test]
-    fn curve_inspection_preflight_bounds_names_and_fixed_fields_before_cloning() {
-        let curve = CurveInspection {
-            id: u64::MAX.to_string(),
+    fn minimum_constants_are_the_smallest_serialized_dtos() {
+        use azteccraft::native_scene::{
+            AppearanceIssues, AppearanceState, AppearanceSummary, CurveForm,
+        };
+        let summary = AppearanceSummary {
+            state: AppearanceState::Unbound,
+            shapes: 0,
+            checked_source_bindings: 0,
+            unavailable: 0,
+            unbound: 0,
+            issues: AppearanceIssues {
+                missing_membership: true,
+                overlapping_membership: true,
+                unsupported_shader: true,
+                unsupported_graph: true,
+                ambiguous_instance: true,
+                unsupported_settings: true,
+                uv_mismatch: true,
+                malformed_data: true,
+                evaluation_unavailable: true,
+                quadratic_filtering_unproved: true,
+                color_processor_unavailable: true,
+            },
+        };
+        let node = NodeInspection {
+            id: "1".into(),
             name: String::new(),
-            degree: u32::MAX,
-            form: azteccraft::native_scene::CurveForm::Open,
-            control_vertices: usize::MAX,
-            knots: usize::MAX,
-            domain: [-f64::MAX, f64::MAX],
+            transform_id: "1".into(),
+            visible: None,
+            transform: TransformInput {
+                translation: zeros(),
+                rotation_degrees: zeros(),
+                scale: zeros(),
+            },
+            authoring_transform: AuthoringTransformInspection {
+                translation: zeros(),
+                rotation: zeros(),
+                scale: zeros(),
+            },
+            transform_attributes: None,
+            instance_paths: Vec::new(),
+            shape_ids: Vec::new(),
+        };
+        assert_eq!(serde_json::to_string(&node).unwrap(), MIN_NODE);
+        let shape = ShapeInspection {
+            id: "1".into(),
+            name: String::new(),
+            points: 0,
+            edges: 0,
+            faces: 0,
+            smoothing_known: true,
+            source_appearance: summary,
+            material: None,
+            session_material: Some("0".into()),
+            uv_set: None,
+        };
+        assert_eq!(serde_json::to_string(&shape).unwrap(), MIN_SHAPE);
+        let curve = CurveInspection {
+            id: "1".into(),
+            name: String::new(),
+            degree: 0,
+            form: CurveForm::Open,
+            control_vertices: 0,
+            knots: 0,
+            domain: [0.0; 2],
             read_only: true,
             draw_available: true,
         };
-        assert!(serde_json::to_vec(&curve).unwrap().len() <= 512);
+        assert_eq!(serde_json::to_string(&curve).unwrap(), MIN_CURVE);
+        let material = SessionMaterialInspection {
+            id: "0".into(),
+            name: String::new(),
+            shading_group: String::new(),
+            color: zeros(),
+            editable: true,
+        };
+        assert_eq!(
+            serde_json::to_string(&material).unwrap(),
+            MIN_SESSION_MATERIAL
+        );
+    }
+
+    #[test]
+    fn path_minimum_constants_are_the_smallest_serialized_dtos() {
+        let member = SelectionMemberInspection {
+            node: "1".into(),
+            instance_path: Vec::new(),
+        };
+        assert_eq!(
+            serde_json::to_string(&member).unwrap(),
+            MIN_SELECTION_MEMBER
+        );
+        let face = FaceSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            face_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&face).unwrap(), MIN_FACE_TARGET);
+        let vertex = VertexSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            vertex_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&vertex).unwrap(), MIN_VERTEX_TARGET);
+        let edge = EdgeSelectionTarget {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            edge_index: 0,
+        };
+        assert_eq!(serde_json::to_string(&edge).unwrap(), MIN_EDGE_TARGET);
+        let path = SelectionMemberInspection {
+            node: "1".into(),
+            instance_path: vec!["1".into(); 5],
+        };
+        let with = serde_json::to_string(&path).unwrap().len();
+        assert_eq!(with - MIN_SELECTION_MEMBER.len(), 5 * MIN_PATH_ELEMENT - 1);
+    }
+
+    fn cubes(count: usize) -> NativeScene {
+        let mut scene = NativeScene::default();
+        for index in 0..count {
+            scene
+                .create(Primitive::Cube, &format!("cube_{index:03}"))
+                .unwrap();
+        }
+        scene
+    }
+
+    fn named_legacy(name: &str) -> NativeScene {
+        let mut legacy = Scene::default();
+        legacy.create(Primitive::Cube, name).unwrap();
+        NativeScene::from_legacy(legacy).unwrap()
+    }
+
+    #[test]
+    fn a_page_cursor_round_trips_through_its_text() {
+        let cursor = PageCursor {
+            scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
+            revision: 0xab_cdef,
+            offset: 4096,
+        };
+        let text = cursor.to_string();
+        assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
+        assert_eq!(text.parse::<PageCursor>(), Ok(cursor));
+        let extreme = PageCursor {
+            scene_token: Uuid::nil(),
+            revision: u64::MAX,
+            offset: usize::MAX,
+        };
+        assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
+    }
+
+    #[test]
+    fn a_malformed_page_cursor_is_refused_not_panicked_on() {
+        let id = "12345678-9abc-def0-1234-56789abcdef0";
+        let bad = [
+            String::new(),
+            "v1".into(),
+            format!("v2.{id}.1.0"),
+            format!("v1.{id}.1"),
+            "v1.not-a-uuid.1.0".into(),
+            format!("v1.{id}..0"),
+            format!("v1.{id}.10000000000000000.0"),
+            format!("v1.{id}.+1.0"),
+            format!("v1.{id}.01.0"),
+            format!("v1.{}.1.0", id.to_uppercase()),
+            format!("v1.{{{id}}}.1.0"),
+            format!("v1.{id}.1.-1"),
+            format!("v1.{id}.1.+1"),
+            format!("v1.{id}.1.01"),
+            format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1."),
+            format!("v1.{id}.1.99999999999999999999999"),
+            format!("v1.{id}.1.1 "),
+        ];
+        for text in &bad {
+            assert_eq!(text.parse::<PageCursor>(), Err(PageCursorError), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_preflight_accepts_scenes_the_old_worst_case_estimate_refused() {
+        // The old estimate refused from 66 cubes although 120 serialize to about 105 KB.
+        for count in [65, 66, 120, 140] {
+            assert!(check_inspection_size(&cubes(count)).is_ok(), "{count}");
+        }
+    }
+
+    #[test]
+    fn the_inspection_capacity_follows_the_minimum_sizes_and_the_limit() {
+        // Pinned from the limit and the constants, not as a second literal.
+        let per_cube = MIN_NODE.len() + MIN_SHAPE.len() + "cube_000".len() + "cube_000Shape".len();
+        let fixed = MIN_FIXED.len() + MIN_SESSION_MATERIAL.len();
+        let capacity = (MAX_REPLY_BYTES - fixed) / per_cube;
+        assert!(check_inspection_size(&cubes(capacity)).is_ok());
+        assert!(matches!(
+            check_inspection_size(&cubes(capacity + 1)),
+            Err(OperationError::TooLarge)
+        ));
+    }
+
+    fn curve_scene(names: &[&str]) -> NativeScene {
+        let mut source = String::from(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
+        );
+        for name in names {
+            source.push_str(&format!(" createNode nurbsCurve -n \"{name}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;"));
+        }
+        azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap()
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_cube_its_minimum_and_both_names() {
+        let delta = inspection_lower_bound(&cubes(2)) - inspection_lower_bound(&cubes(1));
+        let expected = MIN_NODE.len() + MIN_SHAPE.len() + "cube_001".len() + "cube_001Shape".len();
+        assert_eq!(delta, expected);
+    }
+
+    #[test]
+    fn the_lower_bound_charges_each_curve_its_minimum_and_its_name() {
+        let one = curve_scene(&["curveA"]);
+        let two = curve_scene(&["curveA", "curveBB"]);
+        assert_eq!((one.curves().len(), two.curves().len()), (1, 2));
+        assert_eq!(one.nodes().len(), two.nodes().len());
+        let delta = inspection_lower_bound(&two) - inspection_lower_bound(&one);
+        assert_eq!(delta, MIN_CURVE.len() + "curveBB".len());
+    }
+
+    #[test]
+    fn a_partial_page_charges_only_its_own_curves() {
+        let cc = " setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;";
+        let source = format!(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"first\"; createNode nurbsCurve -n \"curveOne\" -p \"first\";{cc} createNode transform -n \"second\"; createNode nurbsCurve -n \"curveTwoLonger\" -p \"second\";{cc}"
+        );
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        assert_eq!((scene.nodes().len(), scene.curves().len()), (2, 2));
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        for (range, node, curve) in [
+            (0..1, "first", "curveOne"),
+            (1..2, "second", "curveTwoLonger"),
+        ] {
+            assert_eq!(scene.nodes()[range.start].name(), node);
+            assert_eq!(
+                inspection_page_lower_bound(&scene, range) - empty,
+                MIN_NODE.len() + node.len() + MIN_CURVE.len() + curve.len()
+            );
+        }
+    }
+
+    #[test]
+    fn page_bounds_count_each_node_and_its_shapes_once_across_pages() {
+        let scene = cubes(10);
+        let empty = inspection_page_lower_bound(&scene, 0..0);
+        let full = inspection_lower_bound(&scene);
+        let paged: usize = [0..3, 3..6, 6..9, 9..10]
+            .into_iter()
+            .map(|range| inspection_page_lower_bound(&scene, range) - empty)
+            .sum();
+        assert_eq!(paged, full - empty);
+        // A range past the end is clamped, not an overflow or a panic.
+        assert_eq!(inspection_page_lower_bound(&scene, 10..usize::MAX), empty);
+        assert_eq!(
+            inspection_page_lower_bound(&scene, usize::MAX..usize::MAX),
+            empty
+        );
+    }
+
+    #[test]
+    fn a_whole_scene_bound_is_over_the_ceiling_while_every_page_of_200_is_under() {
+        // Legacy creation is cheap; `NativeScene::create` is cubic over a whole scene.
+        let mut legacy = Scene::default();
+        for index in 0..azteccraft::native_scene::MAX_TRANSFORM_PATHS {
+            legacy
+                .create(Primitive::Cube, &format!("cube_{index:04}"))
+                .unwrap();
+        }
+        let scene = NativeScene::from_legacy(legacy).unwrap();
+        assert_eq!(scene.nodes().len(), 4096);
+        assert!(matches!(
+            check_inspection_size(&scene),
+            Err(OperationError::TooLarge)
+        ));
+        for start in (0..4096).step_by(200) {
+            assert!(check_inspection_page(&scene, start..start + 200).is_ok());
+        }
+    }
+
+    #[test]
+    fn the_preflight_refuses_names_whose_minimum_exceeds_the_limit_before_cloning() {
+        for length in [300_000, MAX_RESULT_BYTES] {
+            assert!(matches!(
+                check_inspection_size(&named_legacy(&"\"".repeat(length))),
+                Err(OperationError::TooLarge)
+            ));
+        }
+        // 50 000 quotes serialize to about 100 KB, which fits the ceiling.
+        assert!(check_inspection_size(&named_legacy(&"\"".repeat(50_000))).is_ok());
+    }
+
+    #[test]
+    fn the_preflight_refuses_many_long_curve_names_before_cloning() {
         let mut source = String::from(
             "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"root\";",
         );
         for index in 0..100 {
-            source.push_str(&format!(" createNode nurbsCurve -n \"c{index}_{}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;","x".repeat(650)));
+            source.push_str(&format!(" createNode nurbsCurve -n \"c{index}_{}\" -p \"root\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 1 0 2 -1 0 3 0 0;","x".repeat(3000)));
         }
         let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
         assert!(matches!(
@@ -929,126 +1558,18 @@ mod tests {
     }
 
     #[test]
-    fn inspection_preflight_reserves_bounded_move_metadata_before_cloning_scene() {
-        let mut scene = NativeScene::default();
-        for index in 0..66 {
-            scene
-                .create(Primitive::Cube, &format!("cube_{index:02}"))
+    fn the_preflight_charges_node_and_shape_names_separately() {
+        // Each list alone stays under the limit; only the sum of both refuses.
+        let mut legacy = Scene::default();
+        let name = "s".repeat(3500);
+        for index in 0..40 {
+            legacy
+                .create(Primitive::Cube, &format!("{index:02}{name}"))
                 .unwrap();
         }
+        let scene = NativeScene::from_legacy(legacy).unwrap();
         assert!(matches!(
             check_inspection_size(&scene),
-            Err(OperationError::TooLarge)
-        ));
-    }
-
-    #[test]
-    fn default_nodes_keep_the_base_inspection_capacity() {
-        // Default nodes must not reserve bytes for transform extras: the first node count that
-        // exceeds the budget is pinned, so a per-node reservation that grows shows up here.
-        let mut scene = NativeScene::default();
-        let mut first_too_large = None;
-        for index in 0..200 {
-            scene
-                .create(Primitive::Cube, &format!("cube_{index:02}"))
-                .unwrap();
-            if check_inspection_size(&scene).is_err() {
-                first_too_large = Some(index + 1);
-                break;
-            }
-        }
-        assert_eq!(first_too_large, Some(65));
-    }
-
-    #[test]
-    fn node_visible_field_is_covered_by_the_preflight_estimate() {
-        let node = |visible| NodeInspection {
-            id: String::new(),
-            name: String::new(),
-            transform_id: String::new(),
-            visible,
-            transform: TransformInput {
-                translation: [0.0; 3],
-                rotation_degrees: [0.0; 3],
-                scale: [0.0; 3],
-            },
-            authoring_transform: AuthoringTransformInspection {
-                translation: [0.0; 3],
-                rotation: [0.0; 3],
-                scale: [0.0; 3],
-            },
-            transform_attributes: None,
-            instance_paths: Vec::new(),
-            shape_ids: Vec::new(),
-        };
-        let base = serde_json::to_vec(&node(None)).unwrap().len();
-        for visible in [Some(true), Some(false)] {
-            let with = serde_json::to_vec(&node(visible)).unwrap().len();
-            assert!(with - base <= NODE_VISIBLE_FIELD_MAX_BYTES);
-        }
-        let worst = TransformAttributes {
-            rotate_order: "zyx",
-            rotate_axis_degrees: [-1.7976931348623157e308; 3],
-            shear: [-1.7976931348623157e308; 3],
-            rotate_pivot_translate: [-1.7976931348623157e308; 3],
-            scale_pivot_translate: [-1.7976931348623157e308; 3],
-            non_default: vec![
-                "rotate_order",
-                "rotate_axis",
-                "shear",
-                "rotate_pivot_translate",
-                "scale_pivot_translate",
-            ],
-        };
-        let size = serde_json::to_vec(&worst).unwrap().len() + "\"transform_attributes\":,".len();
-        assert!(size <= NODE_TRANSFORM_ATTRIBUTES_MAX_BYTES, "{size}");
-        assert!(
-            String::from_utf8(serde_json::to_vec(&node(None)).unwrap())
-                .unwrap()
-                .contains("\"visible\":null")
-        );
-    }
-
-    #[test]
-    fn camera_inspection_preflight_bounds_the_longest_serialized_values() {
-        let worst = -f32::MIN_POSITIVE * 1.000_000_1;
-        let camera = CameraInspection {
-            target: [worst; 3],
-            eye: [f32::MIN; 3],
-            distance: worst,
-            yaw_degrees: f64::from(f32::MIN).to_degrees(),
-            // Unreachable for a valid camera, but the longest f64 text.
-            pitch_degrees: -f64::MIN_POSITIVE,
-            fov_y_degrees: f64::from(worst).to_degrees(),
-            near_clip: worst,
-            far_clip: worst,
-        };
-        assert!(serde_json::to_vec(&camera).unwrap().len() <= CAMERA_INSPECTION_MAX_BYTES);
-    }
-
-    #[test]
-    fn appearance_summary_preflight_bounds_the_largest_fixed_dto() {
-        use azteccraft::native_scene::{AppearanceIssues, AppearanceState, AppearanceSummary};
-        let summary = AppearanceSummary {
-            state: AppearanceState::CheckedViewerSource,
-            shapes: usize::MAX,
-            checked_source_bindings: usize::MAX,
-            unavailable: usize::MAX,
-            unbound: usize::MAX,
-            issues: AppearanceIssues::default(),
-        };
-        assert!(serde_json::to_vec(&summary).unwrap().len() <= APPEARANCE_SUMMARY_MAX_BYTES);
-    }
-
-    #[test]
-    fn inspection_preflight_accounts_for_escaped_legacy_names_before_cloning() {
-        let mut legacy = Scene::default();
-        legacy
-            .create(Primitive::Cube, &"\"".repeat(50_000))
-            .unwrap();
-        let native = NativeScene::from_legacy(legacy).unwrap();
-        assert!(matches!(
-            check_inspection_size(&native),
             Err(OperationError::TooLarge)
         ));
     }

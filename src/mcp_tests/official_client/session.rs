@@ -6,7 +6,7 @@ async fn strict_sdk_requests_and_core_errors_preserve_live_editor_state() {
     let (mut editor, client, server) = start(&context).await;
     editor.create(Primitive::Cube);
     let token = editor.scene_token.to_string();
-    let id = editor.selected.unwrap().to_decimal();
+    let id = editor.selected().unwrap().to_decimal();
     let before = editor.history.scene().clone();
     assert!(
         call_response(
@@ -65,7 +65,7 @@ async fn strict_sdk_requests_and_core_errors_preserve_live_editor_state() {
             expected
         );
         assert_eq!(editor.history.scene(), &before);
-        assert_eq!(editor.selected.unwrap().to_decimal(), id);
+        assert_eq!(editor.selected().unwrap().to_decimal(), id);
     }
     editor.name = "human_draft".into();
     let result = call(
@@ -115,8 +115,8 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
         let before = editor.history.scene().clone();
         let selection = (
             editor.selection_mode,
-            editor.selected,
-            editor.selected_path.clone(),
+            editor.selected(),
+            editor.selected_path().to_vec(),
             editor.remembered_face.clone(),
         );
         let args = if tool == "set_grid_visibility" {
@@ -124,9 +124,9 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
         } else if tool == "set_shading_mode" {
             json!({"scene_token":editor.scene_token.to_string(),"mode":"wireframe"})
         } else if tool == "edit_node" {
-            json!({"scene_token":editor.scene_token.to_string(),"node_id":editor.selected.unwrap().to_decimal(),"translation":[3,null,null]})
+            json!({"scene_token":editor.scene_token.to_string(),"node_id":editor.selected().unwrap().to_decimal(),"translation":[3,null,null]})
         } else if tool == "extrude_face" {
-            let id = editor.selected.unwrap();
+            let id = editor.selected().unwrap();
             let shape = editor.history.scene().shapes()[0].id();
             json!({"scene_token":editor.scene_token.to_string(),"node_id":id.to_decimal(),"shape_id":shape.to_decimal(),"instance_path":[editor.history.scene().node(id).unwrap().transform_id().to_decimal(),shape.to_decimal()],"face_index":0,"distance":1})
         } else if tool == "set_selection_mode" {
@@ -164,8 +164,8 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
         assert_eq!(
             (
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone()
             ),
             selection
@@ -194,8 +194,8 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
         assert_eq!(
             (
                 editor.selection_mode,
-                editor.selected,
-                editor.selected_path.clone(),
+                editor.selected(),
+                editor.selected_path().to_vec(),
                 editor.remembered_face.clone()
             ),
             selection
@@ -222,7 +222,7 @@ async fn ui_deadline_drops_receiver_before_paused_editor_can_apply_request() {
             json!({"scene_token":editor.scene_token.to_string(),"mode":"wireframe"})
         } else if tool == "extrude_face" {
             editor.create(Primitive::Cube);
-            let id = editor.selected.unwrap();
+            let id = editor.selected().unwrap();
             let shape = editor.history.scene().shapes()[0].id();
             json!({"scene_token":editor.scene_token.to_string(),"node_id":id.to_decimal(),"shape_id":shape.to_decimal(),"instance_path":[editor.history.scene().node(id).unwrap().transform_id().to_decimal(),shape.to_decimal()],"face_index":1,"distance":1})
         } else {
@@ -434,7 +434,7 @@ async fn sdk_client_discovers_every_handler_and_edits_same_native_controller() {
         json!({"scene_token":token,"node_id":null}),
     )
     .await;
-    assert_eq!(editor.selected, None);
+    assert_eq!(editor.selected(), None);
     call(
         &mut editor,
         &context,

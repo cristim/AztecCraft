@@ -170,6 +170,8 @@
     "scene_token": "<uuid>",
     "selected_instance_path": [],
     "selected_node": null,
+    "selection": [],
+    "selection_count": 0,
     "selection_mode": "object",
     "session_materials": [],
     "shading": "smooth_shade_all",

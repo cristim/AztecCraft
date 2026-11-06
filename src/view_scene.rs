@@ -81,6 +81,8 @@ pub struct ViewInstance {
     transform: NodeId,
     shape: NativeId,
     world_vertices: Vec<Vec3>,
+    /// Exact f64 world matrix (centimeters) of this instance path.
+    world: DMat4,
     /// Inverse transpose of the world matrix's linear part; zero if it is singular.
     normal_matrix: Mat3,
     faces: Vec<ViewFace>,
@@ -110,6 +112,10 @@ impl ViewScene {
     /// Applies the caller's derived-view byte budget before expanding instance paths.
     pub fn from_native(scene: &NativeScene, byte_budget: usize) -> Result<Self, ViewError> {
         let graph = Graph::prepare(scene, byte_budget)?;
+        // Built once for the whole walk: admission below is called per instance, and scanning the
+        // scene for each one made the build quadratic (#341).
+        let admission_index =
+            crate::native_scene::ViewAdmissionIndex::new(scene).map_err(ViewError::Native)?;
         let requirements = graph.requirements(byte_budget)?;
         let mut paths = reserve(requirements.paths)?;
         for root in graph.children(None) {
@@ -165,7 +171,7 @@ impl ViewScene {
                 }
                 path.reverse();
                 let admission = scene
-                    .geometry_view_admission(&path)
+                    .geometry_view_admission_indexed(&admission_index, &path)
                     .map_err(ViewError::Native)?;
                 if admission.visible() {
                     let parent = paths[cursor].parent.ok_or(ViewError::InvalidGeometry)?;
@@ -191,6 +197,7 @@ impl ViewScene {
                                 transform: transform.id(),
                                 shape: shape.id(),
                                 world_vertices: vertices,
+                                world,
                                 normal_matrix: normal_matrix(&world),
                                 faces: view_faces(mesh)?,
                                 edges: view_edges(mesh)?,
@@ -248,13 +255,31 @@ impl ViewScene {
     pub fn curve_instances(&self) -> &[ViewCurveInstance] {
         &self.curve_instances
     }
+    /// Whether any visible mesh or curve instance is a direct shape of one of `prefixes`.
+    pub fn has_direct_geometry(&self, prefixes: &[&[NativeId]]) -> bool {
+        let direct = |path: &[NativeId]| {
+            prefixes
+                .iter()
+                .any(|prefix| is_direct_instance(path, prefix))
+        };
+        self.instances.iter().any(|instance| direct(&instance.path))
+            || self
+                .curve_instances
+                .iter()
+                .any(|instance| direct(&instance.path))
+    }
+}
+
+/// True when `instance_path` is `prefix` plus exactly one more element (the shape), so the
+/// instance belongs to the transform at `prefix` itself and not to a descendant of it.
+pub fn is_direct_instance(instance_path: &[NativeId], prefix: &[NativeId]) -> bool {
+    instance_path.len().checked_sub(1) == Some(prefix.len()) && instance_path.starts_with(prefix)
 }
 
 impl ViewInstance {
     pub fn is_direct_shape_of(&self, transform: NodeId, path: &[NativeId]) -> bool {
         self.transform == transform
-            && self.path.len().checked_sub(1) == Some(path.len())
-            && self.path.starts_with(path)
+            && is_direct_instance(&self.path, path)
             && self.path.last() == Some(&self.shape)
     }
 
@@ -286,6 +311,11 @@ impl ViewInstance {
     }
     pub fn world_vertices(&self) -> &[Vec3] {
         &self.world_vertices
+    }
+    /// The f64 world matrix (centimeters) the f32 display vertices were derived from, so
+    /// exporters can recompute exact positions from the authoring scene.
+    pub fn world_matrix(&self) -> DMat4 {
+        self.world
     }
     pub fn faces(&self) -> &[ViewFace] {
         &self.faces

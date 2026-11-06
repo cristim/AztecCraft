@@ -21,7 +21,7 @@ impl SelectionRefusal {
     pub fn message(self) -> &'static str {
         match self {
             Self::ModifiedClick => {
-                "Only plain primary-click selection is supported; Shift/Ctrl selection is unsupported"
+                "Only plain primary-click selection is supported in component modes; Shift/Ctrl selection is unsupported"
             }
             Self::AmbiguousPrimaryInput => {
                 "Ambiguous coalesced primary input cannot select; retry with a single click"
@@ -50,6 +50,8 @@ pub struct ViewportInput {
     move_pointer: MovePointer,
     click_ndc: Option<Vec2>,
     click_points: Option<Vec2>,
+    /// Modifiers of the primary release event that produced the click.
+    click_modifiers: Option<egui::Modifiers>,
     pixels_per_point: f32,
     unsupported_selection: Option<SelectionRefusal>,
     navigation: Vec<Operation>,
@@ -119,6 +121,7 @@ pub fn capture(
     }
     let mut click_ndc = None;
     let mut click_points = None;
+    let mut click_modifiers = None;
     let mut unsupported_selection = None;
     let (released, ambiguous, only_alt) = ui.input(|input| {
         let mut releases = input
@@ -156,6 +159,7 @@ pub fn capture(
         }
         click_ndc = Some(ndc);
         click_points = Some(Vec2::new(point.x - rect.min.x, point.y - rect.min.y));
+        click_modifiers = Some(modifiers);
         if modifiers.shift || modifiers.ctrl || modifiers.command {
             unsupported_selection = Some(SelectionRefusal::ModifiedClick);
         }
@@ -200,6 +204,7 @@ pub fn capture(
         move_pointer,
         click_ndc,
         click_points,
+        click_modifiers,
         pixels_per_point: scale,
         unsupported_selection,
         navigation,
@@ -237,6 +242,9 @@ impl ViewportInput {
     }
     pub fn click_ndc(&self) -> Option<Vec2> {
         self.click_ndc
+    }
+    pub fn click_modifiers(&self) -> Option<egui::Modifiers> {
+        self.click_modifiers
     }
     pub fn unsupported_selection(&self) -> Option<SelectionRefusal> {
         self.unsupported_selection

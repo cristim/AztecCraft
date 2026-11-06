@@ -327,7 +327,7 @@ fn clicking_a_shape_tab_selects_it_and_the_tab_survives_undo() {
     assert!(pin);
     editor
         .apply_operation(Operation::Rename {
-            id: editor.selected.unwrap(),
+            id: editor.selected().unwrap(),
             name: "renamed".into(),
         })
         .unwrap();
@@ -461,7 +461,7 @@ fn curve_only_scene_shows_the_transform_tab_and_curve_information() {
     let (mut editor, _directory) =
         open_with_attribute_editor("curve.ma", &ascii_fixture::specimen());
     assert!(editor.history.scene().shapes().is_empty());
-    let node = editor.selected.unwrap();
+    let node = editor.selected().unwrap();
     assert_eq!(
         editor.effective_attribute_editor_tab(),
         Some(AttributeEditorTab::Transform(node))

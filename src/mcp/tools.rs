@@ -3,7 +3,7 @@ use super::{
     registry::{catalog, parse_request},
     transport::{Control, Shared, check_serialized_size},
 };
-use crate::editor_operations::{MAX_RESULT_BYTES, OperationError, OperationReply};
+use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
 use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
 use rmcp::{
     RoleServer, ServerHandler,
@@ -43,7 +43,7 @@ fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
 fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
     match reply {
         Ok(reply) => {
-            if check_serialized_size(&reply, MAX_RESULT_BYTES / 4).is_err() {
+            if check_serialized_size(&reply, MAX_REPLY_BYTES).is_err() {
                 return tool_error("too_large", OperationError::TooLarge);
             }
             let value = serde_json::to_value(reply).expect("bounded editor replies must serialize");
@@ -82,6 +82,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     _ => "scene_error",
                 },
                 OperationError::NoSelection => "no_selection",
+                OperationError::MultipleSelection => "multiple_selection",
                 OperationError::NothingToFrame => "nothing_to_frame",
                 OperationError::InvalidInput(_) => "invalid_input",
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {
@@ -91,12 +92,27 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
+                    if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
+                {
+                    "unsupported_delete"
+                }
+                OperationError::Scene(NativeError::DegenerateUvProjection) => {
+                    "degenerate_uv_projection"
+                }
+                OperationError::Scene(NativeError::UnsupportedUvTopology) => {
+                    "unsupported_uv_topology"
+                }
+                OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
+                    "uvs_block_topology_edit"
+                }
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
                     azteccraft::document::NativeSaveError::Unsupported => "save_unsupported",
+                    azteccraft::document::NativeSaveError::NoDestination => "save_needs_path",
                     azteccraft::document::NativeSaveError::InvalidDestination => {
                         "invalid_destination"
                     }
@@ -107,6 +123,18 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
+                },
+                OperationError::ObjExport(error) => match error {
+                    crate::editor_operations::ObjExportError::DestinationExists => {
+                        "destination_exists"
+                    }
+                    crate::editor_operations::ObjExportError::NothingToExport => {
+                        "nothing_to_export"
+                    }
+                    crate::editor_operations::ObjExportError::Cancelled => "export_cancelled",
+                    crate::editor_operations::ObjExportError::Io(_) => "export_io",
+                    crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
@@ -613,7 +641,10 @@ mod tests {
             }
             assert_eq!(
                 tool.annotations.as_ref().unwrap().read_only_hint,
-                Some(tool.name == "inspect_scene")
+                Some(matches!(
+                    tool.name.as_ref(),
+                    "inspect_scene" | "inspect_uvs"
+                ))
             );
             let args = match tool.name.as_ref() {
                 "inspect_scene" => json!({}),
@@ -636,6 +667,10 @@ mod tests {
                 }
                 "create_primitive" => json!({"scene_token":token,"primitive":"cube"}),
                 "select_node" => json!({"scene_token":token,"node_id":null}),
+                "modify_selection" => {
+                    json!({"scene_token":token,"change":"toggle","node_id":"1"})
+                }
+                "select_by_rule" => json!({"scene_token":token,"rule":"all"}),
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})
@@ -655,10 +690,14 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
+                "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "inspect_uvs" => json!({"shape_id":"2"}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
                 "delete_node" => json!({"scene_token":token,"node_id":"1"}),
+                "delete_selected" => json!({"scene_token":token}),
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
@@ -674,6 +713,7 @@ mod tests {
                     json!({"scene_token":token,"tab":{"kind":"transform","id":"1"}})
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
+                "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -765,6 +805,8 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "project_uv_planar"
+                    | "delete_uvs"
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
@@ -1292,7 +1334,7 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as"] {
+            for tool in ["open_scene", "save_scene_as", "export_obj"] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }
@@ -1504,6 +1546,36 @@ mod tests {
             "too_large"
         );
         assert!(check_serialized_size(&result, MAX_RESULT_BYTES).is_ok());
+    }
+
+    /// The result check is the exact bound: a result of `MAX_RESULT_BYTES` is accepted and one
+    /// more byte of reply (two bytes of result, as the text copy repeats it) is refused, while the
+    /// reply itself stays under the early cap `MAX_REPLY_BYTES`.
+    #[test]
+    fn the_result_bound_is_exact_at_the_boundary_and_the_reply_cap_is_only_an_early_reject() {
+        let result_len = |filler: usize| {
+            let result = tool_reply(Ok(OperationReply::Created {
+                node_id: "x".repeat(filler),
+            }));
+            (result.is_error, serde_json::to_vec(&result).unwrap().len())
+        };
+        let (_, empty) = result_len(0);
+        // The filler is repeated in the structured value and in the text copy.
+        let fits = (MAX_RESULT_BYTES - empty) / 2;
+        let (error, len) = result_len(fits);
+        assert_eq!(error, Some(false));
+        assert!(
+            len <= MAX_RESULT_BYTES && len + 2 > MAX_RESULT_BYTES,
+            "{len}"
+        );
+        let reply = OperationReply::Created {
+            node_id: "x".repeat(fits),
+        };
+        assert!(
+            serde_json::to_vec(&reply).unwrap().len() <= MAX_REPLY_BYTES,
+            "the early cap must not decide here"
+        );
+        assert_eq!(result_len(fits + 1).0, Some(true));
     }
 
     #[test]

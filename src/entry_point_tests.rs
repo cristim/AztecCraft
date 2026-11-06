@@ -222,12 +222,15 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native_operation(",
         &[
             "create",
+            "apply_planar",
+            "uv_menu",
             "create_from_dialog",
             "default_view",
             "file_actions",
             "frame_all",
             "frame_selected",
             "deselect_all",
+            "native_select_by_rule",
             "history_step",
             "manipulation_options",
             "outliner",
@@ -239,6 +242,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "request_close",
             "request_new",
             "save_as_dialog",
+            "run_export",
             "step_manipulator_size",
         ],
     );

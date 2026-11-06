@@ -309,6 +309,9 @@ impl Editor {
         if let Some(refusal) = mode_refusal(tool, self.selection_mode) {
             return Err(OperationError::InvalidInput(refusal));
         }
+        if self.selection.len() > 1 {
+            return Err(OperationError::MultipleSelection);
+        }
         let (selected, path) = self.selection_presentation();
         if selected != Some(target.node) || path != target.path {
             return Err(OperationError::InvalidInput(format!(
@@ -691,10 +694,7 @@ impl Editor {
                     handle,
                     space,
                 },
-                match handle {
-                    ScaleHandle::Uniform => "Uniform Scale".to_string(),
-                    _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
-                },
+                format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
             ),
         };
         let drag = match start_drag(capture, &frame, handle, position) {

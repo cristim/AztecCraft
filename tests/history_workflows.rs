@@ -42,7 +42,6 @@ fn undo_and_redo_restore_every_authoring_state_in_order() {
                 rotation: [45.0, 30.0, 60.0],
                 scale: [-2.0, 3.0, 4.0],
             },
-            label: None,
         })
         .unwrap();
     states.push(history.scene().nodes().to_vec());
@@ -98,7 +97,6 @@ fn failed_commands_preserve_scene_and_both_history_stacks() {
                 scale: [f64::NAN; 3],
                 ..NativeTransform::default()
             },
-            label: None,
         },
     ] {
         assert!(history.execute(command).is_err());
@@ -166,7 +164,6 @@ fn no_op_edits_do_not_consume_undo_or_invalidate_redo() {
             .execute(Command::SetTransform {
                 id,
                 transform: NativeTransform::default(),
-                label: None,
             })
             .unwrap(),
         EditOutcome::Unchanged
@@ -198,7 +195,6 @@ fn loaded_scene_starts_without_history_and_missing_nodes_return_errors() {
         history.execute(Command::SetTransform {
             id,
             transform: NativeTransform::default(),
-            label: None,
         }),
         Err(NativeError::Legacy(SceneError::MissingNode(id)))
     );
@@ -530,4 +526,132 @@ mod primitive_options {
             assert_eq!(a, b, "{primitive:?}");
         }
     }
+}
+
+fn set_transform(history: &mut History, id: NodeId, transform: NativeTransform) {
+    history
+        .execute(Command::SetTransform { id, transform })
+        .unwrap();
+}
+
+fn tf(translation: [f64; 3], rotation: [f64; 3], scale: [f64; 3]) -> NativeTransform {
+    NativeTransform {
+        translation,
+        rotation,
+        scale,
+    }
+}
+
+#[test]
+fn moving_a_rotated_node_is_labelled_move() {
+    let mut history = History::default();
+    let cube = create(&mut history, "cube");
+    set_transform(&mut history, cube, tf([0.0; 3], [0.0, 45.0, 0.0], [1.0; 3]));
+    assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
+    set_transform(
+        &mut history,
+        cube,
+        tf([5.0, 0.0, 0.0], [0.0, 45.0, 0.0], [1.0; 3]),
+    );
+    assert_eq!(history.undo_label().as_deref(), Some("Move"));
+}
+
+#[test]
+fn moving_a_scaled_node_is_labelled_move_and_scaling_is_scale() {
+    let mut history = History::default();
+    let cube = create(&mut history, "cube");
+    set_transform(&mut history, cube, tf([0.0; 3], [0.0; 3], [2.0, 2.0, 2.0]));
+    assert_eq!(history.undo_label().as_deref(), Some("Scale"));
+    set_transform(
+        &mut history,
+        cube,
+        tf([1.0, 0.0, 0.0], [0.0; 3], [2.0, 2.0, 2.0]),
+    );
+    assert_eq!(history.undo_label().as_deref(), Some("Move"));
+    set_transform(
+        &mut history,
+        cube,
+        tf([1.0, 0.0, 0.0], [0.0; 3], [3.0, 2.0, 2.0]),
+    );
+    assert_eq!(history.undo_label().as_deref(), Some("Scale"));
+}
+
+#[test]
+fn several_changed_groups_are_labelled_transform() {
+    let cases = [
+        tf([1.0, 0.0, 0.0], [10.0, 0.0, 0.0], [1.0; 3]),
+        tf([0.0; 3], [10.0, 0.0, 0.0], [2.0; 3]),
+        tf([1.0, 0.0, 0.0], [0.0; 3], [2.0; 3]),
+        tf([1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]),
+    ];
+    for target in cases {
+        let mut history = History::default();
+        let cube = create(&mut history, "cube");
+        set_transform(&mut history, cube, target);
+        assert_eq!(
+            history.undo_label().as_deref(),
+            Some("Transform"),
+            "{target:?}"
+        );
+    }
+}
+
+#[test]
+fn negative_zero_counts_as_a_change_of_its_group() {
+    let mut history = History::default();
+    let cube = create(&mut history, "cube");
+    set_transform(&mut history, cube, tf([-0.0, 0.0, 0.0], [0.0; 3], [1.0; 3]));
+    assert_eq!(history.undo_label().as_deref(), Some("Move"));
+    set_transform(
+        &mut history,
+        cube,
+        tf([-0.0, 0.0, 0.0], [-0.0, 0.0, 0.0], [1.0; 3]),
+    );
+    assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
+}
+
+#[test]
+fn undo_redo_round_trip_keeps_the_transform_label() {
+    let mut history = History::default();
+    let cube = create(&mut history, "cube");
+    set_transform(&mut history, cube, tf([0.0; 3], [0.0, 45.0, 0.0], [1.0; 3]));
+    set_transform(
+        &mut history,
+        cube,
+        tf([5.0, 0.0, 0.0], [0.0, 45.0, 0.0], [1.0; 3]),
+    );
+    assert!(history.undo());
+    assert_eq!(history.redo_label().as_deref(), Some("Move"));
+    assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
+    assert!(history.redo());
+    assert_eq!(history.undo_label().as_deref(), Some("Move"));
+    assert!(history.undo());
+    assert_eq!(history.redo_label().as_deref(), Some("Move"));
+}
+
+#[test]
+fn unchanged_and_unknown_targets_store_no_entry() {
+    let mut history = History::default();
+    let cube = create(&mut history, "cube");
+    let before = history.undo_label();
+    let outcome = history
+        .execute(Command::SetTransform {
+            id: cube,
+            transform: NativeTransform::default(),
+        })
+        .unwrap();
+    assert!(matches!(outcome, EditOutcome::Unchanged));
+    assert_eq!(history.undo_label(), before);
+    let missing = create(&mut history, "gone");
+    history.execute(Command::Remove(missing)).unwrap();
+    let before = history.undo_label();
+    assert!(
+        history
+            .execute(Command::SetTransform {
+                id: missing,
+                transform: NativeTransform::default(),
+            })
+            .is_err()
+    );
+    assert_eq!(history.undo_label(), before);
 }

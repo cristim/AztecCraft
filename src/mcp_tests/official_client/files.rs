@@ -465,7 +465,7 @@ async fn remote_close_and_discard_close_flush_their_own_reply_before_hidden_exit
             .remote_operation(
                 RemoteRequest {
                     expected_scene_token: None,
-                    operation: Operation::Inspect,
+                    operation: Operation::Inspect { page: None },
                 },
                 &context,
             )
@@ -796,8 +796,8 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
     .await;
     let before = editor.history.scene().clone();
     let camera = editor.camera.clone();
-    let selected = editor.selected;
-    let selected_path = editor.selected_path.clone();
+    let selected = editor.selected();
+    let selected_path = editor.selected_path().to_vec();
     let pending = call(
         &mut editor,
         &context,
@@ -848,6 +848,7 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
             "delete_node",
             json!({"node_id":selected.unwrap().to_decimal()}),
         ),
+        ("delete_selected", json!({})),
         ("undo", json!({})),
         ("redo", json!({})),
         ("frame_selected", json!({})),
@@ -868,8 +869,8 @@ async fn native_file_confirmation_uses_scene_and_action_identity_without_replay(
         );
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
-        assert_eq!(editor.selected, selected);
-        assert_eq!(editor.selected_path, selected_path);
+        assert_eq!(editor.selected(), selected);
+        assert_eq!(editor.selected_path(), selected_path);
     }
     let stale = call(
         &mut editor,

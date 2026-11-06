@@ -1105,3 +1105,258 @@ fn dolly_has_no_minimum_distance() {
     assert!(camera.distance() < camera.near());
     assert_eq!(camera.project(camera.target(), 1.0).unwrap(), None);
 }
+
+fn view_of(scene: &NativeScene) -> ViewScene {
+    ViewScene::from_native(scene, 1 << 28).unwrap()
+}
+
+fn root_path(
+    scene: &NativeScene,
+    node: crate::scene::NodeId,
+) -> Vec<crate::native_scene::NativeId> {
+    scene
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|target| target.node == node)
+        .unwrap()
+        .path
+}
+
+fn two_cubes_apart() -> (NativeScene, Vec<Vec<crate::native_scene::NativeId>>) {
+    let (mut scene, first) = test_fixtures::cube();
+    let second = scene.create(crate::scene::Primitive::Cube, "far").unwrap();
+    scene
+        .set_transform(
+            second,
+            crate::native_scene::NativeTransform {
+                translation: [30.0, 0.0, -12.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let paths = [first, second]
+        .iter()
+        .map(|node| root_path(&scene, *node))
+        .collect();
+    (scene, paths)
+}
+
+#[test]
+fn frame_view_many_frames_the_union_of_the_members() {
+    let (scene, paths) = two_cubes_apart();
+    let view = view_of(&scene);
+    let all: Vec<Vec3> = view
+        .instances()
+        .iter()
+        .flat_map(|instance| instance.world_vertices().iter().copied())
+        .collect();
+    let mut expected = Camera::default();
+    expected.frame_points(&all, 1.5).unwrap();
+    let mut camera = Camera::default();
+    let prefixes: Vec<&[crate::native_scene::NativeId]> = paths.iter().map(Vec::as_slice).collect();
+    camera
+        .frame_view_many(&view, &prefixes, FrameChildren::Include, 1.5)
+        .unwrap();
+    assert_eq!(camera, expected);
+    let mut lead_only = Camera::default();
+    lead_only.frame_view(&view, Some(&paths[1]), 1.5).unwrap();
+    assert_ne!(camera, lead_only);
+}
+
+#[test]
+fn frame_view_many_with_one_member_equals_frame_view() {
+    let (scene, paths) = two_cubes_apart();
+    let view = view_of(&scene);
+    for path in &paths {
+        let mut many = Camera::default();
+        many.frame_view_many(&view, &[path.as_slice()], FrameChildren::Include, 1.0)
+            .unwrap();
+        let mut single = Camera::default();
+        single.frame_view(&view, Some(path), 1.0).unwrap();
+        assert_eq!(many, single);
+    }
+}
+
+#[test]
+fn frame_selected_with_an_empty_member_and_a_cube_frames_the_cube() {
+    let (scene, cube, empty) = test_fixtures::cube_and_empty_transform();
+    let view = view_of(&scene);
+    let (cube_path, empty_path) = (root_path(&scene, cube), root_path(&scene, empty));
+    let mut both = Camera::default();
+    both.frame_view_many(
+        &view,
+        &[empty_path.as_slice(), cube_path.as_slice()],
+        FrameChildren::Include,
+        1.0,
+    )
+    .unwrap();
+    let mut only_cube = Camera::default();
+    only_cube.frame_view(&view, Some(&cube_path), 1.0).unwrap();
+    assert_eq!(both, only_cube);
+}
+
+#[test]
+fn frame_selected_with_only_empty_members_errors_and_keeps_the_camera() {
+    let (scene, _, empty) = test_fixtures::cube_and_empty_transform();
+    let view = view_of(&scene);
+    let empty_path = root_path(&scene, empty);
+    let mut camera = Camera::default();
+    camera.pan(Vec2::new(2.0, 1.0)).unwrap();
+    let before = camera.clone();
+    assert_eq!(
+        camera.frame_view_many(&view, &[empty_path.as_slice()], FrameChildren::Include, 1.0),
+        Err(InvalidCameraInput)
+    );
+    assert_eq!(
+        camera.frame_view_many(&view, &[], FrameChildren::Include, 1.0),
+        Err(InvalidCameraInput)
+    );
+    assert_eq!(camera, before);
+}
+
+#[test]
+fn frame_selected_with_a_lone_point_uses_the_near_floor() {
+    let (mut scene, cube) = test_fixtures::cube();
+    scene
+        .set_transform(
+            cube,
+            crate::native_scene::NativeTransform {
+                scale: [0.0; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let view = view_of(&scene);
+    let path = root_path(&scene, cube);
+    let mut camera = Camera::default();
+    camera
+        .frame_view_many(&view, &[path.as_slice()], FrameChildren::Include, 1.0)
+        .unwrap();
+    assert_eq!(camera.distance(), camera.near() * 2.0 * 1.05);
+}
+
+fn framed(
+    scene: &NativeScene,
+    prefixes: &[&[crate::native_scene::NativeId]],
+    children: FrameChildren,
+) -> Result<Camera, InvalidCameraInput> {
+    let view = view_of(scene);
+    let mut camera = Camera::default();
+    camera
+        .frame_view_many(&view, prefixes, children, 1.0)
+        .map(|()| camera)
+}
+
+fn framed_points(scene: &NativeScene, nodes: &[crate::scene::NodeId]) -> Camera {
+    let view = view_of(scene);
+    let points: Vec<Vec3> = nodes
+        .iter()
+        .flat_map(|node| {
+            let path = root_path(scene, *node);
+            view.instances()
+                .iter()
+                .filter(|instance| {
+                    instance.path().len() == path.len() + 1 && instance.path().starts_with(&path)
+                })
+                .flat_map(|instance| instance.world_vertices().to_vec())
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let mut camera = Camera::default();
+    camera.frame_points(&points, 1.0).unwrap();
+    camera
+}
+
+#[test]
+fn frame_exclude_frames_only_the_parents_own_shape() {
+    let (scene, parent, child) = test_fixtures::group_with_own_shape_and_child();
+    let path = root_path(&scene, parent);
+    let child_path = root_path(&scene, child);
+    assert!(child_path.starts_with(&path) && child_path.len() > path.len());
+    let excluded = framed(&scene, &[path.as_slice()], FrameChildren::Exclude).unwrap();
+    assert_eq!(excluded, framed_points(&scene, &[parent]));
+    let included = framed(&scene, &[path.as_slice()], FrameChildren::Include).unwrap();
+    assert_ne!(included, excluded);
+    assert_eq!(
+        included,
+        framed(
+            &scene,
+            &[child_path.as_slice(), path.as_slice()],
+            FrameChildren::Exclude
+        )
+        .unwrap()
+    );
+}
+
+#[test]
+fn frame_exclude_of_a_shapeless_group_errors_and_keeps_the_camera() {
+    let (scene, root, _, _) = test_fixtures::grouped_shape();
+    let view = view_of(&scene);
+    let path = root_path(&scene, root);
+    let mut camera = Camera::default();
+    camera.pan(Vec2::new(2.0, 1.0)).unwrap();
+    let before = camera.clone();
+    assert_eq!(
+        camera.frame_view_many(&view, &[path.as_slice()], FrameChildren::Exclude, 1.0),
+        Err(InvalidCameraInput)
+    );
+    assert_eq!(camera, before);
+}
+
+#[test]
+fn frame_exclude_with_parent_and_child_selected_equals_their_own_union() {
+    let (scene, parent, child) = test_fixtures::group_with_own_shape_and_child();
+    let (path, child_path) = (root_path(&scene, parent), root_path(&scene, child));
+    let both = framed(
+        &scene,
+        &[path.as_slice(), child_path.as_slice()],
+        FrameChildren::Exclude,
+    )
+    .unwrap();
+    assert_eq!(both, framed_points(&scene, &[parent, child]));
+    assert_eq!(
+        both,
+        framed(&scene, &[path.as_slice()], FrameChildren::Include).unwrap()
+    );
+}
+
+#[test]
+fn is_direct_instance_requires_exactly_one_more_element() {
+    use crate::view_scene::is_direct_instance;
+    let (scene, parent, child) = test_fixtures::group_with_own_shape_and_child();
+    let view = view_of(&scene);
+    let (path, child_path) = (root_path(&scene, parent), root_path(&scene, child));
+    let own = view
+        .instances()
+        .iter()
+        .map(|instance| instance.path())
+        .find(|candidate| candidate.len() == path.len() + 1 && candidate.starts_with(&path))
+        .unwrap();
+    let below = view
+        .instances()
+        .iter()
+        .map(|instance| instance.path())
+        .find(|candidate| candidate.len() > path.len() + 1)
+        .unwrap();
+    assert!(is_direct_instance(own, &path));
+    assert!(!is_direct_instance(below, &path));
+    assert!(is_direct_instance(below, &child_path));
+    assert!(!is_direct_instance(own, own));
+    assert!(!is_direct_instance(&[], &path));
+    assert!(!is_direct_instance(&path, &path));
+}
+
+/// Include keeps framing the geometry below a group that owns none itself (Ctrl+F).
+#[test]
+fn frame_view_include_of_a_group_frames_the_geometry_of_its_children() {
+    let (scene, root, child, _) = test_fixtures::grouped_shape();
+    let view = view_of(&scene);
+    let (root_path, child_path) = (root_path(&scene, root), root_path(&scene, child));
+    assert!(child_path.starts_with(&root_path) && child_path.len() > root_path.len());
+    let mut group = Camera::default();
+    group.frame_view(&view, Some(&root_path), 1.0).unwrap();
+    let mut leaf = Camera::default();
+    leaf.frame_view(&view, Some(&child_path), 1.0).unwrap();
+    assert_eq!(group, leaf);
+}

@@ -74,6 +74,37 @@ pub(crate) fn grouped_shape() -> (NativeScene, NodeId, NodeId, NativeId) {
     (scene, root, child, shape)
 }
 
+/// A parent cube with its own shape and a child cube parented under it, 100 units along x.
+pub(crate) fn group_with_own_shape_and_child() -> (NativeScene, NodeId, NodeId) {
+    let (mut scene, parent) = cube();
+    let child = scene.create(Primitive::Cube, "child").unwrap();
+    let parent_native = scene.node(parent).unwrap().transform_id;
+    let child_native = scene.node(child).unwrap().transform_id;
+    scene
+        .dag
+        .retain(|edge| !(edge.child == child_native && edge.parent.is_none()));
+    scene.dag.push(DagEdge {
+        parent: Some(parent_native),
+        child: child_native,
+    });
+    scene
+        .set_transform(
+            child,
+            NativeTransform {
+                translation: [100.0, 0.0, 0.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    scene.validate().unwrap();
+    (scene, parent, child)
+}
+
+pub(crate) fn hide_first_shape(scene: &mut NativeScene) {
+    scene.shapes[0].view.local_visibility = Some(false);
+    scene.validate().unwrap();
+}
+
 /// root > mid > leaf, with the only shape under leaf.
 pub(crate) fn chain_of_three() -> (NativeScene, NodeId, NodeId, NodeId) {
     let (mut scene, root, mid, _) = grouped_shape();
@@ -222,4 +253,22 @@ pub(crate) fn set_extras(scene: &mut NativeScene, node: NodeId, extras: Transfor
         .find(|entry| entry.id == node)
         .unwrap()
         .extras = extras;
+}
+
+/// Two root transforms: a cube and one with no shape at all.
+pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
+    let (mut scene, cube) = cube();
+    let empty = scene.create(Primitive::Cube, "empty").unwrap();
+    let discarded = scene.shapes.pop().unwrap().id;
+    scene.dag.retain(|edge| edge.child != discarded);
+    scene.validate().unwrap();
+    (scene, cube, empty)
+}
+
+/// Marks a transform's effect as unproved, so deleting it or an ancestor is refused.
+pub(crate) fn restrict_transform(scene: &mut NativeScene, id: NodeId) {
+    let at = scene.nodes.iter().position(|node| node.id == id).unwrap();
+    scene.nodes[at]
+        .unsupported_transform
+        .push("unproved effect".into());
 }

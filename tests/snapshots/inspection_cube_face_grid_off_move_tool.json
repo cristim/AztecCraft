@@ -134,7 +134,7 @@
     "remembered_vertex": null,
     "retained_source_bytes": 0,
     "retained_source_records": 0,
-    "save_as_available": false,
+    "save_as_available": true,
     "save_available": false,
     "save_reconciliation_required": false,
     "scene_token": "<uuid>",
@@ -142,6 +142,15 @@
       "1"
     ],
     "selected_node": "1",
+    "selection": [
+      {
+        "instance_path": [
+          "1"
+        ],
+        "node": "1"
+      }
+    ],
+    "selection_count": 1,
     "selection_mode": "face",
     "session_materials": [
       {
@@ -186,7 +195,8 @@
           "state": "unbound",
           "unavailable": 0,
           "unbound": 1
-        }
+        },
+        "uv_set": null
       }
     ],
     "sidebar_panels": {

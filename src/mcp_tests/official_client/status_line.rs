@@ -147,7 +147,7 @@ async fn sdk_sidebar_panel_visibility_is_busy_during_an_active_move() {
     .structured_content
     .unwrap();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

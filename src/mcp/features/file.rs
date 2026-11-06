@@ -21,6 +21,19 @@ struct OpenArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ExportArgs {
+    scene_token: String,
+    /// New .obj destination; an existing file is never replaced.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+    /// Export only every selected object and its descendants (Export Selection); default false
+    /// exports every displayed polygon instance (Export All).
+    #[serde(default)]
+    selection_only: bool,
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum FileDecisionInput {
     Cancel,
@@ -61,6 +74,23 @@ fn parse_save_scene_as(arguments: JsonObject) -> Result<RemoteRequest, ErrorData
     Ok(scoped(token, Operation::SaveSceneAs { path: path.into() }))
 }
 
+fn parse_export_obj(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ExportArgs = decode(arguments)?;
+    if args.path.is_empty() || args.path.len() > 4096 || args.path.contains('\0') {
+        return Err(ErrorData::invalid_params(
+            "path must contain 1 to 4096 UTF-8 bytes and no NUL",
+            None,
+        ));
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ExportObj {
+            path: args.path.into(),
+            selection_only: args.selection_only,
+        },
+    ))
+}
+
 fn parse_new_scene(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     mutation(arguments, Operation::NewScene)
 }
@@ -98,7 +128,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene",
-        description: "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write",
+        description: "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh Maya 2025-format .mb. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
         schema: schema::<MutationArgs>,
         parse: parse_save_scene,
         idempotent: false,
@@ -106,9 +136,17 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene_as",
-        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting; an uncertain prior save is reconciled instead",
+        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene can be written as Maya 2025-format .mb; unsupported content is refused (save_unwritable, for example a created session material: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
         schema: schema::<OpenArgs>,
         parse: parse_save_scene_as,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "export_obj",
+        description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+        schema: schema::<ExportArgs>,
+        parse: parse_export_obj,
         idempotent: false,
         read_only: false,
     },

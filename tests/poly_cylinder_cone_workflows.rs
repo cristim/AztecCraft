@@ -346,7 +346,6 @@ fn undo_redo_restores_the_exact_mesh_and_move_edit_stays_valid() {
                     translation: [3.0, 0.0, -2.0],
                     ..NativeTransform::default()
                 },
-                label: None,
             })
             .unwrap();
         history.scene().validate().unwrap();

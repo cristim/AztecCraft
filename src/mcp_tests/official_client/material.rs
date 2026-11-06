@@ -24,7 +24,7 @@ async fn material_sdk_edit_inspect_history_and_repeated_save_share_the_native_wo
     let token = editor.scene_token.to_string();
     let shape = editor.history.scene().shapes()[0].id();
     let initial = editor.history.scene().clone();
-    let selected = editor.selected;
+    let selected = editor.selected();
     let camera = editor.camera.clone();
     let edited = call(
         &mut editor,
@@ -36,7 +36,7 @@ async fn material_sdk_edit_inspect_history_and_repeated_save_share_the_native_wo
     .await;
     assert_eq!(edited.structured_content.unwrap()["outcome"], "changed");
     let first = editor.history.scene().clone();
-    assert_eq!(editor.selected, selected);
+    assert_eq!(editor.selected(), selected);
     assert_eq!(editor.camera, camera);
     let inspection = call(
         &mut editor,

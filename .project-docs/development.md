@@ -88,7 +88,7 @@ a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes
 New/Open use the shared native document lifecycle. This candidate enables
 eligible Unix and Windows Maya binary Save/Save As through that same lifecycle and ordinary
 vendored writer; current integration and native Save QA remain pending. No derived JSON save is substituted.
-GUI Export and unfinished modeling/animation/material controls are disabled.
+Unfinished modeling/animation/material controls are disabled.
 Docking and full Maya interaction parity aren't implemented or verified.
 
 The checkable Grid button controls this single viewport's fixed XZ ground grid.
@@ -182,10 +182,11 @@ clears it; New/Open retain the current mask. Edits and Undo/Redo revalidate the
 target and clear dangling identities without restoring them on Redo. Selection
 does not modify authoring history, source bytes or dirty state. F/frame_selected
 in Face mode frames the selected face corners even if its center is occluded or
-clipped; no face returns an error instead of framing the object. Existing native
+clipped; no face returns an error instead of framing the object. In Object and Hierarchy
+modes F frames the selected parents only and Ctrl+F includes their descendants. Existing native
 valid-draft commitment and remote draft-refusal rules remain in force.
 
-Shift/Ctrl selection, marquee, multiple faces, other component masks, preselection
+Shift/Ctrl component selection, marquee, multiple faces, other component masks, preselection
 hover and marking menus are unsupported. Ambiguous coalesced primary-release
 frames refuse selection with a single-click retry message; they do not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
@@ -210,7 +211,7 @@ Face buttons and a plain primary click enter and use Vertex and Edge modes (#29)
 `set_selection_mode` (`vertex`, `edge`), `select_vertex` and `select_edge` reach the
 same typed operations over MCP. Each component type keeps its own remembered pick,
 active only in its mode. Picks are single, replace-only and clear on an empty click
-(UNCONFIRMED for Maya). Shift/Ctrl clicks are refused with `ModifiedClick`; UV, Vertex
+(UNCONFIRMED for Maya). In component modes Shift/Ctrl clicks are refused with `ModifiedClick`; UV, Vertex
 Face (Alt+F9), Multi-Component and masks are unsupported. F8 leaves Vertex and Edge
 for Object (provisional). Constants and limits are in
 [known-issues.md](../known-issues.md#vertex-and-edge-picking-and-drawing-constants-are-provisional);
@@ -347,8 +348,10 @@ Sources:
 | 29 | Shading ambient floor | 0.4 of the base colour | `src/shading.rs` `AMBIENT_FLOOR` | provisional | Not documented. | `back_facing_and_grazing_fall_to_the_ambient_floor`, `unusable_normals_or_views_give_the_ambient_floor_not_nan` |
 | 30 | Move arrowhead | 12 px long, 4 px half width | `src/move_handles.rs` `ARROWHEAD_LENGTH`, `ARROWHEAD_HALF_WIDTH` | provisional | Not documented. | `arrowhead_dimensions_are_pinned_to_their_provisional_pixel_values` |
 | 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
+| 32 | Selection cap | 4096 selected objects | `src/selection.rs` via `MAX_TRANSFORM_PATHS` | provisional | Not documented; reuses the transform-path cap. | `selection_cap_is_the_transform_path_cap`, `add_past_the_cap_is_an_error_and_does_not_mutate` |
+| 33 | Selection colours | member tint (107, 137, 157) and edge (242, 163, 70); lead tint (117, 167, 117) and edge (140, 240, 140) while more than one object is selected; a lone selection uses the member colours | `src/viewport_renderer.rs` `SELECTION_TINT_RGB`, `SELECTED_EDGE_RGB_OBJECT`, `LEAD_TINT_RGB`, `LEAD_EDGE_RGB` | provisional | Maya's "Select objects or components" page says the last selected object is drawn in a different colour; it gives no colour values, and what a lone selection looks like is not stated. Ours are original values. | `selection_colours_are_pinned`, `members_are_tinted_the_lead_differs_and_unselected_is_untouched`, `single_selection_pixels_are_unchanged` |
 
-Tally: 31 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 33 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
@@ -489,8 +492,9 @@ recovery, autosave, history and camera persistence remain pending.
 index offsets and winding reversed for reflected transforms. Object names use
 UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
-exports geometry only, without UVs, normals or materials. OBJ import and the GUI
-Export action aren't implemented.
+exports geometry only, without UVs, normals or materials. File > Export All and
+Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
+OBJ import isn't implemented.
 
 ## Camera core
 

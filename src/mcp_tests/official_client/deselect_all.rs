@@ -8,7 +8,7 @@ async fn inspected(editor: &mut Editor, context: &egui::Context, peer: &Peer<Rol
         .clone()
 }
 
-/// Maya 2025.1's SelectNone (Alt+D) clears the selection and returns to Object mode (#167).
+/// Maya 2025.1's SelectNone (Alt+D) clears the selection and returns to Object mode.
 #[tokio::test]
 async fn deselect_all_clears_the_selection_and_returns_to_object_mode() {
     let context = egui::Context::default();

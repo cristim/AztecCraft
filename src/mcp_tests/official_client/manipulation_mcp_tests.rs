@@ -17,7 +17,7 @@ async fn move_sdk_absolute_preview_cancel_commit_busy_and_tokens_share_one_histo
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -426,9 +426,9 @@ async fn move_sdk_never_commits_real_native_text_drafts_or_takes_their_focus() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -487,7 +487,7 @@ async fn move_sdk_refuses_begin_in_face_mode_and_reports_it_in_inspection() {
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -575,7 +575,7 @@ async fn move_sdk_refuses_begin_on_a_read_only_ascii_curve_scene_with_a_typed_er
     editor.select(Some(node));
     let token = editor.scene_token.to_string();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -735,7 +735,7 @@ async fn every_kind_sdk_shares_guards_busy_tokens_cancel_undo_and_typed_mismatch
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -976,7 +976,7 @@ async fn rotate_sdk_refusal_by_the_scene_keeps_the_preview_and_is_inspectable() 
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -1035,6 +1035,137 @@ async fn rotate_sdk_refusal_by_the_scene_keeps_the_preview_and_is_inspectable() 
     )
     .await;
     assert!(editor.history.active_manipulation().is_none());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// A 1 ulp degree request that rounds to the retained word keeps it, so only the translation
+/// changed and the Undo entry is a Move (#330 computes the label after the edit).
+#[tokio::test]
+async fn sdk_a_rotation_request_keeping_the_stored_word_leaves_a_move_label() {
+    let word = (1..10_000)
+        .map(|step| 0.5 + f64::from(step) * 1e-3)
+        .find(|word| word.to_degrees().next_up().to_radians() == *word)
+        .unwrap();
+    let source = unit_scene(b"cm", b"deg", [word, 0.0, 0.0], [1.0, 1.0, 1.0]);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("degree-scene.mb");
+    std::fs::write(&path, &source).unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let opened = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+    let token = opened.structured_content.unwrap()["scene_token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let id = editor.history.scene().nodes()[0].id();
+    let stored = editor.history.scene().node(id).unwrap().transform();
+    let internal = editor.history.scene().internal_transform(id).unwrap();
+
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_transform",
+        json!({
+            "scene_token": token,
+            "node_id": id.to_decimal(),
+            "translation": [3.0, 0.0, 0.0],
+            "rotation_degrees": [stored.rotation[0].next_up(), 0.0, 0.0],
+            "scale": [1.0, 1.0, 1.0],
+        }),
+    )
+    .await;
+
+    assert_eq!(result.is_error, Some(false));
+    assert_eq!(
+        editor
+            .history
+            .scene()
+            .internal_transform(id)
+            .unwrap()
+            .rotation_radians[0]
+            .to_bits(),
+        internal.rotation_radians[0].to_bits()
+    );
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Move"));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// This word's degrees need exact float parsing to reach the Editor unchanged through JSON.
+#[tokio::test]
+async fn sdk_an_inspected_rotation_sent_back_keeps_the_stored_radians_through_json() {
+    let word = 1.8017933438838418_f64;
+    let source = unit_scene(b"cm", b"rad", [word, 0.0, 0.0], [1.0, 1.0, 1.0]);
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("radian-scene.mb");
+    std::fs::write(&path, &source).unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let opened = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+    let token = opened.structured_content.unwrap()["scene_token"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let id = editor.history.scene().nodes()[0].id();
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let rotation = inspected["inspection"]["nodes"][0]["transform"]["rotation_degrees"].clone();
+
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_transform",
+        json!({
+            "scene_token": token,
+            "node_id": id.to_decimal(),
+            "translation": [3.0, 0.0, 0.0],
+            "rotation_degrees": rotation,
+            "scale": [1.0, 1.0, 1.0],
+        }),
+    )
+    .await;
+
+    assert_eq!(result.is_error, Some(false));
+    assert_eq!(
+        editor
+            .history
+            .scene()
+            .internal_transform(id)
+            .unwrap()
+            .rotation_radians[0]
+            .to_bits(),
+        word.to_bits()
+    );
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Move"));
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
@@ -1360,9 +1491,9 @@ async fn declared_echo_does_not_survive_a_new_scene_that_reuses_the_manipulation
     let mut ids = Vec::new();
     for round in 0..2 {
         let token = editor.scene_token.to_string();
-        let node = editor.selected.unwrap().to_decimal();
+        let node = editor.selected().unwrap().to_decimal();
         let path: Vec<_> = editor
-            .selected_path
+            .selected_path()
             .iter()
             .map(|id| id.to_decimal())
             .collect();
@@ -1573,9 +1704,9 @@ async fn rotate_and_scale_sdk_never_commit_real_native_text_drafts() {
     );
     assert!(editor.has_draft());
     let token = editor.scene_token.to_string();
-    let node = editor.selected.unwrap().to_decimal();
+    let node = editor.selected().unwrap().to_decimal();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();
@@ -1645,7 +1776,7 @@ async fn rotate_and_scale_sdk_refuse_face_mode_and_absent_leaves_with_typed_erro
     .unwrap();
     let node = created["node_id"].as_str().unwrap().to_owned();
     let path: Vec<_> = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect();

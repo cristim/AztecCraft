@@ -116,17 +116,25 @@ mod official_client {
     mod attribute_editor;
     mod camera;
     mod cylinder_cone;
+    mod delete_selected;
     mod deselect_all;
     mod extrude;
     mod files;
     mod frame_all;
+    mod frame_selected;
     mod grid;
+    mod inspect_budget;
+    mod inspect_paging;
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod material;
     mod node_edit;
+    mod obj_export;
+
     mod pointer_hit;
     mod primitive_options;
+    mod save_new_scene;
+    mod select_by_rule;
     mod selection;
     mod session;
     mod session_material;
@@ -136,8 +144,10 @@ mod official_client {
     mod snapshots;
     mod sphere;
     mod status_line;
+    mod subtree_delete;
     mod tool_handle;
     mod tool_space;
+    mod uv;
     mod vertex_edge;
 
     async fn call_response(

@@ -8,7 +8,7 @@ async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
     editor.history_step(false);
     let before = editor.history.scene().clone();
     let token = editor.scene_token;
-    let selected = editor.selected;
+    let selected = editor.selected();
     let dirty = editor.is_dirty();
     let mut eye = editor.camera.eye();
     let mut target = editor.camera.target();
@@ -107,7 +107,7 @@ async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
         assert_eq!(editor.history.scene(), &before);
         assert!(!editor.history.can_undo());
         assert!(editor.history.can_redo());
-        assert_eq!(editor.selected, selected);
+        assert_eq!(editor.selected(), selected);
         assert_eq!(editor.scene_token, token);
         assert_eq!(editor.is_dirty(), dirty);
     }
@@ -186,9 +186,9 @@ async fn headless_gpu_sdk_camera_selection_and_grid_changes_enter_the_next_fresh
     )
     .await;
     frame(&mut editor, &context, vec![]);
-    let id = editor.selected.unwrap().to_decimal();
+    let id = editor.selected().unwrap().to_decimal();
     let path = editor
-        .selected_path
+        .selected_path()
         .iter()
         .map(|id| id.to_decimal())
         .collect::<Vec<_>>();
