@@ -10,6 +10,67 @@ fn an_invalid_instance_path_error_names_no_target_kind() {
 }
 
 #[test]
+fn a_refused_multi_delete_names_the_refusing_node() {
+    let (mut scene, _) = cube();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let bad = scene.create(Primitive::Cube, "bad").unwrap();
+    let last = scene.create(Primitive::Cube, "last").unwrap();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    let before = scene.clone();
+
+    let error = scene.remove_many(&[first, bad, last]).unwrap_err();
+
+    assert_eq!(
+        error,
+        NativeError::DeleteMemberRefused {
+            node: "bad".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "bad: native ownership or edit effects are unsupported"
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn two_independently_refused_members_leave_the_refusal_unnamed() {
+    let (mut scene, first) = cube();
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    let fine = scene.create(Primitive::Cube, "fine").unwrap();
+    test_fixtures::restrict_transform(&mut scene, first);
+    test_fixtures::restrict_transform(&mut scene, second);
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[first, second, fine]),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_refusal_name_is_bounded_on_a_character_boundary_without_control_characters() {
+    let plain = "a".repeat(MAX_REFUSAL_NAME_BYTES);
+    assert_eq!(refusal_name(&plain), plain);
+    assert_eq!(refusal_name(&format!("{plain}a")), plain);
+    let wide = format!("{}é", "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name(&wide), "a".repeat(MAX_REFUSAL_NAME_BYTES - 1));
+    assert_eq!(refusal_name("a\nb\u{7}c"), "abc");
+    assert_eq!(refusal_name(""), "");
+}
+
+#[test]
+fn a_refused_delete_of_one_distinct_node_keeps_the_plain_error() {
+    let (mut scene, bad) = cube();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    assert_eq!(
+        scene.remove_many(&[bad, bad]),
+        Err(NativeError::UnsupportedEdit)
+    );
+}
+
+#[test]
 fn transform_path_discovery_includes_hidden_groups_and_every_transform_instance() {
     let (mut scene, root, child, _) = test_fixtures::hidden_group();
     let root_id = scene.node(root).unwrap().transform_id;
@@ -1831,7 +1892,10 @@ fn remove_many_with_a_refused_member_among_deletable_ones_changes_nothing() {
     let before = scene.clone();
     assert_eq!(
         scene.remove_many(&[child, other]),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::DeleteMemberRefused {
+            node: "other".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        })
     );
     assert_eq!(scene, before);
 }

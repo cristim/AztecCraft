@@ -1348,7 +1348,9 @@ impl NativeScene {
     }
     /// Removes every listed node with its whole subtree after one preflight and one validation; a
     /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
-    /// set is checked before anything changes, so a refusal leaves the scene as it was.
+    /// set is checked before anything changes, so a refusal leaves the scene as it was. When
+    /// several distinct nodes are listed, a refusal that exactly one of them explains (see
+    /// `name_refusing_member`) names that node.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
@@ -1357,8 +1359,73 @@ impl NativeScene {
         if unique.is_empty() {
             return Ok(());
         }
-        let gone = self.removal_subtree(&unique)?;
-        self.remove_set(gone)
+        let result = self
+            .removal_subtree(&unique)
+            .and_then(|gone| self.remove_set(gone));
+        match result {
+            Err(reason) if unique.len() > 1 => Err(self.name_refusing_member(&unique, reason)),
+            other => other,
+        }
+    }
+    /// `combined` tagged with the name of the one member that explains it: alone it fails with
+    /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
+    /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
+    /// time in a single reused id buffer against one decode of the source, and the search stops at
+    /// the second qualifier, so memory stays O(N) and the checks number N plus one per member
+    /// that fails alone with `combined`.
+    fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
+        // A pending insertion on a node outside the set blocks every subset too, so no member can
+        // explain it.
+        if combined
+            == NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                binary::RemovalRefusal::PendingInsertion,
+            ))
+        {
+            return combined;
+        }
+        #[cfg(test)]
+        attribution_probe::buffer();
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
+        let found = self.with_source_removal_checker(|source_check| {
+            let verdict = |set: &[NodeId]| {
+                #[cfg(test)]
+                attribution_probe::checked(1);
+                let gone = self.removal_subtree(set)?;
+                if self.source.is_some() {
+                    source_check(&gone)?;
+                }
+                Ok(())
+            };
+            let mut explaining = None;
+            for (at, id) in ids.iter().enumerate() {
+                candidate.clear();
+                candidate.push(*id);
+                if verdict(&candidate) != Err(combined.clone()) {
+                    continue;
+                }
+                candidate.clear();
+                candidate.extend(
+                    ids.iter()
+                        .enumerate()
+                        .filter(|(i, _)| *i != at)
+                        .map(|(_, id)| *id),
+                );
+                if verdict(&candidate).is_err() {
+                    continue;
+                }
+                if explaining.replace(at).is_some() {
+                    return None;
+                }
+            }
+            explaining
+        });
+        match found.map(|at| self.node(ids[at])) {
+            Some(Ok(node)) => NativeError::DeleteMemberRefused {
+                node: refusal_name(node.name()),
+                reason: Box::new(combined),
+            },
+            _ => combined,
+        }
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
         let gone = self.removal_subtree(&[id])?;
@@ -1884,6 +1951,21 @@ impl fmt::Display for DeleteUnsupported {
     }
 }
 
+const MAX_REFUSAL_NAME_BYTES: usize = 256;
+
+/// A node name for one line of refusal text. Opened names are unbounded, so it drops control
+/// characters and stops at `MAX_REFUSAL_NAME_BYTES`, on a character boundary.
+fn refusal_name(name: &str) -> String {
+    let mut bounded = String::new();
+    for character in name.chars().filter(|character| !character.is_control()) {
+        if bounded.len() + character.len_utf8() > MAX_REFUSAL_NAME_BYTES {
+            break;
+        }
+        bounded.push(character);
+    }
+    bounded
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeError {
     Legacy(SceneError),
@@ -1901,6 +1983,11 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// One node of a delete of several refused; `reason` is that node's own refusal.
+    DeleteMemberRefused {
+        node: String,
+        reason: Box<NativeError>,
+    },
     /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
     InsertionAfterDelete,
     ReadOnlyFormat,
@@ -1957,6 +2044,7 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
                 "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
             ),
@@ -1997,6 +2085,37 @@ impl fmt::Display for NativeError {
     }
 }
 impl std::error::Error for NativeError {}
+
+/// Counters for `name_refusing_member`, so tests pin its cost without timing (#336).
+#[cfg(test)]
+pub(crate) mod attribution_probe {
+    use std::cell::Cell;
+    std::thread_local! {
+        static DECODES: Cell<usize> = const { Cell::new(0) };
+        static CHECKS: Cell<usize> = const { Cell::new(0) };
+        static BUFFERS: Cell<usize> = const { Cell::new(0) };
+    }
+    pub(crate) fn reset() {
+        for cell in [&DECODES, &CHECKS, &BUFFERS] {
+            cell.with(|c| c.set(0));
+        }
+    }
+    pub(crate) fn decoded() {
+        DECODES.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn checked(count: usize) {
+        CHECKS.with(|c| c.set(c.get() + count));
+    }
+    /// One candidate id buffer allocated.
+    pub(crate) fn buffer() {
+        BUFFERS.with(|c| c.set(c.get() + 1));
+    }
+    /// `(source decodes, candidate checks, candidate id buffers allocated)`.
+    pub(crate) fn counts() -> (usize, usize, usize) {
+        let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
+        (get(&DECODES), get(&CHECKS), get(&BUFFERS))
+    }
+}
 
 #[cfg(test)]
 mod tests;
