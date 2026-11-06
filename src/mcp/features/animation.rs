@@ -191,7 +191,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Key transform channels with their current value, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are session-only whole-frame values, interpolated linearly and held outside them (PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse keys, and a scene holding keys cannot be saved. Bounded by key_limit. Stops playback",
         schema: schema::<KeyArgs>,
         parse: parse_set_keyframe,
-        idempotent: true,
+        idempotent: false,
         read_only: false,
     },
     ToolSpec {

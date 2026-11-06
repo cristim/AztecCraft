@@ -860,7 +860,6 @@ mod tests {
                     | "select_face"
                     | "set_session_material_color"
                     | "set_current_time"
-                    | "set_keyframe"
                     | "delete_keys"
                     | "set_playback_range"
                     | "play_timeline"
