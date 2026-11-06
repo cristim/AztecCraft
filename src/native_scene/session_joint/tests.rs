@@ -711,3 +711,29 @@ fn a_position_beyond_f32_range_is_refused_and_leaves_the_scene_unchanged() {
         assert_eq!(scene, before);
     }
 }
+
+#[test]
+fn a_relative_chain_cannot_walk_past_f32_range_in_world_space() {
+    let mut scene = NativeScene::default();
+    let mut parent = joint(&mut scene, None, [0.0; 3]);
+    let mut refused = None;
+    for step in 0..200 {
+        let relative = JointRequest {
+            relative: true,
+            ..request(Some(parent), [1.0e37, 0.0, 0.0])
+        };
+        match scene.create_joint(&relative) {
+            Ok(target) => parent = target.node,
+            Err(error) => {
+                refused = Some((step, error));
+                break;
+            }
+        }
+    }
+    assert_eq!(
+        refused.map(|(_, error)| error),
+        Some(NativeError::UnsupportedJoint(JointUnsupported::Position))
+    );
+    // Every joint that was accepted still draws.
+    crate::view_scene::ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
+}

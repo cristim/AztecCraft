@@ -12,7 +12,7 @@ use super::{
     ViewAdmissionIndex, authored,
 };
 use crate::scene::{NodeId, SceneError};
-use glam::DVec3;
+use glam::{DMat4, DVec3};
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
@@ -264,9 +264,19 @@ impl NativeScene {
             Some(parent) => self.joint_placement(parent, request)?,
             None => (None, request.position),
         };
-        // The view draws in f32, so one unrepresentable joint would fail every view build.
+        // The view draws in f32, so one joint unrepresentable locally or in world space (a long
+        // relative chain can sum past the range) would fail every view build.
+        let unrepresentable = NativeError::UnsupportedJoint(JointUnsupported::Position);
         if translation.iter().any(|value| !(*value as f32).is_finite()) {
-            return Err(NativeError::UnsupportedJoint(JointUnsupported::Position));
+            return Err(unrepresentable);
+        }
+        if let (Some(parent), true) = (request.parent, request.relative) {
+            let world = self
+                .joint_parent_world(parent)?
+                .transform_point3(DVec3::from_array(translation));
+            if !world.as_vec3().is_finite() {
+                return Err(unrepresentable);
+            }
         }
         let next_id = self
             .next_id
@@ -337,6 +347,21 @@ impl NativeScene {
             .ok_or(NativeError::ResourceLimit)
     }
 
+    /// The plain world matrix of `parent`, or the singular-parent refusal when it has none.
+    fn joint_parent_world(&self, parent: NodeId) -> Result<DMat4, NativeError> {
+        let target = self
+            .transform_paths()?
+            .into_iter()
+            .find(|target| target.node == parent)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        self.ancestor_world(&target)?
+            .zip(self.internal_transform(parent)?.matrix())
+            .map(|(ancestors, local)| ancestors * local)
+            .ok_or(NativeError::UnsupportedJoint(
+                JointUnsupported::SingularParent,
+            ))
+    }
+
     /// The parent edge and the local translation for a child of `parent`. T sits above IS in the
     /// joint matrix, so a world position is solved through the parent's plain world matrix.
     fn joint_placement(
@@ -355,16 +380,7 @@ impl NativeScene {
             return Ok((edge, request.position));
         }
         let singular = NativeError::UnsupportedJoint(JointUnsupported::SingularParent);
-        let target = self
-            .transform_paths()?
-            .into_iter()
-            .find(|target| target.node == parent)
-            .ok_or(NativeError::InvalidInstancePath)?;
-        let world = self
-            .ancestor_world(&target)?
-            .zip(self.internal_transform(parent)?.matrix())
-            .map(|(ancestors, local)| ancestors * local)
-            .ok_or(singular.clone())?;
+        let world = self.joint_parent_world(parent)?;
         let determinant = world.determinant();
         if !determinant.is_finite() || determinant == 0.0 {
             return Err(singular);
