@@ -492,3 +492,69 @@ async fn native_sdk_authored_re_save_refuses_a_created_material_and_stays_dirty(
     drop(editor);
     server.await.unwrap();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_new_scene_delete_then_save_as_writes_only_the_remaining_node() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("pruned.mb");
+    for primitive in ["cube", "sphere"] {
+        let created = tool(
+            &mut editor,
+            &context,
+            &client,
+            "create_primitive",
+            json!({"primitive": primitive}),
+        )
+        .await;
+        assert_eq!(created["outcome"], "created");
+    }
+    let before = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(before["document_origin"], "untitled");
+    let nodes = before["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 2);
+    let deleted_id = nodes[1]["id"].as_str().unwrap().to_owned();
+    let deleted_name = nodes[1]["name"].as_str().unwrap().to_owned();
+    let kept_name = nodes[0]["name"].as_str().unwrap().to_owned();
+    let removed = tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_node",
+        json!({"node_id": deleted_id}),
+    )
+    .await;
+    assert!(removed.get("error").is_none(), "{removed}");
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    let opened = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path": destination}),
+    )
+    .await;
+    assert_eq!(opened["outcome"], "document_applied");
+    let after = inspect_json(&mut editor, &context, &client).await;
+    let names: Vec<&str> = after["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|node| node["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(names, [kept_name.as_str()]);
+    assert!(!names.contains(&deleted_name.as_str()));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
