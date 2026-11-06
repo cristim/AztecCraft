@@ -393,3 +393,26 @@ fn a_pending_insertion_on_a_third_node_leaves_a_multi_delete_refusal_unnamed() {
     );
     assert_eq!(scene, before);
 }
+
+/// The scene-wide `PendingInsertion` refusal outlives every subset, so no member can explain it:
+/// the refused Delete is answered after its one source decode, with no attribution check.
+#[test]
+fn a_scene_wide_pending_insertion_refusal_runs_no_attribution_checks() {
+    let children = [
+        sited_transform(b"a", &[]),
+        sited_transform(b"b", &[]),
+        sited_transform(b"x", &[]),
+        other_node_with_triple(b"anchor", SITE_AUX),
+    ]
+    .concat();
+    let mut scene = decode(scene(&children)).unwrap();
+    let [a, b, x] = [0, 1, 2].map(|at| scene.nodes[at].id);
+    scene.set_channel(x, Channel::TranslateX, 5.0).unwrap();
+    crate::native_scene::attribution_probe::reset();
+    assert_eq!(
+        scene.remove_many(&[a, b]),
+        refused(RemovalRefusal::PendingInsertion)
+    );
+    let (decodes, checks, held) = crate::native_scene::attribution_probe::counts();
+    assert_eq!((decodes, checks, held), (1, 0, 0));
+}

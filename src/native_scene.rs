@@ -1345,9 +1345,18 @@ impl NativeScene {
     /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
     /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
     /// time in a single reused id buffer against one decode of the source, and the search stops at
-    /// the second qualifier, so memory stays O(N) and the checks number at most N plus one per
-    /// member that fails alone with `combined`.
+    /// the second qualifier, so memory stays O(N) and the checks number N plus one per member
+    /// that fails alone with `combined`.
     fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
+        // A pending insertion on a node outside the set blocks every subset too, so no member can
+        // explain it.
+        if combined
+            == NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                binary::RemovalRefusal::PendingInsertion,
+            ))
+        {
+            return combined;
+        }
         let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
         #[cfg(test)]
         attribution_probe::held(1);
