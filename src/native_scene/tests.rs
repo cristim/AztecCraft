@@ -871,6 +871,93 @@ fn invalid_dag_cycles_duplicates_roles_and_dangling_ids_are_rejected() {
 }
 
 #[test]
+fn validate_accepts_a_large_flat_scene_and_still_refuses_a_broken_edge() {
+    // The indexes added for #345 must not change which scenes validate. A scene far larger than
+    // the fixtures above exercises the indexed paths, and the same scene with one edge removed or
+    // one cycle added must still be refused.
+    let mut scene = NativeScene::default();
+    for index in 0..256 {
+        scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+    }
+    assert_eq!(scene.validate(), Ok(()));
+
+    let orphaned = scene.nodes()[128].transform_id;
+    let mut missing_edge = scene.clone();
+    missing_edge.dag.retain(|edge| edge.child != orphaned);
+    assert_eq!(
+        missing_edge.validate(),
+        Err(NativeError::InvalidIdentity),
+        "an identity with no edge must still be refused"
+    );
+
+    let mut cycle = scene.clone();
+    let first = cycle.nodes()[0].transform_id;
+    let second = cycle.nodes()[1].transform_id;
+    cycle
+        .dag
+        .retain(|edge| edge.child != first && edge.child != second);
+    cycle.dag.push(DagEdge {
+        parent: Some(second),
+        child: first,
+    });
+    cycle.dag.push(DagEdge {
+        parent: Some(first),
+        child: second,
+    });
+    assert_eq!(
+        cycle.validate(),
+        Err(NativeError::InvalidIdentity),
+        "a cycle must still be refused"
+    );
+}
+
+// #345: `validate_dag` runs on every structural edit, so it must index the dag once per call and
+// look up each identity's edge and each parent's children, rather than rescan `self.dag` per
+// identity. Counting index builds pins one per validation without a wall-clock assertion; it does
+// not catch a new per-identity `self.dag` scan beside the index, which only review guards.
+#[test]
+fn validate_indexes_the_dag_once_however_many_identities() {
+    for count in [1, 64] {
+        let scene = flat_cubes(count);
+        let before = DAG_INDEX_BUILDS.with(std::cell::Cell::get);
+        scene.validate().unwrap();
+        assert_eq!(
+            DAG_INDEX_BUILDS.with(std::cell::Cell::get) - before,
+            1,
+            "{count} cubes"
+        );
+    }
+}
+
+#[test]
+fn validate_walks_a_deep_parent_chain_to_every_descendant() {
+    // A chain deeper than one level: only a walk that follows each parent's own children reaches
+    // the leaf, so a walk that looks up the wrong parent leaves nodes unvisited and refuses a
+    // valid scene. This pins the indexed Kahn walk added for #345.
+    let mut scene = NativeScene::default();
+    let mut transforms = Vec::new();
+    for index in 0..32 {
+        let node = scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+        transforms.push(scene.node(node).unwrap().transform_id);
+    }
+    for pair in transforms.windows(2) {
+        let (parent, child) = (pair[0], pair[1]);
+        scene
+            .dag
+            .retain(|edge| !(edge.child == child && edge.parent.is_none()));
+        scene.dag.push(DagEdge {
+            parent: Some(parent),
+            child,
+        });
+    }
+    assert_eq!(
+        scene.validate(),
+        Ok(()),
+        "a deep valid chain must still be accepted"
+    );
+}
+
+#[test]
 fn unproved_ancestor_descendant_and_shape_effects_refuse_numeric_edits() {
     let (original, root, child, _) = grouped_shape();
     for (index, target) in [(0, child), (1, root)] {
