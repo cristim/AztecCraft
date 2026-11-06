@@ -1015,6 +1015,8 @@ pub enum OperationError {
     /// A session-material operation failed in the core; the MCP layer reports a typed code.
     #[cfg(any(test, feature = "mcp"))]
     SessionMaterial(NativeError),
+    /// A key command on a scene opened from a Maya file; the MCP layer reports `read_only_format`.
+    ReadOnlyKeys,
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1094,6 +1096,7 @@ impl fmt::Display for OperationError {
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
+            Self::ReadOnlyKeys => NativeError::ReadOnlyFormat.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(

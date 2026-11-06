@@ -387,6 +387,16 @@ async fn animation_sdk_a_sourced_scene_refuses_keys_and_says_curves_are_not_read
     )
     .await;
     assert_eq!(refused.is_error, Some(true));
+    assert_eq!(error_code(&refused), "read_only_format");
+    let deleted = tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_keys",
+        json!({"node_ids": [id]}),
+    )
+    .await;
+    assert_eq!(error_code(&deleted), "read_only_format");
     let read = keys(&mut editor, &context, &client, json!({})).await;
     assert_eq!(read["keys_total"], 0);
     assert!(read["unavailable_reason"].is_string());

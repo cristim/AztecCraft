@@ -1023,7 +1023,14 @@ impl Editor {
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
         );
+        let key_command = matches!(
+            command,
+            Command::SetKeys { .. } | Command::DeleteKeys { .. }
+        );
         let outcome = self.history.execute(command).map_err(|error| {
+            if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
+                return OperationError::ReadOnlyKeys;
+            }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command
                 && error != azteccraft::native_scene::NativeError::BusyManipulation
