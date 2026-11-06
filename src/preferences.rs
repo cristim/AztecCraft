@@ -71,7 +71,7 @@ pub enum Baseline {
     Bytes(Vec<u8>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Store {
     Writable {
         path: PathBuf,
@@ -84,6 +84,24 @@ pub enum Store {
         seen: Option<Vec<u8>>,
     },
     SessionOnly,
+}
+
+// Hand-written so `{:?}` never prints the config path (it holds the home directory).
+impl fmt::Debug for Store {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Writable { baseline, .. } => f
+                .debug_struct("Writable")
+                .field("baseline", baseline)
+                .finish_non_exhaustive(),
+            Self::Blocked { error, seen, .. } => f
+                .debug_struct("Blocked")
+                .field("error", error)
+                .field("seen", seen)
+                .finish_non_exhaustive(),
+            Self::SessionOnly => f.write_str("SessionOnly"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

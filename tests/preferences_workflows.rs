@@ -451,6 +451,17 @@ fn reset_refuses_a_file_edited_since_it_was_seen() {
 }
 
 #[test]
+fn store_debug_never_names_the_config_dir() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = dir.path().to_string_lossy().into_owned();
+    let (_, blocked) = reset::blocked_store(dir.path());
+    let missing = load(&dir.path().join("other.json"));
+    for shown in [format!("{blocked:?}"), format!("{missing:?}")] {
+        assert!(!shown.contains(&text), "{shown}");
+    }
+}
+
+#[test]
 fn a_failing_remove_leaves_the_original_and_older_backups_and_drops_the_new_link() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(dir.path().join("preferences.json.bad-1"), b"older").unwrap();
