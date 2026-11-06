@@ -1550,7 +1550,8 @@
           "type": [
             "array",
             "null"
-          ]
+          ],
+          "uniqueItems": true
         },
         "node_ids": {
           "description": "The objects to act on. Omit it for the object selection.",
@@ -1621,7 +1622,8 @@
           "type": [
             "array",
             "null"
-          ]
+          ],
+          "uniqueItems": true
         },
         "node_ids": {
           "description": "The objects to act on. Omit it for the object selection.",

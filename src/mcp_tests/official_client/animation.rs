@@ -460,7 +460,14 @@ async fn animation_sdk_refuses_a_channel_list_the_schema_does_not_allow() {
         let mut arguments = json!({"channels": channels});
         arguments["scene_token"] = json!(editor.scene_token.to_string());
         let refused = call_response(&mut editor, &context, client.peer(), name, arguments).await;
-        assert!(refused.is_err(), "{name} {channels}");
+        let Err(rmcp::ServiceError::McpError(error)) = refused else {
+            panic!("{name} {channels}: expected a protocol error");
+        };
+        assert_eq!(
+            error.code,
+            rmcp::model::ErrorCode::INVALID_PARAMS,
+            "{name} {channels}"
+        );
         assert_eq!(editor.history.scene().session_key_count(), 0, "{name}");
     }
     assert!(*editor.history.scene() == before);

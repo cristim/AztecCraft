@@ -121,7 +121,7 @@ struct KeyArgs {
     /// A whole frame.
     time: Option<f64>,
     /// Omit it for all nine transform channels.
-    #[schemars(length(min = 1, max = 9))]
+    #[schemars(length(min = 1, max = 9), extend("uniqueItems" = true))]
     channels: Option<Vec<KeyChannel>>,
 }
 
