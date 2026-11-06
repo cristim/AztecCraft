@@ -1524,6 +1524,49 @@ mod joints {
     }
 
     #[test]
+    fn framing_a_child_joint_includes_its_bone_to_the_parent() {
+        let mut scene = NativeScene::default();
+        let root = joint(&mut scene, None, [0.0; 3]);
+        let child = joint(&mut scene, Some(root), [10.0, 0.0, 0.0]);
+        let view = view_of(&scene);
+        let path = root_path(&scene, child);
+        let mut camera = Camera::default();
+        camera
+            .frame_view_many(&view, &[path.as_slice()], FrameChildren::Exclude, 1.0)
+            .unwrap();
+        // The bone runs from x 0 to the child at x 10, so the frame centres between them.
+        let target = camera.target().x;
+        assert!(target > 4.0 && target < 7.0, "target {target}");
+    }
+
+    #[test]
+    fn a_joint_just_behind_a_surface_is_not_picked_because_it_is_not_drawn() {
+        let mut scene = NativeScene::default();
+        joint(&mut scene, None, [0.0; 3]);
+        let wall = scene.create(Primitive::Cube, "wall").unwrap();
+        let camera = Camera::default();
+        let eye = camera.eye().as_dvec3().normalize();
+        // The wall face lies 0.3% of the eye distance in front of the joint, inside the vertex
+        // marker bias (0.6%), yet the joint lines are drawn without a bias and fail the depth test.
+        // The ray along the eye direction enters the axis-aligned wall 0.25 / max|axis| from its
+        // centre.
+        let reach = 0.25 / eye.abs().max_element();
+        let offset = f64::from(camera.distance()) * 0.003 - reach;
+        scene
+            .set_transform(
+                wall,
+                NativeTransform {
+                    translation: (eye * offset).to_array(),
+                    scale: [0.5; 3],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        let view = view_of(&scene);
+        assert_eq!(pick(&camera, &view, pixel_of(&camera, Vec3::ZERO)), None);
+    }
+
+    #[test]
     fn framing_a_mesh_and_a_joint_without_children_keeps_both() {
         let mut scene = NativeScene::default();
         let root = joint(&mut scene, None, [10.0, 0.0, 0.0]);

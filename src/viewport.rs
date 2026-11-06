@@ -425,11 +425,13 @@ impl Camera {
                         .filter(move |joint| keep_joint(joint.path()))
                         .flat_map(|joint| {
                             let reach = joint.display_radius();
+                            // The bone to the parent is drawn too, so its far end is framed.
                             [Vec3::X, Vec3::Y, Vec3::Z]
                                 .into_iter()
                                 .flat_map(move |axis| {
                                     [joint.center() - axis * reach, joint.center() + axis * reach]
                                 })
+                                .chain(joint.parent_center())
                         }),
                 ),
             aspect,
@@ -748,12 +750,14 @@ impl Camera {
         admit_pick_work(scene, candidates.len())?;
         let mut selected: Option<(f32, f32, &ViewJoint)> = None;
         for (joint, ndc, pixels) in candidates {
+            // Joint lines are drawn without the marker bias, so a joint behind a surface is not
+            // visible and the pick uses the rounding-only tolerance, as face centres do.
             let Some(depth) = self.unoccluded_depth(
                 scene,
                 &frame,
                 joint.center(),
                 ndc,
-                VERTEX_MARKER_DEPTH_TOLERANCE,
+                FACE_CENTER_DEPTH_TOLERANCE,
             )?
             else {
                 continue;
