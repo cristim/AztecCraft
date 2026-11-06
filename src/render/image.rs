@@ -9,7 +9,6 @@ pub enum RenderError {
     InvalidDepth,
     InvalidCameraInput,
     ResourceLimit,
-    InvalidPixelCount,
 }
 
 impl std::fmt::Display for RenderError {
@@ -22,7 +21,6 @@ impl std::fmt::Display for RenderError {
                 f.write_str("camera projection is invalid for this aspect ratio")
             }
             Self::ResourceLimit => f.write_str("image dimensions exceed resource limit"),
-            Self::InvalidPixelCount => f.write_str("pixel buffer size does not match dimensions"),
         }
     }
 }
@@ -56,16 +54,6 @@ impl Image {
         })
     }
 
-    pub fn add_sample(&mut self, x: u32, y: u32, color: Vec3) {
-        if x >= self.width || y >= self.height {
-            return; // Ignore out-of-bounds instead of panicking
-        }
-        let index = (y as usize) * (self.width as usize) + (x as usize);
-        if let Some(pixel) = self.pixels.get_mut(index) {
-            *pixel += color;
-        }
-    }
-
     pub fn save_ppm(&self, path: &Path, samples: u32) -> io::Result<()> {
         if samples == 0 {
             return Err(io::Error::new(
@@ -74,8 +62,10 @@ impl Image {
             ));
         }
 
-        // Validate that the pixel buffer matches the dimensions
-        let expected_size = (self.width as usize) * (self.height as usize);
+        let expected_size = (self.width as usize)
+            .checked_mul(self.height as usize)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "dimension overflow"))?;
+
         if self.pixels.len() != expected_size {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -83,16 +73,11 @@ impl Image {
             ));
         }
 
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(path)?;
+        // 1. Build the entire file in memory
+        let mut buffer = Vec::with_capacity(15 + self.pixels.len() * 3);
+        write!(&mut buffer, "P6\n{} {}\n255\n", self.width, self.height)?;
 
-        write!(file, "P6\n{} {}\n255\n", self.width, self.height)?;
-
-        let mut buffer = Vec::with_capacity(self.pixels.len() * 3);
         let inv_samples = 1.0 / samples as f32;
-
         for pixel in &self.pixels {
             let color = pixel * inv_samples;
             let r = color.x.sqrt().clamp(0.0, 1.0);
@@ -104,6 +89,14 @@ impl Image {
             buffer.push((b * 255.0) as u8);
         }
 
-        file.write_all(&buffer)
+        // 2. Write to a temporary file and then rename it (atomic write)
+        let temp_path = path.with_extension("tmp");
+        {
+            let mut file = std::fs::File::create(&temp_path)?;
+            file.write_all(&buffer)?;
+        }
+        std::fs::rename(temp_path, path)?;
+
+        Ok(())
     }
 }
