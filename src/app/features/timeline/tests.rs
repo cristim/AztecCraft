@@ -1118,8 +1118,11 @@ fn a_refused_re_evaluation_after_undo_survives_the_status_feedback_native_and_re
     let refused = |editor: &Editor| {
         assert!(editor.error, "the error flag is kept");
         let status = editor.status_message().unwrap();
-        assert!(!status.starts_with("Undo "), "{status}");
-        assert!(!status.starts_with("Redo "), "{status}");
+        assert!(
+            status.starts_with("Undo done; pose not re-evaluated: "),
+            "{status}"
+        );
+        assert!(status.len() > "Undo done; pose not re-evaluated: ".len());
     };
     let (mut native, _) = keyed();
     native.timeline.current = MAX_FRAME + 1;

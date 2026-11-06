@@ -201,10 +201,16 @@ impl Editor {
                 self.error = true;
             }
         }
-        if let Some(error) = self.refusal_after_change.take() {
-            self.set_error_status(&error);
-            self.error = true;
+        if let Some((step, error)) = self.refusal_after_change.take() {
+            self.report_refusal_after_change(step, &error);
         }
+    }
+    /// The step happened; only the pose re-evaluation was refused, so the line must not read as
+    /// a failed Undo or Redo.
+    fn report_refusal_after_change(&mut self, step: &str, error: &OperationError) {
+        self.set_error_status(error);
+        self.status = format!("{step} done; pose not re-evaluated: {}", self.status);
+        self.error = true;
     }
     #[cfg(test)]
     pub(crate) fn remote_operation(
@@ -855,10 +861,14 @@ impl Editor {
                 // line, like a playback tick, and the reply stays truthful about the change.
                 // `record_feedback` re-applies it after its own success text.
                 if let Err(error) = evaluated {
+                    let step = if matches!(operation, Operation::Redo) {
+                        "Redo"
+                    } else {
+                        "Undo"
+                    };
                     let error = OperationError::from_history(error);
-                    self.set_error_status(&error);
-                    self.error = true;
-                    self.refusal_after_change = Some(error);
+                    self.report_refusal_after_change(step, &error);
+                    self.refusal_after_change = Some((step, error));
                 }
                 return Ok(if changed {
                     OperationReply::Changed

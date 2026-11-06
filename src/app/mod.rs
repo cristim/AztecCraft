@@ -109,7 +109,7 @@ pub struct Editor {
     status_withholds_path: Option<String>,
     /// A refusal raised after an operation already changed state (a pose re-evaluation after
     /// Undo). The success feedback that follows must not overwrite it; the next operation clears it.
-    refusal_after_change: Option<OperationError>,
+    refusal_after_change: Option<(&'static str, OperationError)>,
     error: bool,
     aspect: f32,
     files: files::FileState,
