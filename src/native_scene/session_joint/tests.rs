@@ -737,3 +737,27 @@ fn a_relative_chain_cannot_walk_past_f32_range_in_world_space() {
     // Every joint that was accepted still draws.
     crate::view_scene::ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
 }
+
+#[test]
+fn an_absolute_world_position_beyond_f32_range_is_refused_even_when_the_local_one_is_not() {
+    let mut scene = NativeScene::default();
+    let parent = joint(&mut scene, None, [0.0; 3]);
+    // A huge parent scale keeps the solved local translation (1e10) in range while the requested
+    // world point (1e300) cannot be drawn.
+    set(
+        &mut scene,
+        parent,
+        NativeTransform {
+            scale: [1.0e290, 1.0, 1.0],
+            ..NativeTransform::default()
+        },
+    );
+    let before = scene.clone();
+    assert_eq!(
+        scene
+            .create_joint(&request(Some(parent), [1.0e300, 0.0, 0.0]))
+            .err(),
+        Some(NativeError::UnsupportedJoint(JointUnsupported::Position))
+    );
+    assert_eq!(scene, before);
+}

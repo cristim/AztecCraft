@@ -267,7 +267,10 @@ impl NativeScene {
         // The view draws in f32, so one joint unrepresentable locally or in world space (a long
         // relative chain can sum past the range) would fail every view build.
         let unrepresentable = NativeError::UnsupportedJoint(JointUnsupported::Position);
-        if translation.iter().any(|value| !(*value as f32).is_finite()) {
+        let fits = |values: &[f64; 3]| values.iter().all(|value| (*value as f32).is_finite());
+        // An absolute request is the world point, which a scaled parent can leave out of range
+        // while the solved local translation stays in it.
+        if !fits(&request.position) || !fits(&translation) {
             return Err(unrepresentable);
         }
         if let (Some(parent), true) = (request.parent, request.relative) {
