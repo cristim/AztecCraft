@@ -2545,6 +2545,20 @@ mod joints {
         assert!(charged >= bare + std::mem::size_of::<ViewJoint>());
     }
 
+    // #365: each joint's segment-scale lookup scanned the dag and the nodes; a view build must
+    // resolve it through the index it already holds.
+    #[test]
+    fn a_view_build_resolves_joint_parent_scale_through_the_index() {
+        let mut scene = NativeScene::default();
+        let mut parent = None;
+        for _ in 0..200 {
+            parent = Some(joint(&mut scene, parent, [0.0; 3]));
+        }
+        let before = crate::native_scene::parent_scale_scans();
+        ViewScene::from_native(&scene, 256 * 1024 * 1024).unwrap();
+        assert_eq!(crate::native_scene::parent_scale_scans() - before, 0);
+    }
+
     #[test]
     fn a_shapeless_transform_is_not_a_joint() {
         let (scene, _, _, _) = test_fixtures::grouped_shape();

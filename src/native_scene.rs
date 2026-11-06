@@ -912,6 +912,22 @@ impl NativeScene {
     }
     pub fn internal_transform(&self, id: NodeId) -> Result<InternalTransform, NativeError> {
         let node = self.node(id)?;
+        self.internal_transform_with(node, self.joint_inverse_parent_scale(node)?)
+    }
+    /// [`internal_transform`](Self::internal_transform) of `node` with the segment-scale lookup
+    /// resolved through the view build's index (#365).
+    pub(crate) fn internal_transform_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        node: &NativeTransformNode,
+    ) -> Result<InternalTransform, NativeError> {
+        self.internal_transform_with(node, self.joint_inverse_parent_scale_indexed(index, node)?)
+    }
+    fn internal_transform_with(
+        &self,
+        node: &NativeTransformNode,
+        inverse_parent_scale: Option<[f64; 3]>,
+    ) -> Result<InternalTransform, NativeError> {
         let vector = |field| {
             let mut values = [0.0; 3];
             for (component, scalar) in node.field(field).iter().enumerate() {
@@ -932,7 +948,7 @@ impl NativeScene {
             rotate_pivot_cm: vector(TransformField::RotatePivot)?,
             scale_pivot_cm: vector(TransformField::ScalePivot)?,
             extras: node.extras.internal(&self.units)?,
-            inverse_parent_scale: self.joint_inverse_parent_scale(node)?,
+            inverse_parent_scale,
         })
     }
     pub fn shapes(&self) -> &[NativeMeshShape] {
@@ -1796,6 +1812,8 @@ pub(crate) struct ViewAdmissionIndex<'a> {
     transforms: std::collections::HashMap<NativeId, &'a NativeTransformNode>,
     root_edges: std::collections::HashSet<NativeId>,
     edges: std::collections::HashSet<(NativeId, NativeId)>,
+    /// The parent of each child's first edge (`None` for a root edge), as a scan would find it.
+    first_parent: std::collections::HashMap<NativeId, Option<NativeId>>,
 }
 
 impl<'a> ViewAdmissionIndex<'a> {
@@ -1827,7 +1845,10 @@ impl<'a> ViewAdmissionIndex<'a> {
         root_edges.try_reserve(scene.dag.len()).map_err(limit)?;
         let mut edges = std::collections::HashSet::new();
         edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        let mut first_parent = std::collections::HashMap::new();
+        first_parent.try_reserve(scene.dag.len()).map_err(limit)?;
         for edge in &scene.dag {
+            first_parent.entry(edge.child).or_insert(edge.parent);
             match edge.parent {
                 None => {
                     root_edges.insert(edge.child);
@@ -1842,6 +1863,7 @@ impl<'a> ViewAdmissionIndex<'a> {
             transforms,
             root_edges,
             edges,
+            first_parent,
         })
     }
 
@@ -2066,10 +2088,16 @@ pub(crate) fn view_admission_index_builds() -> usize {
 
 #[cfg(test)]
 std::thread_local! {
+    static PARENT_SCALE_SCANS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static ADMISSION_TRANSFORM_LOOKUPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 /// Joint-admission transform lookups on this thread, so a test can pin linear work (#365).
 #[cfg(test)]
 pub(crate) fn admission_transform_lookups() -> usize {
     ADMISSION_TRANSFORM_LOOKUPS.with(std::cell::Cell::get)
+}
+/// Scanning `joint_inverse_parent_scale` calls on this thread; a view build must use the index.
+#[cfg(test)]
+pub(crate) fn parent_scale_scans() -> usize {
+    PARENT_SCALE_SCANS.with(std::cell::Cell::get)
 }

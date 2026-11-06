@@ -8,7 +8,8 @@
 
 use super::{
     DagEdge, GeometryViewFacts, NativeError, NativeId, NativeScene, NativeTransform,
-    NativeTransformNode, Scalar, TransformExtras, TransformField, TransformTarget, Uuid, authored,
+    NativeTransformNode, Scalar, TransformExtras, TransformField, TransformTarget, Uuid,
+    ViewAdmissionIndex, authored,
 };
 use crate::scene::{NodeId, SceneError};
 use glam::DVec3;
@@ -174,6 +175,8 @@ impl NativeScene {
         if !self.session_joints.contains(node.transform_id) {
             return Ok(None);
         }
+        #[cfg(test)]
+        super::PARENT_SCALE_SCANS.with(|count| count.set(count.get() + 1));
         let parent = self
             .dag
             .iter()
@@ -187,6 +190,36 @@ impl NativeScene {
             .iter()
             .find(|candidate| candidate.transform_id == parent)
             .ok_or(NativeError::InvalidInstancePath)?;
+        self.inverse_of_scale(parent).map(Some)
+    }
+
+    /// [`joint_inverse_parent_scale`](Self::joint_inverse_parent_scale) through the view build's
+    /// index, with the same result.
+    pub(super) fn joint_inverse_parent_scale_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        node: &NativeTransformNode,
+    ) -> Result<Option<[f64; 3]>, NativeError> {
+        if !self.session_joints.contains(node.transform_id) {
+            return Ok(None);
+        }
+        let Some(parent) = index
+            .first_parent
+            .get(&node.transform_id)
+            .copied()
+            .flatten()
+        else {
+            return Ok(None);
+        };
+        let parent = index
+            .transforms
+            .get(&parent)
+            .copied()
+            .ok_or(NativeError::InvalidInstancePath)?;
+        self.inverse_of_scale(parent).map(Some)
+    }
+
+    fn inverse_of_scale(&self, parent: &NativeTransformNode) -> Result<[f64; 3], NativeError> {
         let mut inverse = [1.0; 3];
         for (component, scalar) in parent.field(TransformField::Scale).iter().enumerate() {
             let value = 1.0
@@ -201,7 +234,7 @@ impl NativeScene {
                 inverse[component] = value;
             }
         }
-        Ok(Some(inverse))
+        Ok(inverse)
     }
 
     /// Adds a joint and returns its full path, proved valid before the scene is left changed.

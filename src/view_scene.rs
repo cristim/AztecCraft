@@ -189,7 +189,7 @@ impl ViewScene {
                     parent_world
                         * local_matrix(
                             scene
-                                .internal_transform(node.id())
+                                .internal_transform_indexed(&admission_index, node)
                                 .map_err(ViewError::Native)?,
                         )?
                 }
