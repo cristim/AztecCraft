@@ -64,6 +64,11 @@ pub fn decode_document(
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
     let sourced = decode_inner(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
+    // can never be proved; skip the clone for it.
+    if sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
+        return Ok(AsciiDecoded::Retained(sourced));
+    }
     let mut candidate = sourced.clone();
     candidate.source = None;
     // An empty scene the writer emits (a document whose last object was deleted) is an

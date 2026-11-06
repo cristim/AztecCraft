@@ -275,11 +275,13 @@ fn node_values(inspection: &Value) -> Vec<(Value, Value)> {
 }
 
 /// Builds the tool call from the inspection of the freshly opened document.
-type Edit = fn(&Value) -> (&'static str, Value);
+type Edit = fn(&Value) -> Vec<(&'static str, Value)>;
 
 #[derive(Debug, PartialEq)]
 enum Expect {
     Saves,
+    /// The edit itself is refused on an authored scene, so there is nothing to save.
+    EditRefused,
     Refuses(&'static str),
 }
 
@@ -318,9 +320,25 @@ async fn round_trip(label: &str, edit: Edit, expect: Expect) {
     .await;
     assert_eq!(opened["outcome"], "document_applied", "{label}");
     let before = inspect(&mut editor, &context, &client).await;
-    let (name, args) = edit(&before);
-    let edited = tool(&mut editor, &context, &client, name, args).await;
-    assert!(edited["error"].is_null(), "{label}: {edited}");
+    let mut manipulation = Value::Null;
+    for (name, mut args) in edit(&before) {
+        if args["manipulation_id"].is_null() && args.get("manipulation_id").is_some() {
+            args["manipulation_id"] = manipulation.clone();
+        }
+        let edited = tool(&mut editor, &context, &client, name, args).await;
+        if expect == Expect::EditRefused {
+            assert_eq!(edited["error"]["code"], "scene_error", "{label}: {edited}");
+            assert!(!editor.is_dirty(), "{label}");
+            client.cancel().await.unwrap();
+            drop(editor);
+            server.await.unwrap();
+            return;
+        }
+        assert!(edited["error"].is_null(), "{label}: {edited}");
+        if !edited["manipulation_id"].is_null() {
+            manipulation = edited["manipulation_id"].clone();
+        }
+    }
     assert!(editor.is_dirty(), "{label}");
     let original = std::fs::read(&path).unwrap();
     let result = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
@@ -330,6 +348,7 @@ async fn round_trip(label: &str, edit: Edit, expect: Expect) {
             assert!(editor.is_dirty(), "{label}");
             assert_eq!(std::fs::read(&path).unwrap(), original, "{label}");
         }
+        Expect::EditRefused => unreachable!(),
         Expect::Saves => {
             assert_eq!(result["outcome"], "saved", "{label}: {result}");
             assert!(!editor.is_dirty(), "{label}");
@@ -374,60 +393,60 @@ fn first_node(inspection: &Value) -> Value {
 
 #[tokio::test]
 async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
-    use Expect::{Refuses, Saves};
+    use Expect::{EditRefused, Refuses, Saves};
     let cases: Vec<(&str, Edit, Expect)> = vec![
         (
             "create cube",
-            |_| ("create_primitive", json!({"primitive":"cube"})),
+            |_| vec![("create_primitive", json!({"primitive":"cube"}))],
             Saves,
         ),
         (
             "create plane",
-            |_| ("create_primitive", json!({"primitive":"plane"})),
+            |_| vec![("create_primitive", json!({"primitive":"plane"}))],
             Saves,
         ),
         (
             "create sphere",
-            |_| ("create_primitive", json!({"primitive":"sphere"})),
+            |_| vec![("create_primitive", json!({"primitive":"sphere"}))],
             Saves,
         ),
         (
             "create cylinder",
-            |_| ("create_primitive", json!({"primitive":"cylinder"})),
+            |_| vec![("create_primitive", json!({"primitive":"cylinder"}))],
             Saves,
         ),
         (
             "create cone",
-            |_| ("create_primitive", json!({"primitive":"cone"})),
+            |_| vec![("create_primitive", json!({"primitive":"cone"}))],
             Saves,
         ),
         (
             "rename",
             |i| {
-                (
+                vec![(
                     "rename_node",
                     json!({"node_id":first_node(i),"name":"renamed"}),
-                )
+                )]
             },
             Saves,
         ),
         (
             "set_transform",
             |i| {
-                (
+                vec![(
                     "set_transform",
                     json!({"node_id":first_node(i),"translation":[2.5,-0.0,1e15],"rotation_degrees":[10.0,20.0,30.0],"scale":[1.0,2.0,3.0]}),
-                )
+                )]
             },
             Saves,
         ),
         (
             "edit_node",
             |i| {
-                (
+                vec![(
                     "edit_node",
                     json!({"node_id":first_node(i),"translation":[1.0,null,null]}),
-                )
+                )]
             },
             Saves,
         ),
@@ -438,32 +457,81 @@ async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
                 let shape = node["shape_ids"][0].clone();
                 let mut path = node["instance_paths"][0].as_array().unwrap().clone();
                 path.push(shape.clone());
-                (
+                vec![(
                     "extrude_face",
                     json!({"node_id":node["id"],"shape_id":shape,"instance_path":path,"face_index":1,"distance":1.5}),
-                )
+                )]
+            },
+            Saves,
+        ),
+        (
+            "committed move",
+            |i| {
+                let node = &i["nodes"][0];
+                vec![
+                    (
+                        "select_node",
+                        json!({"node_id":node["id"],"instance_path":node["instance_paths"][0]}),
+                    ),
+                    (
+                        "begin_manipulation",
+                        json!({"node_id":node["id"],"instance_path":node["instance_paths"][0],"kind":"move","axis":"x"}),
+                    ),
+                    (
+                        "update_manipulation",
+                        json!({"manipulation_id":null,"distance":3.25}),
+                    ),
+                    (
+                        "finish_manipulation",
+                        json!({"manipulation_id":null,"finish":"commit"}),
+                    ),
+                ]
             },
             Saves,
         ),
         (
             "delete only node",
-            |i| ("delete_node", json!({"node_id":first_node(i)})),
+            |i| vec![("delete_node", json!({"node_id":first_node(i)}))],
+            Saves,
+        ),
+        (
+            "delete selected",
+            |i| {
+                let node = &i["nodes"][0];
+                vec![
+                    (
+                        "select_node",
+                        json!({"node_id":node["id"],"instance_path":node["instance_paths"][0]}),
+                    ),
+                    ("delete_selected", json!({})),
+                ]
+            },
             Saves,
         ),
         (
             "session material",
-            |_| ("create_session_material", json!({"color":[0.1,0.2,0.3]})),
+            |_| vec![("create_session_material", json!({"color":[0.1,0.2,0.3]}))],
             Refuses("save_ascii_write"),
         ),
         (
             "uvs",
             |i| {
-                (
+                vec![(
                     "project_uv_planar",
                     json!({"shape_id":i["nodes"][0]["shape_ids"][0],"axis":"z"}),
-                )
+                )]
             },
             Refuses("save_ascii_write"),
+        ),
+        (
+            "material diffuse",
+            |i| {
+                vec![(
+                    "set_material_diffuse",
+                    json!({"shape_id":i["nodes"][0]["shape_ids"][0],"value":0.5}),
+                )]
+            },
+            EditRefused,
         ),
     ];
     for (label, edit, expect) in cases {
