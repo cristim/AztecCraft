@@ -376,3 +376,29 @@ fn the_shelf_button_is_disabled_with_the_read_only_reason_on_an_ascii_scene() {
     let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
     assert!(shelf_button(&output).1, "disabled");
 }
+
+#[test]
+fn the_shelf_button_is_disabled_with_the_uv_reason_while_the_shape_has_uvs() {
+    let size = egui::vec2(1200.0, 800.0);
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let (mut editor, _) = face_editor(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id();
+    editor.native_operation(Operation::ProjectUvPlanar {
+        shape,
+        axis: azteccraft::native_scene::UvProjectAxis::Y,
+    });
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(
+        editor.extrude_refusal().as_deref(),
+        Some(NativeError::UvsBlockTopologyEdit.to_string().as_str())
+    );
+    for _ in 0..3 {
+        frame(&mut editor, &ctx, vec![]);
+    }
+    let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(shelf_button(&output).1, "disabled");
+    editor.native_operation(Operation::DeleteUvs { shape });
+    let output = crate::app::tests::frame_with(&mut editor, &ctx, size, 1.0, vec![]);
+    assert!(!shelf_button(&output).1, "enabled again without UVs");
+}

@@ -10,6 +10,7 @@
 //! and Curve Selected values are display defaults, not documented ones.
 
 use crate::app::*;
+use azteccraft::native_scene::NativeError;
 use std::fmt;
 
 /// Why `extrude_selected_face` did not extrude.
@@ -79,6 +80,22 @@ impl Editor {
         }
     }
 
+    /// Why the shelf button and the window's Extrude button are disabled: a read-only scene, a
+    /// missing face selection, or UVs on the picked face's shape (they do not follow topology).
+    pub(in crate::app) fn extrude_refusal(&self) -> Option<String> {
+        let scene = self.history.scene();
+        if let Some(reason) = scene.authoring_read_only_reason() {
+            return Some(reason.to_string());
+        }
+        if let Some(blocker) = self.extrude_blocker() {
+            return Some(blocker.to_string());
+        }
+        let face = self.remembered_face.as_ref()?;
+        scene
+            .uv_set(face.shape)
+            .map(|_| NativeError::UvsBlockTopologyEdit.to_string())
+    }
+
     /// Extrudes the selected face by `thickness` through the shared typed operation. A blocker or
     /// a core refusal sets the error status, changes nothing and is returned.
     pub(in crate::app) fn extrude_selected_face(
@@ -139,12 +156,7 @@ impl Editor {
             self.extrude_options.dialog = Some(dialog);
             return;
         }
-        let refusal = self
-            .history
-            .scene()
-            .authoring_read_only_reason()
-            .map(|reason| reason.to_string())
-            .or_else(|| self.extrude_blocker().map(|blocker| blocker.to_string()));
+        let refusal = self.extrude_refusal();
         let mut open = true;
         let mut extrude = false;
         let mut close = false;

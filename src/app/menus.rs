@@ -542,9 +542,7 @@ impl Editor {
                 self.frame_selected(false);
             }
             ui.separator();
-            let refusal = read_only_reason
-                .clone()
-                .or_else(|| self.extrude_blocker().map(|blocker| blocker.to_string()));
+            let refusal = self.extrude_refusal();
             let extrude = ui
                 .add_enabled(refusal.is_none(), egui::Button::new("Extrude"))
                 .on_hover_text("Open Extrude Options")
