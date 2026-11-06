@@ -6455,6 +6455,31 @@ pub(in crate::app) fn linked_deep_group_editor() -> Editor {
     nested_group_editor(&[b"mid", b"child"], &selection_naming(b"child"))
 }
 
+/// Two independent root cubes, `keep` and `linked`; a selection record names `linked`, so deleting
+/// it is refused while `keep` alone deletes fine.
+pub(in crate::app) fn keep_and_linked_roots_editor() -> Editor {
+    use material_wire as wire;
+    let mut bytes = Vec::new();
+    for name in [&b"keep"[..], &b"linked"[..]] {
+        bytes.extend(wire::group(b"XFRM", &wire::creation(name, None), 4));
+        bytes.extend(wire::group(
+            b"DMSH",
+            &[
+                wire::creation(&[name, b"Shape"].concat(), Some(name)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    bytes.extend(selection_naming(b"linked"));
+    let scene = azteccraft::native_scene::binary::decode(wire::scene(&bytes)).unwrap();
+    Editor {
+        history: History::new(scene),
+        ..Editor::default()
+    }
+}
+
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
 pub(in crate::app) fn deep_group_editor() -> Editor {
     nested_group_editor(&[b"mid", b"child"], &[])

@@ -12,6 +12,7 @@ use crate::native_scene::{
         },
     },
 };
+use crate::scene::NodeId;
 
 fn refused(reason: RemovalRefusal) -> Result<(), NativeError> {
     Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
@@ -236,4 +237,119 @@ fn a_group_a_child_and_ancestor_with_descendant_delete_from_an_opened_scene() {
         assert!(history.scene().removed.is_empty());
         assert_eq!(*history.scene(), opened);
     }
+}
+
+/// `a` (indexed set link) and `b` (unindexed set link) share a set, so each is refused alone but
+/// the pair is fine; `r` is
+/// restricted, so the whole set is refused with `UnsupportedEdit`. Only `r` reproduces that error.
+fn linked_pair_and_restricted_node() -> (NativeScene, [NodeId; 3]) {
+    let bytes = scene(
+        &[
+            transform(b"a"),
+            shape(b"as", b"a"),
+            transform(b"b"),
+            shape(b"bs", b"b"),
+            transform(b"r"),
+            shape(b"rs", b"r"),
+            connections(&[link(0, "as.iog", ":S.dsm[0]"), link(1, "bs.iog", ":S.dsm")]),
+        ]
+        .concat(),
+    );
+    let mut scene = decode(bytes).unwrap();
+    scene.nodes[2]
+        .unsupported_transform
+        .push("unproved effect".into());
+    let ids = [scene.nodes[0].id, scene.nodes[1].id, scene.nodes[2].id];
+    (scene, ids)
+}
+
+#[test]
+fn a_member_refused_alone_for_another_reason_is_not_named() {
+    let (mut scene, [a, b, r]) = linked_pair_and_restricted_node();
+    assert_eq!(scene.remove(a), refused(RemovalRefusal::NextAvailableIndex));
+    assert_eq!(scene.remove_many(&[a, b]), Ok(()));
+    let (mut scene, _) = linked_pair_and_restricted_node();
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[a, b, r]),
+        Err(NativeError::DeleteMemberRefused {
+            node: "r".into(),
+            reason: Box::new(NativeError::UnsupportedEdit),
+        })
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_combined_refusal_no_member_reproduces_stays_unnamed() {
+    let (scene, ids) = linked_pair_and_restricted_node();
+    assert_eq!(
+        scene.name_refusing_member(&ids, NativeError::NameCollision),
+        NativeError::NameCollision
+    );
+}
+
+/// `a` and `b` share set `S` (fine as a pair); `c` shares set `T` with the survivor `d`. A, b and c
+/// each fail alone with `NextAvailableIndex`, but only the set without `c` is accepted.
+#[test]
+fn only_the_member_whose_absence_clears_the_refusal_is_named() {
+    let bytes = scene(
+        &[
+            transform(b"a"),
+            shape(b"as", b"a"),
+            transform(b"b"),
+            shape(b"bs", b"b"),
+            transform(b"c"),
+            shape(b"cs", b"c"),
+            transform(b"d"),
+            shape(b"ds", b"d"),
+            connections(&[
+                link(0, "as.iog", ":S.dsm[0]"),
+                link(1, "bs.iog", ":S.dsm"),
+                link(0, "cs.iog", ":T.dsm[0]"),
+                link(1, "ds.iog", ":T.dsm"),
+            ]),
+        ]
+        .concat(),
+    );
+    let mut scene = decode(bytes).unwrap();
+    let [a, b, c] = [0, 1, 2].map(|at| scene.nodes[at].id);
+    let before = scene.clone();
+    assert_eq!(scene.remove(a), refused(RemovalRefusal::NextAvailableIndex));
+    assert_eq!(scene.remove_many(&[a, b]), Ok(()));
+    let mut scene = before.clone();
+    assert_eq!(
+        scene.remove_many(&[a, b, c]),
+        Err(NativeError::DeleteMemberRefused {
+            node: "c".into(),
+            reason: Box::new(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                RemovalRefusal::NextAvailableIndex
+            ))),
+        })
+    );
+    assert_eq!(scene, before);
+}
+
+/// The pending insertion sits on `x`, outside the removed set, so it blocks every subset and no
+/// member explains the refusal.
+#[test]
+fn a_pending_insertion_on_a_third_node_leaves_a_multi_delete_refusal_unnamed() {
+    let children = [
+        sited_transform(b"a", &[]),
+        sited_transform(b"b", &[]),
+        sited_transform(b"x", &[]),
+        other_node_with_triple(b"anchor", SITE_AUX),
+    ]
+    .concat();
+    let mut scene = decode(scene(&children)).unwrap();
+    let [a, b, x] = [0, 1, 2].map(|at| scene.nodes[at].id);
+    scene.set_channel(x, Channel::TranslateX, 5.0).unwrap();
+    let before = scene.clone();
+    assert_eq!(scene.remove(a), refused(RemovalRefusal::PendingInsertion));
+    assert_eq!(scene.remove(b), refused(RemovalRefusal::PendingInsertion));
+    assert_eq!(
+        scene.remove_many(&[a, b]),
+        refused(RemovalRefusal::PendingInsertion)
+    );
+    assert_eq!(scene, before);
 }

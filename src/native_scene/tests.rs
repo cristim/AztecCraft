@@ -35,6 +35,21 @@ fn a_refused_multi_delete_names_the_refusing_node() {
 }
 
 #[test]
+fn two_independently_refused_members_leave_the_refusal_unnamed() {
+    let (mut scene, first) = cube();
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    let fine = scene.create(Primitive::Cube, "fine").unwrap();
+    test_fixtures::restrict_transform(&mut scene, first);
+    test_fixtures::restrict_transform(&mut scene, second);
+    let before = scene.clone();
+    assert_eq!(
+        scene.remove_many(&[first, second, fine]),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
 fn a_refusal_name_is_bounded_on_a_character_boundary_without_control_characters() {
     let plain = "a".repeat(MAX_REFUSAL_NAME_BYTES);
     assert_eq!(refusal_name(&plain), plain);

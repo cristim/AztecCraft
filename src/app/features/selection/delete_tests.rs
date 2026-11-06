@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::tests::{linked_deep_group_editor, remote};
+use crate::app::tests::{keep_and_linked_roots_editor, linked_deep_group_editor, remote};
 
 fn cubes(count: usize) -> (Editor, Vec<TransformTarget>) {
     let mut editor = Editor::default();
@@ -121,6 +121,29 @@ fn delete_selection_refusals_match_single_delete_and_keep_state() {
     let many = editor.apply_operation(Operation::DeleteSelection);
     assert!(single.is_err());
     assert_eq!(format!("{single:?}"), format!("{many:?}"));
+    assert_eq!(baseline(&editor), before);
+}
+
+/// Refs #336: with several objects selected, the refusal names the object that causes it.
+#[test]
+fn a_refused_multi_delete_names_the_refusing_object_and_keeps_state() {
+    let mut editor = keep_and_linked_roots_editor();
+    let all = editor.history.scene().transform_paths().unwrap();
+    let linked = all
+        .iter()
+        .find(|target| editor.history.scene().node(target.node).unwrap().name() == "linked")
+        .unwrap()
+        .clone();
+    editor.set_selection_members_for_test(all.clone());
+    editor.sync_fields();
+    let before = baseline(&editor);
+    let single = editor
+        .apply_operation(Operation::Delete(linked.node))
+        .unwrap_err();
+    let many = editor
+        .apply_operation(Operation::DeleteSelection)
+        .unwrap_err();
+    assert_eq!(many.to_string(), format!("linked: {single}"));
     assert_eq!(baseline(&editor), before);
 }
 
