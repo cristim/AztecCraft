@@ -172,7 +172,12 @@ impl Default for Editor {
 impl Editor {
     /// The single place an `OperationError` becomes status text.
     fn set_error_status(&mut self, error: &OperationError) {
-        self.status = error.to_string();
+        self.set_error_text(error.to_string(), error);
+    }
+    /// `set_error_status` with the text already built, so a prefixed message is withheld by the
+    /// same rule as the bare one.
+    fn set_error_text(&mut self, text: String, error: &OperationError) {
+        self.status = text;
         self.status_withholds_path =
             matches!(error, OperationError::File(_)).then(|| self.status.clone());
     }

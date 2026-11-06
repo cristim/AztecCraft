@@ -207,9 +207,15 @@ impl Editor {
     }
     /// The step happened; only the pose re-evaluation was refused, so the line must not read as
     /// a failed Undo or Redo.
-    fn report_refusal_after_change(&mut self, step: &str, error: &OperationError) {
-        self.set_error_status(error);
-        self.status = format!("{step} done; pose not re-evaluated: {}", self.status);
+    pub(in crate::app) fn report_refusal_after_change(
+        &mut self,
+        step: &str,
+        error: &OperationError,
+    ) {
+        self.set_error_text(
+            format!("{step} done; pose not re-evaluated: {error}"),
+            error,
+        );
         self.error = true;
     }
     #[cfg(test)]

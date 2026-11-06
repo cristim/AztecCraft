@@ -1187,3 +1187,20 @@ fn a_typed_time_is_applied_before_a_click_in_the_same_frame() {
     assert!(editor.error);
     assert_eq!(editor.timeline.current, 2);
 }
+
+#[test]
+fn a_prefixed_refusal_keeps_the_path_withholding_of_its_error() {
+    let (mut editor, _) = keyed();
+    let error = OperationError::File("cannot read /private/home/scene.mb".into());
+    editor.report_refusal_after_change("Undo", &error);
+    assert!(editor.error);
+    assert!(
+        editor
+            .status
+            .starts_with("Undo done; pose not re-evaluated: ")
+    );
+    assert_eq!(
+        editor.status_message().as_deref(),
+        Some(crate::editor_operations::STATUS_MESSAGE_WITHHELD)
+    );
+}
