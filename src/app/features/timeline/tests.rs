@@ -601,15 +601,13 @@ fn a_scene_with_keys_cannot_be_saved_and_stays_dirty() {
     // platforms cannot write at all. Nothing is created in either case.
     let path = std::env::temp_dir().join("azteccraft-keys-never-written.mb");
     let result = editor.apply_operation(Operation::SaveSceneAs { path: path.clone() });
+    #[cfg(unix)]
+    let expected =
+        NativeSaveError::Unwritable(azteccraft::native_scene::binary::AuthoredRefusalCode::Keys);
+    #[cfg(not(unix))]
+    let expected = NativeSaveError::Unsupported;
     assert!(
-        matches!(
-            result,
-            Err(OperationError::NativeSave(
-                NativeSaveError::Unwritable(
-                    azteccraft::native_scene::binary::AuthoredRefusalCode::Keys
-                ) | NativeSaveError::Unsupported
-            ))
-        ),
+        matches!(&result, Err(OperationError::NativeSave(error)) if *error == expected),
         "{result:?}"
     );
     assert!(!path.exists());
