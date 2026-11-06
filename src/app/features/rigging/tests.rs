@@ -2,6 +2,7 @@ use super::*;
 use crate::app::menus::{ALWAYS_ON_MENUS, HELP_MENU, MODELING_SET_MENUS, RIGGING_SET_MENUS};
 use crate::app::tests::{frame_with, remote};
 use crate::editor_operations::{MenuSet, SelectionMode};
+use azteccraft::native_scene::NativeId;
 use eframe::egui::{Event, Modifiers, PointerButton, Pos2, Rect, Vec2, accesskit};
 
 const SIZE: Vec2 = egui::vec2(1200.0, 800.0);
@@ -402,4 +403,60 @@ fn outliner_marks_joint_rows_and_channel_box_shows_a_disabled_radius() {
         .find(|c| c.label == "0.25" && c.role == accesskit::Role::Button)
         .expect("the Radius value");
     assert!(radius.disabled);
+}
+
+fn owned_selection(editor: &Editor) -> (Option<NodeId>, Vec<NativeId>) {
+    let (lead, path) = editor.selection_presentation();
+    (lead, path.to_vec())
+}
+
+fn chain_editor() -> (Editor, egui::Context) {
+    let (mut editor, ctx) = setup();
+    open_window(&mut editor, &ctx);
+    for x in ["0", "3", "6"] {
+        set_field(&mut editor, &ctx, 0, x);
+        press(&mut editor, &ctx, "Create");
+    }
+    assert_eq!(joints(&editor).len(), 3);
+    (editor, ctx)
+}
+
+#[test]
+fn redo_of_a_chain_creation_restores_the_scene_and_its_joint_table_exactly() {
+    let (mut editor, _ctx) = chain_editor();
+    let created = editor.history.scene().clone();
+    for _ in 0..3 {
+        remote(&mut editor, Operation::Undo).unwrap();
+    }
+    assert!(joints(&editor).is_empty());
+    for _ in 0..3 {
+        remote(&mut editor, Operation::Redo).unwrap();
+    }
+    // Scene equality covers the joint table and every transform UUID.
+    assert_eq!(editor.history.scene(), &created);
+    // Undo prunes the selection of the vanished joints and redo does not bring it back.
+    assert_eq!(owned_selection(&editor), (None, Vec::new()));
+}
+
+#[test]
+fn redo_of_a_chain_delete_restores_the_scene() {
+    let (mut editor, _ctx) = chain_editor();
+    let root = joints(&editor)[0];
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
+    editor.native_operation(Operation::Select {
+        node: Some(root),
+        instance_path: None,
+    });
+    let before = editor.history.scene().clone();
+    remote(&mut editor, Operation::DeleteSelection).unwrap();
+    let deleted = editor.history.scene().clone();
+    assert!(joints(&editor).is_empty());
+    remote(&mut editor, Operation::Undo).unwrap();
+    assert_eq!(editor.history.scene(), &before);
+    remote(&mut editor, Operation::Redo).unwrap();
+    assert_eq!(editor.history.scene(), &deleted);
+    remote(&mut editor, Operation::Undo).unwrap();
+    assert_eq!(editor.history.scene(), &before);
+    // Deleting cleared the selection and undo does not restore it.
+    assert_eq!(owned_selection(&editor), (None, Vec::new()));
 }
