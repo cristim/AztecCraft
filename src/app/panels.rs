@@ -36,6 +36,7 @@ impl Editor {
     }
 
     pub(super) fn render(&mut self, ui: &mut egui::Ui) {
+        let deferred_surrender = super::defer_focus_surrender(ui.ctx());
         let frame_token = self.scene_token;
         self.sidebar_panel_request = None;
         self.attribute_editor_tab_request = None;
@@ -214,6 +215,7 @@ impl Editor {
                     1.0 / features::timeline::FRAMES_PER_SECOND,
                 ));
         }
+        super::finish_deferred_focus_surrender(ui.ctx(), deferred_surrender);
     }
     pub(super) fn viewport(
         &mut self,

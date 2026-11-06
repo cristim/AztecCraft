@@ -1,12 +1,12 @@
 use azteccraft::ui_icons::{self, UiIcon};
-use eframe::egui::{self, Response, Ui, WidgetInfo, WidgetType};
+use eframe::egui::{self, Response, Role, Ui, WidgetInfo};
 
 const SHELF_ICON: f32 = 20.0;
 const TOOL_ICON: f32 = 24.0;
 
 pub fn button(ui: &mut Ui, label: &str, icon: UiIcon, enabled: bool) -> Response {
     ui.add_enabled_ui(enabled, |ui| {
-        let id = ui.make_persistent_id(("tool_icon", label));
+        let id = egui::IdSalt::new(("tool_icon", label));
         let atom = egui::Atom::custom(id, egui::vec2(SHELF_ICON, SHELF_ICON));
         let output = egui::Button::new((atom, label))
             .gap(6.0)
@@ -31,14 +31,14 @@ pub fn icon_button(
     hover: &str,
 ) -> Response {
     ui.add_enabled_ui(enabled, |ui| {
-        let id = ui.make_persistent_id(("tool_icon_only", label));
+        let id = egui::IdSalt::new(("tool_icon_only", label));
         let atom = egui::Atom::custom(id, egui::vec2(TOOL_ICON, TOOL_ICON));
         let output = egui::Button::new(atom).selected(selected).atom_ui(ui);
         if let Some(rect) = output.rect(id) {
             ui_icons::paint(&ui.painter_at(rect), rect, icon);
         }
         let response = output.response;
-        response.widget_info(|| WidgetInfo::selected(WidgetType::Button, enabled, selected, label));
+        response.widget_info(|| WidgetInfo::selected(Role::Button, enabled, selected, label));
         if enabled {
             response.on_hover_text(hover)
         } else {
@@ -50,13 +50,13 @@ pub fn icon_button(
 
 /// Width of an icon-only column (icon plus button and panel margins), measured from the live style.
 pub fn toolbox_width(ui: &Ui) -> f32 {
-    let style = ui.style().button_style(
-        &Default::default(),
-        egui::widget_style::WidgetState::Noninteractive,
-    );
+    let style = ui.style();
+    // A button frame's total margin is exactly button_padding: egui shifts its stroke and
+    // expansion inside the padding (0.36 and 0.37 alike).
+    let button_margin = style.spacing.button_padding.x * 2.0;
     let panel = egui::Frame::side_top_panel(ui.style());
     (TOOL_ICON
-        + style.frame.total_margin().sum().x
+        + button_margin
         + panel.total_margin().sum().x
         + ui.visuals().widgets.noninteractive.bg_stroke.width)
         .ceil()
@@ -66,6 +66,23 @@ pub fn toolbox_width(ui: &Ui) -> f32 {
 mod tests {
     use super::*;
     use eframe::egui::{Pos2, Rect};
+
+    /// The column keeps its egui 0.36 width: 24 icon + 2 x button_padding.x (the button frame
+    /// margin) + 16 side-panel margin + 1 stroke.
+    #[test]
+    fn toolbox_width_keeps_the_egui_0_36_column() {
+        for (padding, want) in [(egui::vec2(8.0, 4.0), 57.0), (egui::vec2(4.0, 2.0), 49.0)] {
+            let ctx = egui::Context::default();
+            let mut style = egui::Style::default();
+            style.spacing.button_padding = padding;
+            ctx.set_style_of(egui::Theme::Dark, style);
+            ctx.set_theme(egui::Theme::Dark);
+            let mut width = 0.0;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| width = toolbox_width(ui));
+            output.textures_delta.clear();
+            assert_eq!(width, want, "button_padding {padding:?}");
+        }
+    }
 
     #[test]
     fn toolbox_buttons_fit_at_minimum_window_and_enlarged_text() {

@@ -68,19 +68,19 @@ pub(in crate::app) enum TimelineAction {
 }
 
 fn time_field_id() -> egui::Id {
-    egui::Id::new("timeline_current_time")
+    egui::Id::unique("timeline_current_time")
 }
 
 fn start_field_id() -> egui::Id {
-    egui::Id::new("timeline_playback_start")
+    egui::Id::unique("timeline_playback_start")
 }
 
 fn end_field_id() -> egui::Id {
-    egui::Id::new("timeline_playback_end")
+    egui::Id::unique("timeline_playback_end")
 }
 
 fn time_slider_id() -> egui::Id {
-    egui::Id::new("time_slider")
+    egui::Id::unique("time_slider")
 }
 
 pub(in crate::app) fn field_ids() -> [egui::Id; 3] {
