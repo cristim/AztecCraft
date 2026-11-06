@@ -537,6 +537,17 @@ pub struct TransformTarget {
     pub path: Vec<NativeId>,
 }
 
+/// Private save authority for one authored document, preserved by scene/history clones.
+/// It is metadata, excluded from scene equality, Debug and file serialization.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AuthoredDocumentId(Uuid);
+
+impl AuthoredDocumentId {
+    fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
 #[derive(Clone)]
 pub struct NativeScene {
     nodes: Vec<NativeTransformNode>,
@@ -545,6 +556,8 @@ pub struct NativeScene {
     dag: Vec<DagEdge>,
     units: Units,
     source: Option<SourceRetention>,
+    #[cfg_attr(not(unix), expect(dead_code, reason = "authored saving is Unix-only"))]
+    authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
     session_uvs: SessionUvs,
@@ -627,6 +640,7 @@ impl InternalTransform {
     }
 }
 
+// Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
         self.nodes == other.nodes
@@ -651,6 +665,7 @@ impl Default for NativeScene {
             dag: Vec::new(),
             units: Units::default(),
             source: None,
+            authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
             session_uvs: SessionUvs::default(),
@@ -667,6 +682,11 @@ impl NativeScene {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
+    }
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
     }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate

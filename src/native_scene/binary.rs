@@ -7,6 +7,9 @@ mod write;
 pub use encode::encode;
 pub use removal::RemovalRefusal;
 pub(super) use removal::{check_materials, check_removal};
+pub use write::AuthoredRefusalCode;
+#[cfg(unix)]
+pub(crate) use write::encode_authored;
 #[cfg(test)]
 mod tests;
 

@@ -454,6 +454,7 @@ pub(super) fn construct(
         dag: budget.vector(counts.dag)?,
         units,
         source: None,
+        authored_document_id: AuthoredDocumentId::new(),
         materials: Vec::new(),
         session_materials: Default::default(),
         session_uvs: Default::default(),
