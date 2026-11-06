@@ -1050,15 +1050,17 @@ tokenless recovery except clearing the selection in the native UI (a plain click
 Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
 `a_full_selection_is_inspectable_with_a_small_node_limit`.
 
-## Creating N objects costs O(N^3)
+## Creating N objects costs O(N^2)
 
-Each `NativeScene::create` runs a full `validate()` through `structural_edit`, and `validate_dag` scans
-every identity against every edge (O(N*E)), so one create is O(N^2) and building N cubes one by one is
-O(N^3): 4096 cubes take minutes in a debug build. Tests that need a large scene build it through
-`azteccraft::scene::Scene::create` and `NativeScene::from_legacy` instead. Pre-existing and not
-fixed by the paging work. The remaining cost is `validate_dag`: its "every identity has an edge" check
-(identities x dag) and the Kahn loop's per-parent dag filter are both O(N*E). It runs on every structural
-edit, not on the per-frame or inspect path; #345 tracks it.
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, so building N cubes one
+by one is O(N^2). `validate_dag` itself is linear in the edges since #345: it looks up transforms and
+each parent's children through the `NativeScene::dag_index` that `transform_paths` also uses (#347),
+and builds one identity-has-an-edge set, instead of scanning `self.dag` for every identity and every
+pending parent. In a release build one `validate()` measured about 9x for 8x the scene (512 to 4096
+cubes) against 45x before. `validate_indexes_the_dag_once_however_many_identities` pins one index
+build per validation; it does not catch a new per-identity scan added beside the index. The remaining
+quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a large scene
+still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
 
 ## Paged inspect cost and the decision not to cache transform paths
 

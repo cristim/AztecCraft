@@ -469,8 +469,8 @@ impl NativeMeshShape {
 }
 
 /// Lookup index over a scene's transforms and parent edges, built by `NativeScene::dag_index`.
-/// Only lookups are offered, so hash order cannot reach a result. `validate_dag` (#367) is expected to
-/// reuse it instead of building its own parent-to-children map.
+/// Only lookups are offered, so hash order cannot reach a result. `transform_paths` and
+/// `validate_dag` share it.
 pub(crate) struct DagIndex {
     by_transform: HashMap<NativeId, NodeId>,
     children: HashMap<Option<NativeId>, Vec<NativeId>>,
@@ -791,6 +791,8 @@ impl NativeScene {
     /// Index the transform and parent relations once, for callers that would otherwise scan
     /// `nodes` or `dag` per lookup.
     pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        #[cfg(test)]
+        DAG_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
         let mut by_transform = HashMap::new();
         by_transform
             .try_reserve(self.nodes.len())
@@ -803,7 +805,11 @@ impl NativeScene {
             .try_reserve(self.dag.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
-            children.entry(edge.parent).or_default().push(edge.child);
+            let siblings = children.entry(edge.parent).or_default();
+            siblings
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            siblings.push(edge.child);
         }
         Ok(DagIndex {
             by_transform,
@@ -1663,11 +1669,10 @@ impl NativeScene {
         &self,
         identities: &std::collections::HashSet<NativeId>,
     ) -> Result<(), NativeError> {
-        let mut transforms = std::collections::HashSet::new();
-        transforms
-            .try_reserve(self.nodes.len())
-            .map_err(|_| NativeError::ResourceLimit)?;
-        transforms.extend(self.nodes.iter().map(|node| node.transform_id));
+        // One index for transform lookups and the Kahn walk's children, shared with
+        // `transform_paths` (#347), so neither check scans `self.dag` per identity (#345).
+        let index = self.dag_index()?;
+        let is_transform = |id: NativeId| index.node(id).is_some();
         let mut edges = std::collections::HashSet::new();
         edges
             .try_reserve(self.dag.len())
@@ -1677,13 +1682,15 @@ impl NativeScene {
             .try_reserve(identities.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         incoming.extend(identities.iter().map(|id| (*id, 0usize)));
+        let mut edge_children = std::collections::HashSet::new();
+        edge_children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
             if !identities.contains(&edge.child)
                 || !edges.insert((edge.parent, edge.child))
-                || edge
-                    .parent
-                    .is_some_and(|parent| !transforms.contains(&parent))
-                || (edge.parent.is_none() && !transforms.contains(&edge.child))
+                || edge.parent.is_some_and(|parent| !is_transform(parent))
+                || (edge.parent.is_none() && !is_transform(edge.child))
             {
                 return Err(NativeError::InvalidIdentity);
             }
@@ -1692,11 +1699,9 @@ impl NativeScene {
                     .get_mut(&edge.child)
                     .ok_or(NativeError::InvalidIdentity)? += 1;
             }
+            edge_children.insert(edge.child);
         }
-        if identities
-            .iter()
-            .any(|id| !self.dag.iter().any(|edge| edge.child == *id))
-        {
+        if identities.iter().any(|id| !edge_children.contains(id)) {
             return Err(NativeError::InvalidIdentity);
         }
         let mut pending = std::collections::VecDeque::new();
@@ -1712,13 +1717,13 @@ impl NativeScene {
         let mut visited = 0;
         while let Some(parent) = pending.pop_front() {
             visited += 1;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            for child in index.children(Some(parent)) {
                 let count = incoming
-                    .get_mut(&edge.child)
+                    .get_mut(child)
                     .ok_or(NativeError::InvalidIdentity)?;
                 *count -= 1;
                 if *count == 0 {
-                    pending.push_back(edge.child);
+                    pending.push_back(*child);
                 }
             }
         }
@@ -1986,6 +1991,7 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static DAG_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static VIEW_ADMISSION_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
