@@ -2434,3 +2434,113 @@ fn wireframe_degrades_face_centres_instead_of_failing_the_frame_over_budget() {
     assert!(surfaced(ShadingMode::Wireframe));
     assert!(!surfaced(ShadingMode::SmoothShadeAll));
 }
+
+mod joints {
+    use super::*;
+    use azteccraft::native_scene::JointRequest;
+
+    fn chain() -> (NativeScene, Vec<NativeId>) {
+        let mut scene = NativeScene::default();
+        let request = |parent, position| JointRequest {
+            parent,
+            position,
+            relative: false,
+            radius: 1.0,
+            name: None,
+        };
+        let root = scene.create_joint(&request(None, [0.0; 3])).unwrap();
+        scene
+            .create_joint(&request(Some(root.node), [2.0, 0.0, 0.0]))
+            .unwrap();
+        (scene, root.path)
+    }
+
+    fn submission(view: &ViewScene, selection: SelectionFeedback<'_>) -> Submission {
+        Submission::new(
+            view,
+            &Camera::default(),
+            [SIZE; 2],
+            selection,
+            false,
+            ShadingMode::SmoothShadeAll,
+            FORMAT,
+            u64::MAX,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn the_extreme_radii_still_submit_and_frame() {
+        for radius in [1e6, 1e-300] {
+            let mut scene = NativeScene::default();
+            scene
+                .create_joint(&JointRequest {
+                    parent: None,
+                    position: [0.0; 3],
+                    relative: false,
+                    radius,
+                    name: None,
+                })
+                .unwrap();
+            let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+            submission(&view, SelectionFeedback::Object(None));
+            let mut camera = Camera::default();
+            camera
+                .frame_view(&view, None, 1.0)
+                .unwrap_or_else(|error| panic!("radius {radius}: {error}"));
+        }
+    }
+
+    #[test]
+    fn three_circles_per_joint_and_one_line_per_bone_fill_the_preflight_exactly() {
+        let (scene, _) = chain();
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let drawn = submission(&view, SelectionFeedback::Object(None));
+        assert_eq!(
+            drawn.bytes.len(),
+            (2 * JOINT_VERTICES + 2) * VERTEX_BYTES,
+            "the buffer is reserved exactly, so a mismatch would reallocate or leave a gap"
+        );
+        assert_eq!(drawn.lines.len(), 2 * JOINT_VERTICES + 2);
+    }
+
+    #[test]
+    fn a_selected_joint_uses_the_selection_edge_colour_and_highlights_what_is_below_it() {
+        let (scene, root) = chain();
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let plain = submission(&view, SelectionFeedback::Object(None));
+        let selected = submission(&view, SelectionFeedback::Object(Some(&root)));
+        assert_eq!(plain.bytes.len(), selected.bytes.len());
+        assert_ne!(plain.bytes, selected.bytes);
+    }
+
+    #[test]
+    fn circles_sit_at_the_display_radius_and_close_on_themselves() {
+        let (scene, _) = chain();
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let joint = &view.joints()[0];
+        let segments: Vec<_> = joint_circle_segments(joint).collect();
+        assert_eq!(segments.len(), 3 * JOINT_CIRCLE_SEGMENTS);
+        for [a, b] in &segments {
+            assert!((a.length() - 0.5).abs() < 1e-5);
+            assert!((b.length() - 0.5).abs() < 1e-5);
+        }
+        for circle in segments.chunks(JOINT_CIRCLE_SEGMENTS) {
+            assert!(circle[0][0].distance(circle[JOINT_CIRCLE_SEGMENTS - 1][1]) < 1e-5);
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a real headless GPU adapter"]
+    fn headless_gpu_a_joint_writes_visible_line_pixels() {
+        let (scene, _) = chain();
+        let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+        let empty = ViewScene::from_native(&NativeScene::default(), VIEW_BUDGET).unwrap();
+        let camera = Camera::default();
+        let mut gpu = Offscreen::new();
+        assert_ne!(
+            gpu.image(&view, &camera, None),
+            gpu.image(&empty, &camera, None)
+        );
+    }
+}

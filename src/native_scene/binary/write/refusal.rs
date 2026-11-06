@@ -12,6 +12,7 @@ use std::fmt;
 pub enum AuthoredRefusalCode {
     SourcedScene,
     Curves,
+    Joints,
     InvalidScene,
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -44,6 +45,7 @@ impl From<&AuthoredBinaryRefusal> for AuthoredRefusalCode {
             AuthoredBinaryRefusal::Ineligible(ineligible) => match ineligible {
                 I::SourcedScene => Self::SourcedScene,
                 I::Curves => Self::Curves,
+                I::Joints => Self::Joints,
                 I::InvalidScene(_) => Self::InvalidScene,
                 I::UnsupportedUnits => Self::UnsupportedUnits,
                 I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,
@@ -77,6 +79,7 @@ impl fmt::Display for AuthoredRefusalCode {
         f.write_str(match self {
             Self::SourcedScene => "the scene retains a parsed source and is not newly authored",
             Self::Curves => "curves cannot be written to a new .mb",
+            Self::Joints => "joints cannot be written to a new .mb",
             Self::InvalidScene => "the scene is not valid",
             Self::UnsupportedUnits => "only centimetre, degree and film units can be written",
             Self::NonAuthoredHierarchy => {

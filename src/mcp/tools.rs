@@ -92,6 +92,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::UnsupportedJoint(_)) => "unsupported_joint",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
                     if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
                 {
@@ -690,6 +691,7 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "set_menu_set" => json!({"scene_token":token,"set":"rigging"}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
@@ -794,6 +796,7 @@ mod tests {
                 tool.name.as_ref(),
                 "set_grid_visibility"
                     | "set_shading_mode"
+                    | "set_menu_set"
                     | "set_sidebar_panel_visibility"
                     | "select_attribute_editor_tab"
                     | "set_active_tool"

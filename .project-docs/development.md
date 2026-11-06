@@ -350,13 +350,18 @@ Sources:
 | 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
 | 32 | Selection cap | 4096 selected objects | `src/selection.rs` via `MAX_TRANSFORM_PATHS` | provisional | Not documented; reuses the transform-path cap. | `selection_cap_is_the_transform_path_cap`, `add_past_the_cap_is_an_error_and_does_not_mutate` |
 | 33 | Selection colours | member tint (107, 137, 157) and edge (242, 163, 70); lead tint (117, 167, 117) and edge (140, 240, 140) while more than one object is selected; a lone selection uses the member colours | `src/viewport_renderer.rs` `SELECTION_TINT_RGB`, `SELECTED_EDGE_RGB_OBJECT`, `LEAD_TINT_RGB`, `LEAD_EDGE_RGB` | provisional | Maya's "Select objects or components" page says the last selected object is drawn in a different colour; it gives no colour values, and what a lone selection looks like is not stated. Ours are original values. | `selection_colours_are_pinned`, `members_are_tinted_the_lead_differs_and_unselected_is_untouched`, `single_selection_pixels_are_unchanged` |
+| 34 | Joint click tolerance | 8 px around a joint centre; the nearest pixel wins, then depth | `src/view_scene.rs` `JOINT_CLICK_PIXELS` | provisional | Not documented; bones are not pickable. | `src/viewport/tests.rs` `mod joints` |
+| 35 | Joint display | circle radius 0.5 times the joint radius, three circles of 16 segments, one line per bone, object colours | `src/view_scene.rs` `JOINT_DISPLAY_RADIUS_FACTOR`, `src/viewport_renderer.rs` `JOINT_CIRCLE_SEGMENTS` | provisional | The [joint node][maya-joint] and [jointDisplayScale][maya-joint-scale] pages give radius 1.0 and a display diameter of 1 at scale 1; the wire shape is a stand-in. | `src/view_scene/tests.rs` `mod joints`, `src/viewport_renderer/tests.rs` `mod joints` |
+| 36 | Joint radius limit | greater than 0, at most 1e6 cm, the primitive size limit | `src/native_scene/session_joint.rs` `MAX_JOINT_RADIUS_CM` | provisional | A safety bound; the pages state no range. | `a_radius_past_the_safety_bound_is_refused_before_mutation`, `the_extreme_radii_still_submit_and_frame` |
 
-Tally: 33 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 36 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
 
 [maya-manip]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8740471F-BD72-4BDC-87B4-4DE870AD51E5.htm
+[maya-joint]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/joint.html
+[maya-joint-scale]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/jointDisplayScale.html
 [maya-resize]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09DEFD6A-E8F9-4606-9D81-1CD45E01B59A.htm
 [maya-undo]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-DD494155-AC94-4C48-8A36-58267FECBB0A.htm
 [maya-sel]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8C8BA1F4-59EE-4A02-BFE7-9193C0D6F5BE.htm

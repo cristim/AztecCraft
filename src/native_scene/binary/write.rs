@@ -136,6 +136,9 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Session UVs make `check_content_kind` refuse the scene (`UnsupportedMeshChannels`),
         // so none reach this writer.
         session_uvs: _,
+        // Session joints make `check_content_kind` refuse the scene (`Joints`), so none reach
+        // this writer.
+        session_joints: _,
     } = scene;
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);

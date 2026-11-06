@@ -365,7 +365,11 @@ impl NativeScene {
         let parent_world = self.ancestor_world(target)?.ok_or(refused.clone())?;
         let linear = DMat3::from_mat4(parent_world);
         if rotation_times_uniform_scale(linear) {
-            Ok(linear)
+            // A joint's rotation sits under IS too; two negative parent scales pass the check
+            // above with an inverse that is not uniform.
+            Ok(self
+                .internal_transform(target.node)?
+                .compensated_parent(linear))
         } else {
             Err(refused)
         }

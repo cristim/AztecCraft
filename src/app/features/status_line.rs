@@ -1,13 +1,19 @@
 use crate::app::menus::CLOSING_REASON;
 use crate::app::{Editor, SelectionModeIntent};
-use crate::editor_operations::{SelectionMode, SidebarPanel};
+use crate::editor_operations::{MenuSet, Operation, SelectionMode, SidebarPanel};
 use crate::tool_icons::icon_button;
 use azteccraft::history::ManipulationProvenance;
 use azteccraft::ui_icons::UiIcon;
 use eframe::egui::{self, Align, Layout};
 
-const MENU_SETS: [&str; 5] = ["Modeling", "Rigging", "Animation", "FX", "Rendering"];
-const ACTIVE_MENU_SET: &str = "Modeling";
+/// `None` while the set is unsupported. F2 and F3 reach the same two sets (`shortcuts()`).
+const MENU_SETS: [(&str, Option<MenuSet>); 5] = [
+    ("Modeling", Some(MenuSet::Modeling)),
+    ("Rigging", Some(MenuSet::Rigging)),
+    ("Animation", None),
+    ("FX", None),
+    ("Rendering", None),
+];
 const MENU_SET_LABEL: &str = "Menu set";
 const MENU_SET_UNAVAILABLE: &str = "not implemented yet";
 const SELECTION_MODE_MENU_LABEL: &str = "Selection mode menu";
@@ -113,18 +119,25 @@ impl Editor {
             .is_some_and(|active| active.provenance == ManipulationProvenance::Remote)
     }
 
+    /// What keeps a session display switch from applying now, if anything.
+    fn display_switch_refusal(&self) -> Option<&'static str> {
+        if self.files.is_closing() {
+            Some(CLOSING_REASON)
+        } else if self.files.is_modal() {
+            Some("a dialog is open")
+        } else if self.history.active_manipulation().is_some() {
+            Some("a Move is active")
+        } else {
+            None
+        }
+    }
+
     /// Enabled hover text, or the reason a live toggle is disabled.
     fn sidebar_toggle_hover(&self, button: &StripButton) -> String {
-        let reason = if self.files.is_closing() {
-            CLOSING_REASON
-        } else if self.files.is_modal() {
-            "a dialog is open"
-        } else if self.history.active_manipulation().is_some() {
-            "a Move is active"
-        } else {
-            return button.hover.into();
-        };
-        format!("{}: unavailable while {reason}", button.label)
+        match self.display_switch_refusal() {
+            Some(reason) => format!("{}: unavailable while {reason}", button.label),
+            None => button.hover.into(),
+        }
     }
 
     pub(in crate::app) fn status_line(
@@ -135,7 +148,7 @@ impl Editor {
         let admitted = !self.files.is_modal() && !self.files.is_closing();
         let mode_admitted = admitted && !self.remote_manipulation_active();
         ui.horizontal(|ui| {
-            menu_set_selector(ui);
+            self.menu_set_selector(ui);
             ui.separator();
             for action in self.file_actions().into_iter().filter(|a| a.strip) {
                 let response = icon_button(
@@ -211,28 +224,51 @@ impl Editor {
             });
         });
     }
+
+    fn menu_set_selector(&mut self, ui: &mut egui::Ui) {
+        let active = self.menu_set;
+        let refusal = self.display_switch_refusal();
+        let mut choice = None;
+        let shown = MENU_SETS
+            .iter()
+            .find_map(|(name, set)| (*set == Some(active)).then_some(*name))
+            .unwrap_or_default();
+        let combo = egui::ComboBox::from_id_salt("menu_set")
+            .selected_text(shown)
+            .show_ui(ui, |ui| {
+                for (name, set) in MENU_SETS {
+                    let entry = ui.add_enabled(
+                        set.is_some() && refusal.is_none(),
+                        egui::Button::selectable(set == Some(active), name),
+                    );
+                    if entry.clicked() {
+                        choice = set;
+                    }
+                    match (set, refusal) {
+                        (None, _) => {
+                            entry.on_disabled_hover_text(MENU_SET_UNAVAILABLE);
+                        }
+                        (Some(_), Some(reason)) => {
+                            entry.on_disabled_hover_text(format!(
+                                "{name}: unavailable while {reason}"
+                            ));
+                        }
+                        (Some(_), None) => {}
+                    }
+                }
+            });
+        let enabled = combo.response.enabled();
+        combo.response.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, enabled, MENU_SET_LABEL)
+        });
+        if let Some(set) = choice {
+            self.native_operation(Operation::SetMenuSet { set });
+        }
+    }
 }
 
 fn strip_button(ui: &mut egui::Ui, button: &StripButton) {
     icon_button(ui, button.label, button.icon, false, false, button.hover);
-}
-
-fn menu_set_selector(ui: &mut egui::Ui) {
-    let combo = egui::ComboBox::from_id_salt("menu_set")
-        .selected_text(ACTIVE_MENU_SET)
-        .show_ui(ui, |ui| {
-            for set in MENU_SETS {
-                let active = set == ACTIVE_MENU_SET;
-                let entry = ui.add_enabled(active, egui::Button::selectable(active, set));
-                if !active {
-                    entry.on_disabled_hover_text(MENU_SET_UNAVAILABLE);
-                }
-            }
-        });
-    let enabled = combo.response.enabled();
-    combo.response.widget_info(|| {
-        egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, enabled, MENU_SET_LABEL)
-    });
 }
 
 /// Presets need mask state (not implemented), so the control is disabled, stateless and empty.

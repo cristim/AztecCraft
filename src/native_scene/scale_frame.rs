@@ -206,6 +206,9 @@ impl NativeScene {
         if !rotation_times_uniform_scale(linear) {
             return Err(refused);
         }
+        let linear = self
+            .internal_transform(target.node)?
+            .compensated_parent(linear);
         let uniform =
             (linear.x_axis.length() + linear.y_axis.length() + linear.z_axis.length()) / 3.0;
         let orientation = (linear / uniform) * rotation;

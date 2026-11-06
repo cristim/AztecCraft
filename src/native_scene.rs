@@ -9,6 +9,7 @@ mod mesh;
 mod move_translation;
 mod rotate_frame;
 mod scale_frame;
+mod session_joint;
 mod session_material;
 mod session_uv;
 mod source;
@@ -25,6 +26,10 @@ pub(crate) use move_translation::ChannelBaseline;
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
+use session_joint::SessionJoints;
+pub use session_joint::{
+    DEFAULT_JOINT_RADIUS, Joint, JointRequest, JointUnsupported, MAX_JOINT_RADIUS_CM,
+};
 use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
@@ -560,6 +565,7 @@ pub struct NativeScene {
     authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_joints: SessionJoints,
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
@@ -589,6 +595,10 @@ pub struct InternalTransform {
     pub scale_pivot_cm: [f64; 3],
     /// `None` when every extra is default; the matrix then takes the unchanged path.
     pub extras: Option<InternalExtras>,
+    /// The inverse of the parent joint's scale for a joint under a joint: IS in the joint matrix.
+    /// `None` for every other node, whose results are then bit-identical to a plain transform.
+    /// Validation keeps joints on default extras, so the extras path never needs it.
+    pub inverse_parent_scale: Option<[f64; 3]>,
 }
 
 impl InternalTransform {
@@ -612,6 +622,15 @@ impl InternalTransform {
         Some(DMat3::from_mat4(order * extras.rotate_axis_matrix()))
     }
 
+    /// `parent` with this node's inverse parent scale applied: the linear map its rotation sits
+    /// under. T stays above IS, so a position needs only the plain parent map.
+    pub(crate) fn compensated_parent(self, parent: DMat3) -> DMat3 {
+        match self.inverse_parent_scale {
+            Some(inverse) => parent * DMat3::from_diagonal(DVec3::from_array(inverse)),
+            None => parent,
+        }
+    }
+
     pub(crate) fn matrix(self) -> Option<DMat4> {
         if let Some(extras) = self.extras {
             let matrix = extras.matrix(
@@ -627,7 +646,13 @@ impl InternalTransform {
         let rp = DVec3::from_array(self.rotate_pivot_cm);
         let sp = DVec3::from_array(self.scale_pivot_cm);
         let rotation = DVec3::from_array(self.rotation_radians);
-        let matrix = DMat4::from_translation(translate)
+        let positioned = match self.inverse_parent_scale {
+            Some(inverse) => {
+                DMat4::from_translation(translate) * DMat4::from_scale(DVec3::from_array(inverse))
+            }
+            None => DMat4::from_translation(translate),
+        };
+        let matrix = positioned
             * DMat4::from_translation(rp)
             * DMat4::from_rotation_z(rotation.z)
             * DMat4::from_rotation_y(rotation.y)
@@ -651,6 +676,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_joints == other.session_joints
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
     }
@@ -668,6 +694,7 @@ impl Default for NativeScene {
             authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_joints: SessionJoints::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
             next_id: 1,
@@ -911,6 +938,22 @@ impl NativeScene {
     }
     pub fn internal_transform(&self, id: NodeId) -> Result<InternalTransform, NativeError> {
         let node = self.node(id)?;
+        self.internal_transform_with(node, self.joint_inverse_parent_scale(node)?)
+    }
+    /// [`internal_transform`](Self::internal_transform) of `node` with the segment-scale lookup
+    /// resolved through the view build's index (#365).
+    pub(crate) fn internal_transform_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        node: &NativeTransformNode,
+    ) -> Result<InternalTransform, NativeError> {
+        self.internal_transform_with(node, self.joint_inverse_parent_scale_indexed(index, node)?)
+    }
+    fn internal_transform_with(
+        &self,
+        node: &NativeTransformNode,
+        inverse_parent_scale: Option<[f64; 3]>,
+    ) -> Result<InternalTransform, NativeError> {
         let vector = |field| {
             let mut values = [0.0; 3];
             for (component, scalar) in node.field(field).iter().enumerate() {
@@ -931,6 +974,7 @@ impl NativeScene {
             rotate_pivot_cm: vector(TransformField::RotatePivot)?,
             scale_pivot_cm: vector(TransformField::ScalePivot)?,
             extras: node.extras.internal(&self.units)?,
+            inverse_parent_scale,
         })
     }
     pub fn shapes(&self) -> &[NativeMeshShape] {
@@ -1052,6 +1096,32 @@ impl NativeScene {
             visible,
             appearance_incomplete: self.appearance_incomplete(),
         })
+    }
+    /// Whether a joint at the full transform `path` draws. A joint has no shape at the path end,
+    /// so `geometry_view_admission` cannot answer for it. Builds an index per call; a view build
+    /// uses [`joint_view_admission_indexed`](Self::joint_view_admission_indexed) with its own.
+    pub fn joint_view_admission(&self, path: &[NativeId]) -> Result<bool, NativeError> {
+        self.joint_view_admission_indexed(&ViewAdmissionIndex::new(self)?, path)
+    }
+    /// [`joint_view_admission`](Self::joint_view_admission) against an index built once for a
+    /// whole view build, so a rig costs O(path length) lookups per joint rather than a node scan
+    /// per path element (#365). Checks and their order match the scanning form.
+    pub(crate) fn joint_view_admission_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        path: &[NativeId],
+    ) -> Result<bool, NativeError> {
+        let mut visible = true;
+        for id in path {
+            let node = index
+                .transform(*id)
+                .ok_or(NativeError::InvalidInstancePath)?;
+            if !node.unsupported_transform.is_empty() {
+                return Err(NativeError::UnsupportedView("unproved transform effects"));
+            }
+            visible &= node.view.visible()?;
+        }
+        Ok(visible)
     }
     pub fn restore_authoring(&mut self, mut snapshot: Self) {
         snapshot.next_id = snapshot.next_id.max(self.next_id);
@@ -1612,6 +1682,9 @@ impl NativeScene {
         if !self.curves.is_empty() {
             return Err(NativeError::UnsupportedView("curves in legacy mesh view"));
         }
+        if self.has_joints() {
+            return Err(NativeError::UnsupportedView("joints in legacy mesh view"));
+        }
         let (linear, angular) = self.units.factors()?;
         let mut nodes = Vec::with_capacity(self.nodes.len());
         for node in &self.nodes {
@@ -1705,6 +1778,8 @@ impl NativeScene {
             curve.validate(self.source.as_ref())?;
         }
         self.validate_dag(&native_ids)?;
+        self.session_joints
+            .validate(&self.nodes, &self.dag, self.source.is_some())?;
         if let Some(source) = &self.source {
             source.validate()?;
             if let Some(appearance) = &source.appearance {
@@ -1829,6 +1904,8 @@ pub(crate) struct ViewAdmissionIndex<'a> {
     transforms: std::collections::HashMap<NativeId, &'a NativeTransformNode>,
     root_edges: std::collections::HashSet<NativeId>,
     edges: std::collections::HashSet<(NativeId, NativeId)>,
+    /// The parent of each child's first edge (`None` for a root edge), as a scan would find it.
+    first_parent: std::collections::HashMap<NativeId, Option<NativeId>>,
 }
 
 impl<'a> ViewAdmissionIndex<'a> {
@@ -1860,7 +1937,10 @@ impl<'a> ViewAdmissionIndex<'a> {
         root_edges.try_reserve(scene.dag.len()).map_err(limit)?;
         let mut edges = std::collections::HashSet::new();
         edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        let mut first_parent = std::collections::HashMap::new();
+        first_parent.try_reserve(scene.dag.len()).map_err(limit)?;
         for edge in &scene.dag {
+            first_parent.entry(edge.child).or_insert(edge.parent);
             match edge.parent {
                 None => {
                     root_edges.insert(edge.child);
@@ -1875,7 +1955,14 @@ impl<'a> ViewAdmissionIndex<'a> {
             transforms,
             root_edges,
             edges,
+            first_parent,
         })
+    }
+
+    fn transform(&self, id: NativeId) -> Option<&'a NativeTransformNode> {
+        #[cfg(test)]
+        ADMISSION_TRANSFORM_LOOKUPS.with(|count| count.set(count.get() + 1));
+        self.transforms.get(&id).copied()
     }
 
     /// [`NativeScene::transform_prefix`] against the index, with the same checks in the same order.
@@ -1995,6 +2082,8 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionJoints,
+    UnsupportedJoint(JointUnsupported),
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
@@ -2061,6 +2150,8 @@ impl fmt::Display for NativeError {
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
             }
+            Self::InvalidSessionJoints => f.write_str("invalid session joint table references"),
+            Self::UnsupportedJoint(reason) => write!(f, "Create joint unsupported: {reason}"),
             Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
             Self::DegenerateUvProjection => f.write_str(
                 "the shape has no usable extent across this projection; pick another Project from axis",
@@ -2138,4 +2229,20 @@ std::thread_local! {
 #[cfg(test)]
 pub(crate) fn view_admission_index_builds() -> usize {
     VIEW_ADMISSION_INDEX_BUILDS.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static PARENT_SCALE_SCANS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static ADMISSION_TRANSFORM_LOOKUPS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+/// Joint-admission transform lookups on this thread, so a test can pin linear work (#365).
+#[cfg(test)]
+pub(crate) fn admission_transform_lookups() -> usize {
+    ADMISSION_TRANSFORM_LOOKUPS.with(std::cell::Cell::get)
+}
+/// Scanning `joint_inverse_parent_scale` calls on this thread; a view build must use the index.
+#[cfg(test)]
+pub(crate) fn parent_scale_scans() -> usize {
+    PARENT_SCALE_SCANS.with(std::cell::Cell::get)
 }

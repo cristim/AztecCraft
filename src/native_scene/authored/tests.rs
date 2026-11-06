@@ -149,6 +149,25 @@ fn retained_sources_and_source_free_curves_are_refused_first() {
 }
 
 #[test]
+fn joints_are_refused_by_kind_so_no_writer_can_emit_plain_transforms() {
+    let mut roots = NativeScene::default();
+    for _ in 0..2 {
+        roots
+            .create_joint(&crate::native_scene::JointRequest {
+                parent: None,
+                position: [0.0; 3],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            })
+            .unwrap();
+    }
+    // Root joints look exactly like the bare transforms the Binary writer accepts.
+    assert_eq!(check_transforms_only(&roots), Ok(()));
+    assert_eq!(check_content_kind(&roots), Err(AuthoredIneligible::Joints));
+}
+
+#[test]
 fn every_default_scene_name_is_reserved_for_any_authored_file() {
     const DEFAULT_NAMES: [&str; 25] = [
         "persp",
