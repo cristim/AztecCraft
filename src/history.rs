@@ -163,6 +163,7 @@ pub struct History {
     revision: u64,
     /// The frame the scene's keyed channels were last evaluated at, so Undo and Redo can tell a
     /// restored snapshot that is stale for the current time from one that already is current.
+    /// `apply_evaluated`, a key command (at its `current_frame`), Undo and Redo write it.
     pose_frame: i32,
 }
 
@@ -238,6 +239,12 @@ impl History {
         let mut candidate = self.scene.clone();
         let transform_target = match &command {
             Command::SetTransform { id, .. } => Some(*id),
+            _ => None,
+        };
+        let evaluated_at = match &command {
+            Command::SetKeys { current_frame, .. } | Command::DeleteKeys { current_frame, .. } => {
+                Some(*current_frame)
+            }
             _ => None,
         };
         let outcome = match command {
@@ -348,6 +355,9 @@ impl History {
             pose_frame: self.pose_frame,
         });
         self.redo.clear();
+        if let Some(frame) = evaluated_at {
+            self.pose_frame = frame;
+        }
         Ok(outcome)
     }
 
@@ -683,6 +693,27 @@ mod tests {
         let before = history.revision();
         assert!(!history.apply_evaluated(1).unwrap());
         assert_eq!(history.revision(), before);
+    }
+
+    #[test]
+    fn a_key_command_records_the_frame_it_evaluated_at() {
+        let (mut history, id) = keyed_history();
+        history.apply_evaluated(1).unwrap();
+        assert_eq!(history.pose_frame(), 1);
+        history.execute(key(id, 5, 4)).unwrap();
+        assert_eq!(history.pose_frame(), 4);
+        // Undo restores the pose frame the snapshot was taken at.
+        assert!(history.undo());
+        assert_eq!(history.pose_frame(), 1);
+        history
+            .execute(Command::DeleteKeys {
+                nodes: vec![id],
+                frame: Some(9),
+                channels: crate::native_scene::ALL_CHANNELS,
+                current_frame: 7,
+            })
+            .unwrap();
+        assert_eq!(history.pose_frame(), 7);
     }
 
     #[test]
