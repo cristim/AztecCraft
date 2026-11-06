@@ -215,13 +215,15 @@ pub struct InspectPage {
 }
 
 /// Where the next page starts, bound to the document and the scene revision it was issued for.
-/// The text form is `v1.<scene token>.<revision in hex>.<offset>`.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`, plus `.<node id>` when the
+/// page reads one node's keys, so that cursor cannot be replayed against another filter.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageCursor {
     pub scene_token: Uuid,
     pub revision: u64,
     pub offset: usize,
+    pub node: Option<NodeId>,
 }
 
 #[cfg(any(test, feature = "mcp"))]
@@ -242,7 +244,11 @@ impl fmt::Display for PageCursor {
             f,
             "v1.{}.{:x}.{}",
             self.scene_token, self.revision, self.offset
-        )
+        )?;
+        match self.node {
+            Some(node) => write!(f, ".{}", node.to_decimal()),
+            None => Ok(()),
+        }
     }
 }
 
@@ -253,7 +259,7 @@ impl std::str::FromStr for PageCursor {
     /// Untrusted text. Each part is parsed, then the canonical text is compared with the input, so
     /// signs, padding, upper case, braces and extra segments are all refused.
     fn from_str(text: &str) -> Result<Self, PageCursorError> {
-        let mut parts = text.splitn(4, '.');
+        let mut parts = text.splitn(5, '.');
         let (Some("v1"), Some(token), Some(revision), Some(offset)) =
             (parts.next(), parts.next(), parts.next(), parts.next())
         else {
@@ -263,6 +269,10 @@ impl std::str::FromStr for PageCursor {
             scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
             revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
             offset: offset.parse().map_err(|_| PageCursorError)?,
+            node: parts
+                .next()
+                .map(|node| NodeId::from_decimal(node).map_err(|_| PageCursorError))
+                .transpose()?,
         };
         if cursor.to_string() == text {
             Ok(cursor)
@@ -1467,6 +1477,7 @@ mod tests {
             scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
             revision: 0xab_cdef,
             offset: 4096,
+            node: None,
         };
         let text = cursor.to_string();
         assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
@@ -1475,8 +1486,18 @@ mod tests {
             scene_token: Uuid::nil(),
             revision: u64::MAX,
             offset: usize::MAX,
+            node: None,
         };
         assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
+        let scoped = PageCursor {
+            node: Some(NodeId::from_decimal("42").unwrap()),
+            ..cursor
+        };
+        assert_eq!(
+            scoped.to_string(),
+            "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096.42"
+        );
+        assert_eq!(scoped.to_string().parse::<PageCursor>(), Ok(scoped));
     }
 
     #[test]
@@ -1497,7 +1518,10 @@ mod tests {
             format!("v1.{id}.1.-1"),
             format!("v1.{id}.1.+1"),
             format!("v1.{id}.1.01"),
-            format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1.1.1"),
+            format!("v1.{id}.1.1.01"),
+            format!("v1.{id}.1.1.x"),
+            format!("v1.{id}.1.1.-1"),
             format!("v1.{id}.1.1."),
             format!("v1.{id}.1.99999999999999999999999"),
             format!("v1.{id}.1.1 "),

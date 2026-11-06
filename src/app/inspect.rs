@@ -94,6 +94,7 @@ impl Editor {
                 scene_token: self.scene_token,
                 revision: self.history.revision(),
                 offset: end,
+                node: None,
             }
             .to_string()
         });
@@ -514,6 +515,7 @@ impl Editor {
                         scene_token: self.scene_token,
                         revision: self.history.revision(),
                         offset: range.end,
+                        node: None,
                     }
                     .to_string()
                 });

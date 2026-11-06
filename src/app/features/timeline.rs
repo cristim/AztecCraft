@@ -697,6 +697,11 @@ impl Editor {
                 {
                     return Err(OperationError::StaleScene);
                 }
+                if cursor.node != node {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for a different node_id".into(),
+                    ));
+                }
                 if cursor.offset > keys_total {
                     return Err(OperationError::InvalidInput(
                         "cursor offset is past the last key".into(),
@@ -731,6 +736,7 @@ impl Editor {
                     scene_token: self.scene_token,
                     revision: self.history.revision(),
                     offset: end,
+                    node,
                 }
                 .to_string()
             }),

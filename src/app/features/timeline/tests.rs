@@ -621,10 +621,34 @@ fn a_page_of_keys_ends_on_the_limit_and_its_cursor_binds_the_revision() {
     assert_eq!(first.keys.len(), MAX_KEYS_PER_PAGE);
     assert_eq!(first.keys_total, (MAX_KEYS_PER_PAGE / 9 + 1) * 9);
     let cursor: PageCursor = first.next_cursor.unwrap().parse().unwrap();
-    let last = editor.inspect_keys(Some(id), Some(&cursor)).unwrap();
+    // A cursor belongs to the node filter it was issued for.
+    assert!(matches!(
+        editor.inspect_keys(Some(id), Some(&cursor)),
+        Err(OperationError::InvalidInput(_))
+    ));
+    let last = editor.inspect_keys(None, Some(&cursor)).unwrap();
     assert_eq!(last.key_offset, MAX_KEYS_PER_PAGE);
     assert_eq!(last.keys.len(), first.keys_total - MAX_KEYS_PER_PAGE);
     assert_eq!(last.next_cursor, None);
+    let scoped = editor.inspect_keys(Some(id), None).unwrap();
+    let scoped_cursor: PageCursor = scoped.next_cursor.unwrap().parse().unwrap();
+    assert_eq!(scoped_cursor.node, Some(id));
+    assert!(matches!(
+        editor.inspect_keys(None, Some(&scoped_cursor)),
+        Err(OperationError::InvalidInput(_))
+    ));
+    let other = NodeId::from_decimal("999").unwrap();
+    assert!(matches!(
+        editor.inspect_keys(Some(other), Some(&scoped_cursor)),
+        Err(OperationError::Scene(_) | OperationError::InvalidInput(_))
+    ));
+    assert_eq!(
+        editor
+            .inspect_keys(Some(id), Some(&scoped_cursor))
+            .unwrap()
+            .key_offset,
+        MAX_KEYS_PER_PAGE
+    );
     let past = PageCursor {
         offset: first.keys_total + 1,
         ..cursor
