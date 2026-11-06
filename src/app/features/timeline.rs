@@ -200,7 +200,9 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::Dolly { .. }
         | Operation::SetCameraPose { .. } => false,
         #[cfg(any(test, feature = "mcp"))]
-        Operation::Inspect { .. } | Operation::InspectKeys { .. } => false,
+        Operation::Inspect { .. }
+        | Operation::InspectKeys { .. }
+        | Operation::InspectUvs { .. } => false,
         _ => true,
     }
 }

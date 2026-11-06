@@ -1041,6 +1041,10 @@ fn playback_keeps_playing_through_selection_tool_camera_and_grid_requests_only()
         Operation::SetActiveTool(ActiveTool::Move),
         Operation::SetSelectionMode(SelectionMode::Vertex),
         Operation::SetGridVisible { visible: false },
+        Operation::InspectUvs {
+            shape: azteccraft::native_scene::NativeId::from_decimal("1").unwrap(),
+            cursor: None,
+        },
         Operation::SetCameraPose {
             target: [0.0; 3],
             distance: 5.0,
