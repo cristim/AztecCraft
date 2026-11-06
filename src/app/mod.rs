@@ -329,6 +329,48 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .chain(features::primitive_options::option_field_ids())
 }
 
+/// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,
+/// before it applies that pass's typed text; hold the surrender until the pass ends.
+fn defer_focus_surrender(ctx: &egui::Context) -> Option<(egui::Id, egui::SurrenderFocusOn)> {
+    let focused = ctx
+        .memory(|memory| memory.focused())
+        .filter(|id| text_field_ids().any(|field| field == *id))?;
+    let (typed, pressed) = ctx.input(|input| {
+        let typed = input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Text(_)
+                    | egui::Event::Paste(_)
+                    | egui::Event::Cut
+                    | egui::Event::Key { pressed: true, .. }
+            )
+        });
+        (typed, input.pointer.any_pressed())
+    });
+    if !(typed && pressed) {
+        return None;
+    }
+    let previous = ctx.options_mut(|options| {
+        std::mem::replace(
+            &mut options.input_options.surrender_focus_on,
+            egui::SurrenderFocusOn::Never,
+        )
+    });
+    Some((focused, previous))
+}
+
+fn finish_deferred_focus_surrender(
+    ctx: &egui::Context,
+    deferred: Option<(egui::Id, egui::SurrenderFocusOn)>,
+) {
+    let Some((id, previous)) = deferred else {
+        return;
+    };
+    ctx.options_mut(|options| options.input_options.surrender_focus_on = previous);
+    // Reading the response runs egui's own click-elsewhere surrender, now after the typed text.
+    let _ = ctx.read_response(id);
+}
+
 fn text_edit_focused(ctx: &egui::Context) -> bool {
     ctx.memory(|memory| {
         memory
