@@ -10,7 +10,7 @@ quoted text in the named file. Update an anchor when you rename or move the code
 
 Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_guarded"`), checks in this order:
 
-1. `Inspect` returns before any guard (`src/app/dispatch.rs "matches!(request.operation, Operation::Inspect)"`).
+1. `Inspect` and `InspectUvs` return before any guard (`src/app/dispatch.rs "matches!(request.operation, Operation::Inspect)"`, `src/app/dispatch.rs "if let Operation::InspectUvs"`). With no token check, an `InspectUvs` cursor binds the document and revision itself.
 2. Scene token mismatch is `StaleScene` (`src/app/dispatch.rs "request.expected_scene_token != Some(self.scene_token)"`).
 3. An active Move, Rotate or Scale is `BusyManipulation` unless it is Remote and the operation is
    `UpdateMove`, `UpdateManipulation` or `FinishMove` (`src/app/dispatch.rs "active.provenance != ManipulationProvenance::Remote"`). This is default-deny.

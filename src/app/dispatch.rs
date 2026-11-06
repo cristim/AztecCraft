@@ -132,6 +132,7 @@ impl Editor {
             Operation::RequestClose => None,
             Operation::SaveScene
             | Operation::SaveSceneAs { .. }
+            | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             _ => Some("Scene edited"),
         };
@@ -154,6 +155,16 @@ impl Editor {
             fixed,
         } = feedback;
         match result {
+            Ok(OperationReply::Exported {
+                objects,
+                vertices,
+                faces,
+            }) => {
+                self.status = format!(
+                    "Exported {objects} object(s), {vertices} vertices and {faces} faces to OBJ"
+                );
+                self.error = false;
+            }
             Ok(reply) => {
                 if let (Some(status), true) = (status, fixed) {
                     self.status = status.into();
@@ -204,6 +215,11 @@ impl Editor {
         if let Operation::Inspect { page } = &request.operation {
             return Ok(OperationReply::Scene {
                 inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
+            });
+        }
+        if let Operation::InspectUvs { shape, cursor } = &request.operation {
+            return Ok(OperationReply::Uvs {
+                inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
             });
         }
         if request.expected_scene_token != Some(self.scene_token) {
@@ -306,6 +322,9 @@ impl Editor {
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
+        }
+        if let Operation::ExportObj { path, .. } = &operation {
+            super::features::obj_export::validate_export_path(path)?;
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
@@ -500,6 +519,8 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
+            Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -847,6 +868,11 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
+            Operation::ExportObj {
+                path,
+                selection_only,
+            } => return self.export_obj(&path, selection_only, may_install),
+
             Operation::SetCameraPose {
                 target,
                 distance,
@@ -883,6 +909,12 @@ impl Editor {
             Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
                     inspection: Box::new(self.inspect_page(false, page.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectUvs { shape, cursor } => {
+                return Ok(OperationReply::Uvs {
+                    inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

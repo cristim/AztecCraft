@@ -129,11 +129,37 @@ pub(in crate::native_scene) fn check_removal(
     bytes: &Arc<[u8]>,
     ids: &[NativeId],
 ) -> Result<Vec<PruneRange>, RemovalRefusal> {
-    let container = container::inspect(bytes.clone()).map_err(|_| RemovalRefusal::Unreadable)?;
-    let facts = semantic::decode_records(&container).map_err(|_| RemovalRefusal::Unreadable)?;
+    with_removal_checker(bytes, |check| check?(ids))
+}
+
+/// Decodes `bytes` once and hands `with` a checker for one candidate id set at a time; the checker
+/// yields that set's own verdict. `with` gets the refusal instead when the file is unreadable.
+pub(in crate::native_scene) fn with_removal_checker<T>(
+    bytes: &Arc<[u8]>,
+    with: impl FnOnce(
+        Result<&dyn Fn(&[NativeId]) -> Result<Vec<PruneRange>, RemovalRefusal>, RemovalRefusal>,
+    ) -> T,
+) -> T {
+    #[cfg(test)]
+    crate::native_scene::attribution_probe::decoded();
+    let Ok(container) = container::inspect(bytes.clone()) else {
+        return with(Err(RemovalRefusal::Unreadable));
+    };
+    let Ok(facts) = semantic::decode_records(&container) else {
+        return with(Err(RemovalRefusal::Unreadable));
+    };
     let bound: Vec<usize> = (0..facts.records.len())
         .filter(|index| is_bound(&container, &facts.records[*index]))
         .collect();
+    with(Ok(&|ids| check_removal_in(&container, &facts, &bound, ids)))
+}
+
+fn check_removal_in(
+    container: &Container,
+    facts: &WireFacts<'_>,
+    bound: &[usize],
+    ids: &[NativeId],
+) -> Result<Vec<PruneRange>, RemovalRefusal> {
     let record_of = |id: NativeId| {
         usize::try_from(id.0)
             .ok()
@@ -153,21 +179,21 @@ pub(in crate::native_scene) fn check_removal(
         let Data::Create(create) = &facts.records[*index].data else {
             return Err(RemovalRefusal::Unreadable);
         };
-        names.push(plain(text(&facts, &create.name)));
+        names.push(plain(text(facts, &create.name)));
     }
-    let named = |span: &Range<usize>| names_path(&names, text(&facts, span));
+    let named = |span: &Range<usize>| names_path(&names, text(facts, span));
     let parents: Vec<Option<&[u8]>> = facts
         .records
         .iter()
         .map(|record| match &record.data {
-            Data::Create(create) => create.parent.as_ref().map(|span| text(&facts, span)),
+            Data::Create(create) => create.parent.as_ref().map(|span| text(facts, span)),
             _ => None,
         })
         .collect();
     // A removed shape hangs under a removed transform; a removed transform may sit under any bound
     // transform (the opener resolves its parent by exact name).
     if removed.iter().any(
-        |index| match (form(&facts, *index), parents[*index].map(plain)) {
+        |index| match (form(facts, *index), parents[*index].map(plain)) {
             (Some(f), Some(parent)) if f == *b"DMSH" => !names.contains(&parent),
             (Some(f), _) if f == *b"XFRM" => false,
             _ => true,
@@ -185,7 +211,7 @@ pub(in crate::native_scene) fn check_removal(
         .iter()
         .enumerate()
         .filter_map(|(index, record)| match &record.data {
-            Data::Create(create) => Some((plain(text(&facts, &create.name)), index)),
+            Data::Create(create) => Some((plain(text(facts, &create.name)), index)),
             _ => None,
         })
         .collect();
@@ -213,8 +239,8 @@ pub(in crate::native_scene) fn check_removal(
                     continue;
                 }
                 let (source, destination) = (
-                    endpoint(&facts, &connection.source),
-                    endpoint(&facts, &connection.destination),
+                    endpoint(facts, &connection.source),
+                    endpoint(facts, &connection.destination),
                 );
                 let exact = [source, destination].map(|(node, _)| names.contains(&node));
                 if exact == [true, true] {
@@ -224,9 +250,9 @@ pub(in crate::native_scene) fn check_removal(
                 if exact == [true, false] {
                     let set_ok = match creators.get(destination.0) {
                         Some(index) => {
-                            matches!(form(&facts, *index), Some(f) if f == *b"SHAD" || f == *b"OBST")
+                            matches!(form(facts, *index), Some(f) if f == *b"SHAD" || f == *b"OBST")
                         }
-                        None => text(&facts, &connection.destination).starts_with(b":"),
+                        None => text(facts, &connection.destination).starts_with(b":"),
                     };
                     if set_ok
                         && (normalized(source.1, &[b"iog"])
@@ -262,7 +288,7 @@ pub(in crate::native_scene) fn check_removal(
         if chunks.contains(&record.chunk) {
             continue;
         }
-        let (node, attribute) = endpoint(&facts, &connection.destination);
+        let (node, attribute) = endpoint(facts, &connection.destination);
         for (_, dropped) in dropped_sets.iter().filter(|(set, _)| *set == node) {
             if normalized(attribute, &[b"dagSetMembers"]) {
                 return Err(RemovalRefusal::NamedElsewhere);
@@ -275,9 +301,9 @@ pub(in crate::native_scene) fn check_removal(
             }
         }
     }
-    let groups = bound_groups(&container, &facts);
-    scan_text(&container, &groups, &chunks, &names, MAX_TEXT_WORK)?;
-    prune_ranges(&container, &chunks)
+    let groups = bound_groups(container, facts);
+    scan_text(container, &groups, &chunks, &names, MAX_TEXT_WORK)?;
+    prune_ranges(container, &chunks)
 }
 
 /// A byte range to drop, and the header starts of the groups whose size words shrink with it.

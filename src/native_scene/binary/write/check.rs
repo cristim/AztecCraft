@@ -37,8 +37,13 @@ fn same_shape(before: &NativeMeshShape, after: &NativeMeshShape) -> bool {
 }
 
 pub(super) fn verify(scene: &NativeScene, bytes: &[u8]) -> Result<(), AuthoredBinaryRefusal> {
-    let Ok(decoded) = binary::decode(Arc::from(bytes)) else {
-        return mismatch();
+    let decoded = match binary::decode(Arc::from(bytes)) {
+        Ok(decoded) => decoded,
+        // The decoder's own resource budget, not a writer bug: the scene is too big to verify.
+        Err(error) if error.kind() == binary::ErrorKind::ResourceLimit => {
+            return Err(AuthoredBinaryRefusal::TooLarge);
+        }
+        Err(_) => return mismatch(),
     };
     if decoded.units() != scene.units()
         || decoded.nodes().len() != scene.nodes().len()
