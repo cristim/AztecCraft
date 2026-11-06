@@ -147,7 +147,7 @@ async fn sdk_delete_selected_refusals_keep_scene_selection_and_history() {
 async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete_node() {
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("grouped.mb");
-    std::fs::write(&source, super::selection::grouped_scene_bytes()).unwrap();
+    std::fs::write(&source, super::selection::linked_grouped_scene_bytes()).unwrap();
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let old_token = editor.scene_token.to_string();
@@ -161,6 +161,61 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
     .await;
     let token = editor.scene_token.to_string();
     let paths = editor.history.scene().transform_paths().unwrap();
+    let child = paths[1..2].to_vec();
+    editor.set_selection_members_for_test(child.clone());
+    editor.sync_fields();
+    frame(&mut editor, &context, vec![]);
+    let scene = editor.history.scene().clone();
+    let single = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "delete_node",
+        json!({"scene_token":token,"node_id":paths[1].node.to_decimal()}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let many = delete_selected(&mut editor, &context, client.peer()).await;
+    assert_eq!(many["error"], single["error"]);
+    assert_eq!(many["error"]["code"], "unsupported_delete");
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.selection.members(), child);
+    assert!(!editor.history.can_undo());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// Refs #336: with several objects selected, the refusal names the object that causes it.
+#[tokio::test]
+async fn sdk_delete_selected_names_the_refusing_object_when_several_are_selected() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("roots.mb");
+    std::fs::write(
+        &source,
+        super::selection::keep_and_linked_roots_scene_bytes(),
+    )
+    .unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let old_token = editor.scene_token.to_string();
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token":old_token,"path":source}),
+    )
+    .await;
+    let token = editor.scene_token.to_string();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    assert_eq!(paths.len(), 2);
+    let linked = paths
+        .iter()
+        .find(|target| editor.history.scene().node(target.node).unwrap().name() == "linked")
+        .unwrap()
+        .node;
     editor.set_selection_members_for_test(paths.clone());
     editor.sync_fields();
     frame(&mut editor, &context, vec![]);
@@ -170,14 +225,18 @@ async fn sdk_delete_selected_on_an_opened_hierarchy_is_refused_whole_like_delete
         &context,
         client.peer(),
         "delete_node",
-        json!({"scene_token":token,"node_id":paths[0].node.to_decimal()}),
+        json!({"scene_token":token,"node_id":linked.to_decimal()}),
     )
     .await
     .structured_content
     .unwrap();
     let many = delete_selected(&mut editor, &context, client.peer()).await;
-    assert_eq!(many["error"], single["error"]);
     assert_eq!(many["error"]["code"], "unsupported_delete");
+    assert_eq!(many["error"]["code"], single["error"]["code"]);
+    assert_eq!(
+        many["error"]["message"].as_str().unwrap(),
+        format!("linked: {}", single["error"]["message"].as_str().unwrap())
+    );
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.selection.members(), paths);
     assert!(!editor.history.can_undo());

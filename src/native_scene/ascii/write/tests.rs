@@ -1385,6 +1385,21 @@ fn assigned_session_materials_are_refused_before_ascii_output() {
 }
 
 #[test]
+fn session_uvs_are_refused_before_ascii_output() {
+    use crate::native_scene::UvProjectAxis;
+    let mut scene = scene(&["box"]);
+    prefix(&scene).unwrap();
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    assert_eq!(
+        prefix(&scene),
+        Err(AsciiWriteRefusal::UnsupportedMeshChannels)
+    );
+    scene.delete_uvs(shape).unwrap();
+    prefix(&scene).unwrap();
+}
+
+#[test]
 fn public_decode_stays_closed_to_writer_output_while_the_gate_reads_it_back() {
     // `decode` keeps refusing the writer's mesh output at `createNode mesh`; only the gated
     // `decode_document` admits it, as an authored projection.

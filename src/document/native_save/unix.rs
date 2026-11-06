@@ -1,6 +1,6 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
-    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, SourceBaseline},
+    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
     native_scene::{NativeScene, ascii::write::emit_geometry_prefix, binary},
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
@@ -185,8 +185,7 @@ struct Transaction<'a> {
     destination: Arc<Destination>,
     baseline: Option<&'a SourceBaseline>,
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
-    authored_document_id: Option<crate::native_scene::AuthoredDocumentId>,
+    retention: Retention,
     may_install: &'a dyn Fn() -> bool,
     state: RefCell<State>,
 }
@@ -334,8 +333,7 @@ impl Transaction<'_> {
         let receipt = Receipt {
             destination: self.destination.clone(),
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
-            authored_document_id: self.authored_document_id,
+            retention: self.retention.clone(),
             file: file.clone(),
         };
         let cause = state
@@ -446,8 +444,7 @@ impl AtomicFs for Transaction<'_> {
 pub(super) struct Receipt {
     destination: Arc<Destination>,
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
-    authored_document_id: Option<crate::native_scene::AuthoredDocumentId>,
+    retention: Retention,
     file: Arc<File>,
 }
 impl Receipt {
@@ -456,8 +453,7 @@ impl Receipt {
         let path = self.destination.path();
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
-            authored_document_id: self.authored_document_id,
+            retention: self.retention.clone(),
             metadata: self.file.metadata().map_err(io_error)?,
             link: LinkStatus::Direct,
             file: self.file.clone(),
@@ -480,16 +476,48 @@ impl Receipt {
     }
 }
 
+fn mb_destination(path: &Path) -> Result<Arc<Destination>, Error> {
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mb"))
+    {
+        return Err(Error::InvalidDestination);
+    }
+    Ok(Arc::new(Destination::capture(path).map_err(io_error)?))
+}
+
 fn prepare<'a>(
     origin: &'a NativeOrigin,
     scene: &NativeScene,
     destination: SaveDestination<'_>,
     may_install: &'a dyn Fn() -> bool,
 ) -> Result<Transaction<'a>, Error> {
-    let NativeOrigin::Binary(source) = origin else {
-        return Err(Error::Unsupported);
+    let source = match origin {
+        NativeOrigin::Binary(source) => source,
+        NativeOrigin::Untitled => {
+            let SaveDestination::As(path) = destination else {
+                return Err(Error::NoDestination);
+            };
+            let destination = mb_destination(path)?;
+            destination.absent()?;
+            return Ok(Transaction {
+                destination,
+                baseline: None,
+                bytes: encode_authored(scene)?.into(),
+                retention: Retention::Authored {
+                    document_id: scene.authored_document_id().ok_or(Error::SourceChanged)?,
+                },
+                may_install,
+                state: RefCell::new(State::default()),
+            });
+        }
+        _ => return Err(Error::Unsupported),
     };
-    if !scene.has_binary_source(&source.parse_bytes) {
+    let tied = match &source.retention {
+        Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
+        Retention::Authored { document_id } => scene.authored_document_id() == Some(*document_id),
+    };
+    if !tied {
         return Err(Error::SourceChanged);
     }
     let (destination, baseline) = match destination {
@@ -501,34 +529,29 @@ fn prepare<'a>(
                 .ok_or(Error::Unsupported)?,
             Some(source),
         ),
-        SaveDestination::As(path) => {
-            if !path
-                .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("mb"))
-            {
-                return Err(Error::InvalidDestination);
-            }
-            (
-                Arc::new(Destination::capture(path).map_err(io_error)?),
-                None,
-            )
-        }
+        SaveDestination::As(path) => (mb_destination(path)?, None),
     };
     if let Some(baseline) = baseline {
         destination.verify(&baseline.file, &baseline.bytes)?;
     } else {
         destination.absent()?;
     }
-    let bytes: Arc<[u8]> = binary::encode(scene).map_err(Error::Encode)?.into();
+    let bytes: Arc<[u8]> = match source.retention {
+        Retention::Source { .. } => binary::encode(scene).map_err(Error::Encode)?.into(),
+        Retention::Authored { .. } => encode_authored(scene)?.into(),
+    };
     Ok(Transaction {
         destination,
         baseline,
         bytes,
-        parse_bytes: source.parse_bytes.clone(),
-        authored_document_id: None,
+        retention: source.retention.clone(),
         may_install,
         state: RefCell::new(State::default()),
     })
+}
+
+fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, Error> {
+    binary::encode_authored(scene).map_err(|refusal| Error::Unwritable((&refusal).into()))
 }
 
 pub(super) fn save_native(
@@ -553,8 +576,9 @@ fn prepare_authored<'a>(
         NativeOrigin::Untitled => {}
         NativeOrigin::AuthoredAscii(source) => {
             let id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
-            if source.authored_document_id != Some(id) {
-                return Err(Error::SourceChanged);
+            match &source.retention {
+                Retention::Authored { document_id } if *document_id == id => {}
+                _ => return Err(Error::SourceChanged),
             }
         }
         _ => return Err(Error::Unsupported),
@@ -613,8 +637,7 @@ fn prepare_authored<'a>(
         destination,
         baseline,
         bytes,
-        parse_bytes: Arc::new([]),
-        authored_document_id: Some(document_id),
+        retention: Retention::Authored { document_id },
         may_install,
         state: RefCell::new(State::default()),
     };
@@ -682,5 +705,7 @@ mod tests_authored {
     }
 }
 
+#[cfg(test)]
+mod authored_tests;
 #[cfg(test)]
 mod tests;

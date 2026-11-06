@@ -321,6 +321,43 @@ impl Editor {
         Ok(())
     }
 
+    /// A Move acts on the whole selection with `target` as its lead. A remote caller with several
+    /// objects selected must name the selection generation it inspected; a stale one is refused.
+    pub(in crate::app) fn check_move_target(
+        &self,
+        target: &TransformTarget,
+        provenance: ManipulationProvenance,
+        expected_generation: Option<u64>,
+    ) -> Result<(), OperationError> {
+        self.check_generation(expected_generation)?;
+        if self.selection.len() <= 1 {
+            return self.check_manipulation_target("Move", target);
+        }
+        if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
+            return Err(OperationError::InvalidInput(refusal));
+        }
+        if self.selection.lead() != Some(target) {
+            return Err(OperationError::MultipleSelection);
+        }
+        if expected_generation.is_none() && provenance == ManipulationProvenance::Remote {
+            return Err(OperationError::MultipleSelection);
+        }
+        Ok(())
+    }
+
+    /// A caller that names the selection generation it inspected gets a refusal if it moved on.
+    fn check_generation(&self, expected: Option<u64>) -> Result<(), OperationError> {
+        match expected {
+            Some(expected) if expected != self.selection.generation() => {
+                Err(OperationError::StaleSelection {
+                    expected,
+                    current: self.selection.generation(),
+                })
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub(in crate::app) fn begin_editor_rotate(
         &mut self,
         target: &TransformTarget,
@@ -694,10 +731,7 @@ impl Editor {
                     handle,
                     space,
                 },
-                match handle {
-                    ScaleHandle::Uniform => "Uniform Scale".to_string(),
-                    _ => format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
-                },
+                format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
             ),
         };
         let drag = match start_drag(capture, &frame, handle, position) {

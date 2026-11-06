@@ -1,6 +1,6 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
-    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, SourceBaseline},
+    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
     native_scene::{NativeScene, binary},
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
@@ -545,8 +545,9 @@ impl Receipt {
         self.destination.verify(&self.file, &self.bytes)?;
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
-            authored_document_id: None,
+            retention: Retention::Source {
+                parse_bytes: self.parse_bytes.clone(),
+            },
             metadata: self.file.metadata().map_err(io_error)?,
             link: LinkStatus::Direct,
             file: self.file.clone(),
@@ -570,7 +571,9 @@ fn prepare<'a>(
     let NativeOrigin::Binary(source) = origin else {
         return Err(Error::Unsupported);
     };
-    let parse_bytes = &source.parse_bytes;
+    let Retention::Source { parse_bytes } = &source.retention else {
+        return Err(Error::SourceChanged);
+    };
     if !scene.has_binary_source(parse_bytes) {
         return Err(Error::SourceChanged);
     }

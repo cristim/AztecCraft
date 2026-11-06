@@ -1141,6 +1141,7 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     let dag = add(add(transforms, curves)?, shapes)?;
     let records = add(statements.len(), usize::from(!trailing.is_empty()))?;
     let mut retention = SourceRetention {
+        has_removals: false,
         sites: Vec::new(),
         bytes: source.clone(),
         format: SourceFormat::Ascii,

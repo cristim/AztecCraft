@@ -1,7 +1,7 @@
 use super::{NativeOrigin, NativeScene};
 #[cfg(any(unix, test))]
 use crate::native_scene::ascii::write::AsciiWriteRefusal;
-use crate::native_scene::binary;
+use crate::native_scene::binary::{self, AuthoredRefusalCode};
 use std::{
     fmt, io,
     path::{Path, PathBuf},
@@ -24,12 +24,16 @@ pub enum SaveDestination<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeSaveError {
     Unsupported,
+    /// Save on a scene that has no file yet; the caller needs a path (Save As).
+    NoDestination,
     InvalidDestination,
     SourceChanged,
     DestinationExists,
     Cancelled,
     Io(io::ErrorKind),
     Encode(binary::BinaryError),
+    /// A new scene cannot be written as a Maya Binary file; nothing was written.
+    Unwritable(AuthoredRefusalCode),
     #[cfg(any(unix, test))]
     AsciiWrite(AsciiWriteRefusal),
 }
@@ -38,6 +42,7 @@ impl fmt::Display for NativeSaveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unsupported => f.write_str("this native scene or platform cannot be written"),
+            Self::NoDestination => f.write_str("this scene has no file yet; use Save As"),
             Self::InvalidDestination => f.write_str("Save As requires a new .mb destination"),
             Self::SourceChanged => {
                 f.write_str("scene file or directory identity or contents changed")
@@ -46,6 +51,7 @@ impl fmt::Display for NativeSaveError {
             Self::Cancelled => f.write_str("save cancelled before installation"),
             Self::Io(kind) => write!(f, "native scene IO failed: {kind:?}"),
             Self::Encode(error) => error.fmt(f),
+            Self::Unwritable(code) => write!(f, "cannot write this scene as a new .mb: {code}"),
             #[cfg(any(unix, test))]
             Self::AsciiWrite(error) => error.fmt(f),
         }
@@ -111,11 +117,17 @@ pub fn save_native(
 ) -> Result<SaveOutcome, NativeSaveError> {
     #[cfg(unix)]
     {
-        match origin {
-            NativeOrigin::Untitled | NativeOrigin::AuthoredAscii(_) => {
-                unix::save_authored(origin, scene, destination, may_install)
-            }
-            _ => unix::save_native(origin, scene, destination, may_install),
+        let ascii = match (origin, &destination) {
+            (NativeOrigin::AuthoredAscii(_), _) => true,
+            (NativeOrigin::Untitled, SaveDestination::As(path)) => path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("ma")),
+            _ => false,
+        };
+        if ascii {
+            unix::save_authored(origin, scene, destination, may_install)
+        } else {
+            unix::save_native(origin, scene, destination, may_install)
         }
     }
     #[cfg(windows)]

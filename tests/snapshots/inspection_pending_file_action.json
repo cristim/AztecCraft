@@ -170,6 +170,7 @@
       }
     ],
     "selection_count": 1,
+    "selection_generation": 1,
     "selection_mode": "object",
     "session_materials": [
       {
@@ -214,7 +215,8 @@
           "state": "unbound",
           "unavailable": 0,
           "unbound": 1
-        }
+        },
+        "uv_set": null
       }
     ],
     "sidebar_panels": {

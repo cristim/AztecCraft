@@ -21,12 +21,34 @@ pub enum LinkStatus {
     Symlink,
 }
 
+/// What ties a baseline to the scene in memory: the parsed source bytes the scene still
+/// retains, or the private identity of the document authored and written from scratch.
+#[derive(Clone)]
+enum Retention {
+    Source {
+        parse_bytes: Arc<[u8]>,
+    },
+    #[cfg_attr(
+        not(unix),
+        expect(dead_code, reason = "only the Unix save path creates it")
+    )]
+    Authored {
+        document_id: AuthoredDocumentId,
+    },
+}
+impl Retention {
+    fn len(&self) -> Option<usize> {
+        match self {
+            Self::Source { parse_bytes } => Some(parse_bytes.len()),
+            Self::Authored { .. } => None,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SourceBaseline {
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
-    #[cfg_attr(not(unix), expect(dead_code, reason = "authored saving is Unix-only"))]
-    authored_document_id: Option<AuthoredDocumentId>,
+    retention: Retention,
     metadata: Metadata,
     link: LinkStatus,
     #[cfg(any(unix, windows))]
@@ -38,7 +60,7 @@ impl fmt::Debug for SourceBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SourceBaseline")
             .field("bytes", &self.bytes.len())
-            .field("parse_bytes", &self.parse_bytes.len())
+            .field("parse_bytes", &self.retention.len())
             .field("file_length", &self.metadata.len())
             .field("link", &self.link)
             .finish()
@@ -285,8 +307,9 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
     #[cfg(not(any(unix, windows)))]
     drop(file);
     let source = SourceBaseline {
-        parse_bytes: bytes.clone(),
-        authored_document_id: None,
+        retention: Retention::Source {
+            parse_bytes: bytes.clone(),
+        },
         bytes,
         metadata,
         link,

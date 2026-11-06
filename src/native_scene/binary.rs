@@ -2,8 +2,14 @@ mod admission;
 mod appearance;
 mod binding;
 mod encode;
+mod removal;
 mod write;
 pub use encode::encode;
+pub use removal::RemovalRefusal;
+pub(super) use removal::{check_materials, with_removal_checker};
+pub use write::AuthoredRefusalCode;
+#[cfg(unix)]
+pub(crate) use write::encode_authored;
 #[cfg(test)]
 mod tests;
 

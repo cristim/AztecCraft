@@ -331,7 +331,7 @@ fn uniform_scale_from_the_center_box_edits_all_three_channels() {
     let (mut editor, context, view) = setup(Key::R, 1.0);
     let origin = view.screen(Vec3::ZERO);
     press(&mut editor, &context, 1.0, origin);
-    assert_eq!(editor.status, "Uniform Scale");
+    assert_eq!(editor.status, "World Uniform Scale");
     moved(&mut editor, &context, 1.0, origin + egui::vec2(100.0, 0.0));
     let values = channels(&editor);
     near(values[6], 2.0, 1e-6);
@@ -2526,10 +2526,10 @@ fn ascii_chain(scale: &str) -> String {
 }
 
 // Two ancestors scaled 1e200 each have a finite matrix but no finite product, so the leaf's frame is
-// refused as ParentTransform. A capture taken before the ancestors overflow survives later frames
-// (a view build error does not clear `move_viewport`), so the test swaps the scene in directly after
-// capturing the pointer. Reachable through the MCP set_transform tool on a writable scene (plausible,
-// not exercised here); the scene here is read-only ASCII.
+// refused as ParentTransform. That product is non-finite world geometry, which also fails the view
+// build, and a frame then clears the capture. The state between the edit and the next frame is the
+// only one that reports this refusal, so the test swaps the scene in directly and inspects without a
+// frame. After a frame it is no longer observable through MCP (the fields are null).
 #[test]
 fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
     let expected = NativeError::UnsupportedMove(
@@ -2570,6 +2570,93 @@ fn a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel() {
                 viewport.pointer_refusal.as_deref(),
                 Some(expected.as_str()),
                 "{name}"
+            );
+        }
+    }
+}
+
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+// A binary scene whose one face is a pentagram: the view build refuses it as UnsupportedPolygon.
+fn pentagram_scene() -> std::sync::Arc<[u8]> {
+    use binary_fixture::{chunk, creation, group, mesh_payload_from, scene};
+    let mut positions = Vec::new();
+    for k in 0..5 {
+        let angle = std::f32::consts::TAU * k as f32 / 5.0;
+        positions.extend([angle.sin().to_bits(), angle.cos().to_bits(), 0]);
+    }
+    let mesh = mesh_payload_from(
+        &positions,
+        &[0x8000_0000, 2, 2, 4, 4, 1, 1, 3, 3, 0],
+        &[0, 1, 2, 3, 0x6000_0004],
+        &[0, 0, 1f32.to_bits(), 0, 0, 1f32.to_bits()],
+        &[0, 1, 2, 0, 1],
+    );
+    scene(
+        &[
+            group(b"XFRM", &creation(b"star", None), 4),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"starShape", Some(b"star")),
+                    chunk(b"MESH", &mesh, 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    )
+}
+
+// Every view build error paints no handles, so none may leave the pointer capture behind.
+#[test]
+fn a_view_build_error_clears_the_move_capture_for_every_tool() {
+    for (tool_key, name) in [(Key::W, "Move"), (Key::E, "Rotate"), (Key::R, "Scale")] {
+        for polygon in [false, true] {
+            let (mut editor, context, view) = setup(tool_key, 1.0);
+            moved(&mut editor, &context, 1.0, view.rect.center());
+            assert!(editor.move_viewport.is_some(), "{name}: captured before");
+            assert!(editor.inspect_manipulation().unwrap().viewport.is_some());
+            if polygon {
+                let scene = azteccraft::native_scene::binary::decode(pentagram_scene()).unwrap();
+                assert_eq!(
+                    azteccraft::view_scene::ViewScene::from_native(&scene, 1 << 20).unwrap_err(),
+                    azteccraft::view_scene::ViewError::UnsupportedPolygon
+                );
+                editor.history = azteccraft::history::History::new(scene);
+            } else {
+                let id = editor.selected().unwrap();
+                editor
+                    .apply_operation(Operation::SetTransform {
+                        id,
+                        transform: crate::editor_operations::TransformInput {
+                            translation: [0.0; 3],
+                            rotation_degrees: [0.0; 3],
+                            scale: [1e300; 3],
+                        },
+                    })
+                    .unwrap();
+            }
+            idle(&mut editor, &context, 1.0);
+            assert!(
+                editor.move_viewport.is_none(),
+                "{name} polygon={polygon}: capture survived a view build error"
+            );
+            assert_eq!(
+                editor.viewport_error,
+                Some(crate::viewport_renderer::ViewportError::SceneGeometry),
+                "{name} polygon={polygon}"
+            );
+            assert!(
+                editor.inspect_manipulation().unwrap().viewport.is_none(),
+                "{name} polygon={polygon}"
             );
         }
     }
@@ -2819,18 +2906,46 @@ fn an_edge_on_rotate_ring_reports_the_drag_refusal_before_the_scene_refusal() {
 
 // With the camera level (yaw 0, pitch 0) the offset-pivot scene's Object X ring is seen nearly
 // edge-on, and a press ray through its right-hand arc meets the ring plane behind the eye. The
-// pixel is on that arc in the 1.0-scale test window (at x 800 rows 471..478 are BehindRay,
-// between the edge-on row 470 and the ring's lower edge; 475 is at least 3 px inside); the hit-id
-// precondition fails loudly if the layout or camera moves it off the ring.
+// test scans a column of the real drag-begin for that run and presses its middle, so a layout or
+// projection change moves the pixel with it; the hit-id precondition keeps it on the ring.
 #[test]
 fn a_rotate_ring_plane_behind_the_eye_reports_the_drag_refusal() {
     let (mut editor, context, _) = offset_pivot_scene_for(ActiveTool::Rotate);
     editor.camera = camera_at(0.0, 0.0);
     idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let mut behind = Vec::new();
+    for row in 0..=900 {
+        let refused = azteccraft::manipulator_handles::RotateDrag::begin(
+            capture.clone(),
+            &frame,
+            RotateAxis::X,
+            glam::Vec2::new(800.0, row as f32),
+        )
+        .err()
+            == Some(azteccraft::move_handles::HandleError::BehindRay);
+        if refused {
+            moved(&mut editor, &context, 1.0, Pos2::new(800.0, row as f32));
+            let viewport = editor.inspect_manipulation().unwrap().viewport.unwrap();
+            if viewport.pointer_hit == Some("x") {
+                behind.push(row);
+            }
+        }
+    }
+    let first = *behind
+        .first()
+        .expect("no pointer on the x ring at x 800 meets the ring plane behind the eye");
+    let run = behind
+        .iter()
+        .zip(first..)
+        .take_while(|(row, expected)| **row == *expected)
+        .count();
+    let middle = first + run as i32 / 2;
     assert_drag_refusal_everywhere(
         &mut editor,
         &context,
-        Pos2::new(800.0, 475.0),
+        Pos2::new(800.0, middle as f32),
         "x",
         "Object X Rotate",
         "Rotate closest point lies behind the camera ray origin",

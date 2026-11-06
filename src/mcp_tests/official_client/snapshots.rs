@@ -24,41 +24,31 @@ async fn inspection_snapshot(
         .await
         .structured_content
         .unwrap();
-    let normalized = crate::app::snapshots::normalize_json(&inspected, roots);
+    assert_inspection_snapshot(name, &inspected, roots);
+}
+
+/// Compares an `inspect_scene` reply with its committed snapshot, keyed on the reply's own
+/// `document_origin` and never on the file name, so a new Untitled fixture cannot be missed.
+fn assert_inspection_snapshot(name: &str, reply: &Value, roots: &[&std::path::Path]) {
+    let normalized = crate::app::snapshots::normalize_json(reply, roots);
     let mut text = serde_json::to_string_pretty(&normalized).unwrap();
     text.push('\n');
-    if untitled_inspection_snapshot(name) {
-        // These fixtures use the Unix authored-scene writer. Windows does not
-        // offer Untitled Save As yet; compare the real SDK reply to that policy
-        // without normalizing away a wrong availability value in the reply.
-        if std::env::var_os("UPDATE_SNAPSHOTS").is_some_and(|value| value == "1") {
-            #[cfg(not(unix))]
-            panic!("update shared Untitled fixtures on Unix");
-            #[cfg(unix)]
-            crate::app::snapshots::assert_snapshot(name, &text);
-        } else {
-            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/snapshots")
-                .join(name);
-            let expected = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
-            assert_eq!(
-                normalized,
-                untitled_platform_expectation(expected, cfg!(unix)),
-                "{name} differs"
-            );
-        }
+    let untitled = normalized["inspection"]["document_origin"] == json!("untitled");
+    if untitled && !cfg!(unix) {
+        // Untitled fixtures are Unix baselines (the authored-scene writer is Unix only). Compare
+        // the real reply with the baseline, forcing only `save_as_available`.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/snapshots")
+            .join(name);
+        let expected = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(
+            normalized,
+            untitled_platform_expectation(expected, false),
+            "{name} differs"
+        );
     } else {
         crate::app::snapshots::assert_snapshot(name, &text);
     }
-}
-
-fn untitled_inspection_snapshot(name: &str) -> bool {
-    matches!(
-        name,
-        "inspection_cube_face_grid_off_move_tool.json"
-            | "inspection_cube_move_in_flight.json"
-            | "inspection_pending_file_action.json"
-    )
 }
 
 fn untitled_platform_expectation(mut expected: Value, unix: bool) -> Value {
@@ -75,16 +65,24 @@ fn untitled_platform_expectation(mut expected: Value, unix: bool) -> Value {
 
 #[test]
 fn untitled_snapshots_preserve_platform_availability_and_all_other_fields() {
-    for name in [
-        "inspection_cube_face_grid_off_move_tool.json",
-        "inspection_cube_move_in_flight.json",
-        "inspection_pending_file_action.json",
-    ] {
-        assert!(untitled_inspection_snapshot(name));
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/snapshots")
-            .join(name);
-        let baseline: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots");
+    let mut untitled = 0;
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+        if !(name.starts_with("inspection_") && name.ends_with(".json")) {
+            continue;
+        }
+        let baseline: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        if baseline["inspection"]["document_origin"] != json!("untitled") {
+            continue;
+        }
+        untitled += 1;
+        assert_eq!(
+            baseline["inspection"]["save_as_available"],
+            json!(true),
+            "{name}: an Untitled fixture is a Unix baseline"
+        );
         assert_eq!(
             untitled_platform_expectation(baseline.clone(), true),
             baseline
@@ -98,9 +96,7 @@ fn untitled_snapshots_preserve_platform_availability_and_all_other_fields() {
         wrong_other_field["inspection"]["save_available"] = json!(true);
         assert_ne!(windows, wrong_other_field, "other fields must stay checked");
     }
-    assert!(!untitled_inspection_snapshot(
-        "inspection_ascii_curve_specimen.json"
-    ));
+    assert!(untitled >= 4, "expected the known Untitled fixtures");
 }
 
 #[tokio::test]
@@ -150,6 +146,7 @@ async fn sdk_inspection_matches_committed_snapshots() {
                 path: editor.selected_path().to_vec(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let OperationReply::ManipulationStarted {
@@ -208,6 +205,39 @@ async fn sdk_ascii_curve_and_pending_action_inspections_match_committed_snapshot
         &[directory.path()],
     )
     .await;
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// Pins the serialized names of the `page` block, `next_cursor: null` on the last page included.
+#[tokio::test]
+async fn sdk_last_page_inspection_matches_committed_snapshot() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    editor.create(Primitive::Cube);
+    let peer = client.peer();
+    let first = call(
+        &mut editor,
+        &context,
+        peer,
+        "inspect_scene",
+        json!({"node_limit": 1}),
+    )
+    .await;
+    let cursor = first.structured_content.unwrap()["inspection"]["page"]["next_cursor"].clone();
+    let last = call(
+        &mut editor,
+        &context,
+        peer,
+        "inspect_scene",
+        json!({"node_limit": 1, "cursor": cursor}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_inspection_snapshot("inspection_paged_last_page.json", &last, &[]);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

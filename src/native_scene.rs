@@ -10,7 +10,9 @@ mod move_translation;
 mod rotate_frame;
 mod scale_frame;
 mod session_material;
+mod session_uv;
 mod source;
+mod source_removal;
 mod transform_extras;
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
@@ -19,7 +21,7 @@ pub use appearance::{
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::ManipulatorFrame;
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::ChannelBaseline;
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
@@ -27,12 +29,15 @@ use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
 };
+use session_uv::SessionUvs;
+pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras};
 
 use crate::primitive_options::PrimitiveOptions;
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};
 use glam::{DMat3, DMat4, DVec3, Vec3};
+use std::collections::HashMap;
 use std::fmt;
 #[cfg(test)]
 use std::ops::Range;
@@ -229,7 +234,11 @@ impl Scalar {
             && value.to_bits() != self.value.to_bits()
             && !source.is_some_and(|source| source.can_insert(owner, field))
         {
-            return Err(NativeError::UnsupportedEdit);
+            return Err(if source.is_some_and(|source| source.has_removals) {
+                NativeError::InsertionAfterDelete
+            } else {
+                NativeError::UnsupportedEdit
+            });
         }
         let mut next = self.clone();
         if self.value.to_bits() != value.to_bits() || self.origin.is_some() {
@@ -459,6 +468,26 @@ impl NativeMeshShape {
     }
 }
 
+/// Lookup index over a scene's transforms and parent edges, built by `NativeScene::dag_index`.
+/// Only lookups are offered, so hash order cannot reach a result. `transform_paths` and
+/// `validate_dag` share it.
+pub(crate) struct DagIndex {
+    by_transform: HashMap<NativeId, NodeId>,
+    children: HashMap<Option<NativeId>, Vec<NativeId>>,
+}
+
+impl DagIndex {
+    /// The node owning a transform id; the first node wins.
+    pub(crate) fn node(&self, transform_id: NativeId) -> Option<NodeId> {
+        self.by_transform.get(&transform_id).copied()
+    }
+
+    /// Children of `parent` in dag order; `None` is the scene root.
+    pub(crate) fn children(&self, parent: Option<NativeId>) -> &[NativeId] {
+        self.children.get(&parent).map_or(&[], Vec::as_slice)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DagEdge {
     parent: Option<NativeId>,
@@ -531,6 +560,9 @@ pub struct NativeScene {
     authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_uvs: SessionUvs,
+    /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
+    removed: Vec<NativeId>,
     next_id: u64,
     next_native_id: u64,
 }
@@ -619,6 +651,8 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_uvs == other.session_uvs
+            && self.removed == other.removed
     }
 }
 
@@ -634,6 +668,8 @@ impl Default for NativeScene {
             authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_uvs: SessionUvs::default(),
+            removed: Vec::new(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -772,14 +808,39 @@ impl NativeScene {
             .map(|node| node.id)
             .ok_or(NativeError::InvalidInstancePath)
     }
+    /// Index the transform and parent relations once, for callers that would otherwise scan
+    /// `nodes` or `dag` per lookup.
+    pub(crate) fn dag_index(&self) -> Result<DagIndex, NativeError> {
+        #[cfg(test)]
+        DAG_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
+        let mut by_transform = HashMap::new();
+        by_transform
+            .try_reserve(self.nodes.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for node in &self.nodes {
+            by_transform.entry(node.transform_id).or_insert(node.id);
+        }
+        let mut children = HashMap::<Option<NativeId>, Vec<NativeId>>::new();
+        children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        for edge in &self.dag {
+            let siblings = children.entry(edge.parent).or_default();
+            siblings
+                .try_reserve(1)
+                .map_err(|_| NativeError::ResourceLimit)?;
+            siblings.push(edge.child);
+        }
+        Ok(DagIndex {
+            by_transform,
+            children,
+        })
+    }
     pub fn transform_paths(&self) -> Result<Vec<TransformTarget>, NativeError> {
+        let index = self.dag_index()?;
         let mut paths = Vec::<TransformTarget>::new();
-        for root in self.dag.iter().filter(|edge| edge.parent.is_none()) {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == root.child)
-                .ok_or(NativeError::InvalidInstancePath)?;
+        for &root in index.children(None) {
+            let node = index.node(root).ok_or(NativeError::InvalidInstancePath)?;
             if paths.len() == MAX_TRANSFORM_PATHS {
                 return Err(NativeError::ResourceLimit);
             }
@@ -789,11 +850,8 @@ impl NativeScene {
             let mut path = Vec::new();
             path.try_reserve_exact(1)
                 .map_err(|_| NativeError::ResourceLimit)?;
-            path.push(root.child);
-            paths.push(TransformTarget {
-                node: node.id,
-                path,
-            });
+            path.push(root);
+            paths.push(TransformTarget { node, path });
         }
         let mut identities = paths.len();
         let mut cursor = 0;
@@ -802,12 +860,8 @@ impl NativeScene {
                 .path
                 .last()
                 .ok_or(NativeError::InvalidInstancePath)?;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
-                let Some(node) = self
-                    .nodes
-                    .iter()
-                    .find(|node| node.transform_id == edge.child)
-                else {
+            for &child in index.children(Some(parent)) {
+                let Some(node) = index.node(child) else {
                     continue;
                 };
                 let depth = paths[cursor]
@@ -828,14 +882,11 @@ impl NativeScene {
                 path.try_reserve_exact(depth)
                     .map_err(|_| NativeError::ResourceLimit)?;
                 path.extend_from_slice(&paths[cursor].path);
-                path.push(edge.child);
+                path.push(child);
                 paths
                     .try_reserve(1)
                     .map_err(|_| NativeError::ResourceLimit)?;
-                paths.push(TransformTarget {
-                    node: node.id,
-                    path,
-                });
+                paths.push(TransformTarget { node, path });
             }
             cursor += 1;
         }
@@ -968,25 +1019,29 @@ impl NativeScene {
         &self,
         path: &[NativeId],
     ) -> Result<GeometryViewAdmission, NativeError> {
-        let id = self.instance_geometry_id(path)?;
-        let facts = self
-            .shapes
-            .iter()
-            .find(|shape| shape.id == id)
-            .map(|shape| &shape.view)
-            .or_else(|| {
-                self.curves
-                    .iter()
-                    .find(|curve| curve.id == id)
-                    .map(|curve| &curve.view)
-            })
+        self.geometry_view_admission_indexed(&ViewAdmissionIndex::new(self)?, path)
+    }
+    /// [`geometry_view_admission`](Self::geometry_view_admission) against an index built once for
+    /// a whole view build, so a scene of N instances costs O(N) lookups rather than O(N) scans
+    /// each (#341). Every check, and the order they run in, matches the scanning form exactly, so
+    /// the accepted paths and the returned errors are the same.
+    pub(crate) fn geometry_view_admission_indexed(
+        &self,
+        index: &ViewAdmissionIndex<'_>,
+        path: &[NativeId],
+    ) -> Result<GeometryViewAdmission, NativeError> {
+        let id = index.instance_geometry_id(path)?;
+        let facts = index
+            .geometry
+            .get(&id)
+            .copied()
             .ok_or(NativeError::InvalidInstancePath)?;
         let mut visible = facts.visible()?;
         for id in &path[..path.len() - 1] {
-            let node = self
-                .nodes
-                .iter()
-                .find(|node| node.transform_id == *id)
+            let node = index
+                .transforms
+                .get(id)
+                .copied()
                 .ok_or(NativeError::InvalidInstancePath)?;
             if !node.unsupported_transform.is_empty() {
                 return Err(NativeError::UnsupportedView("unproved transform effects"));
@@ -1002,6 +1057,30 @@ impl NativeScene {
         snapshot.next_id = snapshot.next_id.max(self.next_id);
         snapshot.next_native_id = snapshot.next_native_id.max(self.next_native_id);
         *self = snapshot;
+    }
+
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
     }
 
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
@@ -1127,6 +1206,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1291,71 +1374,184 @@ impl NativeScene {
         self.validate()?;
         self.remove_validated(id)
     }
-    /// Removes every listed node, in order, after one preflight and one validation; a repeated id
-    /// is removed once. The first refusal is returned unchanged and earlier removals stay applied,
-    /// so callers run it on a candidate clone, as `History::execute` does.
+    /// Removes every listed node with its whole subtree after one preflight and one validation; a
+    /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
+    /// set is checked before anything changes, so a refusal leaves the scene as it was. When
+    /// several distinct nodes are listed, a refusal that exactly one of them explains (see
+    /// `name_refusing_member`) names that node.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
         let mut seen = std::collections::HashSet::new();
-        for id in ids {
-            if seen.insert(*id) {
-                self.remove_validated(*id)?;
-            }
+        let unique: Vec<_> = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
+        if unique.is_empty() {
+            return Ok(());
         }
-        Ok(())
+        let result = self
+            .removal_subtree(&unique)
+            .and_then(|gone| self.remove_set(gone));
+        match result {
+            Err(reason) if unique.len() > 1 => Err(self.name_refusing_member(&unique, reason)),
+            other => other,
+        }
+    }
+    /// `combined` tagged with the name of the one member that explains it: alone it fails with
+    /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
+    /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
+    /// time in a single reused id buffer against one decode of the source, and the search stops at
+    /// the second qualifier, so memory stays O(N) and the checks number N plus one per member
+    /// that fails alone with `combined`.
+    fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
+        // A pending insertion on a node outside the set blocks every subset too, so no member can
+        // explain it.
+        if combined
+            == NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                binary::RemovalRefusal::PendingInsertion,
+            ))
+        {
+            return combined;
+        }
+        #[cfg(test)]
+        attribution_probe::buffer();
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
+        let found = self.with_source_removal_checker(|source_check| {
+            let verdict = |set: &[NodeId]| {
+                #[cfg(test)]
+                attribution_probe::checked(1);
+                let gone = self.removal_subtree(set)?;
+                if self.source.is_some() {
+                    source_check(&gone)?;
+                }
+                Ok(())
+            };
+            let mut explaining = None;
+            for (at, id) in ids.iter().enumerate() {
+                candidate.clear();
+                candidate.push(*id);
+                if verdict(&candidate) != Err(combined.clone()) {
+                    continue;
+                }
+                candidate.clear();
+                candidate.extend(
+                    ids.iter()
+                        .enumerate()
+                        .filter(|(i, _)| *i != at)
+                        .map(|(_, id)| *id),
+                );
+                if verdict(&candidate).is_err() {
+                    continue;
+                }
+                if explaining.replace(at).is_some() {
+                    return None;
+                }
+            }
+            explaining
+        });
+        match found.map(|at| self.node(ids[at])) {
+            Some(Ok(node)) => NativeError::DeleteMemberRefused {
+                node: refusal_name(node.name()),
+                reason: Box::new(combined),
+            },
+            _ => combined,
+        }
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
-        let index = self
-            .nodes
-            .iter()
-            .position(|n| n.id == id)
-            .ok_or(SceneError::MissingNode(id))?;
-        let transform = self.nodes[index].transform_id;
-        let has_children = self.dag.iter().any(|edge| {
-            edge.parent == Some(transform)
-                && self
-                    .nodes
-                    .iter()
-                    .any(|node| node.transform_id == edge.child)
-        });
-        if has_children {
-            return Err(NativeError::UnsupportedDelete(
-                DeleteUnsupported::HasChildren,
-            ));
+        let gone = self.removal_subtree(&[id])?;
+        self.remove_set(gone)
+    }
+    fn remove_set(&mut self, mut gone: Vec<NativeId>) -> Result<(), NativeError> {
+        gone.sort_unstable();
+        gone.dedup();
+        if self.source.is_some() {
+            self.check_source_removal(&gone)?;
         }
-        let incoming: Vec<_> = self
-            .dag
+        self.apply_removal(&gone);
+        Ok(())
+    }
+    /// The identities that deleting `roots` takes with it: each root transform, every descendant
+    /// transform and every descendant shape whose parents all lie inside that subtree. A shape
+    /// that also hangs under a surviving transform stays and only loses the removed edges. A
+    /// descendant transform with an incoming edge from outside the subtree (a root edge counts as
+    /// outside) is refused. Checks that do not depend on the source bytes.
+    fn removal_subtree(&self, roots: &[NodeId]) -> Result<Vec<NativeId>, NativeError> {
+        use std::collections::{HashMap, HashSet};
+        let mut starts = Vec::with_capacity(roots.len());
+        for id in roots {
+            let node = self
+                .nodes
+                .iter()
+                .find(|n| n.id == *id)
+                .ok_or(SceneError::MissingNode(*id))?;
+            starts.push(node.transform_id);
+        }
+        let mut children: HashMap<NativeId, Vec<NativeId>> = HashMap::new();
+        let mut incoming: HashMap<NativeId, Vec<Option<NativeId>>> = HashMap::new();
+        for edge in &self.dag {
+            if let Some(parent) = edge.parent {
+                children.entry(parent).or_default().push(edge.child);
+            }
+            incoming.entry(edge.child).or_default().push(edge.parent);
+        }
+        let edges = |id: &NativeId| incoming.get(id).map_or(&[][..], Vec::as_slice);
+        let mut reached = HashSet::new();
+        let mut below = HashSet::new();
+        let mut work = starts.clone();
+        while let Some(current) = work.pop() {
+            if !reached.insert(current) {
+                continue;
+            }
+            for child in children.get(&current).into_iter().flatten() {
+                below.insert(*child);
+                work.push(*child);
+            }
+        }
+        let transforms: HashSet<NativeId> = self.nodes.iter().map(|n| n.transform_id).collect();
+        let mut tops = starts;
+        tops.retain(|id| !below.contains(id));
+        tops.sort_unstable();
+        tops.dedup();
+        let inside: HashSet<NativeId> = reached
             .iter()
-            .filter(|edge| edge.child == transform)
+            .copied()
+            .filter(|id| transforms.contains(id))
             .collect();
-        if incoming.iter().any(|edge| edge.parent.is_some()) {
-            return Err(NativeError::UnsupportedDelete(DeleteUnsupported::IsChild));
+        for id in &inside {
+            let outside = edges(id)
+                .iter()
+                .any(|parent| parent.is_none_or(|parent| !inside.contains(&parent)));
+            if outside && !tops.contains(id) {
+                return Err(NativeError::UnsupportedEdit);
+            }
         }
-        self.check_effects(transform)?;
-        if self.source.is_some() || incoming.len() != 1 {
+        for id in &reached {
+            let restricted = self.nodes.iter().any(|node| {
+                node.transform_id == *id
+                    && (!node.restrictions.is_empty() || !node.unsupported_transform.is_empty())
+            }) || self
+                .shapes
+                .iter()
+                .any(|shape| shape.id == *id && !shape.restrictions.is_empty());
+            if restricted {
+                return Err(NativeError::UnsupportedEdit);
+            }
+        }
+        let mut gone: Vec<NativeId> = inside.iter().copied().collect();
+        gone.extend(reached.iter().filter(|id| {
+            !transforms.contains(id)
+                && edges(id)
+                    .iter()
+                    .all(|parent| parent.is_some_and(|parent| inside.contains(&parent)))
+        }));
+        if tops.iter().any(|top| edges(top).len() != 1)
+            || self
+                .source
+                .as_ref()
+                .is_some_and(|source| source.format != SourceFormat::Binary)
+        {
             return Err(NativeError::UnsupportedEdit);
         }
-        let exclusive: Vec<_> = self
-            .dag
-            .iter()
-            .filter(|edge| edge.parent == Some(transform))
-            .filter(|edge| {
-                self.dag
-                    .iter()
-                    .filter(|link| link.child == edge.child)
-                    .count()
-                    == 1
-            })
-            .map(|edge| edge.child)
-            .collect();
-        let node = self.nodes.remove(index);
-        self.shapes.retain(|shape| !exclusive.contains(&shape.id));
-        self.session_materials.prune(&self.shapes);
-        self.dag.retain(|edge| {
-            edge.child != node.transform_id && edge.parent != Some(node.transform_id)
-        });
-        Ok(())
+        gone.sort_unstable();
+        Ok(gone)
     }
     pub fn set_transform(
         &mut self,
@@ -1391,6 +1587,40 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self.editable_node(*id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1410,11 +1640,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
@@ -1429,12 +1655,18 @@ impl NativeScene {
             .position(|shape| shape.id == id)
             .ok_or(NativeError::MissingShape(id))?;
         self.check_effects(id)?;
+        if self.uv_set(id).is_some() {
+            return Err(NativeError::UvsBlockTopologyEdit);
+        }
         let distance = distance * self.units.linear_factor()?;
         let mesh = self.shapes[index].mesh.extruded_face(face, distance)?;
         self.shapes[index].mesh = mesh;
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_uvs.is_empty() {
+            return Err(NativeError::UnsupportedView("session UVs"));
+        }
         if !self.curves.is_empty() {
             return Err(NativeError::UnsupportedView("curves in legacy mesh view"));
         }
@@ -1472,6 +1704,8 @@ impl NativeScene {
     pub fn validate(&self) -> Result<(), NativeError> {
         self.validate_materials()?;
         self.session_materials
+            .validate(&self.shapes, self.source.is_some())?;
+        self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
         FULL_VALIDATIONS.with(|count| count.set(count.get() + 1));
@@ -1535,6 +1769,9 @@ impl NativeScene {
                 appearance.validate(self, source)?;
             }
             for (index, leaf) in source.leaves.iter().enumerate() {
+                if self.removed.binary_search(&leaf.owner).is_ok() {
+                    continue;
+                }
                 let node = self
                     .nodes
                     .iter()
@@ -1577,11 +1814,10 @@ impl NativeScene {
         &self,
         identities: &std::collections::HashSet<NativeId>,
     ) -> Result<(), NativeError> {
-        let mut transforms = std::collections::HashSet::new();
-        transforms
-            .try_reserve(self.nodes.len())
-            .map_err(|_| NativeError::ResourceLimit)?;
-        transforms.extend(self.nodes.iter().map(|node| node.transform_id));
+        // One index for transform lookups and the Kahn walk's children, shared with
+        // `transform_paths` (#347), so neither check scans `self.dag` per identity (#345).
+        let index = self.dag_index()?;
+        let is_transform = |id: NativeId| index.node(id).is_some();
         let mut edges = std::collections::HashSet::new();
         edges
             .try_reserve(self.dag.len())
@@ -1591,13 +1827,15 @@ impl NativeScene {
             .try_reserve(identities.len())
             .map_err(|_| NativeError::ResourceLimit)?;
         incoming.extend(identities.iter().map(|id| (*id, 0usize)));
+        let mut edge_children = std::collections::HashSet::new();
+        edge_children
+            .try_reserve(self.dag.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
         for edge in &self.dag {
             if !identities.contains(&edge.child)
                 || !edges.insert((edge.parent, edge.child))
-                || edge
-                    .parent
-                    .is_some_and(|parent| !transforms.contains(&parent))
-                || (edge.parent.is_none() && !transforms.contains(&edge.child))
+                || edge.parent.is_some_and(|parent| !is_transform(parent))
+                || (edge.parent.is_none() && !is_transform(edge.child))
             {
                 return Err(NativeError::InvalidIdentity);
             }
@@ -1606,11 +1844,9 @@ impl NativeScene {
                     .get_mut(&edge.child)
                     .ok_or(NativeError::InvalidIdentity)? += 1;
             }
+            edge_children.insert(edge.child);
         }
-        if identities
-            .iter()
-            .any(|id| !self.dag.iter().any(|edge| edge.child == *id))
-        {
+        if identities.iter().any(|id| !edge_children.contains(id)) {
             return Err(NativeError::InvalidIdentity);
         }
         let mut pending = std::collections::VecDeque::new();
@@ -1626,13 +1862,13 @@ impl NativeScene {
         let mut visited = 0;
         while let Some(parent) = pending.pop_front() {
             visited += 1;
-            for edge in self.dag.iter().filter(|edge| edge.parent == Some(parent)) {
+            for child in index.children(Some(parent)) {
                 let count = incoming
-                    .get_mut(&edge.child)
+                    .get_mut(child)
                     .ok_or(NativeError::InvalidIdentity)?;
                 *count -= 1;
                 if *count == 0 {
-                    pending.push_back(edge.child);
+                    pending.push_back(*child);
                 }
             }
         }
@@ -1640,6 +1876,98 @@ impl NativeScene {
             return Err(NativeError::InvalidIdentity);
         }
         Ok(())
+    }
+}
+
+/// Lookup tables built once from a scene so a whole view build resolves instance admission with
+/// hash lookups instead of a linear scan per instance (#341). It borrows the scene, so it cannot
+/// outlive or diverge from the data it indexes.
+pub(crate) struct ViewAdmissionIndex<'a> {
+    geometry: std::collections::HashMap<NativeId, &'a GeometryViewFacts>,
+    transforms: std::collections::HashMap<NativeId, &'a NativeTransformNode>,
+    root_edges: std::collections::HashSet<NativeId>,
+    edges: std::collections::HashSet<(NativeId, NativeId)>,
+}
+
+impl<'a> ViewAdmissionIndex<'a> {
+    /// Builds the tables for `scene`. Reservation is fallible and maps to
+    /// [`NativeError::ResourceLimit`], matching the rest of the scene allocation policy.
+    pub(crate) fn new(scene: &'a NativeScene) -> Result<Self, NativeError> {
+        #[cfg(test)]
+        VIEW_ADMISSION_INDEX_BUILDS.with(|count| count.set(count.get() + 1));
+        let limit = |_| NativeError::ResourceLimit;
+        let mut geometry = std::collections::HashMap::new();
+        geometry
+            .try_reserve(scene.shapes.len().saturating_add(scene.curves.len()))
+            .map_err(limit)?;
+        // `validate` puts every node, shape and curve id in one uniqueness set, so no id collides
+        // and insertion order cannot change a lookup. The `or_insert` forms keep the scanning
+        // form's first-match rule anyway, so an unvalidated scene still resolves identically.
+        for shape in &scene.shapes {
+            geometry.entry(shape.id).or_insert(&shape.view);
+        }
+        for curve in &scene.curves {
+            geometry.entry(curve.id).or_insert(&curve.view);
+        }
+        let mut transforms = std::collections::HashMap::new();
+        transforms.try_reserve(scene.nodes.len()).map_err(limit)?;
+        for node in &scene.nodes {
+            transforms.entry(node.transform_id).or_insert(node);
+        }
+        let mut root_edges = std::collections::HashSet::new();
+        root_edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        let mut edges = std::collections::HashSet::new();
+        edges.try_reserve(scene.dag.len()).map_err(limit)?;
+        for edge in &scene.dag {
+            match edge.parent {
+                None => {
+                    root_edges.insert(edge.child);
+                }
+                Some(parent) => {
+                    edges.insert((parent, edge.child));
+                }
+            }
+        }
+        Ok(Self {
+            geometry,
+            transforms,
+            root_edges,
+            edges,
+        })
+    }
+
+    /// [`NativeScene::transform_prefix`] against the index, with the same checks in the same order.
+    fn transform_prefix(&self, path: &[NativeId]) -> Result<(), NativeError> {
+        if path.is_empty()
+            || !self.root_edges.contains(&path[0])
+            || path
+                .iter()
+                .enumerate()
+                .any(|(index, id)| path[..index].contains(id) || !self.transforms.contains_key(id))
+            || path
+                .windows(2)
+                .any(|pair| !self.edges.contains(&(pair[0], pair[1])))
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(())
+    }
+
+    /// [`NativeScene::instance_geometry_id`] against the index, with the same checks in the same
+    /// order.
+    fn instance_geometry_id(&self, path: &[NativeId]) -> Result<NativeId, NativeError> {
+        if path.len() < 2 {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        self.transform_prefix(&path[..path.len() - 1])?;
+        if path[..path.len() - 1].contains(&path[path.len() - 1])
+            || !self
+                .edges
+                .contains(&(path[path.len() - 2], path[path.len() - 1]))
+        {
+            return Err(NativeError::InvalidInstancePath);
+        }
+        Ok(path[path.len() - 1])
     }
 }
 
@@ -1669,19 +1997,31 @@ fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
     Ok(value)
 }
 
-/// Why Delete refuses a node whose hierarchy it cannot yet remove.
+/// Why Delete refuses a node of an opened file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeleteUnsupported {
-    HasChildren,
-    IsChild,
+    Source(binary::RemovalRefusal),
 }
 impl fmt::Display for DeleteUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::HasChildren => "Deleting a node with children is not supported yet",
-            Self::IsChild => "Deleting a node that has a parent is not supported yet",
-        })
+        let Self::Source(reason) = self;
+        write!(f, "Deleting this node is not supported yet: {reason}")
     }
+}
+
+const MAX_REFUSAL_NAME_BYTES: usize = 256;
+
+/// A node name for one line of refusal text. Opened names are unbounded, so it drops control
+/// characters and stops at `MAX_REFUSAL_NAME_BYTES`, on a character boundary.
+fn refusal_name(name: &str) -> String {
+    let mut bounded = String::new();
+    for character in name.chars().filter(|character| !character.is_control()) {
+        if bounded.len() + character.len_utf8() > MAX_REFUSAL_NAME_BYTES {
+            break;
+        }
+        bounded.push(character);
+    }
+    bounded
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1701,11 +2041,22 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// One node of a delete of several refused; `reason` is that node's own refusal.
+    DeleteMemberRefused {
+        node: String,
+        reason: Box<NativeError>,
+    },
+    /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
+    InsertionAfterDelete,
     ReadOnlyFormat,
     UnknownSessionMaterial(SessionMaterialId),
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionUvs,
+    DegenerateUvProjection,
+    UnsupportedUvTopology,
+    UvsBlockTopologyEdit,
     UnsupportedMove(WorldMoveUnsupported),
     UnsupportedRotate(RotateUnsupported),
     UnsupportedScale(ScaleUnsupported),
@@ -1738,7 +2089,7 @@ impl fmt::Display for NativeError {
                 write!(f, "native mesh shape {} does not exist", id.to_decimal())
             }
             Self::InvalidInstancePath => {
-                f.write_str("face target does not match a valid full instance path")
+                f.write_str("target does not match a valid full instance path")
             }
             Self::UnsupportedLinearUnit => {
                 f.write_str("declared linear unit conversion is unsupported")
@@ -1751,6 +2102,10 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
+            Self::InsertionAfterDelete => f.write_str(
+                "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
+            ),
             Self::ReadOnlyFormat => f.write_str("Maya ASCII scenes are read-only in this version"),
             Self::UnknownSessionMaterial(id) => {
                 write!(f, "session material {} does not exist", id.index())
@@ -1763,6 +2118,14 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
+            Self::DegenerateUvProjection => f.write_str(
+                "the shape has no usable extent across this projection; pick another Project from axis",
+            ),
+            Self::UnsupportedUvTopology => f.write_str("UVs on faces with holes are not supported"),
+            Self::UvsBlockTopologyEdit => {
+                f.write_str("UVs do not follow topology edits yet; delete the UVs first")
             }
             Self::AbsentChannelLeaf { channel, component } => write!(
                 f,
@@ -1781,6 +2144,37 @@ impl fmt::Display for NativeError {
 }
 impl std::error::Error for NativeError {}
 
+/// Counters for `name_refusing_member`, so tests pin its cost without timing (#336).
+#[cfg(test)]
+pub(crate) mod attribution_probe {
+    use std::cell::Cell;
+    std::thread_local! {
+        static DECODES: Cell<usize> = const { Cell::new(0) };
+        static CHECKS: Cell<usize> = const { Cell::new(0) };
+        static BUFFERS: Cell<usize> = const { Cell::new(0) };
+    }
+    pub(crate) fn reset() {
+        for cell in [&DECODES, &CHECKS, &BUFFERS] {
+            cell.with(|c| c.set(0));
+        }
+    }
+    pub(crate) fn decoded() {
+        DECODES.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn checked(count: usize) {
+        CHECKS.with(|c| c.set(c.get() + count));
+    }
+    /// One candidate id buffer allocated.
+    pub(crate) fn buffer() {
+        BUFFERS.with(|c| c.set(c.get() + 1));
+    }
+    /// `(source decodes, candidate checks, candidate id buffers allocated)`.
+    pub(crate) fn counts() -> (usize, usize, usize) {
+        let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
+        (get(&DECODES), get(&CHECKS), get(&BUFFERS))
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -1794,4 +2188,12 @@ pub(crate) mod test_fixtures;
 #[cfg(test)]
 std::thread_local! {
     static FULL_VALIDATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static DAG_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static VIEW_ADMISSION_INDEX_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// `ViewAdmissionIndex::new` calls on this thread, so a test can pin one build per view (#341).
+#[cfg(test)]
+pub(crate) fn view_admission_index_builds() -> usize {
+    VIEW_ADMISSION_INDEX_BUILDS.with(std::cell::Cell::get)
 }

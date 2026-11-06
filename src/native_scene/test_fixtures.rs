@@ -74,6 +74,37 @@ pub(crate) fn grouped_shape() -> (NativeScene, NodeId, NodeId, NativeId) {
     (scene, root, child, shape)
 }
 
+/// A parent cube with its own shape and a child cube parented under it, 100 units along x.
+pub(crate) fn group_with_own_shape_and_child() -> (NativeScene, NodeId, NodeId) {
+    let (mut scene, parent) = cube();
+    let child = scene.create(Primitive::Cube, "child").unwrap();
+    let parent_native = scene.node(parent).unwrap().transform_id;
+    let child_native = scene.node(child).unwrap().transform_id;
+    scene
+        .dag
+        .retain(|edge| !(edge.child == child_native && edge.parent.is_none()));
+    scene.dag.push(DagEdge {
+        parent: Some(parent_native),
+        child: child_native,
+    });
+    scene
+        .set_transform(
+            child,
+            NativeTransform {
+                translation: [100.0, 0.0, 0.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    scene.validate().unwrap();
+    (scene, parent, child)
+}
+
+pub(crate) fn hide_first_shape(scene: &mut NativeScene) {
+    scene.shapes[0].view.local_visibility = Some(false);
+    scene.validate().unwrap();
+}
+
 /// root > mid > leaf, with the only shape under leaf.
 pub(crate) fn chain_of_three() -> (NativeScene, NodeId, NodeId, NodeId) {
     let (mut scene, root, mid, _) = grouped_shape();
@@ -232,4 +263,97 @@ pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
     scene.dag.retain(|edge| edge.child != discarded);
     scene.validate().unwrap();
     (scene, cube, empty)
+}
+
+/// Roots x1 and x2 both parent transform `a` (instanced), and `b` is a child of `a`. Returns
+/// (scene, x1, x2, a, b); `b` is reachable as x1/a/b and x2/a/b and moves with `a`.
+pub(crate) fn instanced_chain() -> (NativeScene, NodeId, NodeId, NodeId, NodeId) {
+    let mut scene = NativeScene::default();
+    let [x1, x2, a, b] =
+        ["x1", "x2", "a", "b"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    let native = |scene: &NativeScene, id| scene.node(id).unwrap().transform_id;
+    let (x1_native, x2_native) = (native(&scene, x1), native(&scene, x2));
+    let (a_native, b_native) = (native(&scene, a), native(&scene, b));
+    scene.dag.retain(|edge| {
+        !(edge.parent.is_none() && (edge.child == a_native || edge.child == b_native))
+    });
+    for (parent, child) in [
+        (x1_native, a_native),
+        (x2_native, a_native),
+        (a_native, b_native),
+    ] {
+        scene.dag.push(DagEdge {
+            parent: Some(parent),
+            child,
+        });
+    }
+    scene.validate().unwrap();
+    (scene, x1, x2, a, b)
+}
+
+/// `count` shapeless root transforms named `root0`..; built without per-node validation so a
+/// 4096-member selection is cheap to set up.
+pub(crate) fn many_roots(count: u64) -> NativeScene {
+    let (mut scene, _) = cube();
+    let template = scene.nodes[0].clone();
+    scene.nodes.clear();
+    scene.shapes.clear();
+    scene.dag.clear();
+    for index in 0..count {
+        let mut node = template.clone();
+        node.id = NodeId::from_decimal(&(index + 1).to_string()).unwrap();
+        node.transform_id = NativeId(index + 1);
+        node.name = format!("root{index}");
+        scene.dag.push(DagEdge {
+            parent: None,
+            child: node.transform_id,
+        });
+        scene.nodes.push(node);
+    }
+    scene.next_id = count + 1;
+    scene.next_native_id = count + 2;
+    scene.validate().unwrap();
+    scene
+}
+
+/// Two cubes in a binary source: the first has its translate leaf, the second has none and cannot
+/// gain one (a leaf binds all three components, so a node lacks all of them or none). Returns the
+/// scene, the complete node and the leafless node.
+pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeId) {
+    use source::{SourceLeaf, Storage};
+    let mut scene = NativeScene::default();
+    let full = scene.create(Primitive::Cube, "full").unwrap();
+    let bare = scene.create(Primitive::Cube, "bare").unwrap();
+    let owner = scene.node(full).unwrap().transform_id;
+    scene.source = Some(SourceRetention {
+        sites: Vec::new(),
+        bytes: vec![0u8; 24].into(),
+        format: SourceFormat::Binary,
+        records: std::iter::once(0..24).collect(),
+        leaves: vec![SourceLeaf {
+            payload: 0..24,
+            numeric: 0..24,
+            owner,
+            field: TransformField::Translation,
+            storage: Storage::Centimeters,
+        }],
+        appearance: None,
+        has_removals: false,
+    });
+    let index = scene.nodes.iter().position(|n| n.id == full).unwrap();
+    for component in 0..3 {
+        scene.nodes[index].channels[component].origin =
+            Some(ScalarOrigin::Binary { leaf: 0, component });
+        scene.nodes[index].channels[component].replaced = false;
+    }
+    scene.validate().unwrap();
+    (scene, full, bare)
+}
+
+/// Marks a transform's effect as unproved, so deleting it or an ancestor is refused.
+pub(crate) fn restrict_transform(scene: &mut NativeScene, id: NodeId) {
+    let at = scene.nodes.iter().position(|node| node.id == id).unwrap();
+    scene.nodes[at]
+        .unsupported_transform
+        .push("unproved effect".into());
 }

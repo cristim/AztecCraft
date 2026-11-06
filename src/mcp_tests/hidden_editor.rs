@@ -140,6 +140,7 @@ fn remote_numeric_move_survives_successive_actual_hidden_editor_callbacks() {
             operation: Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
         })
         .unwrap();
@@ -318,7 +319,7 @@ fn actual_hidden_app_logic_inspects_and_edits_the_same_editor() {
     let mut inspected = ingress
         .queue(RemoteRequest {
             expected_scene_token: None,
-            operation: Operation::Inspect,
+            operation: Operation::Inspect { page: None },
         })
         .unwrap();
     hidden_frame(&mut editor, &context, vec![]);
@@ -343,7 +344,7 @@ fn actual_hidden_app_logic_inspects_and_edits_the_same_editor() {
     let mut inspected = ingress
         .queue(RemoteRequest {
             expected_scene_token: None,
-            operation: Operation::Inspect,
+            operation: Operation::Inspect { page: None },
         })
         .unwrap();
     let mut input = egui::RawInput::default();
@@ -407,7 +408,7 @@ fn hidden_pending_input_preserves_native_baseline_before_visible_consumption() {
     let mut inspection = ingress
         .queue(RemoteRequest {
             expected_scene_token: None,
-            operation: Operation::Inspect,
+            operation: Operation::Inspect { page: None },
         })
         .unwrap();
     hidden_frame(&mut editor, &context, vec![]);

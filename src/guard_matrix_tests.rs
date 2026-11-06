@@ -19,7 +19,7 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
-    WorldAxis,
+    UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -189,6 +189,10 @@ enum Pre {
     AttributeEditorDock,
     /// Creates session material 1 (refused on sourced scenes, where the cell shows that).
     SessionMaterial,
+    /// Assigns a created material to the first shape, which a new Maya Binary cannot hold.
+    AssignedMaterial,
+    /// Puts a file at the Save As destination before the operation runs.
+    OccupiedDestination,
 }
 
 struct Sample {
@@ -226,9 +230,12 @@ struct Targets {
     /// Second node and its shape when the scene has one; otherwise the first node's.
     other: (azteccraft::scene::NodeId, Vec<NativeId>, NativeId),
     move_id: ManipulationId,
+    /// The selection generation a remote Move of several objects must name.
+    selection_generation: u64,
     pending_id: Uuid,
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
+    export: std::path::PathBuf,
 }
 
 impl Targets {
@@ -308,12 +315,14 @@ fn targets(rig: &Rig) -> Targets {
             || ManipulationId::from_decimal("999").unwrap(),
             |active| active.id,
         ),
+        selection_generation: editor.selection.generation(),
         pending_id: editor
             .files
             .pending_inspection()
             .map_or(Uuid::nil(), |pending| pending.id.parse().unwrap()),
         ascii: rig.directory.path().join("curve.ma"),
         save_as: rig.directory.path().join("saved.mb"),
+        export: rig.directory.path().join("export.obj"),
     }
 }
 
@@ -451,6 +460,7 @@ fn build(state: State) -> Rig {
                     Operation::BeginMove {
                         target,
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                     &|| true,
                 )
@@ -531,6 +541,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::UpdateMove {
             id: t.move_id,
@@ -571,7 +582,16 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
-        Operation::Inspect,
+        Operation::ProjectUvPlanar {
+            shape: t.shape,
+            axis: UvProjectAxis::Y,
+        },
+        Operation::DeleteUvs { shape: t.shape },
+        Operation::Inspect { page: None },
+        Operation::InspectUvs {
+            shape: t.shape,
+            cursor: None,
+        },
         Operation::Create {
             primitive: Primitive::Plane,
             options: None,
@@ -607,6 +627,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::SaveSceneAs {
             path: t.save_as.clone(),
         },
+        Operation::ExportObj {
+            path: t.export.clone(),
+            selection_only: false,
+        },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
             decision: FileDecision::Cancel,
@@ -638,7 +662,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
-        Operation::FrameSelected,
+        Operation::FrameSelected {
+            with_children: false,
+        },
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
@@ -740,8 +766,23 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::BeginMove {
                     target: t.transform_target(),
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
             ),
+            // Several objects selected: both pipelines move the whole selection, the remote one
+            // because it names the current generation. The guards match the single-object cells.
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "begin_move(multi)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
             Sample {
                 pre: Pre::FaceMode,
                 ..sample(
@@ -749,6 +790,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                 )
             },
@@ -891,7 +933,27 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
-        Operation::Inspect => vec![sample("inspect", Operation::Inspect)],
+        Operation::Inspect { .. } => {
+            vec![sample("inspect", Operation::Inspect { page: None })]
+        }
+        Operation::InspectUvs { .. } => vec![sample(
+            "inspect_uvs",
+            Operation::InspectUvs {
+                shape: t.shape,
+                cursor: None,
+            },
+        )],
+        Operation::ProjectUvPlanar { .. } => vec![sample(
+            "project_uv_planar",
+            Operation::ProjectUvPlanar {
+                shape: t.shape,
+                axis: UvProjectAxis::Y,
+            },
+        )],
+        Operation::DeleteUvs { .. } => vec![sample(
+            "delete_uvs",
+            Operation::DeleteUvs { shape: t.shape },
+        )],
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",
@@ -1187,15 +1249,69 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             install_probe: true,
             ..sample("save_scene", Operation::SaveScene)
         }],
-        Operation::SaveSceneAs { .. } => vec![Sample {
-            install_probe: true,
-            ..sample(
-                "save_scene_as",
-                Operation::SaveSceneAs {
-                    path: t.save_as.clone(),
+        Operation::SaveSceneAs { .. } => vec![
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                pre: Pre::OccupiedDestination,
+                ..sample(
+                    "save_scene_as(occupied)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                pre: Pre::AssignedMaterial,
+                ..sample(
+                    "save_scene_as(material_assigned)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.clone(),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as(wrong_extension)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.with_extension("txt"),
+                    },
+                )
+            },
+        ],
+        Operation::ExportObj { .. } => vec![
+            sample(
+                "export_obj(all)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: false,
                 },
-            )
-        }],
+            ),
+            sample(
+                "export_obj(selection)",
+                Operation::ExportObj {
+                    path: t.export.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_obj(not_obj)",
+                Operation::ExportObj {
+                    path: t.save_as.clone(),
+                    selection_only: false,
+                },
+            ),
+        ],
         Operation::ResolveFileAction { .. } => vec![
             sample(
                 "resolve_file_action(cancel)",
@@ -1319,7 +1435,20 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
-        Operation::FrameSelected => vec![sample("frame_selected", Operation::FrameSelected)],
+        Operation::FrameSelected { .. } => vec![
+            sample(
+                "frame_selected(parents)",
+                Operation::FrameSelected {
+                    with_children: false,
+                },
+            ),
+            sample(
+                "frame_selected(children)",
+                Operation::FrameSelected {
+                    with_children: true,
+                },
+            ),
+        ],
         Operation::FrameAll => vec![sample("frame_all", Operation::FrameAll)],
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
@@ -1615,6 +1744,19 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                 color: [1.0, 0.0, 0.0],
             });
         }
+        Pre::AssignedMaterial => {
+            if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
+                let _ = rig.editor.history.execute(Command::AssignSessionMaterial {
+                    shape,
+                    material: MaterialChoice::New {
+                        color: [1.0, 0.0, 0.0],
+                    },
+                });
+            }
+        }
+        Pre::OccupiedDestination => {
+            std::fs::write(rig.directory.path().join("saved.mb"), b"occupant").unwrap();
+        }
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
         Pre::EdgeMode => rig.editor.selection_mode = SelectionMode::Edge,
         Pre::AttributeEditorDock => {
@@ -1646,7 +1788,7 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
     let label = chosen.label;
     let before = observe(&rig.editor, &root_refs);
     let may_install = rig.may_install;
-    let operation = std::mem::replace(&mut chosen.operation, Operation::Inspect);
+    let operation = std::mem::replace(&mut chosen.operation, Operation::Inspect { page: None });
     let result = match pipeline {
         Pipeline::Native => rig.editor.apply_operation_guarded(
             ManipulationProvenance::Native,
@@ -1796,12 +1938,11 @@ fn guard_matrix_file_writing_cells_match_committed_snapshot() {
         cells > 10,
         "file-writing matrix unexpectedly small: {cells}"
     );
-    let snapshot = if cfg!(windows) {
-        "guard_matrix_file_writing_windows.txt"
+    if cfg!(windows) {
+        super::snapshots::assert_snapshot("guard_matrix_file_writing_windows.txt", &text);
     } else {
-        "guard_matrix_file_writing.txt"
-    };
-    super::snapshots::assert_snapshot(snapshot, &text);
+        super::snapshots::assert_snapshot("guard_matrix_file_writing.txt", &text);
+    }
 }
 
 #[test]

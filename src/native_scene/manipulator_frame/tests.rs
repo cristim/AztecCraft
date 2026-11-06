@@ -430,3 +430,25 @@ fn scale_origin_includes_a_nonzero_scale_pivot() {
     near(frame.scale_origin_cm, DVec3::new(3.0, 0.0, 0.0));
     near(frame.origin_cm, DVec3::new(1.0, 0.0, 0.0));
 }
+
+#[test]
+fn the_frame_pivot_is_the_world_image_of_the_rotate_pivot_including_rp() {
+    let (mut scene, node) = test_fixtures::cube();
+    scene
+        .set_transform(
+            node,
+            NativeTransform {
+                translation: [1.0, 2.0, 3.0],
+                ..NativeTransform::default()
+            },
+        )
+        .unwrap();
+    scene.nodes[0].rotate_pivot[0] = Scalar::new(0.5);
+    scene.nodes[0].rotate_pivot[2] = Scalar::new(-4.0);
+    scene.validate().unwrap();
+    let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
+    // T + RT + RP in the parent's space; a rotation about RP leaves RP fixed. origin_cm keeps
+    // ignoring RP, which Frame Selected and the Rotate and Scale handles rely on.
+    near(frame.pivot_cm, DVec3::new(1.5, 2.0, -1.0));
+    near(frame.origin_cm, DVec3::new(1.0, 2.0, 3.0));
+}

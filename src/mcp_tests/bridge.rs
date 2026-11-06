@@ -64,7 +64,7 @@ fn remote_change_requests_repaint_and_large_inspection_returns_explicit_error() 
         editor.remote_operation(
             RemoteRequest {
                 expected_scene_token: None,
-                operation: Operation::Inspect,
+                operation: Operation::Inspect { page: None },
             },
             &context
         ),
@@ -131,4 +131,32 @@ fn approved_native_close_has_bounded_process_cleanup_with_open_silent_stdin() {
         std::thread::sleep(Duration::from_millis(10));
     }
     drop(open_stdin);
+}
+
+#[test]
+fn a_successful_remote_export_requests_a_repaint_for_its_status() {
+    let context = egui::Context::default();
+    let (mut bridge, ingress) = mcp::test_bridge(context.clone());
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let directory = tempfile::tempdir().unwrap();
+    for _ in 0..2 {
+        let _ = context.run_logic(&egui::RawInput::default(), |_| {});
+    }
+    assert!(!context.has_requested_repaint());
+    let mut reply = ingress
+        .queue(RemoteRequest {
+            expected_scene_token: Some(editor.scene_token),
+            operation: Operation::ExportObj {
+                path: directory.path().join("cube.obj"),
+                selection_only: false,
+            },
+        })
+        .unwrap();
+    bridge.dispatch(&mut editor, &context);
+    assert!(matches!(
+        reply.try_recv().unwrap(),
+        Ok(OperationReply::Exported { .. })
+    ));
+    assert!(context.has_requested_repaint());
 }

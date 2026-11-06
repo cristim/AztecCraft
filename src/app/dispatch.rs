@@ -10,6 +10,17 @@ struct StatusFeedback {
     fixed: bool,
 }
 
+/// Radians for a rotation request in degrees. A request equal to the stored angle in degrees keeps
+/// the stored radians, because `to_degrees` then `to_radians` can land 1 ulp away.
+#[cfg(any(test, feature = "mcp"))]
+pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
+    if stored.to_degrees() == degrees {
+        stored
+    } else {
+        degrees.to_radians()
+    }
+}
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -82,7 +93,7 @@ impl Editor {
             | Operation::SelectVertex { .. }
             | Operation::SelectEdge { .. }
             | Operation::SetSelectionMode(_)
-            | Operation::FrameSelected
+            | Operation::FrameSelected { .. }
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
@@ -121,6 +132,7 @@ impl Editor {
             Operation::RequestClose => None,
             Operation::SaveScene
             | Operation::SaveSceneAs { .. }
+            | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
             _ => Some("Scene edited"),
         };
@@ -143,6 +155,16 @@ impl Editor {
             fixed,
         } = feedback;
         match result {
+            Ok(OperationReply::Exported {
+                objects,
+                vertices,
+                faces,
+            }) => {
+                self.status = format!(
+                    "Exported {objects} object(s), {vertices} vertices and {faces} faces to OBJ"
+                );
+                self.error = false;
+            }
             Ok(reply) => {
                 if let (Some(status), true) = (status, fixed) {
                     self.status = status.into();
@@ -190,9 +212,14 @@ impl Editor {
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
         let focused = text_edit_focused(ctx);
-        if matches!(request.operation, Operation::Inspect) {
+        if let Operation::Inspect { page } = &request.operation {
             return Ok(OperationReply::Scene {
-                inspection: Box::new(self.inspect(focused)?),
+                inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
+            });
+        }
+        if let Operation::InspectUvs { shape, cursor } = &request.operation {
+            return Ok(OperationReply::Uvs {
+                inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
             });
         }
         if request.expected_scene_token != Some(self.scene_token) {
@@ -230,6 +257,13 @@ impl Editor {
             self.record_feedback(feedback, &result);
         }
         result
+    }
+    #[cfg(any(test, feature = "mcp"))]
+    fn rotation_radians(&self, id: NodeId, axis: usize, degrees: f64) -> f64 {
+        match self.history.scene().node(id) {
+            Ok(node) => radians_keeping_stored(node.transform().rotation[axis], degrees),
+            Err(_) => degrees.to_radians(),
+        }
     }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn transform_input(
@@ -288,6 +322,9 @@ impl Editor {
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
+        }
+        if let Operation::ExportObj { path, .. } = &operation {
+            super::features::obj_export::validate_export_path(path)?;
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
@@ -433,8 +470,17 @@ impl Editor {
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
-            Operation::BeginMove { target, axis } => {
-                return self.begin_editor_move(&target, axis, provenance);
+            Operation::BeginMove {
+                target,
+                axis,
+                expected_selection_generation,
+            } => {
+                return self.begin_editor_move(
+                    &target,
+                    axis,
+                    provenance,
+                    expected_selection_generation,
+                );
             }
             Operation::UpdateMove { id, distance } => {
                 return self.update_editor_move(id, distance, provenance);
@@ -473,6 +519,8 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
+            Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -554,7 +602,7 @@ impl Editor {
                     if let Some(value) = value {
                         let value = match self.history.scene().units().angular {
                             AngularUnit::Degree => value,
-                            AngularUnit::Radian => value.to_radians(),
+                            AngularUnit::Radian => self.rotation_radians(id, index, value),
                             AngularUnit::Unsupported(_) => {
                                 return Err(OperationError::InvalidInput(
                                     "Declared angular unit is unsupported".into(),
@@ -576,7 +624,9 @@ impl Editor {
             Operation::SetTransform { id, transform } => {
                 let rotation = match self.history.scene().units().angular {
                     AngularUnit::Degree => transform.rotation_degrees,
-                    AngularUnit::Radian => transform.rotation_degrees.map(f64::to_radians),
+                    AngularUnit::Radian => std::array::from_fn(|axis| {
+                        self.rotation_radians(id, axis, transform.rotation_degrees[axis])
+                    }),
                     AngularUnit::Unsupported(_) => {
                         return Err(OperationError::InvalidInput(
                             "Declared angular unit is unsupported".into(),
@@ -752,7 +802,7 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
-            Operation::FrameSelected => {
+            Operation::FrameSelected { with_children } => {
                 let component = matches!(
                     self.selection_mode,
                     SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge
@@ -776,42 +826,41 @@ impl Editor {
                     .ok_or(OperationError::NoSelection)?
                     .map_err(OperationError::Scene)?;
                 }
-                let paths = if component {
-                    None
-                } else {
-                    if self.selection.is_empty() {
-                        return Err(OperationError::NoSelection);
-                    }
-                    let mut paths = Vec::with_capacity(self.selection.len());
-                    for member in self.selection.members() {
-                        let path = (!member.path.is_empty()).then(|| member.path.clone());
-                        paths.push(self.selection_path(member.node, path)?);
-                    }
-                    Some(paths)
-                };
+                if !component && self.selection.is_empty() {
+                    // The 2027 View page: Frame Selection with nothing selected acts like Frame All.
+                    return self.frame_everything();
+                }
+                if !component {
+                    let before = self.camera.clone();
+                    self.frame_members(if with_children {
+                        FrameChildren::Include
+                    } else {
+                        FrameChildren::Exclude
+                    })?;
+                    return Ok(if self.camera == before {
+                        OperationReply::Unchanged
+                    } else {
+                        OperationReply::Changed
+                    });
+                }
                 let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
                     .map_err(|error| OperationError::View(error.to_string()))?;
                 let before = self.camera.clone();
-                if let Some(paths) = paths {
-                    let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
-                    self.camera.frame_view_many(&view, &prefixes, self.aspect)
-                } else {
-                    match self.selection_mode {
-                        SelectionMode::Face => self
-                            .remembered_face
-                            .as_ref()
-                            .map(|target| self.camera.frame_face(&view, target, self.aspect)),
-                        SelectionMode::Vertex => self
-                            .remembered_vertex
-                            .as_ref()
-                            .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
-                        _ => self
-                            .remembered_edge
-                            .as_ref()
-                            .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
-                    }
-                    .ok_or(OperationError::NoSelection)?
+                match self.selection_mode {
+                    SelectionMode::Face => self
+                        .remembered_face
+                        .as_ref()
+                        .map(|target| self.camera.frame_face(&view, target, self.aspect)),
+                    SelectionMode::Vertex => self
+                        .remembered_vertex
+                        .as_ref()
+                        .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
+                    _ => self
+                        .remembered_edge
+                        .as_ref()
+                        .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
                 }
+                .ok_or(OperationError::NoSelection)?
                 .map_err(OperationError::Camera)?;
                 return Ok(if self.camera == before {
                     OperationReply::Unchanged
@@ -819,6 +868,11 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
+            Operation::ExportObj {
+                path,
+                selection_only,
+            } => return self.export_obj(&path, selection_only, may_install),
+
             Operation::SetCameraPose {
                 target,
                 distance,
@@ -835,22 +889,7 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
-            Operation::FrameAll => {
-                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::View(error.to_string()))?;
-                if view.instances().is_empty() && view.curve_instances().is_empty() {
-                    return Err(OperationError::NothingToFrame);
-                }
-                let before = self.camera.clone();
-                self.camera
-                    .frame_view(&view, None, self.aspect)
-                    .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
-            }
+            Operation::FrameAll => return self.frame_everything(),
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
                 let before = self.camera.clone();
                 match operation {
@@ -867,9 +906,15 @@ impl Editor {
                 });
             }
             #[cfg(any(test, feature = "mcp"))]
-            Operation::Inspect => {
+            Operation::Inspect { page } => {
                 return Ok(OperationReply::Scene {
-                    inspection: Box::new(self.inspect(false)?),
+                    inspection: Box::new(self.inspect_page(false, page.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectUvs { shape, cursor } => {
+                return Ok(OperationReply::Uvs {
+                    inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

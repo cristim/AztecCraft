@@ -88,7 +88,7 @@ a text field isn't consuming keys. Ctrl/Cmd-Z undoes and Ctrl/Cmd-Shift-Z redoes
 New/Open use the shared native document lifecycle. This candidate enables
 eligible Unix and Windows Maya binary Save/Save As through that same lifecycle and ordinary
 vendored writer; current integration and native Save QA remain pending. No derived JSON save is substituted.
-GUI Export and unfinished modeling/animation/material controls are disabled.
+Unfinished modeling/animation/material controls are disabled.
 Docking and full Maya interaction parity aren't implemented or verified.
 
 The checkable Grid button controls this single viewport's fixed XZ ground grid.
@@ -182,7 +182,8 @@ clears it; New/Open retain the current mask. Edits and Undo/Redo revalidate the
 target and clear dangling identities without restoring them on Redo. Selection
 does not modify authoring history, source bytes or dirty state. F/frame_selected
 in Face mode frames the selected face corners even if its center is occluded or
-clipped; no face returns an error instead of framing the object. Existing native
+clipped; no face returns an error instead of framing the object. In Object and Hierarchy
+modes F frames the selected parents only and Ctrl+F includes their descendants. Existing native
 valid-draft commitment and remote draft-refusal rules remain in force.
 
 Shift/Ctrl component selection, marquee, multiple faces, other component masks, preselection
@@ -491,8 +492,9 @@ recovery, autosave, history and camera persistence remain pending.
 index offsets and winding reversed for reflected transforms. Object names use
 UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
-exports geometry only, without UVs, normals or materials. OBJ import and the GUI
-Export action aren't implemented.
+exports geometry only, without UVs, normals or materials. File > Export All and
+Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
+OBJ import isn't implemented.
 
 ## Camera core
 

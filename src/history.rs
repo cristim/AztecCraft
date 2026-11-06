@@ -1,6 +1,7 @@
 use crate::{
     native_scene::{
         MaterialChoice, NativeError, NativeId, NativeScene, NativeTransform, SessionMaterialId,
+        UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -9,7 +10,7 @@ mod move_transaction;
 use move_transaction::MoveTransaction;
 pub use move_transaction::{
     ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
-    ManipulationProvenance, ManipulationState,
+    ManipulationProvenance, ManipulationState, is_covered, selected_transform_ids,
 };
 use std::collections::VecDeque;
 
@@ -41,6 +42,9 @@ pub enum Command {
         name: Option<String>,
         channels: [Option<f64>; 9],
     },
+    /// Edits channels of several nodes as one undo step; any refusal leaves the scene and history
+    /// untouched. Duplicate ids are refused.
+    EditNodes(Vec<(NodeId, [Option<f64>; 9])>),
     SetMaterialDiffuse {
         shape: NativeId,
         value: f64,
@@ -61,6 +65,13 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    ProjectUvPlanar {
+        shape: NativeId,
+        axis: UvProjectAxis,
+    },
+    DeleteUvs {
+        shape: NativeId,
+    },
 }
 
 impl Command {
@@ -72,13 +83,16 @@ impl Command {
             Self::Rename { .. } => "Rename".to_string(),
             // execute_labeled names it from the stored before/after values.
             Self::SetTransform { .. } => "Transform".to_string(),
-            Self::EditNode { .. } => "Edit".to_string(),
+            Self::EditNode { .. } | Self::EditNodes(_) => "Edit".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
             | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
+            Self::DeleteUvs { .. } => "Delete UVs".to_string(),
         }
     }
 }
@@ -127,6 +141,9 @@ pub struct History {
     redo: Vec<Entry>,
     active_manipulation: Option<MoveTransaction>,
     next_manipulation_id: u64,
+    /// Counts every write to `scene`, so a reader can tell that the scene changed between two
+    /// reads. Replacing the whole `History` starts again at 0.
+    revision: u64,
 }
 
 impl History {
@@ -137,11 +154,26 @@ impl History {
             redo: Vec::new(),
             active_manipulation: None,
             next_manipulation_id: 0,
+            revision: 0,
         }
     }
 
     pub fn scene(&self) -> &NativeScene {
         &self.scene
+    }
+    /// Changes whenever the scene is written (edit, undo, redo, manipulation preview, restore).
+    /// A refused or Unchanged execute does not bump; manipulation writes always do.
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+    /// The only write access to the scene; every call counts as a change.
+    fn scene_mut(&mut self) -> &mut NativeScene {
+        Self::touch(&mut self.scene, &mut self.revision)
+    }
+    /// `scene_mut` for callers that hold a borrow of another field.
+    fn touch<'a>(scene: &'a mut NativeScene, revision: &mut u64) -> &'a mut NativeScene {
+        *revision = revision.wrapping_add(1);
+        scene
     }
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty()
@@ -209,6 +241,10 @@ impl History {
                 candidate.edit_node(id, name.as_deref(), channels)?;
                 EditOutcome::Changed
             }
+            Command::EditNodes(edits) => {
+                candidate.edit_nodes(&edits)?;
+                EditOutcome::Changed
+            }
             Command::SetMaterialDiffuse { shape, value } => {
                 candidate.set_material_diffuse(shape, value)?;
                 EditOutcome::Changed
@@ -231,6 +267,14 @@ impl History {
                 candidate.extrude_face(shape, face_index, distance)?;
                 EditOutcome::Changed
             }
+            Command::ProjectUvPlanar { shape, axis } => {
+                candidate.project_uv_planar(shape, axis)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteUvs { shape } => {
+                candidate.delete_uvs(shape)?;
+                EditOutcome::Changed
+            }
         };
         if self.scene == candidate {
             return Ok(EditOutcome::Unchanged);
@@ -247,8 +291,9 @@ impl History {
         if self.undo.len() == UNDO_LIMIT {
             self.undo.pop_front();
         }
+        let previous = std::mem::replace(self.scene_mut(), candidate);
         self.undo.push_back(Entry {
-            scene: std::mem::replace(&mut self.scene, candidate),
+            scene: previous,
             label,
         });
         self.redo.clear();
@@ -266,7 +311,7 @@ impl History {
             scene: self.scene.clone(),
             label: previous.label,
         });
-        self.scene.restore_authoring(previous.scene);
+        self.scene_mut().restore_authoring(previous.scene);
         true
     }
 
@@ -281,7 +326,7 @@ impl History {
             scene: self.scene.clone(),
             label: next.label,
         });
-        self.scene.restore_authoring(next.scene);
+        self.scene_mut().restore_authoring(next.scene);
         true
     }
 }
@@ -310,6 +355,65 @@ mod tests {
     }
 
     #[test]
+    fn the_revision_starts_at_zero_and_changes_with_every_scene_write() {
+        assert_eq!(History::default().revision(), 0);
+        let mut history = History::new(NativeScene::default());
+        let mut last = history.revision();
+        let mut changed = |history: &History| {
+            let now = history.revision();
+            assert_ne!(now, last);
+            last = now;
+        };
+        let EditOutcome::Created(id) = history
+            .execute(Command::Create {
+                primitive: crate::scene::Primitive::Cube,
+                options: None,
+                name: "a".into(),
+            })
+            .unwrap()
+        else {
+            panic!("create");
+        };
+        changed(&history);
+        history
+            .execute(Command::Rename {
+                id,
+                name: "b".into(),
+            })
+            .unwrap();
+        changed(&history);
+        assert!(history.undo());
+        changed(&history);
+        assert!(history.redo());
+        changed(&history);
+        history.execute(Command::Remove(id)).unwrap();
+        changed(&history);
+    }
+
+    #[test]
+    fn an_unchanged_edit_and_a_refused_undo_leave_the_revision_alone() {
+        let (mut history, ids) = three_cube_history();
+        history.execute(Command::Remove(ids[2])).unwrap();
+        let before = history.revision();
+        let same = history.scene().node(ids[0]).unwrap().transform();
+        assert_eq!(
+            history
+                .execute(Command::SetTransform {
+                    id: ids[0],
+                    transform: same
+                })
+                .unwrap(),
+            EditOutcome::Unchanged
+        );
+        assert_eq!(history.revision(), before);
+        assert!(history.execute(Command::Remove(ids[2])).is_err());
+        assert_eq!(history.revision(), before);
+        let mut empty = History::default();
+        assert!(!empty.undo() && !empty.redo());
+        assert_eq!(empty.revision(), 0);
+    }
+
+    #[test]
     fn remove_many_is_one_undo_step_that_redoes_and_undoes_as_a_whole() {
         let (mut history, ids) = three_cube_history();
         let before = history.scene().clone();
@@ -328,12 +432,17 @@ mod tests {
 
     #[test]
     fn remove_many_with_a_refused_member_leaves_scene_and_stacks_untouched() {
-        let (scene, root, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+        let (mut scene, _, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+        let other = scene
+            .create(crate::scene::Primitive::Cube, "other")
+            .unwrap();
+        crate::native_scene::test_fixtures::restrict_transform(&mut scene, other);
         let mut history = History::new(scene);
         let before = history.scene().clone();
         assert!(matches!(
-            history.execute(Command::RemoveMany(vec![root, child])),
-            Err(NativeError::UnsupportedDelete(_))
+            history.execute(Command::RemoveMany(vec![child, other])),
+            Err(NativeError::DeleteMemberRefused { reason, .. })
+                if *reason == NativeError::UnsupportedEdit
         ));
         assert_eq!(history.scene(), &before);
         assert!(!history.can_undo() && !history.can_redo());
@@ -352,6 +461,91 @@ mod tests {
             undone += 1;
         }
         assert_eq!(undone, 3);
+    }
+
+    fn x_edit(id: NodeId, value: f64) -> (NodeId, [Option<f64>; 9]) {
+        let mut channels = [None; 9];
+        channels[0] = Some(value);
+        (id, channels)
+    }
+
+    #[test]
+    fn edit_nodes_is_one_undo_step() {
+        let (mut history, ids) = three_cube_history();
+        let before = history.scene().clone();
+        let undo_depth = history.undo.len();
+        history
+            .execute(Command::EditNodes(vec![
+                x_edit(ids[0], 1.0),
+                x_edit(ids[2], 3.0),
+            ]))
+            .unwrap();
+        assert_eq!(history.undo.len(), undo_depth + 1);
+        assert_eq!(history.undo_label().as_deref(), Some("Edit"));
+        let after = history.scene().clone();
+        assert_eq!(after.node(ids[0]).unwrap().transform().translation[0], 1.0);
+        assert_eq!(after.node(ids[1]).unwrap().transform().translation[0], 0.0);
+        assert_eq!(after.node(ids[2]).unwrap().transform().translation[0], 3.0);
+        assert!(history.undo());
+        assert_eq!(history.scene(), &before);
+        assert!(history.redo());
+        assert_eq!(history.scene(), &after);
+        assert!(history.undo());
+        assert_eq!(history.scene(), &before);
+    }
+
+    #[test]
+    fn edit_nodes_failure_leaves_scene_and_history_untouched() {
+        let (mut history, ids) = three_cube_history();
+        let before = history.scene().clone();
+        let revision = history.revision();
+        let depth = history.undo.len();
+        let missing = NodeId::from_decimal("999").unwrap();
+        assert!(
+            history
+                .execute(Command::EditNodes(vec![
+                    x_edit(ids[0], 1.0),
+                    x_edit(missing, 2.0)
+                ]))
+                .is_err()
+        );
+        assert_eq!(history.scene(), &before);
+        assert_eq!(history.revision(), revision);
+        assert_eq!((history.undo.len(), history.redo.len()), (depth, 0));
+    }
+
+    #[test]
+    fn edit_nodes_rejects_duplicate_ids() {
+        let (mut history, ids) = three_cube_history();
+        let before = history.scene().clone();
+        assert!(
+            history
+                .execute(Command::EditNodes(vec![
+                    x_edit(ids[0], 1.0),
+                    x_edit(ids[0], 2.0)
+                ]))
+                .is_err()
+        );
+        assert_eq!(history.scene(), &before);
+    }
+
+    #[test]
+    fn edit_nodes_is_refused_while_a_manipulation_is_active() {
+        let mut history = History::new(crate::native_scene::test_fixtures::cube().0);
+        let target = history.scene().transform_paths().unwrap().remove(0);
+        history
+            .begin_move(
+                &target,
+                crate::native_scene::WorldAxis::X,
+                uuid::Uuid::new_v4(),
+                ManipulationProvenance::Native,
+                1 << 28,
+            )
+            .unwrap();
+        assert_eq!(
+            history.execute(Command::EditNodes(vec![x_edit(target.node, 1.0)])),
+            Err(NativeError::BusyManipulation)
+        );
     }
 
     #[test]

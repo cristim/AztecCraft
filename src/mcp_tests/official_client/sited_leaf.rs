@@ -562,6 +562,7 @@ async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseli
                 path: transform.path.clone(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::EditNode {
             id: object.id,
@@ -610,26 +611,98 @@ async fn sited_move_and_edit_node_share_the_guard_matrix_and_preserve_the_baseli
     rig.finish().await;
 }
 
+/// `bytes` plus an unbound group holding a record the analysis does not model, which names `object`.
+fn with_unmodelled_record(mut bytes: Vec<u8>) -> Vec<u8> {
+    let record = sited::chunk_zero_pad(b"PRNT", 0, b"\0object\0", 8);
+    bytes.extend(sited::group_zero_pad(b"DPLM", &record, 4));
+    let size = (bytes.len() as u64 - 16).to_be_bytes();
+    bytes[8..16].copy_from_slice(&size);
+    bytes
+}
+
 #[tokio::test]
-async fn delete_node_on_an_opened_binary_root_leaf_is_refused_without_mutation() {
+async fn delete_node_on_an_opened_binary_removes_root_leaves_and_undo_restores_them() {
     let mut rig = Rig::open_bytes(siteless_bytes()).await;
     let baseline = rig.baseline();
+    // `locked` has no insertion site, which only matters for edits: a delete needs no leaf.
     for name in ["object", "locked"] {
         let node = rig.node(name);
-        let refused = rig
-            .call(
-                "delete_node",
-                json!({"scene_token":rig.token,"node_id":node.node}),
-            )
-            .await;
-        let error = &refused.structured_content.unwrap()["error"];
-        assert_eq!(error["code"], "scene_error", "{name}");
-        // The code alone also matches ReadOnlyFormat; the message pins UnsupportedEdit.
+        let args = json!({"scene_token":rig.token,"node_id":node.node});
+        let removed = rig.call("delete_node", args).await;
         assert_eq!(
-            error["message"], "native ownership or edit effects are unsupported",
+            removed.structured_content.unwrap()["outcome"],
+            "changed",
             "{name}"
         );
-        assert_eq!(rig.baseline(), baseline, "{name}");
+        assert!(
+            rig.editor.is_dirty() && rig.editor.history.can_undo(),
+            "{name}"
+        );
+        rig.token = rig.editor.scene_token.to_string();
     }
+    assert_eq!(
+        rig.editor.history.scene().nodes().len(),
+        baseline.0.nodes().len() - 2
+    );
+    assert!(rig.editor.history.undo() && rig.editor.history.undo());
+    assert_eq!(rig.editor.history.scene(), &baseline.0);
+    rig.finish().await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn delete_node_then_save_scene_as_writes_the_pruned_file_and_it_reopens() {
+    let mut rig = Rig::open_bytes(siteless_bytes()).await;
+    let locked = rig.node("locked");
+    let args = json!({"scene_token":rig.token,"node_id":locked.node});
+    let removed = rig.call("delete_node", args).await;
+    assert_eq!(removed.structured_content.unwrap()["outcome"], "changed");
+    rig.token = rig.editor.scene_token.to_string();
+    let out = rig.source.parent().unwrap().join("pruned.mb");
+    let saved = rig
+        .call("save_scene_as", json!({"scene_token":rig.token,"path":out}))
+        .await;
+    assert_eq!(saved.structured_content.unwrap()["outcome"], "saved");
+    // The file that never had `locked`; the opened file is untouched.
+    assert_eq!(std::fs::read(&out).unwrap(), sited_bytes());
+    assert_eq!(std::fs::read(&rig.source).unwrap(), rig.original);
+    let again = rig
+        .call("save_scene", json!({"scene_token":rig.token}))
+        .await;
+    assert_eq!(again.structured_content.unwrap()["outcome"], "saved");
+    assert_eq!(std::fs::read(&out).unwrap(), sited_bytes());
+    let reopened = rig
+        .call("open_scene", json!({"scene_token":rig.token,"path":out}))
+        .await;
+    assert_eq!(
+        reopened.structured_content.unwrap()["outcome"],
+        "document_applied"
+    );
+    let names: Vec<_> = rig
+        .editor
+        .history
+        .scene()
+        .nodes()
+        .iter()
+        .map(|n| n.name().to_string())
+        .collect();
+    assert_eq!(names, ["object", "other"]);
+    rig.finish().await;
+}
+
+#[tokio::test]
+async fn a_binary_removal_refusal_surfaces_as_unsupported_delete_with_its_reason() {
+    let mut rig = Rig::open_bytes(with_unmodelled_record(siteless_bytes())).await;
+    let before = rig.baseline();
+    let object = rig.node("object");
+    let args = json!({"scene_token":rig.token,"node_id":object.node});
+    let refused = rig.call("delete_node", args).await;
+    let error = &refused.structured_content.unwrap()["error"];
+    assert_eq!(error["code"], "unsupported_delete");
+    assert!(
+        error["message"].as_str().unwrap().contains("'PRNT' record"),
+        "{error}"
+    );
+    assert_eq!(rig.baseline(), before);
     rig.finish().await;
 }

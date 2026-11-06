@@ -234,6 +234,36 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
 
 // Mirrors `group_editor()` in src/app/tests.rs; those tests build without the mcp feature, so the builder cannot be shared.
 pub(super) fn grouped_scene_bytes() -> std::sync::Arc<[u8]> {
+    grouped_scene_bytes_with(&[])
+}
+
+/// The grouped scene with a script text mentioning `child`: deleting it is refused.
+pub(super) fn linked_grouped_scene_bytes() -> std::sync::Arc<[u8]> {
+    use binary_fixture::{chunk, group};
+    grouped_scene_bytes_with(&group(b"DPLM", &chunk(b"STR ", b"note\0see child\0", 8), 4))
+}
+
+/// Root cubes `keep` and `linked`; a selection record names `linked`, so deleting it is refused.
+pub(super) fn keep_and_linked_roots_scene_bytes() -> std::sync::Arc<[u8]> {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene};
+    let mut bytes = Vec::new();
+    for name in [&b"keep"[..], &b"linked"[..]] {
+        bytes.extend(group(b"XFRM", &creation(name, None), 4));
+        bytes.extend(group(
+            b"DMSH",
+            &[
+                creation(&[name, b"Shape"].concat(), Some(name)),
+                chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    bytes.extend(group(b"DPLM", &chunk(b"STR ", b"note\0see linked\0", 8), 4));
+    scene(&bytes)
+}
+
+pub(super) fn grouped_scene_bytes_with(extra: &[u8]) -> std::sync::Arc<[u8]> {
     use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
     scene(
         &[
@@ -252,6 +282,7 @@ pub(super) fn grouped_scene_bytes() -> std::sync::Arc<[u8]> {
                 .concat(),
                 4,
             ),
+            extra.to_vec(),
         ]
         .concat(),
     )
@@ -616,10 +647,10 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
 }
 
 #[tokio::test]
-async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_without_mutation() {
+async fn sdk_delete_node_of_an_opened_linked_child_returns_the_typed_refusal_without_mutation() {
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("grouped.mb");
-    std::fs::write(&source, grouped_scene_bytes()).unwrap();
+    std::fs::write(&source, linked_grouped_scene_bytes()).unwrap();
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let old_token = editor.scene_token.to_string();
@@ -646,29 +677,28 @@ async fn sdk_delete_node_on_an_opened_hierarchy_returns_the_typed_refusal_withou
         )
     };
     let baseline = state(&editor);
-    for (index, message) in [
-        (0, "Deleting a node with children is not supported yet"),
-        (1, "Deleting a node that has a parent is not supported yet"),
-    ] {
-        let refused = call(
-            &mut editor,
-            &context,
-            client.peer(),
-            "delete_node",
-            json!({"scene_token":token,"node_id":paths[index].node.to_decimal()}),
-        )
-        .await;
-        let error = &refused.structured_content.unwrap()["error"];
-        assert_eq!(error["code"], "unsupported_delete");
-        assert_eq!(error["message"], message);
-        assert_eq!(editor.history.scene(), &before);
-        assert_eq!(editor.scene_token.to_string(), token);
-        assert_eq!(
-            state(&editor),
-            baseline,
-            "selection, history and dirty flag"
-        );
-    }
+    let (index, message) = (
+        1,
+        "Deleting this node is not supported yet: A script or text value in the file mentions this node",
+    );
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "delete_node",
+        json!({"scene_token":token,"node_id":paths[index].node.to_decimal()}),
+    )
+    .await;
+    let error = &refused.structured_content.unwrap()["error"];
+    assert_eq!(error["code"], "unsupported_delete");
+    assert_eq!(error["message"], message);
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.scene_token.to_string(), token);
+    assert_eq!(
+        state(&editor),
+        baseline,
+        "selection, history and dirty flag"
+    );
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
@@ -698,7 +728,12 @@ async fn sdk_frame_selected_frames_the_union_of_several_selected_objects() {
     let prefixes: Vec<&[NativeId]> = members.iter().map(|m| m.path.as_slice()).collect();
     let mut expected = editor.camera.clone();
     expected
-        .frame_view_many(&view, &prefixes, editor.aspect)
+        .frame_view_many(
+            &view,
+            &prefixes,
+            azteccraft::viewport::FrameChildren::Exclude,
+            editor.aspect,
+        )
         .unwrap();
     let scene = editor.history.scene().clone();
     let token = editor.scene_token.to_string();

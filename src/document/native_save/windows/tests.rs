@@ -1,5 +1,8 @@
 use super::*;
-use crate::{document::load_native, native_scene::Channel};
+use crate::{
+    document::{Retention, load_native},
+    native_scene::Channel,
+};
 use std::cell::Cell;
 mod wire {
     include!(concat!(
@@ -15,7 +18,10 @@ fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     (path, document)
 }
 fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
-    baseline.parse_bytes.clone()
+    match &baseline.retention {
+        Retention::Source { parse_bytes } => parse_bytes.clone(),
+        Retention::Authored { .. } => panic!("expected a baseline that retains its source"),
+    }
 }
 fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
     match result.unwrap() {

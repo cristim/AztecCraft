@@ -16,7 +16,7 @@ use azteccraft::{
     scene::{NodeId, Primitive},
     selection::ObjectSelection,
     view_scene::ViewScene,
-    viewport::Camera,
+    viewport::{Camera, FrameChildren},
 };
 use eframe::egui::{self, Color32, Key, RichText};
 #[cfg(test)]
@@ -99,6 +99,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    uv: features::uv::UvUi,
     native_input_pending: bool,
     status: String,
     /// Exact `status` text produced from an error whose text can carry a local path. The native
@@ -149,6 +150,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            uv: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,

@@ -19,9 +19,10 @@ The size is session-only (no preferences store; it never dirties the scene or en
   Scale plane) consumes the click with an unsupported status only when no enabled handle also lies
   within the radius; an enabled handle wins the overlap
   (`scale_planes_are_not_axis_hits_from_the_front_and_the_oblique_result_is_pinned`).
-- An end-on Scale axis keeps its 5 px tip box next to the origin (about 1.4 px away in the test
-  camera), so it wins pixels just outside the 7 px centre box, out to about 16 px from the origin at
-  the 8 px radius. This pre-existing defect is tracked in #297.
+- A Scale axis whose tip lands inside the 7 px square centre box stays drawn but takes no hover
+  or press, so the ring just outside the centre box falls through to the other axes, a disabled
+  Scale plane (which consumes the click with its unsupported status) or the viewport (PROVISIONAL:
+  Maya's docs do not describe end-on axes).
 - At very large sizes with a wide field of view, ring segments behind the camera are dropped rather
   than near-clipped, and the hemisphere cull is approximate.
 - Unsupported: the Preferences Manipulators page, Handle size and Line size (`manipOptions
@@ -145,7 +146,7 @@ ASCII or structural rewrites, and still needs native Save QA. Windows limits are
 listed under "Windows binary Save limits".
 Recovery, autosave and camera/history persistence remain
 pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
-tests don't establish native persistence. GUI Export remains disabled. Structural
+tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
 The camera core is connected to a depth-tested opaque GPU geometry viewport with hardware clipping. Materials, transparency, normal shading, textures, document color management and reference navigation parity remain pending. Backend failures remain explicit with no CPU fallback. These limits are described in [development instructions](.project-docs/development.md).
@@ -327,8 +328,8 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 
 - P1/P2: Select All selects every transform instance, nested children included, in scene order
   with the last as the lead (`select_all_in_object_mode_selects_nested_instances`). A grouped
-  scene therefore selects parent and children together, and Delete of that selection is refused
-  whole because a parent with children and a child each fail.
+  scene therefore selects parent and children together, and Delete of that selection removes each
+  subtree once.
 - P3: in Hierarchy selection mode (Root sub-mask) All and Inverse select root transforms only and
   Hierarchy changes nothing (`select_all_in_hierarchy_mode_selects_roots_only`,
   `select_inverse_in_hierarchy_mode_swaps_roots_only`,
@@ -345,13 +346,18 @@ The Select menu page does not state these, so each is a pinned choice, not Maya 
 - P17: after Delete of several objects the selection is empty and Undo restores the nodes but
   not the selection (`undo_of_delete_selection_restores_nodes_but_not_the_selection`).
 
-## Frame Selected includes the descendants of the selected objects
+## Frame Selected with no visible geometry frames the object origin (PROVISIONAL, #335)
 
-`Camera::frame_view` and `frame_view_many` match instances by path prefix, so framing a selected
-group also frames everything below it. Maya's F frames the selected objects and excludes children
-unless the "with Children" variant (Ctrl+F) is used. This predates #325 and is unchanged by the
-union framing; no with-Children variant exists (Ctrl+F, and Shift+F / Ctrl+Shift+F for all views, are absent). Per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm), aligning F with Maya is tracked in #335. Pinned by
-`frame_view_of_a_group_frames_the_geometry_of_its_children`.
+F frames parents only and Ctrl+F frames with children, per the [2027 Frame page](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-C420C235-B8DC-4129-8449-8B7B7911F94B.htm). The page
+is silent on a selection that owns no visible geometry (a plain group, or a parent whose only own
+shape is hidden). F then frames the objects' manipulator origins as a lone point at the near floor;
+the origin is the translate plus rotate-pivot translate, so a rotate pivot point does not move it
+(Maya's choice between pivot and matrix translation is undocumented). Pinned by
+`exclude_frames_a_shapeless_group_at_its_world_origin`, `exclude_origin_ignores_the_rotate_pivot_point` and
+`has_direct_geometry_counts_visible_own_meshes_and_curves_only`. The MCP `frame_selected` tool
+follows the same rules and takes `with_children` for Ctrl+F. F and Ctrl+F with
+nothing selected in Object or Hierarchy mode frame everything (the View page documents this for
+F only; Ctrl+F is PROVISIONAL).
 
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
@@ -483,6 +489,17 @@ PROVISIONAL until native Save QA on Windows:
   stay Unix-only, because Windows refuses that move; the Windows core tests cover
   the same receipt through injected faults.
 
+## Save of a very large new scene is refused (#380)
+
+**Severity:** low
+**Area:** native document lifecycle
+
+Saving a new scene as Maya Binary decodes the written bytes to check them, and the
+decoder's resource budget rejects a scene of more than a few hundred objects (400
+cubes fail). Save refuses with the too-large message, writes nothing and leaves the
+scene open and unsaved. Split the scene or save it in pieces until the appearance
+binding step meter (`MAX_STEPS` in `src/native_scene/binary/appearance.rs`) is revisited (#380).
+
 ## Native MCP idle responsiveness remains unverified
 
 **Severity:** medium
@@ -551,8 +568,7 @@ edits return `UnsupportedEdit` (MCP `scene_error`, "native ownership or edit
 effects are unsupported"). The refusal rate on real Maya files outside the
 five-file private corpus is unmeasured.
 
-Source-free scenes (new, OBJ) are not refused but cannot be saved as Maya
-binary. Setting every inserted word to +0.0 inserts nothing, because that is the
+Source-free scenes (new) use the authored writer for new Maya binary output; OBJ scenes remain unwritable. Setting every inserted word to +0.0 inserts nothing, because that is the
 default; -0.0 is a real edit.
 
 ## Move lifecycle gaps
@@ -618,9 +634,10 @@ Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build 
 360 quads). The radius and subdivisions come from the polySphere node reference;
 the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
-so the viewport looks faceted. There are no UVs or normals, and
-new nodes are not persisted (Save is unavailable for created scenes, as for the
-cube). Pole triangles cannot be extruded; body quads can. The new node is named
+so the viewport looks faceted. There are no UVs or normals. On Unix, new scenes require
+an initial Save As to a fresh Maya binary file; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Pole triangles cannot be extruded; body quads can.
+The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
@@ -661,8 +678,9 @@ lists sz 1 instead, so a Maya-default cylinder may have different counts, and th
 cap topology of both solids is derived, not verified against Maya 2026 (#5). The cone
 has 21 points, 40 edges and 21 faces (20 side triangles and a 20-gon base) with its apex
 at (0, 1, 0) and its base at y=-1. Vertex and face order and winding are not claimed to
-match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals,
-and new nodes are not persisted. Caps and cone side triangles cannot
+match Maya. Edges are hard, so the viewport looks faceted. There are no UVs or normals.
+On Unix, new scenes require an initial Save As; subsequent Save operations persist changes
+(see "Mesh Save is PROVISIONAL"). Caps and cone side triangles cannot
 be extruded; cylinder side quads can. A pick on any cap triangle selects the whole cap,
 and its centre marker is the corner average. New nodes are named `pCylinder1` and
 `pCone1` with shapes `pCylinderShape1` and `pConeShape1`, as in Maya (#175). The legacy
@@ -774,9 +792,10 @@ sphere, cylinder and cone, and each built Create > Polygon Primitives row has an
 "Polygon <name> Options" window (native visual QA pending). Its numeric fields are text-only, without the drag-to-scrub
 and sliders Maya's option boxes have (PROVISIONAL gap). Keeping the window open after Create
 and using the last created options for plain menu and shelf clicks are PROVISIONAL (Maya's
-pages do not say), session only and never saved. Created
-primitives are still not persisted: Save is unavailable for created scenes. The AztecCraft
-limits (size 1e-6 to 1e6 cm, subdivisions up to 128, at most 20,000 faces) are safety bounds,
+pages do not say), session only and never saved. On Unix, scenes with created primitives
+require an initial Save As; subsequent Save operations persist changes (see "Mesh Save is
+PROVISIONAL"). The AztecCraft limits (size 1e-6 to 1e6 cm, subdivisions up to 128,
+at most 20,000 faces) are safety bounds,
 PROVISIONAL because the Maya pages state no ranges, until the pinned reference install (#5).
 Not supported: cylinder and cone cap divisions and round cap, UVs and texture mapping,
 interactive creation and Exit on Completion (both are disabled rows in Create > Polygon
@@ -816,7 +835,8 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (Untitled scenes have no save), sourced binary scenes
+session-only lambert table. It is not saved (a new scene refuses Save and Save As with `save_unwritable` while any
+session material has been created or assigned, because the file cannot carry it; undo the material to save), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
@@ -854,6 +874,32 @@ text includes the path. No remote operation takes a path today, so remote calls 
 currently reach such text. `inspect_scene.status_message` withholds file-error status text
 (`Editor::set_error_status`); the tool-error channel does not.
 
+## OBJ export limits
+
+File > Export All and Export Selection (and MCP `export_obj`) write only the
+displayed polygon geometry: world-space positions in centimetres and polygon faces,
+one `o` group per instance. Hidden or non-displayed instances are not exported
+(PROVISIONAL for Export All: the Maya docs do not say whether hidden instances are
+included). Export Selection also filters to displayed instances, so selecting a hidden
+object can produce nothing to export (PROVISIONAL: Maya's docs do not describe this
+case). In Face, Vertex or Edge selection mode, Export Selection writes the whole
+selected object's geometry (PROVISIONAL: Maya's docs do not state how component
+selection affects OBJ export). Export Selection covers every selected object and its
+descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
+the docs give no export order). Maya's options page says the parents of selected nodes are
+also exported; a parent's own mesh is not written here unless it is selected, so that is
+unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered (the option boxes are disabled), and export never overwrites an
+existing file. The view of the whole scene is built first, so one mesh the viewport
+cannot display (for example a concave n-gon) fails every export, including Export
+Selection of another object. The Windows save dialog may first ask whether to
+replace an existing file; confirming still fails with "destination already exists"
+and the file is left untouched. The output has not been compared with
+Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at all is refused
+(`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
+group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
+valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
+
 ## Authored Maya Binary writer: unproven profile
 
 **Severity:** medium
@@ -863,22 +909,40 @@ currently reach such text. `inspect_scene.status_message` withholds file-error s
 The fresh `.mb` writer (`src/native_scene/binary/write.rs`) takes its profile (`VERS` and the aux word
 of each chunk kind) from one public Maya 2025 file and emits groups shorter than any Maya wrote. Files
 it produces are Maya 2025-format; that Maya 2026 opens them, and that Maya accepts them at all, is
-PROVISIONAL and unproven. AztecCraft's own decoder reopening a file is the only check. Saved meshes
+PROVISIONAL and unproven. AztecCraft's own decoder provides read-back checks; the optional MayaSceneKit cross-check adds an independent reader but does not establish Maya acceptance. Saved meshes
 will carry no shading assignment. The invented items are the I rows of
 `.project-docs/binary-authored-writer.md`.
 
 Reopen trigger: a public, licensed Maya 2026 file with a mesh becomes available (re-derive the
 profile from it), or Maya rejects, repairs or rewrites these files (issue #5 asks for a read-back).
 
-## Hierarchy delete is unsupported and its Maya semantics are provisional
+## Hierarchy delete: Maya semantics are provisional
 
 **Severity:** low
 **Area:** editor core
 **Issue:** cristim/AztecCraft#187
 
-Delete refuses any node with children or a parent (`unsupported_delete`), natively and over MCP.
-Maya's exact Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was
-found and no 2026 page exists. Real hierarchy delete is blocked on a structural source rewriter.
+Delete removes a node with all its descendants, root or not, natively and over MCP; only a
+descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
+Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
+2026 page exists, and none states what a parent delete does to its children.
+
+## Naming the refusing member of a multi-object Delete costs N to 2N checks
+
+**Severity:** low
+**Area:** editor core
+**Issue:** cristim/AztecCraft#336
+
+A refused Delete of N selected objects names the one member whose absence clears the refusal. A
+scene-wide pending-insertion refusal names nobody and skips the analysis. Otherwise the refusal path
+decodes the source once, then checks each member alone and, only for a member that fails alone with
+the combined refusal, the set without it. That is N checks plus one per such member: N+1 when one
+member explains the refusal, up to 2N when many members fail alone but none clears it. The checks
+run one at a time in one reused id buffer (O(N) memory) and stop at a second qualifying member. On
+an opened binary scene each check scans the source text, up to 16 MiB, and they run synchronously,
+so a refused Delete of many objects in a large file can still briefly stall the UI. A successful
+Delete pays nothing extra. Not capped: no member count is documented as the point where naming
+stops being useful.
 
 ## Marquee drag feedback has PROVISIONAL edge cases
 
@@ -961,18 +1025,39 @@ Scale grab whose along-axis component is under 1 px of world length, as the pres
 hover shows the same text. Not fixed: gating the highlight
 changes native behaviour and needs its own issue; the admission is an inline expression that needs the egui context for the popup check.
 
-## Inspection keeps reporting a pick after a view build error
+## A pointer capture can survive a frame that skips the view build
 
 **Severity:** low
 **Area:** viewport manipulators, MCP inspection
-**Issue:** tracked in #310
 
-After a view build error (for example ancestors whose scales overflow), `move_viewport` survives, so
-`inspect_scene` pointer fields still report a pick from the surviving capture although the viewport
-paints nothing. This contradicts the "mirrors the painted highlight" wording in
-`.project-docs/mcp.md` (the pointer fields paragraph). The tests
-`a_scene_frame_refusal_is_reported_for_the_whole_tool_at_any_pixel` and
-`sdk_pointer_refusal_reports_a_scene_frame_refusal` rely on the surviving capture.
+A view build error now clears the pointer capture (`missing_move_viewport`, #310). An earlier error
+in the same frame returns before the view build, so the paint is skipped and the capture survives
+for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
+
+## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
+
+**Severity:** medium
+**Area:** file format, Save As
+**Issue:** cristim/AztecCraft#156
+
+On Unix, a new (Untitled) scene requires an initial Save As, which writes a fresh Maya
+2025-format `.mb` through the writer above. Subsequent Save operations persist changes
+to that file. Saving Untitled scenes is unsupported on Windows.
+Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
+documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
+`.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
+acceptance is unproven. MayaSceneKit (a third-party reader, not Maya; pinned commit 95a11db) decodes the Maya-written
+`tests/fixtures/gt-tools/dummy_mesh.mb` (no MESH issue, an exact DMSH/MESH decode) but reports the
+writer's cube MESH/DMSH as unsupported ("no decoder registered for chunk tag"). The empty UV set is the
+INFERRED cause, from the reader's mesh decoder source (it requires a nonzero UV count) plus that
+contrast; no probe that adds UVs has been run. The ignored test `msk_decodes_maya_meshes_but_not_the_writers_mesh`
+(`AZTECCRAFT_MSK_BIN`, see `.project-docs/mayascenekit-crosscheck.md`) pins the contrast so a change
+becomes visible. The
+`save_scene_as` MCP description carries the same PROVISIONAL note.
+
+Reopen triggers: Maya rejects, repairs or rewrites a saved file (issue #5 asks for a read-back);
+MayaSceneKit starts decoding these meshes (the cross-check test flips); a public, licensed Maya
+file shows a mesh without a UV block or with default primitive UVs.
 
 ## Multi-object selection colours and group descendants are PROVISIONAL
 
@@ -984,17 +1069,20 @@ first. Whether Maya draws descendants of a selected group that way is unconfirme
 `descendants_take_the_colour_of_the_selected_ancestor_they_sit_below`.
 
 Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
-in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It does
-not act on several objects: Move, Rotate, Scale
-and Channel Box edits refuse with `multiple_selection` until #325 (the by-id MCP tools `delete_node`,
+in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It acts on
+several objects for Move only (native drag, and MCP `begin_manipulation` with `expected_selection_generation`, #325 slice B);
+Rotate, Scale and Channel Box edits still refuse with `multiple_selection` until #325 slices C and D (the by-id MCP tools `delete_node`,
 `rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
 (#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
-pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; a Ctrl
-click that macOS delivers as a secondary click is ignored, and Command counts as Ctrl; a lone
-selection keeps the old colour; the Outliner lead row is bold. Native visual QA of all of this is
-pending. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
+pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; Command
+counts as Ctrl. On macOS a hardware Ctrl-click reaches the app as an ordinary Ctrl-click
+(maintainer check, 2026-11-04: it removes a selected object in the viewport), while a secondary
+(right) click with Ctrl held is ignored; a lone
+selection keeps the old colour; the Outliner lead row is bold. Native checks on 2026-11-04
+confirmed the viewport Shift, Ctrl and Command clicks, the Outliner Ctrl click and the lead
+colour; whether they match Maya stays PROVISIONAL. Multi-selection is not an undo entry, and a Create, Select, New or Open replaces the
 whole set.
 
 ## Ambiguous selection is unreachable today
@@ -1005,15 +1093,176 @@ parents, so every node has one path. Only the unit test
 `an_object_with_two_instance_paths_needs_an_explicit_path`, which fabricates the targets,
 covers `only_instance_path`; there is no end-to-end test through a loaded scene.
 
-## Inspection is one response of at most 256 KiB
+## A very large selection lowers the usable inspect_scene node_limit
 
-`inspect_scene` returns the whole scene in one reply, so scenes over about 250 simple objects (282
-default-named cubes, 269 with every cube selected, measured through the official client) report
-`too_large`. A selection counts about 40-60 bytes per member: 4096 selected members fit with one cube but
-not with 250. Select All (native, and MCP `select_by_rule`, #325) builds a
-whole-scene selection in one call, so such a selection is now easy to reach. A client holding the document token recovers an oversized
-selection with `deselect_all`; a client that connects fresh while such a selection exists cannot get a
-token (`inspect_scene` is the only tokenless tool), so the selection has to be cleared in the native UI
-(a plain click on empty space, or Alt+D). Fix: page the nodes (#332, second PR). The limit is pinned by
-`inspect_scene_returns_250_cubes_and_refuses_400_without_closing` and
-`inspect_scene_sizes_a_maximal_selection_by_its_serialized_bytes`.
+Every `inspect_scene` page repeats the full `selection` list, about 40 bytes per member. With 4096
+selected default-named cubes a page of 1 node is about 170 KB and 50 nodes about 212 KB, but 250 nodes
+exceed the reply cap, so such a selection needs a small `node_limit` (about 50). Select All (native, and
+MCP `select_by_rule`, #325) builds a whole-scene selection in one call. A client that connects fresh
+inspects with a small `node_limit` first to obtain the token, then clears the selection with
+`deselect_all` if it wants larger pages. Only a selection whose serialized members approach the reply
+cap on their own (for example very deep instance paths) blocks every page; that case has no
+tokenless recovery except clearing the selection in the native UI (a plain click on empty space, or
+Alt+D). Pinned by `a_full_selection_inspects_with_a_small_node_limit` and
+`a_full_selection_is_inspectable_with_a_small_node_limit`.
+
+## Creating N objects costs O(N^2)
+
+Each `NativeScene::create` runs a full `validate()` through `structural_edit`, so building N cubes one
+by one is O(N^2). `validate_dag` itself is linear in the edges since #345: it looks up transforms and
+each parent's children through the `NativeScene::dag_index` that `transform_paths` also uses (#347),
+and builds one identity-has-an-edge set, instead of scanning `self.dag` for every identity and every
+pending parent. In a release build one `validate()` measured about 9x for 8x the scene (512 to 4096
+cubes) against 45x before. `validate_indexes_the_dag_once_however_many_identities` pins one index
+build per validation; it does not catch a new per-identity scan added beside the index. The remaining
+quadratic factor is the per-create full `validate()`, not the DAG walk. Tests that need a large scene
+still build it through `azteccraft::scene::Scene::create` and `NativeScene::from_legacy`.
+
+## Paged inspect cost and the decision not to cache transform paths
+
+After #340 `NativeScene::transform_paths` indexes nodes and children once per call, so one
+`inspect_scene` page costs about 2.6 ms at the 4096-node cap in a release build (0.6 ms of it
+`transform_paths`) and a 21-page walk about 75 ms; it was 40 ms per page and 859 ms per walk. Nothing is
+cached per `History::revision()`: the cache would need invalidation on every mutation, load and undo for
+about 1 ms. Revisit if a measurement shows `transform_paths` above about 5 ms at the 4096 cap.
+The regression guard of record is `page_cost_timing_guard`, a wall-clock check on the median of 5
+interleaved ratios between 512 and 4096 nodes (limits 30x for `transform_paths`, 25x for one page; the
+per-edge scans measured 57x to 72x). It is `#[ignore]`d and runs alone as a single-threaded step of the
+`check` job, in a release build (about 80 s more compile than debug locally, and more stable timings),
+because timing ratios flake under parallel load.
+
+## A view build still looks up each transform by linear scan
+
+Since #341 a view build indexes instance admission once (`ViewAdmissionIndex`), and
+`a_view_build_indexes_admission_once_for_every_instance` pins one index build per view. The build
+still calls `NativeScene::internal_transform` for every transform path record
+(`src/view_scene.rs`), and that resolves the node through `NativeScene::node`, a linear
+`nodes.iter().find`. So the view build remains O(T^2) in transforms. Measured release ratios for
+16x the scene (256 to 4096 cubes) were about 26x after #341 against 65x before; the remaining
+superlinear part is this lookup. Not fixed here; the build-count pin does not cover it.
+
+## Frame origin for a mixed selection is PROVISIONAL
+
+F (frame without descendants, #338) frames the objects' origins when no selected object owns visible
+geometry. The Maya documentation does not state this, so the choice is provisional and pinned only by
+tests: the origin is the node's translate plus its rotate-pivot translate and ignores the rotate pivot
+point (`exclude_origin_includes_the_rotate_pivot_translate`, `exclude_origin_ignores_the_rotate_pivot_point`),
+and a selection where any one member owns geometry frames the geometry only
+(`exclude_with_one_member_owning_geometry_ignores_origins`). Revisit when the behaviour can be compared
+with Maya 2027.
+
+## A failed Move finish or cancel leaves the preview in place
+
+`History::finish_move` and `cancel_active_move` take the active transaction before computing
+`changes()?` and restoring the baselines. If that step fails (a baseline whose node or source no longer
+matches), the error is returned, the transaction is already cleared and the preview values stay in the
+scene; nothing reverses them. Pre-existing for single-object Move, Rotate and Scale. For a multi-object
+Move the preview stays whole and no member is restored, because `changes()?` fails before any restore
+and `restore_channels_many` checks every owner before its first write. The Channel Box is re-synced so
+it shows the actual values; the scene is reconciled by inspection. Pinned for the multi case by
+`a_failed_restore_is_typed_clears_the_transaction_and_writes_nothing_more`.
+
+`NativeScene::edit_nodes` and `check_effects` scan every member against every node at commit, which is
+O(members x nodes). It runs once per drag, and is recorded next to the begin cost of a 4096-member Move
+(about 0.7 s in a debug build).
+
+## Move of several selected objects: PROVISIONAL choices (#325 slice B)
+
+Researched on 2026-11-03 in the Maya 2027 help: [Move objects and components](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-ABF1A141-7860-4234-889B-00278F20B9A3.htm),
+[Move Tool settings](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9BCE8B23-6DA6-4C7F-B897-7E25D6E8A865.htm),
+[Transform objects and components](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9622730D-3D21-451C-8BEE-E01BCC979F91.htm) and
+[Move, rotate and scale using precise values](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-EB585085-9C14-444F-8ACD-ECB087286FDF.htm).
+The pages say little about several objects, so these choices are pinned by tests, not by Maya:
+
+- P18: the manipulator is drawn and hit-tested at the lead (last selected) object's pivot only (`the_press_frame_is_the_leads_even_when_the_first_member_is_elsewhere`).
+- P19: a World-axis translation is pivot independent, so every moved member shifts by the same world displacement (`several_movers_preview_commit_one_labelled_undo_entry_and_undo_redo_bit_identically`).
+- P20: a selected parent and descendant move the descendant once: it follows its ancestor and gets no translation of its own. Ancestry is decided by node identity, not path prefix (`a_parent_and_child_both_selected_move_the_child_once`, `move_instanced_ancestor_covers_descendant_by_identity`).
+- P21: one node selected through two instances is refused whole, naming the node, because its instances share channels; the same target twice is `InvalidIds` (`move_refuses_two_instances_of_one_node`, `the_same_target_twice_is_invalid_ids`).
+- P22: one undo entry, labelled Move, for the whole set (`several_movers_preview_commit_one_labelled_undo_entry_and_undo_redo_bit_identically`).
+- P23: MCP `update_manipulation distance` applies the same World displacement to every member (`sdk_move_with_the_current_generation_moves_every_selected_object_in_one_undo_step`).
+- P24: not done: Object and Parent axis orientations (each object moving along its own axes) need a Move orientation setting, which does not exist; only World is available.
+- P25: when the lead is covered by a selected ancestor, the pivot is still the lead's own origin and the inspection reports the lead's own channels (`the_lead_may_be_the_covered_member`).
+- P26: an uncovered selected object that a selected ancestor also carries through another instance path is refused whole with `AlternatePathAncestor` (see "Move: a selected ancestor on another instance path of an uncovered object is refused" below; `an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`).
+
+Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and one update about 45 ms
+(`four_thousand_members_begin_within_the_budget_and_not_one_byte_less`); the inspection checks Move availability over every member once per request.
+
+## UVs are session-only and planar (#360)
+
+UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
+so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
+holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
+because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
+Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
+Set, the projection manipulator and construction history are missing. The axis-to-(u, v) assignment
+and the Y default are PROVISIONAL. Scenes opened from a file do not expose their UVs, which does not
+mean they have none. The UV Editor is a read-only outline, not drawn with a texture, and the viewport
+does not show UVs. The native menu and both windows have automated UI tests but no reviewed native
+screenshot yet, and nothing has been compared with Maya (#5).
+
+## Delete on an opened Maya Binary
+
+**Severity:** medium
+**Area:** native scene, Maya Binary save
+**Issue:** cristim/AztecCraft#272
+
+Delete removes a transform, all its descendant transforms and their shapes (root or not) from an
+opened `.mb`, and Save writes the file without their records. A shape that hangs under a surviving
+transform stays. Maya's own handling of children on delete is not stated in the documentation
+(PROVISIONAL). Maya's acceptance of the pruned file is unproven (#5), so the
+behaviour is PROVISIONAL. The refusals and limits that remain, each a typed `unsupported_delete`
+reason except where noted:
+
+- Not an `unsupported_delete` reason: a descendant transform that also has a parent outside the
+  subtree returns `scene_error` (an opened `.mb` cannot produce one); so does any node of an
+  opened ASCII scene.
+- Fail closed on records. Every surviving leaf must be a kind the analysis lists: modeled by the
+  decoder (`CREA`, `SLCT`, `CWFL`, `RELA`), a typed attribute payload (`DBLE`, `DBL2`, `DBL3`,
+  `FLT2`, `FLT3`, `FLGS`, `I32#`, `MESH`, `CMP#`, `CMPD`, `ATTR`), or text that is scanned for the
+  removed names (`STR `, `STR#`, the header tags `AUNI`, `LUNI`, `TUNI`, `BCSZ`, `CHNG`, `DATS`,
+  `FINF`, `ICON`, `INCL`, `INFO`, `MADE`, `OBJN`, `PLUG` (the plug-in requirements, present in
+  nearly every real file), `SMTD`, `TDUR`, `UVER`, `VERS`, and every leaf
+  of a `SCRP` group). A typed attribute payload is skipped only inside a bound transform or shape
+  group, whose layout the opener validated; in any other group it is scanned like text, so a few
+  false refusals are possible there. Any other tag, anywhere in the file, refuses the delete as "a
+  '<tag>' record that cannot be checked", even when it names nothing. A real file with other tags
+  (for example further typed-attribute tags) is not deletable until each tag is added with a reason.
+  The vendored `file_owner_delete.mb` uses only listed tags; its four default cameras are
+  refused because each has a camera shape (`DCAM`) parented under it (the names `persp`, `top`,
+  `front` and `side` also occur in its text, so the scan would refuse them too). `dummy_mesh.mb`
+  does not open.
+- Instancing. The opener builds one parent edge per binding, so a shape with several parents
+  cannot be read from the decoder. An extra instance parent would have to be a record naming
+  the shape: an unknown tag is refused by the rule above (tested for a record naming the shape
+  of the deleted parent), and a selection, relation, connection or scanned text that names it is
+  refused as a reference. Nothing more is claimed.
+- A record that names a removed node as parent, such as a camera shape under a removed group; a selection, relation or connection that names a
+  removed node (by `|` or `:` path component); per-face material links (group id and group colour),
+  which every recognised shaded shape carries, so only unshaded shapes and whole-object next-available
+  set members can be deleted today.
+- A mode-1 set link with an index, a surviving explicit-index link beside a dropped mode-1 link, a
+  surviving mode-1 link beside a dropped mode-0 link, any `dagSetMembers` alias into the set, and a
+  set that is neither created in the file nor `:`-rooted.
+- A shape that is the first or only user of a material or the only user of a diffuse-bound shader
+  (reached only after the per-face rule is lifted; pinned by direct tests).
+- A removed range that would change an enclosing group's padding, and an edit that needs a leaf
+  inserted, before or after a Delete (the edit fails with `scene_error`).
+- Text scanning is bounded to 16 Mi (bytes times removed names), about 0.25 s in a debug build;
+  a larger scan is refused as "too large to check" rather than skipped, so a file with 200 KB of
+  script text refuses once more than about 80 names are removed. Free text in a listed kind that
+  holds a removed name (for example a `TEXT` leaf in a `SCRP` or an `STR` in any group) is refused.
+- A multi-delete is analysed once and is all or nothing. Undo restores the nodes; Save keeps the
+  scene bound to the original bytes, so repeat saves are identical.
+
+## Move: a selected ancestor on another instance path of an uncovered object is refused (PROVISIONAL, #325 slice B)
+
+A node's translation is shared by all its instances. When an uncovered selected object (no selected
+ancestor on its own selected path) is also reachable under a selected node through another path, a
+Move would apply its own translation and its ancestor's, so that instance would move twice.
+`begin` refuses the whole Move with `AlternatePathAncestor` (MCP code `alternate_path_ancestor`),
+naming the object. A member that is covered through its own path is not refused, because it gets no
+translation of its own (`move_instanced_ancestor_covers_descendant_by_identity`; refusal:
+`an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`). Maya's behaviour for
+instanced selections is not documented, so this is a conservative choice.
+
+Cost: a multi-object begin enumerates every transform path of the scene once (`transform_paths()`, linear since #347 and bounded by the path limit, so an oversized scene is refused with `ResourceLimit` rather than scanned). Begin does not hold that list otherwise, so it is not reused; the scan is a few milliseconds at 4096 paths in a debug build and runs once per begin, not per update.

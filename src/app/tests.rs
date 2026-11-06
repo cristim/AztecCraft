@@ -568,7 +568,8 @@ fn material_negative_source_word_is_not_changed_by_native_paint() {
             assert!(colors.next().is_none(), "{phase}");
         }
         assert_eq!(state(&editor), baseline, "{phase}: paint");
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection");
         };
@@ -665,7 +666,7 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     )
     .unwrap();
     editor.channels[0] = "2".into();
-    editor.native_operation(Operation::FrameSelected);
+    editor.native_operation(frame_with_children());
     assert!(!editor.error);
     assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
     assert_eq!(
@@ -789,7 +790,7 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
         },
     )
     .unwrap();
-    remote(&mut editor, Operation::FrameSelected).unwrap();
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!(editor.camera, expected);
     assert_eq!(editor.remembered_face.as_ref(), Some(&target));
     assert_eq!(editor.history.scene(), &scene);
@@ -797,19 +798,19 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
     remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
     let camera = editor.camera.clone();
     assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
+        remote(&mut editor, frame_with_children()),
         Err(OperationError::NoSelection)
     ));
     assert_eq!(editor.camera, camera);
     assert_eq!(editor.history.scene(), &scene);
     editor.name = "valid_human_rename".into();
     assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
+        remote(&mut editor, frame_with_children()),
         Err(OperationError::BusyEditing)
     ));
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.name, "valid_human_rename");
-    editor.native_operation(Operation::FrameSelected);
+    editor.native_operation(frame_with_children());
     assert!(editor.error);
     assert_eq!(editor.camera, camera);
     assert_eq!(editor.remembered_face, None);
@@ -1464,7 +1465,7 @@ fn ascii_outliner_selection_and_frame_use_actual_curve_owner_without_authoring()
             world_units: [20.0, 10.0],
         })
         .unwrap();
-    editor.apply_operation(Operation::FrameSelected).unwrap();
+    editor.apply_operation(frame_with_children()).unwrap();
     assert_eq!(editor.camera.target(), glam::Vec3::new(13.5, 0.0, 0.0));
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.scene_token, token);
@@ -1989,6 +1990,7 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             },
         )
         .unwrap();
@@ -2938,7 +2940,7 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
         .unwrap(),
         OperationReply::Unchanged
     ));
-    remote(&mut editor, Operation::FrameSelected).unwrap();
+    remote(&mut editor, frame_with_children()).unwrap();
     assert!(editor.camera.target().distance(Vec3::new(4.0, 2.0, 1.0)) < 0.01);
     remote(
         &mut editor,
@@ -2980,7 +2982,8 @@ fn remote_operations_share_native_scene_selection_history_and_camera() {
             .translation[0],
         6.0
     );
-    let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+    let OperationReply::Scene { inspection } =
+        remote(&mut editor, Operation::Inspect { page: None }).unwrap()
     else {
         panic!("expected inspection")
     };
@@ -3044,7 +3047,8 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
         remote(&mut editor, Operation::Undo),
         Err(OperationError::BusyEditing)
     ));
-    let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+    let OperationReply::Scene { inspection } =
+        remote(&mut editor, Operation::Inspect { page: None }).unwrap()
     else {
         panic!("expected inspection")
     };
@@ -3093,8 +3097,8 @@ fn remote_errors_and_noop_do_not_change_selection_or_history() {
         OperationReply::Unchanged
     ));
     assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
-        Err(OperationError::NoSelection)
+        remote(&mut editor, frame_with_children()),
+        Err(OperationError::NothingToFrame)
     ));
     editor.create(Primitive::Cube);
     let id = editor.single_target().unwrap().0;
@@ -3151,7 +3155,7 @@ fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus(
         .remote_operation(
             RemoteRequest {
                 expected_scene_token: None,
-                operation: Operation::Inspect,
+                operation: Operation::Inspect { page: None },
             },
             &ctx,
         )
@@ -3182,7 +3186,7 @@ fn remote_guard_distinguishes_rendered_buttons_from_name_and_channel_text_focus(
             .remote_operation(
                 RemoteRequest {
                     expected_scene_token: None,
-                    operation: Operation::Inspect,
+                    operation: Operation::Inspect { page: None },
                 },
                 &ctx,
             )
@@ -3719,6 +3723,13 @@ fn shortcuts_with(
     shortcuts_events(editor, modifiers, events)
 }
 
+/// Ctrl+F: the pre-#335 behaviour that most framing tests were written against.
+fn frame_with_children() -> Operation {
+    Operation::FrameSelected {
+        with_children: true,
+    }
+}
+
 fn key_event(key: Key, modifiers: egui::Modifiers, repeat: bool) -> egui::Event {
     egui::Event::Key {
         key,
@@ -3914,10 +3925,10 @@ fn frame_key_editor() -> Editor {
 #[test]
 fn frame_selected_pressed_with_a_modifier_is_not_rescued_by_a_same_frame_release() {
     for held in [
-        egui::Modifiers::CTRL,
-        egui::Modifiers::SHIFT,
         egui::Modifiers::ALT,
         egui::Modifiers::COMMAND,
+        egui::Modifiers::SHIFT | egui::Modifiers::ALT,
+        egui::Modifiers::CTRL | egui::Modifiers::ALT,
     ] {
         let mut editor = frame_key_editor();
         let before = editor.camera.clone();
@@ -4167,7 +4178,11 @@ fn save_as_dialog_refuses_while_closing_and_keeps_the_active_move() {
         .unwrap();
     // Without the guard the move yields BusyManipulation, a different status, so this fails
     // instead of reaching rfd.
-    assert!(editor.files.is_closing() && editor.history.active_manipulation().is_some());
+    assert!(
+        editor.files.is_closing()
+            && editor.files.save_as_available() == cfg!(unix)
+            && editor.history.active_manipulation().is_some()
+    );
     editor.save_as_dialog();
     assert_eq!(editor.status, OperationError::BusyEditing.to_string());
     assert!(editor.error);
@@ -4383,7 +4398,7 @@ fn vertex_and_edge_modes_refuse_native_delete_and_frame_without_a_component() {
         );
         let camera = editor.camera.clone();
         assert!(matches!(
-            editor.apply_operation(Operation::FrameSelected),
+            editor.apply_operation(frame_with_children()),
             Err(OperationError::NoSelection)
         ));
         assert_eq!(editor.camera, camera);
@@ -5699,8 +5714,9 @@ mod menu_bar_wire {
             .iter()
             .chain(MODELING_SET_MENUS.iter())
             .copied()
+            .filter(|label| *label != "UV")
             .collect();
-        assert_eq!(placeholders.len(), 12);
+        assert_eq!(placeholders.len(), 11);
         for label in placeholders {
             let (mut editor, context) = setup();
             let output = frame(&mut editor, &context, vec![]);
@@ -5723,6 +5739,174 @@ mod menu_bar_wire {
             assert_eq!(rows.len(), 1, "{label}");
             assert!(rows[0].disabled, "{label} row must be disabled");
         }
+    }
+
+    fn open_uv_menu(editor: &mut Editor, context: &egui::Context) -> Vec<Control> {
+        let output = frame(editor, context, vec![]);
+        let at = bar(&output)
+            .into_iter()
+            .find(|c| c.label == "UV")
+            .unwrap()
+            .rect
+            .center();
+        click(editor, context, at);
+        controls(&frame(editor, context, vec![]))
+    }
+
+    fn row<'a>(rows: &'a [Control], label: &str) -> &'a Control {
+        rows.iter()
+            .find(|c| c.label == label && c.rect.top() > 20.0)
+            .unwrap_or_else(|| panic!("row {label}"))
+    }
+
+    #[test]
+    fn uv_menu_keeps_maya_order_and_disables_what_is_missing() {
+        let (mut editor, context) = setup();
+        let rows = open_uv_menu(&mut editor, &context);
+        let order = [
+            "UV Editor",
+            "UV Set Editor",
+            "Assign Checker Shader",
+            "Automatic",
+            "Best Plane Texturing Tool",
+            "Camera-Based",
+            "Contour Stretch",
+            "Normal-Based",
+            "Cylindrical",
+            "Planar",
+            "Spherical",
+            "Auto Seams",
+            "Cut UV Edges",
+            "Sew UV Edges",
+            "Split UVs",
+            "Delete UVs",
+            "Merge UVs",
+            "3D Cut and Sew UV Tool",
+            "3D Grab UV Tool",
+        ];
+        let tops: Vec<f32> = order.iter().map(|l| row(&rows, l).rect.top()).collect();
+        assert!(tops.is_sorted(), "{tops:?}");
+        for label in order {
+            let enabled = matches!(label, "UV Editor" | "Planar" | "Delete UVs");
+            assert_eq!(!row(&rows, label).disabled, enabled, "{label}");
+        }
+    }
+
+    #[test]
+    fn planar_row_projects_the_selected_cube_and_undoes() {
+        let (mut editor, context) = setup();
+        let rows = open_uv_menu(&mut editor, &context);
+        let shape = editor.uv_target().unwrap();
+        click(&mut editor, &context, row(&rows, "Planar").rect.center());
+        assert!(editor.history.scene().uv_set(shape).is_some());
+        assert_eq!(
+            editor.history.undo_label().as_deref(),
+            Some("Planar Mapping")
+        );
+        editor.native_operation(Operation::Undo);
+        assert!(editor.history.scene().uv_set(shape).is_none());
+    }
+
+    #[test]
+    fn uv_rows_are_disabled_without_exactly_one_object_in_object_mode() {
+        let (mut editor, context) = setup();
+        editor.create(Primitive::Cube);
+        editor.native_operation(Operation::SelectByRule(SelectRule::All));
+        assert_eq!(
+            editor.uv_target().err(),
+            Some(super::super::features::uv::SEVERAL_SELECTED_REASON)
+        );
+        let rows = open_uv_menu(&mut editor, &context);
+        assert!(row(&rows, "Planar").disabled);
+        assert!(row(&rows, "Delete UVs").disabled);
+        assert!(!row(&rows, "UV Editor").disabled);
+    }
+
+    #[test]
+    fn uv_rows_are_disabled_in_component_mode() {
+        let (mut editor, _context) = setup();
+        editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+        assert!(editor.uv_target().is_err());
+    }
+
+    #[test]
+    fn an_open_uv_editor_leaves_a_human_draft_alone() {
+        let (mut editor, context) = setup();
+        let shape = editor.uv_target().unwrap();
+        editor.native_operation(Operation::ProjectUvPlanar {
+            shape,
+            axis: Default::default(),
+        });
+        editor.uv.editor_open = true;
+        editor.name = "pending draft".into();
+        let revision = editor.history.revision();
+        for _ in 0..3 {
+            frame(&mut editor, &context, vec![]);
+        }
+        assert_eq!(editor.history.revision(), revision);
+        assert_eq!(editor.name, "pending draft");
+    }
+
+    /// Radio and check rows, which `controls` leaves out: label, centre and disabled.
+    fn option_rows(output: &egui::FullOutput) -> Vec<(String, egui::Pos2, bool)> {
+        use eframe::egui::accesskit::Role;
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        update
+            .nodes
+            .iter()
+            .filter(|(_, node)| matches!(node.role(), Role::RadioButton | Role::CheckBox))
+            .filter_map(|(_, node)| {
+                let bounds = node.bounds()?;
+                let center = egui::pos2(
+                    ((bounds.x0 + bounds.x1) / 2.0) as f32,
+                    ((bounds.y0 + bounds.y1) / 2.0) as f32,
+                );
+                Some((node.label()?.to_owned(), center, node.is_disabled()))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn planar_options_apply_the_chosen_axis_and_stay_open() {
+        use azteccraft::native_scene::UvProjectAxis;
+        let (mut editor, context) = setup();
+        let shape = editor.uv_target().unwrap();
+        editor.uv.options_open = true;
+        let mut output = frame(&mut editor, &context, vec![]);
+        for _ in 0..3 {
+            output = frame(&mut editor, &context, vec![]);
+        }
+        let rows = option_rows(&output);
+        for disabled in [
+            "Best plane",
+            "Camera",
+            "Keep image width/height ratio",
+            "Insert projection before deformers",
+            "Create new UV Set",
+        ] {
+            let found = rows.iter().find(|row| row.0 == disabled);
+            assert!(found.is_some_and(|row| row.2), "{disabled}");
+        }
+        let z = rows.iter().find(|row| row.0 == "Z axis").unwrap().1;
+        click(&mut editor, &context, z);
+        assert_eq!(editor.uv.axis, UvProjectAxis::Z);
+        let buttons = controls(&frame(&mut editor, &context, vec![]));
+        click(&mut editor, &context, row(&buttons, "Apply").rect.center());
+        let projected = editor.history.scene().uv_set(shape).unwrap().clone();
+        let mut expected = editor.history.scene().clone();
+        expected.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+        assert_eq!(expected.uv_set(shape), Some(&projected));
+        assert!(editor.uv.options_open);
+    }
+
+    #[test]
+    fn the_uv_editor_tolerates_its_shape_being_deleted() {
+        let (mut editor, context) = setup();
+        editor.uv.editor_open = true;
+        frame(&mut editor, &context, vec![]);
+        editor.native_operation(Operation::DeleteSelection);
+        frame(&mut editor, &context, vec![]);
+        assert!(editor.uv.editor_open);
     }
 }
 
@@ -5989,9 +6173,11 @@ mod toolbox_wire {
             ..Editor::default()
         };
         let output = frame(&mut editor, &context, vec![]);
-        for label in ["Undo", "Redo", "Frame selected  F"] {
+        for label in ["Undo", "Redo"] {
             assert!(disabled(&output, label), "{label}");
         }
+        // With nothing selected in Object mode, Frame selected acts like Frame All.
+        assert!(!disabled(&output, "Frame selected  F"));
         for label in ["Cube", "Plane"] {
             assert!(!disabled(&output, label), "{label}");
         }
@@ -6073,7 +6259,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
         .unwrap();
     assert_eq!(editor.remembered_face.as_ref(), Some(&triangle));
     let camera = editor.camera.clone();
-    editor.apply_operation(Operation::FrameSelected).unwrap();
+    editor.apply_operation(frame_with_children()).unwrap();
     assert_ne!(editor.camera, camera);
     editor
         .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
@@ -6087,6 +6273,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
         .apply_operation(Operation::BeginMove {
             target,
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let move_id = editor.history.active_manipulation().unwrap().id;
@@ -6179,7 +6366,8 @@ fn borrowed_selection_readers_preserve_exact_paths_and_operation_baselines() {
         )
         .unwrap();
         let before_inspection = state(&editor);
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection")
         };
@@ -6394,7 +6582,7 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
                 target.path.as_slice()
             }
         );
-        remote(&mut editor, Operation::FrameSelected).unwrap();
+        remote(&mut editor, frame_with_children()).unwrap();
         assert_eq!(editor.camera, expected);
         assert_eq!(state(&editor), before);
     }
@@ -6407,26 +6595,90 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
     )
     .unwrap();
     let before = (click_baseline(&editor), state(&editor));
-    assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
-        Err(OperationError::NoSelection)
-    ));
+    // Nothing selected in Object mode frames everything (#335), without touching the state.
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!((click_baseline(&editor), state(&editor)), before);
 }
 
 /// A group (translate x = 2) holding a child transform that owns one triangle mesh.
 /// Mirrored by `grouped_scene_bytes()` in src/mcp_tests/official_client/selection.rs; this module builds without the mcp feature, so the builder cannot be shared.
 fn group_editor() -> Editor {
-    nested_group_editor(&[b"child"])
+    nested_group_editor(&[b"child"], &[])
+}
+
+/// A script text mentioning `node`; the file refers to it by name, so Delete refuses it.
+fn selection_naming(node: &[u8]) -> Vec<u8> {
+    use material_wire as wire;
+    wire::group(
+        b"DPLM",
+        &wire::chunk(b"STR ", &[b"note\0see ", node, b"\0"].concat(), 8),
+        4,
+    )
+}
+
+/// `group_editor()` whose child a selection record names, so deleting it is refused.
+pub(in crate::app) fn linked_group_editor() -> Editor {
+    nested_group_editor(&[b"child"], &selection_naming(b"child"))
+}
+
+/// `deep_group_editor()` with the same refusing record on the deepest transform.
+pub(in crate::app) fn linked_deep_group_editor() -> Editor {
+    nested_group_editor(&[b"mid", b"child"], &selection_naming(b"child"))
+}
+
+/// Two independent root cubes, `keep` and `linked`; a selection record names `linked`, so deleting
+/// it is refused while `keep` alone deletes fine.
+pub(in crate::app) fn keep_and_linked_roots_editor() -> Editor {
+    use material_wire as wire;
+    let mut bytes = Vec::new();
+    for name in [&b"keep"[..], &b"linked"[..]] {
+        bytes.extend(wire::group(b"XFRM", &wire::creation(name, None), 4));
+        bytes.extend(wire::group(
+            b"DMSH",
+            &[
+                wire::creation(&[name, b"Shape"].concat(), Some(name)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    bytes.extend(selection_naming(b"linked"));
+    let scene = azteccraft::native_scene::binary::decode(wire::scene(&bytes)).unwrap();
+    Editor {
+        history: History::new(scene),
+        ..Editor::default()
+    }
 }
 
 /// Like `group_editor()` but with the transform chain group > mid > child above the shape.
 pub(in crate::app) fn deep_group_editor() -> Editor {
-    nested_group_editor(&[b"mid", b"child"])
+    nested_group_editor(&[b"mid", b"child"], &[])
 }
 
 /// A group (translate x = 2) holding the chain `names` of transforms; the last owns one triangle mesh.
-fn nested_group_editor(names: &[&[u8]]) -> Editor {
+fn nested_group_editor(names: &[&[u8]], extra: &[u8]) -> Editor {
+    nested_group_editor_with_leaf(names, None, extra)
+}
+
+/// `deep_group_editor` with `t`, `r` (radians) and `rp` authored on the transform that owns the mesh.
+pub(in crate::app) fn deep_group_editor_with_leaf(
+    translate: [f64; 3],
+    rotate: [f64; 3],
+    rotate_pivot: [f64; 3],
+) -> Editor {
+    nested_group_editor_with_leaf(
+        &[b"mid", b"child"],
+        Some([translate, rotate, rotate_pivot]),
+        &[],
+    )
+}
+
+fn nested_group_editor_with_leaf(
+    names: &[&[u8]],
+    leaf: Option<[[f64; 3]; 3]>,
+    extra: &[u8],
+) -> Editor {
     use material_wire as wire;
     let mut parent: &[u8] = b"group";
     let mut chain = wire::group(
@@ -6438,8 +6690,14 @@ fn nested_group_editor(names: &[&[u8]]) -> Editor {
         .concat(),
         4,
     );
-    for name in names {
-        chain.extend(wire::group(b"XFRM", &wire::creation(name, Some(parent)), 4));
+    for (index, name) in names.iter().enumerate() {
+        let mut body = wire::creation(name, Some(parent));
+        if let Some([translate, rotate, pivot]) = leaf.filter(|_| index + 1 == names.len()) {
+            body.extend(wire::triple(b"t", translate));
+            body.extend(wire::triple(b"r", rotate));
+            body.extend(wire::triple(b"rp", pivot));
+        }
+        chain.extend(wire::group(b"XFRM", &body, 4));
         parent = name;
     }
     chain.extend(wire::group(
@@ -6451,6 +6709,7 @@ fn nested_group_editor(names: &[&[u8]]) -> Editor {
         .concat(),
         4,
     ));
+    chain.extend(extra);
     let scene = azteccraft::native_scene::binary::decode(wire::scene(&chain)).unwrap();
     Editor {
         history: History::new(scene),
@@ -6561,8 +6820,8 @@ fn hierarchy_click_in_a_three_level_chain_selects_the_root_not_the_parent() {
 }
 
 #[test]
-fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
-    let mut editor = group_editor();
+fn delete_of_a_linked_child_is_a_typed_error_without_mutation_in_hierarchy_mode() {
+    let mut editor = linked_group_editor();
     let root = editor.history.scene().transform_paths().unwrap()[0].node;
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
     editor.native_operation(Operation::Select {
@@ -6583,29 +6842,23 @@ fn delete_of_a_group_is_a_typed_error_without_mutation_in_hierarchy_mode() {
         )
     };
     let baseline = state(&editor);
-    for (node, message) in [
-        (root, "Deleting a node with children is not supported yet"),
-        (
-            child,
-            "Deleting a node that has a parent is not supported yet",
-        ),
-    ] {
-        let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
-        assert!(matches!(
-            error,
-            OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
-        ));
-        assert_eq!(error.to_string(), message);
-        editor.native_operation(Operation::Delete(node));
-        assert_eq!(editor.status, message);
-        assert!(editor.error);
-        assert_eq!(
-            state(&editor),
-            baseline,
-            "selection, history and dirty flag"
-        );
-        assert_eq!(editor.history.scene(), &scene);
-    }
+    let node = child;
+    let message = "Deleting this node is not supported yet: A script or text value in the file mentions this node";
+    let error = remote(&mut editor, Operation::Delete(node)).unwrap_err();
+    assert!(matches!(
+        error,
+        OperationError::Scene(azteccraft::native_scene::NativeError::UnsupportedDelete(_))
+    ));
+    assert_eq!(error.to_string(), message);
+    editor.native_operation(Operation::Delete(node));
+    assert_eq!(editor.status, message);
+    assert!(editor.error);
+    assert_eq!(
+        state(&editor),
+        baseline,
+        "selection, history and dirty flag"
+    );
+    assert_eq!(editor.history.scene(), &scene);
 }
 
 #[test]
@@ -6777,7 +7030,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
             .unwrap();
         assert_eq!(editor.remembered_face.as_ref(), Some(&cap_face));
         let camera = editor.camera.clone();
-        editor.apply_operation(Operation::FrameSelected).unwrap();
+        editor.apply_operation(frame_with_children()).unwrap();
         assert_ne!(editor.camera, camera);
         editor
             .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
@@ -6791,6 +7044,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         let move_id = editor.history.active_manipulation().unwrap().id;
@@ -6829,8 +7083,19 @@ fn frame_selected_in_hierarchy_mode_frames_the_selected_root() {
     click_first_instance(&mut editor);
     assert!(editor.selection_presentation().0.is_some());
     let before = editor.camera.clone();
-    remote(&mut editor, Operation::FrameSelected).unwrap();
-    assert_ne!(editor.camera, before);
+    // F frames the selected root only; the group owns no geometry, so its origin (P2, PROVISIONAL).
+    let frame = |editor: &mut Editor, with_children| {
+        remote(editor, Operation::FrameSelected { with_children }).unwrap();
+    };
+    frame(&mut editor, false);
+    let origin_only = editor.camera.clone();
+    assert_ne!(origin_only, before);
+    assert_eq!(origin_only.target(), glam::Vec3::new(2.0, 0.0, 0.0));
+    assert_eq!(origin_only.distance(), origin_only.near() * 2.0 * 1.05);
+    // Ctrl+F frames the hierarchy: the child's triangle.
+    frame(&mut editor, true);
+    assert_ne!(editor.camera.target(), origin_only.target());
+    assert!(editor.camera.distance() > origin_only.distance());
 }
 
 #[test]
@@ -7242,7 +7507,7 @@ fn a_still_valid_vertex_pick_survives_undo_of_an_unrelated_edit() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.channels[0] = "2".into();
-    editor.native_operation(Operation::FrameSelected);
+    editor.native_operation(frame_with_children());
     set_mode(&mut editor, SelectionMode::Vertex);
     let vertex = selected_vertex(&editor, 3);
     remote(
@@ -7590,13 +7855,13 @@ fn frame_selected_frames_the_remembered_vertex_in_world_space() {
     assert!(expected.target().x > 1.0, "world, not local, coordinates");
     let scene = editor.history.scene().clone();
     let token = editor.scene_token;
-    remote(&mut editor, Operation::FrameSelected).unwrap();
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!(editor.camera, expected);
     assert_eq!(editor.camera.target(), points[0]);
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.scene_token, token);
     assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
+        remote(&mut editor, frame_with_children()),
         Ok(OperationReply::Unchanged)
     ));
 }
@@ -7612,7 +7877,7 @@ fn frame_selected_frames_both_endpoints_of_the_remembered_edge() {
     assert_ne!(points[0], points[1]);
     let mut expected = editor.camera.clone();
     expected.frame_points(&points, editor.aspect).unwrap();
-    remote(&mut editor, Operation::FrameSelected).unwrap();
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!(editor.camera, expected);
     assert!(
         editor
@@ -7633,14 +7898,14 @@ fn frame_selected_without_a_pick_or_with_a_stale_pick_keeps_the_camera() {
         set_mode(&mut editor, mode);
         let camera = editor.camera.clone();
         assert!(matches!(
-            remote(&mut editor, Operation::FrameSelected),
+            remote(&mut editor, frame_with_children()),
             Err(OperationError::NoSelection)
         ));
         // A remembered pick that no longer resolves is a typed scene error.
         editor.remembered_vertex = Some(selected_vertex(&editor, 9999));
         editor.remembered_edge = Some(selected_edge(&editor, 9999));
         assert!(matches!(
-            remote(&mut editor, Operation::FrameSelected),
+            remote(&mut editor, frame_with_children()),
             Err(OperationError::Scene(_))
         ));
         assert_eq!(editor.camera, camera);
@@ -7656,7 +7921,7 @@ fn frame_selected_after_undo_of_the_picked_object_is_no_selection() {
     remote(&mut editor, Operation::Undo).unwrap();
     let camera = editor.camera.clone();
     assert!(matches!(
-        remote(&mut editor, Operation::FrameSelected),
+        remote(&mut editor, frame_with_children()),
         Err(OperationError::NoSelection)
     ));
     assert_eq!(editor.camera, camera);
@@ -7671,7 +7936,7 @@ fn frame_selected_in_object_mode_ignores_vertex_and_edge_picks() {
     let mut expected = editor.camera.clone();
     let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
     expected.frame_view(&view, None, editor.aspect).unwrap();
-    remote(&mut editor, Operation::FrameSelected).unwrap();
+    remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!(editor.camera, expected);
 }
 
@@ -8329,7 +8594,8 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
             }
         }
         assert_eq!(state(&editor), baseline, "{phase}: paint");
-        let OperationReply::Scene { inspection } = remote(&mut editor, Operation::Inspect).unwrap()
+        let OperationReply::Scene { inspection } =
+            remote(&mut editor, Operation::Inspect { page: None }).unwrap()
         else {
             panic!("expected inspection");
         };
@@ -9019,7 +9285,7 @@ mod primitive_options_create {
     }
 
     #[test]
-    fn save_and_save_as_stay_refused_and_write_nothing_after_an_optioned_create() {
+    fn optioned_create_can_be_saved_as_a_new_maya_binary_scene_on_unix_only() {
         let directory = tempfile::tempdir().unwrap();
         let destination = directory.path().join("created.mb");
         let mut editor = Editor::default();
@@ -9035,12 +9301,21 @@ mod primitive_options_create {
                 path: destination.clone(),
             },
         );
-        assert!(
-            matches!(save_as, Err(OperationError::NativeSave(_))),
-            "{save_as:?}"
-        );
-        assert!(!destination.exists());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        if cfg!(unix) {
+            assert!(
+                matches!(save_as, Ok(OperationReply::Saved { .. })),
+                "{save_as:?}"
+            );
+            assert!(destination.is_file());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+        } else {
+            assert!(
+                matches!(save_as, Err(OperationError::NativeSave(_))),
+                "{save_as:?}"
+            );
+            assert!(!destination.exists());
+            assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+        }
     }
 
     #[test]
@@ -9513,7 +9788,7 @@ fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
             world_units: [0.5, 0.5],
         },
         Operation::Dolly { factor: 1.5 },
-        Operation::FrameSelected,
+        frame_with_children(),
         Operation::SetActiveTool(ActiveTool::Move),
         Operation::SetGridVisible { visible: false },
     ] {
@@ -9661,7 +9936,7 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_acts() {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -9670,6 +9945,7 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         0 => Operation::BeginMove {
             target: target.clone(),
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         1 => Operation::BeginRotate {
             target: target.clone(),
@@ -9683,13 +9959,23 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        assert!(
-            matches!(
-                editor.apply_operation(make(index)),
-                Err(OperationError::MultipleSelection)
-            ),
-            "native {label}"
-        );
+        if index == 0 {
+            // A native Move acts on the whole selection; cancelling restores the baseline.
+            editor.apply_operation(make(0)).unwrap();
+            assert_eq!(
+                editor.history.active_manipulation().unwrap().member_count(),
+                2
+            );
+            editor.cancel_move().unwrap();
+        } else {
+            assert!(
+                matches!(
+                    editor.apply_operation(make(index)),
+                    Err(OperationError::MultipleSelection)
+                ),
+                "native {label}"
+            );
+        }
         assert!(
             matches!(
                 remote(&mut editor, make(index)),
@@ -10067,7 +10353,7 @@ fn the_f_key_frames_the_union_of_several_selected_objects() {
     let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
     let mut expected = editor.camera.clone();
     expected
-        .frame_view_many(&view, &prefixes, editor.aspect)
+        .frame_view_many(&view, &prefixes, FrameChildren::Include, editor.aspect)
         .unwrap();
     assert_ne!(expected, editor.camera);
     frame(&mut editor, &ctx, vec![key(Key::F)]);
@@ -10699,4 +10985,511 @@ fn modify_selection_at_the_cap_reports_the_typed_error_and_keeps_the_set() {
         }),
         Ok(OperationReply::Unchanged)
     ));
+}
+
+mod frame_members {
+    use super::*;
+    use material_wire as wire;
+
+    fn xfrm(name: &[u8], parent: Option<&[u8]>, attrs: &[Vec<u8>]) -> Vec<u8> {
+        wire::group(
+            b"XFRM",
+            &[wire::creation(name, parent), attrs.concat()].concat(),
+            4,
+        )
+    }
+
+    fn triangle(name: &[u8], parent: &[u8]) -> Vec<u8> {
+        wire::group(
+            b"DMSH",
+            &[
+                wire::creation(name, Some(parent)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        )
+    }
+
+    fn editor_of(chunks: &[Vec<u8>]) -> Editor {
+        let scene =
+            azteccraft::native_scene::binary::decode(wire::scene(&chunks.concat())).unwrap();
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    fn select(editor: &mut Editor, names: &[&str]) {
+        let scene = editor.history.scene();
+        let mut members = Vec::new();
+        for name in names {
+            let node = scene
+                .nodes()
+                .iter()
+                .find(|n| n.name() == *name)
+                .unwrap()
+                .id();
+            let target = scene
+                .transform_paths()
+                .unwrap()
+                .into_iter()
+                .find(|target| target.node == node)
+                .unwrap();
+            members.push(target);
+        }
+        editor.set_selection_members_for_test(members);
+        editor.sync_fields();
+    }
+
+    fn origin_camera(editor: &Editor, origin: Vec3) -> Camera {
+        let mut camera = editor.camera.clone();
+        camera.frame_points(&[origin], editor.aspect).unwrap();
+        camera
+    }
+
+    #[test]
+    fn exclude_frames_a_shapeless_group_at_its_world_origin() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(b"child", Some(b"group"), &[]),
+            triangle(b"shape", b"child"),
+        ]);
+        select(&mut editor, &["group"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_eq!(editor.camera.distance(), editor.camera.near() * 2.0 * 1.05);
+        let origin = editor.camera.target();
+        editor.camera = Camera::default();
+        editor.frame_members(FrameChildren::Include).unwrap();
+        let framed = editor.camera.target();
+        assert!((framed.x - 2.0).abs() < 1.0 && framed != origin);
+    }
+
+    #[test]
+    fn exclude_origin_of_a_nested_group_includes_its_ancestors() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(
+                b"mid",
+                Some(b"group"),
+                &[wire::triple(b"t", [0.0, 3.0, 0.0])],
+            ),
+            xfrm(b"leaf", Some(b"mid"), &[]),
+            triangle(b"shape", b"leaf"),
+        ]);
+        select(&mut editor, &["mid"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 3.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    /// PROVISIONAL pin: the framed origin is the manipulator origin (translate plus rotate-pivot
+    /// translate); a rotate pivot point does not move it. Maya's docs name neither.
+    #[test]
+    fn exclude_origin_ignores_the_rotate_pivot_point() {
+        let mut editor = editor_of(&[
+            xfrm(
+                b"group",
+                None,
+                &[
+                    wire::triple(b"t", [2.0, 0.0, 0.0]),
+                    wire::triple(b"rp", [0.0, 5.0, 0.0]),
+                ],
+            ),
+            xfrm(b"child", Some(b"group"), &[]),
+            triangle(b"shape", b"child"),
+        ]);
+        select(&mut editor, &["group"]);
+        let frame = {
+            let target = editor.selection.lead().unwrap().clone();
+            editor
+                .history
+                .scene()
+                .manipulator_frame(&target)
+                .unwrap()
+                .origin_cm
+        };
+        assert_eq!(frame, glam::DVec3::new(2.0, 0.0, 0.0));
+        let expected = origin_camera(&editor, frame.as_vec3());
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    const CURVE_CC: &str =
+        "setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;";
+
+    fn ascii_editor(body: &str) -> Editor {
+        let source = format!(
+            "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; {body}"
+        );
+        let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+        Editor {
+            history: History::new(scene),
+            ..Editor::default()
+        }
+    }
+
+    #[test]
+    fn exclude_origin_includes_the_rotate_pivot_translate() {
+        let mut editor = ascii_editor(
+            "createNode transform -n \"g\"; setAttr \".t\" -type \"double3\" 2 0 0; setAttr \".rpt\" -type \"double3\" 0 3 0;",
+        );
+        select(&mut editor, &["g"]);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 3.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+    }
+
+    fn curve_parent_editor(hidden: bool) -> Editor {
+        let hide = if hidden { "setAttr \".v\" no;" } else { "" };
+        let mut editor = ascii_editor(&format!(
+            "createNode transform -n \"g\"; setAttr \".t\" -type \"double3\" 2 0 0; \
+             createNode nurbsCurve -n \"gShape\" -p \"g\"; {hide} {CURVE_CC} \
+             createNode transform -n \"c\" -p \"g\"; setAttr \".t\" -type \"double3\" 40 0 0; \
+             createNode nurbsCurve -n \"cShape\" -p \"c\"; {CURVE_CC}"
+        ));
+        select(&mut editor, &["g"]);
+        editor
+    }
+
+    #[test]
+    fn exclude_with_a_hidden_own_curve_frames_the_origin_and_with_it_visible_the_curve() {
+        let mut editor = curve_parent_editor(true);
+        let expected = origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0));
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_eq!(editor.camera.distance(), editor.camera.near() * 2.0 * 1.05);
+        editor.camera = Camera::default();
+        editor.frame_members(FrameChildren::Include).unwrap();
+        assert!(
+            editor.camera.target().x > 10.0,
+            "{:?}",
+            editor.camera.target()
+        );
+
+        let mut editor = curve_parent_editor(false);
+        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+        let prefix = editor.selection.lead().unwrap().path.clone();
+        let mut own = editor.camera.clone();
+        own.frame_view_many(
+            &view,
+            &[prefix.as_slice()],
+            FrameChildren::Exclude,
+            editor.aspect,
+        )
+        .unwrap();
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, own);
+        assert_ne!(
+            editor.camera,
+            origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
+    fn exclude_with_one_member_owning_geometry_ignores_origins() {
+        let mut editor = editor_of(&[
+            xfrm(b"group", None, &[wire::triple(b"t", [2.0, 0.0, 0.0])]),
+            xfrm(b"solid", None, &[wire::triple(b"t", [-9.0, 0.0, 0.0])]),
+            triangle(b"shape", b"solid"),
+        ]);
+        select(&mut editor, &["group", "solid"]);
+        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+        let solid = editor.selection.members()[1].path.clone();
+        let mut expected = editor.camera.clone();
+        expected
+            .frame_view_many(
+                &view,
+                &[solid.as_slice()],
+                FrameChildren::Exclude,
+                editor.aspect,
+            )
+            .unwrap();
+        editor.frame_members(FrameChildren::Exclude).unwrap();
+        assert_eq!(editor.camera, expected);
+        assert_ne!(
+            editor.camera,
+            origin_camera(&editor, Vec3::new(2.0, 0.0, 0.0))
+        );
+    }
+
+    #[test]
+    fn include_still_refuses_a_selection_without_any_geometry() {
+        let mut editor = editor_of(&[xfrm(b"empty", None, &[])]);
+        select(&mut editor, &["empty"]);
+        let before = editor.camera.clone();
+        assert!(matches!(
+            editor.frame_members(FrameChildren::Include),
+            Err(OperationError::Camera(_))
+        ));
+        assert_eq!(editor.camera, before);
+        assert!(editor.frame_members(FrameChildren::Exclude).is_ok());
+    }
+
+    #[test]
+    fn nothing_selected_is_refused() {
+        let mut editor = editor_of(&[xfrm(b"empty", None, &[])]);
+        assert!(matches!(
+            editor.frame_members(FrameChildren::Exclude),
+            Err(OperationError::NoSelection)
+        ));
+    }
+
+    fn parent_with_far_child() -> Editor {
+        let mut editor = editor_of(&[
+            xfrm(b"parent", None, &[]),
+            triangle(b"parentShape", b"parent"),
+            xfrm(
+                b"child",
+                Some(b"parent"),
+                &[wire::triple(b"t", [40.0, 0.0, 0.0])],
+            ),
+            triangle(b"childShape", b"child"),
+        ]);
+        select(&mut editor, &["parent"]);
+        editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+        editor
+    }
+
+    fn framed_by(editor: &Editor, children: FrameChildren) -> Camera {
+        let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+        let prefix = editor.selection.lead().unwrap().path.clone();
+        let mut camera = editor.camera.clone();
+        camera
+            .frame_view_many(&view, &[prefix.as_slice()], children, editor.aspect)
+            .unwrap();
+        camera
+    }
+
+    fn both_flavours() -> (Camera, Camera) {
+        let editor = parent_with_far_child();
+        (
+            framed_by(&editor, FrameChildren::Exclude),
+            framed_by(&editor, FrameChildren::Include),
+        )
+    }
+
+    #[test]
+    fn f_frames_the_parent_only_and_ctrl_f_frames_with_children() {
+        let (excluded, included) = both_flavours();
+        assert_ne!(excluded, included);
+        let none = egui::Modifiers::NONE;
+        let mut editor = parent_with_far_child();
+        let events = vec![key_event(Key::F, none, false)];
+        shortcuts_in(&egui::Context::default(), &mut editor, none, events);
+        assert_eq!(editor.camera, excluded);
+        let ctrl = egui::Modifiers::CTRL;
+        let mut editor = parent_with_far_child();
+        let events = vec![key_event(Key::F, ctrl, false)];
+        shortcuts_in(&egui::Context::default(), &mut editor, ctrl, events);
+        assert_eq!(editor.camera, included);
+    }
+
+    /// Each F event is judged by its own modifiers, not the frame-final ones.
+    #[test]
+    fn f_flavour_follows_the_event_modifiers_not_a_later_change() {
+        let (none, ctrl) = (egui::Modifiers::NONE, egui::Modifiers::CTRL);
+        let (excluded, included) = both_flavours();
+        let mut editor = parent_with_far_child();
+        let events = vec![
+            key_event(Key::F, none, false),
+            egui::Event::ModifiersChanged(ctrl),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, none, events);
+        assert_eq!(editor.camera, excluded);
+        let mut editor = parent_with_far_child();
+        let events = vec![
+            key_event(Key::F, ctrl, false),
+            egui::Event::ModifiersChanged(none),
+        ];
+        shortcuts_in(&egui::Context::default(), &mut editor, ctrl, events);
+        assert_eq!(editor.camera, included);
+    }
+
+    #[test]
+    fn ctrl_f_repeats_while_held() {
+        let ctrl = egui::Modifiers::CTRL;
+        let mut editor = parent_with_far_child();
+        let ctx = egui::Context::default();
+        let first = vec![key_event(Key::F, ctrl, false)];
+        shortcuts_in(&ctx, &mut editor, ctrl, first);
+        let framed = editor.camera.clone();
+        editor.camera.pan(glam::vec2(4.0, 3.0)).unwrap();
+        let panned = editor.camera.clone();
+        shortcuts_in(&ctx, &mut editor, ctrl, vec![key_event(Key::F, ctrl, true)]);
+        assert!(!editor.camera.same_capture(&panned));
+        assert_eq!(editor.camera.target(), framed.target());
+    }
+
+    #[test]
+    fn the_operation_flag_selects_the_flavour_through_the_remote_path() {
+        for (with_children, children) in [
+            (false, FrameChildren::Exclude),
+            (true, FrameChildren::Include),
+        ] {
+            let mut editor = parent_with_far_child();
+            let expected = framed_by(&editor, children);
+            remote(&mut editor, Operation::FrameSelected { with_children }).unwrap();
+            assert_eq!(editor.camera, expected, "{with_children}");
+        }
+    }
+
+    fn open_view_menu(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+        let output = frame(editor, ctx, vec![]);
+        let menu = face_text_position(&output, "View");
+        face_pointer_click(editor, ctx, menu, egui::Modifiers::NONE, vec![])
+    }
+
+    #[test]
+    fn view_menu_rows_dispatch_the_two_flavours() {
+        for (label, children) in [
+            ("Frame Selection (F)", FrameChildren::Exclude),
+            (
+                "Frame Selection with Children (Ctrl+F)",
+                FrameChildren::Include,
+            ),
+        ] {
+            let mut editor = parent_with_far_child();
+            let expected = framed_by(&editor, children);
+            let ctx = egui::Context::default();
+            ctx.enable_accesskit();
+            let output = open_view_menu(&mut editor, &ctx);
+            assert!(!button_disabled(&output, label), "{label}");
+            let row = face_text_position(&output, label);
+            face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+            assert_eq!(editor.camera, expected, "{label}");
+        }
+    }
+
+    #[test]
+    fn view_menu_rows_are_disabled_without_a_selection_in_a_component_mode() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        set_mode(&mut editor, SelectionMode::Face);
+        let before = editor.camera.clone();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        for label in [
+            "Frame Selection (F)",
+            "Frame Selection with Children (Ctrl+F)",
+        ] {
+            assert!(button_disabled(&output, label), "{label}");
+            let row = face_text_position(&output, label);
+            face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+            assert_eq!(editor.camera, before, "{label}");
+        }
+    }
+
+    #[test]
+    fn view_menu_rows_follow_frame_all_in_order() {
+        let mut editor = parent_with_far_child();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        let y = |label| face_text_position(&output, label).y;
+        assert!(y("Frame All (A)") < y("Frame Selection (F)"));
+        assert!(y("Frame Selection (F)") < y("Frame Selection with Children (Ctrl+F)"));
+    }
+
+    /// Shift+F and Ctrl+Shift+F alias F and Ctrl+F while there is one view.
+    #[test]
+    fn shift_variants_alias_the_single_view_flavours() {
+        let (excluded, included) = both_flavours();
+        let shift = egui::Modifiers::SHIFT;
+        let ctrl_shift = egui::Modifiers::CTRL | egui::Modifiers::SHIFT;
+        for (held, want) in [(shift, &excluded), (ctrl_shift, &included)] {
+            let mut editor = parent_with_far_child();
+            let undo_before = editor.history.can_undo();
+            let events = vec![key_event(Key::F, held, false)];
+            shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+            assert_eq!(&editor.camera, want, "{held:?}");
+            assert_eq!(editor.history.can_undo(), undo_before);
+        }
+        let mut editor = parent_with_far_child();
+        let before = editor.camera.clone();
+        let held = shift | egui::Modifiers::ALT;
+        let events = vec![key_event(Key::F, held, false)];
+        shortcuts_in(&egui::Context::default(), &mut editor, held, events);
+        assert!(editor.camera.same_capture(&before));
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_frames_all_in_object_and_hierarchy_modes() {
+        for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
+            for with_children in [false, true] {
+                let mut editor = parent_with_far_child();
+                editor.native_operation(Operation::DeselectAll);
+                editor.native_operation(Operation::SetSelectionMode(mode));
+                assert_eq!(editor.selection_mode, mode);
+                let expected = camera_after_frame_all(&editor);
+                let reply = remote(&mut editor, Operation::FrameSelected { with_children });
+                assert!(reply.is_ok(), "{mode:?} {with_children}");
+                assert_eq!(editor.camera, expected, "{mode:?} {with_children}");
+            }
+        }
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_in_an_empty_scene_is_nothing_to_frame() {
+        let mut editor = Editor::default();
+        let before = editor.camera.clone();
+        assert!(matches!(
+            remote(&mut editor, frame_with_children()),
+            Err(OperationError::NothingToFrame)
+        ));
+        assert_eq!(editor.camera, before);
+    }
+
+    #[test]
+    fn frame_with_nothing_selected_in_a_component_mode_stays_no_selection() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        set_mode(&mut editor, SelectionMode::Face);
+        let before = editor.camera.clone();
+        assert!(matches!(
+            remote(&mut editor, frame_with_children()),
+            Err(OperationError::NoSelection)
+        ));
+        assert_eq!(editor.camera, before);
+    }
+
+    #[test]
+    fn view_menu_rows_frame_all_with_nothing_selected_in_object_mode() {
+        let mut editor = parent_with_far_child();
+        editor.native_operation(Operation::DeselectAll);
+        let expected = camera_after_frame_all(&editor);
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = open_view_menu(&mut editor, &ctx);
+        let label = "Frame Selection (F)";
+        assert!(!button_disabled(&output, label));
+        let row = face_text_position(&output, label);
+        face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
+        assert_eq!(editor.camera, expected);
+    }
+}
+
+#[test]
+fn radians_keeping_stored_never_perturbs_an_unchanged_rotation() {
+    let mut state = 0x9E37_79B9_7F4A_7C15_u64;
+    let mut drifted = 0;
+    for _ in 0..100_000 {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let stored = (state as f64 / u64::MAX as f64 - 0.5) * 20.0;
+        drifted += usize::from(stored.to_degrees().to_radians() != stored);
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, stored.to_degrees()).to_bits(),
+            stored.to_bits()
+        );
+        assert_eq!(
+            super::dispatch::radians_keeping_stored(stored, 12.5),
+            12.5_f64.to_radians()
+        );
+    }
+    assert!(drifted > 0, "the sample no longer exercises the drift");
 }

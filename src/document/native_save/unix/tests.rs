@@ -20,13 +20,19 @@ mod sited {
     ));
 }
 
-fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
+pub(super) fn opened(directory: &Path) -> (PathBuf, crate::document::NativeDocument) {
     let path = directory.join("scene.mb");
     std::fs::write(&path, wire::specimen()).unwrap();
     let document = load_native(&path).unwrap();
     (path, document)
 }
-fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
+fn parse_bytes(baseline: &SourceBaseline) -> Arc<[u8]> {
+    match &baseline.retention {
+        Retention::Source { parse_bytes } => parse_bytes.clone(),
+        Retention::Authored { .. } => panic!("expected a baseline that retains its source"),
+    }
+}
+pub(super) fn saved(result: Result<SaveOutcome, Error>) -> (NativeOrigin, PathBuf) {
     match result.unwrap() {
         SaveOutcome::Saved { origin, path } => (origin, path),
         other => panic!("expected confirmed installation: {other:?}"),
@@ -251,7 +257,7 @@ fn private_models_save_as_and_repeat_on_working_copies_only() {
         let NativeOrigin::Binary(original_origin) = &document.origin else {
             panic!("fixture {ordinal} needs binary origin");
         };
-        let parse = original_origin.parse_bytes.clone();
+        let parse = parse_bytes(original_origin);
         let edit = document.scene.nodes().iter().find_map(|node| {
             let id = node.id();
             [
@@ -312,7 +318,7 @@ fn private_models_save_as_and_repeat_on_working_copies_only() {
             let NativeOrigin::Binary(current) = &origin else {
                 panic!("fixture {ordinal} cycle {cycle} lost binary origin");
             };
-            assert!(Arc::ptr_eq(&parse, &current.parse_bytes));
+            assert!(Arc::ptr_eq(&parse, &parse_bytes(current)));
             assert!(document.scene.has_binary_source(&parse));
             let reopened = load_native(expected_path).unwrap();
             let actual = reopened.scene.internal_transform(id).unwrap();
@@ -352,7 +358,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(original) = &document.origin else {
         unreachable!()
     };
-    let parse = original.parse_bytes.clone();
+    let parse = parse_bytes(original);
     let id = document.scene.nodes()[0].id();
     document
         .scene
@@ -368,7 +374,7 @@ fn active_save_and_repeat_preserve_parse_source_and_reopen_written_words() {
     let NativeOrigin::Binary(baseline) = &origin else {
         unreachable!()
     };
-    assert!(Arc::ptr_eq(&parse, &baseline.parse_bytes));
+    assert!(Arc::ptr_eq(&parse, &parse_bytes(baseline)));
     assert!(document.scene.has_binary_source(&parse));
     let first = std::fs::read(&path).unwrap();
     let (origin, _) = saved(save_native(
@@ -1325,10 +1331,40 @@ fn exclusive_stage_collision_never_grants_ownership_or_cleanup() {
 }
 
 #[test]
+fn an_authored_baseline_requires_a_scene_without_a_retained_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, document) = opened(directory.path());
+    let mut fresh = NativeScene::default();
+    fresh.create(crate::scene::Primitive::Cube, "cube").unwrap();
+    let path = directory.path().join("authored.mb");
+    let (origin, _) = saved(crate::document::save_native(
+        &NativeOrigin::Untitled,
+        &fresh,
+        SaveDestination::As(&path),
+        &|| true,
+    ));
+    // A scene that still retains parsed source is not what an authored baseline describes.
+    assert_eq!(
+        save_native(&origin, &document.scene, SaveDestination::Active, &|| true).unwrap_err(),
+        Error::SourceChanged
+    );
+    // The original authored scene continues to match its own baseline.
+    assert!(matches!(
+        save_native(&origin, &fresh, SaveDestination::Active, &|| true),
+        Ok(SaveOutcome::Saved { .. })
+    ));
+    // The reverse: a sourced baseline refuses a scene that lost its source.
+    assert_eq!(
+        save_native(&document.origin, &fresh, SaveDestination::Active, &|| true).unwrap_err(),
+        Error::SourceChanged
+    );
+}
+
+#[test]
 fn independently_authored_equal_scenes_cannot_reuse_a_saved_origin() {
     let directory = tempfile::tempdir().unwrap();
-    let first = directory.path().join("first.ma");
-    let second = directory.path().join("second.ma");
+    let first = directory.path().join("first.mb");
+    let second = directory.path().join("second.mb");
     let scene = NativeScene::default();
     let unrelated = NativeScene::default();
     assert_eq!(scene, unrelated, "identity is not semantic scene content");
@@ -1370,11 +1406,10 @@ fn independently_authored_equal_scenes_cannot_reuse_a_saved_origin() {
 #[test]
 fn uncertain_authored_save_reconciles_with_the_same_document_authority() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("uncertain.ma");
+    let path = directory.path().join("uncertain.mb");
     let mut scene = NativeScene::default();
     let origin = NativeOrigin::Untitled;
-    let transaction =
-        prepare_authored(&origin, &scene, SaveDestination::As(&path), &|| true).unwrap();
+    let transaction = prepare(&origin, &scene, SaveDestination::As(&path), &|| true).unwrap();
     let fs = FaultFs {
         inner: &transaction,
         fault: Fault::DirectorySync,

@@ -226,6 +226,7 @@ impl Editor {
         let mut shading_requested = None;
         let mut default_view_requested = false;
         let mut frame_all_requested = false;
+        let mut frame_selection_requested = None;
         ui.horizontal(|ui| {
             ui.label("persp");
             ui.label(match self.selection_mode {
@@ -257,6 +258,21 @@ impl Editor {
                     if ui.button("Frame All (A)").clicked() {
                         frame_all_requested = true;
                         ui.close();
+                    }
+                    // Row names and order are from the Maya 2027 View menu page; the shelf button
+                    // uses the same enablement.
+                    let has_selection = self.can_frame_selected();
+                    for (label, with_children) in [
+                        ("Frame Selection (F)", false),
+                        ("Frame Selection with Children (Ctrl+F)", true),
+                    ] {
+                        if ui
+                            .add_enabled(has_selection, egui::Button::new(label))
+                            .clicked()
+                        {
+                            frame_selection_requested = Some(with_children);
+                            ui.close();
+                        }
                     }
                 });
                 ui.menu_button("Shading", |ui| {
@@ -300,6 +316,7 @@ impl Editor {
         let admitted = frame_admitted && !self.files.is_modal() && !self.files.is_closing();
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());
+        self.uv_windows(ui.ctx());
         let sidebar_request = self.sidebar_panel_request.take();
         let tab_request = self.attribute_editor_tab_request.take();
         if grid_requested && self.scene_token == frame_token {
@@ -312,6 +329,11 @@ impl Editor {
         }
         if frame_all_requested && self.scene_token == frame_token {
             self.frame_all();
+        }
+        if let Some(with_children) = frame_selection_requested
+            && self.scene_token == frame_token
+        {
+            self.frame_selected(with_children);
         }
         if let Some(mode) = shading_requested
             && self.scene_token == frame_token
@@ -440,14 +462,20 @@ impl Editor {
                 }
                 None => {}
             }
-            let view =
-                ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024).map_err(|e| {
-                    if matches!(e, azteccraft::view_scene::ViewError::ResourceLimit) {
-                        self.viewport_error =
-                            Some(crate::viewport_renderer::ViewportError::ResourceLimit);
-                    }
-                    OperationError::View(e.to_string())
-                })?;
+            let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
+                Ok(view) => view,
+                Err(e) => {
+                    self.viewport_error = Some(match e {
+                        azteccraft::view_scene::ViewError::ResourceLimit => {
+                            crate::viewport_renderer::ViewportError::ResourceLimit
+                        }
+                        _ => crate::viewport_renderer::ViewportError::SceneGeometry,
+                    });
+                    // No handles are painted this frame, so the capture must not outlive them.
+                    self.missing_move_viewport()?;
+                    return Err(OperationError::View(e.to_string()));
+                }
+            };
             // Picks dispatch through `apply_operation`, not `native_operation`.
             if !self.files.is_modal()
                 && let Some(ndc) = clickable

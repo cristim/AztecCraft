@@ -621,6 +621,7 @@ fn mode_buttons_are_disabled_while_a_remote_manipulation_is_active() {
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
         )
         .unwrap();
@@ -891,6 +892,7 @@ fn channel_box_toggle_is_disabled_for_modal_closing_and_move() {
                     .apply_operation(crate::editor_operations::Operation::BeginMove {
                         target,
                         axis: azteccraft::native_scene::WorldAxis::X,
+                        expected_selection_generation: None,
                     })
                     .unwrap();
             }
