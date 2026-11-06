@@ -6,7 +6,7 @@ mod removal;
 mod write;
 pub use encode::encode;
 pub use removal::RemovalRefusal;
-pub(super) use removal::{check_materials, check_removal};
+pub(super) use removal::{check_materials, check_removal_sets};
 #[cfg(test)]
 mod tests;
 

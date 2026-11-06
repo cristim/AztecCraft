@@ -43,30 +43,62 @@ impl NativeScene {
     /// Whether `gone` (a transform and its shapes) can leave the opened file, together with the
     /// nodes already removed. Refusals are typed and leave the scene untouched.
     pub(super) fn check_source_removal(&self, gone: &[NativeId]) -> Result<(), NativeError> {
-        let source = self.source.as_ref().ok_or(NativeError::UnsupportedEdit)?;
+        self.check_source_removals(&[gone.to_vec()])
+            .pop()
+            .unwrap_or(Err(NativeError::UnsupportedEdit))
+    }
+
+    /// [`Self::check_source_removal`] for several candidate sets, decoding the source once.
+    pub(super) fn check_source_removals(
+        &self,
+        sets: &[Vec<NativeId>],
+    ) -> Vec<Result<(), NativeError>> {
+        let Some(source) = self.source.as_ref() else {
+            return sets
+                .iter()
+                .map(|_| Err(NativeError::UnsupportedEdit))
+                .collect();
+        };
         let refuse = |reason: RemovalRefusal| {
             NativeError::UnsupportedDelete(DeleteUnsupported::Source(reason))
         };
-        let pending = self
-            .nodes
+        let alls: Vec<Vec<NativeId>> = sets
             .iter()
-            .filter(|node| !gone.contains(&node.transform_id))
-            .flat_map(|node| {
-                node.channels
+            .map(|gone| self.removed.iter().chain(gone).copied().collect())
+            .collect();
+        let refs: Vec<&[NativeId]> = alls.iter().map(Vec::as_slice).collect();
+        let decoded = binary::check_removal_sets(&source.bytes, &refs);
+        sets.iter()
+            .zip(&alls)
+            .enumerate()
+            .map(|(index, (gone, all))| {
+                let pending = self
+                    .nodes
                     .iter()
-                    .chain(&node.rotate_pivot)
-                    .chain(&node.scale_pivot)
+                    .filter(|node| !gone.contains(&node.transform_id))
+                    .flat_map(|node| {
+                        node.channels
+                            .iter()
+                            .chain(&node.rotate_pivot)
+                            .chain(&node.scale_pivot)
+                    })
+                    .any(|scalar| scalar.replaced && scalar.origin.is_none());
+                if pending {
+                    return Err(refuse(RemovalRefusal::PendingInsertion));
+                }
+                match &decoded {
+                    Err(reason) => return Err(refuse(*reason)),
+                    Ok(outcomes) => outcomes[index]
+                        .as_ref()
+                        .map(drop)
+                        .map_err(|reason| refuse(*reason))?,
+                }
+                if let Some(appearance) = &source.appearance {
+                    binary::check_materials(appearance, all).map_err(refuse)?;
+                }
+                Ok(())
             })
-            .any(|scalar| scalar.replaced && scalar.origin.is_none());
-        if pending {
-            return Err(refuse(RemovalRefusal::PendingInsertion));
-        }
-        let all: Vec<NativeId> = self.removed.iter().chain(gone).copied().collect();
-        binary::check_removal(&source.bytes, &all).map_err(refuse)?;
-        if let Some(appearance) = &source.appearance {
-            binary::check_materials(appearance, &all).map_err(refuse)?;
-        }
-        Ok(())
+            .collect()
     }
 
     /// Names of the removed transforms and shapes, as the file spells them.

@@ -1317,8 +1317,8 @@ impl NativeScene {
     /// Removes every listed node with its whole subtree after one preflight and one validation; a
     /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
     /// set is checked before anything changes, so a refusal leaves the scene as it was. When
-    /// several distinct nodes are listed, a refusal that one of them also causes alone names
-    /// that node (the first such in list order).
+    /// several distinct nodes are listed, a refusal that exactly one of them explains (see
+    /// `name_refusing_member`) names that node.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
@@ -1335,24 +1335,49 @@ impl NativeScene {
             other => other,
         }
     }
-    /// The refusal of the first of `ids` whose own removal is refused, tagged with its name, or
-    /// `combined` unchanged when only the combination is refused. Runs on the refusal path only.
+    /// `combined` tagged with the name of the one member that explains it: alone it fails with
+    /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
+    /// qualifies, `combined` comes back unchanged. Refusal path only; the source is decoded once.
     fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
-        for id in ids {
-            let alone = self
-                .removal_subtree(&[*id])
-                .and_then(|gone| match self.source {
-                    Some(_) => self.check_source_removal(&gone),
-                    None => Ok(()),
-                });
-            if let (Err(reason), Ok(node)) = (alone, self.node(*id)) {
-                return NativeError::DeleteMemberRefused {
+        let alone = ids.iter().map(|id| vec![*id]);
+        let without = (0..ids.len()).map(|skip| {
+            let rest = ids.iter().enumerate().filter(|(at, _)| *at != skip);
+            rest.map(|(_, id)| *id).collect::<Vec<_>>()
+        });
+        let sets: Vec<Vec<NodeId>> = alone.chain(without).collect();
+        let verdicts = self.removal_verdicts(&sets);
+        let (alone, without) = verdicts.split_at(ids.len());
+        let mut explaining =
+            (0..ids.len()).filter(|at| alone[*at] == Err(combined.clone()) && without[*at].is_ok());
+        match (explaining.next(), explaining.next()) {
+            (Some(at), None) => match self.node(ids[at]) {
+                Ok(node) => NativeError::DeleteMemberRefused {
                     node: refusal_name(node.name()),
-                    reason: Box::new(reason),
-                };
-            }
+                    reason: Box::new(combined),
+                },
+                Err(_) => combined,
+            },
+            _ => combined,
         }
-        combined
+    }
+    /// Whether removing each set would be accepted, subtree rules and source check included.
+    fn removal_verdicts(&self, sets: &[Vec<NodeId>]) -> Vec<Result<(), NativeError>> {
+        let gones: Vec<Result<Vec<NativeId>, NativeError>> =
+            sets.iter().map(|set| self.removal_subtree(set)).collect();
+        if self.source.is_none() {
+            return gones.into_iter().map(|gone| gone.map(drop)).collect();
+        }
+        let accepted: Vec<Vec<NativeId>> = gones
+            .iter()
+            .filter_map(|gone| gone.as_ref().ok().cloned())
+            .collect();
+        let mut checked = self.check_source_removals(&accepted).into_iter();
+        gones
+            .into_iter()
+            .map(|gone| {
+                gone.and_then(|_| checked.next().unwrap_or(Err(NativeError::UnsupportedEdit)))
+            })
+            .collect()
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
         let gone = self.removal_subtree(&[id])?;

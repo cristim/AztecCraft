@@ -390,12 +390,9 @@ fn a_refused_subtree_delete_leaves_the_scene_and_its_saved_bytes_alone() {
     let ids = [id_of(&opened, "g"), id_of(&opened, "c")];
     assert_eq!(
         opened.remove_many(&ids),
-        Err(NativeError::DeleteMemberRefused {
-            node: "g".into(),
-            reason: Box::new(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
-                RemovalRefusal::NextAvailableIndex
-            ))),
-        })
+        Err(NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+            RemovalRefusal::NextAvailableIndex
+        )))
     );
     assert_eq!(opened, before);
     assert_eq!(encode(&opened).unwrap(), named.to_vec());
