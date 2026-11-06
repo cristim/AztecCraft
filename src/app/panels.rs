@@ -81,8 +81,7 @@ impl Editor {
         // popup is still open here; egui closes it later in this pass, when the menus are shown.
         if !self.files.is_modal()
             && !egui::Popup::is_any_open(ui.ctx())
-            && !self.escape_closes_primitive_options(ui.ctx())
-            && !self.escape_closes_joint_window(ui.ctx())
+            && !self.escape_closes_frontmost_options_window(ui.ctx())
         {
             self.cancel_on_escape(ui.ctx());
         }

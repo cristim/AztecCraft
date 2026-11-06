@@ -56,7 +56,7 @@ fn joint_field_id(index: usize) -> egui::Id {
     egui::Id::new(("joint_option", index))
 }
 
-fn window_id() -> egui::Id {
+pub(in crate::app) fn window_id() -> egui::Id {
     egui::Id::new("joint_options_window")
 }
 
@@ -164,6 +164,25 @@ impl Editor {
             self.consume_pointer_sequence();
         }
         closes
+    }
+
+    /// Escape closes one option window: the frontmost by egui's layer order, so a window the user
+    /// just opened or clicked closes before one behind it.
+    pub(in crate::app) fn escape_closes_frontmost_options_window(
+        &mut self,
+        ctx: &egui::Context,
+    ) -> bool {
+        // egui's topmost window layer; when neither option window is it, the primitive window
+        // keeps the order it had before this check existed.
+        let top = ctx.memory(|memory| memory.areas().top_layer_id(egui::Order::Middle));
+        let joint_in_front = self.joint_options.dialog.is_some()
+            && (!self.primitive_options.is_open()
+                || top == Some(egui::LayerId::new(egui::Order::Middle, window_id())));
+        if joint_in_front {
+            self.escape_closes_joint_window(ctx)
+        } else {
+            self.escape_closes_primitive_options(ctx)
+        }
     }
 
     /// The parent the next Create uses: the single selected joint, or none for a new chain.

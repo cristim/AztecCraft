@@ -28,7 +28,7 @@ fn option_field_id(index: usize) -> egui::Id {
     egui::Id::new(("primitive_option", index))
 }
 
-fn window_id() -> egui::Id {
+pub(in crate::app) fn window_id() -> egui::Id {
     egui::Id::new("primitive_options_window")
 }
 
@@ -221,6 +221,12 @@ pub(in crate::app) struct PrimitiveOptionsUi {
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.
     typing: bool,
+}
+
+impl PrimitiveOptionsUi {
+    pub(in crate::app) fn is_open(&self) -> bool {
+        self.dialog.is_some()
+    }
 }
 
 impl Default for PrimitiveOptionsUi {

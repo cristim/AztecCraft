@@ -460,3 +460,58 @@ fn redo_of_a_chain_delete_restores_the_scene() {
     // Deleting cleared the selection and undo does not restore it.
     assert_eq!(owned_selection(&editor), (None, Vec::new()));
 }
+
+fn open_both(editor: &mut Editor, ctx: &egui::Context, joint_first: bool) {
+    for joint in [joint_first, !joint_first] {
+        if joint {
+            editor.open_joint_options();
+        } else {
+            editor.open_primitive_options(Primitive::Cube);
+        }
+        for _ in 0..3 {
+            run(editor, ctx, vec![]);
+        }
+    }
+}
+
+#[test]
+fn escape_closes_only_the_frontmost_of_two_open_option_windows() {
+    for joint_first in [true, false] {
+        let (mut editor, ctx) = setup();
+        open_both(&mut editor, &ctx, joint_first);
+        assert!(editor.joint_options.dialog.is_some() && editor.primitive_options.is_open());
+        run(&mut editor, &ctx, vec![key(Key::Escape)]);
+        // The window opened last is in front and closes first.
+        assert_eq!(
+            editor.joint_options.dialog.is_none(),
+            !joint_first,
+            "joint_first={joint_first}"
+        );
+        assert_eq!(
+            !editor.primitive_options.is_open(),
+            joint_first,
+            "joint_first={joint_first}"
+        );
+        run(&mut editor, &ctx, vec![]);
+        run(&mut editor, &ctx, vec![key(Key::Escape)]);
+        assert!(editor.joint_options.dialog.is_none());
+        assert!(!editor.primitive_options.is_open());
+    }
+}
+
+#[test]
+fn the_last_menu_set_key_of_a_frame_wins() {
+    let (mut editor, ctx) = setup();
+    run(&mut editor, &ctx, vec![key(Key::F2), key(Key::F3)]);
+    assert_eq!(editor.menu_set, MenuSet::Rigging);
+    let release = |key| Event::Key {
+        key,
+        physical_key: None,
+        pressed: false,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    };
+    run(&mut editor, &ctx, vec![release(Key::F2), release(Key::F3)]);
+    run(&mut editor, &ctx, vec![key(Key::F3), key(Key::F2)]);
+    assert_eq!(editor.menu_set, MenuSet::Modeling);
+}
