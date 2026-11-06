@@ -1357,9 +1357,9 @@ impl NativeScene {
         {
             return combined;
         }
-        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
         #[cfg(test)]
-        attribution_probe::held(1);
+        attribution_probe::buffer();
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
         let found = self.with_source_removal_checker(|source_check| {
             let verdict = |set: &[NodeId]| {
                 #[cfg(test)]
@@ -2068,10 +2068,10 @@ pub(crate) mod attribution_probe {
     std::thread_local! {
         static DECODES: Cell<usize> = const { Cell::new(0) };
         static CHECKS: Cell<usize> = const { Cell::new(0) };
-        static PEAK_SETS: Cell<usize> = const { Cell::new(0) };
+        static BUFFERS: Cell<usize> = const { Cell::new(0) };
     }
     pub(crate) fn reset() {
-        for cell in [&DECODES, &CHECKS, &PEAK_SETS] {
+        for cell in [&DECODES, &CHECKS, &BUFFERS] {
             cell.with(|c| c.set(0));
         }
     }
@@ -2081,13 +2081,14 @@ pub(crate) mod attribution_probe {
     pub(crate) fn checked(count: usize) {
         CHECKS.with(|c| c.set(c.get() + count));
     }
-    pub(crate) fn held(sets: usize) {
-        PEAK_SETS.with(|c| c.set(c.get().max(sets)));
+    /// One candidate id buffer allocated.
+    pub(crate) fn buffer() {
+        BUFFERS.with(|c| c.set(c.get() + 1));
     }
-    /// `(source decodes, candidate checks, most candidate id sets held at once)`.
+    /// `(source decodes, candidate checks, candidate id buffers allocated)`.
     pub(crate) fn counts() -> (usize, usize, usize) {
         let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
-        (get(&DECODES), get(&CHECKS), get(&PEAK_SETS))
+        (get(&DECODES), get(&CHECKS), get(&BUFFERS))
     }
 }
 
