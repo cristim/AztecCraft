@@ -136,7 +136,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "save_scene_as",
-        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene (or an authored scene previously saved as .ma by this editor) can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; unsupported content is refused (save_unwritable for .mb, save_ascii_write for .ma, for example a created session material: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and saved mesh ASCII files cannot currently be reopened by this editor",
+        description: "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and saved mesh ASCII files cannot currently be reopened by this editor",
         schema: schema::<OpenArgs>,
         parse: parse_save_scene_as,
         idempotent: false,
