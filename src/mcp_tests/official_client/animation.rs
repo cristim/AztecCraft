@@ -477,3 +477,69 @@ async fn animation_sdk_refuses_a_channel_list_the_schema_does_not_allow() {
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn animation_sdk_refuses_more_node_ids_than_the_cap() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    for (name, keys) in [("set_keyframe", 9), ("delete_keys", 0)] {
+        let mut arguments = json!({"node_ids": vec![id.clone(); 4097]});
+        arguments["scene_token"] = json!(editor.scene_token.to_string());
+        let refused = call_response(&mut editor, &context, client.peer(), name, arguments).await;
+        assert!(refused.is_err(), "{name}");
+        let mut at_the_cap = json!({"node_ids": vec![id.clone(); 4096]});
+        at_the_cap["scene_token"] = json!(editor.scene_token.to_string());
+        let accepted = call_response(&mut editor, &context, client.peer(), name, at_the_cap).await;
+        assert!(accepted.is_ok(), "{name}");
+        assert_eq!(editor.history.scene().session_key_count(), keys, "{name}");
+    }
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_a_full_key_table_answers_key_limit_and_changes_nothing() {
+    use azteccraft::history::History;
+    use azteccraft::native_scene::NativeScene;
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let mut scene = NativeScene::default();
+    let ids: Vec<String> = (0..1000)
+        .map(|n| {
+            scene
+                .create(Primitive::Cube, &format!("cube{n}"))
+                .unwrap()
+                .to_decimal()
+        })
+        .collect();
+    editor.history = History::new(scene);
+    // 1000 nodes keep 9000 keys per frame, so seven frames fit under the 65536 bound.
+    for frame in 0..7 {
+        let keyed = tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_keyframe",
+            json!({"node_ids": ids, "time": frame}),
+        )
+        .await;
+        assert_ne!(keyed.is_error, Some(true), "frame {frame}");
+    }
+    assert_eq!(editor.history.scene().session_key_count(), 63_000);
+    let before = editor.history.scene().clone();
+    let full = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"node_ids": ids, "time": 7}),
+    )
+    .await;
+    assert_eq!(full.is_error, Some(true));
+    assert_eq!(error_code(&full), "key_limit");
+    assert!(*editor.history.scene() == before);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
