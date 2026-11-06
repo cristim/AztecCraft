@@ -96,11 +96,14 @@ enum State {
     ReadOnlyAscii,
     BinaryDirty,
     SitedBinaryDirty,
+    /// A reopened authored Maya ASCII document with an unsaved edit (Unix only: Windows refuses
+    /// to adopt the file, so no such state exists there). File-writing cells only.
+    AuthoredAsciiDirty,
     NoInstall,
     NoInstallModal,
 }
 
-const STATES: [State; 22] = [
+const STATES: [State; 23] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -121,6 +124,7 @@ const STATES: [State; 22] = [
     State::ReadOnlyAscii,
     State::BinaryDirty,
     State::SitedBinaryDirty,
+    State::AuthoredAsciiDirty,
     State::NoInstall,
     State::NoInstallModal,
 ];
@@ -148,6 +152,7 @@ impl State {
             Self::ReadOnlyAscii => "read_only_ascii",
             Self::BinaryDirty => "binary_dirty",
             Self::SitedBinaryDirty => "sited_binary_dirty",
+            Self::AuthoredAsciiDirty => "authored_ascii_dirty",
             Self::NoInstall => "no_install",
             Self::NoInstallModal => "no_install_modal",
         }
@@ -170,6 +175,7 @@ impl State {
 
     fn reachable(self, pipeline: Pipeline) -> bool {
         !(self.stale_over().is_some() && pipeline == Pipeline::Native)
+            && (self != Self::AuthoredAsciiDirty || cfg!(unix))
     }
 }
 
@@ -371,9 +377,28 @@ fn sited_binary_editor(directory: &std::path::Path) -> Editor {
     )
 }
 
+/// A cube saved as Maya ASCII by one editor and reopened (adopted) in another, then edited.
+#[cfg(unix)]
+fn authored_ascii_editor(directory: &std::path::Path) -> Editor {
+    let path = directory.join("reopened.ma");
+    let mut seed = Editor::default();
+    seed.create(Primitive::Cube);
+    seed.apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    dirty_opened_editor(path)
+}
+#[cfg(not(unix))]
+fn authored_ascii_editor(_: &std::path::Path) -> Editor {
+    unreachable!("Windows refuses to adopt an authored Maya ASCII document")
+}
+
 fn dirty_binary_editor(directory: &std::path::Path, bytes: Vec<u8>) -> Editor {
     let path = directory.join("original.mb");
     std::fs::write(&path, bytes).unwrap();
+    dirty_opened_editor(path)
+}
+
+fn dirty_opened_editor(path: std::path::PathBuf) -> Editor {
     let mut editor = Editor::default();
     editor
         .apply_operation(Operation::OpenScene { path })
@@ -514,6 +539,7 @@ fn build(state: State) -> Rig {
         }
         State::BinaryDirty => editor = binary_editor(directory.path()),
         State::SitedBinaryDirty => editor = sited_binary_editor(directory.path()),
+        State::AuthoredAsciiDirty => editor = authored_ascii_editor(directory.path()),
         State::NoInstall => {
             editor = binary_editor(directory.path());
             may_install = false;
@@ -1901,6 +1927,9 @@ fn matrix(file_writing: bool) -> (String, usize) {
     );
     let mut cells = 0;
     for state in STATES {
+        if !file_writing && state == State::AuthoredAsciiDirty {
+            continue;
+        }
         for pipeline in [Pipeline::Native, Pipeline::Remote] {
             if !state.reachable(pipeline) {
                 continue;
