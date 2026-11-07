@@ -108,6 +108,8 @@ impl Editor {
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
+            | Operation::SetCompatibilityVersion { .. }
+            | Operation::ResetPreferences
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. }
@@ -280,6 +282,15 @@ impl Editor {
         {
             return Err(OperationError::BusyEditing);
         }
+        // The Preferences window is modeless: its pending value blocks only the operations that
+        // would change the value under it, never other remote work.
+        if matches!(
+            request.operation,
+            Operation::SetCompatibilityVersion { .. } | Operation::ResetPreferences
+        ) && self.preferences_window.pending.is_some()
+        {
+            return Err(OperationError::BusyEditing);
+        }
         // A remote success is reported on the status line like a native one. Refusals and
         // failures go back to the caller only, preserving the native editor baseline.
         let feedback = self.status_feedback(&request.operation);
@@ -355,6 +366,8 @@ impl Editor {
         if matches!(
             operation,
             Operation::SetGridVisible { .. }
+                | Operation::SetCompatibilityVersion { .. }
+                | Operation::ResetPreferences
                 | Operation::SetShadingMode(_)
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
@@ -607,6 +620,10 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
+            Operation::SetCompatibilityVersion { version } => {
+                return self.set_compatibility_version(version);
+            }
+            Operation::ResetPreferences => return self.reset_preferences(),
             Operation::SetShadingMode(mode) => {
                 let changed = self.shading != mode;
                 self.shading = mode;

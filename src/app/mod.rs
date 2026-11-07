@@ -73,6 +73,10 @@ pub struct Editor {
     remembered_edge: Option<EdgeTarget>,
     camera: Camera,
     grid_visible: bool,
+    preferences: azteccraft::preferences::Preferences,
+    preferences_store: azteccraft::preferences::Store,
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    preferences_window: features::preferences::PreferencesWindow,
     shading: ShadingMode,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
     face_centres_hidden: bool,
@@ -132,6 +136,9 @@ impl Default for Editor {
             remembered_edge: None,
             camera: Camera::default(),
             grid_visible: true,
+            preferences: Default::default(),
+            preferences_store: azteccraft::preferences::Store::SessionOnly,
+            preferences_window: Default::default(),
             shading: ShadingMode::default(),
             face_centres_hidden: false,
             vertex_markers_hidden: false,
@@ -250,10 +257,20 @@ impl Editor {
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         cc.egui_ctx.set_theme(egui::Theme::Dark);
         cc.egui_ctx.set_style_of(egui::Theme::Dark, style);
-        Ok(Self {
+        let loaded = azteccraft::preferences::platform_path(
+            &|name| std::env::var_os(name),
+            azteccraft::preferences::Os::current(),
+        )
+        .map(|path| azteccraft::preferences::load(&path));
+        let mut editor = Self {
             renderer: Some(renderer),
             ..Self::default()
-        })
+        };
+        if let Ok(loaded) = loaded {
+            editor.preferences = loaded.preferences;
+            editor.preferences_store = loaded.store;
+        }
+        Ok(editor)
     }
 }
 

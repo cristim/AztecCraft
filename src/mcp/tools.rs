@@ -164,6 +164,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
+                OperationError::Preferences(_) => "preferences_error",
             };
             match error {
                 // File text comes from DocumentError/ObjError Display, which embeds the path; the

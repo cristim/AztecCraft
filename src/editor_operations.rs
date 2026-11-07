@@ -506,6 +506,16 @@ pub enum Operation {
     SetGridVisible {
         visible: bool,
     },
+    /// Session setting like `SetGridVisible`: never dirty, no history entry, no scene-token change.
+    /// A changed value is persisted when the store is writable, otherwise it applies to this
+    /// session only.
+    #[allow(dead_code)] // first constructed by the window and MCP tool (T5, T6b)
+    SetCompatibilityVersion {
+        version: azteccraft::compatibility::MayaVersion,
+    },
+    /// Moves a blocked preferences file aside; `Unchanged` when the store is not blocked.
+    #[allow(dead_code)] // first constructed by the window and MCP tool (T5, T6b)
+    ResetPreferences,
     SetShadingMode(ShadingMode),
     SetSidebarPanelVisible {
         panel: SidebarPanel,
@@ -1042,6 +1052,8 @@ pub enum OperationError {
     NativeSave(azteccraft::document::NativeSaveError),
     /// OBJ export refusal or failure; its text never carries the path.
     ObjExport(ObjExportError),
+    /// Path-free by construction (`PreferencesError` carries an `io::ErrorKind` at most).
+    Preferences(azteccraft::preferences::PreferencesError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1115,6 +1127,7 @@ impl fmt::Display for OperationError {
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
             Self::ObjExport(error) => error.fmt(f),
+            Self::Preferences(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }

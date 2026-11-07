@@ -1587,6 +1587,8 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },
         )],
+        // Seeded with their own state column in the preferences guard-matrix rows.
+        Operation::SetCompatibilityVersion { .. } | Operation::ResetPreferences => Vec::new(),
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
