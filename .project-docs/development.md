@@ -350,8 +350,17 @@ Sources:
 | 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
 | 32 | Selection cap | 4096 selected objects | `src/selection.rs` via `MAX_TRANSFORM_PATHS` | provisional | Not documented; reuses the transform-path cap. | `selection_cap_is_the_transform_path_cap`, `add_past_the_cap_is_an_error_and_does_not_mutate` |
 | 33 | Selection colours | member tint (107, 137, 157) and edge (242, 163, 70); lead tint (117, 167, 117) and edge (140, 240, 140) while more than one object is selected; a lone selection uses the member colours | `src/viewport_renderer.rs` `SELECTION_TINT_RGB`, `SELECTED_EDGE_RGB_OBJECT`, `LEAD_TINT_RGB`, `LEAD_EDGE_RGB` | provisional | Maya's "Select objects or components" page says the last selected object is drawn in a different colour; it gives no colour values, and what a lone selection looks like is not stated. Ours are original values. | `selection_colours_are_pinned`, `members_are_tinted_the_lead_differs_and_unselected_is_untouched`, `single_selection_pixels_are_unchanged` |
+| 34 | OBJ import file size | 32 MiB; a file over it is refused | `src/obj/import.rs` `MAX_FILE_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 35 | OBJ import line length | 64 KiB per logical line (continuations joined) | `src/obj/import.rs` `MAX_LINE_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 36 | OBJ import vertices | 262,144 `v` records | `src/obj/import.rs` `MAX_VERTICES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 37 | OBJ import faces | 262,144 `f` records | `src/obj/import.rs` `MAX_FACES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 38 | OBJ import corners | 1,048,576 face corners in total | `src/obj/import.rs` `MAX_CORNERS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 39 | OBJ import corners per face | 1024 | `src/obj/import.rs` `MAX_CORNERS_PER_FACE` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 40 | OBJ import objects | 1024 objects that own a face | `src/obj/import.rs` `MAX_OBJECTS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 41 | OBJ import name length | 256 bytes for an `o` or `g` name | `src/obj/import.rs` `MAX_NAME_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 42 | OBJ import coordinate magnitude | 1e12; larger or non-finite values are refused | `src/obj/import.rs` `MAX_COORD` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 
-Tally: 33 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 42 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
