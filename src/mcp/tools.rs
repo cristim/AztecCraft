@@ -424,13 +424,13 @@ mod tests {
         let token = Uuid::new_v4().to_string();
         for version in [2010, 2028, -1] {
             let args = json!({"scene_token":token,"version":version});
-            assert!(
-                parse_request(
-                    "set_compatibility_version",
-                    args.as_object().unwrap().clone()
-                )
-                .is_err()
-            );
+            let error = parse_request(
+                "set_compatibility_version",
+                args.as_object().unwrap().clone(),
+            )
+            .err()
+            .expect("must be refused");
+            assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS);
         }
         for (name, args) in [
             (
@@ -439,7 +439,10 @@ mod tests {
             ),
             ("reset_preferences", json!({"scene_token":token,"x":1})),
         ] {
-            assert!(parse_request(name, args.as_object().unwrap().clone()).is_err());
+            let error = parse_request(name, args.as_object().unwrap().clone())
+                .err()
+                .expect("must be refused");
+            assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS);
         }
         for year in [2011, 2027] {
             let args = json!({"scene_token":token,"version":year});

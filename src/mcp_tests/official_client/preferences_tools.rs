@@ -78,16 +78,20 @@ async fn sdk_set_compatibility_version_refuses_bad_arguments_and_stale_tokens() 
         json!({"version": 2015}),
         json!({"scene_token": token, "version": 2015, "extra": true}),
     ] {
-        assert!(
-            call_response(
-                &mut editor,
-                &context,
-                client.peer(),
-                "set_compatibility_version",
-                arguments.clone()
-            )
-            .await
-            .is_err(),
+        let rejected = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_compatibility_version",
+            arguments.clone(),
+        )
+        .await;
+        let Err(rmcp::ServiceError::McpError(error)) = rejected else {
+            panic!("expected a JSON-RPC error for {arguments}");
+        };
+        assert_eq!(
+            error.code,
+            rmcp::model::ErrorCode::INVALID_PARAMS,
             "{arguments}"
         );
         assert_eq!(version_of(&mut editor, &context, &client).await, 2027);
