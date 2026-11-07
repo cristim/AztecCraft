@@ -71,7 +71,7 @@ impl PreferencesError {
             Self::NoConfigDir => "no_config_dir",
             Self::Symlink => "symlink",
             Self::NotRegularFile => "not_regular_file",
-            Self::TooLarge => "too_large",
+            Self::TooLarge => "file_too_large",
             Self::Unreadable(_) => "unreadable",
             Self::Malformed => "malformed",
             Self::UnknownSchema => "unknown_schema",

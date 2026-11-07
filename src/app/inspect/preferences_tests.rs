@@ -139,19 +139,6 @@ fn pending_mirrors_the_unsaved_picker_value_not_the_scene_draft() {
 }
 
 #[test]
-fn gated_features_name_each_gate_and_follow_the_version() {
-    let mut editor = Editor::default();
-    let p = prefs(&editor);
-    assert_eq!(
-        p["gated_features"][0]["id"],
-        "frame_selection_children_split"
-    );
-    assert_eq!(p["gated_features"][0]["available"], true);
-    editor.preferences.maya_compatibility_version = MayaVersion::try_from(2015).unwrap();
-    assert_eq!(prefs(&editor)["gated_features"][0]["available"], false);
-}
-
-#[test]
 fn units_are_read_only_with_a_reason() {
     let value = serde_json::to_value(Editor::default().inspect(false).unwrap()).unwrap();
     assert_eq!(value["units"]["editable"], false);
@@ -210,4 +197,9 @@ fn every_page_repeats_the_preferences_block() {
         let value = serde_json::to_value(page).unwrap();
         assert_eq!(value["preferences"]["persistence"]["state"], "session_only");
     }
+}
+
+#[test]
+fn a_too_large_file_does_not_reuse_the_tool_error_code() {
+    assert_eq!(PreferencesError::TooLarge.code(), "file_too_large");
 }

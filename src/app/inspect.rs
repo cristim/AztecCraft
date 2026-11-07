@@ -218,9 +218,9 @@ impl Editor {
     #[cfg(any(test, feature = "mcp"))]
     fn inspect_preferences(&self) -> crate::editor_operations::PreferencesInspection {
         use crate::editor_operations::{
-            GatedFeatureInspection, PersistenceInspection, PersistenceState, PreferencesInspection,
+            PersistenceInspection, PersistenceState, PreferencesInspection,
         };
-        use azteccraft::compatibility::{FEATURE_RANGES, MayaVersion, is_available};
+        use azteccraft::compatibility::MayaVersion;
         use azteccraft::preferences::Store;
         let version = self.preferences.maya_compatibility_version;
         let (state, error) = match &self.preferences_store {
@@ -238,14 +238,6 @@ impl Editor {
                 error,
                 reset_available: matches!(self.preferences_store, Store::Blocked { .. }),
             },
-            gated_features: FEATURE_RANGES
-                .iter()
-                .map(|row| GatedFeatureInspection {
-                    id: row.feature.id(),
-                    since: row.since,
-                    available: is_available(row.feature, version),
-                })
-                .collect(),
         }
     }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.

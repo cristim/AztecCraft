@@ -938,7 +938,6 @@ pub struct PreferencesInspection {
     /// An unsaved value in the Preferences window (not the scene's `has_draft`).
     pub pending: bool,
     pub persistence: PersistenceInspection,
-    pub gated_features: Vec<GatedFeatureInspection>,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -955,13 +954,6 @@ pub enum PersistenceState {
     Saved,
     NotSaved,
     SessionOnly,
-}
-#[derive(Debug, Serialize)]
-#[cfg(any(test, feature = "mcp"))]
-pub struct GatedFeatureInspection {
-    pub id: &'static str,
-    pub since: u16,
-    pub available: bool,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -1278,7 +1270,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":"","editable":true,"unsupported_reason":""},"#,
     r#""preferences":{"maya_compatibility_version":2011,"oldest":2011,"latest":2011,"pending":true,"#,
-    r#""persistence":{"state":"saved","error":null,"reset_available":true},"gated_features":[]},"#,
+    r#""persistence":{"state":"saved","error":null,"reset_available":true}},"#,
     r#""save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
     r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","#,

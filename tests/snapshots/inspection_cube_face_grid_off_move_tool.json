@@ -120,13 +120,6 @@
     ],
     "pending_action": null,
     "preferences": {
-      "gated_features": [
-        {
-          "available": true,
-          "id": "frame_selection_children_split",
-          "since": 2016
-        }
-      ],
       "latest": 2027,
       "maya_compatibility_version": 2027,
       "oldest": 2011,
