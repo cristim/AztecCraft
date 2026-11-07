@@ -6803,6 +6803,38 @@ fn hierarchy_click_on_a_descendant_selects_the_root_and_object_click_the_leaf() 
 }
 
 #[test]
+fn object_target_for_hit_maps_a_leaf_in_object_mode_and_its_root_in_hierarchy_mode() {
+    let mut editor = group_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let (root, child) = (&paths[0], &paths[1]);
+    editor.camera = Camera::default();
+    let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+    let vertices = view.instances()[0].world_vertices();
+    let center = vertices.iter().copied().sum::<glam::Vec3>() / vertices.len() as f32;
+    let ndc = editor
+        .camera
+        .project(center, editor.aspect)
+        .unwrap()
+        .unwrap()
+        .truncate();
+    let hit = editor
+        .camera
+        .pick_view(&view, ndc, editor.aspect)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        editor.object_target_for_hit(hit.clone()).unwrap(),
+        (child.node, child.path.clone())
+    );
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
+    assert_eq!(
+        editor.object_target_for_hit(hit).unwrap(),
+        (root.node, root.path.clone())
+    );
+}
+
+#[test]
 fn hierarchy_click_in_a_three_level_chain_selects_the_root_not_the_parent() {
     let mut editor = deep_group_editor();
     let paths = editor.history.scene().transform_paths().unwrap();

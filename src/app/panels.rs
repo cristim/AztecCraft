@@ -490,22 +490,12 @@ impl Editor {
                             .camera
                             .pick_view(&view, ndc, self.aspect)
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        let (node, instance_path) = if let Some(hit) = hit {
-                            let mut prefix = hit.path;
-                            prefix.pop();
-                            if self.selection_mode == SelectionMode::Hierarchy {
-                                prefix.truncate(1);
-                                let root = self
-                                    .history
-                                    .scene()
-                                    .root_transform(&prefix)
-                                    .map_err(OperationError::Scene)?;
-                                (Some(root), Some(prefix))
-                            } else {
-                                (Some(hit.transform), Some(prefix))
+                        let (node, instance_path) = match hit {
+                            Some(hit) => {
+                                let (node, path) = self.object_target_for_hit(hit)?;
+                                (Some(node), Some(path))
                             }
-                        } else {
-                            (None, None)
+                            None => (None, None),
                         };
                         // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
                         // click on empty space leaves the selection alone.
