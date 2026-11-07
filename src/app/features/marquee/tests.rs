@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::tests::deep_group_editor;
 use azteccraft::native_scene::{NativeScene, NativeTransform};
 use azteccraft::scene::Primitive;
 use glam::Vec2;
@@ -60,6 +61,19 @@ fn paths(editor: &Editor) -> Vec<TransformTarget> {
     editor.history.scene().transform_paths().unwrap()
 }
 
+/// A small square rect around the projection of the `index`-th cube's centre.
+fn around(editor: &Editor, index: usize) -> [[f32; 2]; 2] {
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let vertices = view.instances()[index].world_vertices();
+    let centre = vertices.iter().copied().sum::<glam::Vec3>() / vertices.len() as f32;
+    let ndc = editor
+        .camera
+        .project(centre, editor.aspect)
+        .unwrap()
+        .unwrap();
+    [[ndc.x - 0.01, ndc.y - 0.01], [ndc.x + 0.01, ndc.y + 0.01]]
+}
+
 fn select_only(editor: &mut Editor, target: &TransformTarget) {
     editor
         .apply_operation(Operation::Select {
@@ -98,12 +112,147 @@ fn replace_selects_the_hits_in_instance_order_with_the_last_as_lead() {
 }
 
 #[test]
+fn marquee_lead_is_the_last_hit_in_instance_order() {
+    let mut editor = cubes_at(&[-2.0, 0.0, 2.0]);
+    let all = paths(&editor);
+    select_only(&mut editor, &all[2]);
+    // Only the first two cubes are in the box, so the lead moves off the old third one.
+    let bounds = [[-1.0, -1.0], [0.01, 1.0]];
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let hits = editor
+        .camera
+        .pick_rect(&view, rect(bounds), editor.aspect)
+        .unwrap();
+    assert_eq!(hits.len(), 2);
+    assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Replace)));
+    assert_eq!(editor.selection.members(), &all[..2]);
+    assert_eq!(editor.selection.lead(), Some(&all[1]));
+}
+
+#[test]
 fn replace_with_identical_members_keeps_generation() {
     let mut editor = cubes_at(&[-2.0, 0.0, 2.0]);
     assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
     let generation = editor.selection.generation();
     assert!(!changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
     assert_eq!(editor.selection.generation(), generation);
+}
+
+#[test]
+fn add_appends_only_absent_hits_and_leaves_the_lead_when_nothing_is_new() {
+    let mut editor = cubes_at(&[-2.0, 0.0, 2.0]);
+    let all = paths(&editor);
+    select_only(&mut editor, &all[1]);
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Add)));
+    assert_eq!(
+        editor.selection.members(),
+        [all[1].clone(), all[0].clone(), all[2].clone()]
+    );
+    assert_eq!(editor.selection.lead(), Some(&all[2]));
+    let generation = editor.selection.generation();
+    assert!(!changed(marquee(&mut editor, WHOLE, MarqueeMode::Add)));
+    assert_eq!(editor.selection.generation(), generation);
+}
+
+#[test]
+fn remove_drops_the_hit_members_and_promotes_the_previous_lead() {
+    let mut editor = cubes_at(&[-2.0, 0.0, 2.0]);
+    let all = paths(&editor);
+    marquee(&mut editor, WHOLE, MarqueeMode::Replace).unwrap();
+    let bounds = around(&editor, 2);
+    assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Remove)));
+    assert_eq!(editor.selection.members(), &all[..2]);
+    assert_eq!(editor.selection.lead(), Some(&all[1]));
+    let bounds = around(&editor, 2);
+    assert!(!changed(marquee(&mut editor, bounds, MarqueeMode::Remove)));
+}
+
+#[test]
+fn toggle_flips_members_and_appends_absent_hits() {
+    let mut editor = cubes_at(&[-2.0, 0.0, 2.0]);
+    let all = paths(&editor);
+    select_only(&mut editor, &all[0]);
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Toggle)));
+    assert_eq!(editor.selection.members(), &all[1..]);
+    assert_eq!(editor.selection.lead(), Some(&all[2]));
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Toggle)));
+    assert_eq!(editor.selection.members(), [all[0].clone()]);
+}
+
+#[test]
+fn an_empty_plain_marquee_clears_and_an_empty_modified_one_changes_nothing() {
+    let mut editor = cubes_at(&[0.0]);
+    let all = paths(&editor);
+    let empty = [[0.9, 0.9], [1.0, 1.0]];
+    select_only(&mut editor, &all[0]);
+    for mode in [MarqueeMode::Add, MarqueeMode::Remove, MarqueeMode::Toggle] {
+        let generation = editor.selection.generation();
+        assert!(!changed(marquee(&mut editor, empty, mode)), "{mode:?}");
+        assert_eq!(editor.selection.members(), [all[0].clone()]);
+        assert_eq!(editor.selection.generation(), generation);
+    }
+    assert!(changed(marquee(&mut editor, empty, MarqueeMode::Replace)));
+    assert!(editor.selection.is_empty());
+    assert!(!changed(marquee(&mut editor, empty, MarqueeMode::Replace)));
+}
+
+/// Pins the PROVISIONAL gap: there is no camera-based selection yet, so a cube wholly hidden
+/// behind a larger one is still selected. Slice 2 flips this assertion.
+#[test]
+fn marquee_selects_an_object_hidden_behind_another_in_shaded() {
+    let mut editor = editor_with(&[(0.0, 1.0)]);
+    let back = editor.camera.eye().normalize();
+    // A second, larger cube between the eye and the first one, on the line of sight.
+    let mut scene = editor.history.scene().clone();
+    let front = scene.create(Primitive::Cube, "front").unwrap();
+    scene
+        .set_transform(
+            front,
+            NativeTransform {
+                translation: [
+                    back.x as f64 * 3.0,
+                    back.y as f64 * 3.0,
+                    back.z as f64 * 3.0,
+                ],
+                scale: [4.0; 3],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    editor.history = History::new(scene);
+    editor.sync_fields();
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let hidden = view
+        .instances()
+        .iter()
+        .position(|instance| instance.transform() == editor.history.scene().nodes()[0].id())
+        .unwrap();
+    let hit = editor
+        .camera
+        .pick_view(&view, Vec2::ZERO, editor.aspect)
+        .unwrap()
+        .unwrap();
+    assert_ne!(
+        hit.transform,
+        editor.history.scene().nodes()[0].id(),
+        "front cube occludes"
+    );
+    let bounds = around(&editor, hidden);
+    assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Replace)));
+    assert!(editor.selection.contains(&paths(&editor)[0]));
+}
+
+#[test]
+fn hierarchy_mode_maps_hits_to_their_root_once() {
+    let mut editor = deep_group_editor();
+    let all = paths(&editor);
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
+    assert_eq!(editor.selection.members(), [all[0].clone()]);
+
+    let mut editor = deep_group_editor();
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
+    assert_eq!(editor.selection.members(), [all[2].clone()]);
 }
 
 #[test]
@@ -145,6 +294,59 @@ fn component_modes_refuse_without_any_state_change() {
 }
 
 #[test]
+fn a_changing_marquee_clears_remembered_components_and_a_no_op_keeps_them() {
+    let mut editor = cubes_at(&[0.0, 3.0]);
+    let all = paths(&editor);
+    select_only(&mut editor, &all[0]);
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Face))
+        .unwrap();
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let instance = &view.instances()[0];
+    let face = FaceTarget {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path: instance.path().to_vec(),
+        face_index: 0,
+    };
+    editor
+        .apply_operation(Operation::SelectFace { target: Some(face) })
+        .unwrap();
+    assert!(editor.remembered_face.is_some());
+    editor
+        .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
+        .unwrap();
+    assert!(editor.remembered_face.is_some(), "mode switch keeps picks");
+    let empty = [[0.9, 0.9], [1.0, 1.0]];
+    assert!(!changed(marquee(&mut editor, empty, MarqueeMode::Toggle)));
+    assert!(editor.remembered_face.is_some());
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
+    assert!(editor.remembered_face.is_none());
+}
+
+/// `sync_fields` already drops a pick whose owner is not the lead, so only a change that keeps
+/// the lead tells the explicit clear apart.
+#[test]
+fn a_marquee_that_keeps_the_lead_still_clears_remembered_components() {
+    let mut editor = cubes_at(&[-2.0, 2.0]);
+    let all = paths(&editor);
+    select_only(&mut editor, &all[0]);
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let instance = &view.instances()[0];
+    editor.remembered_face = Some(FaceTarget {
+        transform: instance.transform(),
+        shape: instance.shape(),
+        path: instance.path().to_vec(),
+        face_index: 0,
+    });
+    editor.set_selection_members_for_test(vec![all[1].clone(), all[0].clone()]);
+    let bounds = around(&editor, 1);
+    assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Toggle)));
+    assert_eq!(editor.selection.members(), [all[0].clone()]);
+    assert!(editor.remembered_face.is_none());
+}
+
+#[test]
 fn a_modal_dialog_refuses_and_keeps_the_selection() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
@@ -156,4 +358,69 @@ fn a_modal_dialog_refuses_and_keeps_the_selection() {
         Err(OperationError::BusyEditing)
     ));
     assert_eq!(editor.selection, before);
+}
+
+#[test]
+fn a_marquee_over_a_curve_only_scene_selects_nothing() {
+    let scene = azteccraft::native_scene::ascii::decode(std::sync::Arc::from(
+        b"//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"t\"; createNode nurbsCurve -n \"s\" -p \"t\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;"
+            .to_vec(),
+    ))
+    .unwrap();
+    let mut editor = editor_of(scene);
+    let target = paths(&editor).remove(0);
+    select_only(&mut editor, &target);
+    assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
+    assert!(editor.selection.is_empty());
+}
+
+#[test]
+fn move_after_marquee_uses_the_last_hit_as_pivot() {
+    let mut editor = cubes_at(&[-2.0, 2.0]);
+    let all = paths(&editor);
+    marquee(&mut editor, WHOLE, MarqueeMode::Replace).unwrap();
+    let lead = editor.selected_move_lead().unwrap();
+    assert_eq!(lead, all[1]);
+    let origin = editor.move_handle_origin(&lead).unwrap();
+    let frame_origin = |target: &TransformTarget| {
+        editor
+            .history
+            .scene()
+            .world_move_frame(target)
+            .unwrap()
+            .origin_cm()
+    };
+    assert_eq!(origin, frame_origin(&all[1]));
+    assert_ne!(origin, frame_origin(&all[0]));
+}
+
+/// Replace over the cap needs more than 4096 hits and is pinned by `replace_with_over_the_cap_*`
+/// on the selection type; Add and Toggle are driven here from a full selection of absent nodes.
+#[test]
+fn over_the_cap_refuses_and_changes_nothing() {
+    use azteccraft::native_scene::{MAX_TRANSFORM_PATHS, NativeId};
+    use azteccraft::scene::NodeId;
+    let mut editor = cubes_at(&[0.0]);
+    let fillers = (0..MAX_TRANSFORM_PATHS as u64)
+        .map(|index| TransformTarget {
+            node: NodeId::from_decimal(&(1_000_000 + index).to_string()).unwrap(),
+            path: vec![NativeId::from_decimal(&(1_000_000 + index).to_string()).unwrap()],
+        })
+        .collect();
+    editor.set_selection_members_for_test(fillers);
+    let before = editor.selection.clone();
+    let generation = editor.selection.generation();
+    for mode in [MarqueeMode::Add, MarqueeMode::Toggle] {
+        assert!(
+            matches!(
+                marquee(&mut editor, WHOLE, mode),
+                Err(OperationError::InvalidInput(_))
+            ),
+            "{mode:?}"
+        );
+        assert_eq!(editor.selection, before);
+        assert_eq!(editor.selection.generation(), generation);
+    }
+    // Remove needs no room, so a full selection of absent nodes just stays as it is.
+    assert!(!changed(marquee(&mut editor, WHOLE, MarqueeMode::Remove)));
 }
