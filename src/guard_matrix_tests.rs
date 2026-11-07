@@ -239,6 +239,8 @@ struct Targets {
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
     export: std::path::PathBuf,
+    /// A valid OBJ file, written by `build`; the missing sibling does not exist.
+    import: std::path::PathBuf,
 }
 
 impl Targets {
@@ -326,6 +328,7 @@ fn targets(rig: &Rig) -> Targets {
         ascii: rig.directory.path().join("curve.ma"),
         save_as: rig.directory.path().join("saved.mb"),
         export: rig.directory.path().join("export.obj"),
+        import: rig.directory.path().join("import.obj"),
     }
 }
 
@@ -420,6 +423,11 @@ fn build(state: State) -> Rig {
     }
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("curve.ma"), ascii_fixture::specimen()).unwrap();
+    std::fs::write(
+        directory.path().join("import.obj"),
+        "v 0 0 0\nv 1 0 0\nv 0 1 0\no imported\nf 1 2 3\n",
+    )
+    .unwrap();
     let context = egui::Context::default();
     let mut editor = match state {
         State::MaterialDraft => material_editor(),
@@ -657,6 +665,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ExportObj {
             path: t.export.clone(),
             selection_only: false,
+        },
+        Operation::ImportObj {
+            path: t.import.clone(),
         },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
@@ -1397,6 +1408,26 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::ExportObj {
                     path: t.save_as.clone(),
                     selection_only: false,
+                },
+            ),
+        ],
+        Operation::ImportObj { .. } => vec![
+            sample(
+                "import_obj(valid)",
+                Operation::ImportObj {
+                    path: t.import.clone(),
+                },
+            ),
+            sample(
+                "import_obj(not_obj)",
+                Operation::ImportObj {
+                    path: t.save_as.clone(),
+                },
+            ),
+            sample(
+                "import_obj(missing)",
+                Operation::ImportObj {
+                    path: t.export.with_file_name("missing.obj"),
                 },
             ),
         ],

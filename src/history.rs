@@ -171,9 +171,11 @@ struct Entry {
     pose_frame: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EditOutcome {
     Created(NodeId),
+    /// The roots an import added, in file order.
+    Imported(Vec<NodeId>),
     SessionMaterial(SessionMaterialId),
     Changed,
     Unchanged,
@@ -364,9 +366,9 @@ impl History {
                 EditOutcome::Changed
             }
             Command::ImportObjects(plan) => {
-                candidate.import_polygon_objects(&plan)?;
+                let ids = candidate.import_polygon_objects(&plan)?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
-                EditOutcome::Changed
+                EditOutcome::Imported(ids)
             }
         };
         if self.scene == candidate {

@@ -23,8 +23,13 @@ fn an_import_is_one_undo_step_named_import_and_undo_redo_restore_the_scene() {
         "v 0 0 0\nv 1 0 0\nv 0 1 0\nv 1 1 0\no a\nf 1 2 3\no b\nf 2 4 3\n",
     );
     let revision = history.revision();
-    assert_eq!(history.execute(command).unwrap(), EditOutcome::Changed);
+    let outcome = history.execute(command).unwrap();
     assert_eq!(history.scene().nodes().len(), 3);
+    let added: Vec<NodeId> = history.scene().nodes()[1..]
+        .iter()
+        .map(|n| n.id())
+        .collect();
+    assert_eq!(outcome, EditOutcome::Imported(added));
     assert_eq!(history.undo_label().as_deref(), Some("Import"));
     assert_ne!(history.revision(), revision);
     let imported = history.scene().clone();

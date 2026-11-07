@@ -159,6 +159,22 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     crate::editor_operations::ObjExportError::Io(_) => "export_io",
                     crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
+                OperationError::ObjImport(error) => {
+                    use azteccraft::obj::import::ObjImportError as E;
+                    match error {
+                        E::Io(_) | E::NotRegularFile => "import_io",
+                        E::TooLarge => "import_too_large",
+                        E::LimitExceeded(_) | E::LineTooLong { .. } => "import_limit",
+                        E::InvalidUtf8 { .. }
+                        | E::CrOnlyLineEndings { .. }
+                        | E::Syntax { .. }
+                        | E::IndexOutOfRange { .. }
+                        | E::DegenerateFace { .. }
+                        | E::CoordinateOutOfRange { .. }
+                        | E::Unsupported { .. }
+                        | E::NoFaces => "import_invalid",
+                    }
+                }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",

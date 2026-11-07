@@ -171,6 +171,18 @@ impl Editor {
                 );
                 self.error = false;
             }
+            Ok(OperationReply::Imported {
+                objects,
+                vertices,
+                faces,
+                ..
+            }) => {
+                self.status = format!(
+                    "Imported {objects} object(s), {vertices} vertices and {faces} faces \
+                     (normals, UVs and materials are not imported)"
+                );
+                self.error = false;
+            }
             Ok(reply) => {
                 if let (Some(status), true) = (status, fixed) {
                     self.status = status.into();
@@ -357,6 +369,12 @@ impl Editor {
         if let Operation::ExportObj { path, .. } = &operation {
             super::features::obj_export::validate_export_path(path)?;
         }
+        if let Operation::ImportObj { path } = &operation {
+            super::features::obj_import::validate_import_path(path)?;
+            if self.files.is_modal() {
+                return Err(OperationError::BusyEditing);
+            }
+        }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
                 let text = path.to_str().ok_or_else(|| {
@@ -518,7 +536,13 @@ impl Editor {
         {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
+        let mut import_totals = features::obj_import::ImportTotals::default();
         let command = match operation {
+            Operation::ImportObj { path } => {
+                let (command, totals) = self.plan_obj_import(&path)?;
+                import_totals = totals;
+                command
+            }
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
@@ -1046,13 +1070,22 @@ impl Editor {
             let _ = session_material_command;
             OperationError::from_history(error)
         })?;
-        if let EditOutcome::Created(id) = outcome {
-            self.after_nodes_created(&[id])?;
+        match &outcome {
+            EditOutcome::Created(id) => self.after_nodes_created(&[*id])?,
+            EditOutcome::Imported(ids) => self.after_nodes_created(ids)?,
+            _ => {}
         }
         self.sync_fields();
         Ok(match outcome {
             EditOutcome::Created(id) => OperationReply::Created {
                 node_id: id.to_decimal(),
+            },
+            EditOutcome::Imported(ids) => OperationReply::Imported {
+                objects: ids.len(),
+                vertices: import_totals.vertices,
+                faces: import_totals.faces,
+                ignored_records: import_totals.ignored_records,
+                node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
             },
             #[cfg(any(test, feature = "mcp"))]
             EditOutcome::SessionMaterial(material) => OperationReply::SessionMaterial {

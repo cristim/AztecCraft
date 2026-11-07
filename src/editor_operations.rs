@@ -455,6 +455,17 @@ pub enum Operation {
         path: PathBuf,
         selection_only: bool,
     },
+    /// File > Import of an OBJ file: adds its objects to the scene as one undo step.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "constructed by File > Import and MCP import_obj in later commits"
+        )
+    )]
+    ImportObj {
+        path: PathBuf,
+    },
     ResolveFileAction {
         pending_id: uuid::Uuid,
         decision: FileDecision,
@@ -589,6 +600,15 @@ pub enum OperationReply {
         objects: usize,
         vertices: usize,
         faces: usize,
+    },
+    /// An OBJ import added `objects` root nodes; `ignored_records` counts the normals, UVs,
+    /// materials and similar records the reader dropped.
+    Imported {
+        objects: usize,
+        vertices: usize,
+        faces: usize,
+        ignored_records: usize,
+        node_ids: Vec<String>,
     },
 }
 
@@ -1036,6 +1056,8 @@ pub enum OperationError {
     NativeSave(azteccraft::document::NativeSaveError),
     /// OBJ export refusal or failure; its text never carries the path.
     ObjExport(ObjExportError),
+    /// OBJ import file refusal; path-free and content-free (a class and a line number).
+    ObjImport(azteccraft::obj::import::ObjImportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1109,6 +1131,7 @@ impl fmt::Display for OperationError {
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
             Self::ObjExport(error) => error.fmt(f),
+            Self::ObjImport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }
