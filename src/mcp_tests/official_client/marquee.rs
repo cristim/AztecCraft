@@ -1,5 +1,13 @@
 use super::*;
 use azteccraft::native_scene::{NativeScene, NativeTransform};
+use azteccraft::viewport::NdcRect;
+
+fn code(result: rmcp::model::CallToolResult) -> String {
+    result.structured_content.unwrap()["error"]["code"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
 
 /// Three cubes at x = -2, 0 and 2 in a fresh document of the editor, nothing selected.
 fn three_cubes(editor: &mut Editor) -> Vec<azteccraft::native_scene::TransformTarget> {
@@ -143,6 +151,155 @@ async fn sdk_select_in_rect_replace_add_remove_and_toggle_report_the_ordered_set
     let reply = marquee(&mut editor, &context, peer, empty, Some("replace")).await;
     assert_eq!(reply["outcome"], "changed");
     assert!(reported(&mut editor, &context, peer).await.is_empty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+/// The same rectangle run through the native operation and through the wire, from the same
+/// document, camera and aspect, leaves the same selection and generation.
+#[tokio::test]
+async fn sdk_select_in_rect_matches_the_native_operation_at_one_camera() {
+    use crate::editor_operations::MarqueeMode;
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let targets = three_cubes(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    editor.select(Some(targets[2].node));
+    frame(&mut editor, &context, vec![]);
+    let baseline = (editor.selection.clone(), editor.selection.generation());
+    let rect = json!({"min":[-1,-1],"max":[0.1,1]});
+    let native_rect = NdcRect::new(glam::Vec2::new(-1.0, -1.0), glam::Vec2::new(0.1, 1.0)).unwrap();
+    editor.native_operation(Operation::SelectInRect {
+        rect: native_rect,
+        mode: MarqueeMode::Toggle,
+    });
+    let native = (
+        editor.selection.members().to_vec(),
+        editor.selection.generation(),
+    );
+    editor.selection = baseline.0.clone();
+    editor.sync_fields();
+    let reply = marquee(&mut editor, &context, client.peer(), rect, Some("toggle")).await;
+    assert_eq!(reply["outcome"], "changed");
+    assert_eq!(editor.selection.members(), native.0);
+    assert_eq!(editor.selection.generation(), native.1);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_select_in_rect_rejects_malformed_arguments_without_changing_anything() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    three_cubes(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let bad = [
+        json!({"scene_token":token}),
+        json!({"rect":whole()}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1],"max":[1,1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1,0],"max":[1,1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1.5,-1],"max":[1,1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1.0001]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1],"extra":1}}),
+        json!({"scene_token":token,"rect":whole(),"mode":"invert"}),
+        json!({"scene_token":token,"rect":whole(),"unknown":true}),
+        json!({"scene_token":token,"rect":{"min":["a",0],"max":[1,1]}}),
+        json!({"scene_token":token,"rect":{"min":[null,0],"max":[1,1]}}),
+    ];
+    for arguments in bad {
+        assert!(
+            call_response(
+                &mut editor,
+                &context,
+                client.peer(),
+                "select_in_rect",
+                arguments.clone()
+            )
+            .await
+            .is_err(),
+            "{arguments}"
+        );
+    }
+    assert!(editor.selection.is_empty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_select_in_rect_reports_the_shared_guard_refusals() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let targets = three_cubes(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let peer = client.peer();
+    let args = |token: &str| json!({"scene_token":token,"rect":whole()});
+
+    let stale = call(
+        &mut editor,
+        &context,
+        peer,
+        "select_in_rect",
+        args(&Uuid::new_v4().to_string()),
+    )
+    .await;
+    assert_eq!(code(stale), "stale_scene");
+    assert!(editor.selection.is_empty());
+
+    editor.select(Some(targets[0].node));
+    frame(&mut editor, &context, vec![]);
+    let before = editor.selection.clone();
+    editor.channels[0] = "9".into();
+    editor.channel_intents[0] = true;
+    let busy = call(&mut editor, &context, peer, "select_in_rect", args(&token)).await;
+    assert_eq!(code(busy), "busy_editing");
+    assert_eq!(editor.selection, before);
+    editor.channel_intents[0] = false;
+    editor.sync_fields();
+
+    let node = targets[0].node.to_decimal();
+    let path: Vec<String> = targets[0].path.iter().map(|id| id.to_decimal()).collect();
+    let begun = call(
+        &mut editor,
+        &context,
+        peer,
+        "begin_manipulation",
+        json!({"scene_token":token,"kind":"move","node_id":node,"instance_path":path,"axis":"x"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begun["manipulation_id"].as_str().unwrap().to_owned();
+    let busy = call(&mut editor, &context, peer, "select_in_rect", args(&token)).await;
+    assert_eq!(code(busy), "busy_manipulation");
+    assert_eq!(editor.selection, before);
+    call(
+        &mut editor,
+        &context,
+        peer,
+        "finish_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"finish":"cancel"}),
+    )
+    .await;
+
+    for mode in ["face", "vertex", "edge"] {
+        call(
+            &mut editor,
+            &context,
+            peer,
+            "set_selection_mode",
+            json!({"scene_token":token,"mode":mode}),
+        )
+        .await;
+        let refused = call(&mut editor, &context, peer, "select_in_rect", args(&token)).await;
+        assert_eq!(code(refused), "invalid_input", "{mode}");
+        assert_eq!(editor.selection, before, "{mode}");
+    }
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
