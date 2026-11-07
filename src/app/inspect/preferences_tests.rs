@@ -1,6 +1,9 @@
-use crate::app::Editor;
+use crate::app::{Editor, History};
+use crate::editor_operations::InspectPage;
 use azteccraft::compatibility::MayaVersion;
-use azteccraft::preferences::PreferencesError;
+use azteccraft::native_scene::NativeScene;
+use azteccraft::preferences::{PreferencesError, Store};
+use azteccraft::scene::{Primitive, Scene};
 use serde_json::Value;
 
 fn prefs(editor: &Editor) -> Value {
@@ -122,5 +125,89 @@ fn every_error_code_is_distinct_and_path_free() {
             code.chars().all(|c| c.is_ascii_lowercase() || c == '_'),
             "{code}"
         );
+    }
+}
+
+#[test]
+fn pending_mirrors_the_unsaved_picker_value_not_the_scene_draft() {
+    let mut editor = Editor::default();
+    assert_eq!(prefs(&editor)["pending"], false);
+    editor.preferences_window.pending = Some(MayaVersion::try_from(2015).unwrap());
+    assert_eq!(prefs(&editor)["pending"], true);
+    let whole = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+    assert_eq!(whole["has_draft"], false);
+}
+
+#[test]
+fn gated_features_name_each_gate_and_follow_the_version() {
+    let mut editor = Editor::default();
+    let p = prefs(&editor);
+    assert_eq!(
+        p["gated_features"][0]["id"],
+        "frame_selection_children_split"
+    );
+    assert_eq!(p["gated_features"][0]["available"], true);
+    editor.preferences.maya_compatibility_version = MayaVersion::try_from(2015).unwrap();
+    assert_eq!(prefs(&editor)["gated_features"][0]["available"], false);
+}
+
+#[test]
+fn units_are_read_only_with_a_reason() {
+    let value = serde_json::to_value(Editor::default().inspect(false).unwrap()).unwrap();
+    assert_eq!(value["units"]["editable"], false);
+    assert!(
+        !value["units"]["unsupported_reason"]
+            .as_str()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(value["units"]["linear"], "cm");
+    assert!(value.get("working_units").is_none());
+}
+
+#[test]
+fn every_page_repeats_the_preferences_block() {
+    let mut legacy = Scene::default();
+    for index in 0..5 {
+        legacy
+            .create(Primitive::Cube, &format!("c{index}"))
+            .unwrap();
+    }
+    let editor = Editor {
+        history: History::new(NativeScene::from_legacy(legacy).unwrap()),
+        preferences_store: Store::SessionOnly,
+        ..Editor::default()
+    };
+    let first = editor
+        .inspect_page(
+            false,
+            Some(&InspectPage {
+                limit: 2,
+                cursor: None,
+            }),
+        )
+        .unwrap();
+    let cursor = first
+        .page
+        .as_ref()
+        .unwrap()
+        .next_cursor
+        .as_ref()
+        .unwrap()
+        .parse()
+        .unwrap();
+    let second = editor
+        .inspect_page(
+            false,
+            Some(&InspectPage {
+                limit: 2,
+                cursor: Some(cursor),
+            }),
+        )
+        .unwrap();
+    assert!(second.page.as_ref().unwrap().node_offset > 0);
+    for page in [first, second] {
+        let value = serde_json::to_value(page).unwrap();
+        assert_eq!(value["preferences"]["persistence"]["state"], "session_only");
     }
 }
