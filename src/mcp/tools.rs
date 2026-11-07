@@ -721,6 +721,9 @@ mod tests {
                     json!({"scene_token":token,"change":"toggle","node_id":"1"})
                 }
                 "select_by_rule" => json!({"scene_token":token,"rule":"all"}),
+                "select_in_rect" => {
+                    json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1]}})
+                }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})
