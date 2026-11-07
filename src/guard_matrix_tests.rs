@@ -720,6 +720,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
+        Operation::SetCompatibilityVersion {
+            version: azteccraft::compatibility::MayaVersion::try_from(2015).unwrap(),
+        },
+        Operation::ResetPreferences,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
             panel: crate::editor_operations::SidebarPanel::ChannelBox,
@@ -1587,8 +1591,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },
         )],
-        // Seeded with their own state column in the preferences guard-matrix rows.
-        Operation::SetCompatibilityVersion { .. } | Operation::ResetPreferences => Vec::new(),
+        Operation::SetCompatibilityVersion { .. } => vec![sample(
+            "set_compatibility_version(2015)",
+            Operation::SetCompatibilityVersion {
+                version: azteccraft::compatibility::MayaVersion::try_from(2015).unwrap(),
+            },
+        )],
+        Operation::ResetPreferences => {
+            vec![sample("reset_preferences", Operation::ResetPreferences)]
+        }
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
