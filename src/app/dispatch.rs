@@ -1047,17 +1047,7 @@ impl Editor {
             OperationError::from_history(error)
         })?;
         if let EditOutcome::Created(id) = outcome {
-            self.clear_remembered_components();
-            let transform = self
-                .history
-                .scene()
-                .node(id)
-                .map_err(OperationError::Scene)?
-                .transform_id();
-            self.selection.replace(TransformTarget {
-                node: id,
-                path: vec![transform],
-            });
+            self.after_nodes_created(&[id])?;
         }
         self.sync_fields();
         Ok(match outcome {
@@ -1073,6 +1063,32 @@ impl Editor {
             EditOutcome::Changed => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })
+    }
+    /// Makes new root nodes the object selection, in order with the last as lead, and forgets
+    /// remembered component selections. Shared by Create and OBJ import.
+    fn after_nodes_created(&mut self, ids: &[NodeId]) -> Result<(), OperationError> {
+        self.clear_remembered_components();
+        let mut targets = Vec::new();
+        for id in ids {
+            let transform = self
+                .history
+                .scene()
+                .node(*id)
+                .map_err(OperationError::Scene)?
+                .transform_id();
+            targets.push(TransformTarget {
+                node: *id,
+                path: vec![transform],
+            });
+        }
+        match <[TransformTarget; 1]>::try_from(targets) {
+            Ok([only]) => self.selection.replace(only),
+            Err(targets) => self
+                .selection
+                .replace_with(targets)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
+        }
+        Ok(())
     }
     pub(super) fn has_draft(&self) -> bool {
         self.material_draft
