@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-56 tools.
+58 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -62,3 +62,5 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `new_scene` | mutating | no | Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id |
 | `resolve_file_action` | mutating | no | Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening |
 | `request_close` | mutating | no | Request native window closure; dirty documents require explicit confirmation, and approved remote closure waits for its successful reply to be flushed |
+| `set_compatibility_version` | mutating | yes | Set the Maya release the editor follows (Preferences > Settings > Maya compatibility), a year from 2011 to 2027. Persisted when the preferences file is writable, otherwise applied to this session only; see inspect_scene preferences.persistence. Never changes the scene or undo history. Refused with busy_editing while the Preferences window holds an unsaved value |
+| `reset_preferences` | mutating | yes | Move an unreadable or changed preferences file aside as a numbered backup and return to defaults. Reports unchanged unless inspect_scene preferences.persistence.reset_available is true. Refused with busy_editing while the Preferences window holds an unsaved value |

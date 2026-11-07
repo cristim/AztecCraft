@@ -7,6 +7,7 @@ use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError
 use azteccraft::{
     history::ManipulationError,
     native_scene::{NativeError, WorldMoveUnsupported},
+    preferences::PreferencesError,
     scene::SceneError,
 };
 use rmcp::{
@@ -164,7 +165,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
-                OperationError::Preferences(_) => "preferences_error",
+                OperationError::Preferences(error) => preferences_code(error),
             };
             match error {
                 // File text comes from DocumentError/ObjError Display, which embeds the path; the
@@ -172,9 +173,45 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::File(_) => {
                     tool_error(code, crate::editor_operations::STATUS_MESSAGE_WITHHELD)
                 }
+                // Fixed text per code: a PreferencesError never varies the reply or names a path.
+                OperationError::Preferences(_) => tool_error(code, preferences_message(code)),
                 error => tool_error(code, error),
             }
         }
+    }
+}
+
+/// Reset's variants share one code. The load-time variants only describe a blocked store, which
+/// no write or reset reply carries; they land on the write code rather than inventing a fourth.
+fn preferences_code(error: &PreferencesError) -> &'static str {
+    match error {
+        PreferencesError::ChangedOnDisk => "preferences_changed_on_disk",
+        PreferencesError::ResetChanged
+        | PreferencesError::ResetSymlink
+        | PreferencesError::ResetBackup(_)
+        | PreferencesError::ResetRemove(_) => "preferences_reset_failed",
+        PreferencesError::Write(_)
+        | PreferencesError::NotWritable
+        | PreferencesError::NoConfigDir
+        | PreferencesError::Symlink
+        | PreferencesError::NotRegularFile
+        | PreferencesError::TooLarge
+        | PreferencesError::Unreadable(_)
+        | PreferencesError::Malformed
+        | PreferencesError::UnknownSchema
+        | PreferencesError::VersionOutOfRange => "preferences_write_failed",
+    }
+}
+
+fn preferences_message(code: &str) -> &'static str {
+    match code {
+        "preferences_changed_on_disk" => {
+            "The preferences file changed on disk; call reset_preferences to move it aside"
+        }
+        "preferences_reset_failed" => {
+            "The preferences file could not be reset; nothing was changed"
+        }
+        _ => "The preferences file could not be written; the setting was not saved",
     }
 }
 
@@ -340,6 +377,88 @@ mod tests {
         let error = &value["structuredContent"]["error"];
         assert_eq!(error["code"], "view_error");
         assert_eq!(error["message"], text);
+    }
+
+    #[test]
+    fn every_preferences_error_maps_to_a_fixed_code_and_text_without_a_path() {
+        use azteccraft::preferences::PreferencesError as E;
+        use std::io::ErrorKind::PermissionDenied as Kind;
+        let mapping = [
+            (E::Write(Kind), "preferences_write_failed"),
+            (E::NotWritable, "preferences_write_failed"),
+            (E::ChangedOnDisk, "preferences_changed_on_disk"),
+            (E::ResetChanged, "preferences_reset_failed"),
+            (E::ResetSymlink, "preferences_reset_failed"),
+            (E::ResetBackup(Kind), "preferences_reset_failed"),
+            (E::ResetRemove(Kind), "preferences_reset_failed"),
+        ];
+        for (error, expected) in mapping {
+            let value =
+                serde_json::to_value(tool_reply(Err(OperationError::Preferences(error)))).unwrap();
+            let body = &value["structuredContent"]["error"];
+            assert_eq!(body["code"], expected, "{error:?}");
+            let again = serde_json::to_value(tool_reply(Err(OperationError::Preferences(
+                E::Write(std::io::ErrorKind::NotFound),
+            ))))
+            .unwrap();
+            if expected == "preferences_write_failed" {
+                assert_eq!(
+                    body["message"],
+                    again["structuredContent"]["error"]["message"]
+                );
+            }
+            assert!(!body["message"].as_str().unwrap().contains('/'));
+        }
+        for error in [E::Malformed, E::Symlink, E::TooLarge, E::NoConfigDir] {
+            let value =
+                serde_json::to_value(tool_reply(Err(OperationError::Preferences(error)))).unwrap();
+            assert_eq!(
+                value["structuredContent"]["error"]["code"],
+                "preferences_write_failed"
+            );
+        }
+    }
+
+    #[test]
+    fn preferences_tools_are_strict_mutating_and_idempotent() {
+        let token = Uuid::new_v4().to_string();
+        for version in [2010, 2028, -1] {
+            let args = json!({"scene_token":token,"version":version});
+            assert!(
+                parse_request(
+                    "set_compatibility_version",
+                    args.as_object().unwrap().clone()
+                )
+                .is_err()
+            );
+        }
+        for (name, args) in [
+            (
+                "set_compatibility_version",
+                json!({"scene_token":token,"version":2015,"x":1}),
+            ),
+            ("reset_preferences", json!({"scene_token":token,"x":1})),
+        ] {
+            assert!(parse_request(name, args.as_object().unwrap().clone()).is_err());
+        }
+        for year in [2011, 2027] {
+            let args = json!({"scene_token":token,"version":year});
+            assert!(
+                parse_request(
+                    "set_compatibility_version",
+                    args.as_object().unwrap().clone()
+                )
+                .is_ok()
+            );
+        }
+        for tool in crate::mcp::registry::catalog() {
+            if tool.name == "set_compatibility_version" || tool.name == "reset_preferences" {
+                let hints = tool.annotations.unwrap();
+                assert_eq!(hints.read_only_hint, Some(false));
+                assert_eq!(hints.idempotent_hint, Some(true));
+            }
+        }
+        assert!(tool_names().any(|name| name == "reset_preferences"));
     }
 
     #[test]
@@ -771,6 +890,7 @@ mod tests {
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
                 "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
+                "set_compatibility_version" => json!({"scene_token":token,"version":2027}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -872,6 +992,8 @@ mod tests {
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
+                    | "set_compatibility_version"
+                    | "reset_preferences"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),

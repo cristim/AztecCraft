@@ -535,7 +535,11 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Settings | Attribute Editor tab | supported | `select_attribute_editor_tab` | `attribute_editor_tab` | |
 | Settings | Attribute Editor Pin Tab (disabled button) and read-only shape attributes | unsupported | | | |
 | Settings | Modeling Toolkit, HumanIK, Tool Settings panels, menu sets, selection presets | unsupported | | | |
-| Settings | Preferences and Working Units | unsupported | | | |
+| Settings | Preferences window categories other than Settings (listed disabled) | unsupported | | | |
+| Settings | Maya compatibility version (Preferences > Settings) | supported | `set_compatibility_version` | `preferences.maya_compatibility_version`, `preferences.persistence.state` | Session setting; persisted when the preferences file is writable; refused with `busy_editing` while the window holds an unsaved value |
+| Settings | Reset of an unreadable or changed preferences file | supported | `reset_preferences` | `preferences.persistence.reset_available`, `preferences.persistence.error` | Moves the file aside as a numbered backup; `unchanged` when nothing is blocked |
+| Settings | Working Units query | supported | `inspect_scene` | `units` | Read-only; the scene declares the units |
+| Settings | Working Units edit | unsupported | | | |
 | Panels | Range Slider, Auto Key, tangents, Graph Editor, Dope Sheet, Layer Editor, Outliner filters | unsupported | | | |
 | Panels | Status line message text | supported | | `status_message` | |
 

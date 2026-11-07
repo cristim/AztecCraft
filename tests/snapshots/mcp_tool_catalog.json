@@ -2687,5 +2687,59 @@
       "idempotentHint": false,
       "openWorldHint": false
     }
+  },
+  {
+    "name": "set_compatibility_version",
+    "description": "Set the Maya release the editor follows (Preferences > Settings > Maya compatibility), a year from 2011 to 2027. Persisted when the preferences file is writable, otherwise applied to this session only; see inspect_scene preferences.persistence. Never changes the scene or undo history. Refused with busy_editing while the Preferences window holds an unsaved value",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "version": {
+          "description": "Maya release year to follow, 2011 to 2027.",
+          "format": "uint64",
+          "maximum": 2027,
+          "minimum": 2011,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene_token",
+        "version"
+      ],
+      "title": "SetCompatibilityVersionArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "reset_preferences",
+    "description": "Move an unreadable or changed preferences file aside as a numbered backup and return to defaults. Reports unchanged unless inspect_scene preferences.persistence.reset_available is true. Refused with busy_editing while the Preferences window holds an unsaved value",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
   }
 ]
