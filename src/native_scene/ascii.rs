@@ -325,8 +325,8 @@ struct Builder<'a, 'b> {
     owners: Vec<Owner>,
     selected: Option<usize>,
     units: bool,
-    /// Whether `createNode mesh` is admitted. False for every public decode until the read-back
-    /// gate exists; only the crate's own tests build meshes.
+    /// Whether `createNode mesh` is admitted. False for the plain `decode`; `decode_document`
+    /// sets it and adopts the result only after proving it byte-identical to the writer's output.
     meshes: bool,
     mesh_parts: Vec<mesh::MeshParts>,
     requires: bool,
@@ -1097,7 +1097,8 @@ pub fn decode(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
     decode_inner(source, false)
 }
 
-/// Decode that admits `createNode mesh`; reachable only from tests until the read-back gate lands.
+/// Test helper: decode that admits `createNode mesh` without the read-back gate. Production
+/// callers go through `decode_document`.
 #[cfg(test)]
 pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, AsciiError> {
     decode_inner(source, true)

@@ -968,6 +968,11 @@ the written files is PROVISIONAL and unproven. A reopened file is an authored do
 and any edit the writer cannot carry (session material, UVs, curves) refuses Save and keeps the scene
 dirty.
 
+Because the gate compares against the writer's exact output (including the fixed header text), any
+change to the ASCII writer invalidates `.ma` files saved by earlier builds: a mesh file written before
+the change is refused at Open by the later build (a file with no meshes opens read-only). Writer changes
+therefore need either a version marker the reader can branch on or an accepted break; neither exists yet.
+
 Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), UV or material writing, or a
 public Maya acceptance check (issue #5).
 

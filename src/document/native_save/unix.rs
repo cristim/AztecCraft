@@ -463,10 +463,7 @@ impl Receipt {
             file: self.file.clone(),
             destination: Some(self.destination.clone()),
         };
-        let origin = if path
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("ma"))
-        {
+        let origin = if has_extension(&path, "ma") {
             NativeOrigin::AuthoredAscii(baseline)
         } else {
             NativeOrigin::Binary(baseline)
