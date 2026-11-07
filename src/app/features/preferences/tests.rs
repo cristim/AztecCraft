@@ -552,4 +552,19 @@ mod window {
         assert!(editor.preferences_window.open);
         assert!(editor.preferences_window.error.is_some());
     }
+
+    #[test]
+    fn a_successful_save_replaces_a_stale_error_status() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.error = true;
+        editor.status = "Old failure".into();
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Save");
+        assert!(!editor.preferences_window.open);
+        assert_eq!(editor.preferences_window.pending, None);
+        assert!(!editor.error);
+        assert_eq!(editor.status, "Preferences saved");
+    }
 }

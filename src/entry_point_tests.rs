@@ -250,9 +250,13 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "request_new",
             "run_export",
             "save_as_dialog",
-            "save_preferences",
             "step_manipulator_size",
         ],
+    );
+    expect(
+        "native UI result wrapper",
+        "native_operation_result(",
+        &["native_operation", "save_preferences"],
     );
 }
 

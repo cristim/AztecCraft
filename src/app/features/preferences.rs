@@ -93,13 +93,15 @@ impl Editor {
             self.close_preferences();
             return;
         };
-        // native_operation reports a failure through the status line and `error`.
-        self.error = false;
-        self.native_operation(Operation::SetCompatibilityVersion { version });
-        if self.error {
+        if self
+            .native_operation_result(Operation::SetCompatibilityVersion { version })
+            .is_err()
+        {
             self.preferences_window.pending = Some(version);
             self.preferences_window.error = Some(self.status.clone());
         } else {
+            self.status = "Preferences saved".into();
+            self.error = false;
             self.close_preferences();
         }
     }
