@@ -106,6 +106,7 @@ impl Editor {
             );
             ui.separator();
             self.help_line(ui);
+            self.compatibility_help(ui);
         });
         egui::Panel::left("toolbox")
             .exact_size(crate::tool_icons::toolbox_width(ui))

@@ -115,6 +115,14 @@ impl Editor {
         }
     }
 
+    /// Help Line suffix while the session follows an older Maya than the documentation pin.
+    pub(in crate::app) fn compatibility_help(&self, ui: &mut egui::Ui) {
+        let version = self.preferences.maya_compatibility_version;
+        if version != MayaVersion::PINNED {
+            ui.weak(format!("Maya compatibility: {}", version.year()));
+        }
+    }
+
     pub(in crate::app) fn show_preferences(&mut self, ctx: &egui::Context) {
         if !self.preferences_window.open {
             return;
@@ -130,6 +138,8 @@ impl Editor {
         let (mut save, mut cancel) = (false, false);
         let error = self.preferences_window.error.clone();
         let units = self.history.scene().units().clone();
+        let current = self.preferences.maya_compatibility_version;
+        let mut shown = self.preferences_window.pending.unwrap_or(current);
         egui::Window::new("Preferences")
             .id(egui::Id::unique("preferences_window"))
             .open(&mut open)
@@ -164,6 +174,8 @@ impl Editor {
                     ui.vertical(|ui| {
                         ui.heading(SETTINGS_CATEGORY);
                         working_units(ui, &units);
+                        ui.separator();
+                        compatibility_picker(ui, &mut shown);
                         if let Some(error) = &error {
                             ui.colored_label(ui.visuals().error_fg_color, error);
                         }
@@ -180,6 +192,7 @@ impl Editor {
                     cancel = ui.button("Cancel").clicked();
                 });
             });
+        self.preferences_window.pending = (shown != current).then_some(shown);
         if save {
             self.save_preferences();
         } else if cancel || !open {
@@ -260,6 +273,31 @@ fn angular_token(unit: &AngularUnit) -> &str {
         AngularUnit::Radian => "radian",
         AngularUnit::Unsupported(token) => token,
     }
+}
+
+const COMPATIBILITY_HOVER: &str = "AztecCraft extension, not a Maya setting. Documentation for 2015 and 2021 is partly unavailable, and so far only Frame Selection (F, Ctrl+F) follows this version.";
+
+fn version_label(version: MayaVersion) -> String {
+    if version == MayaVersion::PINNED {
+        format!("{} (documentation pin 2027.2)", version.year())
+    } else {
+        version.year().to_string()
+    }
+}
+
+fn compatibility_picker(ui: &mut egui::Ui, shown: &mut MayaVersion) {
+    ui.strong("AztecCraft extension: Maya compatibility");
+    egui::ComboBox::from_label("Maya compatibility")
+        .selected_text(version_label(*shown))
+        .show_ui(ui, |ui| {
+            for year in MayaVersion::OLDEST.year()..=MayaVersion::PINNED.year() {
+                let version =
+                    MayaVersion::try_from(u64::from(year)).expect("year within the range");
+                ui.selectable_value(shown, version, version_label(version));
+            }
+        })
+        .response
+        .on_hover_text(COMPATIBILITY_HOVER);
 }
 
 pub(in crate::app) fn working_units(ui: &mut egui::Ui, units: &Units) {

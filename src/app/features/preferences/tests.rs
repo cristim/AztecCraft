@@ -695,10 +695,132 @@ mod window {
         open_window(&mut editor, &ctx);
         let output = settle(&mut editor, &ctx);
         let found = combos(&output);
+        let found = found.into_iter().filter(|(_, d)| *d).collect::<Vec<_>>();
         let found = &found[found.len() - 3..];
         let values: Vec<_> = found.iter().map(|(v, _)| v.as_str()).collect();
         assert_eq!(values, ["centimeter", "degree", "film"]);
         assert!(found.iter().all(|(_, disabled)| *disabled));
         assert!(text_shown(&output, UNITS_REASON));
+    }
+
+    const HELP_LINE_2015: &str = "Maya compatibility: 2015";
+
+    fn pick(editor: &mut Editor, ctx: &egui::Context, year: u64) {
+        let output = settle(editor, ctx);
+        let current = editor
+            .preferences_window
+            .pending
+            .unwrap_or(editor.preferences.maya_compatibility_version);
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        let combo = update
+            .nodes
+            .iter()
+            .find(|(_, n)| {
+                n.role() == accesskit::Role::ComboBox
+                    && n.value()
+                        .is_some_and(|text| text.starts_with(&current.year().to_string()))
+            })
+            .and_then(|(_, n)| n.bounds())
+            .expect("compatibility picker");
+        let at = Pos2::new(
+            ((combo.x0 + combo.x1) / 2.0) as f32,
+            ((combo.y0 + combo.y1) / 2.0) as f32,
+        );
+        click(editor, ctx, at);
+        let mut output = settle(editor, ctx);
+        if year > 2020 {
+            // The popup list scrolls; bring the newest entries into view.
+            let top = controls(&output)
+                .into_iter()
+                .find(|c| c.label == "2011")
+                .expect("2011");
+            run(editor, ctx, vec![Event::PointerMoved(top.rect.center())]);
+            run(
+                editor,
+                ctx,
+                vec![Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -1000.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
+                    modifiers: Modifiers::NONE,
+                }],
+            );
+            output = settle(editor, ctx);
+        }
+        let label = if year == 2027 {
+            "2027 (documentation pin 2027.2)".to_owned()
+        } else {
+            year.to_string()
+        };
+        let item = controls(&output)
+            .into_iter()
+            .find(|c| c.label == label)
+            .unwrap_or_else(|| panic!("picker entry {year}"));
+        click(editor, ctx, item.rect.center());
+        settle(editor, ctx);
+    }
+
+    #[test]
+    fn picking_2015_then_save_persists_shows_the_help_line_and_closes() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        assert!(!text_shown(&settle(&mut editor, &ctx), HELP_LINE_2015));
+        open_window(&mut editor, &ctx);
+        pick(&mut editor, &ctx, 2015);
+        assert_eq!(editor.preferences_window.pending, Some(v(2015)));
+        assert_eq!(editor.preferences.maya_compatibility_version, v(2027));
+        assert!(!path.exists());
+        press(&mut editor, &ctx, "Save");
+        let output = settle(&mut editor, &ctx);
+        assert!(!window_shown(&output));
+        assert_eq!(editor.preferences.maya_compatibility_version, v(2015));
+        assert!(std::fs::read_to_string(&path).unwrap().contains("2015"));
+        assert!(text_shown(&output, HELP_LINE_2015));
+    }
+
+    #[test]
+    fn picking_then_cancel_keeps_2027_and_writes_no_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        pick(&mut editor, &ctx, 2015);
+        assert_eq!(editor.preferences_window.pending, Some(v(2015)));
+        press(&mut editor, &ctx, "Cancel");
+        let output = settle(&mut editor, &ctx);
+        assert!(!window_shown(&output));
+        assert!(!text_shown(&output, HELP_LINE_2015));
+        untouched(&editor, &path);
+    }
+
+    #[test]
+    fn picking_the_current_value_again_leaves_nothing_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        pick(&mut editor, &ctx, 2015);
+        pick(&mut editor, &ctx, 2027);
+        assert_eq!(editor.preferences_window.pending, None);
+    }
+
+    #[test]
+    fn a_save_error_keeps_the_picked_value_and_shows_the_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        let file = dir.path().join("not-a-dir");
+        std::fs::write(&file, b"x").unwrap();
+        editor.preferences_store = Store::Writable {
+            path: file.join("preferences.json"),
+            baseline: Baseline::Missing,
+        };
+        open_window(&mut editor, &ctx);
+        pick(&mut editor, &ctx, 2015);
+        press(&mut editor, &ctx, "Save");
+        let output = settle(&mut editor, &ctx);
+        assert!(window_shown(&output));
+        assert_eq!(editor.preferences_window.pending, Some(v(2015)));
+        let error = editor.preferences_window.error.clone().expect("error kept");
+        assert!(text_shown(&output, &error), "{error}");
+        assert!(combos(&output).iter().any(|(text, _)| text == "2015"));
     }
 }
