@@ -257,3 +257,41 @@ fn a_failure_after_the_first_object_was_appended_restores_the_scene_exactly() {
     });
     assert_eq!(next.unwrap().len(), 1);
 }
+
+#[test]
+fn a_parented_mesh_exports_in_world_space_and_imports_as_one_flat_root() {
+    let (mut scene, root, child, _) = crate::native_scene::test_fixtures::grouped_shape();
+    scene
+        .set_channel(root, crate::native_scene::Channel::TranslateX, 10.0)
+        .unwrap();
+    let view =
+        crate::view_scene::ViewScene::from_native(&scene, crate::view_scene::VIEW_BUDGET).unwrap();
+    let instances: Vec<&crate::view_scene::ViewInstance> = view.instances().iter().collect();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("group.obj");
+    crate::obj::export_native_new(&path, &scene, &instances, &|| true).unwrap();
+    let mut target = NativeScene::default();
+    let parsed = crate::obj::import::read(&path).unwrap();
+    let ids = {
+        let plan = target.plan_obj_import(&parsed).unwrap();
+        target.import_polygon_objects(&plan).unwrap()
+    };
+    assert_eq!(ids.len(), 1);
+    assert_eq!(
+        target.node(ids[0]).unwrap().name(),
+        scene.node(child).unwrap().name()
+    );
+    let Points::Float3(points) = authored::shape_of(&target, target.node(ids[0]).unwrap())
+        .unwrap()
+        .mesh()
+        .points()
+    else {
+        panic!("single precision expected");
+    };
+    // The parent's 10 cm shift is baked into the imported positions.
+    assert!(
+        points.iter().all(|p| (9.0..=11.0).contains(&p[0])),
+        "{points:?}"
+    );
+    authored::check_scene(&target).unwrap();
+}
