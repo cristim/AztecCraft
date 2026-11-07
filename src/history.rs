@@ -135,7 +135,7 @@ const UNDISPLAYABLE_VIEW: &str = "the viewport view could not be built for the i
 fn view_refusal(error: ViewError) -> NativeError {
     match error {
         ViewError::Native(error) => error,
-        ViewError::ResourceLimit => NativeError::ResourceLimit,
+        ViewError::ResourceLimit => NativeError::ImportResourceLimit,
         ViewError::UnsupportedPolygon => NativeError::ImportUndisplayable(UNDISPLAYABLE_POLYGON),
         ViewError::InvalidGeometry => NativeError::ImportUndisplayable(UNDISPLAYABLE_GEOMETRY),
         ViewError::UnsupportedTransform => {

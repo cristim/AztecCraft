@@ -2096,6 +2096,8 @@ pub enum NativeError {
     UnsupportedView(&'static str),
     /// An OBJ import would leave a scene the viewport cannot display; the text says why.
     ImportUndisplayable(&'static str),
+    /// An OBJ import would leave a scene whose display exceeds the view budget.
+    ImportResourceLimit,
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2188,6 +2190,9 @@ impl fmt::Display for NativeError {
                 write!(f, "native viewport representation unsupported: {reason}")
             }
             Self::ImportUndisplayable(reason) => f.write_str(reason),
+            Self::ImportResourceLimit => {
+                f.write_str("the imported scene is too large for the viewport to display")
+            }
         }
     }
 }

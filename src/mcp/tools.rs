@@ -130,7 +130,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     "uvs_block_topology_edit"
                 }
                 OperationError::Scene(NativeError::ImportUndisplayable(_)) => "import_invalid",
-                OperationError::Scene(NativeError::ResourceLimit) => "import_limit",
+                OperationError::Scene(NativeError::ImportResourceLimit) => "import_limit",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -1676,7 +1676,8 @@ mod tests {
     fn import_refusals_from_history_have_import_codes() {
         for (error, code) in [
             (NativeError::ImportUndisplayable("no"), "import_invalid"),
-            (NativeError::ResourceLimit, "import_limit"),
+            (NativeError::ImportResourceLimit, "import_limit"),
+            (NativeError::ResourceLimit, "scene_error"),
         ] {
             let result = tool_reply(Err(OperationError::Scene(error)));
             assert_eq!(

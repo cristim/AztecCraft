@@ -74,7 +74,7 @@ fn a_concave_pentagon_is_refused_and_scene_history_and_redo_are_untouched() {
 fn view_errors_map_to_native_errors() {
     assert_eq!(
         view_refusal(ViewError::ResourceLimit),
-        NativeError::ResourceLimit
+        NativeError::ImportResourceLimit
     );
     assert_eq!(
         view_refusal(ViewError::Native(NativeError::InvalidTopology)),
