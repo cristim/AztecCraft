@@ -1242,7 +1242,8 @@ Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and o
 
 UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
 so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
-holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them, and OBJ export refuses a shape that has them
+(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The axis-to-(u, v) assignment
