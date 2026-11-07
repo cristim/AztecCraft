@@ -16,6 +16,9 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
    `UpdateMove`, `UpdateManipulation` or `FinishMove` (`src/app/dispatch.rs "active.provenance != ManipulationProvenance::Remote"`). This is default-deny.
 4. Closing, modal (all but `ResolveFileAction`), focused text edit, any draft or pending native
    input is `BusyEditing` (`src/app/dispatch.rs "|| self.native_input_pending"`).
+   `SetCompatibilityVersion` and `ResetPreferences` are additionally `BusyEditing` while the modeless Preferences window holds an unsaved value
+   (`src/app/dispatch.rs "self.preferences_window.pending.is_some()"`). The value is not a draft: it is not in `has_draft()`, so it never
+   dirties the scene or reaches `commit_pending`, and every other remote operation runs (the `preferences_draft` matrix state, decision R1).
 5. Then `apply_operation_guarded` with provenance Remote (`src/app/dispatch.rs "ManipulationProvenance::Remote,"`).
 
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
@@ -31,7 +34,7 @@ provenance Native and no token or draft checks. In order:
    `UpdateMove`/`FinishMove`.
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn apply_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `SetGridVisible`, `SetShadingMode`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `SetGridVisible`, `SetCompatibilityVersion`, `ResetPreferences`, `SetShadingMode`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -109,6 +112,14 @@ The matrix records these asymmetries; treat a change as a behavior change that n
   first) and then fails with `BusyEditing`.
 - Native `delete` with a changed material draft commits the draft first, then fails; the status
   becomes "Material data edited" and the scene has changed even though the result is an `Err`.
+- `SetCompatibilityVersion` and `ResetPreferences` follow Grid: session settings that never enter history, dirty the scene or change the
+  token, and are refused while modal or closing (`BusyEditing`) and during a manipulation (`BusyManipulation`). Native calls commit a valid human draft first, and an invalid one fails with `InvalidInput`, as for Grid. `SetCompatibilityVersion` is `Unchanged` for the current value and does not touch
+  the file; `ResetPreferences` is `Unchanged` unless the store is blocked. Their native callers are the Preferences window's `save_preferences`
+  and `reset_preferences_file` (`src/app/features/preferences.rs`, named in the `native UI result wrapper` allowlist of `src/entry_point_tests.rs`),
+  which go through `native_operation_result`, not around the pipeline. Save and Reset are disabled in the window while a file prompt or close is
+  pending, and Reset while a value is pending, but the pipeline guards stand on their own. A failed write (`Err(Preferences(..))`) leaves the
+  session value and the file as they were. Handlers are in `src/app/features/preferences.rs`; the matrix has the `set_compatibility_version` and
+  `reset_preferences` samples in every state plus the `preferences_draft` state.
 - `SetShadingMode` follows Grid: session-only, idempotent (`Unchanged` when the mode already matches),
   never dirty, never a scene-token change; guards are those of `SetGridVisible`. Handler is in
   `src/app/dispatch.rs`; matrix cell is `set_shading_mode(wireframe)`.

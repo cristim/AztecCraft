@@ -118,6 +118,37 @@ Cmd-versus-Ctrl behavior is unverified. Native visual verification is pending. T
 scrolls with the wheel; Alt+middle-drag and Ctrl+Alt+middle-drag panning and wheel-over-tabs
 node switching (Maya 2027 Attribute Editor page) are unsupported.
 
+## Preferences first slice is PROVISIONAL
+
+**Severity:** low
+**Area:** preferences, Maya compatibility version
+**Issue:** cristim/AztecCraft#178
+
+The Preferences window, the persisted Maya compatibility version and the MCP tools
+`set_compatibility_version` and `reset_preferences` are specified in
+[development.md](.project-docs/development.md#preferences). No Maya build was run; the choices
+below are ours or rest on incomplete documentation.
+
+- P1: the default time unit `film` (24 fps) is stated by no retrieved Maya page; `Units::default()` already uses it.
+- P2: the time list upper bound is unsettled: the Working Units pages mention 44,100 fps, 48,000 fps and a `48000fps` token. The read-only combo shows the page's tokens; no page enumerates the full `Nfps` series.
+- P3: the Save and Cancel buttons and their semantics (Save persists and closes, Cancel discards and closes) are standard Maya UI but not described by the Preferences page. Edit > Revert to Saved and Restore Default Settings are documented and stay disabled with a reason.
+- P4: the compatibility setting has no Maya counterpart. Its place in the Settings category is ours and it is labelled an AztecCraft extension.
+- P6: 2015 has no retrievable documentation page, so the compatibility table treats 2015 as before the Frame Selection split (`since` 2016, `present_in` 2016, `absent_in` 2014). Only the 2014 hotkeys page and the 2016 View menu page bracket it.
+- P7: the preferences file location, its JSON format and the `.bad-<n>` backup name are AztecCraft's own; Maya keeps a per-version folder of MEL files.
+- Working Units are read-only. Changing them would convert scene data, which is not supported; a scene that declares a unit the editor cannot load (such as `km`) is shown as declared and never opens.
+- Only the Settings category of the 39 is enabled; the others and the window's Edit menu rows are listed disabled.
+
+Persistence limits (all keep the user's file safe by refusing, never by guessing):
+
+- Save has a race. The file is re-read and compared with the loaded or last written bytes just before the atomic rename, so a write by another instance between that check and the rename is overwritten. The rename itself is atomic.
+- Reset has the same race, and is not atomic across its three steps. After it re-reads the file and compares it with the bytes that blocked the store, it takes a hard link backup and then removes the original. A file replaced between the recheck and the link is backed up and removed as if it were the blocked one; one replaced between the link and the remove is removed while the backup holds the old bytes. No older backup is ever overwritten, and a failed remove drops the new link.
+- Reset needs a filesystem with hard links. Without them (for example FAT or some network shares) it fails with `reset_backup_failed` and changes nothing; the user must move the file by hand.
+- A symlink at the preferences path blocks the store and Reset refuses it (`reset_symlink`). Remove the link by hand, then Reset unblocks.
+- The preferences file is capped at 64 KiB; a larger file blocks the store as `file_too_large`.
+- Preferences that do not persist (blocked, changed on disk or no config directory) apply for the session only and the window and `inspect_scene` say so.
+
+Verification pending: the native visual check of the Preferences window (Windows menu, picker, Save, Cancel, Reset and the Help Line label) needs a GUI-capable run and has not been done. The window is covered by real-widget tests and the tools by Editor and official SDK protocol tests.
+
 ## Reference baseline unavailable
 
 **Severity:** high
