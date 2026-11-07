@@ -296,11 +296,12 @@ mod window {
     }
 
     fn settle(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+        let mut last = run(editor, ctx, vec![]);
         // The window sizes itself over several frames.
-        (0..9)
-            .map(|_| run(editor, ctx, vec![]))
-            .last()
-            .expect("at least one frame")
+        for _ in 0..8 {
+            last = run(editor, ctx, vec![]);
+        }
+        last
     }
 
     fn click(editor: &mut Editor, ctx: &egui::Context, at: Pos2) {
@@ -332,7 +333,7 @@ mod window {
     }
 
     fn window_shown(output: &egui::FullOutput) -> bool {
-        button(output, "Cancel").is_some()
+        button(output, "Save").is_some()
     }
 
     fn with_store(dir: &tempfile::TempDir) -> (Editor, egui::Context, PathBuf) {
@@ -487,5 +488,68 @@ mod window {
         assert!(!window_shown(&settle(&mut editor, &ctx)));
         assert!(!editor.preferences_window.open);
         untouched(&editor, &path);
+    }
+
+    #[test]
+    fn app_close_discards_a_pending_value_without_an_operation() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        editor.apply_operation(Operation::RequestClose).unwrap();
+        assert!(editor.files.is_closing());
+        untouched(&editor, &path);
+    }
+
+    #[test]
+    fn save_is_disabled_while_closing() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        assert!(!button(&settle(&mut editor, &ctx), "Save").unwrap().disabled);
+        editor.apply_operation(Operation::RequestClose).unwrap();
+        assert!(editor.files.is_closing());
+        assert!(button(&settle(&mut editor, &ctx), "Save").unwrap().disabled);
+    }
+
+    #[test]
+    fn save_is_disabled_while_a_file_prompt_is_modal() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.create(Primitive::Cube);
+        editor.apply_operation(Operation::RequestClose).unwrap();
+        assert!(editor.files.is_modal());
+        assert!(button(&settle(&mut editor, &ctx), "Save").unwrap().disabled);
+    }
+
+    #[test]
+    fn save_persists_the_pending_value_and_clears_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Save");
+        assert_eq!(editor.preferences_window.pending, None);
+        assert!(!editor.preferences_window.open);
+        assert_eq!(editor.preferences.maya_compatibility_version, v(2015));
+        assert!(std::fs::read_to_string(&path).unwrap().contains("2015"));
+    }
+
+    #[test]
+    fn a_failed_save_keeps_the_pending_value_and_shows_the_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let (editor, path) = blocked(&dir);
+        let (mut editor, ctx) = setup(editor);
+        editor.preferences_store = Store::Writable {
+            path: path.join("missing").join("preferences.json"),
+            baseline: Baseline::Missing,
+        };
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Save");
+        assert_eq!(editor.preferences_window.pending, Some(v(2015)));
+        assert!(editor.preferences_window.open);
+        assert!(editor.preferences_window.error.is_some());
     }
 }

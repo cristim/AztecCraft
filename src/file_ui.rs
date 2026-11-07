@@ -359,6 +359,7 @@ impl Editor {
     fn apply_file_action(&mut self, action: FileAction) -> Result<OperationReply, OperationError> {
         match action {
             FileAction::Close => {
+                self.discard_preferences_draft();
                 self.files.close_approved = true;
                 Ok(OperationReply::CloseRequested {
                     scene_token: self.scene_token.to_string(),

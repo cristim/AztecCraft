@@ -9,6 +9,7 @@ use azteccraft::preferences::{Preferences, ResetOutcome, Store};
 const CATEGORY_LIST_HEIGHT: f32 = 320.0;
 const SETTINGS_CATEGORY: &str = "Settings";
 const CATEGORY_REASON: &str = "Not implemented yet; only Settings is available";
+const FILE_PROMPT_REASON: &str = "a file prompt is waiting for an answer";
 
 /// Maya 2027's Preferences categories, in the order of its Preferences window page.
 pub(in crate::app) const PREFERENCE_CATEGORIES: [&str; 39] = [
@@ -75,7 +76,7 @@ impl Editor {
     }
 
     /// Drops the unsaved value and any save error; no operation runs. An approved app close ends
-    /// here, and so do Cancel and the title-bar X.
+    /// here, and so do Cancel, the title-bar X and a successful Save.
     pub(in crate::app) fn discard_preferences_draft(&mut self) {
         self.preferences_window.pending = None;
         self.preferences_window.error = None;
@@ -86,12 +87,36 @@ impl Editor {
         self.preferences_window.open = false;
     }
 
+    /// Persists the pending value and closes. A failed save keeps the value and shows the error.
+    fn save_preferences(&mut self) {
+        let Some(version) = self.preferences_window.pending.take() else {
+            self.close_preferences();
+            return;
+        };
+        // native_operation reports a failure through the status line and `error`.
+        self.error = false;
+        self.native_operation(Operation::SetCompatibilityVersion { version });
+        if self.error {
+            self.preferences_window.pending = Some(version);
+            self.preferences_window.error = Some(self.status.clone());
+        } else {
+            self.close_preferences();
+        }
+    }
+
     pub(in crate::app) fn show_preferences(&mut self, ctx: &egui::Context) {
         if !self.preferences_window.open {
             return;
         }
+        let save_blocked = if self.files.is_closing() {
+            Some(crate::app::menus::CLOSING_REASON)
+        } else if self.files.is_modal() {
+            Some(FILE_PROMPT_REASON)
+        } else {
+            None
+        };
         let mut open = true;
-        let mut cancel = false;
+        let (mut save, mut cancel) = (false, false);
         let error = self.preferences_window.error.clone();
         egui::Window::new("Preferences")
             .id(egui::Id::unique("preferences_window"))
@@ -133,10 +158,18 @@ impl Editor {
                 });
                 ui.separator();
                 ui.horizontal(|ui| {
+                    let mut button =
+                        ui.add_enabled(save_blocked.is_none(), egui::Button::new("Save"));
+                    if let Some(reason) = save_blocked {
+                        button = button.on_disabled_hover_text(reason);
+                    }
+                    save = button.clicked();
                     cancel = ui.button("Cancel").clicked();
                 });
             });
-        if cancel || !open {
+        if save {
+            self.save_preferences();
+        } else if cancel || !open {
             self.close_preferences();
         }
     }
