@@ -1818,6 +1818,30 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
             "manipulator_size",
             editor.manipulation.manipulator_size().get().to_string(),
         ),
+        (
+            "compat",
+            editor
+                .preferences
+                .maya_compatibility_version
+                .year()
+                .to_string(),
+        ),
+        (
+            "prefs_store",
+            match editor.preferences_store {
+                azteccraft::preferences::Store::Writable { .. } => "writable",
+                azteccraft::preferences::Store::Blocked { .. } => "blocked",
+                azteccraft::preferences::Store::SessionOnly => "session_only",
+            }
+            .to_owned(),
+        ),
+        (
+            "prefs_pending",
+            editor
+                .preferences_window
+                .pending
+                .map_or("-".to_owned(), |version| version.year().to_string()),
+        ),
     ];
     Observed {
         scene: scene.clone(),

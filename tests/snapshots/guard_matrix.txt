@@ -14,7 +14,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -147,7 +147,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -280,7 +280,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -406,7 +406,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -532,7 +532,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -658,7 +658,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -784,7 +784,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -910,7 +910,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -1036,7 +1036,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1162,7 +1162,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1288,7 +1288,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1414,7 +1414,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1540,7 +1540,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1666,7 +1666,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1793,7 +1793,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
@@ -1920,7 +1920,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2046,7 +2046,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2172,7 +2172,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2298,7 +2298,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2424,7 +2424,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2550,7 +2550,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2676,7 +2676,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2802,7 +2802,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -2929,7 +2929,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3055,7 +3055,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3181,7 +3181,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3307,7 +3307,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3433,7 +3433,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3559,7 +3559,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3685,7 +3685,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3811,7 +3811,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -3937,7 +3937,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4063,7 +4063,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4189,7 +4189,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4315,7 +4315,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4441,7 +4441,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4567,7 +4567,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4693,7 +4693,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4819,7 +4819,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=-
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
