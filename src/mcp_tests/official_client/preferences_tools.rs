@@ -1,4 +1,5 @@
 use super::*;
+use crate::editor_operations::FileDecision;
 use azteccraft::{compatibility::MayaVersion, preferences::Store};
 use std::path::PathBuf;
 
@@ -199,6 +200,275 @@ async fn sdk_a_file_changed_on_disk_is_reported_without_the_path() {
     let root = dir.path().to_string_lossy().into_owned();
     assert!(!rendered.contains(&root) && !rendered.contains("preferences.json"));
     assert_eq!(version_of(&mut editor, &context, &client).await, 2027);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+async fn inspection(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::RunningService<RoleClient, ()>,
+) -> Value {
+    call(editor, context, client.peer(), "inspect_scene", json!({}))
+        .await
+        .structured_content
+        .unwrap()["inspection"]
+        .clone()
+}
+
+fn set_args(token: &str, year: u64) -> Value {
+    json!({"scene_token": token, "version": year})
+}
+
+#[tokio::test]
+async fn sdk_a_saved_version_reaches_the_file_and_units_stay_read_only() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let dir = tempfile::tempdir().unwrap();
+    let path = with_store(&mut editor, &dir, None);
+    let token = editor.scene_token.to_string();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    let root = dir.path().to_string_lossy().into_owned();
+    assert!(!serde_json::to_string(&result).unwrap().contains(&root));
+    let inspected = inspection(&mut editor, &context, &client).await;
+    assert_eq!(inspected["preferences"]["persistence"]["state"], "saved");
+    assert_eq!(inspected["units"]["editable"], false);
+    assert!(!inspected.to_string().contains(&root));
+    let stored: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert!(stored.to_string().contains("2015"), "{stored}");
+    assert!(!editor.status.contains(&root));
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_set_compatibility_version_is_refused_in_every_busy_editor_state() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    frame(&mut editor, &context, vec![]);
+    editor.name = "human_draft".into();
+    let draft = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(code(&draft), "busy_editing");
+    editor.sync_fields();
+
+    context.memory_mut(|memory| memory.request_focus(name_edit_id()));
+    let focus = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(code(&focus), "busy_editing");
+    context.memory_mut(|memory| memory.surrender_focus(name_edit_id()));
+
+    editor.preferences_window.pending = Some(v(2020));
+    let pending = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(code(&pending), "busy_editing");
+    let unrelated = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        json!({"scene_token": token, "panel": "channel_box", "visible": true}),
+    )
+    .await;
+    assert_ne!(unrelated.is_error, Some(true));
+    editor.preferences_window.pending = None;
+
+    editor.request_close();
+    let modal = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(code(&modal), "busy_editing");
+    let pending_id = editor.files.pending_inspection().unwrap().id;
+    editor
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: pending_id.parse().unwrap(),
+            decision: FileDecision::Discard,
+        })
+        .unwrap();
+    assert!(editor.files.is_closing());
+    let closing = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(code(&closing), "busy_editing");
+    assert_eq!(version_of(&mut editor, &context, &client).await, 2027);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_preference_tools_are_busy_during_a_manipulation() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let created = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "create_primitive",
+        json!({"scene_token": token, "primitive": "cube"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let path: Vec<_> = editor
+        .selected_path()
+        .iter()
+        .map(|id| id.to_decimal())
+        .collect();
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        json!({"scene_token": token, "node_id": created["node_id"], "instance_path": path, "kind": "move", "axis": "x"}),
+    )
+    .await;
+    for (name, arguments) in [
+        ("set_compatibility_version", set_args(&token, 2015)),
+        ("reset_preferences", json!({"scene_token": token})),
+    ] {
+        let result = call(&mut editor, &context, client.peer(), name, arguments).await;
+        assert_eq!(code(&result), "busy_manipulation", "{name}");
+    }
+    assert_eq!(version_of(&mut editor, &context, &client).await, 2027);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let dir = tempfile::tempdir().unwrap();
+    let path = with_store(&mut editor, &dir, Some(b"not json"));
+    let token = editor.scene_token.to_string();
+    let root = dir.path().to_string_lossy().into_owned();
+    let blocked =
+        inspection(&mut editor, &context, &client).await["preferences"]["persistence"].clone();
+    assert_eq!(blocked["state"], "not_saved");
+    assert_eq!(blocked["reset_available"], true);
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    let session_only = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await;
+    for reply in [&refused, &session_only] {
+        assert!(!serde_json::to_string(reply).unwrap().contains(&root));
+    }
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "reset_preferences",
+        json!({"scene_token": token}),
+    )
+    .await;
+    assert!(path.with_file_name("preferences.json.bad-1").exists());
+    assert_eq!(
+        std::fs::read(path.with_file_name("preferences.json.bad-1")).unwrap(),
+        b"not json"
+    );
+    let set = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(
+        set.structured_content.as_ref().unwrap()["outcome"],
+        "changed"
+    );
+    assert!(!editor.status.contains(&root));
+    let after = inspection(&mut editor, &context, &client).await["preferences"].clone();
+    assert_eq!(after["persistence"]["state"], "saved");
+    assert_eq!(after["maya_compatibility_version"], 2015);
+    assert!(path.exists());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_a_session_only_store_reports_session_only_and_reset_is_unchanged() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let set = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_compatibility_version",
+        set_args(&token, 2015),
+    )
+    .await;
+    assert_eq!(set.structured_content.unwrap()["outcome"], "changed");
+    let persistence =
+        inspection(&mut editor, &context, &client).await["preferences"]["persistence"].clone();
+    assert_eq!(persistence["state"], "session_only");
+    assert_eq!(persistence["reset_available"], false);
+    let reset = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "reset_preferences",
+        json!({"scene_token": token}),
+    )
+    .await;
+    assert_eq!(reset.structured_content.unwrap()["outcome"], "unchanged");
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
