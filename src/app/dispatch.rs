@@ -21,6 +21,10 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
     }
 }
 
+/// The selection holds `MAX_TRANSFORM_PATHS` objects, so selecting every imported root cannot fail.
+const _: () =
+    assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -1116,6 +1120,7 @@ impl Editor {
         }
         match <[TransformTarget; 1]>::try_from(targets) {
             Ok([only]) => self.selection.replace(only),
+            // Cannot be full: an import adds at most MAX_OBJECTS roots (see the assertion below).
             Err(targets) => self
                 .selection
                 .replace_with(targets)

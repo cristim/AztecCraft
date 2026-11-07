@@ -356,7 +356,7 @@ Sources:
 | 37 | OBJ import faces | 262,144 `f` records | `src/obj/import.rs` `MAX_FACES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 38 | OBJ import corners | 1,048,576 face corners in total | `src/obj/import.rs` `MAX_CORNERS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 39 | OBJ import corners per face | 1024 | `src/obj/import.rs` `MAX_CORNERS_PER_FACE` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
-| 40 | OBJ import objects | 1024 objects that own a face | `src/obj/import.rs` `MAX_OBJECTS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 40 | OBJ import objects | 1024 objects that own a face; a compile-time assertion in `src/app/dispatch.rs` keeps it at or below the 4096 selection cap | `src/obj/import.rs` `MAX_OBJECTS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 41 | OBJ import name length | 256 bytes for an `o` or `g` name | `src/obj/import.rs` `MAX_NAME_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 42 | OBJ import coordinate magnitude | 1e12; larger or non-finite values are refused | `src/obj/import.rs` `MAX_COORD` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 
