@@ -4,6 +4,7 @@ pub mod ascii;
 mod authored;
 pub mod binary;
 mod curve;
+mod import;
 mod manipulator_frame;
 mod mesh;
 mod move_translation;
@@ -20,6 +21,7 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
+pub use import::ObjImportPlan;
 pub use manipulator_frame::ManipulatorFrame;
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};

@@ -400,7 +400,7 @@ impl NativeMesh {
         native
     }
     /// Closed polygon mesh from `f32` points and vertex loops; edges are shared and hard.
-    fn from_loops(points: Vec<[f32; 3]>, loops: Vec<Vec<usize>>) -> Self {
+    pub(super) fn from_loops(points: Vec<[f32; 3]>, loops: Vec<Vec<usize>>) -> Self {
         let mut mesh = Self {
             point_offsets: Vec::new(),
             points: Points::Float3(points),
