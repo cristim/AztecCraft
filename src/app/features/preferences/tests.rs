@@ -4,6 +4,14 @@ use azteccraft::native_scene::{AngularUnit, LinearUnit, Units};
 use azteccraft::preferences::{Baseline, PreferencesError};
 use std::path::PathBuf;
 
+#[allow(dead_code)]
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
 fn v(year: u64) -> MayaVersion {
     MayaVersion::try_from(year).unwrap()
 }
@@ -703,6 +711,42 @@ mod window {
         assert!(text_shown(&output, UNITS_REASON));
     }
 
+    #[test]
+    fn the_settings_page_shows_a_loaded_meter_radian_ntsc_scene() {
+        use binary_fixture::{chunk, group};
+        let header = [
+            chunk(b"LUNI", b"m", 8),
+            chunk(b"AUNI", b"rad", 8),
+            chunk(b"TUNI", b"ntsc", 8),
+        ]
+        .concat();
+        let bytes = group(b"Maya", &group(b"HEAD", &header, 4), 1);
+        let dir = tempfile::tempdir().unwrap();
+        let scene = dir.path().join("units.mb");
+        std::fs::write(&scene, bytes).unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        editor
+            .apply_operation(Operation::OpenScene { path: scene })
+            .unwrap();
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        let found = combos(&output);
+        let found = found.into_iter().filter(|(_, d)| *d).collect::<Vec<_>>();
+        let values: Vec<_> = found[found.len() - 3..]
+            .iter()
+            .map(|(v, _)| v.as_str())
+            .collect();
+        assert_eq!(values, ["meter", "radian", "ntsc"]);
+    }
+
+    #[test]
+    fn the_help_line_is_absent_at_the_documentation_pin() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        let output = settle(&mut editor, &ctx);
+        assert!(!text_shown(&output, "Maya compatibility: 2027"));
+    }
+
     const HELP_LINE_2015: &str = "Maya compatibility: 2015";
 
     fn pick(editor: &mut Editor, ctx: &egui::Context, year: u64) {
@@ -886,5 +930,19 @@ mod window {
         assert!(button(&output, RESET).expect("Reset button").disabled);
         assert!(!dir.path().join("preferences.json.bad-1").exists());
         assert_eq!(std::fs::read(path).unwrap(), b"not json");
+    }
+
+    #[test]
+    fn a_failed_reset_shows_its_error_in_the_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        std::fs::write(&path, b"edited since").unwrap();
+        press(&mut editor, &ctx, RESET);
+        let output = settle(&mut editor, &ctx);
+        let error = editor.preferences_window.error.clone().expect("error kept");
+        assert!(error.contains("changed"), "{error}");
+        assert!(text_shown(&output, &error), "{error}");
+        assert_eq!(std::fs::read(&path).unwrap(), b"edited since");
     }
 }
