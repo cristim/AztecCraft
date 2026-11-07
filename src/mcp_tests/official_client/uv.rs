@@ -373,3 +373,74 @@ async fn uv_sdk_save_as_and_a_confirmed_save_are_refused_with_the_uv_remedy() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn uv_sdk_a_cursor_is_bound_to_its_shape_and_tool() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let options = json!({"subdivisions_width": 128, "subdivisions_height": 128});
+    for _ in 0..2 {
+        let args = json!({"primitive": "plane", "options": options});
+        tool(&mut editor, &context, &client, "create_primitive", args).await;
+    }
+    let shapes: Vec<String> = editor
+        .history
+        .scene()
+        .shapes()
+        .iter()
+        .map(|shape| shape.id().to_decimal())
+        .collect();
+    for shape in &shapes {
+        let args = json!({"shape_id": shape});
+        tool(&mut editor, &context, &client, "project_uv_planar", args).await;
+    }
+    let uv_cursor = read(
+        &mut editor,
+        &context,
+        &client,
+        json!({"shape_id": shapes[0]}),
+    )
+    .await["next_cursor"]
+        .clone();
+    assert!(uv_cursor.is_string());
+    let scene = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({"node_limit": 1}),
+    )
+    .await;
+    let scene_cursor =
+        scene.structured_content.unwrap()["inspection"]["page"]["next_cursor"].clone();
+    assert!(scene_cursor.is_string());
+
+    // The same shape continues; another shape and another tool are refused, whatever the revision.
+    let same = read(
+        &mut editor,
+        &context,
+        &client,
+        json!({"shape_id": shapes[0], "cursor": uv_cursor}),
+    )
+    .await;
+    assert!(same["face_offset"].as_u64().unwrap() > 0);
+    for (name, args) in [
+        (
+            "inspect_uvs",
+            json!({"shape_id": shapes[1], "cursor": uv_cursor}),
+        ),
+        (
+            "inspect_uvs",
+            json!({"shape_id": shapes[0], "cursor": scene_cursor}),
+        ),
+        (
+            "inspect_scene",
+            json!({"node_limit": 1, "cursor": uv_cursor}),
+        ),
+    ] {
+        let refused = call(&mut editor, &context, client.peer(), name, args).await;
+        assert_eq!(error_code(&refused), "invalid_input", "{name}");
+    }
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
