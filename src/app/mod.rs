@@ -242,6 +242,13 @@ impl Editor {
         self.shutdown = shutdown_signal::install(ctx)?;
         Ok(())
     }
+    /// `Default` plus a renderer; preferences stay session-only until `load_preferences`.
+    fn with_renderer(renderer: Option<crate::viewport_renderer::ViewportRenderer>) -> Self {
+        Self {
+            renderer,
+            ..Self::default()
+        }
+    }
     pub fn new(
         cc: &eframe::CreationContext<'_>,
     ) -> Result<Self, crate::viewport_renderer::RenderError> {
@@ -257,19 +264,8 @@ impl Editor {
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         cc.egui_ctx.set_theme(egui::Theme::Dark);
         cc.egui_ctx.set_style_of(egui::Theme::Dark, style);
-        let loaded = azteccraft::preferences::platform_path(
-            &|name| std::env::var_os(name),
-            azteccraft::preferences::Os::current(),
-        )
-        .map(|path| azteccraft::preferences::load(&path));
-        let mut editor = Self {
-            renderer: Some(renderer),
-            ..Self::default()
-        };
-        if let Ok(loaded) = loaded {
-            editor.preferences = loaded.preferences;
-            editor.preferences_store = loaded.store;
-        }
+        let mut editor = Self::with_renderer(Some(renderer));
+        editor.load_preferences();
         Ok(editor)
     }
 }

@@ -35,6 +35,7 @@ fn main() -> eframe::Result {
             #[cfg(target_os = "macos")]
             macos_quit_menu::install_terminate_guard()?;
             let mut editor = app::Editor::new(cc)?;
+            editor.load_preferences();
             editor.install_shutdown_signal(&cc.egui_ctx)?;
             #[cfg(feature = "mcp")]
             if mcp {

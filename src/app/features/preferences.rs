@@ -14,7 +14,29 @@ pub(in crate::app) struct PreferencesWindow {
     pub(in crate::app) pending: Option<MayaVersion>,
 }
 
+#[cfg(test)]
+thread_local! {
+    pub(in crate::app) static PLATFORM_PATH_RESOLUTIONS: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
+
 impl Editor {
+    /// Loads the per-user preferences file. Only the app entry point calls this; constructors
+    /// stay session-only so tests never read a developer's real settings.
+    pub fn load_preferences(&mut self) {
+        #[cfg(test)]
+        PLATFORM_PATH_RESOLUTIONS.with(|count| count.set(count.get() + 1));
+        let Ok(path) = azteccraft::preferences::platform_path(
+            &|name| std::env::var_os(name),
+            azteccraft::preferences::Os::current(),
+        ) else {
+            return;
+        };
+        let loaded = azteccraft::preferences::load(&path);
+        self.preferences = loaded.preferences;
+        self.preferences_store = loaded.store;
+    }
+
     /// A change is persisted first when the store is writable; a failed write leaves value and
     /// file as they were. A blocked or session-only store applies the value to this session only.
     pub(in crate::app) fn set_compatibility_version(

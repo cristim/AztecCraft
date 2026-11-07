@@ -45,6 +45,14 @@ fn a_default_editor_never_touches_a_file() {
 }
 
 #[test]
+fn constructing_through_new_stays_session_only_and_resolves_no_platform_path() {
+    PLATFORM_PATH_RESOLUTIONS.with(|count| count.set(0));
+    let editor = Editor::with_renderer(None);
+    assert_eq!(editor.preferences_store, Store::SessionOnly);
+    assert_eq!(PLATFORM_PATH_RESOLUTIONS.with(|count| count.get()), 0);
+}
+
+#[test]
 fn set_changed_persists_and_applies() {
     let dir = tempfile::tempdir().unwrap();
     let (mut editor, path) = writable(&dir);
