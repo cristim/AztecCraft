@@ -127,6 +127,7 @@ fn mutated_inputs_never_panic_and_every_success_is_sound() {
     let seeds = [text.into_bytes(), HAND.as_bytes().to_vec()];
     let mut rng = Xorshift(0x9E37_79B9_7F4A_7C15);
     let (mut accepted, mut refused) = (0, 0);
+    let mut kinds = std::collections::HashSet::new();
     for seed in &seeds {
         for length in 0..seed.len().min(400) {
             let _ = parse(&seed[..length]);
@@ -145,9 +146,15 @@ fn mutated_inputs_never_panic_and_every_success_is_sound() {
             Err(error) => {
                 assert!(!matches!(error, ObjImportError::Io(_)));
                 assert!(!error.to_string().is_empty());
+                kinds.insert(std::mem::discriminant(&error));
                 refused += 1;
             }
         }
     }
     assert!(accepted > 0 && refused > 0, "{accepted} {refused}");
+    assert!(
+        kinds.len() >= 4,
+        "only {} distinct error variants",
+        kinds.len()
+    );
 }
