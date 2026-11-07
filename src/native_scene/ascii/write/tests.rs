@@ -1378,6 +1378,15 @@ fn assigned_session_materials_are_refused_before_ascii_output() {
 }
 
 #[test]
+fn a_created_unassigned_session_material_is_refused_by_the_ascii_writer() {
+    let mut scene = scene(&["box"]);
+    scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+}
+
+// `encode_authored` exists only where the binary save path does.
+#[cfg(unix)]
+#[test]
 fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
     use crate::native_scene::binary::{AuthoredRefusalCode, encode_authored};
     let mut scene = scene(&["box"]);

@@ -550,6 +550,8 @@ mod native_open_tests {
         ascii::write::emit_geometry_prefix(&scene).unwrap()
     }
 
+    // Adoption (and `authored_document_id`) is Unix-only.
+    #[cfg(unix)]
     #[test]
     fn a_gated_authored_ma_opens_with_its_mesh_visible_and_pickable() {
         let directory = tempfile::tempdir().unwrap();

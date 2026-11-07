@@ -1136,6 +1136,8 @@ mod ascii_fixture {
     ));
 }
 
+// Authored ASCII Save As and reopen are Unix-only.
+#[cfg(unix)]
 #[test]
 fn native_open_edit_save_of_an_authored_ma_round_trips_and_stays_clean() {
     let directory = tempfile::tempdir().unwrap();
