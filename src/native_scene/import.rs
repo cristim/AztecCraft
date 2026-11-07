@@ -5,6 +5,7 @@
 use super::{
     NativeError, NativeMesh, NativeScene, NativeTransform, SceneError,
     authored::{self, BUILTINS, RESERVED},
+    shape_name_for,
 };
 use crate::{obj::import::ParsedObj, scene::NodeId};
 use std::collections::HashSet;
@@ -150,7 +151,7 @@ impl NativeScene {
 
 /// Maps every byte outside `[A-Za-z0-9_]` to `_` and guards an empty or digit-led name, then
 /// finds the lowest numbered variant (trailing digits replaced) whose transform and
-/// `<name>Shape` names are both free. Reserves both names in `taken`.
+/// Maya-style shape names are both free. Reserves both names in `taken`.
 fn free_names(raw: &str, taken: &mut HashSet<String>) -> Result<(String, String), NativeError> {
     let mut base: String = raw
         .bytes()
@@ -165,7 +166,7 @@ fn free_names(raw: &str, taken: &mut HashSet<String>) -> Result<(String, String)
     if base.is_empty() || base.starts_with(|c: char| c.is_ascii_digit()) {
         base.insert(0, '_');
     }
-    let free = |name: &str| !taken.contains(name) && !taken.contains(&format!("{name}Shape"));
+    let free = |name: &str| !taken.contains(name) && !taken.contains(&shape_name_for(name));
     let name = if free(&base) {
         base
     } else {
@@ -176,7 +177,7 @@ fn free_names(raw: &str, taken: &mut HashSet<String>) -> Result<(String, String)
             .find(|name| free(name))
             .ok_or(NativeError::ResourceLimit)?
     };
-    let shape = format!("{name}Shape");
+    let shape = shape_name_for(&name);
     taken.insert(name.clone());
     taken.insert(shape.clone());
     Ok((name, shape))

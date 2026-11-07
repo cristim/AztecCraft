@@ -1991,9 +1991,6 @@ impl<'a> ViewAdmissionIndex<'a> {
 /// the shape name is not derived from `old` and stays as it is. The rule is inferred from
 /// Maya 2025.1 `rename` observations (PROVISIONAL, #175).
 fn derived_shape_name(shape: &str, old: &str, new: &str) -> Option<String> {
-    fn split(name: &str) -> (&str, &str) {
-        name.split_at(name.trim_end_matches(|c: char| c.is_ascii_digit()).len())
-    }
     if shape.strip_suffix("Shape") == Some(old) {
         return Some(format!("{new}Shape"));
     }
@@ -2001,8 +1998,18 @@ fn derived_shape_name(shape: &str, old: &str, new: &str) -> Option<String> {
     if !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let (base, digits) = split(new);
-    Some(format!("{base}Shape{digits}"))
+    Some(shape_name_for(new))
+}
+
+fn split(name: &str) -> (&str, &str) {
+    name.split_at(name.trim_end_matches(|c: char| c.is_ascii_digit()).len())
+}
+
+/// The Maya-style shape name for a transform name: the number moves after `Shape`, so `pCube2`
+/// gets `pCubeShape2` and `box` gets `boxShape` (inferred from Maya 2025.1, PROVISIONAL, #175).
+fn shape_name_for(transform: &str) -> String {
+    let (base, digits) = split(transform);
+    format!("{base}Shape{digits}")
 }
 
 fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {

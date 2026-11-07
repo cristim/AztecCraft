@@ -120,7 +120,7 @@ fn names_are_sanitised_and_made_unique_against_nodes_shapes_and_reserved_names()
         ]
         .map(|name| name.replace("_t_", "__t__"))
     );
-    assert_eq!(names(&scene, &ids)[0].1, "pCube2Shape");
+    assert_eq!(names(&scene, &ids)[0].1, "pCubeShape2");
     authored::check_scene(&scene).unwrap();
 }
 
@@ -165,5 +165,22 @@ fn a_free_name_whose_shape_name_is_taken_gets_a_number() {
     let mut scene = NativeScene::default();
     scene.create(Primitive::Cube, "mShape").unwrap();
     let ids = import(&mut scene, "v 0 0 0\nv 1 0 0\nv 0 1 0\no m\nf 1 2 3\n");
-    assert_eq!(names(&scene, &ids), [("m1".into(), "m1Shape".into())]);
+    assert_eq!(names(&scene, &ids), [("m1".into(), "mShape1".into())]);
+}
+
+#[test]
+fn imported_shape_names_match_the_ones_create_makes() {
+    let mut created = NativeScene::default();
+    let options = crate::primitive_options::PrimitiveOptions::default_for(Primitive::Cube);
+    let id = created
+        .create_default_named(Primitive::Cube, &options)
+        .unwrap();
+    let expected = names(&created, &[id]);
+    let mut scene = NativeScene::default();
+    let ids = import(&mut scene, "v 0 0 0\nv 1 0 0\nv 0 1 0\no pCube1\nf 1 2 3\n");
+    assert_eq!(names(&scene, &ids), expected);
+    assert_eq!(
+        expected,
+        [("pCube1".to_string(), "pCubeShape1".to_string())]
+    );
 }
