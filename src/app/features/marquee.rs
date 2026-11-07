@@ -22,6 +22,7 @@ impl Editor {
     /// mapped like a click in the current selection mode, in instance order. Several hits can map
     /// to one target (Hierarchy mode); the selection mutators collapse the repeats.
     fn pick_object_targets(&self, rect: NdcRect) -> Result<Vec<TransformTarget>, OperationError> {
+        // Same literal as the click and frame paths; the #22 VIEW_BUDGET lift replaces them all.
         let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
             .map_err(|error| OperationError::View(error.to_string()))?;
         let hits = self
