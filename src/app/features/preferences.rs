@@ -88,6 +88,14 @@ impl Editor {
         self.preferences_window.open = false;
     }
 
+    /// Moves a blocked file aside. A failure is shown in the window; nothing is changed then.
+    fn reset_preferences_file(&mut self) {
+        match self.native_operation_result(Operation::ResetPreferences) {
+            Ok(_) => self.preferences_window.error = None,
+            Err(_) => self.preferences_window.error = Some(self.status.clone()),
+        }
+    }
+
     /// Persists the pending value and closes. A failed save keeps the value and shows the error.
     fn save_preferences(&mut self) {
         let Some(version) = self.preferences_window.pending.take() else {
@@ -139,6 +147,14 @@ impl Editor {
         let error = self.preferences_window.error.clone();
         let units = self.history.scene().units().clone();
         let current = self.preferences.maya_compatibility_version;
+        let persistence = match &self.preferences_store {
+            Store::Writable { .. } => "Saved".to_owned(),
+            Store::Blocked { error, .. } => format!("Not saved: {error}"),
+            Store::SessionOnly => "Not saved: no config directory".to_owned(),
+        };
+        let blocked = matches!(self.preferences_store, Store::Blocked { .. });
+        let pending = self.preferences_window.pending.is_some();
+        let mut reset = false;
         let mut shown = self.preferences_window.pending.unwrap_or(current);
         egui::Window::new("Preferences")
             .id(egui::Id::unique("preferences_window"))
@@ -176,6 +192,17 @@ impl Editor {
                         working_units(ui, &units);
                         ui.separator();
                         compatibility_picker(ui, &mut shown);
+                        ui.label(&persistence);
+                        if blocked {
+                            let mut button =
+                                ui.add_enabled(!pending, egui::Button::new(RESET_LABEL));
+                            button = if pending {
+                                button.on_disabled_hover_text(RESET_PENDING_REASON)
+                            } else {
+                                button.on_hover_text(RESET_HOVER)
+                            };
+                            reset = button.clicked();
+                        }
                         if let Some(error) = &error {
                             ui.colored_label(ui.visuals().error_fg_color, error);
                         }
@@ -193,7 +220,9 @@ impl Editor {
                 });
             });
         self.preferences_window.pending = (shown != current).then_some(shown);
-        if save {
+        if reset {
+            self.reset_preferences_file();
+        } else if save {
             self.save_preferences();
         } else if cancel || !open {
             self.close_preferences();
@@ -276,6 +305,11 @@ fn angular_token(unit: &AngularUnit) -> &str {
 }
 
 const COMPATIBILITY_HOVER: &str = "AztecCraft extension, not a Maya setting. Documentation for 2015 and 2021 is partly unavailable, and so far only Frame Selection (F, Ctrl+F) follows this version.";
+
+const RESET_LABEL: &str = "Reset preferences file";
+const RESET_HOVER: &str =
+    "Moves the unreadable file aside as a numbered backup and starts from defaults";
+const RESET_PENDING_REASON: &str = "Save or cancel the picked version first";
 
 fn version_label(version: MayaVersion) -> String {
     if version == MayaVersion::PINNED {

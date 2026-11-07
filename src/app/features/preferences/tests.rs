@@ -823,4 +823,68 @@ mod window {
         assert!(text_shown(&output, &error), "{error}");
         assert!(combos(&output).iter().any(|(text, _)| text == "2015"));
     }
+
+    const RESET: &str = "Reset preferences file";
+    const NOT_SAVED: &str = "Not saved: the preferences file is not valid";
+
+    fn blocked_window(dir: &tempfile::TempDir) -> (Editor, egui::Context, PathBuf) {
+        let (editor, path) = blocked(dir);
+        let (editor, ctx) = setup(editor);
+        (editor, ctx, path)
+    }
+
+    #[test]
+    fn a_writable_store_says_saved_and_offers_no_reset() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        assert!(text_shown(&output, "Saved"));
+        assert!(button(&output, RESET).is_none());
+    }
+
+    #[test]
+    fn a_blocked_store_says_not_saved_and_offers_reset() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        assert!(text_shown(&output, NOT_SAVED));
+        assert!(!text_shown(&output, "Saved"));
+        assert!(!button(&output, RESET).expect("Reset button").disabled);
+        assert!(!text_shown(&output, &dir.path().to_string_lossy()));
+        assert_eq!(std::fs::read(path).unwrap(), b"not json");
+    }
+
+    #[test]
+    fn reset_writes_the_backup_and_the_next_save_shows_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        press(&mut editor, &ctx, RESET);
+        let output = settle(&mut editor, &ctx);
+        let backup = dir.path().join("preferences.json.bad-1");
+        assert_eq!(std::fs::read(&backup).unwrap(), b"not json");
+        assert!(!path.exists());
+        assert!(button(&output, RESET).is_none());
+        assert!(text_shown(&output, "Saved"));
+        pick(&mut editor, &ctx, 2015);
+        press(&mut editor, &ctx, "Save");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("2015"));
+        assert_eq!(std::fs::read(&backup).unwrap(), b"not json");
+        open_window(&mut editor, &ctx);
+        assert!(text_shown(&settle(&mut editor, &ctx), "Saved"));
+    }
+
+    #[test]
+    fn reset_is_disabled_while_a_value_is_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        pick(&mut editor, &ctx, 2015);
+        let output = settle(&mut editor, &ctx);
+        assert!(button(&output, RESET).expect("Reset button").disabled);
+        assert!(!dir.path().join("preferences.json.bad-1").exists());
+        assert_eq!(std::fs::read(path).unwrap(), b"not json");
+    }
 }

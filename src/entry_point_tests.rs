@@ -256,7 +256,11 @@ fn native_operation_callers_are_the_known_ui_handlers() {
     expect(
         "native UI result wrapper",
         "native_operation_result(",
-        &["native_operation", "save_preferences"],
+        &[
+            "native_operation",
+            "reset_preferences_file",
+            "save_preferences",
+        ],
     );
 }
 
