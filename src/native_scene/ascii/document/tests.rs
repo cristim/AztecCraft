@@ -130,14 +130,12 @@ fn the_raw_decode_is_sourced_and_only_the_projection_may_be_emitted() {
 #[test]
 fn anything_the_writer_would_not_have_produced_is_refused() {
     let good = bytes_of(&cube());
-    let mut cases: Vec<(&str, Vec<u8>)> = vec![
+    let cases: Vec<(&str, Vec<u8>)> = vec![
         ("extra fileInfo", [good.clone(), b"fileInfo \"x\" \"y\";\n".to_vec()].concat()),
         (
             "extra supported node",
             [good.clone(), b"createNode lightLinker -s -n \"lightLinker1\";\n".to_vec()].concat(),
         ),
-        ("soft edge", replace(&good, " 0\n\t0 4 0\n", " 0\n\t0 4 1\n")),
-        ("UV row", replace(&good, "\tf 4 0 1 2 3\n", "\tf 4 0 1 2 3 mu 0 4 0 1 2 3\n")),
         ("hand-edited float", replace(&good, "-0.5", "-0.50")),
         (
             "CRLF",
@@ -156,12 +154,42 @@ fn anything_the_writer_would_not_have_produced_is_refused() {
             .concat(),
         ),
     ];
-    cases.push(("truncated", good[..good.len() / 2].to_vec()));
+    // Each of these is accepted by the decoder, so the refusal below is the gate's.
     for (name, bytes) in cases {
+        assert!(
+            decode_inner(Arc::from(bytes.clone()), true).is_ok(),
+            "{name}: the decoder must accept it for the gate to be what refuses it"
+        );
         let error = refused(&bytes);
         assert!(
             matches!(error, AsciiDocumentError::Ascii(_)),
             "{name}: {error:?}"
+        );
+    }
+}
+
+#[test]
+fn what_the_decoder_itself_refuses_never_reaches_the_gate() {
+    let good = bytes_of(&cube());
+    let cases: Vec<(&str, Vec<u8>)> = vec![
+        (
+            "soft edge",
+            replace(&good, " 0\n\t0 4 0\n", " 0\n\t0 4 1\n"),
+        ),
+        (
+            "UV row",
+            replace(&good, "\tf 4 0 1 2 3\n", "\tf 4 0 1 2 3 mu 0 4 0 1 2 3\n"),
+        ),
+        ("truncated", good[..good.len() / 2].to_vec()),
+    ];
+    for (name, bytes) in cases {
+        assert!(
+            decode_inner(Arc::from(bytes.clone()), true).is_err(),
+            "{name}: the decoder must refuse it"
+        );
+        assert!(
+            matches!(refused(&bytes), AsciiDocumentError::Ascii(_)),
+            "{name}"
         );
     }
 }
@@ -175,6 +203,28 @@ fn a_mesh_free_ascii_scene_stays_retained_and_read_only() {
     for adoption in [true, false] {
         match decode(source.as_bytes(), adoption).unwrap() {
             AsciiDecoded::Retained(scene) => assert!(scene.source.is_some()),
+            other => panic!("{other:?}"),
+        }
+    }
+}
+
+#[test]
+fn an_empty_scene_that_fails_the_gate_stays_retained_and_read_only() {
+    let empty = bytes_of(&NativeScene::default());
+    assert!(matches!(
+        decode(&empty, true),
+        Ok(AsciiDecoded::Authored(_))
+    ));
+    // No shapes and no nodes, but not the writer's bytes: still a valid read-only scene.
+    let reformatted = replace(&empty, "requires maya \"2026\"", "requires maya \"2027\"");
+    assert_ne!(reformatted, empty);
+    for adoption in [true, false] {
+        match decode(&reformatted, adoption).unwrap() {
+            AsciiDecoded::Retained(scene) => {
+                assert!(scene.shapes.is_empty() && scene.nodes.is_empty());
+                assert!(scene.source.is_some());
+                assert!(scene.authoring_read_only_reason().is_some());
+            }
             other => panic!("{other:?}"),
         }
     }
