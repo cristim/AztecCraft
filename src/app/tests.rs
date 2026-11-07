@@ -1777,6 +1777,32 @@ fn the_file_menu_lists_import_before_export_and_run_import_dispatches_the_operat
     let close = face_text_position(&output, "Close");
     assert!(import.y < export.y && export.y < close.y);
 
+    // Import is gated like the other File actions: disabled once the window is closing.
+    let open_file_menu = |editor: &mut Editor| {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = frame(editor, &ctx, vec![]);
+        let file = face_text_position(&output, "File");
+        face_pointer_click(editor, &ctx, file, egui::Modifiers::NONE, vec![])
+    };
+    let mut idle = Editor::default();
+    assert!(!button_disabled(&open_file_menu(&mut idle), "Import..."));
+    let mut closing = Editor::default();
+    closing.create(Primitive::Cube);
+    assert!(matches!(
+        closing.apply_operation(Operation::RequestClose),
+        Ok(OperationReply::PendingConfirmation { .. })
+    ));
+    let pending = closing.files.pending_inspection().unwrap();
+    closing
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: pending.id.parse().unwrap(),
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    assert!(closing.files.is_closing());
+    assert!(button_disabled(&open_file_menu(&mut closing), "Import..."));
+
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("tri.obj");
     std::fs::write(&path, "v 0 0 0\nv 1 0 0\nv 0 1 0\no t\nf 1 2 3\n").unwrap();

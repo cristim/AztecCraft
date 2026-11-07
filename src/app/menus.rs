@@ -287,14 +287,17 @@ impl Editor {
                 }
                 let idle = !self.files.is_modal();
                 ui.horizontal(|ui| {
-                    let enabled = idle && authoring;
+                    let closing = self.files.is_closing();
+                    let enabled = idle && authoring && !closing;
                     let mut item = ui
                         .add_enabled(enabled, egui::Button::new("Import..."))
                         .on_hover_text("Add the objects of an OBJ file to the scene");
                     if !enabled {
-                        item = item.on_disabled_hover_text(
-                            read_only_reason.unwrap_or("Finish the open file dialog first"),
-                        );
+                        item = item.on_disabled_hover_text(match read_only_reason {
+                            _ if closing => unavailable_while_closing("Import..."),
+                            Some(reason) => reason.to_owned(),
+                            None => "Finish the open file dialog first".to_owned(),
+                        });
                     }
                     if item.clicked() {
                         ui.close();

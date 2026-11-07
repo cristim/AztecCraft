@@ -28,6 +28,8 @@ parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5)
   Faces before any group take the file name.
 - **Geometry.** Positions are stored as single precision in world space; unreferenced vertices are
   dropped; edges are shared and hard; point order follows the OBJ.
+- **Every imported object is a root.** OBJ has no hierarchy, so none is restored (PROVISIONAL; matches
+  Maya's Multiple Objects reading of groups).
 - **Selection after import** is the new roots, in file order with the last as lead. The undo entry
   is named "Import". The scene token does not change.
 - **The import runs on the UI thread.** A file at the limits blocks the window while it is read,
