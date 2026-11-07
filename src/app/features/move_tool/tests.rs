@@ -2154,6 +2154,45 @@ fn marquee_drags_replace_add_remove_and_toggle_by_modifier_without_history_entri
     assert_eq!(editor.is_dirty(), dirty);
 }
 
+/// `cancel_on_escape` sees the same Esc that cancels the marquee drag; it must leave the
+/// selection and the active tool alone (it only cancels a Move and consumes the pointer sequence).
+#[test]
+fn escape_mid_marquee_drag_changes_neither_selection_nor_tool() {
+    let (mut editor, context, rect) = select_tool_editor();
+    let selected = editor.selected();
+    assert!(selected.is_some());
+    let generation = editor.selection.generation();
+    let size = egui::vec2(1440.0, 900.0);
+    let from = rect.center() + egui::vec2(-300.0, 200.0);
+    let to = from + egui::vec2(60.0, 30.0);
+    let none = Modifiers::NONE;
+    let press = |position: Pos2, pressed: bool| Event::PointerButton {
+        pos: position,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: none,
+    };
+    let escape = Event::Key {
+        key: egui::Key::Escape,
+        physical_key: Some(egui::Key::Escape),
+        pressed: true,
+        repeat: false,
+        modifiers: none,
+    };
+    for events in [
+        vec![Event::PointerMoved(from), press(from, true)],
+        vec![Event::PointerMoved(to)],
+        vec![escape],
+        vec![Event::PointerMoved(to), press(to, false)],
+    ] {
+        frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+    }
+    assert_eq!(editor.selected(), selected);
+    assert_eq!(editor.selection.generation(), generation);
+    assert_eq!(editor.active_tool, ActiveTool::Select);
+    assert!(editor.history.active_manipulation().is_none());
+}
+
 #[test]
 fn a_component_mode_drag_shows_the_status_and_changes_nothing() {
     let (mut editor, context, rect) = select_tool_editor();

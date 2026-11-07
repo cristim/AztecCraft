@@ -70,7 +70,9 @@ struct SelectByRuleArgs {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct NdcRectArgs {
+    #[schemars(inner(range(min = -1.0, max = 1.0)))]
     min: [f32; 2],
+    #[schemars(inner(range(min = -1.0, max = 1.0)))]
     max: [f32; 2],
 }
 
