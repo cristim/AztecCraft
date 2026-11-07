@@ -91,7 +91,11 @@ impl Editor {
     /// Moves a blocked file aside. A failure is shown in the window; nothing is changed then.
     fn reset_preferences_file(&mut self) {
         match self.native_operation_result(Operation::ResetPreferences) {
-            Ok(_) => self.preferences_window.error = None,
+            Ok(_) => {
+                self.preferences_window.error = None;
+                self.status = "Preferences file reset".to_owned();
+                self.error = false;
+            }
             Err(_) => self.preferences_window.error = Some(self.status.clone()),
         }
     }
@@ -202,6 +206,9 @@ impl Editor {
                                 button.on_hover_text(RESET_HOVER)
                             };
                             reset = button.clicked();
+                            if pending {
+                                ui.weak(RESET_PENDING_REASON);
+                            }
                         }
                         if let Some(error) = &error {
                             ui.colored_label(ui.visuals().error_fg_color, error);

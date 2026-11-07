@@ -945,4 +945,38 @@ mod window {
         assert!(text_shown(&output, &error), "{error}");
         assert_eq!(std::fs::read(&path).unwrap(), b"edited since");
     }
+
+    #[test]
+    fn a_successful_reset_replaces_a_stale_reset_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        std::fs::write(&path, b"edited since").unwrap();
+        press(&mut editor, &ctx, RESET);
+        settle(&mut editor, &ctx);
+        assert!(editor.error);
+        std::fs::write(&path, b"not json").unwrap();
+        press(&mut editor, &ctx, RESET);
+        settle(&mut editor, &ctx);
+        assert!(!editor.error);
+        assert_eq!(editor.status, "Preferences file reset");
+        assert_eq!(editor.preferences_window.error, None);
+        assert_eq!(
+            std::fs::read(dir.path().join("preferences.json.bad-1")).unwrap(),
+            b"not json"
+        );
+    }
+
+    #[test]
+    fn the_reset_pending_reason_is_visible_text_while_a_value_is_pending() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = blocked_window(&dir);
+        open_window(&mut editor, &ctx);
+        assert!(!text_shown(
+            &settle(&mut editor, &ctx),
+            RESET_PENDING_REASON
+        ));
+        pick(&mut editor, &ctx, 2015);
+        assert!(text_shown(&settle(&mut editor, &ctx), RESET_PENDING_REASON));
+    }
 }
