@@ -133,7 +133,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Created, assigned or reassigned materials: the file has only the default pair, so
         // any difference from the default would be lost on reopen.
         session_materials,
-        // Session UVs make `check_content_kind` refuse the scene (`UnsupportedMeshChannels`),
+        // Session UVs make `check_content_kind` refuse the scene (`SessionUvs`),
         // so none reach this writer.
         session_uvs: _,
         // Session keys make `check_content_kind` refuse the scene (`Keys`), so none reach this

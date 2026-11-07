@@ -135,7 +135,11 @@ fn authored_writers_refuse_a_scene_with_session_uvs() {
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
     assert_eq!(
         check_content_kind(&scene),
-        Err(AuthoredIneligible::UnsupportedMeshChannels)
+        Err(AuthoredIneligible::SessionUvs)
+    );
+    assert_eq!(
+        crate::native_scene::ascii::emit_geometry_prefix(&scene).map(|_| ()),
+        Err(crate::native_scene::ascii::AsciiWriteRefusal::SessionUvs)
     );
 }
 

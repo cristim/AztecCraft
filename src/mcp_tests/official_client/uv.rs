@@ -313,3 +313,63 @@ fn a_full_page_of_the_longest_uvs_fits_the_reply_limit() {
     let bytes = serde_json::to_string(&page).unwrap().len();
     assert!(bytes < 256 * 1024, "{bytes}");
 }
+
+/// Unix writes a new .mb; other platforms cannot write an Untitled scene at all.
+#[cfg(unix)]
+#[tokio::test]
+async fn uv_sdk_save_as_and_a_confirmed_save_are_refused_with_the_uv_remedy() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id().to_decimal();
+    let directory = tempfile::tempdir().unwrap();
+    let saved_path = directory.path().join("saved.mb");
+    let refused_path = directory.path().join("refused.mb");
+    let assert_uv_refusal = |reply: &rmcp::model::CallToolResult| {
+        let error = &reply.structured_content.as_ref().unwrap()["error"];
+        assert_eq!(error["code"], "save_unwritable", "{reply:?}");
+        let message = error["message"].as_str().unwrap();
+        assert!(
+            message.contains("session UVs") && message.contains("Delete UVs"),
+            "{message}"
+        );
+    };
+    let project = json!({"shape_id": shape, "axis": "z"});
+
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "project_uv_planar",
+        project.clone(),
+    )
+    .await;
+    let args = json!({"path": refused_path});
+    let refused = tool(&mut editor, &context, &client, "save_scene_as", args).await;
+    assert_uv_refusal(&refused);
+    assert!(!refused_path.exists());
+
+    // Save a UV-free copy, project again, then Save and close (New Scene) with Save.
+    let args = json!({"shape_id": shape});
+    tool(&mut editor, &context, &client, "delete_uvs", args).await;
+    let args = json!({"path": saved_path});
+    let saved = tool(&mut editor, &context, &client, "save_scene_as", args).await;
+    assert_eq!(saved.structured_content.unwrap()["outcome"], "saved");
+    let bytes = std::fs::read(&saved_path).unwrap();
+    tool(&mut editor, &context, &client, "project_uv_planar", project).await;
+    let resave = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_uv_refusal(&resave);
+    let queued = tool(&mut editor, &context, &client, "new_scene", json!({})).await;
+    let queued = queued.structured_content.unwrap();
+    assert_eq!(queued["outcome"], "pending_confirmation", "{queued}");
+    let args = json!({"pending_action_id": queued["pending_action_id"], "decision": "save"});
+    let confirmed = tool(&mut editor, &context, &client, "resolve_file_action", args).await;
+    assert_uv_refusal(&confirmed);
+    assert_eq!(std::fs::read(&saved_path).unwrap(), bytes);
+    assert!(editor.is_dirty());
+    assert_eq!(editor.history.scene().shapes().len(), 1);
+
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
