@@ -567,4 +567,32 @@ mod window {
         assert!(!editor.error);
         assert_eq!(editor.status, "Preferences saved");
     }
+
+    fn save_status(editor: Editor, expected: &str) {
+        let (mut editor, ctx) = setup(editor);
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Save");
+        assert!(!editor.preferences_window.open);
+        assert_eq!(editor.preferences.maya_compatibility_version, v(2015));
+        assert_eq!(editor.status, expected);
+    }
+
+    #[test]
+    fn saving_with_a_blocked_store_says_it_was_not_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let (editor, _) = blocked(&dir);
+        save_status(
+            editor,
+            "Applied for this session; not saved (preferences file unreadable)",
+        );
+    }
+
+    #[test]
+    fn saving_with_a_session_only_store_says_it_was_not_saved() {
+        save_status(
+            Editor::default(),
+            "Applied for this session; not saved (no config directory)",
+        );
+    }
 }

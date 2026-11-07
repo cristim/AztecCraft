@@ -100,7 +100,14 @@ impl Editor {
             self.preferences_window.pending = Some(version);
             self.preferences_window.error = Some(self.status.clone());
         } else {
-            self.status = "Preferences saved".into();
+            self.status = match self.preferences_store {
+                Store::Writable { .. } => "Preferences saved",
+                Store::Blocked { .. } => {
+                    "Applied for this session; not saved (preferences file unreadable)"
+                }
+                Store::SessionOnly => "Applied for this session; not saved (no config directory)",
+            }
+            .into();
             self.error = false;
             self.close_preferences();
         }
