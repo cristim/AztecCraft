@@ -264,9 +264,7 @@ impl Editor {
         style.spacing.button_padding = egui::vec2(8.0, 4.0);
         cc.egui_ctx.set_theme(egui::Theme::Dark);
         cc.egui_ctx.set_style_of(egui::Theme::Dark, style);
-        let mut editor = Self::with_renderer(Some(renderer));
-        editor.load_preferences();
-        Ok(editor)
+        Ok(Self::with_renderer(Some(renderer)))
     }
 }
 

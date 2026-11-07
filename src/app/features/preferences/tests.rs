@@ -53,6 +53,16 @@ fn constructing_through_new_stays_session_only_and_resolves_no_platform_path() {
 }
 
 #[test]
+fn editor_new_is_a_thin_wrapper_that_never_loads_preferences() {
+    let source = include_str!("../../mod.rs");
+    let start = source.find("pub fn new(").expect("Editor::new exists");
+    let body = &source[start..];
+    let body = &body[..body.find("\n    }\n").expect("Editor::new ends")];
+    assert!(body.contains("Self::with_renderer(Some(renderer))"));
+    assert!(!body.contains("load_preferences"), "{body}");
+}
+
+#[test]
 fn set_changed_persists_and_applies() {
     let dir = tempfile::tempdir().unwrap();
     let (mut editor, path) = writable(&dir);
