@@ -320,3 +320,111 @@ mod generation {
         assert_eq!(selection.generation(), 0);
     }
 }
+
+fn plains(values: &[u64]) -> Vec<TransformTarget> {
+    values.iter().map(|value| plain(*value)).collect()
+}
+
+#[test]
+fn extend_absent_appends_only_absent_targets_in_order_and_leads_with_the_last() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    selection
+        .extend_absent(plains(&[5, 2, 4, 5, 1, 3]))
+        .unwrap();
+    assert_eq!(
+        nodes(&selection),
+        [node(1), node(2), node(5), node(4), node(3)]
+    );
+    assert_eq!(selection.lead(), Some(&plain(3)));
+    assert_ne!(selection.generation(), generation);
+}
+
+#[test]
+fn extend_absent_with_only_members_keeps_order_lead_and_generation() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    let generation = selection.generation();
+    selection.extend_absent(plains(&[1, 3])).unwrap();
+    selection.extend_absent(Vec::new()).unwrap();
+    assert_eq!(nodes(&selection), [node(1), node(2), node(3)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn extend_absent_over_the_cap_changes_nothing() {
+    let mut selection = full_selection();
+    selection.remove(&plain(0));
+    let before = selection.clone();
+    let generation = selection.generation();
+    let too_many = plains(&[10_000, 10_001]);
+    assert_eq!(selection.extend_absent(too_many), Err(SelectionFull));
+    assert_eq!(selection, before);
+    assert_eq!(selection.generation(), generation);
+    // One slot is free, and a repeated or already-present target needs none.
+    selection
+        .extend_absent(plains(&[10_000, 10_000, 1]))
+        .unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.lead(), Some(&plain(10_000)));
+}
+
+#[test]
+fn remove_all_removes_the_present_targets_and_promotes_the_previous_lead() {
+    let mut selection = selection_of(&[1, 2, 3, 4]);
+    let generation = selection.generation();
+    assert!(selection.remove_all(&plains(&[4, 2, 9])));
+    assert_eq!(nodes(&selection), [node(1), node(3)]);
+    assert_eq!(selection.lead(), Some(&plain(3)));
+    assert_ne!(selection.generation(), generation);
+}
+
+#[test]
+fn remove_all_of_absent_targets_changes_nothing() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    assert!(!selection.remove_all(&plains(&[7, 8])));
+    assert!(!selection.remove_all(&[]));
+    assert_eq!(nodes(&selection), [node(1), node(2)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn toggle_all_removes_members_and_appends_absent_targets_in_order() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    selection.toggle_all(&plains(&[2, 7, 1, 6, 7])).unwrap();
+    assert_eq!(nodes(&selection), [node(3), node(7), node(6)]);
+    assert_eq!(selection.lead(), Some(&plain(6)));
+}
+
+#[test]
+fn toggle_all_that_only_removes_promotes_the_previous_member() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    selection.toggle_all(&plains(&[3])).unwrap();
+    assert_eq!(selection.lead(), Some(&plain(2)));
+    selection.toggle_all(&plains(&[2, 1])).unwrap();
+    assert!(selection.is_empty());
+}
+
+#[test]
+fn toggle_all_with_no_targets_keeps_the_generation() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    selection.toggle_all(&[]).unwrap();
+    assert_eq!(nodes(&selection), [node(1), node(2)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn toggle_all_over_the_cap_changes_nothing_but_removals_make_room() {
+    let mut selection = full_selection();
+    let before = selection.clone();
+    let generation = selection.generation();
+    assert_eq!(selection.toggle_all(&plains(&[10_000])), Err(SelectionFull));
+    assert_eq!(selection, before);
+    assert_eq!(selection.generation(), generation);
+    // Removing one member frees the slot the new target needs.
+    selection.toggle_all(&plains(&[0, 10_000])).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.lead(), Some(&plain(10_000)));
+    assert!(!selection.contains(&plain(0)));
+}
