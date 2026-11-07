@@ -115,6 +115,8 @@ mod official_client {
     mod animation;
     mod ascii;
     mod attribute_editor;
+    #[cfg(unix)]
+    mod authored_ascii_save;
     mod camera;
     mod cylinder_cone;
     mod delete_selected;

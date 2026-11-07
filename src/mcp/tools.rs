@@ -146,6 +146,8 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    #[cfg(unix)]
+                    azteccraft::document::NativeSaveError::AsciiWrite(_) => "save_ascii_write",
                     azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
                 },
                 OperationError::ObjExport(error) => match error {

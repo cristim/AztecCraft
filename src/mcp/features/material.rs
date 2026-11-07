@@ -129,7 +129,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "create_session_material",
-        description: "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<CreateSessionMaterialArgs>,
         parse: parse_create_session_material,
         idempotent: false,
@@ -137,7 +137,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "assign_session_material",
-        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<AssignSessionMaterialArgs>,
         parse: parse_assign_session_material,
         idempotent: false,
