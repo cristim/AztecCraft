@@ -1230,3 +1230,83 @@ fn the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport() {
     let (input, _) = drag_release(Modifiers::ALT, Modifiers::ALT, Modifiers::ALT, 40.0);
     assert!(input.marquee_preview().is_none());
 }
+
+fn escape() -> Event {
+    Event::Key {
+        key: egui::Key::Escape,
+        physical_key: Some(egui::Key::Escape),
+        pressed: true,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+/// PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it.
+#[test]
+fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.1, vec![primary(START, true, none)]);
+    assert!(
+        frame(0.2, vec![Event::PointerMoved(end)])
+            .marquee_preview()
+            .is_some()
+    );
+    assert!(frame(0.25, vec![escape()]).marquee_preview().is_none());
+    assert!(
+        frame(0.3, vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))])
+            .marquee_preview()
+            .is_none()
+    );
+    let released = frame(0.4, vec![primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    // The next drag is unaffected.
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        Rect::EVERYTHING,
+        START,
+        &[end],
+        none,
+    );
+    assert!(next.marquee().is_some());
+}
+
+#[test]
+fn escape_on_the_release_frame_cancels_and_escape_outside_a_drag_does_not() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.05, vec![escape()]);
+    frame(0.1, vec![primary(START, true, none)]);
+    frame(0.2, vec![Event::PointerMoved(end)]);
+    let released = frame(0.3, vec![escape(), primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    let context = egui::Context::default();
+    frame_idle_escape(&context);
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
+    assert!(
+        input.marquee().is_some(),
+        "an earlier Esc must not poison the next drag"
+    );
+}
+
+fn frame_idle_escape(context: &egui::Context) {
+    capture_frame(
+        context,
+        &camera(),
+        raw(0.0, Modifiers::NONE, vec![escape()]),
+        Rect::EVERYTHING,
+    );
+}

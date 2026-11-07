@@ -102,12 +102,14 @@ pub fn capture(
     let alt = modifiers.alt;
     let orbit_in_drag = response.id.with("orbit_in_drag");
     let marquee_origin = response.id.with("marquee_origin");
+    let marquee_cancelled = response.id.with("marquee_cancelled");
     if response.drag_started_by(PointerButton::Primary) {
         let origin = ui
             .input(|input| input.pointer.press_origin())
             .or(response.interact_pointer_pos());
         ui.data_mut(|data| {
             data.insert_temp(orbit_in_drag, false);
+            data.insert_temp(marquee_cancelled, false);
             if let Some(origin) = origin {
                 data.insert_temp(marquee_origin, origin);
             } else {
@@ -190,8 +192,33 @@ pub fn capture(
     let orbiting = ui
         .data(|data| data.get_temp::<bool>(orbit_in_drag))
         .unwrap_or(false);
+    // PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it, the release
+    // included.
+    let escape = ui.input(|input| {
+        input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Key {
+                    key: egui::Key::Escape,
+                    pressed: true,
+                    ..
+                }
+            )
+        })
+    });
+    let mut cancelled = ui
+        .data(|data| data.get_temp::<bool>(marquee_cancelled))
+        .unwrap_or(false);
+    if escape
+        && (response.dragged_by(PointerButton::Primary)
+            || response.drag_stopped_by(PointerButton::Primary))
+    {
+        cancelled = true;
+        ui.data_mut(|data| data.insert_temp(marquee_cancelled, true));
+    }
     let mut marquee = None;
-    if unsupported_selection.is_none()
+    if !cancelled
+        && unsupported_selection.is_none()
         && response.drag_stopped_by(PointerButton::Primary)
         && let Some((end, modifiers)) = released
         && !modifiers.alt
@@ -204,11 +231,12 @@ pub fn capture(
             marquee = Some((rect, modifiers));
         }
     }
-    let marquee_preview = (response.dragged_by(PointerButton::Primary) && !alt && !orbiting)
-        .then_some(origin)
-        .flatten()
-        .zip(ui.input(|input| input.pointer.latest_pos()))
-        .map(|(origin, now)| Rect::from_two_pos(rect.clamp(origin), rect.clamp(now)));
+    let marquee_preview =
+        (response.dragged_by(PointerButton::Primary) && !alt && !orbiting && !cancelled)
+            .then_some(origin)
+            .flatten()
+            .zip(ui.input(|input| input.pointer.latest_pos()))
+            .map(|(origin, now)| Rect::from_two_pos(rect.clamp(origin), rect.clamp(now)));
     let move_pointer = ui.input(|input| MovePointer {
         position: input
             .pointer
