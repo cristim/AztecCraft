@@ -540,16 +540,21 @@ PROVISIONAL until native Save QA on Windows:
   stay Unix-only, because Windows refuses that move; the Windows core tests cover
   the same receipt through injected faults.
 
-## Save of a very large new scene is refused (#380)
+## Save of a very large new scene is refused
 
 **Severity:** low
 **Area:** native document lifecycle
 
-Saving a new scene as Maya Binary decodes the written bytes to check them, and the
-decoder's resource budget rejects a scene of more than a few hundred objects (400
-cubes fail). Save refuses with the too-large message, writes nothing and leaves the
-scene open and unsaved. Split the scene or save it in pieces until the appearance
-binding step meter (`MAX_STEPS` in `src/native_scene/binary/appearance.rs`) is revisited (#380).
+Saving a new scene as Maya Binary decodes the written bytes to check them. Since #380 the
+appearance binder indexes each shape's parent and face count once per decode, instead of
+scanning every DAG edge, binding and shape per shape. That scan had capped a new scene at
+about 335 default cubes. The remaining bound is the decoder's whole-file work admission
+(`admit_work` in `src/native_scene/binary/admission.rs`, quadratic in transforms, DAG edges
+and leaves): measured with default cubes in a release build, 1700 save and 1792 refuse.
+Save then refuses with the too-large message, writes nothing and leaves the scene open and
+unsaved. `a_512_cube_scene_reads_back_through_the_self_check` and
+`a_scene_past_the_decoder_work_bound_refuses_as_too_large` pin both sides. Raising the work
+bound is a separate change to a check that also guards untrusted files.
 
 ## Native MCP idle responsiveness remains unverified
 
