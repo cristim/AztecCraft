@@ -22,6 +22,48 @@ fn planar_fills_the_unit_square_with_one_uv_per_corner() {
     assert!(all.contains(&0.0) && all.contains(&1.0));
 }
 
+#[test]
+fn unused_points_do_not_change_face_uv_bounds() {
+    let (scene, shape) = scene_with(Primitive::Cube);
+    let mesh = scene.shape(shape).unwrap().mesh();
+    let mut points: Vec<[f32; 3]> = (0..mesh.point_count())
+        .map(|index| mesh.effective_point_cm(index).unwrap().map(|v| v as f32))
+        .collect();
+    points.extend([[-100.0, -200.0, -300.0], [400.0, 500.0, 600.0]]);
+    let with_unused = NativeMesh::from_binary_parts(
+        points,
+        mesh.edges()
+            .iter()
+            .cloned()
+            .map(|mut edge| {
+                edge.smooth = None;
+                edge
+            })
+            .collect(),
+        mesh.faces().to_vec(),
+        Vec::new(),
+    )
+    .unwrap();
+    for (axis, _, _) in AXES {
+        let expected = planar(mesh, axis).unwrap();
+        let actual = planar(&with_unused, axis).unwrap();
+        assert_eq!(actual, expected, "{axis:?}");
+        for component in 0..2 {
+            let values: Vec<f64> = actual
+                .faces()
+                .iter()
+                .flatten()
+                .map(|uv| uv[component])
+                .collect();
+            assert!(values.iter().all(|value| (0.0..=1.0).contains(value)));
+            assert!(
+                values.contains(&0.0) && values.contains(&1.0),
+                "{axis:?} component {component}"
+            );
+        }
+    }
+}
+
 const AXES: [(UvProjectAxis, usize, Axis); 3] = [
     (UvProjectAxis::X, 0, Axis::X),
     (UvProjectAxis::Y, 1, Axis::Y),

@@ -53,12 +53,14 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
     let plane = axis.plane();
     let mut low = [f64::INFINITY; 2];
     let mut high = [f64::NEG_INFINITY; 2];
-    for index in 0..mesh.point_count() {
-        let point = mesh.effective_point_cm(index)?;
-        for (slot, (component, _)) in plane.into_iter().enumerate() {
-            let value = point[component];
-            low[slot] = low[slot].min(value);
-            high[slot] = high[slot].max(value);
+    for face in mesh.faces() {
+        for directed in face.outer() {
+            let point = mesh.effective_point_cm(mesh.directed_start(*directed)?)?;
+            for (slot, (component, _)) in plane.into_iter().enumerate() {
+                let value = point[component];
+                low[slot] = low[slot].min(value);
+                high[slot] = high[slot].max(value);
+            }
         }
     }
     let extent = [high[0] - low[0], high[1] - low[1]];
@@ -153,7 +155,7 @@ impl NativeScene {
     }
 
     /// Replaces the shape's `map1` with a planar projection along `axis`, fitted to the
-    /// object-space bounding box so both directions fill 0 through 1.
+    /// object-space bounds of the face corners so both directions fill 0 through 1.
     pub fn project_uv_planar(
         &mut self,
         shape: NativeId,
