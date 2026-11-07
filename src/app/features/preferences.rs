@@ -4,6 +4,7 @@
 
 use crate::app::*;
 use azteccraft::compatibility::MayaVersion;
+use azteccraft::native_scene::{AngularUnit, LinearUnit, Units};
 use azteccraft::preferences::{Preferences, ResetOutcome, Store};
 
 const CATEGORY_LIST_HEIGHT: f32 = 320.0;
@@ -128,6 +129,7 @@ impl Editor {
         let mut open = true;
         let (mut save, mut cancel) = (false, false);
         let error = self.preferences_window.error.clone();
+        let units = self.history.scene().units().clone();
         egui::Window::new("Preferences")
             .id(egui::Id::unique("preferences_window"))
             .open(&mut open)
@@ -161,6 +163,7 @@ impl Editor {
                         });
                     ui.vertical(|ui| {
                         ui.heading(SETTINGS_CATEGORY);
+                        working_units(ui, &units);
                         if let Some(error) = &error {
                             ui.colored_label(ui.visuals().error_fg_color, error);
                         }
@@ -234,6 +237,47 @@ impl Editor {
             }
         }
     }
+}
+
+/// Working Units belong to the scene; changing them would convert scene data, which is not
+/// supported yet, so the three combos only show what the scene declares.
+pub(in crate::app) const UNITS_REASON: &str = "Working units belong to the scene; changing them would convert scene data, which is not supported yet";
+
+fn linear_token(unit: &LinearUnit) -> &str {
+    match unit {
+        LinearUnit::Centimeter => "centimeter",
+        LinearUnit::Millimeter => "millimeter",
+        LinearUnit::Meter => "meter",
+        LinearUnit::Inch => "inch",
+        LinearUnit::Foot => "foot",
+        LinearUnit::Unsupported(token) => token,
+    }
+}
+
+fn angular_token(unit: &AngularUnit) -> &str {
+    match unit {
+        AngularUnit::Degree => "degree",
+        AngularUnit::Radian => "radian",
+        AngularUnit::Unsupported(token) => token,
+    }
+}
+
+pub(in crate::app) fn working_units(ui: &mut egui::Ui, units: &Units) {
+    ui.strong("Working Units");
+    for (label, token) in [
+        ("Linear", linear_token(&units.linear)),
+        ("Angular", angular_token(&units.angular)),
+        ("Time", units.time.as_str()),
+    ] {
+        ui.add_enabled_ui(false, |ui| {
+            egui::ComboBox::from_label(label)
+                .selected_text(token)
+                .show_ui(ui, |_| {})
+                .response
+                .on_disabled_hover_text(UNITS_REASON);
+        });
+    }
+    ui.weak(UNITS_REASON);
 }
 
 #[cfg(test)]

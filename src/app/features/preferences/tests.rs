@@ -1,5 +1,6 @@
 use super::*;
 use crate::app::tests::remote;
+use azteccraft::native_scene::{AngularUnit, LinearUnit, Units};
 use azteccraft::preferences::{Baseline, PreferencesError};
 use std::path::PathBuf;
 
@@ -613,5 +614,91 @@ mod window {
             Editor::default(),
             "Applied for this session; not saved (no config directory)",
         );
+    }
+
+    fn combos(output: &egui::FullOutput) -> Vec<(String, bool)> {
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        let mut found: Vec<_> = update
+            .nodes
+            .iter()
+            .filter(|(_, n)| n.role() == accesskit::Role::ComboBox)
+            .filter_map(|(_, n)| {
+                let top = n.bounds()?.y0;
+                Some((top, n.value()?.to_owned(), n.is_disabled()))
+            })
+            .collect();
+        found.sort_by(|a, b| a.0.total_cmp(&b.0));
+        found.into_iter().map(|(_, v, d)| (v, d)).collect()
+    }
+
+    fn text_shown(output: &egui::FullOutput, text: &str) -> bool {
+        let update = output.platform_output.accesskit_update.as_ref().unwrap();
+        update
+            .nodes
+            .iter()
+            .any(|(_, n)| n.value() == Some(text) || n.label() == Some(text))
+    }
+
+    fn units_page(units: &Units) -> egui::FullOutput {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, SIZE)),
+                ..Default::default()
+            },
+            |ui| working_units(ui, units),
+        );
+        output.textures_delta.clear();
+        output
+    }
+
+    fn assert_units(units: Units, expected: [&str; 3]) {
+        let output = units_page(&units);
+        let found = combos(&output);
+        let values: Vec<_> = found.iter().map(|(v, _)| v.as_str()).collect();
+        assert_eq!(values, expected);
+        assert!(found.iter().all(|(_, disabled)| *disabled), "{found:?}");
+        for label in ["Linear", "Angular", "Time", UNITS_REASON] {
+            assert!(text_shown(&output, label), "{label}");
+        }
+    }
+
+    #[test]
+    fn working_units_show_a_meter_radian_ntsc_scene_read_only_with_the_reason() {
+        assert_units(
+            Units {
+                linear: LinearUnit::Meter,
+                angular: AngularUnit::Radian,
+                time: "ntsc".into(),
+            },
+            ["meter", "radian", "ntsc"],
+        );
+    }
+
+    #[test]
+    fn working_units_show_an_unsupported_token_verbatim() {
+        assert_units(
+            Units {
+                linear: LinearUnit::Unsupported("km".into()),
+                angular: AngularUnit::Degree,
+                time: "film".into(),
+            },
+            ["km", "degree", "film"],
+        );
+    }
+
+    #[test]
+    fn the_settings_page_shows_the_open_scenes_units() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        let found = combos(&output);
+        let found = &found[found.len() - 3..];
+        let values: Vec<_> = found.iter().map(|(v, _)| v.as_str()).collect();
+        assert_eq!(values, ["centimeter", "degree", "film"]);
+        assert!(found.iter().all(|(_, disabled)| *disabled));
+        assert!(text_shown(&output, UNITS_REASON));
     }
 }
