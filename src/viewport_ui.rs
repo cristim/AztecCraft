@@ -5,7 +5,7 @@ use azteccraft::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
     view_scene::{ViewError, ViewScene},
-    viewport::{Camera, InvalidCameraInput},
+    viewport::{Camera, InvalidCameraInput, NdcRect},
 };
 use eframe::egui::{self, Color32, Painter, PointerButton, Rect};
 use glam::Vec2;
@@ -54,6 +54,11 @@ pub struct ViewportInput {
     click_modifiers: Option<egui::Modifiers>,
     pixels_per_point: f32,
     unsupported_selection: Option<SelectionRefusal>,
+    /// A finished primary drag: its rectangle (the end clamped to the viewport) and the modifiers
+    /// of the release event.
+    marquee: Option<(NdcRect, egui::Modifiers)>,
+    /// The rubber band of a primary drag still in progress, in points inside the viewport.
+    marquee_preview: Option<Rect>,
     navigation: Vec<Operation>,
 }
 
@@ -94,8 +99,19 @@ pub fn capture(
         ui.input(|i| (i.pointer.delta(), i.modifiers, i.smooth_scroll_delta.y));
     let alt = modifiers.alt;
     let orbit_in_drag = response.id.with("orbit_in_drag");
+    let marquee_origin = response.id.with("marquee_origin");
     if response.drag_started_by(PointerButton::Primary) {
-        ui.data_mut(|data| data.insert_temp(orbit_in_drag, false));
+        let origin = ui
+            .input(|input| input.pointer.press_origin())
+            .or(response.interact_pointer_pos());
+        ui.data_mut(|data| {
+            data.insert_temp(orbit_in_drag, false);
+            if let Some(origin) = origin {
+                data.insert_temp(marquee_origin, origin);
+            } else {
+                data.remove::<egui::Pos2>(marquee_origin);
+            }
+        });
     }
     let mut navigation = Vec::with_capacity(4);
     if response.dragged_by(PointerButton::Primary) && alt {
@@ -164,15 +180,33 @@ pub fn capture(
             unsupported_selection = Some(SelectionRefusal::ModifiedClick);
         }
     }
+    let to_ndc = |point: egui::Pos2| {
+        let p = (point - rect.min) / rect.size();
+        Vec2::new(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0)
+    };
+    let origin = ui.data(|data| data.get_temp::<egui::Pos2>(marquee_origin));
+    let orbiting = ui
+        .data(|data| data.get_temp::<bool>(orbit_in_drag))
+        .unwrap_or(false);
+    let mut marquee = None;
     if unsupported_selection.is_none()
         && response.drag_stopped_by(PointerButton::Primary)
-        && released.is_some_and(|(_, modifiers)| !modifiers.alt)
-        && !ui
-            .data(|data| data.get_temp::<bool>(orbit_in_drag))
-            .unwrap_or(false)
+        && let Some((end, modifiers)) = released
+        && !modifiers.alt
+        && !orbiting
     {
         unsupported_selection = Some(SelectionRefusal::Marquee);
+        if let Some(origin) = origin {
+            let rect =
+                NdcRect::clamped(to_ndc(origin), to_ndc(end)).map_err(|_| InvalidCameraInput)?;
+            marquee = Some((rect, modifiers));
+        }
     }
+    let marquee_preview = (response.dragged_by(PointerButton::Primary) && !alt && !orbiting)
+        .then_some(origin)
+        .flatten()
+        .zip(ui.input(|input| input.pointer.latest_pos()))
+        .map(|(origin, now)| Rect::from_two_pos(rect.clamp(origin), rect.clamp(now)));
     let move_pointer = ui.input(|input| MovePointer {
         position: input
             .pointer
@@ -207,6 +241,8 @@ pub fn capture(
         click_modifiers,
         pixels_per_point: scale,
         unsupported_selection,
+        marquee,
+        marquee_preview,
         navigation,
     }))
 }
@@ -248,6 +284,20 @@ impl ViewportInput {
     }
     pub fn unsupported_selection(&self) -> Option<SelectionRefusal> {
         self.unsupported_selection
+    }
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the native marquee release reads it, added next")
+    )]
+    pub fn marquee(&self) -> Option<(NdcRect, egui::Modifiers)> {
+        self.marquee
+    }
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the rubber band is painted next")
+    )]
+    pub fn marquee_preview(&self) -> Option<Rect> {
+        self.marquee_preview
     }
     pub fn pick_face_center(
         &self,

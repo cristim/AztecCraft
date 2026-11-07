@@ -1098,3 +1098,135 @@ fn alt_pressed_mid_drag_orbits_without_marquee() {
     assert!(orbited);
     assert_eq!(input.unsupported_selection(), None);
 }
+
+const START: Pos2 = egui::pos2(64.0, 48.0);
+
+/// Press at `START`, move through `waypoints`, release at the last one with `release`; returns
+/// the input of the last frame before the release and of the release frame.
+fn marquee_drag(
+    context: &egui::Context,
+    clip: Rect,
+    press: Pos2,
+    waypoints: &[Pos2],
+    release: Modifiers,
+) -> (ViewportInput, ViewportInput) {
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let frame = |time, modifiers, events| {
+        capture_frame(context, &camera, raw(time, modifiers, events), clip).0
+    };
+    frame(0.0, none, vec![Event::PointerMoved(press)]);
+    frame(0.1, none, vec![primary(press, true, none)]);
+    let mut last = frame(0.15, none, vec![]);
+    for (index, point) in waypoints.iter().enumerate() {
+        last = frame(
+            0.2 + index as f64 * 0.01,
+            none,
+            vec![Event::PointerMoved(*point)],
+        );
+    }
+    let end = *waypoints.last().unwrap_or(&press);
+    let released = frame(0.5, release, vec![primary(end, false, release)]);
+    (last, released)
+}
+
+fn ndc(input: &ViewportInput) -> ([f32; 2], [f32; 2]) {
+    let (rect, _) = input.marquee().expect("a marquee");
+    (rect.min().to_array(), rect.max().to_array())
+}
+
+#[test]
+fn a_drag_release_yields_the_ndc_rect_and_the_release_modifiers() {
+    for modifiers in [
+        Modifiers::NONE,
+        Modifiers::SHIFT,
+        Modifiers::CTRL | Modifiers::SHIFT,
+    ] {
+        let context = egui::Context::default();
+        let end = START + egui::vec2(32.0, 24.0);
+        let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], modifiers);
+        // The 128 x 96 viewport: x 64 -> 0, 96 -> 0.5; y 48 -> 0, 72 -> -0.5 (y points down).
+        assert_eq!(ndc(&input), ([0.0, -0.5], [0.5, 0.0]));
+        assert_eq!(input.marquee().unwrap().1, modifiers);
+        assert!(input.click_ndc().is_none());
+    }
+}
+
+#[test]
+fn a_quick_click_is_not_a_marquee() {
+    let context = egui::Context::default();
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[], Modifiers::NONE);
+    assert!(input.marquee().is_none() && input.click_ndc().is_some());
+}
+
+#[test]
+fn alt_orbit_and_alt_on_release_raise_no_marquee() {
+    let (input, _) = drag_release(Modifiers::ALT, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(input.marquee().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::ALT, 40.0);
+    assert!(input.marquee().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(input.marquee().is_none());
+}
+
+#[test]
+fn a_release_outside_the_viewport_clamps_the_end_to_its_edge() {
+    let context = egui::Context::default();
+    let end = egui::pos2(140.0, 120.0);
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+    // The viewport is the 128 x 96 screen, so START is NDC (0, 0) and the end clamps to (1, -1).
+    assert_eq!(ndc(&input), ([0.0, -1.0], [1.0, 0.0]));
+}
+
+#[test]
+fn a_press_outside_the_viewport_never_arms_a_marquee() {
+    let context = egui::Context::default();
+    let outside = egui::pos2(-20.0, 48.0);
+    let (_, input) = marquee_drag(
+        &context,
+        Rect::EVERYTHING,
+        outside,
+        &[START],
+        Modifiers::NONE,
+    );
+    assert!(input.marquee().is_none());
+}
+
+#[test]
+fn returning_to_the_start_is_a_zero_area_rect_at_that_point() {
+    let context = egui::Context::default();
+    let away = START + egui::vec2(40.0, 0.0);
+    let (_, input) = marquee_drag(
+        &context,
+        Rect::EVERYTHING,
+        START,
+        &[away, START],
+        Modifiers::NONE,
+    );
+    assert_eq!(ndc(&input), ([0.0, 0.0], [0.0, 0.0]));
+}
+
+#[test]
+fn the_ndc_rect_does_not_depend_on_the_pixel_density() {
+    let end = START + egui::vec2(32.0, 24.0);
+    for ppp in [1.0, 1.5, 2.0] {
+        let context = egui::Context::default();
+        context.set_pixels_per_point(ppp);
+        let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+        assert_eq!(ndc(&input), ([0.0, -0.5], [0.5, 0.0]), "ppp {ppp}");
+    }
+}
+
+#[test]
+fn the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport() {
+    let context = egui::Context::default();
+    let end = egui::pos2(140.0, 120.0);
+    let (during, after) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+    assert_eq!(
+        during.marquee_preview(),
+        Some(Rect::from_min_max(START, egui::pos2(128.0, 96.0)))
+    );
+    assert!(after.marquee_preview().is_none());
+    let (input, _) = drag_release(Modifiers::ALT, Modifiers::ALT, Modifiers::ALT, 40.0);
+    assert!(input.marquee_preview().is_none());
+}
