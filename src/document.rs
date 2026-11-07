@@ -66,18 +66,6 @@ impl fmt::Debug for SourceBaseline {
             .finish()
     }
 }
-impl SourceBaseline {
-    pub fn destination_path(&self) -> Option<PathBuf> {
-        #[cfg(unix)]
-        {
-            self.destination.as_ref().map(|d| d.path())
-        }
-        #[cfg(not(unix))]
-        {
-            None
-        }
-    }
-}
 #[derive(Clone, Debug, Default)]
 pub enum NativeOrigin {
     #[default]

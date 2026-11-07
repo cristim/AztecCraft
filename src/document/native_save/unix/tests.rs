@@ -1697,3 +1697,29 @@ fn an_uncertain_save_of_a_reopened_ascii_document_reconciles_like_a_fresh_one() 
         &|| true,
     ));
 }
+
+#[test]
+fn active_ascii_save_refuses_when_the_parent_directory_was_swapped() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join("dir");
+    std::fs::create_dir(&dir).unwrap();
+    let (path, document) = reopened_ascii(&dir);
+    let bytes = std::fs::read(&path).unwrap();
+    // `mv dir dir2; mkdir dir; mv dir2/x.ma dir/`: the same file at the same path, in a
+    // different directory than the one the baseline pinned.
+    let moved = root.path().join("dir2");
+    std::fs::rename(&dir, &moved).unwrap();
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::rename(moved.join("reopened.ma"), &path).unwrap();
+    assert_eq!(
+        crate::document::save_native(
+            &document.origin,
+            &document.scene,
+            SaveDestination::Active,
+            &|| true
+        )
+        .unwrap_err(),
+        Error::SourceChanged
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+}

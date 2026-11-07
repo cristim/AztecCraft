@@ -601,8 +601,7 @@ fn prepare_authored<'a>(
     destination: SaveDestination<'_>,
     may_install: &'a dyn Fn() -> bool,
 ) -> Result<Transaction<'a>, Error> {
-    // Authored output has unproven Maya acceptance; our ASCII reader cannot
-    // reopen authored meshes. Bind every later save to this document.
+    // Bind every save to this document: the origin's identity must match the scene.
     match origin {
         NativeOrigin::Untitled => {}
         NativeOrigin::AuthoredAscii(source) | NativeOrigin::Binary(source) => {
@@ -617,63 +616,47 @@ fn prepare_authored<'a>(
         }
         _ => return Err(Error::Unsupported),
     }
-
-    // Resolve the destination path and determine if it is Save As or Active
-    let (path, is_save_as) = match destination {
-        SaveDestination::As(path) => (path.to_path_buf(), true),
-        SaveDestination::Active => match origin {
-            NativeOrigin::AuthoredAscii(source) => {
-                (source.destination_path().ok_or(Error::Unsupported)?, false)
-            }
-            _ => return Err(Error::Unsupported),
-        },
-    };
-
-    // Validate that the destination has a .ma extension (case-insensitive)
-    if !has_extension(&path, "ma") {
-        return Err(Error::InvalidDestination);
-    }
-
-    // Generate the bytes for the Maya ASCII scene. This uses the `emit_geometry_prefix` function
     let bytes: Arc<[u8]> = emit_geometry_prefix(scene)
         .map_err(Error::AsciiWrite)?
         .into();
-
     let document_id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
-
-    // Capture the destination
-    let destination = Arc::new(Destination::capture(&path).map_err(io_error)?);
-
-    // Determinate the baseline (using the boolean is_save_as)
-    let baseline = if is_save_as {
-        // Save As: the new destination MUST be absent.
-        destination.absent()?;
-        None
-    } else {
-        // Active: verify that it matches the origin.
-        match origin {
-            NativeOrigin::AuthoredAscii(source) => {
-                if destination.verify(&source.file, &source.bytes).is_ok() {
-                    Some(source)
-                } else {
-                    return Err(Error::SourceChanged);
-                }
+    // Active Save reuses the destination pinned at Open or the last Save, with its parent
+    // directory identity, exactly as the Maya Binary path does; Save As captures a fresh one.
+    let (destination, baseline) = match destination {
+        SaveDestination::Active => {
+            let NativeOrigin::AuthoredAscii(source) = origin else {
+                return Err(Error::Unsupported);
+            };
+            let pinned = source
+                .destination
+                .clone()
+                .filter(|_| matches!(source.link, LinkStatus::Direct))
+                .ok_or(Error::Unsupported)?;
+            (pinned, Some(source))
+        }
+        SaveDestination::As(path) => {
+            if !has_extension(path, "ma") {
+                return Err(Error::InvalidDestination);
             }
-            _ => return Err(Error::Unsupported),
+            (
+                Arc::new(Destination::capture(path).map_err(io_error)?),
+                None,
+            )
         }
     };
-
-    // Create the transaction
-    let transaction = Transaction {
+    if let Some(baseline) = baseline {
+        destination.verify(&baseline.file, &baseline.bytes)?;
+    } else {
+        destination.absent()?;
+    }
+    Ok(Transaction {
         destination,
         baseline,
         bytes,
         retention: Retention::Authored { document_id },
         may_install,
         state: RefCell::new(State::default()),
-    };
-
-    Ok(transaction)
+    })
 }
 
 #[cfg(test)]
