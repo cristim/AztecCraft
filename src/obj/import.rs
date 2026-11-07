@@ -124,7 +124,7 @@ pub fn parse(reader: impl BufRead) -> Result<ParsedObj, ObjImportError> {
         loop {
             raw.clear();
             let read = (&mut reader)
-                .take(MAX_LINE_BYTES as u64 + 1)
+                .take(MAX_LINE_BYTES as u64 + 2)
                 .read_until(b'\n', &mut raw)
                 .map_err(|error| ObjImportError::Io(error.kind()))?;
             if read == 0 {
@@ -136,11 +136,13 @@ pub fn parse(reader: impl BufRead) -> Result<ParsedObj, ObjImportError> {
             if total > MAX_FILE_BYTES {
                 return Err(ObjImportError::TooLarge);
             }
+            // A chunk holds at most MAX_LINE_BYTES of content plus CRLF. CR ends a line only as
+            // part of CRLF, so a bare CR at the chunk edge stays content and is refused as too long.
             if raw.last() == Some(&b'\n') {
                 raw.pop();
-            }
-            if raw.last() == Some(&b'\r') {
-                raw.pop();
+                if raw.last() == Some(&b'\r') {
+                    raw.pop();
+                }
             }
             if physical == 1 && raw.starts_with(&[0xEF, 0xBB, 0xBF]) {
                 raw.drain(..3);
@@ -216,6 +218,10 @@ impl State {
                 what: SyntaxKind::VertexNeedsThreeNumbers,
             })?;
             *slot = coordinate(token, line)?;
+        }
+        // An optional w or a vertex colour: extra numbers are validated, then dropped.
+        for token in tokens {
+            coordinate(token, line)?;
         }
         if self.vertices.len() >= MAX_VERTICES {
             return Err(ObjImportError::LimitExceeded(Limit::Vertices));

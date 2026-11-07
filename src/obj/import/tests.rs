@@ -363,7 +363,7 @@ fn endless_input_is_bounded_by_the_caps() {
         parse(&mut no_newline),
         Err(ObjImportError::LineTooLong { line: 1 })
     );
-    assert!(no_newline.pulled <= MAX_LINE_BYTES as u64 + 1);
+    assert!(no_newline.pulled <= MAX_LINE_BYTES as u64 + 2);
     let mut tokens = Endless {
         chunk: b"f 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ".repeat(256),
         pulled: 0,
@@ -372,7 +372,7 @@ fn endless_input_is_bounded_by_the_caps() {
         parse(&mut tokens),
         Err(ObjImportError::LineTooLong { line: 1 })
     );
-    assert!(tokens.pulled <= MAX_LINE_BYTES as u64 + 1);
+    assert!(tokens.pulled <= MAX_LINE_BYTES as u64 + 2);
     let mut comments = Endless {
         chunk: b"#\n".repeat(4096),
         pulled: 0,
@@ -393,5 +393,42 @@ fn read_names_unnamed_objects_after_the_file_stem_and_refuses_non_files() {
     assert_eq!(
         read(&directory.path().join("none.obj")),
         Err(ObjImportError::Io(io::ErrorKind::NotFound))
+    );
+}
+
+#[test]
+fn a_carriage_return_at_the_chunk_boundary_is_not_a_line_end() {
+    let comment = |len: usize| format!("#{}", "x".repeat(len - 1));
+    // CRLF terminates a line of exactly MAX_LINE_BYTES of content.
+    assert!(parse_text(&format!("{TRI}{}\r\n", comment(MAX_LINE_BYTES))).is_ok());
+    // A bare CR is content: one byte past the limit is refused, not split into two lines.
+    assert_eq!(
+        err(&format!("{TRI}{}\rf 1 2 3\n", comment(MAX_LINE_BYTES))),
+        ObjImportError::LineTooLong { line: 5 }
+    );
+    assert_eq!(
+        err(&format!("{TRI}{}\r\n", comment(MAX_LINE_BYTES + 1))),
+        ObjImportError::LineTooLong { line: 5 }
+    );
+}
+
+#[test]
+fn extra_vertex_tokens_must_be_numbers() {
+    let vertex = |extra: &str| parse_text(&format!("v 0 0 0 {extra}\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"));
+    assert!(vertex("1").is_ok());
+    assert!(vertex("0.5 0.5 0.5").is_ok());
+    for junk in ["junk", "1 x", "0x1"] {
+        assert_eq!(
+            vertex(junk),
+            Err(ObjImportError::Syntax {
+                line: 1,
+                what: SyntaxKind::BadNumber
+            }),
+            "{junk}"
+        );
+    }
+    assert_eq!(
+        vertex("nan"),
+        Err(ObjImportError::CoordinateOutOfRange { line: 1 })
     );
 }
