@@ -1310,3 +1310,45 @@ fn frame_idle_escape(context: &egui::Context) {
         Rect::EVERYTHING,
     );
 }
+
+/// A press begun with Alt is a camera tumble even when Alt is released before the drag crosses
+/// egui's threshold: no Orbit is emitted, yet the release must not replace the selection.
+#[test]
+fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let end = START + egui::vec2(40.0, 0.0);
+    let clip = Rect::EVERYTHING;
+    let frame = |time, modifiers, events| {
+        capture_frame(&context, &camera, raw(time, modifiers, events), clip).0
+    };
+    frame(0.0, Modifiers::ALT, vec![Event::PointerMoved(START)]);
+    frame(
+        0.1,
+        Modifiers::ALT,
+        vec![primary(START, true, Modifiers::ALT)],
+    );
+    frame(0.2, Modifiers::NONE, vec![Event::PointerMoved(end)]);
+    let mid = frame(
+        0.25,
+        Modifiers::NONE,
+        vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))],
+    );
+    assert!(mid.marquee_preview().is_none());
+    let released = frame(
+        0.3,
+        Modifiers::NONE,
+        vec![primary(end, false, Modifiers::NONE)],
+    );
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    // The next plain drag is unaffected.
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        clip,
+        START,
+        &[end],
+        Modifiers::NONE,
+    );
+    assert!(next.marquee().is_some());
+}

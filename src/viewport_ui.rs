@@ -103,12 +103,31 @@ pub fn capture(
     let orbit_in_drag = response.id.with("orbit_in_drag");
     let marquee_origin = response.id.with("marquee_origin");
     let marquee_cancelled = response.id.with("marquee_cancelled");
+    let alt_at_press = response.id.with("alt_at_press");
+    // A press begun with Alt is a camera tumble; releasing Alt before the drag crosses egui's
+    // threshold must not turn it into a marquee.
+    if let Some(pressed_with_alt) = ui.input(|input| {
+        input.events.iter().rev().find_map(|event| match event {
+            egui::Event::PointerButton {
+                pos,
+                button: PointerButton::Primary,
+                pressed: true,
+                modifiers,
+            } if response.rect.contains(*pos) => Some(modifiers.alt),
+            _ => None,
+        })
+    }) {
+        ui.data_mut(|data| data.insert_temp(alt_at_press, pressed_with_alt));
+    }
     if response.drag_started_by(PointerButton::Primary) {
+        let tumbling = ui
+            .data(|data| data.get_temp::<bool>(alt_at_press))
+            .unwrap_or(false);
         let origin = ui
             .input(|input| input.pointer.press_origin())
             .or(response.interact_pointer_pos());
         ui.data_mut(|data| {
-            data.insert_temp(orbit_in_drag, false);
+            data.insert_temp(orbit_in_drag, tumbling);
             data.insert_temp(marquee_cancelled, false);
             if let Some(origin) = origin {
                 data.insert_temp(marquee_origin, origin);
