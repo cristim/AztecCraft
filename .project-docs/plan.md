@@ -56,6 +56,45 @@ non-displayed instances are skipped, while the docs do not say whether Maya's Ex
 them; parent transforms are folded into world positions rather than written as groups; output
 has not been compared with Maya's objExport. OBJ import is a later slice.
 
+## File > Import as OBJ (issue #22 remainder)
+
+Maya research at the 2027 pin (cited and summarised, not copied; the pages were read through a
+summarising fetch, so a reviewer should open them before the PROVISIONAL list is frozen):
+
+- [Import files](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-ManagingScenes/files/GUID-BB7ABDA1-86E6-4A83-B8E6-3F4D7F1B0F1B.htm):
+  File > Import brings the file's data into the current scene (it adds, never replaces). Format
+  options live in the Options panel of the Import browser or the option box beside File > Import.
+  The page does not cover groups, OBJ or what is selected afterwards.
+- [Import Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-37B31221-7BBC-40DA-AB33-47C333EF4E14.htm):
+  Group (default off) puts the imported objects under one transform; Remove duplicate shading
+  networks; a file type list with Best Guess. OBJ is not mentioned and no hotkey is stated.
+- [Supported data import formats](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-ManagingScenes/files/GUID-69BC066D-D4D8-4B12-900C-CF42E798A5D6.htm):
+  OBJ is a data import format, extension `obj`, plug-in cell blank; materials, normals, groups and
+  units are not described. Whether the objExport plug-in must be loaded to import is not stated.
+- [Open Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-203FC12C-6C80-497C-AC29-548DF6EC91B5.htm):
+  the only page that describes OBJ reading: Multiple Objects makes one shape per group, Single
+  Object one shape with an object set per group; overlapping groups make Maya fall back to Single
+  Object. The default is not stated. Assumed to apply to Import as well (PROVISIONAL).
+- [File menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-9D1021A8-60A4-4B72-9A90-7C5070A9E037.htm):
+  the item order was not re-read, so the menu slot (Import... with a disabled option box between
+  Save As and Export All) is PROVISIONAL.
+
+Slice: File > Import... reads an OBJ and adds one root transform plus one mesh shape per `o` or
+`g` group (Multiple Objects semantics), in one undo step, through `Operation::ImportObj` shared
+with MCP `import_obj`. Accepted: `v`, `f` with 3 or more corners (all index forms, negative
+indices), `o`, `g`, comments. Recognised and dropped, counted: normals, UVs, materials and other
+non-geometry records. Refused with a typed error, never silently lost: free-form geometry, unknown
+keywords, overlapping groups, bad indices, degenerate faces, non-finite or oversized numbers, files
+with no face, and anything the viewport would refuse to display (concave or holed faces with 5 or
+more corners). Import into an opened `.mb` or `.ma` is refused, as Create is.
+
+PROVISIONAL (no page states them; each is pinned by a named test and listed in `known-issues.md`):
+units of OBJ numbers; normals, UV and `.mtl` handling; negative indices; triangles and n-gons;
+object naming and clash suffixes; face winding; unused vertices; whether the imported nodes are
+selected afterwards; the undo label "Import"; the Multiple/Single default; coordinate and size
+limits (`MAX_*` in `src/obj/import.rs`, rows in "Application policy constants"). Out of slice:
+the option box, Group, Single Object with sets, UV/normal/material import, other formats.
+
 ## Verification and review
 
 Keep the same non-author reviewer across the two plan passes and each two-pass diff gate. Use a cold independent verifier for the completed vertical slice. Run formatting, Clippy, headless workflow tests, and native build. Record exact tree/commit identifiers for reviewed work. Reference comparison is blocked until a Maya installation/reference manifest exists. No positive parity claim without it.
