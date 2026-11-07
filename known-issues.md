@@ -939,8 +939,8 @@ selection affects OBJ export). Export Selection covers every selected object and
 descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
-unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered (the option boxes are disabled), and export never overwrites an
+unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to

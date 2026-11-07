@@ -221,3 +221,25 @@ fn projection_and_delete_are_refused_under_a_restriction_and_change_nothing() {
         assert!(scene == before);
     }
 }
+
+#[test]
+fn projecting_an_instanced_shape_is_accepted_and_the_set_is_per_shape() {
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "a").unwrap();
+    scene.create(Primitive::Cube, "b").unwrap();
+    let shape = scene.shapes()[0].id();
+    let other_transform = scene.nodes()[1].transform_id;
+    scene.dag.push(crate::native_scene::DagEdge {
+        parent: Some(other_transform),
+        child: shape,
+    });
+    assert_eq!(
+        scene.dag.iter().filter(|edge| edge.child == shape).count(),
+        2
+    );
+    scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+    assert_eq!(scene.validate(), Ok(()));
+    // UVs are keyed by shape and projected in object space, so every instance reads the one set.
+    assert_eq!(scene.session_uvs.sets.len(), 1);
+    assert!(scene.uv_set(shape).is_some());
+}
