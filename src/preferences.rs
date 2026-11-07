@@ -63,6 +63,30 @@ impl fmt::Display for PreferencesError {
     }
 }
 
+impl PreferencesError {
+    /// A stable machine code for inspection; unlike `Display` it is a fixed token and never
+    /// varies with the `io::ErrorKind` or names a path.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NoConfigDir => "no_config_dir",
+            Self::Symlink => "symlink",
+            Self::NotRegularFile => "not_regular_file",
+            Self::TooLarge => "too_large",
+            Self::Unreadable(_) => "unreadable",
+            Self::Malformed => "malformed",
+            Self::UnknownSchema => "unknown_schema",
+            Self::VersionOutOfRange => "version_out_of_range",
+            Self::ChangedOnDisk => "changed_on_disk",
+            Self::Write(_) => "write_failed",
+            Self::NotWritable => "not_writable",
+            Self::ResetChanged => "reset_changed",
+            Self::ResetSymlink => "reset_symlink",
+            Self::ResetBackup(_) => "reset_backup_failed",
+            Self::ResetRemove(_) => "reset_remove_failed",
+        }
+    }
+}
+
 impl std::error::Error for PreferencesError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]

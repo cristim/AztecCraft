@@ -215,6 +215,39 @@ impl Editor {
             page,
         )
     }
+    #[cfg(any(test, feature = "mcp"))]
+    fn inspect_preferences(&self) -> crate::editor_operations::PreferencesInspection {
+        use crate::editor_operations::{
+            GatedFeatureInspection, PersistenceInspection, PersistenceState, PreferencesInspection,
+        };
+        use azteccraft::compatibility::{FEATURE_RANGES, MayaVersion, is_available};
+        use azteccraft::preferences::Store;
+        let version = self.preferences.maya_compatibility_version;
+        let (state, error) = match &self.preferences_store {
+            Store::Writable { .. } => (PersistenceState::Saved, None),
+            Store::Blocked { error, .. } => (PersistenceState::NotSaved, Some(error.code())),
+            Store::SessionOnly => (PersistenceState::SessionOnly, None),
+        };
+        PreferencesInspection {
+            maya_compatibility_version: version.year(),
+            oldest: MayaVersion::OLDEST.year(),
+            latest: MayaVersion::PINNED.year(),
+            pending: self.preferences_window.pending.is_some(),
+            persistence: PersistenceInspection {
+                state,
+                error,
+                reset_available: matches!(self.preferences_store, Store::Blocked { .. }),
+            },
+            gated_features: FEATURE_RANGES
+                .iter()
+                .map(|row| GatedFeatureInspection {
+                    id: row.feature.id(),
+                    since: row.since,
+                    available: is_available(row.feature, version),
+                })
+                .collect(),
+        }
+    }
     /// `path_limit` exists so tests can reach the budget sum through the real call site.
     #[cfg(any(test, feature = "mcp"))]
     fn inspect_within(
@@ -422,7 +455,10 @@ impl Editor {
                 linear: linear.into(),
                 angular: angular.into(),
                 time: units.time.clone(),
+                editable: false,
+                unsupported_reason: crate::app::features::preferences::UNITS_REASON,
             },
+            preferences: self.inspect_preferences(),
             save_available: self.files.save_available(),
             save_as_available: self.files.save_as_available(),
             save_reconciliation_required: self.files.reconciliation_required(),
@@ -924,3 +960,5 @@ mod lower_bound_tests {
 
 #[cfg(test)]
 mod paging_tests;
+#[cfg(test)]
+mod preferences_tests;

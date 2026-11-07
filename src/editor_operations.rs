@@ -635,6 +635,7 @@ pub struct SceneInspection {
     pub retained_source_records: usize,
     pub read_only_reason: Option<String>,
     pub units: UnitsInspection,
+    pub preferences: PreferencesInspection,
     pub save_available: bool,
     pub save_as_available: bool,
     pub save_reconciliation_required: bool,
@@ -924,6 +925,43 @@ pub struct UnitsInspection {
     pub linear: String,
     pub angular: String,
     pub time: String,
+    /// Always false: changing units would convert scene data.
+    pub editable: bool,
+    pub unsupported_reason: &'static str,
+}
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PreferencesInspection {
+    pub maya_compatibility_version: u16,
+    pub oldest: u16,
+    pub latest: u16,
+    /// An unsaved value in the Preferences window (not the scene's `has_draft`).
+    pub pending: bool,
+    pub persistence: PersistenceInspection,
+    pub gated_features: Vec<GatedFeatureInspection>,
+}
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct PersistenceInspection {
+    pub state: PersistenceState,
+    /// A fixed `PreferencesError::code`, never its text or a path.
+    pub error: Option<&'static str>,
+    pub reset_available: bool,
+}
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg(any(test, feature = "mcp"))]
+pub enum PersistenceState {
+    Saved,
+    NotSaved,
+    SessionOnly,
+}
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct GatedFeatureInspection {
+    pub id: &'static str,
+    pub since: u16,
+    pub available: bool,
 }
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
@@ -1238,7 +1276,10 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
     r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
-    r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
+    r#""units":{"linear":"","angular":"","time":"","editable":true,"unsupported_reason":""},"#,
+    r#""preferences":{"maya_compatibility_version":2011,"oldest":2011,"latest":2011,"pending":true,"#,
+    r#""persistence":{"state":"saved","error":null,"reset_available":true},"gated_features":[]},"#,
+    r#""save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
     r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
