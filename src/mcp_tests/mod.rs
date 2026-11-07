@@ -139,6 +139,7 @@ mod official_client {
     mod obj_export;
 
     mod pointer_hit;
+    mod preferences_tools;
     mod primitive_options;
     mod save_new_scene;
     mod select_by_rule;
