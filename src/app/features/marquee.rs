@@ -14,7 +14,7 @@ pub(in crate::app) fn marquee_mode(modifiers: egui::Modifiers) -> MarqueeMode {
 }
 
 impl Editor {
-    /// The objects whose visible mesh overlaps `rect` (any overlap, no occlusion: PROVISIONAL; a point
+    /// The objects whose visible mesh overlaps `rect` (any overlap, occluded objects included like Maya's object marquee: PROVISIONAL; a point
     /// rectangle picks like a click),
     /// mapped like a click in the current selection mode, in instance order. Several hits can map
     /// to one target (Hierarchy mode); the selection mutators collapse the repeats.

@@ -246,10 +246,12 @@ fn occluded_pair() -> (Editor, usize, TransformTarget, TransformTarget) {
     (editor, hidden, front, back)
 }
 
-/// Pins the PROVISIONAL gap: there is no camera-based selection yet, so a cube wholly hidden
-/// behind a larger one is still selected by an area marquee. Slice 2 flips this assertion.
+/// Pins the PROVISIONAL object-marquee rule: a cube wholly hidden behind a larger one is still
+/// selected by an area marquee, in every shading mode. Maya documents camera-based selection
+/// (occlusion filtering) for components only, so this is not a parity gap for objects; the
+/// component marquee slice adds the filter for components.
 #[test]
-fn marquee_selects_an_object_hidden_behind_another_in_shaded() {
+fn marquee_selects_an_occluded_object_in_every_shading_mode() {
     let (mut editor, hidden, _, back) = occluded_pair();
     let bounds = around(&editor, hidden);
     assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Replace)));

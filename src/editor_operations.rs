@@ -441,7 +441,7 @@ pub enum Operation {
     SelectByRule(SelectRule),
     /// Selects the objects whose visible mesh overlaps `rect`, an NDC rectangle at the last
     /// painted aspect, combined by `mode`. Object and Hierarchy modes only; every hit counts,
-    /// occluded ones included (PROVISIONAL, no camera-based selection yet).
+    /// occluded ones included, as Maya's object marquee does (PROVISIONAL: camera-based selection is documented for components only).
     SelectInRect {
         rect: NdcRect,
         mode: MarqueeMode,

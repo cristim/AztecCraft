@@ -160,10 +160,11 @@ triangle, clipped to the camera depth range, touches the rectangle (policy rows 
 instances and curves cannot be marquee-selected, as they cannot be clicked. The aspect is the last
 painted one.
 
-PROVISIONAL gap, pinned by `marquee_selects_an_object_hidden_behind_another_in_shaded`: there is no
-camera-based selection, so objects occluded by another object inside the rectangle are selected in
-every shading mode. Maya turns camera-based selection on in Shaded and off in Wireframe and X-Ray
-(documented for components). A later slice adds an occlusion test and flips that assertion.
+PROVISIONAL, pinned by `marquee_selects_an_occluded_object_in_every_shading_mode`: objects occluded by another object inside the
+rectangle are selected in every shading mode. Maya documents camera-based selection (on in Shaded,
+off in Wireframe and X-Ray) for components only ([Select objects or components][maya-select-obj], Modeling
+Toolkit selection options), so this is believed to match Maya's object marquee and is not a gap for
+objects; the occlusion filter belongs to the component marquee slice.
 Hardware Ctrl-drag on macOS arrives as a secondary-button drag and never reaches this path;
 Command-drag is the native route (same as the click, #166).
 
@@ -370,7 +371,7 @@ Sources:
 | 32 | Selection cap | 4096 selected objects | `src/selection.rs` via `MAX_TRANSFORM_PATHS` | provisional | Not documented; reuses the transform-path cap. | `selection_cap_is_the_transform_path_cap`, `add_past_the_cap_is_an_error_and_does_not_mutate` |
 | 33 | Selection colours | member tint (107, 137, 157) and edge (242, 163, 70); lead tint (117, 167, 117) and edge (140, 240, 140) while more than one object is selected; a lone selection uses the member colours | `src/viewport_renderer.rs` `SELECTION_TINT_RGB`, `SELECTED_EDGE_RGB_OBJECT`, `LEAD_TINT_RGB`, `LEAD_EDGE_RGB` | provisional | Maya's "Select objects or components" page says the last selected object is drawn in a different colour; it gives no colour values, and what a lone selection looks like is not stated. Ours are original values. | `selection_colours_are_pinned`, `members_are_tinted_the_lead_differs_and_unselected_is_untouched`, `single_selection_pixels_are_unchanged` |
 | 34 | Marquee modifiers | plain drag Replace, Shift Toggle, Ctrl or Command Remove, Shift+Ctrl or Shift+Command Add; read from the primary release event | `src/app/features/marquee.rs` `marquee_mode` | provisional | The Marquee page is silent on Shift; both documented neighbours toggle (Shift-click, and Drag-style Shift over selected items). Ctrl removes and Shift+Ctrl adds are documented for either style. | `marquee_mode_maps_the_modifiers`, `marquee_drags_replace_add_remove_and_toggle_by_modifier_without_history_entries` |
-| 35 | Marquee hit rule and depth | any overlap of a visible mesh triangle with the closed rectangle selects its instance; no backface culling and no occlusion; a zero-area rectangle picks like a click (nearest hit) | `src/viewport/rect_pick.rs` `Camera::pick_rect`, `src/app/features/marquee.rs` | provisional | The Selection styles page does not say whether partly covered objects are selected. Maya's camera-based selection (on in Shaded, off in Wireframe and X-Ray) is documented for components and not implemented here. | `backfacing_and_mirrored_surfaces_are_selected_without_culling`, `marquee_selects_an_object_hidden_behind_another_in_shaded`, `a_point_marquee_selects_only_the_nearest_object_like_a_click` |
+| 35 | Marquee hit rule and depth | any overlap of a visible mesh triangle with the closed rectangle selects its instance; no backface culling and no occlusion filter (objects only); a zero-area rectangle picks like a click (nearest hit) | `src/viewport/rect_pick.rs` `Camera::pick_rect`, `src/app/features/marquee.rs` | provisional | The Selection styles page does not say whether partly covered objects are selected. Maya's camera-based selection (on in Shaded, off in Wireframe and X-Ray) is documented for components, so objects behind others are selected on purpose; the component slice will add it. | `backfacing_and_mirrored_surfaces_are_selected_without_culling`, `marquee_selects_an_occluded_object_in_every_shading_mode`, `a_point_marquee_selects_only_the_nearest_object_like_a_click` |
 | 36 | Marquee result order and lead | hits in instance order; Replace sets the members to the hits and the last hit leads; Add and Toggle append absent hits and the last appended leads; a Replace with the same members and order is `unchanged` | `src/app/features/marquee.rs` `select_in_rect`, `src/selection.rs` | provisional | Docs are silent on order and key object for a marquee. | `marquee_lead_is_the_last_hit_in_instance_order`, `replace_with_identical_members_keeps_generation`, `move_after_marquee_uses_the_last_hit_as_pivot` |
 | 37 | Marquee drag capture | the end clamps to the viewport (a release over another panel still selects); a drag back to its start is a point rectangle; Alt or any Orbit during the drag means no marquee; Esc during the drag cancels it | `src/viewport_ui.rs` `capture` | provisional | Docs are silent on all four. egui, not us, decides click versus drag. | `a_release_outside_the_viewport_clamps_the_end_to_its_edge`, `returning_to_the_start_is_a_zero_area_rect_at_that_point`, `escape_mid_drag_cancels_the_marquee_and_removes_the_band` |
 | 38 | Marquee rubber band | 1 px outline (170, 205, 255) and fill (120, 170, 255) at alpha 28, inside the viewport, Object and Hierarchy modes only | `src/app/panels.rs` | provisional | Our own values; Maya's marquee colours are not documented. | `the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport` pins the rectangle, not the colours |
@@ -380,6 +381,7 @@ default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit int
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
 
+[maya-select-obj]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5C5F2B9B-BE16-4C49-B72B-70EA7CB4C688.htm
 [maya-manip]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8740471F-BD72-4BDC-87B4-4DE870AD51E5.htm
 [maya-resize]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09DEFD6A-E8F9-4606-9D81-1CD45E01B59A.htm
 [maya-undo]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-DD494155-AC94-4C48-8A36-58267FECBB0A.htm

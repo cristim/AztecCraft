@@ -1005,9 +1005,12 @@ A primary drag in Object or Hierarchy mode selects objects by rectangle (`select
 rows 34 to 38 in [development.md](.project-docs/development.md#application-policy-constants)). It
 is a subset of Maya's marquee and every choice below is PROVISIONAL and unverified against Maya:
 
-- There is no camera-based selection: objects hidden behind another object inside the rectangle are
-  selected in every shading mode. Pinned by
-  `marquee_selects_an_object_hidden_behind_another_in_shaded`.
+- Objects hidden behind another object inside the rectangle are selected in every shading mode,
+  which is believed to match Maya's object marquee: camera-based selection is documented for
+  components only ([Select objects or components](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5C5F2B9B-BE16-4C49-B72B-70EA7CB4C688.htm)
+  and the Modeling Toolkit selection options), so occlusion filtering belongs to the component
+  marquee slice. PROVISIONAL, not checked against Maya. Pinned by
+  `marquee_selects_an_occluded_object_in_every_shading_mode`.
 - Any overlap of a visible triangle selects the object (the docs are silent on partly covered
   objects); there is no backface culling.
 - Shift toggles, Ctrl or Command removes, Shift+Ctrl adds; the Marquee page is silent on Shift.
