@@ -550,3 +550,64 @@ fn a_cursor_is_not_replayed_between_the_node_page_and_the_key_page() {
         ));
     }
 }
+
+#[test]
+fn a_uv_cursor_is_not_replayed_to_another_shape_or_the_node_and_key_pages() {
+    use crate::editor_operations::CursorScope;
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut editor = cubes(2);
+    let shapes: Vec<_> = editor
+        .history
+        .scene()
+        .shapes()
+        .iter()
+        .map(|shape| shape.id())
+        .collect();
+    let node_cursor = cursor_of(&editor.inspect_page(false, Some(&page(1, None))).unwrap());
+    let uv_cursor = PageCursor {
+        scope: CursorScope::Uvs(shapes[0]),
+        ..node_cursor
+    };
+    // `cursor_of` is revision-bound, so project the UVs first and rebuild both cursors.
+    for shape in &shapes {
+        editor
+            .apply_operation(crate::editor_operations::Operation::ProjectUvPlanar {
+                shape: *shape,
+                axis: UvProjectAxis::Z,
+            })
+            .unwrap();
+    }
+    let node_cursor = PageCursor {
+        revision: editor.history.revision(),
+        ..node_cursor
+    };
+    let uv_cursor = PageCursor {
+        revision: editor.history.revision(),
+        ..uv_cursor
+    };
+    assert!(editor.inspect_uvs(shapes[0], Some(&uv_cursor)).is_ok());
+    for (shape, cursor) in [
+        (shapes[1], uv_cursor),
+        (shapes[0], node_cursor),
+        (
+            shapes[0],
+            PageCursor {
+                scope: CursorScope::Keys(None),
+                ..uv_cursor
+            },
+        ),
+    ] {
+        assert!(matches!(
+            editor.inspect_uvs(shape, Some(&cursor)),
+            Err(OperationError::InvalidInput(_))
+        ));
+    }
+    for scoped in [
+        editor
+            .inspect_page(false, Some(&page(1, Some(uv_cursor))))
+            .map(drop),
+        editor.inspect_keys(None, Some(&uv_cursor)).map(drop),
+    ] {
+        assert!(matches!(scoped, Err(OperationError::InvalidInput(_))));
+    }
+}
