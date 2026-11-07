@@ -55,6 +55,11 @@ impl NdcRect {
         )
     }
 
+    /// Whether the corners coincide: the rectangle is a point, not an area.
+    pub fn is_point(&self) -> bool {
+        self.min == self.max
+    }
+
     pub fn min(&self) -> Vec2 {
         self.min
     }

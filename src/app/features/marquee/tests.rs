@@ -196,13 +196,11 @@ fn an_empty_plain_marquee_clears_and_an_empty_modified_one_changes_nothing() {
     assert!(!changed(marquee(&mut editor, empty, MarqueeMode::Replace)));
 }
 
-/// Pins the PROVISIONAL gap: there is no camera-based selection yet, so a cube wholly hidden
-/// behind a larger one is still selected. Slice 2 flips this assertion.
-#[test]
-fn marquee_selects_an_object_hidden_behind_another_in_shaded() {
+/// A unit cube with a larger cube in front of it on the line of sight through the origin.
+/// Returns the editor, the index of the hidden cube among the view instances, and both targets.
+fn occluded_pair() -> (Editor, usize, TransformTarget, TransformTarget) {
     let mut editor = editor_with(&[(0.0, 1.0)]);
     let back = editor.camera.eye().normalize();
-    // A second, larger cube between the eye and the first one, on the line of sight.
     let mut scene = editor.history.scene().clone();
     let front = scene.create(Primitive::Cube, "front").unwrap();
     scene
@@ -222,24 +220,73 @@ fn marquee_selects_an_object_hidden_behind_another_in_shaded() {
     editor.history = History::new(scene);
     editor.sync_fields();
     let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let hidden_node = editor.history.scene().nodes()[0].id();
     let hidden = view
         .instances()
         .iter()
-        .position(|instance| instance.transform() == editor.history.scene().nodes()[0].id())
+        .position(|instance| instance.transform() == hidden_node)
         .unwrap();
     let hit = editor
         .camera
         .pick_view(&view, Vec2::ZERO, editor.aspect)
         .unwrap()
         .unwrap();
-    assert_ne!(
-        hit.transform,
-        editor.history.scene().nodes()[0].id(),
-        "front cube occludes"
-    );
+    assert_ne!(hit.transform, hidden_node, "the front cube occludes");
+    let targets = paths(&editor);
+    let front = targets
+        .iter()
+        .find(|t| t.node == hit.transform)
+        .unwrap()
+        .clone();
+    let back = targets
+        .iter()
+        .find(|t| t.node == hidden_node)
+        .unwrap()
+        .clone();
+    (editor, hidden, front, back)
+}
+
+/// Pins the PROVISIONAL gap: there is no camera-based selection yet, so a cube wholly hidden
+/// behind a larger one is still selected by an area marquee. Slice 2 flips this assertion.
+#[test]
+fn marquee_selects_an_object_hidden_behind_another_in_shaded() {
+    let (mut editor, hidden, _, back) = occluded_pair();
     let bounds = around(&editor, hidden);
     assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Replace)));
-    assert!(editor.selection.contains(&paths(&editor)[0]));
+    assert!(editor.selection.contains(&back));
+}
+
+/// A zero-area marquee (a long press, P11) behaves like a click: only the nearest hit.
+#[test]
+fn a_point_marquee_selects_only_the_nearest_object_like_a_click() {
+    let (mut editor, _, front, back) = occluded_pair();
+    let point = [[0.0, 0.0], [0.0, 0.0]];
+    assert!(changed(marquee(&mut editor, point, MarqueeMode::Replace)));
+    assert_eq!(editor.selection.members(), std::slice::from_ref(&front));
+    assert!(changed(marquee(&mut editor, point, MarqueeMode::Toggle)));
+    assert!(editor.selection.is_empty());
+    assert!(changed(marquee(&mut editor, point, MarqueeMode::Add)));
+    assert_eq!(editor.selection.members(), std::slice::from_ref(&front));
+    assert!(changed(marquee(&mut editor, point, MarqueeMode::Remove)));
+    assert!(!editor.selection.contains(&back));
+    // A line (zero width, some height) is an area: it still reaches the hidden cube.
+    let line = [[0.0, -0.01], [0.0, 0.01]];
+    marquee(&mut editor, line, MarqueeMode::Replace).unwrap();
+    assert!(editor.selection.contains(&back) && editor.selection.contains(&front));
+}
+
+#[test]
+fn a_point_marquee_over_nothing_clears_like_an_empty_click() {
+    let mut editor = cubes_at(&[0.0]);
+    let cube = paths(&editor).remove(0);
+    select_only(&mut editor, &cube);
+    let corner = [1.0, 1.0];
+    assert!(changed(marquee(
+        &mut editor,
+        [corner, corner],
+        MarqueeMode::Replace
+    )));
+    assert!(editor.selection.is_empty());
 }
 
 #[test]
