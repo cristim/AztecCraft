@@ -218,6 +218,11 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         ],
     );
     expect(
+        "native result wrapper",
+        "native_operation_result(",
+        &["native_operation", "extrude_selected_face"],
+    );
+    expect(
         "native UI wrapper",
         "native_operation(",
         &[

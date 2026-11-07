@@ -202,8 +202,12 @@ fn the_window_reports_a_bad_thickness_dispatches_nothing_then_extrudes_a_good_on
     assert!(!editor.error, "{}", editor.status);
     assert_eq!(lowest_z(&editor), low - 0.25);
     assert_eq!(editor.history.undo_label().as_deref(), Some("Extrude"));
-    let dialog = editor.extrude_options.dialog.as_ref().unwrap();
-    assert!(dialog.message.is_none(), "the window stays open");
+    let dialog = editor
+        .extrude_options
+        .dialog
+        .as_ref()
+        .expect("the window stays open");
+    assert!(dialog.message.is_none());
 }
 
 #[test]
