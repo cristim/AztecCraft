@@ -1,6 +1,8 @@
-//! Marquee geometry: a normalised device rectangle and the overlap test of a projected triangle
-//! against it. Pure functions; `Camera::pick_rect` supplies the scene.
+//! Marquee geometry: a normalised device rectangle, the overlap test of a projected triangle
+//! against it, and `Camera::pick_rect`, which applies both to a `ViewScene`.
 
+use super::{Camera, InvalidCameraInput};
+use crate::view_scene::{ViewError, ViewScene};
 use glam::{Vec2, Vec4};
 use std::fmt;
 
@@ -71,9 +73,60 @@ impl NdcRect {
     }
 }
 
+impl Camera {
+    /// Indices into `scene.instances()`, in that order and without duplicates, of every instance
+    /// with a triangle whose projection touches `rect`. Any overlap counts (PROVISIONAL); there is
+    /// no backface culling and no occlusion test. Triangles are clipped to the depth range of
+    /// `project` first.
+    pub fn pick_rect(
+        &self,
+        scene: &ViewScene,
+        rect: NdcRect,
+        aspect: f32,
+    ) -> Result<Vec<usize>, ViewError> {
+        let camera_error = || ViewError::Camera(InvalidCameraInput);
+        let matrix =
+            self.projection_matrix(aspect).map_err(ViewError::Camera)? * self.view_matrix();
+        if !matrix.is_finite() {
+            return Err(camera_error());
+        }
+        let mut hits = Vec::new();
+        for (index, instance) in scene.instances().iter().enumerate() {
+            let clip: Vec<Vec4> = instance
+                .world_vertices()
+                .iter()
+                .map(|vertex| matrix * vertex.extend(1.0))
+                .collect();
+            if clip.iter().any(|point| !point.is_finite()) {
+                return Err(camera_error());
+            }
+            'faces: for face in instance.faces() {
+                for triangle in face.triangles() {
+                    let [a, b, c] = triangle.map(|corner| clip.get(corner).copied());
+                    let (Some(a), Some(b), Some(c)) = (a, b, c) else {
+                        return Err(ViewError::InvalidGeometry);
+                    };
+                    let mut polygon = Vec::with_capacity(8);
+                    for point in clip_triangle_depth([a, b, c]) {
+                        let ndc = Vec2::new(point.x, point.y) / point.w;
+                        if !ndc.is_finite() {
+                            return Err(camera_error());
+                        }
+                        polygon.push(ndc);
+                    }
+                    if polygon_overlaps_rect(&polygon, rect) {
+                        hits.push(index);
+                        break 'faces;
+                    }
+                }
+            }
+        }
+        Ok(hits)
+    }
+}
+
 /// Clips a clip-space triangle to the depth range `0 <= z <= w` that `Camera::project` accepts.
 /// Returns the convex polygon (empty when nothing is inside the range).
-#[allow(dead_code)] // first caller is `Camera::pick_rect`
 pub(super) fn clip_triangle_depth(triangle: [Vec4; 3]) -> Vec<Vec4> {
     let near = clip_against(&triangle, |p| p.z, |p| Vec4::new(p.x, p.y, 0.0, p.w));
     clip_against(&near, |p| p.w - p.z, |p| Vec4::new(p.x, p.y, p.w, p.w))
@@ -103,7 +156,6 @@ fn clip_against(
 
 /// Whether a convex polygon in NDC and the closed rectangle share a point (touching counts).
 /// A polygon with fewer than three vertices or zero area never overlaps.
-#[allow(dead_code)] // first caller is `Camera::pick_rect`
 pub(super) fn polygon_overlaps_rect(polygon: &[Vec2], rect: NdcRect) -> bool {
     if polygon.len() < 3 {
         return false;
