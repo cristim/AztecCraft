@@ -1,5 +1,6 @@
 pub(in crate::app) mod attribute_editor;
 mod camera;
+pub(in crate::app) mod extrude_options;
 mod history;
 pub(in crate::app) mod manipulation_tool;
 mod material;

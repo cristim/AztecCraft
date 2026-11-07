@@ -207,7 +207,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native wrapper",
         "apply_operation(",
         &[
-            "native_operation",
+            "native_operation_result",
             "viewport",
             "file_modal",
             "finish_native_sample",
@@ -216,6 +216,11 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "begin_native_manipulation",
             "run_numeric_manipulation",
         ],
+    );
+    expect(
+        "native result wrapper",
+        "native_operation_result(",
+        &["native_operation", "extrude_selected_face"],
     );
     expect(
         "native UI wrapper",
