@@ -8,7 +8,7 @@ use azteccraft::{
         ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
-    viewport::{InvalidCameraInput, InvalidCameraPose},
+    viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -53,6 +53,17 @@ pub enum SelectionChange {
     Add,
     Toggle,
     Remove,
+}
+
+/// How a marquee combines the objects it hits with the selection (Maya `select -replace`, `-add`,
+/// `-deselect`, `-toggle`). Replace sets the selection to the hits in instance order, so the lead
+/// is the last hit; Add and Toggle append absent hits in that order; Remove drops the hit members.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MarqueeMode {
+    Replace,
+    Add,
+    Remove,
+    Toggle,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -428,6 +439,20 @@ pub enum Operation {
     },
     /// Replaces the object selection by a rule (Select > All, Hierarchy, Inverse). Object and Hierarchy modes only.
     SelectByRule(SelectRule),
+    /// Selects the objects whose visible mesh overlaps `rect`, an NDC rectangle at the last
+    /// painted aspect, combined by `mode`. Object and Hierarchy modes only; every hit counts,
+    /// occluded ones included (PROVISIONAL, no camera-based selection yet).
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the native marquee release and MCP select_in_rect construct it, added next"
+        )
+    )]
+    SelectInRect {
+        rect: NdcRect,
+        mode: MarqueeMode,
+    },
     SetSelectionMode(SelectionMode),
     /// Maya's Select > Deselect All (`SelectNone`, Alt+D): clears the object and component
     /// selection and returns to Object selection mode.

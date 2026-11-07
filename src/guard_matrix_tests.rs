@@ -1213,6 +1213,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::SelectInRect { .. } => Vec::new(),
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),
