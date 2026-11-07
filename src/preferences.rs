@@ -188,43 +188,8 @@ fn observe(path: &Path) -> Observed {
     read_regular(path)
 }
 
-// std has no portable no-follow open and libc is not a direct dependency, so the Unix flag
-// values are spelled out per target; elsewhere the fstat check below is the only guard.
 #[cfg(unix)]
-const OPEN_FLAGS: i32 = {
-    const NONBLOCK: i32 = if cfg!(any(target_os = "linux", target_os = "android")) {
-        0o4000
-    } else {
-        0x4
-    };
-    const NOFOLLOW: i32 = if cfg!(any(
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
-        target_os = "dragonfly"
-    )) {
-        0x100
-    } else if cfg!(all(
-        any(target_os = "linux", target_os = "android"),
-        any(target_arch = "aarch64", target_arch = "arm")
-    )) {
-        0o100000
-    } else if cfg!(all(
-        any(target_os = "linux", target_os = "android"),
-        any(
-            target_arch = "x86_64",
-            target_arch = "x86",
-            target_arch = "riscv64"
-        )
-    )) {
-        0o400000
-    } else {
-        0
-    };
-    NONBLOCK | NOFOLLOW
-};
+const OPEN_FLAGS: i32 = libc::O_NOFOLLOW | libc::O_NONBLOCK;
 
 /// Open without following a link or blocking on a FIFO, then check the opened handle, so a
 /// file swapped in after the `symlink_metadata` call is still refused.
