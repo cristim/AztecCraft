@@ -6,12 +6,61 @@ use crate::app::*;
 use azteccraft::compatibility::MayaVersion;
 use azteccraft::preferences::{Preferences, ResetOutcome, Store};
 
+const CATEGORY_LIST_HEIGHT: f32 = 320.0;
+const SETTINGS_CATEGORY: &str = "Settings";
+const CATEGORY_REASON: &str = "Not implemented yet; only Settings is available";
+
+/// Maya 2027's Preferences categories, in the order of its Preferences window page.
+pub(in crate::app) const PREFERENCE_CATEGORIES: [&str; 39] = [
+    "Animation",
+    "Applications",
+    "Assets",
+    "Blue Pencil",
+    "Cached Playback",
+    "Cameras",
+    "Color Management",
+    "Display",
+    "DX11 Shader",
+    "Dynamics",
+    "Files/Projects",
+    "File References",
+    "Font",
+    "GLSL Shader",
+    "GPU Cache",
+    "Help",
+    "Hypershade",
+    "Interface",
+    "Kinematics",
+    "Manipulators",
+    "Modeling",
+    "Modules",
+    "Node Editor",
+    "NURBS",
+    "Polygons",
+    "Rendering",
+    "Save Actions",
+    "Search",
+    "Security",
+    "Selection",
+    "Settings",
+    "Snapping",
+    "Sound",
+    "Subdivs",
+    "Time Slider",
+    "UI Elements",
+    "ViewCube",
+    "Undo",
+    "XGen",
+];
+
 /// The modeless Preferences window's UI state. `pending` is an unsaved picker value; it is not a
 /// scene draft, so it never counts toward `has_draft()` or `is_dirty()`.
 #[derive(Default)]
 pub(in crate::app) struct PreferencesWindow {
+    pub(in crate::app) open: bool,
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     pub(in crate::app) pending: Option<MayaVersion>,
+    pub(in crate::app) error: Option<String>,
 }
 
 #[cfg(test)]
@@ -21,6 +70,77 @@ thread_local! {
 }
 
 impl Editor {
+    pub(in crate::app) fn open_preferences(&mut self) {
+        self.preferences_window.open = true;
+    }
+
+    /// Drops the unsaved value and any save error; no operation runs. An approved app close ends
+    /// here, and so do Cancel and the title-bar X.
+    pub(in crate::app) fn discard_preferences_draft(&mut self) {
+        self.preferences_window.pending = None;
+        self.preferences_window.error = None;
+    }
+
+    fn close_preferences(&mut self) {
+        self.discard_preferences_draft();
+        self.preferences_window.open = false;
+    }
+
+    pub(in crate::app) fn show_preferences(&mut self, ctx: &egui::Context) {
+        if !self.preferences_window.open {
+            return;
+        }
+        let mut open = true;
+        let mut cancel = false;
+        let error = self.preferences_window.error.clone();
+        egui::Window::new("Preferences")
+            .id(egui::Id::unique("preferences_window"))
+            .open(&mut open)
+            .collapsible(false)
+            .show(ctx, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.menu_button("Edit", |ui| {
+                        for label in ["Revert to Saved", "Restore Default Settings"] {
+                            ui.add_enabled(false, egui::Button::new(label))
+                                .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
+                        }
+                    });
+                });
+                ui.separator();
+                ui.horizontal_top(|ui| {
+                    egui::ScrollArea::vertical()
+                        .id_salt("preference_categories")
+                        .max_height(CATEGORY_LIST_HEIGHT)
+                        .min_scrolled_height(CATEGORY_LIST_HEIGHT)
+                        .show(ui, |ui| {
+                            ui.vertical(|ui| {
+                                for name in PREFERENCE_CATEGORIES {
+                                    if name == SETTINGS_CATEGORY {
+                                        let _ = ui.selectable_label(true, name);
+                                    } else {
+                                        ui.add_enabled(false, egui::Button::new(name))
+                                            .on_disabled_hover_text(CATEGORY_REASON);
+                                    }
+                                }
+                            });
+                        });
+                    ui.vertical(|ui| {
+                        ui.heading(SETTINGS_CATEGORY);
+                        if let Some(error) = &error {
+                            ui.colored_label(ui.visuals().error_fg_color, error);
+                        }
+                    });
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    cancel = ui.button("Cancel").clicked();
+                });
+            });
+        if cancel || !open {
+            self.close_preferences();
+        }
+    }
+
     /// Loads the per-user preferences file. Only the app entry point calls this; constructors
     /// stay session-only so tests never read a developer's real settings.
     pub fn load_preferences(&mut self) {

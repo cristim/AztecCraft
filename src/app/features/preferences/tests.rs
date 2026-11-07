@@ -235,3 +235,257 @@ fn native_set_is_not_blocked_by_a_pending_value() {
         Ok(OperationReply::Changed)
     ));
 }
+
+mod window {
+    use super::*;
+    use crate::app::tests::frame_with;
+    use eframe::egui::{Event, Modifiers, PointerButton, Pos2, Rect, Vec2, accesskit};
+
+    const SIZE: Vec2 = egui::vec2(1200.0, 800.0);
+
+    struct Control {
+        role: accesskit::Role,
+        label: String,
+        rect: Rect,
+        disabled: bool,
+    }
+
+    fn controls(output: &egui::FullOutput) -> Vec<Control> {
+        let update = output
+            .platform_output
+            .accesskit_update
+            .as_ref()
+            .expect("accesskit enabled");
+        update
+            .nodes
+            .iter()
+            .filter_map(|(_, node)| {
+                let bounds = node.bounds()?;
+                Some(Control {
+                    role: node.role(),
+                    label: node.label()?.to_owned(),
+                    rect: Rect::from_min_max(
+                        Pos2::new(bounds.x0 as f32, bounds.y0 as f32),
+                        Pos2::new(bounds.x1 as f32, bounds.y1 as f32),
+                    ),
+                    disabled: node.is_disabled(),
+                })
+            })
+            .collect()
+    }
+
+    fn button(output: &egui::FullOutput, label: &str) -> Option<Control> {
+        controls(output)
+            .into_iter()
+            .filter(|c| c.role == accesskit::Role::Button && c.label == label)
+            .min_by(|a, b| a.rect.top().total_cmp(&b.rect.top()))
+    }
+
+    fn setup(editor: Editor) -> (Editor, egui::Context) {
+        let context = egui::Context::default();
+        context.enable_accesskit();
+        let editor = Editor {
+            renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
+            ..editor
+        };
+        (editor, context)
+    }
+
+    fn run(editor: &mut Editor, ctx: &egui::Context, events: Vec<Event>) -> egui::FullOutput {
+        frame_with(editor, ctx, SIZE, 1.0, events)
+    }
+
+    fn settle(editor: &mut Editor, ctx: &egui::Context) -> egui::FullOutput {
+        // The window sizes itself over several frames.
+        (0..9)
+            .map(|_| run(editor, ctx, vec![]))
+            .last()
+            .expect("at least one frame")
+    }
+
+    fn click(editor: &mut Editor, ctx: &egui::Context, at: Pos2) {
+        run(editor, ctx, vec![Event::PointerMoved(at)]);
+        for pressed in [true, false] {
+            run(
+                editor,
+                ctx,
+                vec![Event::PointerButton {
+                    pos: at,
+                    button: PointerButton::Primary,
+                    pressed,
+                    modifiers: Modifiers::NONE,
+                }],
+            );
+        }
+    }
+
+    fn press(editor: &mut Editor, ctx: &egui::Context, label: &str) {
+        let output = settle(editor, ctx);
+        let found = button(&output, label).unwrap_or_else(|| panic!("button {label}"));
+        assert!(!found.disabled, "{label} must be enabled");
+        click(editor, ctx, found.rect.center());
+    }
+
+    fn open_window(editor: &mut Editor, ctx: &egui::Context) {
+        editor.open_preferences();
+        settle(editor, ctx);
+    }
+
+    fn window_shown(output: &egui::FullOutput) -> bool {
+        button(output, "Cancel").is_some()
+    }
+
+    fn with_store(dir: &tempfile::TempDir) -> (Editor, egui::Context, PathBuf) {
+        let (editor, path) = writable(dir);
+        let (editor, ctx) = setup(editor);
+        (editor, ctx, path)
+    }
+
+    fn untouched(editor: &Editor, path: &std::path::Path) {
+        assert_eq!(editor.preferences.maya_compatibility_version, v(2027));
+        assert!(!path.exists());
+        assert_eq!(editor.preferences_window.pending, None);
+    }
+
+    #[test]
+    fn categories_are_in_the_maya_order() {
+        assert_eq!(PREFERENCE_CATEGORIES.len(), 39);
+        assert_eq!(
+            PREFERENCE_CATEGORIES,
+            [
+                "Animation",
+                "Applications",
+                "Assets",
+                "Blue Pencil",
+                "Cached Playback",
+                "Cameras",
+                "Color Management",
+                "Display",
+                "DX11 Shader",
+                "Dynamics",
+                "Files/Projects",
+                "File References",
+                "Font",
+                "GLSL Shader",
+                "GPU Cache",
+                "Help",
+                "Hypershade",
+                "Interface",
+                "Kinematics",
+                "Manipulators",
+                "Modeling",
+                "Modules",
+                "Node Editor",
+                "NURBS",
+                "Polygons",
+                "Rendering",
+                "Save Actions",
+                "Search",
+                "Security",
+                "Selection",
+                "Settings",
+                "Snapping",
+                "Sound",
+                "Subdivs",
+                "Time Slider",
+                "UI Elements",
+                "ViewCube",
+                "Undo",
+                "XGen",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_windows_menu_path_opens_the_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        let output = settle(&mut editor, &ctx);
+        assert!(!window_shown(&output));
+        let windows = controls(&output)
+            .into_iter()
+            .find(|c| c.label == "Windows" && c.rect.top() < 30.0)
+            .expect("Windows menu")
+            .rect
+            .center();
+        click(&mut editor, &ctx, windows);
+        let opened = settle(&mut editor, &ctx);
+        let submenu = controls(&opened)
+            .into_iter()
+            .find(|c| c.label.starts_with("Settings/Preferences"))
+            .expect("Settings/Preferences submenu")
+            .rect
+            .center();
+        run(&mut editor, &ctx, vec![Event::PointerMoved(submenu)]);
+        let hovered = settle(&mut editor, &ctx);
+        let row = controls(&hovered)
+            .into_iter()
+            .find(|c| c.role == accesskit::Role::Button && c.label == "Preferences")
+            .expect("Preferences row");
+        assert!(!row.disabled);
+        click(&mut editor, &ctx, row.rect.center());
+        assert!(editor.preferences_window.open);
+        assert!(window_shown(&settle(&mut editor, &ctx)));
+    }
+
+    #[test]
+    fn only_the_settings_category_is_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        let shown = controls(&output);
+        for name in PREFERENCE_CATEGORIES {
+            let row = shown
+                .iter()
+                .find(|c| c.label == name && c.rect.left() > 0.0 && c.rect.top() > 40.0)
+                .unwrap_or_else(|| panic!("category {name}"));
+            assert_eq!(row.disabled, name != "Settings", "{name}");
+        }
+    }
+
+    #[test]
+    fn edit_menu_rows_are_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, _) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        let output = settle(&mut editor, &ctx);
+        let edit = controls(&output)
+            .into_iter()
+            .filter(|c| c.label == "Edit")
+            .max_by(|a, b| a.rect.top().total_cmp(&b.rect.top()))
+            .expect("window Edit menu")
+            .rect
+            .center();
+        click(&mut editor, &ctx, edit);
+        let opened = settle(&mut editor, &ctx);
+        for label in ["Revert to Saved", "Restore Default Settings"] {
+            let row = button(&opened, label).unwrap_or_else(|| panic!("row {label}"));
+            assert!(row.disabled, "{label}");
+        }
+    }
+
+    #[test]
+    fn cancel_discards_a_pending_value_without_an_operation() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Cancel");
+        assert!(!window_shown(&settle(&mut editor, &ctx)));
+        assert!(!editor.preferences_window.open);
+        untouched(&editor, &path);
+    }
+
+    #[test]
+    fn the_x_button_discards_a_pending_value_without_an_operation() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut editor, ctx, path) = with_store(&dir);
+        open_window(&mut editor, &ctx);
+        editor.preferences_window.pending = Some(v(2015));
+        press(&mut editor, &ctx, "Close window");
+        assert!(!window_shown(&settle(&mut editor, &ctx)));
+        assert!(!editor.preferences_window.open);
+        untouched(&editor, &path);
+    }
+}

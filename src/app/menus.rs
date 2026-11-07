@@ -35,6 +35,8 @@ pub(super) const ALWAYS_ON_MENUS: [&str; 7] = [
 
 const CONTENT_MENUS: usize = 4;
 
+pub(super) const WINDOWS_MENU: &str = "Windows";
+
 /// Maya lists these Modeling topics after the default menus; their order is PROVISIONAL.
 pub(super) const MODELING_SET_MENUS: [&str; 9] = [
     "Mesh",
@@ -463,7 +465,11 @@ impl Editor {
                 });
             });
             for label in &ALWAYS_ON_MENUS[CONTENT_MENUS..] {
-                placeholder_menu(ui, label);
+                if *label == WINDOWS_MENU {
+                    self.windows_menu(ui);
+                } else {
+                    placeholder_menu(ui, label);
+                }
             }
             for label in MODELING_SET_MENUS {
                 if label == "UV" {
@@ -476,6 +482,19 @@ impl Editor {
                 ui.label("Local editor prototype");
                 ui.label("Maya parity has not been verified.");
             });
+        });
+    }
+
+    /// Maya's Windows menu: only Settings/Preferences > Preferences is live so far.
+    fn windows_menu(&mut self, ui: &mut egui::Ui) {
+        ui.menu_button(WINDOWS_MENU, |ui| {
+            ui.menu_button("Settings/Preferences", |ui| {
+                if ui.button("Preferences").clicked() {
+                    self.open_preferences();
+                    ui.close();
+                }
+            });
+            unsupported(ui, NOT_IMPLEMENTED_YET);
         });
     }
 

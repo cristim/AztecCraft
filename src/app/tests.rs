@@ -5762,13 +5762,15 @@ mod menu_bar_wire {
 
     #[test]
     fn placeholder_menus_open_to_one_visibly_unsupported_row() {
+        use crate::app::menus::WINDOWS_MENU;
         let placeholders: Vec<&str> = ALWAYS_ON_MENUS[4..]
             .iter()
             .chain(MODELING_SET_MENUS.iter())
             .copied()
             .filter(|label| *label != "UV")
+            .filter(|label| *label != WINDOWS_MENU)
             .collect();
-        assert_eq!(placeholders.len(), 11);
+        assert_eq!(placeholders.len(), 10);
         for label in placeholders {
             let (mut editor, context) = setup();
             let output = frame(&mut editor, &context, vec![]);
