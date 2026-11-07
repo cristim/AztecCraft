@@ -91,6 +91,7 @@ impl Camera {
             return Err(camera_error());
         }
         let mut hits = Vec::new();
+        let (mut scratch, mut clipped, mut polygon) = (Vec::new(), Vec::new(), Vec::new());
         for (index, instance) in scene.instances().iter().enumerate() {
             let clip: Vec<Vec4> = instance
                 .world_vertices()
@@ -106,8 +107,9 @@ impl Camera {
                     let (Some(a), Some(b), Some(c)) = (a, b, c) else {
                         return Err(ViewError::InvalidGeometry);
                     };
-                    let mut polygon = Vec::with_capacity(8);
-                    for point in clip_triangle_depth([a, b, c]) {
+                    clip_triangle_depth([a, b, c], &mut scratch, &mut clipped);
+                    polygon.clear();
+                    for point in &clipped {
                         let ndc = Vec2::new(point.x, point.y) / point.w;
                         if !ndc.is_finite() {
                             return Err(camera_error());
@@ -126,20 +128,32 @@ impl Camera {
 }
 
 /// Clips a clip-space triangle to the depth range `0 <= z <= w` that `Camera::project` accepts.
-/// Returns the convex polygon (empty when nothing is inside the range).
-pub(super) fn clip_triangle_depth(triangle: [Vec4; 3]) -> Vec<Vec4> {
-    let near = clip_against(&triangle, |p| p.z, |p| Vec4::new(p.x, p.y, 0.0, p.w));
-    clip_against(&near, |p| p.w - p.z, |p| Vec4::new(p.x, p.y, p.w, p.w))
+/// The convex polygon (empty when nothing is inside the range) is left in `out`; `scratch` holds
+/// the intermediate polygon. Both are cleared first, so callers reuse them across triangles.
+fn clip_triangle_depth(triangle: [Vec4; 3], scratch: &mut Vec<Vec4>, out: &mut Vec<Vec4>) {
+    clip_against(
+        &triangle,
+        scratch,
+        |p| p.z,
+        |p| Vec4::new(p.x, p.y, 0.0, p.w),
+    );
+    clip_against(
+        scratch,
+        out,
+        |p| p.w - p.z,
+        |p| Vec4::new(p.x, p.y, p.w, p.w),
+    );
 }
 
-/// One Sutherland-Hodgman pass keeping the points where `distance` is not negative. `snap` puts a
-/// computed boundary point exactly on the plane.
+/// One Sutherland-Hodgman pass into `out`, keeping the points where `distance` is not negative.
+/// `snap` puts a computed boundary point exactly on the plane.
 fn clip_against(
     polygon: &[Vec4],
+    out: &mut Vec<Vec4>,
     distance: impl Fn(Vec4) -> f32,
     snap: impl Fn(Vec4) -> Vec4,
-) -> Vec<Vec4> {
-    let mut out = Vec::with_capacity(polygon.len() + 1);
+) {
+    out.clear();
     for (index, &current) in polygon.iter().enumerate() {
         let previous = polygon[(index + polygon.len() - 1) % polygon.len()];
         let (d_current, d_previous) = (distance(current), distance(previous));
@@ -151,7 +165,6 @@ fn clip_against(
             out.push(current);
         }
     }
-    out
 }
 
 /// Whether a convex polygon in NDC and the closed rectangle share a point (touching counts).

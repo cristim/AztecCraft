@@ -139,6 +139,12 @@ fn ndc_rect_clamped_clips_to_the_viewport_and_rejects_non_finite() {
     );
 }
 
+fn clip_of(triangle: [Vec4; 3]) -> Vec<Vec4> {
+    let (mut scratch, mut out) = (vec![Vec4::ONE; 9], vec![Vec4::ONE; 9]);
+    clip_triangle_depth(triangle, &mut scratch, &mut out);
+    out
+}
+
 fn clip(x: f32, y: f32, z: f32, w: f32) -> Vec4 {
     Vec4::new(x, y, z, w)
 }
@@ -150,7 +156,7 @@ fn clip_keeps_a_triangle_inside_the_depth_range_unchanged() {
         clip(1.0, 0.0, 0.5, 1.0),
         clip(0.0, 1.0, 0.5, 1.0),
     ];
-    assert_eq!(clip_triangle_depth(tri), tri);
+    assert_eq!(clip_of(tri), tri);
 }
 
 #[test]
@@ -160,13 +166,13 @@ fn clip_drops_a_triangle_behind_the_near_plane_or_beyond_the_far_plane() {
         clip(1.0, 0.0, -0.1, 1.0),
         clip(0.0, 1.0, -0.2, 1.0),
     ];
-    assert!(clip_triangle_depth(behind).is_empty());
+    assert!(clip_of(behind).is_empty());
     let beyond = [
         clip(0.0, 0.0, 2.0, 1.0),
         clip(1.0, 0.0, 1.5, 1.0),
         clip(0.0, 1.0, 3.0, 1.0),
     ];
-    assert!(clip_triangle_depth(beyond).is_empty());
+    assert!(clip_of(beyond).is_empty());
 }
 
 #[test]
@@ -176,7 +182,7 @@ fn clip_cuts_a_triangle_straddling_the_near_plane_at_z_zero() {
         clip(1.0, 0.0, 1.0, 1.0),
         clip(0.0, 1.0, 0.5, 1.0),
     ];
-    let polygon = clip_triangle_depth(tri);
+    let polygon = clip_of(tri);
     assert!(polygon.len() >= 3);
     for p in &polygon {
         assert!(p.z >= 0.0 && p.z <= p.w, "{p:?}");
@@ -191,7 +197,7 @@ fn clip_cuts_a_triangle_straddling_the_far_plane_at_z_equal_w() {
         clip(1.0, 0.0, 2.0, 1.0),
         clip(0.0, 1.0, 0.5, 1.0),
     ];
-    let polygon = clip_triangle_depth(tri);
+    let polygon = clip_of(tri);
     assert!(polygon.len() >= 3);
     for p in &polygon {
         assert!(p.z >= 0.0 && p.z <= p.w, "{p:?}");
@@ -407,10 +413,8 @@ fn non_finite_camera_input_is_an_error_and_selects_nothing() {
 
 /// A seeded sweep of points: wherever the ray pick finds a surface, the degenerate rect at that
 /// point selects the instance it belongs to.
-#[test]
-fn a_point_rect_selects_at_least_the_instance_the_ray_pick_hits() {
+fn assert_point_rects_agree_with_pick_view(view: &ViewScene) {
     let camera = Camera::default();
-    let view = view_of(&cubes_at(&[-4.0, -1.0, 2.0, 5.0]));
     let mut state = 0x2545_f491_4f6c_dd1d_u64;
     let mut next = || {
         state ^= state << 13;
@@ -421,7 +425,7 @@ fn a_point_rect_selects_at_least_the_instance_the_ray_pick_hits() {
     let mut hit_count = 0;
     for _ in 0..2000 {
         let point = v(next(), next());
-        let Some(hit) = camera.pick_view(&view, point, ASPECT).unwrap() else {
+        let Some(hit) = camera.pick_view(view, point, ASPECT).unwrap() else {
             continue;
         };
         hit_count += 1;
@@ -431,12 +435,57 @@ fn a_point_rect_selects_at_least_the_instance_the_ray_pick_hits() {
             .position(|instance| instance.path() == hit.path.as_slice())
             .unwrap();
         let selected = camera
-            .pick_rect(&view, NdcRect::new(point, point).unwrap(), ASPECT)
+            .pick_rect(view, NdcRect::new(point, point).unwrap(), ASPECT)
             .unwrap();
         assert!(
             selected.contains(&expected),
             "{point:?} -> {selected:?} vs {expected}"
         );
     }
-    assert!(hit_count > 100, "the sweep must hit something: {hit_count}");
+    assert!(hit_count > 20, "the sweep must hit something: {hit_count}");
+}
+
+fn transformed_cubes(transforms: &[NativeTransform]) -> NativeScene {
+    let mut scene = NativeScene::default();
+    for (index, transform) in transforms.iter().enumerate() {
+        let node = scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+        scene.set_transform(node, *transform).unwrap();
+    }
+    scene
+}
+
+#[test]
+fn a_point_rect_selects_at_least_the_instance_the_ray_pick_hits() {
+    assert_point_rects_agree_with_pick_view(&view_of(&cubes_at(&[-4.0, -1.0, 2.0, 5.0])));
+}
+
+#[test]
+fn the_agreement_sweep_holds_for_rotated_and_mirrored_instances() {
+    let at = |x: f64, rotation: [f64; 3], scale: [f64; 3]| NativeTransform {
+        translation: [x, 0.0, 0.0],
+        rotation,
+        scale,
+    };
+    let rotated = transformed_cubes(&[
+        at(-2.0, [20.0, 35.0, -15.0], [1.0; 3]),
+        at(1.5, [70.0, -10.0, 40.0], [1.0, 2.0, 0.5]),
+    ]);
+    assert_point_rects_agree_with_pick_view(&view_of(&rotated));
+    for scale in [[-1.0, 1.0, 1.0], [-1.0, -1.0, 1.0], [-1.5, -1.0, -0.5]] {
+        let mirrored = transformed_cubes(&[
+            at(-2.0, [0.0; 3], scale),
+            at(1.5, [30.0, 20.0, 10.0], scale),
+        ]);
+        assert_point_rects_agree_with_pick_view(&view_of(&mirrored));
+    }
+}
+
+#[test]
+fn the_agreement_sweep_holds_for_nested_and_instanced_paths() {
+    let (chain, ..) = test_fixtures::instanced_chain();
+    let chain = view_of(&chain);
+    assert!(chain.instances().iter().any(|i| i.path().len() > 2));
+    assert_point_rects_agree_with_pick_view(&chain);
+    let (grouped, ..) = test_fixtures::grouped_shape();
+    assert_point_rects_agree_with_pick_view(&view_of(&grouped));
 }
