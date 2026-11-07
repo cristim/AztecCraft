@@ -1244,7 +1244,7 @@ UVs exist only on shapes authored in the session, as one `map1` holding one UV p
 so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
 holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
-Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
+bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The projections are oriented
 as Maya's Y-up side, top and front views (X: u=-z, v=y; Y: u=x, v=-z; Z: u=x, v=y), view-matching and
 right-handed, so a face looking along +axis has positive UV area. Maya's pages state no per-axis
