@@ -41,3 +41,7 @@ impl Editor {
         Ok((Command::ImportObjects(Box::new(plan)), totals))
     }
 }
+
+#[cfg(test)]
+#[path = "obj_import_tests.rs"]
+mod tests;
