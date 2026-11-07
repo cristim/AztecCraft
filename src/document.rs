@@ -115,6 +115,20 @@ impl NativeOrigin {
         (cfg!(any(unix, windows)) && matches!(self, Self::Binary(_)))
             || (cfg!(unix) && matches!(self, Self::AuthoredAscii(_) | Self::Untitled))
     }
+    /// The extensions Save As can write from this origin, in dialog order. A Binary origin whose
+    /// scene was authored here (not parsed from the file) can also be written as Maya ASCII.
+    pub fn save_as_extensions(&self) -> &'static [&'static str] {
+        if !self.save_as_available() {
+            return &[];
+        }
+        match self {
+            Self::Untitled | Self::AuthoredAscii(_) => &["ma", "mb"],
+            Self::Binary(source) if matches!(source.retention, Retention::Authored { .. }) => {
+                &["ma", "mb"]
+            }
+            _ => &["mb"],
+        }
+    }
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Untitled => "untitled",

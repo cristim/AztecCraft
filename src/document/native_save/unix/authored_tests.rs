@@ -323,3 +323,35 @@ fn an_ascii_origin_cannot_active_save_over_a_binary_writer() {
     let transaction = prepare(&origin, &scene, SaveDestination::Active, &|| true);
     assert_eq!(transaction.err(), Some(Error::Unsupported));
 }
+
+#[test]
+fn the_save_as_dialog_offers_the_formats_each_origin_can_write() {
+    let scratch = tempfile::tempdir().unwrap();
+    let scene = authored();
+    let (ascii_origin, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("a.ma"),
+        &NativeOrigin::Untitled,
+    ));
+    let (binary_authored, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("b.mb"),
+        &NativeOrigin::Untitled,
+    ));
+    let both: &[&str] = &["ma", "mb"];
+    assert_eq!(NativeOrigin::Untitled.save_as_extensions(), both);
+    assert_eq!(ascii_origin.save_as_extensions(), both);
+    assert_eq!(binary_authored.save_as_extensions(), both);
+    let opened_binary = opened(scratch.path()).1.origin;
+    assert_eq!(opened_binary.save_as_extensions(), &["mb"]);
+    assert!(
+        ascii_only_origin(scratch.path())
+            .save_as_extensions()
+            .is_empty()
+    );
+    assert!(
+        legacy_origin(scratch.path())
+            .save_as_extensions()
+            .is_empty()
+    );
+}

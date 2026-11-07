@@ -323,17 +323,18 @@ impl Editor {
         if self.files.is_modal() || !self.files.save_as_available() {
             return;
         }
-        // Select the filter based on the scene origin.
-        let dialog = match &self.files.origin {
-            NativeOrigin::Binary(_) => rfd::FileDialog::new()
-                .set_title("Save Maya binary scene to a new file")
-                .add_filter("Maya binary scene", &["mb"]),
-            NativeOrigin::Untitled | NativeOrigin::AuthoredAscii(_) => rfd::FileDialog::new()
-                .set_title("Save Maya ASCII scene to a new file")
-                .add_filter("Maya ASCII scene", &["ma"])
-                .set_file_name("untitled.ma"),
-            _ => return, // Ascii and Legacy cannot be saved
+        let extensions = self.files.origin.save_as_extensions();
+        let Some(first) = extensions.first() else {
+            return;
         };
+        let mut dialog = rfd::FileDialog::new().set_title("Save scene to a new file");
+        for extension in extensions {
+            dialog = match *extension {
+                "ma" => dialog.add_filter("Maya ASCII scene", &["ma"]),
+                _ => dialog.add_filter("Maya binary scene", &["mb"]),
+            };
+        }
+        dialog = dialog.set_file_name(format!("untitled.{first}"));
         if let Some(path) = dialog.save_file() {
             self.native_operation(Operation::SaveSceneAs { path });
         }
