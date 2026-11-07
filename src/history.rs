@@ -131,16 +131,18 @@ const UNDISPLAYABLE_WORLD: &str =
 const UNDISPLAYABLE_VIEW: &str = "the viewport view could not be built for the imported scene";
 
 /// Maps a failed view admission of an import candidate: budget and allocation failures are
-/// resource limits, every shape failure is an unsupported view with its own accurate text.
+/// resource limits, every shape failure is `ImportUndisplayable` with its own accurate text.
 fn view_refusal(error: ViewError) -> NativeError {
     match error {
         ViewError::Native(error) => error,
         ViewError::ResourceLimit => NativeError::ResourceLimit,
-        ViewError::UnsupportedPolygon => NativeError::UnsupportedView(UNDISPLAYABLE_POLYGON),
-        ViewError::InvalidGeometry => NativeError::UnsupportedView(UNDISPLAYABLE_GEOMETRY),
-        ViewError::UnsupportedTransform => NativeError::UnsupportedView(UNDISPLAYABLE_TRANSFORM),
-        ViewError::NonFiniteWorld => NativeError::UnsupportedView(UNDISPLAYABLE_WORLD),
-        ViewError::Camera(_) => NativeError::UnsupportedView(UNDISPLAYABLE_VIEW),
+        ViewError::UnsupportedPolygon => NativeError::ImportUndisplayable(UNDISPLAYABLE_POLYGON),
+        ViewError::InvalidGeometry => NativeError::ImportUndisplayable(UNDISPLAYABLE_GEOMETRY),
+        ViewError::UnsupportedTransform => {
+            NativeError::ImportUndisplayable(UNDISPLAYABLE_TRANSFORM)
+        }
+        ViewError::NonFiniteWorld => NativeError::ImportUndisplayable(UNDISPLAYABLE_WORLD),
+        ViewError::Camera(_) => NativeError::ImportUndisplayable(UNDISPLAYABLE_VIEW),
     }
 }
 

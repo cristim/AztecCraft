@@ -1061,17 +1061,7 @@ impl Editor {
             command,
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
         );
-        let import_command = matches!(command, Command::ImportObjects(_));
         let outcome = self.history.execute(command).map_err(|error| {
-            if import_command
-                && matches!(
-                    error,
-                    azteccraft::native_scene::NativeError::UnsupportedView(_)
-                        | azteccraft::native_scene::NativeError::ResourceLimit
-                )
-            {
-                return OperationError::ImportRefused(error);
-            }
             if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
                 return OperationError::ReadOnlyKeys;
             }

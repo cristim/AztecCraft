@@ -2094,6 +2094,8 @@ pub enum NativeError {
     },
     BusyManipulation,
     UnsupportedView(&'static str),
+    /// An OBJ import would leave a scene the viewport cannot display; the text says why.
+    ImportUndisplayable(&'static str),
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2185,6 +2187,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }
+            Self::ImportUndisplayable(reason) => f.write_str(reason),
         }
     }
 }

@@ -62,7 +62,7 @@ fn a_concave_pentagon_is_refused_and_scene_history_and_redo_are_untouched() {
     let command = plan(history.scene(), CONCAVE_PENTAGON);
     assert!(matches!(
         history.execute(command),
-        Err(NativeError::UnsupportedView(text)) if text.contains("convex")
+        Err(NativeError::ImportUndisplayable(text)) if text.contains("convex")
     ));
     assert_eq!(history.scene(), &before);
     assert_eq!(history.revision(), revision);
@@ -81,7 +81,7 @@ fn view_errors_map_to_native_errors() {
         NativeError::InvalidTopology
     );
     let text = |error| match view_refusal(error) {
-        NativeError::UnsupportedView(text) => text,
+        NativeError::ImportUndisplayable(text) => text,
         other => panic!("{other:?}"),
     };
     let polygon = text(ViewError::UnsupportedPolygon);

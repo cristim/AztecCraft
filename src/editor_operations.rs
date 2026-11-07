@@ -1058,8 +1058,6 @@ pub enum OperationError {
     ObjExport(ObjExportError),
     /// OBJ import file refusal; path-free and content-free (a class and a line number).
     ObjImport(azteccraft::obj::import::ObjImportError),
-    /// History refused an import candidate: the viewport cannot display it, or it is too big.
-    ImportRefused(NativeError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1134,7 +1132,6 @@ impl fmt::Display for OperationError {
             Self::NativeSave(error) => error.fmt(f),
             Self::ObjExport(error) => error.fmt(f),
             Self::ObjImport(error) => error.fmt(f),
-            Self::ImportRefused(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }
