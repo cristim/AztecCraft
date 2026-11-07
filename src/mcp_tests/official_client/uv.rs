@@ -444,3 +444,49 @@ async fn uv_sdk_a_cursor_is_bound_to_its_shape_and_tool() {
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn uv_sdk_undo_restores_the_previous_projection_and_a_deleted_set() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id().to_decimal();
+    let project = |axis: &str| json!({"shape_id": shape, "axis": axis});
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "project_uv_planar",
+        project("z"),
+    )
+    .await;
+    let on_z =
+        read(&mut editor, &context, &client, json!({"shape_id": shape})).await["faces"].clone();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "project_uv_planar",
+        project("x"),
+    )
+    .await;
+    let on_x =
+        read(&mut editor, &context, &client, json!({"shape_id": shape})).await["faces"].clone();
+    assert_ne!(on_x, on_z);
+
+    // Undo returns to the earlier axis, not to no UVs.
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    let back = read(&mut editor, &context, &client, json!({"shape_id": shape})).await;
+    assert_eq!(back["faces"], on_z);
+
+    let args = json!({"shape_id": shape});
+    tool(&mut editor, &context, &client, "delete_uvs", args.clone()).await;
+    let none = read(&mut editor, &context, &client, args.clone()).await;
+    assert_eq!(none["uv_set"], Value::Null);
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    let restored = read(&mut editor, &context, &client, args).await;
+    assert_eq!(restored["faces"], on_z);
+
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
