@@ -153,3 +153,33 @@ fn the_legacy_view_refuses_rather_than_dropping_uvs() {
         Err(NativeError::UnsupportedView("session UVs"))
     );
 }
+
+// `validate` runs on every structural edit, so it must visit each shape once however many shapes
+// hold UVs, not once per set. Counting visits pins that without a wall-clock assertion.
+#[test]
+fn validate_visits_each_shape_once_however_many_hold_uvs() {
+    for count in [1usize, 64] {
+        let mut scene = NativeScene::default();
+        for index in 0..count {
+            scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+        }
+        let shapes: Vec<NativeId> = scene.shapes().iter().map(|shape| shape.id()).collect();
+        for shape in shapes {
+            scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+        }
+        let before = SHAPE_VISITS.with(std::cell::Cell::get);
+        scene.validate().unwrap();
+        let visits = SHAPE_VISITS.with(std::cell::Cell::get) - before;
+        assert_eq!(visits, count, "{count} shapes with UVs");
+    }
+}
+
+#[test]
+fn validate_rejects_a_uv_set_whose_shape_is_gone() {
+    let (mut scene, shape) = scene_with(Primitive::Cube);
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    let set = scene.session_uvs.sets[&shape].clone();
+    let orphan = NativeId(shape.0 + 1_000);
+    scene.session_uvs.sets.insert(orphan, set);
+    assert_eq!(scene.validate(), Err(NativeError::InvalidSessionUvs));
+}
