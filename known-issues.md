@@ -1,5 +1,20 @@
 # Known limitations
 
+## OBJ import reader is a first slice (#22)
+
+**Severity:** low
+**Area:** interchange
+**Issue:** #22
+
+The reader in `src/obj/import.rs` is built and tested, but File > Import and MCP `import_obj` are not
+wired yet. These choices are PROVISIONAL because the Maya help states none of them:
+
+- **`o a b` takes only `a`.** The object name is the first token of an `o` line; the rest is ignored.
+  A `g` line with several names is refused as overlapping groups.
+- **CR is not a line end by itself.** Only LF and CRLF end a line, so a CR-only (classic Mac) file
+  reads as one over-long line and is refused with `LineTooLong`.
+- **Extra `v` numbers** (a `w` or a colour) must be numbers and are then dropped.
+
 ## Animation is a first, session-only slice (#361)
 
 **Severity:** medium
