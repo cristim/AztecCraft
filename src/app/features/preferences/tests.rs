@@ -568,7 +568,7 @@ mod window {
         assert_eq!(editor.status, "Preferences saved");
     }
 
-    fn save_status(editor: Editor, expected: &str) {
+    fn save_status(editor: Editor, expected: &str) -> String {
         let (mut editor, ctx) = setup(editor);
         open_window(&mut editor, &ctx);
         editor.preferences_window.pending = Some(v(2015));
@@ -576,16 +576,35 @@ mod window {
         assert!(!editor.preferences_window.open);
         assert_eq!(editor.preferences.maya_compatibility_version, v(2015));
         assert_eq!(editor.status, expected);
+        editor.status
     }
 
     #[test]
-    fn saving_with_a_blocked_store_says_it_was_not_saved() {
-        let dir = tempfile::tempdir().unwrap();
-        let (editor, _) = blocked(&dir);
-        save_status(
-            editor,
-            "Applied for this session; not saved (preferences file unreadable)",
-        );
+    fn saving_with_a_blocked_store_states_its_own_reason_without_the_path() {
+        for (error, reason) in [
+            (
+                PreferencesError::UnknownSchema,
+                "the preferences file has an unknown schema",
+            ),
+            (
+                PreferencesError::Malformed,
+                "the preferences file is not valid",
+            ),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let (mut editor, path) = blocked(&dir);
+            editor.preferences_store = Store::Blocked {
+                path: path.clone(),
+                error,
+                seen: None,
+            };
+            let secret = dir.path().to_string_lossy().into_owned();
+            let status = save_status(
+                editor,
+                &format!("Applied for this session; not saved ({reason})"),
+            );
+            assert!(!status.contains(&secret));
+        }
     }
 
     #[test]
