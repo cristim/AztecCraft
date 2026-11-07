@@ -713,13 +713,8 @@ mod window {
 
     #[test]
     fn the_settings_page_shows_a_loaded_meter_radian_ntsc_scene() {
-        use binary_fixture::{chunk, group};
-        let header = [
-            chunk(b"LUNI", b"m", 8),
-            chunk(b"AUNI", b"rad", 8),
-            chunk(b"TUNI", b"ntsc", 8),
-        ]
-        .concat();
+        use binary_fixture::{group, header_with_units};
+        let header = header_with_units(b"m", b"rad", b"ntsc");
         let bytes = group(b"Maya", &group(b"HEAD", &header, 4), 1);
         let dir = tempfile::tempdir().unwrap();
         let scene = dir.path().join("units.mb");

@@ -88,13 +88,17 @@ pub(crate) fn scene(children: &[u8]) -> Arc<[u8]> {
     scene_with_units(children, b"cm", b"deg")
 }
 
-pub(crate) fn scene_with_units(children: &[u8], linear: &[u8], angular: &[u8]) -> Arc<[u8]> {
-    let header = [
+pub(crate) fn header_with_units(linear: &[u8], angular: &[u8], time: &[u8]) -> Vec<u8> {
+    [
         chunk(b"LUNI", linear, 8),
         chunk(b"AUNI", angular, 8),
-        chunk(b"TUNI", b"film", 8),
+        chunk(b"TUNI", time, 8),
     ]
-    .concat();
+    .concat()
+}
+
+pub(crate) fn scene_with_units(children: &[u8], linear: &[u8], angular: &[u8]) -> Arc<[u8]> {
+    let header = header_with_units(linear, angular, b"film");
     group(
         b"Maya",
         &[group(b"HEAD", &header, 4), children.to_vec()].concat(),
