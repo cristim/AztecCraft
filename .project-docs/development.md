@@ -527,6 +527,11 @@ suite remains part of the explicit `headless_gpu` command above. Native clicks,
 window resize, file retention and the eventual Face integration need their own
 exact-build evidence; a passing adapter test does not supply it.
 
+The MCP test harness fails a protocol call that takes longer than 2 seconds.
+Set `AZTECCRAFT_MCP_TEST_DEADLINE_MS` (whole milliseconds, 1 to 600000) to
+lengthen it on slow machines; CI sets 15000. An invalid value panics at test
+setup naming the variable. Keep the local default so a real hang fails fast.
+
 An empty mesh is unpickable; framing it returns an error and preserves the camera.
 Unused vertices are retained by native documents and OBJ export. Structural
 validation preserves degenerate geometry; those states don't establish drawable

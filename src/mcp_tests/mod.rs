@@ -2,6 +2,7 @@ use super::*;
 use crate::mcp;
 
 mod bridge;
+mod deadline;
 mod file_actions;
 mod hidden_editor;
 
@@ -163,7 +164,7 @@ mod official_client {
             CallToolRequestParams::new(name).with_arguments(arguments.as_object().unwrap().clone()),
         );
         tokio::pin!(calling);
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        let deadline = tokio::time::Instant::now() + super::deadline::protocol_call_deadline();
         loop {
             tokio::select! {
                 result = &mut calling => {
