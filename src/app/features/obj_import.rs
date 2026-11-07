@@ -2,9 +2,9 @@
 //! planned before the scene is touched; the history command then adds it as one undo step.
 
 use crate::app::{Editor, features::obj_export::validate_obj_path};
-use crate::editor_operations::OperationError;
+use crate::editor_operations::{Operation, OperationError};
 use azteccraft::{history::Command, obj::import};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Path checks shared by the pre-draft guard and the handler, so an invalid path never commits
 /// a native draft.
@@ -39,6 +39,24 @@ impl Editor {
             ignored_records: parsed.ignored_records,
         };
         Ok((Command::ImportObjects(Box::new(plan)), totals))
+    }
+
+    /// File > Import: asks for an existing `.obj` file and imports it.
+    pub(in crate::app) fn import_dialog(&mut self) {
+        if self.files.is_modal() {
+            return;
+        }
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Import OBJ")
+            .add_filter("OBJ", &["obj"])
+            .pick_file()
+        {
+            self.run_import(path);
+        }
+    }
+
+    pub(in crate::app) fn run_import(&mut self, path: PathBuf) {
+        self.native_operation(Operation::ImportObj { path });
     }
 }
 

@@ -456,13 +456,6 @@ pub enum Operation {
         selection_only: bool,
     },
     /// File > Import of an OBJ file: adds its objects to the scene as one undo step.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(
-            dead_code,
-            reason = "constructed by MCP import_obj and, in a later commit, File > Import"
-        )
-    )]
     ImportObj {
         path: PathBuf,
     },
