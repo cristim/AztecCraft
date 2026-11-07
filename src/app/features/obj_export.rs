@@ -3,10 +3,8 @@
 use crate::app::Editor;
 use crate::editor_operations::{ObjExportError, Operation, OperationError, OperationReply};
 use azteccraft::obj::{self, ObjError};
-use azteccraft::view_scene::{ViewInstance, ViewScene};
+use azteccraft::view_scene::{VIEW_BUDGET, ViewInstance, ViewScene};
 use std::path::{Path, PathBuf};
-
-const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 
 /// Path checks shared by the pre-draft guard and the handler, so an invalid path never commits
 /// a native draft.

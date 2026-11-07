@@ -108,6 +108,10 @@ pub struct ViewFace {
     normal: Vec3,
 }
 
+/// Byte budget every caller of `ViewScene::from_native` uses for the live scene (the viewport,
+/// OBJ export, manipulation tools and OBJ import admission).
+pub const VIEW_BUDGET: usize = 256 * 1024 * 1024;
+
 impl ViewScene {
     /// Applies the caller's derived-view byte budget before expanding instance paths.
     pub fn from_native(scene: &NativeScene, byte_budget: usize) -> Result<Self, ViewError> {

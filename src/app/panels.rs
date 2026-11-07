@@ -1,5 +1,5 @@
 use super::*;
-use azteccraft::ui_icons::UiIcon;
+use azteccraft::{ui_icons::UiIcon, view_scene::VIEW_BUDGET};
 
 impl Editor {
     /// egui reads a TextEdit's events before its own press focuses it, dropping same-frame Text.
@@ -466,7 +466,7 @@ impl Editor {
                 }
                 None => {}
             }
-            let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
+            let view = match ViewScene::from_native(self.history.scene(), VIEW_BUDGET) {
                 Ok(view) => view,
                 Err(e) => {
                     self.viewport_error = Some(match e {
