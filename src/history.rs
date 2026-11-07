@@ -1,10 +1,11 @@
 use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, MaterialChoice, NativeError, NativeId, NativeScene,
-        NativeTransform, SessionMaterialId, UvProjectAxis,
+        NativeTransform, ObjImportPlan, SessionMaterialId, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
+    view_scene::{VIEW_BUDGET, ViewError, ViewScene},
 };
 mod move_transaction;
 use move_transaction::MoveTransaction;
@@ -86,6 +87,9 @@ pub enum Command {
     DeleteUvs {
         shape: NativeId,
     },
+    /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
+    /// admission, so an import can never make the viewport refuse the scene.
+    ImportObjects(Box<ObjImportPlan>),
 }
 
 impl Command {
@@ -109,7 +113,26 @@ impl Command {
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ImportObjects(_) => "Import".to_string(),
         }
+    }
+}
+
+/// Refusal text for a scene the viewport cannot display. View admission knows no OBJ line.
+const UNDISPLAYABLE: &str = "the viewport cannot display the result: faces with 5 or more corners must be convex and without holes; triangulate the model and export again";
+
+/// Maps a failed view admission of an import candidate: budget and allocation failures are
+/// resource limits, every shape failure is an unsupported view.
+fn view_refusal(error: ViewError) -> NativeError {
+    match error {
+        ViewError::Native(error) => error,
+        ViewError::ResourceLimit => NativeError::ResourceLimit,
+        ViewError::Camera(_)
+        | ViewError::InvalidGeometry
+        | ViewError::UnsupportedPolygon
+        | ViewError::UnsupportedTransform
+        | ViewError::NonFiniteWorld => NativeError::UnsupportedView(UNDISPLAYABLE),
     }
 }
 
@@ -330,6 +353,11 @@ impl History {
             }
             Command::DeleteUvs { shape } => {
                 candidate.delete_uvs(shape)?;
+                EditOutcome::Changed
+            }
+            Command::ImportObjects(plan) => {
+                candidate.import_polygon_objects(&plan)?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Changed
             }
         };
@@ -832,3 +860,6 @@ mod tests {
         assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
     }
 }
+
+#[cfg(test)]
+mod import_tests;

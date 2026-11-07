@@ -44,3 +44,23 @@ fn rss_growth_over_many_edits_on_a_large_scene() {
         after.saturating_sub(before)
     );
 }
+
+#[test]
+#[ignore = "measurement, not a regression test"]
+fn rss_growth_of_one_import_sized_undo_step() {
+    const FACES: usize = 20_000;
+    let mut text = String::from("v 0 0 0\nv 1 0 0\nv 0 1 0\no big\n");
+    text.push_str(&"f 1 2 3\n".repeat(FACES));
+    let parsed = azteccraft::obj::import::parse(text.as_bytes()).unwrap();
+    let mut history = History::new(NativeScene::default());
+    let plan = history.scene().plan_obj_import(&parsed).unwrap();
+    let before = rss_kib();
+    history
+        .execute(Command::ImportObjects(Box::new(plan)))
+        .unwrap();
+    let after = rss_kib();
+    println!(
+        "faces={FACES} rss_before_kib={before} rss_after_kib={after} growth_kib={}",
+        after.saturating_sub(before)
+    );
+}
