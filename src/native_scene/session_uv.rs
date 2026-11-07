@@ -21,13 +21,15 @@ pub enum UvProjectAxis {
 }
 
 impl UvProjectAxis {
-    /// The object-space axes that become u and v. PROVISIONAL: Maya's pages do not say which
-    /// axis maps to which, or their direction.
-    fn plane(self) -> [usize; 2] {
+    /// The object-space axes that become u and v, each with whether it runs reversed.
+    /// PROVISIONAL: Maya's pages state no per-axis orientation. This matches the Y-up
+    /// orthographic side (X), top (Y) and front (Z) views, so a face looking along +axis has
+    /// positive UV area (right-handed); see known-issues.
+    fn plane(self) -> [(usize, bool); 2] {
         match self {
-            Self::X => [2, 1],
-            Self::Y => [0, 2],
-            Self::Z => [0, 1],
+            Self::X => [(2, true), (1, false)],
+            Self::Y => [(0, false), (2, true)],
+            Self::Z => [(0, false), (1, false)],
         }
     }
 }
@@ -48,12 +50,13 @@ impl UvSet {
 }
 
 fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> {
-    let [u_axis, v_axis] = axis.plane();
+    let plane = axis.plane();
     let mut low = [f64::INFINITY; 2];
     let mut high = [f64::NEG_INFINITY; 2];
     for index in 0..mesh.point_count() {
         let point = mesh.effective_point_cm(index)?;
-        for (slot, value) in [point[u_axis], point[v_axis]].into_iter().enumerate() {
+        for (slot, (component, _)) in plane.into_iter().enumerate() {
+            let value = point[component];
             low[slot] = low[slot].min(value);
             high[slot] = high[slot].max(value);
         }
@@ -76,10 +79,16 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
             .map_err(|_| NativeError::ResourceLimit)?;
         for directed in face.outer() {
             let point = mesh.effective_point_cm(mesh.directed_start(*directed)?)?;
-            corners.push([
-                (point[u_axis] - low[0]) / extent[0],
-                (point[v_axis] - low[1]) / extent[1],
-            ]);
+            let mut uv = [0.0; 2];
+            for (slot, (component, reversed)) in plane.into_iter().enumerate() {
+                let value = point[component];
+                uv[slot] = if reversed {
+                    (high[slot] - value) / extent[slot]
+                } else {
+                    (value - low[slot]) / extent[slot]
+                };
+            }
+            corners.push(uv);
         }
         faces.push(corners);
     }
