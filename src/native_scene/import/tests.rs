@@ -184,3 +184,76 @@ fn imported_shape_names_match_the_ones_create_makes() {
         [("pCube1".to_string(), "pCubeShape1".to_string())]
     );
 }
+
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+mod binary_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
+#[test]
+fn opened_binary_and_ascii_scenes_refuse_import_and_stay_unchanged() {
+    let directory = tempfile::tempdir().unwrap();
+    for (file, bytes, expected) in [
+        (
+            "scene.mb",
+            binary_fixture::specimen(),
+            NativeError::UnsupportedEdit,
+        ),
+        (
+            "scene.ma",
+            ascii_fixture::specimen(),
+            NativeError::ReadOnlyFormat,
+        ),
+    ] {
+        let path = directory.path().join(file);
+        std::fs::write(&path, bytes).unwrap();
+        let mut scene = crate::document::load_native(&path).unwrap().scene;
+        let before = scene.clone();
+        let parsed = parsed("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n");
+        assert_eq!(
+            scene.plan_obj_import(&parsed),
+            Err(expected.clone()),
+            "{file}"
+        );
+        // A plan made on another scene is refused by the import itself as well.
+        let plan = NativeScene::default().plan_obj_import(&parsed).unwrap();
+        assert_eq!(scene.import_polygon_objects(&plan), Err(expected), "{file}");
+        assert_eq!(scene, before);
+    }
+}
+
+#[test]
+fn a_failure_after_the_first_object_was_appended_restores_the_scene_exactly() {
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "pCube1").unwrap();
+    let good = |name: &str| PlannedObject {
+        name: name.into(),
+        shape_name: shape_name_for(name),
+        points: vec![[0.0; 3], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        loops: vec![vec![0, 1, 2]],
+    };
+    // A face corner past the points passes name checks and fails only the final validate().
+    let mut bad = good("b");
+    bad.loops = vec![vec![0, 1, 7]];
+    let plan = ObjImportPlan {
+        objects: vec![good("a"), bad],
+    };
+    let before = scene.clone();
+    assert_eq!(
+        scene.import_polygon_objects(&plan),
+        Err(NativeError::InvalidTopology)
+    );
+    assert_eq!(scene, before);
+    let next = scene.import_polygon_objects(&ObjImportPlan {
+        objects: vec![good("a")],
+    });
+    assert_eq!(next.unwrap().len(), 1);
+}
