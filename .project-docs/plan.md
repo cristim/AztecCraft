@@ -95,6 +95,9 @@ selected afterwards; the undo label "Import"; the Multiple/Single default; coord
 limits (`MAX_*` in `src/obj/import.rs`, rows in "Application policy constants"). Out of slice:
 the option box, Group, Single Object with sets, UV/normal/material import, other formats.
 
+Status: implemented for #22's first slice (reader, scene import, history command, File > Import...,
+MCP `import_obj`, round-trip tests). INT-016 is Partial and the option box is INT-040 (Missing).
+
 ## Verification and review
 
 Keep the same non-author reviewer across the two plan passes and each two-pass diff gate. Use a cold independent verifier for the completed vertical slice. Run formatting, Clippy, headless workflow tests, and native build. Record exact tree/commit identifiers for reviewed work. Reference comparison is blocked until a Maya installation/reference manifest exists. No positive parity claim without it.

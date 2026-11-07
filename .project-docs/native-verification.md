@@ -336,3 +336,14 @@ known-issues.md).
 | Check | Result |
 | --- | --- |
 | IME composition, macOS text shortcuts (Cmd+A/C/V/Z in the name heading) and VoiceOver reading of the Channel Box heading and stubs | pending (needs a human) |
+
+## File > Import as OBJ (#22): native check pending
+
+At the commit that adds File > Import..., the entry is covered by a headless frame test
+(`the_file_menu_lists_import_before_export_and_run_import_dispatches_the_operation`: the
+item appears between the file actions and Export All, and `run_import` imports and reports
+the status line) and the operation by actual Editor protocol tests. It has not been shown
+in a native window: no native window was launched, the file panel was not opened and no
+imported object was seen on screen. A native check would open the File menu, hover the
+disabled option box, choose an `.obj` file in the panel, look at the selected imported
+objects and undo them. This is not a Maya comparison.
