@@ -428,3 +428,14 @@ fn toggle_all_over_the_cap_changes_nothing_but_removals_make_room() {
     assert_eq!(selection.lead(), Some(&plain(10_000)));
     assert!(!selection.contains(&plain(0)));
 }
+
+#[test]
+fn toggle_all_swaps_a_full_selection_for_a_disjoint_full_set() {
+    let mut selection = full_selection();
+    let cap = MAX_TRANSFORM_PATHS as u64;
+    let swapped: Vec<_> = (0..2 * cap).map(plain).collect();
+    selection.toggle_all(&swapped).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.members()[0], plain(cap));
+    assert_eq!(selection.lead(), Some(&plain(2 * cap - 1)));
+}

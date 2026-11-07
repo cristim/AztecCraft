@@ -179,11 +179,12 @@ impl ObjectSelection {
     /// appended is the lead, else a removed lead promotes the previous member. Over the cap, counted
     /// after the removals, the selection is unchanged.
     pub fn toggle_all(&mut self, targets: &[TransformTarget]) -> Result<(), SelectionFull> {
+        let members: HashSet<&TransformTarget> = self.members.iter().collect();
         let mut seen = HashSet::new();
         let (present, absent): (Vec<_>, Vec<_>) = targets
             .iter()
             .filter(|target| seen.insert(*target))
-            .partition(|target| self.contains(target));
+            .partition(|target| members.contains(target));
         if present.is_empty() && absent.is_empty() {
             return Ok(());
         }
