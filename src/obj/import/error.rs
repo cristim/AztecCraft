@@ -34,6 +34,7 @@ pub enum ObjImportError {
     NotRegularFile,
     TooLarge,
     LineTooLong { line: usize },
+    CrOnlyLineEndings { line: usize },
     InvalidUtf8 { line: usize },
     Syntax { line: usize, what: SyntaxKind },
     IndexOutOfRange { line: usize },
@@ -53,6 +54,10 @@ impl fmt::Display for ObjImportError {
             Self::LineTooLong { line } => {
                 write!(f, "line {line} is over {MAX_LINE_BYTES} bytes")
             }
+            Self::CrOnlyLineEndings { line } => write!(
+                f,
+                "line {line}: CR-only line endings are not supported; convert to LF or CRLF"
+            ),
             Self::InvalidUtf8 { line } => write!(f, "line {line} is not valid UTF-8"),
             Self::Syntax { line, what } => {
                 let what = match what {

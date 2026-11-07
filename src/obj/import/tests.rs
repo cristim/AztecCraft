@@ -401,9 +401,14 @@ fn a_carriage_return_at_the_chunk_boundary_is_not_a_line_end() {
     let comment = |len: usize| format!("#{}", "x".repeat(len - 1));
     // CRLF terminates a line of exactly MAX_LINE_BYTES of content.
     assert!(parse_text(&format!("{TRI}{}\r\n", comment(MAX_LINE_BYTES))).is_ok());
-    // A bare CR is content: one byte past the limit is refused, not split into two lines.
+    // A bare CR is never a line end: it is refused, not split into two lines.
     assert_eq!(
         err(&format!("{TRI}{}\rf 1 2 3\n", comment(MAX_LINE_BYTES))),
+        ObjImportError::CrOnlyLineEndings { line: 5 }
+    );
+    // A CR that is only the last byte of an over-long chunk may start a CRLF: still too long.
+    assert_eq!(
+        err(&format!("{TRI}{}\r\n", comment(MAX_LINE_BYTES + 1))),
         ObjImportError::LineTooLong { line: 5 }
     );
     assert_eq!(
@@ -431,4 +436,24 @@ fn extra_vertex_tokens_must_be_numbers() {
         vertex("nan"),
         Err(ObjImportError::CoordinateOutOfRange { line: 1 })
     );
+}
+
+#[test]
+fn cr_only_files_are_refused_with_a_clear_error() {
+    let small = "v 0 0 0\rv 1 0 0\rv 0 1 0\rf 1 2 3\r";
+    assert_eq!(err(small), ObjImportError::CrOnlyLineEndings { line: 1 });
+    assert!(
+        err(small)
+            .to_string()
+            .contains("CR-only line endings are not supported")
+    );
+    let large = small.repeat(20_000);
+    assert!(large.len() > MAX_LINE_BYTES * 4);
+    assert_eq!(err(&large), ObjImportError::CrOnlyLineEndings { line: 1 });
+    assert_eq!(
+        err(&format!("{TRI}# c\rv 0 0 0\n")),
+        ObjImportError::CrOnlyLineEndings { line: 5 }
+    );
+    // A lone CR as the very last byte is trailing whitespace, not a line ending.
+    assert!(parse_text(&format!("{TRI}\r")).is_ok());
 }

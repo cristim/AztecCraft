@@ -11,8 +11,8 @@ wired yet. These choices are PROVISIONAL because the Maya help states none of th
 
 - **`o a b` takes only `a`.** The object name is the first token of an `o` line; the rest is ignored.
   A `g` line with several names is refused as overlapping groups.
-- **CR is not a line end by itself.** Only LF and CRLF end a line, so a CR-only (classic Mac) file
-  reads as one over-long line and is refused with `LineTooLong`.
+- **CR is not a line end by itself.** Only LF and CRLF end a line. A CR-only (classic Mac) file is
+  refused with a "CR-only line endings are not supported" error naming the line.
 - **Extra `v` numbers** (a `w` or a colour) must be numbers and are then dropped.
 
 ## Animation is a first, session-only slice (#361)

@@ -137,12 +137,21 @@ pub fn parse(reader: impl BufRead) -> Result<ParsedObj, ObjImportError> {
                 return Err(ObjImportError::TooLarge);
             }
             // A chunk holds at most MAX_LINE_BYTES of content plus CRLF. CR ends a line only as
-            // part of CRLF, so a bare CR at the chunk edge stays content and is refused as too long.
-            if raw.last() == Some(&b'\n') {
+            // part of CRLF; a bare CR (classic Mac files) is refused.
+            let newline = raw.last() == Some(&b'\n');
+            if newline {
                 raw.pop();
                 if raw.last() == Some(&b'\r') {
                     raw.pop();
                 }
+            }
+            // Any CR left is bare, except a last byte that may begin a CRLF in the next chunk.
+            let scanned = match raw.split_last() {
+                Some((b'\r', rest)) if !newline => rest,
+                _ => raw.as_slice(),
+            };
+            if scanned.contains(&b'\r') {
+                return Err(ObjImportError::CrOnlyLineEndings { line: physical });
             }
             if physical == 1 && raw.starts_with(&[0xEF, 0xBB, 0xBF]) {
                 raw.drain(..3);
