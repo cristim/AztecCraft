@@ -130,12 +130,12 @@ The Preferences window, the persisted Maya compatibility version and the MCP too
 below are ours or rest on incomplete documentation.
 
 - P1: the default time unit `film` (24 fps) is stated by no retrieved Maya page; `Units::default()` already uses it.
-- P2: the time list upper bound is unsettled: the Working Units pages mention 44,100 fps, 48,000 fps and a `48000fps` token. The read-only combo shows the page's tokens; no page enumerates the full `Nfps` series.
+- P2: the time list upper bound is unsettled: the Working Units pages mention 44,100 fps, 48,000 fps and a `48000fps` token. Each read-only combo shows only the declared token, not the page's lists; no page enumerates the full `Nfps` series.
 - P3: the Save and Cancel buttons and their semantics (Save persists and closes, Cancel discards and closes) are standard Maya UI but not described by the Preferences page. Edit > Revert to Saved and Restore Default Settings are documented and stay disabled with a reason.
 - P4: the compatibility setting has no Maya counterpart. Its place in the Settings category is ours and it is labelled an AztecCraft extension.
 - P6: 2015 has no retrievable documentation page, so the compatibility table treats 2015 as before the Frame Selection split (`since` 2016, `present_in` 2016, `absent_in` 2014). Only the 2014 hotkeys page and the 2016 View menu page bracket it.
 - P7: the preferences file location, its JSON format and the `.bad-<n>` backup name are AztecCraft's own; Maya keeps a per-version folder of MEL files.
-- Working Units are read-only. Changing them would convert scene data, which is not supported; a scene that declares a unit the editor cannot load (such as `km`) is shown as declared and never opens.
+- Working Units are read-only. Changing them would convert scene data, which is not supported; the window would show any declared token verbatim (such as `km`), but the loaders accept only cm/mm/m/in/ft, deg/rad and film/ntsc (binary) and cm/deg/film (ASCII), so no loaded scene carries an unsupported one today.
 - Only the Settings category of the 39 is enabled; the others and the window's Edit menu rows are listed disabled.
 
 Persistence limits (all keep the user's file safe by refusing, never by guessing):

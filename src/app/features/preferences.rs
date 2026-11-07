@@ -311,7 +311,7 @@ fn angular_token(unit: &AngularUnit) -> &str {
     }
 }
 
-const COMPATIBILITY_HOVER: &str = "AztecCraft extension, not a Maya setting. Documentation for 2015 and 2021 is partly unavailable, and so far only Frame Selection (F, Ctrl+F) follows this version.";
+const COMPATIBILITY_HOVER: &str = "AztecCraft extension, not a Maya setting. Documentation for 2015 and 2021 is partly unavailable.";
 
 const RESET_LABEL: &str = "Reset preferences file";
 const RESET_HOVER: &str =
