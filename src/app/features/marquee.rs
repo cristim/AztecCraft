@@ -4,10 +4,6 @@ use azteccraft::viewport::NdcRect;
 /// What a marquee drag does by modifier: none replaces, Shift toggles, Ctrl or Command removes,
 /// Shift+Ctrl or Shift+Command adds. The click mapping with Replace for a plain drag; the Marquee
 /// page of the Maya docs is silent on Shift, so Shift toggling is PROVISIONAL.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the native marquee release calls it, added next")
-)]
 pub(in crate::app) fn marquee_mode(modifiers: egui::Modifiers) -> MarqueeMode {
     match (modifiers.shift, modifiers.ctrl || modifiers.command) {
         (false, false) => MarqueeMode::Replace,

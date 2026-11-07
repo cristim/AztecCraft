@@ -14,7 +14,7 @@ use glam::Vec2;
 pub enum SelectionRefusal {
     ModifiedClick,
     AmbiguousPrimaryInput,
-    Marquee,
+    ComponentMarquee,
 }
 
 impl SelectionRefusal {
@@ -26,7 +26,9 @@ impl SelectionRefusal {
             Self::AmbiguousPrimaryInput => {
                 "Ambiguous coalesced primary input cannot select; retry with a single click"
             }
-            Self::Marquee => "Marquee (drag) selection is not implemented yet; click to select",
+            Self::ComponentMarquee => {
+                "Marquee selection in Face/Vertex/Edge mode is not implemented yet (#30)"
+            }
         }
     }
 }
@@ -195,7 +197,7 @@ pub fn capture(
         && !modifiers.alt
         && !orbiting
     {
-        unsupported_selection = Some(SelectionRefusal::Marquee);
+        unsupported_selection = Some(SelectionRefusal::ComponentMarquee);
         if let Some(origin) = origin {
             let rect =
                 NdcRect::clamped(to_ndc(origin), to_ndc(end)).map_err(|_| InvalidCameraInput)?;
@@ -285,17 +287,9 @@ impl ViewportInput {
     pub fn unsupported_selection(&self) -> Option<SelectionRefusal> {
         self.unsupported_selection
     }
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the native marquee release reads it, added next")
-    )]
     pub fn marquee(&self) -> Option<(NdcRect, egui::Modifiers)> {
         self.marquee
     }
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the rubber band is painted next")
-    )]
     pub fn marquee_preview(&self) -> Option<Rect> {
         self.marquee_preview
     }

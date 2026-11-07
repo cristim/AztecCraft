@@ -1017,7 +1017,7 @@ fn plain_drag_release_raises_marquee_but_a_quick_click_does_not() {
     let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 40.0);
     assert_eq!(
         input.unsupported_selection(),
-        Some(SelectionRefusal::Marquee)
+        Some(SelectionRefusal::ComponentMarquee)
     );
     assert!(!orbited && input.click_ndc().is_none());
     let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);
@@ -1088,7 +1088,7 @@ fn marquee_follows_the_release_event_modifiers_not_the_frame_modifiers() {
     );
     assert_eq!(
         input.unsupported_selection(),
-        Some(SelectionRefusal::Marquee)
+        Some(SelectionRefusal::ComponentMarquee)
     );
 }
 

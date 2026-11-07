@@ -442,13 +442,6 @@ pub enum Operation {
     /// Selects the objects whose visible mesh overlaps `rect`, an NDC rectangle at the last
     /// painted aspect, combined by `mode`. Object and Hierarchy modes only; every hit counts,
     /// occluded ones included (PROVISIONAL, no camera-based selection yet).
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the native marquee release and MCP select_in_rect construct it, added next"
-        )
-    )]
     SelectInRect {
         rect: NdcRect,
         mode: MarqueeMode,
