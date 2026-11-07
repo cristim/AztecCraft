@@ -207,3 +207,28 @@ fn a_remote_export_whose_install_permission_is_revoked_installs_nothing() {
     assert!(remote_export(&mut editor, path.clone(), &|| true).is_ok());
     assert!(path.exists());
 }
+
+#[test]
+fn export_refuses_session_uvs_through_the_shared_operation_and_writes_nothing() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id();
+    editor
+        .apply_operation(Operation::ProjectUvPlanar {
+            shape,
+            axis: azteccraft::native_scene::UvProjectAxis::Z,
+        })
+        .unwrap();
+    let before = editor.history.scene().clone();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uv.obj");
+
+    let result = editor.export_obj(&path, false, &|| true);
+
+    assert!(
+        matches!(&result, Err(OperationError::ObjExport(ObjExportError::Invalid(text))) if text.contains("UVs")),
+        "{result:?}"
+    );
+    assert!(!path.exists());
+    assert_eq!(editor.history.scene(), &before);
+}

@@ -235,3 +235,28 @@ fn a_faceless_instance_beside_a_solid_one_is_written_as_a_vertex_only_object() {
     assert_eq!(parsed.faces.len(), 6);
     assert!(parsed.faces.iter().flatten().all(|index| *index > 8));
 }
+
+#[test]
+fn session_uvs_on_an_exported_shape_are_refused_not_dropped() {
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut scene = scene_with(&[(Primitive::Cube, "plain"), (Primitive::Cube, "mapped")]);
+    let mapped = scene.shapes()[1].id();
+    scene.project_uv_planar(mapped, UvProjectAxis::Z).unwrap();
+    let view = ViewScene::from_native(&scene, BUDGET).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+
+    let path = directory.path().join("both.obj");
+    let error = export_native_new(&path, &scene, &all(&view), &|| true).unwrap_err();
+    assert!(matches!(error, ObjError::SessionUvs), "{error}");
+    assert!(!path.exists());
+
+    // An export that leaves the mapped shape out has nothing to drop.
+    let only_plain: Vec<_> = view
+        .instances()
+        .iter()
+        .filter(|instance| instance.shape() != mapped)
+        .collect();
+    let path = directory.path().join("plain.obj");
+    export_native_new(&path, &scene, &only_plain, &|| true).unwrap();
+    assert!(path.exists());
+}
