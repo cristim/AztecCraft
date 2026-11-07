@@ -9,6 +9,7 @@ mod mesh;
 mod move_translation;
 mod rotate_frame;
 mod scale_frame;
+mod session_keys;
 mod session_material;
 mod session_uv;
 mod source;
@@ -25,6 +26,11 @@ pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError}
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
+use session_keys::SessionKeys;
+pub use session_keys::{
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
+    MAX_SESSION_KEYS, whole_frame,
+};
 use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
@@ -560,6 +566,7 @@ pub struct NativeScene {
     authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_keys: SessionKeys,
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
@@ -651,6 +658,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
     }
@@ -668,6 +676,7 @@ impl Default for NativeScene {
             authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
             next_id: 1,
@@ -1664,6 +1673,9 @@ impl NativeScene {
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_keys.is_empty() {
+            return Err(NativeError::UnsupportedView("session keys"));
+        }
         if !self.session_uvs.is_empty() {
             return Err(NativeError::UnsupportedView("session UVs"));
         }
@@ -1705,6 +1717,8 @@ impl NativeScene {
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
+        self.session_keys
+            .validate(&self.nodes, self.source.is_some())?;
         self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
@@ -2053,6 +2067,11 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionKeys,
+    InvalidFrame,
+    InvalidPlaybackRange,
+    KeyLimit,
+    UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
@@ -2118,6 +2137,24 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFrame => write!(
+                f,
+                "a time must be a whole frame from {} through {}",
+                -session_keys::MAX_FRAME,
+                session_keys::MAX_FRAME
+            ),
+            Self::InvalidPlaybackRange => {
+                f.write_str("the playback start must not be after its end")
+            }
+            Self::KeyLimit => write!(
+                f,
+                "the scene holds the most keys allowed ({})",
+                session_keys::MAX_SESSION_KEYS
+            ),
+            Self::UnsupportedTimeUnit => {
+                f.write_str("only the film (24 fps) time unit is supported")
             }
             Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
             Self::DegenerateUvProjection => f.write_str(

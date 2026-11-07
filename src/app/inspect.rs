@@ -49,6 +49,11 @@ impl Editor {
                 {
                     return Err(OperationError::StaleScene);
                 }
+                if cursor.scope != crate::editor_operations::CursorScope::Page {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for another tool".into(),
+                    ));
+                }
                 if cursor.offset > faces_total {
                     return Err(OperationError::InvalidInput(
                         "cursor offset is past the last face".into(),
@@ -94,6 +99,7 @@ impl Editor {
                 scene_token: self.scene_token,
                 revision: self.history.revision(),
                 offset: end,
+                scope: crate::editor_operations::CursorScope::Page,
             }
             .to_string()
         });
@@ -177,6 +183,11 @@ impl Editor {
                     || cursor.revision != self.history.revision()
                 {
                     return Err(OperationError::StaleScene);
+                }
+                if cursor.scope != crate::editor_operations::CursorScope::Page {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for another tool".into(),
+                    ));
                 }
                 if cursor.offset > total {
                     return Err(OperationError::InvalidInput(
@@ -515,6 +526,7 @@ impl Editor {
                         scene_token: self.scene_token,
                         revision: self.history.revision(),
                         offset: range.end,
+                        scope: crate::editor_operations::CursorScope::Page,
                     }
                     .to_string()
                 });
@@ -536,6 +548,7 @@ impl Editor {
                 near_clip: self.camera.near(),
                 far_clip: self.camera.far(),
             },
+            timeline: self.inspect_timeline(),
         })
     }
 }

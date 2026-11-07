@@ -18,8 +18,8 @@ use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
-    UvProjectAxis, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
+    TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -79,6 +79,7 @@ enum State {
     Idle,
     Closing,
     Modal,
+    Playing,
     LocalMove,
     RemoteMove,
     NameDraft,
@@ -103,10 +104,11 @@ enum State {
     NoInstallModal,
 }
 
-const STATES: [State; 23] = [
+const STATES: [State; 24] = [
     State::Idle,
     State::Closing,
     State::Modal,
+    State::Playing,
     State::LocalMove,
     State::RemoteMove,
     State::NameDraft,
@@ -135,6 +137,7 @@ impl State {
             Self::Idle => "idle",
             Self::Closing => "closing",
             Self::Modal => "modal",
+            Self::Playing => "playing",
             Self::LocalMove => "local_move",
             Self::RemoteMove => "remote_move",
             Self::NameDraft => "name_draft",
@@ -463,6 +466,9 @@ fn build(state: State) -> Rig {
             assert!(editor.files.is_closing());
         }
         State::Modal => pending_confirmation(&mut editor, Operation::NewScene),
+        State::Playing => {
+            editor.play().unwrap();
+        }
         State::NoInstallModal => {
             editor = binary_editor(directory.path());
             pending_confirmation(&mut editor, Operation::NewScene);
@@ -608,12 +614,33 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
+        Operation::SetCurrentTime { time: 5.0 },
+        Operation::SetPlaybackRange {
+            start: 2.0,
+            end: 12.0,
+        },
+        Operation::Play,
+        Operation::Stop,
+        Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+        Operation::DeleteKeys {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+        Operation::Inspect { page: None },
+        Operation::InspectKeys {
+            node: None,
+            cursor: None,
+        },
         Operation::ProjectUvPlanar {
             shape: t.shape,
             axis: UvProjectAxis::Y,
         },
         Operation::DeleteUvs { shape: t.shape },
-        Operation::Inspect { page: None },
         Operation::InspectUvs {
             shape: t.shape,
             cursor: None,
@@ -962,6 +989,67 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::Inspect { .. } => {
             vec![sample("inspect", Operation::Inspect { page: None })]
         }
+        Operation::SetCurrentTime { .. } => vec![
+            sample(
+                "set_current_time(5)",
+                Operation::SetCurrentTime { time: 5.0 },
+            ),
+            sample(
+                "set_current_time(fractional)",
+                Operation::SetCurrentTime { time: 1.5 },
+            ),
+        ],
+        Operation::SetPlaybackRange { .. } => vec![
+            sample(
+                "set_playback_range(2,12)",
+                Operation::SetPlaybackRange {
+                    start: 2.0,
+                    end: 12.0,
+                },
+            ),
+            sample(
+                "set_playback_range(inverted)",
+                Operation::SetPlaybackRange {
+                    start: 12.0,
+                    end: 2.0,
+                },
+            ),
+        ],
+        Operation::Play => vec![sample("play", Operation::Play)],
+        Operation::Stop => vec![sample("stop", Operation::Stop)],
+        Operation::SetKeyframe { .. } => vec![
+            sample(
+                "set_keyframe(selection)",
+                Operation::SetKeyframe {
+                    nodes: None,
+                    time: None,
+                    channels: ALL_CHANNELS,
+                },
+            ),
+            sample(
+                "set_keyframe(node,frame_9)",
+                Operation::SetKeyframe {
+                    nodes: Some(vec![t.node]),
+                    time: Some(9.0),
+                    channels: ALL_CHANNELS,
+                },
+            ),
+        ],
+        Operation::DeleteKeys { .. } => vec![sample(
+            "delete_keys(selection)",
+            Operation::DeleteKeys {
+                nodes: None,
+                time: None,
+                channels: ALL_CHANNELS,
+            },
+        )],
+        Operation::InspectKeys { .. } => vec![sample(
+            "inspect_keys",
+            Operation::InspectKeys {
+                node: None,
+                cursor: None,
+            },
+        )],
         Operation::InspectUvs { .. } => vec![sample(
             "inspect_uvs",
             Operation::InspectUvs {
@@ -1692,6 +1780,17 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                     .skip(1)
                     .map(|material| material.color())
                     .collect::<Vec<_>>()
+            ),
+        ),
+        (
+            "timeline",
+            format!(
+                "time={} range={}..{} playing={} keys={}",
+                editor.timeline.current,
+                editor.timeline.start,
+                editor.timeline.end,
+                editor.timeline.playing,
+                scene.session_key_count()
             ),
         ),
         ("modal", editor.files.is_modal().to_string()),

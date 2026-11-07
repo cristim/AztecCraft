@@ -33,6 +33,7 @@ pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
     SessionMaterials,
+    Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -64,6 +65,7 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::SessionMaterials => {
                 "the scene has session materials, which authored ASCII cannot carry"
             }
+            Self::Keys => "session keys are not saved",
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
             Self::NonAuthoredHierarchy => "only flat transform-over-mesh ownership is supported",
@@ -195,6 +197,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
         match ineligible {
             I::SourcedScene => Self::SourcedScene,
             I::Curves => Self::Curves,
+            I::Keys => Self::Keys,
             I::InvalidScene(error) => Self::InvalidScene(error),
             I::UnsupportedUnits => Self::UnsupportedUnits,
             I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,

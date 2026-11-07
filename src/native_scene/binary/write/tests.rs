@@ -299,3 +299,16 @@ fn a_diffuse_table_without_a_source_is_refused_as_an_invalid_scene() {
         ))
     ));
 }
+
+#[test]
+fn session_keys_are_refused_rather_than_dropped() {
+    let mut scene = NativeScene::default();
+    let id = scene.create(crate::scene::Primitive::Cube, "a").unwrap();
+    scene
+        .set_keys(&[id], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(AuthoredIneligible::Keys))
+    );
+}
