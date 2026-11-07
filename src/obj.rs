@@ -95,8 +95,9 @@ pub struct ExportSummary {
 /// Writes the given prepared mesh instances to a new OBJ file in world space, one `o` record per
 /// instance named after its transform. Positions are recomputed in f64 from the authoring scene
 /// (centimeters, Maya's internal unit) rather than taken from the f32 display vertices. A
-/// mirrored instance reverses its faces so they keep facing outward. Normals, UVs, groups and
-/// materials are not written. The destination must not exist; nothing is written on refusal.
+/// mirrored instance reverses its faces so they keep facing outward. Normals, groups and
+/// materials are not written; a shape with session UVs is refused with [`ObjError::SessionUvs`]
+/// rather than exported without them. The destination must not exist; nothing is written on refusal.
 /// `may_install` is asked before the staged file is created and again before it is given the
 /// destination's name; a refusal returns [`ObjError::Cancelled`] and leaves nothing behind.
 pub fn export_native_new(
@@ -118,6 +119,9 @@ pub fn export_native_new(
         faces: 0,
     };
     for instance in instances {
+        if scene.uv_set(instance.shape()).is_some() {
+            return Err(ObjError::SessionUvs);
+        }
         let name = scene
             .node(instance.transform())
             .map_err(ObjError::Native)?
@@ -269,6 +273,8 @@ pub enum ObjError {
     Cancelled,
     NonFinite,
     TooLarge,
+    /// A shape has session UVs, which this export does not write.
+    SessionUvs,
 }
 
 impl fmt::Display for ObjError {
@@ -281,6 +287,9 @@ impl fmt::Display for ObjError {
             Self::Cancelled => f.write_str("export cancelled before the file was installed"),
             Self::NonFinite => f.write_str("a world-space position is not finite"),
             Self::TooLarge => f.write_str("the export exceeds addressable memory"),
+            Self::SessionUvs => f.write_str(
+                "a shape has session UVs, which OBJ export does not write; use Delete UVs first",
+            ),
         }
     }
 }
@@ -291,7 +300,11 @@ impl std::error::Error for ObjError {
             Self::Io { source, .. } => Some(source),
             Self::Scene(source) => Some(source),
             Self::Native(source) => Some(source),
-            Self::NothingToExport | Self::Cancelled | Self::NonFinite | Self::TooLarge => None,
+            Self::NothingToExport
+            | Self::Cancelled
+            | Self::NonFinite
+            | Self::TooLarge
+            | Self::SessionUvs => None,
         }
     }
 }

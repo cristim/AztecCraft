@@ -86,6 +86,12 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
     Ok(UvSet { faces })
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Shapes `SessionUvs::validate` looks at, so a test can pin one pass without a wall clock.
+    static SHAPE_VISITS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct SessionUvs {
     sets: BTreeMap<NativeId, UvSet>,
@@ -107,11 +113,14 @@ impl SessionUvs {
         if sourced {
             return Err(NativeError::InvalidSessionUvs);
         }
-        for (id, set) in &self.sets {
-            let shape = shapes
-                .iter()
-                .find(|shape| shape.id == *id)
-                .ok_or(NativeError::InvalidSessionUvs)?;
+        let mut matched = HashSet::new();
+        for shape in shapes {
+            #[cfg(test)]
+            SHAPE_VISITS.with(|count| count.set(count.get() + 1));
+            let Some(set) = self.sets.get(&shape.id) else {
+                continue;
+            };
+            matched.insert(shape.id);
             let faces = shape.mesh.faces();
             if faces.len() != set.faces.len()
                 || faces
@@ -122,6 +131,9 @@ impl SessionUvs {
             {
                 return Err(NativeError::InvalidSessionUvs);
             }
+        }
+        if matched.len() != self.sets.len() {
+            return Err(NativeError::InvalidSessionUvs);
         }
         Ok(())
     }

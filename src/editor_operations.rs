@@ -216,7 +216,7 @@ pub struct InspectPage {
 
 /// Where the next page starts, bound to the document and the scene revision it was issued for.
 /// The text form is `v1.<scene token>.<revision in hex>.<offset>`, plus `.keys` or
-/// `.keys.<node id>` for a key page, so a cursor cannot be replayed into another tool or against
+/// `.keys.<node id>` for a key page and `.uvs.<shape id>` for a UV page, so a cursor cannot be replayed into another tool or against
 /// another node filter.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -227,13 +227,15 @@ pub struct PageCursor {
     pub scope: CursorScope,
 }
 
-/// What a cursor pages. `Page` is the original text form, which the node and UV pages use.
+/// What a cursor pages. `Page` is the original text form, which the node page uses.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorScope {
     Page,
     /// Stored keys, of this node only when given.
     Keys(Option<NodeId>),
+    /// The UVs of this shape only.
+    Uvs(NativeId),
 }
 
 #[cfg(any(test, feature = "mcp"))]
@@ -259,6 +261,7 @@ impl fmt::Display for PageCursor {
             CursorScope::Page => Ok(()),
             CursorScope::Keys(None) => f.write_str(".keys"),
             CursorScope::Keys(Some(node)) => write!(f, ".keys.{}", node.to_decimal()),
+            CursorScope::Uvs(shape) => write!(f, ".uvs.{}", shape.to_decimal()),
         }
     }
 }
@@ -283,11 +286,15 @@ impl std::str::FromStr for PageCursor {
             scope: match parts.next() {
                 None => CursorScope::Page,
                 Some("keys") => CursorScope::Keys(None),
-                Some(rest) => CursorScope::Keys(Some(
-                    rest.strip_prefix("keys.")
-                        .and_then(|node| NodeId::from_decimal(node).ok())
-                        .ok_or(PageCursorError)?,
-                )),
+                Some(rest) => match rest.split_once('.') {
+                    Some(("keys", node)) => CursorScope::Keys(Some(
+                        NodeId::from_decimal(node).map_err(|_| PageCursorError)?,
+                    )),
+                    Some(("uvs", shape)) => CursorScope::Uvs(
+                        NativeId::from_decimal(shape).map_err(|_| PageCursorError)?,
+                    ),
+                    _ => return Err(PageCursorError),
+                },
             },
         };
         if cursor.to_string() == text {
@@ -1547,6 +1554,10 @@ mod tests {
         for (scope, suffix) in [
             (CursorScope::Keys(None), ".keys"),
             (
+                CursorScope::Uvs(NativeId::from_decimal("7").unwrap()),
+                ".uvs.7",
+            ),
+            (
                 CursorScope::Keys(Some(NodeId::from_decimal("42").unwrap())),
                 ".keys.42",
             ),
@@ -1585,6 +1596,11 @@ mod tests {
             format!("v1.{id}.1.1.keys.-1"),
             format!("v1.{id}.1.1.keys.1.1"),
             format!("v1.{id}.1.1.keys."),
+            format!("v1.{id}.1.1.uvs"),
+            format!("v1.{id}.1.1.uvs."),
+            format!("v1.{id}.1.1.uvs.01"),
+            format!("v1.{id}.1.1.uvs.x"),
+            format!("v1.{id}.1.1.uvs.1.1"),
             format!("v1.{id}.1.1."),
             format!("v1.{id}.1.99999999999999999999999"),
             format!("v1.{id}.1.1 "),

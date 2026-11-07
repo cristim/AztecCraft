@@ -135,7 +135,11 @@ fn authored_writers_refuse_a_scene_with_session_uvs() {
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
     assert_eq!(
         check_content_kind(&scene),
-        Err(AuthoredIneligible::UnsupportedMeshChannels)
+        Err(AuthoredIneligible::SessionUvs)
+    );
+    assert_eq!(
+        crate::native_scene::ascii::emit_geometry_prefix(&scene).map(|_| ()),
+        Err(crate::native_scene::ascii::AsciiWriteRefusal::SessionUvs)
     );
 }
 
@@ -148,4 +152,94 @@ fn the_legacy_view_refuses_rather_than_dropping_uvs() {
         scene.supported_view(),
         Err(NativeError::UnsupportedView("session UVs"))
     );
+}
+
+// `validate` runs on every structural edit, so it must visit each shape once however many shapes
+// hold UVs, not once per set. Counting visits pins that without a wall-clock assertion.
+#[test]
+fn validate_visits_each_shape_once_however_many_hold_uvs() {
+    for count in [1usize, 64] {
+        let mut scene = NativeScene::default();
+        for index in 0..count {
+            scene.create(Primitive::Cube, &format!("c{index}")).unwrap();
+        }
+        let shapes: Vec<NativeId> = scene.shapes().iter().map(|shape| shape.id()).collect();
+        for shape in shapes {
+            scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+        }
+        let before = SHAPE_VISITS.with(std::cell::Cell::get);
+        scene.validate().unwrap();
+        let visits = SHAPE_VISITS.with(std::cell::Cell::get) - before;
+        assert_eq!(visits, count, "{count} shapes with UVs");
+    }
+}
+
+#[test]
+fn validate_rejects_a_uv_set_whose_shape_is_gone() {
+    let (mut scene, shape) = scene_with(Primitive::Cube);
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    let set = scene.session_uvs.sets[&shape].clone();
+    let orphan = NativeId(shape.0 + 1_000);
+    scene.session_uvs.sets.insert(orphan, set);
+    assert_eq!(scene.validate(), Err(NativeError::InvalidSessionUvs));
+}
+
+#[test]
+fn remove_many_prunes_only_the_removed_nodes_uvs_and_stays_valid() {
+    let mut scene = NativeScene::default();
+    let gone = scene.create(Primitive::Cube, "gone").unwrap();
+    let kept = scene.create(Primitive::Cube, "kept").unwrap();
+    let ids: Vec<NativeId> = scene.shapes().iter().map(|shape| shape.id()).collect();
+    for shape in &ids {
+        scene.project_uv_planar(*shape, UvProjectAxis::Z).unwrap();
+    }
+    let kept_set = scene.uv_set(ids[1]).unwrap().clone();
+    scene.remove_many(&[gone]).unwrap();
+    assert!(scene.uv_set(ids[0]).is_none());
+    assert_eq!(scene.uv_set(ids[1]), Some(&kept_set));
+    assert_eq!(scene.validate(), Ok(()));
+    scene.remove_many(&[kept]).unwrap();
+    assert!(scene.session_uvs.is_empty());
+}
+
+#[test]
+fn projection_and_delete_are_refused_under_a_restriction_and_change_nothing() {
+    for on_shape in [false, true] {
+        let (mut scene, shape) = scene_with(Primitive::Cube);
+        scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+        if on_shape {
+            scene.shapes[0].restrictions.push("locked".into());
+        } else {
+            scene.nodes[0].restrictions.push("locked".into());
+        }
+        let before = scene.clone();
+        assert_eq!(
+            scene.project_uv_planar(shape, UvProjectAxis::X),
+            Err(NativeError::UnsupportedEdit)
+        );
+        assert_eq!(scene.delete_uvs(shape), Err(NativeError::UnsupportedEdit));
+        assert!(scene == before);
+    }
+}
+
+#[test]
+fn projecting_an_instanced_shape_is_accepted_and_the_set_is_per_shape() {
+    let mut scene = NativeScene::default();
+    scene.create(Primitive::Cube, "a").unwrap();
+    scene.create(Primitive::Cube, "b").unwrap();
+    let shape = scene.shapes()[0].id();
+    let other_transform = scene.nodes()[1].transform_id;
+    scene.dag.push(crate::native_scene::DagEdge {
+        parent: Some(other_transform),
+        child: shape,
+    });
+    assert_eq!(
+        scene.dag.iter().filter(|edge| edge.child == shape).count(),
+        2
+    );
+    scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+    assert_eq!(scene.validate(), Ok(()));
+    // UVs are keyed by shape and projected in object space, so every instance reads the one set.
+    assert_eq!(scene.session_uvs.sets.len(), 1);
+    assert!(scene.uv_set(shape).is_some());
 }

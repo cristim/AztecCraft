@@ -503,7 +503,7 @@ UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
 exports geometry only, without UVs, normals or materials. File > Export All and
 Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
-OBJ import isn't implemented.
+OBJ import is `obj::import` (see `plan.md` and `known-issues.md`).
 
 ## Camera core
 
