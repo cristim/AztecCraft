@@ -1405,10 +1405,7 @@ fn session_uvs_are_refused_before_ascii_output() {
     prefix(&scene).unwrap();
     let shape = scene.shapes()[0].id();
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
-    assert_eq!(
-        prefix(&scene),
-        Err(AsciiWriteRefusal::UnsupportedMeshChannels)
-    );
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
     scene.delete_uvs(shape).unwrap();
     prefix(&scene).unwrap();
 }

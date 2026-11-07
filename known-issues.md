@@ -939,8 +939,8 @@ selection affects OBJ export). Export Selection covers every selected object and
 descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
-unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered (the option boxes are disabled), and export never overwrites an
+unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
@@ -1267,7 +1267,8 @@ Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and o
 
 UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
 so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
-holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them, and OBJ export refuses a shape that has them
+(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The axis-to-(u, v) assignment

@@ -53,6 +53,7 @@ pub enum AsciiWriteRefusal {
     EdgeSmoothing,
     FaceHoles,
     UnsupportedMeshChannels,
+    SessionUvs,
     IndexOutOfRange,
     ResourceLimit,
     TooLarge,
@@ -85,6 +86,7 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::EdgeSmoothing => "mesh edges require known hard smoothing",
             Self::FaceHoles => "mesh face holes are unsupported",
             Self::UnsupportedMeshChannels => "additional mesh channels are unsupported",
+            Self::SessionUvs => "session UVs are not saved; use Delete UVs or Undo to save",
             Self::IndexOutOfRange => "mesh array count or endpoint exceeds signed 32-bit range",
             Self::ResourceLimit => "authored prefix resource policy exceeded",
             Self::TooLarge => "authored prefix exceeds the 16 MiB byte limit",
@@ -240,6 +242,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
             I::EdgeSmoothing => Self::EdgeSmoothing,
             I::FaceHoles => Self::FaceHoles,
             I::UnsupportedMeshChannels => Self::UnsupportedMeshChannels,
+            I::SessionUvs => Self::SessionUvs,
         }
     }
 }

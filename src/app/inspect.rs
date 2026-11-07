@@ -49,9 +49,9 @@ impl Editor {
                 {
                     return Err(OperationError::StaleScene);
                 }
-                if cursor.scope != crate::editor_operations::CursorScope::Page {
+                if cursor.scope != crate::editor_operations::CursorScope::Uvs(shape) {
                     return Err(OperationError::InvalidInput(
-                        "cursor was issued for another tool".into(),
+                        "cursor was issued for another tool or shape".into(),
                     ));
                 }
                 if cursor.offset > faces_total {
@@ -99,7 +99,7 @@ impl Editor {
                 scene_token: self.scene_token,
                 revision: self.history.revision(),
                 offset: end,
-                scope: crate::editor_operations::CursorScope::Page,
+                scope: crate::editor_operations::CursorScope::Uvs(shape),
             }
             .to_string()
         });
