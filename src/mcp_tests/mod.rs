@@ -90,6 +90,7 @@ fn create_request(editor: &Editor) -> RemoteRequest {
 
 #[cfg(feature = "mcp-test-client")]
 mod official_client {
+    use super::deadline::protocol_call_deadline;
     use super::*;
     use rmcp::{
         ServiceExt,
@@ -164,7 +165,7 @@ mod official_client {
             CallToolRequestParams::new(name).with_arguments(arguments.as_object().unwrap().clone()),
         );
         tokio::pin!(calling);
-        let deadline = tokio::time::Instant::now() + super::deadline::protocol_call_deadline();
+        let deadline = tokio::time::Instant::now() + protocol_call_deadline();
         loop {
             tokio::select! {
                 result = &mut calling => {
