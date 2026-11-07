@@ -119,20 +119,28 @@ impl Command {
     }
 }
 
-/// Refusal text for a scene the viewport cannot display. View admission knows no OBJ line.
-const UNDISPLAYABLE: &str = "the viewport cannot display the result: faces with 5 or more corners must be convex and without holes; triangulate the model and export again";
+/// Refusal texts for an import candidate the viewport cannot display. View admission knows no
+/// OBJ line number. Only the n-gon case carries the convexity and triangulate hint.
+const UNDISPLAYABLE_POLYGON: &str = "the viewport cannot display a face: faces with 5 or more corners must be convex and without holes; triangulate the model and export again";
+const UNDISPLAYABLE_GEOMETRY: &str =
+    "the viewport cannot display the imported geometry because it is invalid";
+const UNDISPLAYABLE_TRANSFORM: &str =
+    "the viewport cannot display a node transform or the scene units";
+const UNDISPLAYABLE_WORLD: &str =
+    "the viewport cannot represent the imported coordinates in world space";
+const UNDISPLAYABLE_VIEW: &str = "the viewport view could not be built for the imported scene";
 
 /// Maps a failed view admission of an import candidate: budget and allocation failures are
-/// resource limits, every shape failure is an unsupported view.
+/// resource limits, every shape failure is an unsupported view with its own accurate text.
 fn view_refusal(error: ViewError) -> NativeError {
     match error {
         ViewError::Native(error) => error,
         ViewError::ResourceLimit => NativeError::ResourceLimit,
-        ViewError::Camera(_)
-        | ViewError::InvalidGeometry
-        | ViewError::UnsupportedPolygon
-        | ViewError::UnsupportedTransform
-        | ViewError::NonFiniteWorld => NativeError::UnsupportedView(UNDISPLAYABLE),
+        ViewError::UnsupportedPolygon => NativeError::UnsupportedView(UNDISPLAYABLE_POLYGON),
+        ViewError::InvalidGeometry => NativeError::UnsupportedView(UNDISPLAYABLE_GEOMETRY),
+        ViewError::UnsupportedTransform => NativeError::UnsupportedView(UNDISPLAYABLE_TRANSFORM),
+        ViewError::NonFiniteWorld => NativeError::UnsupportedView(UNDISPLAYABLE_WORLD),
+        ViewError::Camera(_) => NativeError::UnsupportedView(UNDISPLAYABLE_VIEW),
     }
 }
 

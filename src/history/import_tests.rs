@@ -57,7 +57,7 @@ fn a_concave_pentagon_is_refused_and_scene_history_and_redo_are_untouched() {
     let command = plan(history.scene(), CONCAVE_PENTAGON);
     assert!(matches!(
         history.execute(command),
-        Err(NativeError::UnsupportedView(_))
+        Err(NativeError::UnsupportedView(text)) if text.contains("convex")
     ));
     assert_eq!(history.scene(), &before);
     assert_eq!(history.revision(), revision);
@@ -75,14 +75,24 @@ fn view_errors_map_to_native_errors() {
         view_refusal(ViewError::Native(NativeError::InvalidTopology)),
         NativeError::InvalidTopology
     );
-    for shape in [
-        ViewError::UnsupportedPolygon,
-        ViewError::NonFiniteWorld,
-        ViewError::InvalidGeometry,
-        ViewError::UnsupportedTransform,
-    ] {
+    let text = |error| match view_refusal(error) {
+        NativeError::UnsupportedView(text) => text,
+        other => panic!("{other:?}"),
+    };
+    let polygon = text(ViewError::UnsupportedPolygon);
+    assert!(polygon.contains("convex") && polygon.contains("triangulate"));
+    let others = [
+        text(ViewError::InvalidGeometry),
+        text(ViewError::UnsupportedTransform),
+        text(ViewError::NonFiniteWorld),
+        text(ViewError::Camera(crate::viewport::InvalidCameraInput)),
+    ];
+    for (index, other) in others.iter().enumerate() {
         assert!(
-            matches!(view_refusal(shape), NativeError::UnsupportedView(text) if text.contains("triangulate"))
+            !other.contains("convex") && !other.contains("triangulate"),
+            "{other}"
         );
+        assert_ne!(*other, polygon);
+        assert!(others.iter().skip(index + 1).all(|later| later != other));
     }
 }
