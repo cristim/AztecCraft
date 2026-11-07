@@ -136,11 +136,7 @@ pub fn parse(reader: impl BufRead) -> Result<ParsedObj, ObjImportError> {
             if total > MAX_FILE_BYTES {
                 return Err(ObjImportError::TooLarge);
             }
-            let newline = raw.last() == Some(&b'\n');
-            if raw.len() > MAX_LINE_BYTES && !newline {
-                return Err(ObjImportError::LineTooLong { line: physical });
-            }
-            if newline {
+            if raw.last() == Some(&b'\n') {
                 raw.pop();
             }
             if raw.last() == Some(&b'\r') {
@@ -369,16 +365,21 @@ fn coordinate(token: &str, line: usize) -> Result<f32, ObjImportError> {
 
 /// Resolves a 1-based or negative (relative) OBJ index against the `count` records seen so far.
 fn resolve(token: &str, count: usize, line: usize) -> Result<usize, ObjImportError> {
-    let out_of_range = ObjImportError::IndexOutOfRange { line };
     if token.is_empty() || token.starts_with('+') {
         return Err(ObjImportError::Syntax {
             line,
             what: SyntaxKind::BadFaceCorner,
         });
     }
-    let index: i64 = token.parse().map_err(|_| ObjImportError::Syntax {
-        line,
-        what: SyntaxKind::BadFaceCorner,
+    let index: i64 = token.parse().map_err(|error: std::num::ParseIntError| {
+        use std::num::IntErrorKind::{NegOverflow, PosOverflow};
+        match error.kind() {
+            PosOverflow | NegOverflow => ObjImportError::IndexOutOfRange { line },
+            _ => ObjImportError::Syntax {
+                line,
+                what: SyntaxKind::BadFaceCorner,
+            },
+        }
     })?;
     let resolved = if index > 0 {
         usize::try_from(index)
@@ -393,7 +394,7 @@ fn resolve(token: &str, count: usize, line: usize) -> Result<usize, ObjImportErr
     };
     resolved
         .filter(|resolved| *resolved < count)
-        .ok_or(out_of_range)
+        .ok_or(ObjImportError::IndexOutOfRange { line })
 }
 
 #[cfg(test)]
