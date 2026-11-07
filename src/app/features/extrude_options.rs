@@ -38,11 +38,11 @@ impl fmt::Display for ExtrudeBlocker {
 }
 
 pub(in crate::app) fn thickness_field_id() -> egui::Id {
-    egui::Id::new("extrude_option_thickness")
+    egui::Id::unique("extrude_option_thickness")
 }
 
 fn window_id() -> egui::Id {
-    egui::Id::new("extrude_options_window")
+    egui::Id::unique("extrude_options_window")
 }
 
 struct Dialog {

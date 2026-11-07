@@ -110,7 +110,13 @@ impl Editor {
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
-            | Operation::SelectAttributeEditorTab { .. } => None,
+            | Operation::SelectAttributeEditorTab { .. }
+            | Operation::SetCurrentTime { .. }
+            | Operation::SetPlaybackRange { .. }
+            | Operation::Play
+            | Operation::Stop => None,
+            Operation::SetKeyframe { .. } => Some("Key set"),
+            Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
@@ -203,6 +209,22 @@ impl Editor {
                 self.error = true;
             }
         }
+        if let Some((step, error)) = self.refusal_after_change.take() {
+            self.report_refusal_after_change(step, &error);
+        }
+    }
+    /// The step happened; only the pose re-evaluation was refused, so the line must not read as
+    /// a failed Undo or Redo.
+    pub(in crate::app) fn report_refusal_after_change(
+        &mut self,
+        step: &str,
+        error: &OperationError,
+    ) {
+        self.set_error_text(
+            format!("{step} done; pose not re-evaluated: {error}"),
+            error,
+        );
+        self.error = true;
     }
     #[cfg(test)]
     pub(crate) fn remote_operation(
@@ -223,6 +245,11 @@ impl Editor {
         if let Operation::Inspect { page } = &request.operation {
             return Ok(OperationReply::Scene {
                 inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
+            });
+        }
+        if let Operation::InspectKeys { node, cursor } = &request.operation {
+            return Ok(OperationReply::Keys {
+                inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
             });
         }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
@@ -310,6 +337,10 @@ impl Editor {
         operation: Operation,
         may_install: &dyn Fn() -> bool,
     ) -> Result<OperationReply, OperationError> {
+        self.refusal_after_change = None;
+        if features::timeline::stops_playback(&operation) {
+            self.stop_playback();
+        }
         if let Some(noun) = self.selection_mode.component_noun()
             && matches!(operation, Operation::Delete(_) | Operation::DeleteSelection)
         {
@@ -389,6 +420,11 @@ impl Editor {
                     | Operation::SelectFace { .. }
                     | Operation::SelectVertex { .. }
                     | Operation::SelectEdge { .. }
+                    | Operation::SetCurrentTime { .. }
+                    | Operation::SetPlaybackRange { .. }
+                    | Operation::Play
+                    | Operation::SetKeyframe { .. }
+                    | Operation::DeleteKeys { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -462,13 +498,30 @@ impl Editor {
                         .map_err(OperationError::Scene)?;
                 }
             }
+            Operation::SetKeyframe {
+                nodes,
+                time,
+                channels,
+            } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
+            Operation::DeleteKeys {
+                nodes,
+                time,
+                channels,
+            } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
+            Operation::SetPlaybackRange { start, end } => {
+                self.check_playback_range(*start, *end)?;
+            }
             _ => {}
         }
+        // A time change and Play refuse a draft instead of committing it; Stop leaves it alone.
         if !matches!(
             operation,
             Operation::UpdateMove { .. }
                 | Operation::UpdateManipulation { .. }
                 | Operation::FinishMove { .. }
+                | Operation::SetCurrentTime { .. }
+                | Operation::Play
+                | Operation::Stop
         ) && !self.commit_pending()
         {
             return Err(OperationError::InvalidInput(self.status.clone()));
@@ -478,8 +531,17 @@ impl Editor {
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
-            Operation::BeginMove { target, axis } => {
-                return self.begin_editor_move(&target, axis, provenance);
+            Operation::BeginMove {
+                target,
+                axis,
+                expected_selection_generation,
+            } => {
+                return self.begin_editor_move(
+                    &target,
+                    axis,
+                    provenance,
+                    expected_selection_generation,
+                );
             }
             Operation::UpdateMove { id, distance } => {
                 return self.update_editor_move(id, distance, provenance);
@@ -518,6 +580,22 @@ impl Editor {
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
             }
+            Operation::SetCurrentTime { time } => return self.set_current_time(time),
+            Operation::SetPlaybackRange { start, end } => {
+                return self.set_playback_range(start, end);
+            }
+            Operation::Play => return self.play(),
+            Operation::Stop => return Ok(self.stop()),
+            Operation::SetKeyframe {
+                nodes,
+                time,
+                channels,
+            } => self.set_key_command(nodes, time, channels)?,
+            Operation::DeleteKeys {
+                nodes,
+                time,
+                channels,
+            } => self.delete_keys_command(nodes, time, channels)?,
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::SetGridVisible { visible } => {
@@ -793,7 +871,27 @@ impl Editor {
                 } else {
                     self.history.undo()
                 };
+                // A snapshot taken at another time holds that time's pose, so it is re-evaluated;
+                // one taken at the current time is the recorded state, held edits included.
+                let evaluated = if changed && self.history.pose_frame() != self.timeline.current {
+                    self.history.apply_evaluated(self.timeline.current)
+                } else {
+                    Ok(false)
+                };
                 self.sync_fields();
+                // History has already moved, so a refused re-evaluation is reported in the status
+                // line, like a playback tick, and the reply stays truthful about the change.
+                // `record_feedback` re-applies it after its own success text.
+                if let Err(error) = evaluated {
+                    let step = if matches!(operation, Operation::Redo) {
+                        "Redo"
+                    } else {
+                        "Undo"
+                    };
+                    let error = OperationError::from_history(error);
+                    self.report_refusal_after_change(step, &error);
+                    self.refusal_after_change = Some((step, error));
+                }
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -910,6 +1008,12 @@ impl Editor {
                 });
             }
             #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectKeys { node, cursor } => {
+                return Ok(OperationReply::Keys {
+                    inspection: Box::new(self.inspect_keys(node, cursor.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
             Operation::InspectUvs { shape, cursor } => {
                 return Ok(OperationReply::Uvs {
                     inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
@@ -932,7 +1036,14 @@ impl Editor {
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
         );
+        let key_command = matches!(
+            command,
+            Command::SetKeys { .. } | Command::DeleteKeys { .. }
+        );
         let outcome = self.history.execute(command).map_err(|error| {
+            if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
+                return OperationError::ReadOnlyKeys;
+            }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command
                 && error != azteccraft::native_scene::NativeError::BusyManipulation

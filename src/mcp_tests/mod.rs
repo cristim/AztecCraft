@@ -112,6 +112,7 @@ mod official_client {
         ));
     }
 
+    mod animation;
     mod ascii;
     mod attribute_editor;
     mod camera;
@@ -128,6 +129,7 @@ mod official_client {
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod material;
+    mod multi_move;
     mod node_edit;
     mod obj_export;
 

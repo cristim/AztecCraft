@@ -36,6 +36,7 @@ impl Editor {
     }
 
     pub(super) fn render(&mut self, ui: &mut egui::Ui) {
+        let deferred_surrender = super::defer_focus_surrender(ui.ctx());
         let frame_token = self.scene_token;
         self.sidebar_panel_request = None;
         self.attribute_editor_tab_request = None;
@@ -81,23 +82,19 @@ impl Editor {
         // popup is still open here; egui closes it later in this pass, when the menus are shown.
         if !self.files.is_modal()
             && !egui::Popup::is_any_open(ui.ctx())
+            && !self.escape_stops_playback(ui.ctx())
             && !self.escape_closes_primitive_options(ui.ctx())
             && !self.escape_closes_extrude_options(ui.ctx())
         {
             self.cancel_on_escape(ui.ctx());
         }
         let tool_intent = self.shortcuts(ui.ctx());
+        self.tick_playback(ui.input(|i| i.time), text_edit_focused(ui.ctx()));
         egui::Panel::top("menu_shelf").show(ui, |ui| {
             self.menus(ui, &mut selection_intent, &mut delete_intent)
         });
         egui::Panel::bottom("timeline_status").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Time slider");
-                for label in ["|<", "<", "Play", ">", ">|"] {
-                    unsupported(ui, label);
-                }
-                ui.weak("Animation not implemented");
-            });
+            self.timeline_controls(ui);
             ui.separator();
             ui.colored_label(
                 if self.error {
@@ -213,6 +210,13 @@ impl Editor {
         self.native_input_pending = false;
         #[cfg(feature = "mcp")]
         self.process_mcp(ui.ctx());
+        if self.timeline.playing {
+            ui.ctx()
+                .request_repaint_after(std::time::Duration::from_secs_f64(
+                    1.0 / features::timeline::FRAMES_PER_SECOND,
+                ));
+        }
+        super::finish_deferred_focus_surrender(ui.ctx(), deferred_surrender);
     }
     pub(super) fn viewport(
         &mut self,

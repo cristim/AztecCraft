@@ -9,6 +9,7 @@ mod mesh;
 mod move_translation;
 mod rotate_frame;
 mod scale_frame;
+mod session_keys;
 mod session_material;
 mod session_uv;
 mod source;
@@ -21,10 +22,15 @@ pub use appearance::{
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::ManipulatorFrame;
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::ChannelBaseline;
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
+use session_keys::SessionKeys;
+pub use session_keys::{
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
+    MAX_SESSION_KEYS, whole_frame,
+};
 use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
@@ -560,6 +566,7 @@ pub struct NativeScene {
     authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_keys: SessionKeys,
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
@@ -651,6 +658,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
     }
@@ -668,6 +676,7 @@ impl Default for NativeScene {
             authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
             next_id: 1,
@@ -1059,6 +1068,30 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
+    }
+
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
@@ -1182,6 +1215,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1559,6 +1596,40 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self.editable_node(*id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1578,11 +1649,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
@@ -1606,6 +1673,9 @@ impl NativeScene {
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_keys.is_empty() {
+            return Err(NativeError::UnsupportedView("session keys"));
+        }
         if !self.session_uvs.is_empty() {
             return Err(NativeError::UnsupportedView("session UVs"));
         }
@@ -1647,6 +1717,8 @@ impl NativeScene {
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
+        self.session_keys
+            .validate(&self.nodes, self.source.is_some())?;
         self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
@@ -1995,6 +2067,11 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionKeys,
+    InvalidFrame,
+    InvalidPlaybackRange,
+    KeyLimit,
+    UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
@@ -2060,6 +2137,24 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFrame => write!(
+                f,
+                "a time must be a whole frame from {} through {}",
+                -session_keys::MAX_FRAME,
+                session_keys::MAX_FRAME
+            ),
+            Self::InvalidPlaybackRange => {
+                f.write_str("the playback start must not be after its end")
+            }
+            Self::KeyLimit => write!(
+                f,
+                "the scene holds the most keys allowed ({})",
+                session_keys::MAX_SESSION_KEYS
+            ),
+            Self::UnsupportedTimeUnit => {
+                f.write_str("only the film (24 fps) time unit is supported")
             }
             Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
             Self::DegenerateUvProjection => f.write_str(

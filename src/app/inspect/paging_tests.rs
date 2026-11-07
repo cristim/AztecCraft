@@ -143,6 +143,7 @@ fn every_scene_change_makes_a_cursor_stale_and_other_changes_do_not() {
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         editor.history.active_manipulation().unwrap().id
@@ -523,4 +524,29 @@ fn page_cost_timing_guard() {
         "inspect_page cost ratio {inspect:.1} for 8x the scene"
     );
     eprintln!("median ratios: transform_paths {paths:.1}, inspect_page {inspect:.1}");
+}
+
+#[test]
+fn a_cursor_is_not_replayed_between_the_node_page_and_the_key_page() {
+    use crate::editor_operations::CursorScope;
+    let editor = cubes(6);
+    let node_cursor = cursor_of(&editor.inspect_page(false, Some(&page(2, None))).unwrap());
+    assert_eq!(node_cursor.scope, CursorScope::Page);
+    assert!(matches!(
+        editor.inspect_keys(None, Some(&node_cursor)),
+        Err(OperationError::InvalidInput(_))
+    ));
+    for scope in [
+        CursorScope::Keys(None),
+        CursorScope::Keys(editor.selected()),
+    ] {
+        let key_cursor = PageCursor {
+            scope,
+            ..node_cursor
+        };
+        assert!(matches!(
+            editor.inspect_page(false, Some(&page(2, Some(key_cursor)))),
+            Err(OperationError::InvalidInput(_))
+        ));
+    }
 }

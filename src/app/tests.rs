@@ -1620,6 +1620,7 @@ pub(in crate::app) fn wheel_frames(
             unit: egui::MouseWheelUnit::Point,
             delta: egui::vec2(0.0, -200.0),
             phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Unknown,
             modifiers: egui::Modifiers::NONE,
         });
         output = frame_with(editor, ctx, size, 1.0, std::mem::take(&mut events));
@@ -1990,6 +1991,7 @@ fn remote_successes_report_on_the_status_line_like_native_ones() {
             Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             },
         )
         .unwrap();
@@ -2783,7 +2785,7 @@ fn sidebar_remote_refuses_stale_token_text_focus_modal_and_close_with_baseline_i
         before
     );
     let context = egui::Context::default();
-    context.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    context.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     frame(&mut editor, &context, vec![]);
     assert!(text_edit_focused(&context));
     let focused = editor.remote_operation(
@@ -3030,7 +3032,7 @@ fn remote_busy_and_stale_denials_preserve_human_state() {
     assert_eq!(editor.channels[0], "nan");
     editor.sync_fields();
     let ctx = egui::Context::default();
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     assert!(matches!(
         editor.remote_operation(
             RemoteRequest {
@@ -4853,13 +4855,13 @@ fn real_escape_event_cancels_channel_and_name_after_egui_clears_focus() {
     let before = editor.history.scene().clone();
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new(("channel", 0_usize))));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique(("channel", 0_usize))));
     frame(&mut editor, &ctx, vec![]);
     editor.channels[0] = "3".into();
     frame(&mut editor, &ctx, vec![key(Key::Escape)]);
     assert_eq!(editor.channels[0], "0");
     assert_eq!(editor.history.scene(), &before);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new("node_name")));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique("node_name")));
     frame(&mut editor, &ctx, vec![]);
     editor.name = "discarded".into();
     frame(&mut editor, &ctx, vec![key(Key::Escape)]);
@@ -5373,7 +5375,7 @@ fn enter_commits_once_and_selection_commits_draft_to_previous_object() {
     editor.select(Some(old));
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
-    ctx.memory_mut(|memory| memory.request_focus(egui::Id::new(("channel", 0_usize))));
+    ctx.memory_mut(|memory| memory.request_focus(egui::Id::unique(("channel", 0_usize))));
     frame(&mut editor, &ctx, vec![]);
     editor.channels[0] = "2".into();
     frame(&mut editor, &ctx, vec![key(Key::Enter)]);
@@ -5617,12 +5619,14 @@ mod menu_bar_wire {
                     unit: egui::MouseWheelUnit::Point,
                     delta: egui::Vec2::ZERO,
                     phase: egui::TouchPhase::Start,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers: egui::Modifiers::NONE,
                 },
                 egui::Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
                     delta: egui::vec2(delta, 0.0),
                     phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers: egui::Modifiers::NONE,
                 },
             ]
@@ -6272,6 +6276,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
         .apply_operation(Operation::BeginMove {
             target,
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let move_id = editor.history.active_manipulation().unwrap().id;
@@ -7042,6 +7047,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
             .apply_operation(Operation::BeginMove {
                 target,
                 axis: azteccraft::native_scene::WorldAxis::X,
+                expected_selection_generation: None,
             })
             .unwrap();
         let move_id = editor.history.active_manipulation().unwrap().id;
@@ -9933,7 +9939,7 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
+fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_acts() {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -9942,6 +9948,7 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         0 => Operation::BeginMove {
             target: target.clone(),
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         },
         1 => Operation::BeginRotate {
             target: target.clone(),
@@ -9955,13 +9962,23 @@ fn manipulation_begins_refuse_several_selected_objects_natively_and_remotely() {
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        assert!(
-            matches!(
-                editor.apply_operation(make(index)),
-                Err(OperationError::MultipleSelection)
-            ),
-            "native {label}"
-        );
+        if index == 0 {
+            // A native Move acts on the whole selection; cancelling restores the baseline.
+            editor.apply_operation(make(0)).unwrap();
+            assert_eq!(
+                editor.history.active_manipulation().unwrap().member_count(),
+                2
+            );
+            editor.cancel_move().unwrap();
+        } else {
+            assert!(
+                matches!(
+                    editor.apply_operation(make(index)),
+                    Err(OperationError::MultipleSelection)
+                ),
+                "native {label}"
+            );
+        }
         assert!(
             matches!(
                 remote(&mut editor, make(index)),

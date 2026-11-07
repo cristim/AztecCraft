@@ -49,6 +49,11 @@ impl Editor {
                 {
                     return Err(OperationError::StaleScene);
                 }
+                if cursor.scope != crate::editor_operations::CursorScope::Page {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for another tool".into(),
+                    ));
+                }
                 if cursor.offset > faces_total {
                     return Err(OperationError::InvalidInput(
                         "cursor offset is past the last face".into(),
@@ -94,6 +99,7 @@ impl Editor {
                 scene_token: self.scene_token,
                 revision: self.history.revision(),
                 offset: end,
+                scope: crate::editor_operations::CursorScope::Page,
             }
             .to_string()
         });
@@ -177,6 +183,11 @@ impl Editor {
                     || cursor.revision != self.history.revision()
                 {
                     return Err(OperationError::StaleScene);
+                }
+                if cursor.scope != crate::editor_operations::CursorScope::Page {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for another tool".into(),
+                    ));
                 }
                 if cursor.offset > total {
                     return Err(OperationError::InvalidInput(
@@ -469,6 +480,7 @@ impl Editor {
                 )
                 .collect(),
             selection_count: self.selection.len(),
+            selection_generation: self.selection.generation(),
             selection_mode: self.selection_mode,
             remembered_face: self
                 .remembered_face
@@ -514,6 +526,7 @@ impl Editor {
                         scene_token: self.scene_token,
                         revision: self.history.revision(),
                         offset: range.end,
+                        scope: crate::editor_operations::CursorScope::Page,
                     }
                     .to_string()
                 });
@@ -535,6 +548,7 @@ impl Editor {
                 near_clip: self.camera.near(),
                 far_clip: self.camera.far(),
             },
+            timeline: self.inspect_timeline(),
         })
     }
 }
@@ -694,6 +708,21 @@ mod selection_tests {
         assert_eq!(json["selection_count"], 2);
         assert_eq!(json["selection"][1]["node"], expected[1].0);
         assert!(serde_json::to_vec(&json).unwrap().len() < MAX_RESULT_BYTES);
+    }
+
+    #[test]
+    fn inspection_reports_the_selection_generation_and_it_moves_only_with_the_selection() {
+        let mut editor = two_selected();
+        let first = editor.inspect(false).unwrap().selection_generation;
+        assert_eq!(editor.inspect(false).unwrap().selection_generation, first);
+        assert_eq!(first, editor.selection.generation());
+        editor.deselect_all();
+        let cleared = editor.inspect(false).unwrap().selection_generation;
+        assert_ne!(cleared, first);
+        editor.deselect_all();
+        assert_eq!(editor.inspect(false).unwrap().selection_generation, cleared);
+        let json = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        assert_eq!(json["selection_generation"], cleared);
     }
 
     #[test]

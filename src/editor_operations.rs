@@ -215,13 +215,25 @@ pub struct InspectPage {
 }
 
 /// Where the next page starts, bound to the document and the scene revision it was issued for.
-/// The text form is `v1.<scene token>.<revision in hex>.<offset>`.
+/// The text form is `v1.<scene token>.<revision in hex>.<offset>`, plus `.keys` or
+/// `.keys.<node id>` for a key page, so a cursor cannot be replayed into another tool or against
+/// another node filter.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PageCursor {
     pub scene_token: Uuid,
     pub revision: u64,
     pub offset: usize,
+    pub scope: CursorScope,
+}
+
+/// What a cursor pages. `Page` is the original text form, which the node and UV pages use.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CursorScope {
+    Page,
+    /// Stored keys, of this node only when given.
+    Keys(Option<NodeId>),
 }
 
 #[cfg(any(test, feature = "mcp"))]
@@ -242,7 +254,12 @@ impl fmt::Display for PageCursor {
             f,
             "v1.{}.{:x}.{}",
             self.scene_token, self.revision, self.offset
-        )
+        )?;
+        match self.scope {
+            CursorScope::Page => Ok(()),
+            CursorScope::Keys(None) => f.write_str(".keys"),
+            CursorScope::Keys(Some(node)) => write!(f, ".keys.{}", node.to_decimal()),
+        }
     }
 }
 
@@ -253,7 +270,7 @@ impl std::str::FromStr for PageCursor {
     /// Untrusted text. Each part is parsed, then the canonical text is compared with the input, so
     /// signs, padding, upper case, braces and extra segments are all refused.
     fn from_str(text: &str) -> Result<Self, PageCursorError> {
-        let mut parts = text.splitn(4, '.');
+        let mut parts = text.splitn(5, '.');
         let (Some("v1"), Some(token), Some(revision), Some(offset)) =
             (parts.next(), parts.next(), parts.next(), parts.next())
         else {
@@ -263,6 +280,15 @@ impl std::str::FromStr for PageCursor {
             scene_token: Uuid::parse_str(token).map_err(|_| PageCursorError)?,
             revision: u64::from_str_radix(revision, 16).map_err(|_| PageCursorError)?,
             offset: offset.parse().map_err(|_| PageCursorError)?,
+            scope: match parts.next() {
+                None => CursorScope::Page,
+                Some("keys") => CursorScope::Keys(None),
+                Some(rest) => CursorScope::Keys(Some(
+                    rest.strip_prefix("keys.")
+                        .and_then(|node| NodeId::from_decimal(node).ok())
+                        .ok_or(PageCursorError)?,
+                )),
+            },
         };
         if cursor.to_string() == text {
             Ok(cursor)
@@ -284,9 +310,13 @@ pub enum Operation {
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
     SetManipulatorSize(ManipulatorSize),
+    /// Begins a Move of the selected objects with `target` as the lead. With several objects
+    /// selected a remote caller must pass the `selection_generation` it inspected; a native caller
+    /// moves the current selection.
     BeginMove {
         target: TransformTarget,
         axis: WorldAxis,
+        expected_selection_generation: Option<u64>,
     },
     UpdateMove {
         id: ManipulationId,
@@ -330,6 +360,33 @@ pub enum Operation {
         material: azteccraft::native_scene::SessionMaterialId,
         color: [f64; 3],
     },
+    /// Moves the current time to a whole frame and writes every keyed channel there. Not an undo
+    /// step. A draft refuses it, because the write refreshes the fields.
+    SetCurrentTime {
+        time: f64,
+    },
+    SetPlaybackRange {
+        start: f64,
+        end: f64,
+    },
+    /// Starts playback, which then runs as a tick in `render`.
+    Play,
+    /// Stops playback and never commits a draft.
+    Stop,
+    /// Keys `channels` with their current value, as one undo step. No `nodes` means the object
+    /// selection, no `time` the current time.
+    SetKeyframe {
+        nodes: Option<Vec<NodeId>>,
+        time: Option<f64>,
+        channels: azteccraft::native_scene::ChannelMask,
+    },
+    /// Deletes keys at `time`, or at every frame without one, as one undo step. No `nodes` means
+    /// the object selection.
+    DeleteKeys {
+        nodes: Option<Vec<NodeId>>,
+        time: Option<f64>,
+        channels: azteccraft::native_scene::ChannelMask,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: azteccraft::native_scene::UvProjectAxis,
@@ -340,6 +397,12 @@ pub enum Operation {
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
         page: Option<InspectPage>,
+    },
+    /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectKeys {
+        node: Option<NodeId>,
+        cursor: Option<PageCursor>,
     },
     /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
     #[cfg(any(test, feature = "mcp"))]
@@ -471,6 +534,10 @@ pub enum OperationReply {
         inspection: Box<SceneInspection>,
     },
     #[cfg(any(test, feature = "mcp"))]
+    Keys {
+        inspection: Box<KeysInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
     Uvs {
         inspection: Box<UvInspection>,
     },
@@ -576,6 +643,9 @@ pub struct SceneInspection {
     /// Selected object instances in selection order; the last is the lead.
     pub selection: Vec<SelectionMemberInspection>,
     pub selection_count: usize,
+    /// Changes whenever the selected members or their order change, so a client can tell that the
+    /// selection it inspected has since been edited.
+    pub selection_generation: u64,
     pub selection_mode: SelectionMode,
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
@@ -593,8 +663,53 @@ pub struct SceneInspection {
     /// The native status line text, or a fixed notice when the text would carry a local path.
     pub status_message: Option<String>,
     pub camera: CameraInspection,
+    pub timeline: TimelineInspection,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<PageInspection>,
+}
+
+/// Session timeline state, of a fixed size whatever the scene holds.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct TimelineInspection {
+    pub current_time: i32,
+    pub playback_start: i32,
+    pub playback_end: i32,
+    pub playing: bool,
+    pub frames_per_second: f64,
+    #[serde(rename = "loop")]
+    pub loop_mode: &'static str,
+    pub key_count: usize,
+}
+
+/// Most keys in one `inspect_keys` reply. A key takes at most about 110 bytes of JSON, so a page
+/// and its escaped text copy stay inside the tool limits;
+/// `a_full_page_of_the_longest_keys_fits_the_reply_limits` pins it.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_KEYS_PER_PAGE: usize = 1024;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct KeyInspection {
+    pub node_id: String,
+    pub channel: &'static str,
+    pub frame: i32,
+    pub value: f64,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct KeysInspection {
+    /// With `revision`, tells a client which document state this read belongs to: the read passes
+    /// no token guard, and ids can recur after New.
+    pub scene_token: String,
+    pub revision: u64,
+    /// Why keys cannot be read here; null does not mean there are keys.
+    pub unavailable_reason: Option<&'static str>,
+    pub keys_total: usize,
+    pub key_offset: usize,
+    pub keys: Vec<KeyInspection>,
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -698,6 +813,10 @@ pub struct ActiveManipulationInspection {
     pub channels: &'static str,
     pub baseline_channels: [f64; 3],
     pub current_channels: [f64; 3],
+    /// Selected objects a Move acts on (1 for Rotate and Scale), covered members included.
+    pub member_count: usize,
+    /// Members that follow a selected ancestor instead of getting their own translation.
+    pub covered_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -895,9 +1014,16 @@ pub enum OperationError {
     /// A session-material operation failed in the core; the MCP layer reports a typed code.
     #[cfg(any(test, feature = "mcp"))]
     SessionMaterial(NativeError),
+    /// A key command on a scene opened from a Maya file; the MCP layer reports `read_only_format`.
+    ReadOnlyKeys,
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
+    /// A caller's expected selection generation no longer matches the selection.
+    StaleSelection {
+        expected: u64,
+        current: u64,
+    },
     /// Frame All on a scene without any mesh or curve instance.
     NothingToFrame,
     InvalidInput(String),
@@ -969,8 +1095,13 @@ impl fmt::Display for OperationError {
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
+            Self::ReadOnlyKeys => NativeError::ReadOnlyFormat.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
+            Self::StaleSelection { expected, current } => write!(
+                f,
+                "Selection changed: expected generation {expected}, current {current}"
+            ),
             Self::NothingToFrame => f.write_str("The scene has no objects to frame"),
             Self::InvalidInput(message) => f.write_str(message),
             Self::Scene(error) => error.fmt(f),
@@ -1097,12 +1228,14 @@ pub(crate) const MIN_FIXED: &str = concat!(
     min_appearance_summary!(),
     r#","#,
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
-    r#""selection_count":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
+    r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
-    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0}}"#
+    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0},"#,
+    r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
+    r#""frames_per_second":0.0,"loop":"","key_count":0}}"#
 );
 
 /// Guaranteed lower bound of the serialized `SceneInspection` for the scene alone: the fixed part
@@ -1382,6 +1515,7 @@ mod tests {
             scene_token: Uuid::from_u128(0x1234_5678_9abc_def0_1234_5678_9abc_def0),
             revision: 0xab_cdef,
             offset: 4096,
+            scope: CursorScope::Page,
         };
         let text = cursor.to_string();
         assert_eq!(text, "v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096");
@@ -1390,8 +1524,23 @@ mod tests {
             scene_token: Uuid::nil(),
             revision: u64::MAX,
             offset: usize::MAX,
+            scope: CursorScope::Page,
         };
         assert_eq!(extreme.to_string().parse::<PageCursor>(), Ok(extreme));
+        for (scope, suffix) in [
+            (CursorScope::Keys(None), ".keys"),
+            (
+                CursorScope::Keys(Some(NodeId::from_decimal("42").unwrap())),
+                ".keys.42",
+            ),
+        ] {
+            let keys = PageCursor { scope, ..cursor };
+            assert_eq!(
+                keys.to_string(),
+                format!("v1.12345678-9abc-def0-1234-56789abcdef0.abcdef.4096{suffix}")
+            );
+            assert_eq!(keys.to_string().parse::<PageCursor>(), Ok(keys));
+        }
     }
 
     #[test]
@@ -1413,6 +1562,12 @@ mod tests {
             format!("v1.{id}.1.+1"),
             format!("v1.{id}.1.01"),
             format!("v1.{id}.1.1.1"),
+            format!("v1.{id}.1.1.key"),
+            format!("v1.{id}.1.1.keys.01"),
+            format!("v1.{id}.1.1.keys.x"),
+            format!("v1.{id}.1.1.keys.-1"),
+            format!("v1.{id}.1.1.keys.1.1"),
+            format!("v1.{id}.1.1.keys."),
             format!("v1.{id}.1.1."),
             format!("v1.{id}.1.99999999999999999999999"),
             format!("v1.{id}.1.1 "),
