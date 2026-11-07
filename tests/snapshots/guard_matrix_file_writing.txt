@@ -866,4 +866,46 @@
   save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
-cells: 328
+## preferences_draft / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=2015
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
+## preferences_draft / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1 compat=2027 prefs_store=session_only prefs_pending=2015
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
+cells: 344

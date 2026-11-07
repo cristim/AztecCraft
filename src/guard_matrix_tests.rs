@@ -102,9 +102,10 @@ enum State {
     AuthoredAsciiDirty,
     NoInstall,
     NoInstallModal,
+    PreferencesDraft,
 }
 
-const STATES: [State; 24] = [
+const STATES: [State; 25] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -129,6 +130,7 @@ const STATES: [State; 24] = [
     State::AuthoredAsciiDirty,
     State::NoInstall,
     State::NoInstallModal,
+    State::PreferencesDraft,
 ];
 
 impl State {
@@ -158,6 +160,7 @@ impl State {
             Self::AuthoredAsciiDirty => "authored_ascii_dirty",
             Self::NoInstall => "no_install",
             Self::NoInstallModal => "no_install_modal",
+            Self::PreferencesDraft => "preferences_draft",
         }
     }
 
@@ -468,6 +471,10 @@ fn build(state: State) -> Rig {
         State::Modal => pending_confirmation(&mut editor, Operation::NewScene),
         State::Playing => {
             editor.play().unwrap();
+        }
+        State::PreferencesDraft => {
+            editor.preferences_window.pending =
+                Some(azteccraft::compatibility::MayaVersion::try_from(2015).unwrap());
         }
         State::NoInstallModal => {
             editor = binary_editor(directory.path());
