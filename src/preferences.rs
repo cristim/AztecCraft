@@ -458,11 +458,10 @@ impl Store {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn a_link_or_fifo_swapped_in_after_the_metadata_check_is_refused() {
         let dir = tempfile::tempdir().unwrap();
