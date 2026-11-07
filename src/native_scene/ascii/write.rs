@@ -184,8 +184,31 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     authored::check_content_kind(scene)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
-    // Created, assigned or reassigned materials: the file has only the default pair.
-    if scene.session_materials != SessionMaterials::default() {
+    // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
+    let NativeScene {
+        // Covered by `check_content_kind` and `check_scene` above.
+        nodes: _,
+        shapes: _,
+        curves: _,
+        dag: _,
+        units: _,
+        source: _,
+        // Fresh per scene; the file stores no document identity.
+        authored_document_id: _,
+        next_id: _,
+        next_native_id: _,
+        // Diffuse edits bound into retained source bytes: set only with a source, which
+        // `check_content_kind` refuses.
+        materials: _,
+        // Ids of deleted source nodes: only in a sourced scene, which is refused above.
+        removed: _,
+        // Created, assigned or reassigned materials: the file has only the default pair.
+        session_materials,
+        // `check_content_kind` refuses session UVs and keys.
+        session_uvs: _,
+        session_keys: _,
+    } = scene;
+    if *session_materials != SessionMaterials::default() {
         return Err(AsciiWriteRefusal::SessionMaterials);
     }
     Ok(())
