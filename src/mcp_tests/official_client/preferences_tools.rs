@@ -24,19 +24,6 @@ fn code(result: &CallToolResult) -> &str {
         .unwrap()
 }
 
-async fn version_of(
-    editor: &mut Editor,
-    context: &egui::Context,
-    client: &rmcp::service::RunningService<RoleClient, ()>,
-) -> u64 {
-    call(editor, context, client.peer(), "inspect_scene", json!({}))
-        .await
-        .structured_content
-        .unwrap()["inspection"]["preferences"]["maya_compatibility_version"]
-        .as_u64()
-        .unwrap()
-}
-
 #[tokio::test]
 async fn sdk_set_compatibility_version_changes_then_reports_unchanged() {
     let context = egui::Context::default();
@@ -50,7 +37,7 @@ async fn sdk_set_compatibility_version_changes_then_reports_unchanged() {
             &context,
             client.peer(),
             "set_compatibility_version",
-            json!({"scene_token": token, "version": year}),
+            set_args(&token, year),
         )
         .await;
         assert_ne!(result.is_error, Some(true));
@@ -102,7 +89,7 @@ async fn sdk_set_compatibility_version_refuses_bad_arguments_and_stale_tokens() 
         &context,
         client.peer(),
         "set_compatibility_version",
-        json!({"scene_token": Uuid::new_v4().to_string(), "version": 2015}),
+        set_args(&Uuid::new_v4().to_string(), 2015),
     )
     .await;
     assert_eq!(code(&stale), "stale_scene");
@@ -119,15 +106,21 @@ async fn sdk_preference_tools_are_busy_while_a_window_value_is_pending() {
     let token = editor.scene_token.to_string();
     editor.preferences_window.pending = Some(v(2020));
     for (name, arguments) in [
-        (
-            "set_compatibility_version",
-            json!({"scene_token": token, "version": 2015}),
-        ),
+        ("set_compatibility_version", set_args(&token, 2015)),
         ("reset_preferences", json!({"scene_token": token})),
     ] {
         let result = call(&mut editor, &context, client.peer(), name, arguments).await;
         assert_eq!(code(&result), "busy_editing");
     }
+    let unrelated = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "set_sidebar_panel_visibility",
+        json!({"scene_token": token, "panel": "channel_box", "visible": true}),
+    )
+    .await;
+    assert_ne!(unrelated.is_error, Some(true));
     assert_eq!(editor.preferences_window.pending, Some(v(2020)));
     assert_eq!(version_of(&mut editor, &context, &client).await, 2027);
     client.cancel().await.unwrap();
@@ -217,6 +210,31 @@ async fn inspection(
         .clone()
 }
 
+async fn version_of(
+    editor: &mut Editor,
+    context: &egui::Context,
+    client: &rmcp::service::RunningService<RoleClient, ()>,
+) -> u64 {
+    inspection(editor, context, client).await["preferences"]["maya_compatibility_version"]
+        .as_u64()
+        .unwrap()
+}
+
+fn assert_path_free(text: &str, dir: &tempfile::TempDir) {
+    let name = dir.path().file_name().unwrap().to_string_lossy();
+    for leak in [
+        dir.path().to_string_lossy().as_ref(),
+        name.as_ref(),
+        "preferences.json",
+    ] {
+        assert!(!text.contains(leak), "{leak} leaked into {text}");
+    }
+}
+
+fn stored_file(path: &std::path::Path) -> Value {
+    serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
+}
+
 fn set_args(token: &str, year: u64) -> Value {
     json!({"scene_token": token, "version": year})
 }
@@ -236,15 +254,16 @@ async fn sdk_a_saved_version_reaches_the_file_and_units_stay_read_only() {
         set_args(&token, 2015),
     )
     .await;
-    let root = dir.path().to_string_lossy().into_owned();
-    assert!(!serde_json::to_string(&result).unwrap().contains(&root));
+    assert_path_free(&serde_json::to_string(&result).unwrap(), &dir);
     let inspected = inspection(&mut editor, &context, &client).await;
     assert_eq!(inspected["preferences"]["persistence"]["state"], "saved");
     assert_eq!(inspected["units"]["editable"], false);
-    assert!(!inspected.to_string().contains(&root));
-    let stored: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert!(stored.to_string().contains("2015"), "{stored}");
-    assert!(!editor.status.contains(&root));
+    assert_path_free(&inspected.to_string(), &dir);
+    assert_eq!(
+        stored_file(&path),
+        json!({"schema": 1, "maya_compatibility_version": 2015})
+    );
+    assert_path_free(&editor.status, &dir);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
@@ -280,27 +299,6 @@ async fn sdk_set_compatibility_version_is_refused_in_every_busy_editor_state() {
     .await;
     assert_eq!(code(&focus), "busy_editing");
     context.memory_mut(|memory| memory.surrender_focus(name_edit_id()));
-
-    editor.preferences_window.pending = Some(v(2020));
-    let pending = call(
-        &mut editor,
-        &context,
-        client.peer(),
-        "set_compatibility_version",
-        set_args(&token, 2015),
-    )
-    .await;
-    assert_eq!(code(&pending), "busy_editing");
-    let unrelated = call(
-        &mut editor,
-        &context,
-        client.peer(),
-        "set_sidebar_panel_visibility",
-        json!({"scene_token": token, "panel": "channel_box", "visible": true}),
-    )
-    .await;
-    assert_ne!(unrelated.is_error, Some(true));
-    editor.preferences_window.pending = None;
 
     editor.request_close();
     let modal = call(
@@ -383,12 +381,11 @@ async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
     let dir = tempfile::tempdir().unwrap();
     let path = with_store(&mut editor, &dir, Some(b"not json"));
     let token = editor.scene_token.to_string();
-    let root = dir.path().to_string_lossy().into_owned();
     let blocked =
         inspection(&mut editor, &context, &client).await["preferences"]["persistence"].clone();
     assert_eq!(blocked["state"], "not_saved");
     assert_eq!(blocked["reset_available"], true);
-    let refused = call(
+    let applied = call(
         &mut editor,
         &context,
         client.peer(),
@@ -396,7 +393,11 @@ async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
         set_args(&token, 2015),
     )
     .await;
-    let session_only = call(
+    assert_eq!(
+        applied.structured_content.as_ref().unwrap()["outcome"],
+        "changed"
+    );
+    let after_set = call(
         &mut editor,
         &context,
         client.peer(),
@@ -404,10 +405,17 @@ async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
         json!({}),
     )
     .await;
-    for reply in [&refused, &session_only] {
-        assert!(!serde_json::to_string(reply).unwrap().contains(&root));
+    let inspected = &after_set.structured_content.as_ref().unwrap()["inspection"]["preferences"];
+    assert_eq!(inspected["maya_compatibility_version"], 2015);
+    assert_eq!(inspected["persistence"]["state"], "not_saved");
+    for text in [
+        serde_json::to_string(&applied).unwrap(),
+        serde_json::to_string(&after_set).unwrap(),
+        editor.status.clone(),
+    ] {
+        assert_path_free(&text, &dir);
     }
-    call(
+    let reset = call(
         &mut editor,
         &context,
         client.peer(),
@@ -415,6 +423,8 @@ async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
         json!({"scene_token": token}),
     )
     .await;
+    assert_path_free(&serde_json::to_string(&reset).unwrap(), &dir);
+    assert_path_free(&editor.status, &dir);
     assert!(path.with_file_name("preferences.json.bad-1").exists());
     assert_eq!(
         std::fs::read(path.with_file_name("preferences.json.bad-1")).unwrap(),
@@ -432,11 +442,15 @@ async fn sdk_a_blocked_store_is_reported_then_reset_and_saved_again() {
         set.structured_content.as_ref().unwrap()["outcome"],
         "changed"
     );
-    assert!(!editor.status.contains(&root));
+    assert_path_free(&serde_json::to_string(&set).unwrap(), &dir);
+    assert_path_free(&editor.status, &dir);
     let after = inspection(&mut editor, &context, &client).await["preferences"].clone();
     assert_eq!(after["persistence"]["state"], "saved");
     assert_eq!(after["maya_compatibility_version"], 2015);
-    assert!(path.exists());
+    assert_eq!(
+        stored_file(&path),
+        json!({"schema": 1, "maya_compatibility_version": 2015})
+    );
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();
