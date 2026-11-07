@@ -49,7 +49,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "delete_selected",
-        description: "Delete every selected object (Edit > Delete) as one undo step; the form of Maya's delete command with no flags, each node removed with its whole subtree (PROVISIONAL, see delete_node). All or nothing: if any selected object or its subtree cannot be deleted (a shared descendant, or an opened file whose records cannot be dropped) the whole delete is refused with that object's error and nothing changes. A selected descendant of another selected object is deleted once, with it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
+        description: "Delete every selected object (Edit > Delete) as one undo step; the form of Maya's delete command with no flags, each node removed with its whole subtree (PROVISIONAL, see delete_node; that the Edit > Delete menu item runs exactly this form, not a wrapper script, is also PROVISIONAL). All or nothing: if any selected object or its subtree cannot be deleted (a shared descendant, or an opened file whose records cannot be dropped) the whole delete is refused with that object's error and nothing changes. A selected descendant of another selected object is deleted once, with it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
         schema: schema::<MutationArgs>,
         parse: parse_delete_selected,
         idempotent: false,
