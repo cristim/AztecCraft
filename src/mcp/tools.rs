@@ -175,6 +175,10 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         | E::NoFaces => "import_invalid",
                     }
                 }
+                OperationError::ImportRefused(error) => match error {
+                    NativeError::ResourceLimit => "import_limit",
+                    _ => "import_invalid",
+                },
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
@@ -783,7 +787,7 @@ mod tests {
                     json!({"scene_token":token,"tab":{"kind":"transform","id":"1"}})
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
-                "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
+                "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1409,7 +1413,7 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as", "export_obj"] {
+            for tool in ["open_scene", "save_scene_as", "export_obj", "import_obj"] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }

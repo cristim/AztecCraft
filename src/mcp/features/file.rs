@@ -34,6 +34,15 @@ struct ExportArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ImportArgs {
+    scene_token: String,
+    /// Existing .obj file to add to the scene.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum FileDecisionInput {
     Cancel,
@@ -49,14 +58,19 @@ struct ResolveFileArgs {
     decision: FileDecisionInput,
 }
 
-fn parse_path(arguments: JsonObject) -> Result<(Uuid, String), ErrorData> {
-    let args: OpenArgs = decode(arguments)?;
-    if args.path.is_empty() || args.path.len() > 4096 || args.path.contains('\0') {
+fn check_path(path: &str) -> Result<(), ErrorData> {
+    if path.is_empty() || path.len() > 4096 || path.contains('\0') {
         return Err(ErrorData::invalid_params(
             "path must contain 1 to 4096 UTF-8 bytes and no NUL",
             None,
         ));
     }
+    Ok(())
+}
+
+fn parse_path(arguments: JsonObject) -> Result<(Uuid, String), ErrorData> {
+    let args: OpenArgs = decode(arguments)?;
+    check_path(&args.path)?;
     Ok((token(&args.scene_token)?, args.path))
 }
 
@@ -76,17 +90,23 @@ fn parse_save_scene_as(arguments: JsonObject) -> Result<RemoteRequest, ErrorData
 
 fn parse_export_obj(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: ExportArgs = decode(arguments)?;
-    if args.path.is_empty() || args.path.len() > 4096 || args.path.contains('\0') {
-        return Err(ErrorData::invalid_params(
-            "path must contain 1 to 4096 UTF-8 bytes and no NUL",
-            None,
-        ));
-    }
+    check_path(&args.path)?;
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::ExportObj {
             path: args.path.into(),
             selection_only: args.selection_only,
+        },
+    ))
+}
+
+fn parse_import_obj(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ImportArgs = decode(arguments)?;
+    check_path(&args.path)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ImportObj {
+            path: args.path.into(),
         },
     ))
 }
@@ -147,6 +167,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
         schema: schema::<ExportArgs>,
         parse: parse_export_obj,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "import_obj",
+        description: "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
+        schema: schema::<ImportArgs>,
+        parse: parse_import_obj,
         idempotent: false,
         read_only: false,
     },

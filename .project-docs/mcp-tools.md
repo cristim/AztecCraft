@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.
 
-56 tools.
+57 tools.
 
 | Tool | Access | Idempotent | Description |
 |---|---|---|---|
@@ -59,6 +59,7 @@ Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. 
 | `save_scene` | mutating | no | Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh Maya 2025-format .mb. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs |
 | `save_scene_as` | mutating | no | Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene can be written as Maya 2025-format .mb; unsupported content is refused (save_unwritable, for example a created session material: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs |
 | `export_obj` | mutating | no | Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts |
+| `import_obj` | mutating | no | Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids |
 | `new_scene` | mutating | no | Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id |
 | `resolve_file_action` | mutating | no | Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening |
 | `request_close` | mutating | no | Request native window closure; dirty documents require explicit confirmation, and approved remote closure waits for its successful reply to be flushed |

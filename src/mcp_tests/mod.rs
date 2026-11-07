@@ -132,7 +132,6 @@ mod official_client {
     mod multi_move;
     mod node_edit;
     mod obj_export;
-
     mod pointer_hit;
     mod primitive_options;
     mod save_new_scene;
