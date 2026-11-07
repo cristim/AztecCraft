@@ -260,8 +260,8 @@ not verified Maya defaults (rows 1 to 5, 12 and 13 of the [policy constants tabl
 hide their own centers. Occluders within the face-center depth tolerance of the center's
 view depth (z-fighting range, e.g. stacked planes 1e-3 apart at distance 50) do not hide it;
 unobstructed finite degenerate centers can be selected.
-Other component masks, multiple-face gestures, marquee, hover and marking menus
-are unsupported. The same holds in Vertex and Edge modes: a Shift or Ctrl click is refused
+Other component masks, multiple-face gestures, component marquee (the object marquee exists, see
+"Object marquee is a provisional subset"), hover and marking menus are unsupported. The same holds in Vertex and Edge modes: a Shift or Ctrl click is refused
 with ModifiedClick and leaves the selection unchanged. Maya supports modified clicks to add
 to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude remains disabled until a real history and
 manipulator workflow exists.
@@ -995,25 +995,34 @@ so a refused Delete of many objects in a large file can still briefly stall the 
 Delete pays nothing extra. Not capped: no member count is documented as the point where naming
 stops being useful.
 
-## Marquee drag feedback has PROVISIONAL edge cases
+## Object marquee is a provisional subset
 
-**Severity:** low
+**Severity:** medium
 **Area:** viewport input
-**Issue:** cristim/AztecCraft#168
+**Issue:** cristim/AztecCraft#30, cristim/AztecCraft#168
 
-A plain primary drag in the viewport ends with the status "Marquee (drag) selection is not
-implemented yet; click to select", because the real marquee (#30) is missing. The message is decided
-per drag from egui's drag state and the release event's modifiers. These cases are PROVISIONAL and
-unverified against Maya:
+A primary drag in Object or Hierarchy mode selects objects by rectangle (`select_in_rect`, policy
+rows 34 to 38 in [development.md](.project-docs/development.md#application-policy-constants)). It
+is a subset of Maya's marquee and every choice below is PROVISIONAL and unverified against Maya:
 
-- A stationary press held longer than 0.8 s can count as a drag in egui 0.36 (only if some frame
-  lands during the hold) and then shows the message; egui does not treat such a press as a click
-  either way.
-- Releasing Alt before the drag threshold is crossed shows the message, because no Orbit was emitted.
-- A fast flick whose press, move and release coalesce into one frame is not seen as a drag and shows
-  nothing.
-- Alt held only on the release event, with no Orbit during the drag, is silent.
-- A drag that starts in the viewport and ends over another panel shows the message.
+- There is no camera-based selection: objects hidden behind another object inside the rectangle are
+  selected in every shading mode. Pinned by
+  `marquee_selects_an_object_hidden_behind_another_in_shaded`.
+- Any overlap of a visible triangle selects the object (the docs are silent on partly covered
+  objects); there is no backface culling.
+- Shift toggles, Ctrl or Command removes, Shift+Ctrl adds; the Marquee page is silent on Shift.
+- Hits are ordered by instance order and the last hit leads, so Move's pivot follows the last hit.
+- Hardware Ctrl-drag on macOS is an AppKit secondary-button drag and never selects; Command-drag
+  does. Not checked by tool.
+- Component modes (Face, Vertex, Edge) have no marquee: the drag shows a status and changes nothing.
+  Hidden instances and curves cannot be marquee-selected. Lasso, Paint Selection, the Drag style,
+  Tab and Alt-repositioning are absent (#69, #30).
+- The five #168 drag cases now read: a stationary press held longer than 0.8 s that egui counts as a
+  drag is a zero-area rectangle and picks like a click (nearest hit); releasing Alt before the drag
+  threshold shows nothing (no Orbit and no rectangle); a fast flick that coalesces into one frame is
+  not a drag and does nothing; Alt held only on the release event is not a marquee; a release over
+  another panel selects with the end clamped to the viewport edge. Esc during a drag cancels it.
+  #168 stays open until each of these is checked against Maya.
 
 ## Disabled Create menu rows expose their reason by hover only
 
@@ -1123,8 +1132,8 @@ Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ct
 in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It acts on
 several objects for Move only (native drag, and MCP `begin_manipulation` with `expected_selection_generation`, #325 slice B);
 Rotate, Scale and Channel Box edits still refuse with `multiple_selection` until #325 slices C and D (the by-id MCP tools `delete_node`,
-`rename_node`, `set_transform` and `edit_node` still act on the node they name), and marquee
-(#30) is absent. The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
+`rename_node`, `set_transform` and `edit_node` still act on the node they name), and the marquee
+selects objects only (#30, see "Object marquee is a provisional subset"). The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
 an unselected object does nothing in the viewport but selects it in the Outliner, where the page
 pairs Shift with adding and Ctrl with toggling; Shift wins over Ctrl in the Outliner; Command
