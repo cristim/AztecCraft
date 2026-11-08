@@ -2,6 +2,7 @@ use super::*;
 use crate::mcp;
 
 mod bridge;
+#[cfg(feature = "mcp-test-client")]
 mod deadline;
 mod file_actions;
 mod hidden_editor;

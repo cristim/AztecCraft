@@ -351,7 +351,7 @@ async fn native_sdk_uncertain_receipt_survives_close_reply_flush_failure_until_d
     })
     .await
     .unwrap();
-    let _ = tokio::time::timeout(Duration::from_secs(2), handle.await_response())
+    let _ = tokio::time::timeout(protocol_call_deadline(), handle.await_response())
         .await
         .unwrap();
     let output = hidden_frame(&mut editor, &context, vec![]);

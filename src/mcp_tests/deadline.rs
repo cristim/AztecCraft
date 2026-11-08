@@ -66,4 +66,31 @@ mod tests {
             assert!(message.contains(DEADLINE_ENV), "{raw}: {message}");
         }
     }
+
+    #[test]
+    fn official_client_waits_use_the_configured_deadline() {
+        fn scan(dir: &std::path::Path, hits: &mut Vec<String>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    scan(&path, hits);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    let text = std::fs::read_to_string(&path).unwrap();
+                    for (index, line) in text.lines().enumerate() {
+                        if line.contains("Duration::from_secs(2)") {
+                            hits.push(format!("{}:{}", path.display(), index + 1));
+                        }
+                    }
+                }
+            }
+        }
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/mcp_tests/official_client");
+        let mut hits = Vec::new();
+        scan(&root, &mut hits);
+        assert!(
+            hits.is_empty(),
+            "use protocol_call_deadline() instead of a fixed 2 s wait: {hits:?}"
+        );
+    }
 }
