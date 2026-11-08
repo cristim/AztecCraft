@@ -1037,6 +1037,9 @@ impl Editor {
             if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
                 return OperationError::ReadOnlyKeys;
             }
+            if key_command && error == azteccraft::native_scene::NativeError::UnsupportedEdit {
+                return OperationError::UnsupportedKeys;
+            }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command
                 && error != azteccraft::native_scene::NativeError::BusyManipulation
