@@ -232,3 +232,100 @@ fn move_rotate_and_scale_patch_only_their_words_through_save_save_as_and_reopen(
         );
     }
 }
+
+/// Rotate, Scale and Move begins in turn; a begin that starts is cancelled at once.
+fn begin_all(editor: &mut Editor) -> [Result<(), OperationError>; 3] {
+    let (node, path) = {
+        let (node, path) = editor.single_target().unwrap();
+        (node, path.to_vec())
+    };
+    let target = TransformTarget { node, path };
+    let operations = [
+        Operation::BeginRotate {
+            target: target.clone(),
+            axis: RotateAxis::X,
+            space: ManipulationSpace::Object,
+        },
+        Operation::BeginScale {
+            target: target.clone(),
+            handle: ScaleHandle::X,
+            space: ManipulationSpace::Object,
+        },
+        Operation::BeginMove {
+            target,
+            axis: WorldAxis::X,
+            expected_selection_generation: None,
+        },
+    ];
+    operations.map(|operation| {
+        let started = remote(editor, operation)?;
+        let OperationReply::ManipulationStarted { manipulation_id } = started else {
+            panic!("{started:?}");
+        };
+        remote(
+            editor,
+            Operation::FinishMove {
+                id: ManipulationId::from_decimal(&manipulation_id).unwrap(),
+                finish: ManipulationFinish::Cancel,
+            },
+        )
+        .map(|_| ())
+    })
+}
+
+#[test]
+fn an_absent_rotate_leaf_with_a_pivot_refuses_rotate_and_changes_nothing() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("no_rotate.mb");
+    std::fs::write(
+        &path,
+        scene_bytes(&[(b"t", T), (b"s", S), (b"rp", RP), (b"sp", SP)]),
+    )
+    .unwrap();
+    let mut editor = open(&path);
+    let before = editor.history.scene().clone();
+    let [rotate, scale, mv] = begin_all(&mut editor);
+    let error = rotate.unwrap_err();
+    assert!(
+        format!("{error:?}").contains("AbsentChannelLeaf"),
+        "{error:?}"
+    );
+    assert_eq!(editor.history.scene(), &before);
+    assert!(editor.history.active_manipulation().is_none());
+    // The leaves that exist are still editable, and a cancelled begin leaves the scene alone.
+    scale.unwrap();
+    mv.unwrap();
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn a_sourced_ascii_scene_with_a_pivot_refuses_every_tool_as_read_only() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("pivot.ma");
+    std::fs::write(
+        &path,
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\";\n\
+         currentUnit -l centimeter -a degree -t film;\n\
+         createNode transform -n \"object\";\n\
+         setAttr \".t\" -type \"double3\" 1 2 3;\n\
+         setAttr \".r\" -type \"double3\" 10 20 30;\n\
+         setAttr \".s\" -type \"double3\" 2 3 4;\n\
+         setAttr \".rp\" -type \"double3\" 0.5 0.25 -1;\n\
+         setAttr \".sp\" -type \"double3\" -1 2 0.5;\n",
+    )
+    .unwrap();
+    let mut editor = open(&path);
+    let before = editor.history.scene().clone();
+    for (tool, result) in ["rotate", "scale", "move"]
+        .into_iter()
+        .zip(begin_all(&mut editor))
+    {
+        let error = result.unwrap_err();
+        assert!(
+            format!("{error:?}").contains("ReadOnlyFormat"),
+            "{tool}: {error:?}"
+        );
+    }
+    assert_eq!(editor.history.scene(), &before);
+    assert!(editor.history.active_manipulation().is_none());
+}
