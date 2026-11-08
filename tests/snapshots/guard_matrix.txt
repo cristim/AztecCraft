@@ -1830,9 +1830,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect => Ok(scene) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3722,9 +3722,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  set_keyframe(node,frame_9) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  delete_keys(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3848,9 +3848,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  set_keyframe(node,frame_9) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  delete_keys(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -3974,9 +3974,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4100,9 +4100,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4226,9 +4226,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4352,9 +4352,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4478,9 +4478,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4604,9 +4604,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(UnsupportedKeys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
