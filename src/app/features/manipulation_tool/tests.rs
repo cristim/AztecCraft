@@ -1317,7 +1317,7 @@ fn rotate_and_scale_owner_busy_cancel_and_close_follow_move() {
 }
 
 #[test]
-fn scale_handles_sit_at_the_scale_fixed_point_and_rotate_handles_at_the_pivot() {
+fn scale_handles_sit_at_the_scale_fixed_point_and_move_and_rotate_handles_at_the_pivot() {
     let scene = azteccraft::native_scene::ascii::decode(
         concat!(
             "//Maya ASCII 2016 scene\nrequires maya \"2016\"; ",
@@ -1341,11 +1341,14 @@ fn scale_handles_sit_at_the_scale_fixed_point_and_rotate_handles_at_the_pivot() 
     editor.select(Some(node));
     let target = editor.selected_move_target().unwrap();
     let core = editor.history.scene().manipulator_frame(&target).unwrap();
-    assert!((core.scale_origin_cm - core.origin_cm).length() > 1.0);
+    assert!((core.scale_origin_cm - core.pivot_cm).length() > 0.5);
+    assert!((core.pivot_cm - core.origin_cm).length() > 0.5);
     let (_, rotate) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
     let (_, scale) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
-    assert_eq!(rotate.origin(), core.origin_cm);
+    assert_eq!(rotate.origin(), core.pivot_cm);
     assert_eq!(scale.origin(), core.scale_origin_cm);
+    let (_, shown) = editor.manipulation_frame(ActiveTool::Move).unwrap();
+    assert_eq!(shown.origin(), core.pivot_cm);
 }
 
 // Maya 2026 Scale Tool settings: Axis Orientation "World (default)". Rotate Tool settings:
@@ -2994,5 +2997,118 @@ fn a_scale_grab_too_close_to_the_pivot_reports_the_drag_refusal() {
         "z",
         "World Z Scale",
         "Scale handle was grabbed too close to the pivot",
+    );
+}
+
+// A binary node with the given translate and rotate and scale pivots, installed over the cube of
+// `setup`; the handle frames are read from it, no edit begins.
+fn install_pivoted_node(editor: &mut Editor, translate: Vec3, pivot: Vec3) {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let p = pivot.to_array().map(f64::from);
+    let t = translate.to_array().map(f64::from);
+    let bytes = scene(
+        &[
+            group(
+                b"XFRM",
+                &[
+                    creation(b"piv", None),
+                    triple(b"t", t),
+                    triple(b"r", [0.0; 3]),
+                    triple(b"s", [1.0; 3]),
+                    triple(b"rp", p),
+                    triple(b"sp", p),
+                ]
+                .concat(),
+                4,
+            ),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"pivShape", Some(b"piv")),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    editor.history =
+        azteccraft::history::History::new(azteccraft::native_scene::binary::decode(bytes).unwrap());
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths);
+}
+
+// A point on the ring about `axis` through `centre`, as `View::ring_sized` computes it at the
+// origin. `centre` must lie in the plane through the origin perpendicular to the view.
+fn ring_about(view: &View, centre: Vec3, axis: Vec3, degrees: f32) -> Pos2 {
+    let eye = view.camera.eye();
+    let u = (eye - axis * eye.dot(axis)).normalize();
+    let v = axis.cross(u);
+    let angle = degrees.to_radians();
+    view.screen(centre + (u * angle.cos() + v * angle.sin()) * view.radius())
+}
+
+// The unit direction of the plane through the origin perpendicular to the view.
+fn pivot_dir(view: &View) -> Vec3 {
+    view.camera.eye().cross(Vec3::Y).normalize()
+}
+
+fn pixel(view: &View, at: Pos2) -> glam::DVec2 {
+    glam::DVec2::new(
+        f64::from(at.x - view.rect.min.x),
+        f64::from(at.y - view.rect.min.y),
+    )
+}
+
+// The pivoted node's translate sits 0.5 along the in-plane direction and its pivots 4.0 further,
+// so the handle must be drawn 4.5 along it and the translate point must not hit the ring.
+#[test]
+fn the_rotate_ring_is_picked_at_the_rotate_pivot_and_not_at_the_translate() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let handles = RotateHandles::new(&capture, &frame).unwrap();
+    let ring_y = Some(azteccraft::manipulator_handles::Pick::Handle(
+        azteccraft::native_scene::RotateAxis::Y,
+    ));
+    assert_eq!(
+        handles.pick(pixel(&view, ring_about(&view, dir * 4.5, Vec3::Y, 0.0))),
+        ring_y
+    );
+    // The ring that would be drawn at T + RT is half-way off the real one: some of its points miss.
+    let misses = (0..36).filter(|step| {
+        let at = ring_about(&view, dir * 0.5, Vec3::Y, *step as f32 * 10.0);
+        handles.pick(pixel(&view, at)) != ring_y
+    });
+    assert!(misses.count() > 5);
+}
+
+#[test]
+fn the_scale_box_is_picked_at_the_scale_pivot_and_not_at_the_translate() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let handles = ScaleHandles::new(&capture, &frame).unwrap();
+    let end = Vec3::X * view.radius();
+    let at_pivot = view.screen(dir * 4.5 + end);
+    let at_translate = view.screen(dir * 0.5 + end);
+    assert_eq!(
+        handles.pick(pixel(&view, at_pivot)),
+        Some(azteccraft::manipulator_handles::Pick::Handle(
+            ScaleHandle::X
+        ))
+    );
+    assert_ne!(
+        handles.pick(pixel(&view, at_translate)),
+        Some(azteccraft::manipulator_handles::Pick::Handle(
+            ScaleHandle::X
+        ))
     );
 }

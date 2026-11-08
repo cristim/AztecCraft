@@ -550,12 +550,15 @@ impl Editor {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
         };
-        let origin = if tool == ActiveTool::Scale {
-            frame.scale_origin_cm
-        } else {
-            frame.origin_cm
+        let kind = match tool {
+            ActiveTool::Scale => azteccraft::native_scene::ManipulatorTool::Scale,
+            ActiveTool::Rotate => azteccraft::native_scene::ManipulatorTool::Rotate,
+            ActiveTool::Move | ActiveTool::Select => {
+                azteccraft::native_scene::ManipulatorTool::Move
+            }
         };
-        let handle = HandleFrame::new(origin, axes).map_err(FrameFailure::Handle)?;
+        let handle =
+            HandleFrame::new(frame.handle_origin(kind), axes).map_err(FrameFailure::Handle)?;
         Ok((target, handle))
     }
 
