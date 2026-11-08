@@ -373,30 +373,47 @@ async fn animation_sdk_pages_a_large_table_and_a_time_change_stales_a_cursor() {
 
 #[tokio::test]
 async fn animation_sdk_a_sourced_scene_refuses_keys_and_says_curves_are_not_read() {
+    let directory = tempfile::tempdir().unwrap();
+    let binary = directory.path().join("keys.mb");
+    std::fs::write(
+        &binary,
+        appearance_fixture::appearance_specimen_with_users(2),
+    )
+    .unwrap();
+    let ascii = directory.path().join("keys.ma");
+    std::fs::write(&ascii, ascii_fixture::specimen()).unwrap();
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
-    let scene = azteccraft::native_scene::ascii::decode(ascii_fixture::specimen().into()).unwrap();
-    editor.history = azteccraft::history::History::new(scene);
-    let id = editor.history.scene().nodes()[0].id().to_decimal();
-    let refused = tool(
-        &mut editor,
-        &context,
-        &client,
-        "set_keyframe",
-        json!({"node_ids": [id]}),
-    )
-    .await;
-    assert_eq!(refused.is_error, Some(true));
-    assert_eq!(error_code(&refused), "read_only_format");
-    let deleted = tool(
-        &mut editor,
-        &context,
-        &client,
-        "delete_keys",
-        json!({"node_ids": [id]}),
-    )
-    .await;
-    assert_eq!(error_code(&deleted), "read_only_format");
+    for (path, code) in [(&binary, "unsupported_edit"), (&ascii, "read_only_format")] {
+        let opened = tool(
+            &mut editor,
+            &context,
+            &client,
+            "open_scene",
+            json!({"path": path}),
+        )
+        .await;
+        assert_eq!(
+            opened.structured_content.unwrap()["outcome"],
+            "document_applied"
+        );
+        let scene = editor.history.scene().clone();
+        let id = scene.nodes()[0].id().to_decimal();
+        for name in ["set_keyframe", "delete_keys"] {
+            let refused = tool(
+                &mut editor,
+                &context,
+                &client,
+                name,
+                json!({"node_ids": [id]}),
+            )
+            .await;
+            assert_eq!(refused.is_error, Some(true), "{name}");
+            assert_eq!(error_code(&refused), code, "{name}");
+            assert_eq!(editor.history.scene(), &scene, "{name}");
+            assert!(!editor.history.can_undo(), "{name}");
+        }
+    }
     let read = keys(&mut editor, &context, &client, json!({})).await;
     assert_eq!(read["keys_total"], 0);
     assert!(read["unavailable_reason"].is_string());

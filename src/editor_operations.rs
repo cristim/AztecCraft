@@ -1023,6 +1023,8 @@ pub enum OperationError {
     SessionMaterial(NativeError),
     /// A key command on a scene opened from a Maya file; the MCP layer reports `read_only_format`.
     ReadOnlyKeys,
+    /// A key command on a scene opened from a Maya Binary file; the MCP layer reports `unsupported_edit`.
+    UnsupportedKeys,
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1103,6 +1105,7 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::ReadOnlyKeys => NativeError::ReadOnlyFormat.fmt(f),
+            Self::UnsupportedKeys => NativeError::UnsupportedEdit.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(
