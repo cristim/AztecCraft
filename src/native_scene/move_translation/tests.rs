@@ -837,11 +837,8 @@ fn world_move_frames_validates_once_for_the_whole_set() {
     assert_eq!(batch, 1);
 }
 
-/// World image of a node-local point: the parents' map times the node's own matrix.
 fn world_image(scene: &NativeScene, selected: &TransformTarget, point: DVec3) -> DVec3 {
-    let node = scene.internal_transform(selected.node).unwrap();
-    let parent = scene.ancestor_world(selected).unwrap().unwrap();
-    (parent * node.matrix().unwrap()).transform_point3(point)
+    test_fixtures::world_image(scene, selected, point)
 }
 
 fn assert_vec_near(actual: DVec3, expected: DVec3, context: &str) {
@@ -851,41 +848,8 @@ fn assert_vec_near(actual: DVec3, expected: DVec3, context: &str) {
     );
 }
 
-/// pivoted_shape plus rpt, spt and shear (test constructors: a `.mb` with these keys does not
-/// import until #105), unparented and under a rotated, scaled parent.
 fn pivoted_move_scenes() -> Vec<(&'static str, NativeScene, NodeId)> {
-    let (plain, plain_node) = test_fixtures::pivoted_shape();
-    let (extras, extras_node) = test_fixtures::pivoted_extras_shape();
-    let (mut parented, root, child, _) = test_fixtures::grouped_shape();
-    parented
-        .set_transform(
-            root,
-            NativeTransform {
-                translation: [7.0, -11.0, 13.0],
-                rotation: [30.0, -20.0, 50.0],
-                scale: [2.0, 2.0, 2.0],
-            },
-        )
-        .unwrap();
-    parented
-        .set_transform(
-            child,
-            NativeTransform {
-                translation: [3.0, -2.0, 5.0],
-                rotation: [20.0, 35.0, -15.0],
-                scale: [2.0, 0.5, -1.0],
-            },
-        )
-        .unwrap();
-    let index = parented.nodes.iter().position(|n| n.id == child).unwrap();
-    parented.nodes[index].rotate_pivot = [1.0, 0.25, -2.0].map(Scalar::new);
-    parented.nodes[index].scale_pivot = [-0.5, 1.0, 0.0].map(Scalar::new);
-    test_fixtures::give_pivot_extras(&mut parented, child);
-    vec![
-        ("rp and sp", plain, plain_node),
-        ("rp, sp, rpt, spt and shear", extras, extras_node),
-        ("parented with extras", parented, child),
-    ]
+    test_fixtures::pivoted_family([20.0, 35.0, -15.0], [30.0, -20.0, 50.0], true)
 }
 
 #[test]

@@ -171,6 +171,74 @@ pub(crate) fn restrict_edits(scene: &mut NativeScene, node: NodeId) {
         .push("driver".into());
 }
 
+/// Pivoted transforms for the tool tests: rp and sp alone, plus rpt and spt (and shear when
+/// `shear`), and the same node under a parent that is a rotation times a uniform scale. Scale
+/// is positive so every space can begin. Test constructors only: a `.mb` with rpt, spt or
+/// shear does not import until #105.
+pub(crate) fn pivoted_family(
+    rotation: [f64; 3],
+    parent_rotation: [f64; 3],
+    shear: bool,
+) -> Vec<(&'static str, NativeScene, NodeId)> {
+    let local = NativeTransform {
+        translation: [3.0, -2.0, 5.0],
+        rotation,
+        scale: [2.0, 0.5, 1.5],
+    };
+    let extras = |scene: &mut NativeScene, node| {
+        set_extras(
+            scene,
+            node,
+            TransformExtras {
+                rotate_pivot_translate: Some([0.5, -1.5, 2.0]),
+                scale_pivot_translate: Some([-2.0, 0.75, 1.0]),
+                shear: shear.then_some([0.1, -0.2, 0.3]),
+                ..TransformExtras::default()
+            },
+        );
+        scene.validate().unwrap();
+    };
+    let pivot = |scene: &mut NativeScene, node: NodeId| {
+        let entry = scene.nodes.iter_mut().find(|n| n.id == node).unwrap();
+        entry.rotate_pivot = [1.0, 0.25, -2.0].map(Scalar::new);
+        entry.scale_pivot = [-0.5, 1.0, 0.0].map(Scalar::new);
+    };
+    let (mut plain, plain_node) = cube();
+    plain.set_transform(plain_node, local).unwrap();
+    pivot(&mut plain, plain_node);
+    let (mut with_extras, extras_node) = cube();
+    with_extras.set_transform(extras_node, local).unwrap();
+    pivot(&mut with_extras, extras_node);
+    extras(&mut with_extras, extras_node);
+    let (mut parented, root, child, _) = grouped_shape();
+    parented
+        .set_transform(
+            root,
+            NativeTransform {
+                translation: [7.0, -11.0, 13.0],
+                rotation: parent_rotation,
+                scale: [2.0, 2.0, 2.0],
+            },
+        )
+        .unwrap();
+    parented.set_transform(child, local).unwrap();
+    pivot(&mut parented, child);
+    extras(&mut parented, child);
+    parented.validate().unwrap();
+    vec![
+        ("rp and sp", plain, plain_node),
+        ("rp, sp, rpt and spt", with_extras, extras_node),
+        ("parented with extras", parented, child),
+    ]
+}
+
+/// World image of a node-local point: the parents' map times the node's own matrix.
+pub(crate) fn world_image(scene: &NativeScene, selected: &TransformTarget, point: DVec3) -> DVec3 {
+    let node = scene.internal_transform(selected.node).unwrap();
+    let parent = scene.ancestor_world(selected).unwrap().unwrap();
+    (parent * node.matrix().unwrap()).transform_point3(point)
+}
+
 pub(crate) fn triangle_double_shape() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();
     scene.shapes[0].mesh = NativeMesh::triangle_double_fixture();
