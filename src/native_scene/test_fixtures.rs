@@ -138,6 +138,39 @@ pub(crate) fn pivoted_shape() -> (NativeScene, NodeId) {
     (scene, id)
 }
 
+/// `pivoted_shape` plus rotatePivotTranslate, scalePivotTranslate and shear. Only test
+/// constructors can build it: a `.mb` carrying these keys fails to import until #105.
+pub(crate) fn pivoted_extras_shape() -> (NativeScene, NodeId) {
+    let (mut scene, id) = pivoted_shape();
+    give_pivot_extras(&mut scene, id);
+    (scene, id)
+}
+
+pub(crate) fn give_pivot_extras(scene: &mut NativeScene, node: NodeId) {
+    set_extras(
+        scene,
+        node,
+        TransformExtras {
+            rotate_pivot_translate: Some([0.5, -1.5, 2.0]),
+            scale_pivot_translate: Some([-2.0, 0.75, 1.0]),
+            shear: Some([0.1, -0.2, 0.3]),
+            ..TransformExtras::default()
+        },
+    );
+    scene.validate().unwrap();
+}
+
+/// Makes `node` refuse every edit (`UnsupportedEdit`), whatever its pivots are.
+pub(crate) fn restrict_edits(scene: &mut NativeScene, node: NodeId) {
+    scene
+        .nodes
+        .iter_mut()
+        .find(|entry| entry.id == node)
+        .unwrap()
+        .restrictions
+        .push("driver".into());
+}
+
 pub(crate) fn triangle_double_shape() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();
     scene.shapes[0].mesh = NativeMesh::triangle_double_fixture();

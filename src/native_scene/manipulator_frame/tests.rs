@@ -224,7 +224,7 @@ fn a_default_translation_keeps_negative_zero_in_the_frame_origin() {
 }
 
 #[test]
-fn move_and_rotate_refuse_a_rotate_pivot_so_the_frame_origin_is_the_world_pivot() {
+fn move_accepts_a_rotate_pivot_and_rotate_still_refuses_it() {
     let (mut scene, node) = test_fixtures::cube();
     scene.nodes[0].rotate_pivot[1] = Scalar::new(0.25);
     test_fixtures::set_extras(
@@ -236,12 +236,7 @@ fn move_and_rotate_refuse_a_rotate_pivot_so_the_frame_origin_is_the_world_pivot(
         },
     );
     let selected = target_of(&scene, node);
-    assert!(matches!(
-        scene.world_move_frame(&selected),
-        Err(NativeError::UnsupportedMove(
-            WorldMoveUnsupported::SelectedPivot
-        ))
-    ));
+    assert!(scene.world_move_frame(&selected).is_ok());
     assert!(matches!(
         scene.begin_rotation(&selected, RotateAxis::X, RotateSpace::Object),
         Err(NativeError::UnsupportedRotate(
