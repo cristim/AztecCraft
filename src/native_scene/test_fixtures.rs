@@ -239,6 +239,24 @@ pub(crate) fn world_image(scene: &NativeScene, selected: &TransformTarget, point
     (parent * node.matrix().unwrap()).transform_point3(point)
 }
 
+/// The node-local point the rotation stage leaves fixed: the preimage of RP under the scale
+/// stage, found by inverting the matrix of a copy with zero T, R and RT. Independent of
+/// `ManipulatorFrame`.
+pub(crate) fn rotate_fixed_point(scene: &NativeScene, node: NodeId) -> DVec3 {
+    let mut bare = scene.clone();
+    let entry = bare.nodes.iter_mut().find(|n| n.id == node).unwrap();
+    for channel in &mut entry.channels[..6] {
+        *channel = Scalar::new(0.0);
+    }
+    entry.extras.rotate_pivot_translate = None;
+    let internal = bare.internal_transform(node).unwrap();
+    internal
+        .matrix()
+        .unwrap()
+        .inverse()
+        .transform_point3(DVec3::from_array(internal.rotate_pivot_cm))
+}
+
 pub(crate) fn triangle_double_shape() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();
     scene.shapes[0].mesh = NativeMesh::triangle_double_fixture();

@@ -130,9 +130,7 @@ fn refusals_report_what_begin_would_refuse() {
             RotateAxis::X,
             RotateSpace::Object
         ),
-        Some(NativeError::UnsupportedRotate(
-            RotateUnsupported::SelectedPivot
-        ))
+        None
     );
 }
 
@@ -224,7 +222,7 @@ fn a_default_translation_keeps_negative_zero_in_the_frame_origin() {
 }
 
 #[test]
-fn move_accepts_a_rotate_pivot_and_rotate_still_refuses_it() {
+fn move_and_rotate_accept_a_rotate_pivot_and_their_frame_origin_is_the_world_pivot() {
     let (mut scene, node) = test_fixtures::cube();
     scene.nodes[0].rotate_pivot[1] = Scalar::new(0.25);
     test_fixtures::set_extras(
@@ -237,12 +235,11 @@ fn move_accepts_a_rotate_pivot_and_rotate_still_refuses_it() {
     );
     let selected = target_of(&scene, node);
     assert!(scene.world_move_frame(&selected).is_ok());
-    assert!(matches!(
-        scene.begin_rotation(&selected, RotateAxis::X, RotateSpace::Object),
-        Err(NativeError::UnsupportedRotate(
-            RotateUnsupported::SelectedPivot
-        ))
-    ));
+    assert!(
+        scene
+            .begin_rotation(&selected, RotateAxis::X, RotateSpace::Object)
+            .is_ok()
+    );
 }
 
 #[test]
@@ -446,4 +443,41 @@ fn the_frame_pivot_is_the_world_image_of_the_rotate_pivot_including_rp() {
     // ignoring RP, which Frame Selected and the Rotate and Scale handles rely on.
     near(frame.pivot_cm, DVec3::new(1.5, 2.0, -1.0));
     near(frame.origin_cm, DVec3::new(1.0, 2.0, 3.0));
+}
+
+#[test]
+fn handle_origin_is_the_rotate_pivot_for_move_and_rotate_and_the_scale_fixed_point_for_scale() {
+    for (name, scene, node) in
+        test_fixtures::pivoted_family([20.0, 35.0, -15.0], [30.0, -20.0, 50.0], true)
+    {
+        let selected = target_of(&scene, node);
+        let frame = scene.manipulator_frame(&selected).unwrap();
+        let rotate_fixed = test_fixtures::world_image(
+            &scene,
+            &selected,
+            test_fixtures::rotate_fixed_point(&scene, node),
+        );
+        let scale_fixed = test_fixtures::world_image(
+            &scene,
+            &selected,
+            DVec3::from_array(scene.internal_transform(node).unwrap().scale_pivot_cm),
+        );
+        for tool in [ManipulatorTool::Move, ManipulatorTool::Rotate] {
+            near_relative(frame.handle_origin(tool), rotate_fixed);
+        }
+        near_relative(frame.handle_origin(ManipulatorTool::Scale), scale_fixed);
+        // The pivots must be nonzero and distinct from T + RT, or the test proves nothing.
+        assert!((frame.pivot_cm - frame.origin_cm).length() > 0.1, "{name}");
+        assert!(
+            (frame.scale_origin_cm - frame.pivot_cm).length() > 0.1,
+            "{name}"
+        );
+    }
+}
+
+fn near_relative(actual: DVec3, expected: DVec3) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{actual} != {expected}"
+    );
 }

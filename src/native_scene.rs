@@ -20,7 +20,7 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
-pub use manipulator_frame::ManipulatorFrame;
+pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
@@ -599,8 +599,8 @@ pub struct InternalTransform {
 }
 
 impl InternalTransform {
-    /// T + RT in the parent's space: the Move and Rotate pivot, since both refuse a nonzero
-    /// rotate pivot (RP) and `T + RT + RP` is then the same point.
+    /// T + RT in the parent's space: the rotate pivot without RP. Not the Move or Rotate handle
+    /// position, which is `T + RT + RP`.
     pub(crate) fn origin_cm(self) -> DVec3 {
         let translate = DVec3::from_array(self.translation_cm);
         match self.extras {
