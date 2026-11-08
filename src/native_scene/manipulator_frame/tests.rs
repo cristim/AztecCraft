@@ -481,3 +481,49 @@ fn near_relative(actual: DVec3, expected: DVec3) {
         "{actual} != {expected}"
     );
 }
+
+/// A pivot does not hide any other refusal: a restricted node refuses all three tools, and a
+/// non-xyz rotate order or a rotate axis still refuses Rotate (Move and Scale accept them).
+#[test]
+fn other_refusals_still_win_on_a_pivoted_node() {
+    let (mut scene, node) = test_fixtures::pivoted_shape();
+    let selected = target_of(&scene, node);
+    let mut restricted = scene.clone();
+    test_fixtures::restrict_edits(&mut restricted, node);
+    assert!(restricted.world_move_frame(&selected).is_err());
+    assert_eq!(
+        restricted.rotation_refusal(&selected, RotateAxis::X, RotateSpace::Object),
+        Some(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(
+        restricted.scale_refusal(&selected, ScaleHandle::X, ScaleSpace::Object),
+        Some(NativeError::UnsupportedEdit)
+    );
+    for (extras, expected) in [
+        (
+            TransformExtras {
+                rotate_order: Some(1),
+                ..TransformExtras::default()
+            },
+            RotateUnsupported::RotateOrder,
+        ),
+        (
+            TransformExtras {
+                rotate_axis: Some([1.0, 0.0, 0.0]),
+                ..TransformExtras::default()
+            },
+            RotateUnsupported::RotateAxis,
+        ),
+    ] {
+        test_fixtures::set_extras(&mut scene, node, extras);
+        assert_eq!(
+            scene.rotation_refusal(&selected, RotateAxis::X, RotateSpace::Object),
+            Some(NativeError::UnsupportedRotate(expected))
+        );
+        assert!(scene.world_move_frame(&selected).is_ok());
+        assert_eq!(
+            scene.scale_refusal(&selected, ScaleHandle::X, ScaleSpace::Object),
+            None
+        );
+    }
+}

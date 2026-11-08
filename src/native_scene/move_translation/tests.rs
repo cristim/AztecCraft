@@ -887,6 +887,12 @@ fn a_pivoted_node_is_moved_by_exactly_the_requested_world_displacement() {
                     name,
                 );
             }
+            // #370 owns Move Object/Parent orientation: a move never turns the axes.
+            assert_eq!(
+                moved.manipulator_frame(&selected).unwrap().object_axes,
+                scene.manipulator_frame(&selected).unwrap().object_axes,
+                "{name}"
+            );
             assert_vec_near(
                 moved.world_move_frame(&selected).unwrap().origin_cm(),
                 rotate_pivot + direction * 3.5,
