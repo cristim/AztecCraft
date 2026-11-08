@@ -477,59 +477,65 @@ fn prepare<'a>(
     destination: SaveDestination<'_>,
     may_install: &'a dyn Fn() -> bool,
 ) -> Result<Transaction<'a>, Error> {
-    let source = match origin {
-        NativeOrigin::Binary(source) => source,
+    // `None` marks a new scene, whose retention is known only after its bytes are encoded.
+    let (destination, baseline, retention) = match origin {
+        // A new scene has no file yet, so only Save As applies.
         NativeOrigin::Untitled => {
             let SaveDestination::As(path) = destination else {
                 return Err(Error::NoDestination);
             };
-            let destination = mb_destination(path)?;
-            destination.absent()?;
-            return Ok(Transaction {
-                destination,
-                baseline: None,
-                bytes: encode_authored(scene)?.into(),
-                retention: Retention::Authored {
-                    document_id: scene.authored_document_id().ok_or(Error::SourceChanged)?,
-                },
-                may_install,
-                state: RefCell::new(State::default()),
-            });
+            (mb_destination(path)?, None, None)
+        }
+        NativeOrigin::Binary(source) => {
+            let tied = match &source.retention {
+                Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
+                Retention::Authored { document_id } => {
+                    scene.authored_document_id() == Some(*document_id)
+                }
+            };
+            if !tied {
+                return Err(Error::SourceChanged);
+            }
+            let (destination, baseline) = match destination {
+                SaveDestination::Active => (
+                    source
+                        .destination
+                        .clone()
+                        .filter(|_| matches!(source.link, LinkStatus::Direct))
+                        .ok_or(Error::Unsupported)?,
+                    Some(source),
+                ),
+                SaveDestination::As(path) => (mb_destination(path)?, None),
+            };
+            (destination, baseline, Some(source.retention.clone()))
         }
         _ => return Err(Error::Unsupported),
-    };
-    let tied = match &source.retention {
-        Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
-        Retention::Authored { document_id } => scene.authored_document_id() == Some(*document_id),
-    };
-    if !tied {
-        return Err(Error::SourceChanged);
-    }
-    let (destination, baseline) = match destination {
-        SaveDestination::Active => (
-            source
-                .destination
-                .clone()
-                .filter(|_| matches!(source.link, LinkStatus::Direct))
-                .ok_or(Error::Unsupported)?,
-            Some(source),
-        ),
-        SaveDestination::As(path) => (mb_destination(path)?, None),
     };
     if let Some(baseline) = baseline {
         destination.verify(&baseline.file, &baseline.bytes)?;
     } else {
         destination.absent()?;
     }
-    let bytes: Arc<[u8]> = match source.retention {
-        Retention::Source { .. } => binary::encode(scene).map_err(Error::Encode)?.into(),
-        Retention::Authored { .. } => encode_authored(scene)?.into(),
+    let (bytes, retention): (Arc<[u8]>, _) = match retention {
+        Some(retention @ Retention::Source { .. }) => (
+            binary::encode(scene).map_err(Error::Encode)?.into(),
+            retention,
+        ),
+        Some(retention @ Retention::Authored { .. }) => (encode_authored(scene)?.into(), retention),
+        // The writer refuses a scene with a parsed source first (`SourcedScene`), so for a new
+        // scene `authored_document_id` is always present here. The refusal guards that
+        // invariant: `authored_document_id` is `None` only when the scene has a parsed source.
+        None => {
+            let bytes = encode_authored(scene)?.into();
+            let document_id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+            (bytes, Retention::Authored { document_id })
+        }
     };
     Ok(Transaction {
         destination,
         baseline,
         bytes,
-        retention: source.retention.clone(),
+        retention,
         may_install,
         state: RefCell::new(State::default()),
     })
