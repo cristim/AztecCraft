@@ -3037,6 +3037,9 @@ fn install_pivoted_node(editor: &mut Editor, translate: Vec3, pivot: Vec3) {
         azteccraft::history::History::new(azteccraft::native_scene::binary::decode(bytes).unwrap());
     let paths = editor.history.scene().transform_paths().unwrap();
     editor.set_selection_members_for_test(paths);
+    // The name field still holds the replaced cube's name: without this the press path sees a
+    // rename draft, which a sourced binary scene refuses (UnsupportedEdit).
+    editor.sync_fields();
 }
 
 // A point on the ring about `axis` through `centre`, as `View::ring_sized` computes it at the
@@ -3111,4 +3114,109 @@ fn the_scale_box_is_picked_at_the_scale_pivot_and_not_at_the_translate() {
             ScaleHandle::X
         ))
     );
+}
+
+fn pivot_state(editor: &Editor) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+    let node = editor
+        .history
+        .scene()
+        .node(editor.selected().unwrap())
+        .unwrap();
+    let c = node.transform().values();
+    (
+        [c[0], c[1], c[2]],
+        [c[6], c[7], c[8]],
+        node.rotate_pivot(),
+        node.scale_pivot(),
+    )
+}
+
+#[test]
+fn a_rotate_ring_drag_at_the_rotate_pivot_commits_and_keeps_the_pivot_fixed() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let (_, handle) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let (t, s, rp, sp) = pivot_state(&editor);
+    let (y, centre) = (Vec3::Y, dir * 4.5);
+    press(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 0.0),
+    );
+    assert_eq!(editor.status, "Object Y Rotate");
+    moved(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 30.0),
+    );
+    near(channels(&editor)[4], 30.0, 0.05);
+    near(channels(&editor)[3], 0.0, 1e-9);
+    near(channels(&editor)[5], 0.0, 1e-9);
+    release(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 30.0),
+    );
+    assert_eq!(editor.status, "Rotate committed");
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
+    near(channels(&editor)[4], 30.0, 0.05);
+    // T, S, RP and SP are bit-identical, so the matrix keeps RP + RT + T fixed; the handle stays.
+    let (t2, s2, rp2, sp2) = pivot_state(&editor);
+    assert_eq!(
+        (
+            t.map(f64::to_bits),
+            s.map(f64::to_bits),
+            rp.map(f64::to_bits),
+            sp.map(f64::to_bits)
+        ),
+        (
+            t2.map(f64::to_bits),
+            s2.map(f64::to_bits),
+            rp2.map(f64::to_bits),
+            sp2.map(f64::to_bits)
+        )
+    );
+    let (_, after) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    assert_eq!(after.origin(), handle.origin());
+}
+
+#[test]
+fn a_scale_box_drag_at_the_scale_pivot_commits_and_keeps_the_pivot_fixed() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let (_, handle) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let (t, _, rp, sp) = pivot_state(&editor);
+    let end = Vec3::X * view.radius();
+    let centre = dir * 4.5;
+    press(&mut editor, &context, 1.0, view.screen(centre + end));
+    assert_eq!(editor.status, "World X Scale");
+    moved(&mut editor, &context, 1.0, view.screen(centre + end * 1.5));
+    near(channels(&editor)[6], 1.5, 1e-3);
+    release(&mut editor, &context, 1.0, view.screen(centre + end * 1.5));
+    assert_eq!(editor.status, "Scale committed");
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
+    near(channels(&editor)[6], 1.5, 1e-3);
+    near(channels(&editor)[7], 1.0, 1e-9);
+    let (t2, _, rp2, sp2) = pivot_state(&editor);
+    assert_eq!(
+        (
+            t.map(f64::to_bits),
+            rp.map(f64::to_bits),
+            sp.map(f64::to_bits)
+        ),
+        (
+            t2.map(f64::to_bits),
+            rp2.map(f64::to_bits),
+            sp2.map(f64::to_bits)
+        )
+    );
+    let (_, after) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    assert_eq!(after.origin(), handle.origin());
 }
