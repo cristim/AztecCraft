@@ -3131,14 +3131,32 @@ fn pivot_state(editor: &Editor) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
     )
 }
 
+// The node-local point through the node's current world matrix, centimeters.
+fn world_of(editor: &Editor, local: glam::DVec3) -> glam::DVec3 {
+    let view =
+        azteccraft::view_scene::ViewScene::from_native(editor.history.scene(), 1 << 20).unwrap();
+    view.instances()[0].world_matrix().transform_point3(local)
+}
+
+fn assert_world_near(actual: glam::DVec3, expected: glam::DVec3, what: &str) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{what}: {actual} != {expected}"
+    );
+}
+
 #[test]
-fn a_rotate_ring_drag_at_the_rotate_pivot_commits_and_keeps_the_pivot_fixed() {
+fn a_rotate_ring_drag_turns_the_node_about_the_pivoted_handle_and_commits() {
     let (mut editor, context, view) = setup(Key::E, 1.0);
     let dir = pivot_dir(&view);
     install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
     idle(&mut editor, &context, 1.0);
     let (_, handle) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
     let (t, s, rp, sp) = pivot_state(&editor);
+    // r and s are identity here, so RP is also the point the rotation stage leaves fixed.
+    let pivot = glam::DVec3::from_array(rp);
+    let probe = glam::DVec3::new(1.5, -2.0, 4.0);
+    let (pivot_before, probe_before) = (world_of(&editor, pivot), world_of(&editor, probe));
     let (y, centre) = (Vec3::Y, dir * 4.5);
     press(
         &mut editor,
@@ -3164,8 +3182,6 @@ fn a_rotate_ring_drag_at_the_rotate_pivot_commits_and_keeps_the_pivot_fixed() {
     );
     assert_eq!(editor.status, "Rotate committed");
     assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
-    near(channels(&editor)[4], 30.0, 0.05);
-    // T, S, RP and SP are bit-identical, so the matrix keeps RP + RT + T fixed; the handle stays.
     let (t2, s2, rp2, sp2) = pivot_state(&editor);
     assert_eq!(
         (
@@ -3181,18 +3197,36 @@ fn a_rotate_ring_drag_at_the_rotate_pivot_commits_and_keeps_the_pivot_fixed() {
             sp2.map(f64::to_bits)
         )
     );
+    // The pivot's world image stays, another point moves, and keeps its distance to the pivot.
+    assert_world_near(world_of(&editor, pivot), pivot_before, "pivot");
+    let probe_after = world_of(&editor, probe);
+    assert!(
+        (probe_after - probe_before).length() > 1e-3,
+        "probe did not move"
+    );
+    let (was, now) = (
+        (probe_before - pivot_before).length(),
+        (probe_after - pivot_before).length(),
+    );
+    assert!((was - now).abs() <= 1e-9 * was, "{was} != {now}");
     let (_, after) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
     assert_eq!(after.origin(), handle.origin());
 }
 
 #[test]
-fn a_scale_box_drag_at_the_scale_pivot_commits_and_keeps_the_pivot_fixed() {
+fn a_scale_box_drag_scales_about_the_scale_pivot_and_commits() {
     let (mut editor, context, view) = setup(Key::R, 1.0);
     let dir = pivot_dir(&view);
     install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    editor
+        .set_tool_space(ActiveTool::Scale, ManipulationSpace::World)
+        .unwrap();
     idle(&mut editor, &context, 1.0);
     let (_, handle) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     let (t, _, rp, sp) = pivot_state(&editor);
+    let pivot = glam::DVec3::from_array(sp);
+    let probe = glam::DVec3::new(1.5, -2.0, 4.0);
+    let (pivot_before, probe_before) = (world_of(&editor, pivot), world_of(&editor, probe));
     let end = Vec3::X * view.radius();
     let centre = dir * 4.5;
     press(&mut editor, &context, 1.0, view.screen(centre + end));
@@ -3217,6 +3251,16 @@ fn a_scale_box_drag_at_the_scale_pivot_commits_and_keeps_the_pivot_fixed() {
             sp2.map(f64::to_bits)
         )
     );
+    // SP's world image stays; a point is scaled about it along X by the committed factor.
+    assert_world_near(world_of(&editor, pivot), pivot_before, "pivot");
+    let factor = channels(&editor)[6];
+    let grown = glam::DVec3::new(
+        (probe_before.x - pivot_before.x) * factor,
+        probe_before.y - pivot_before.y,
+        probe_before.z - pivot_before.z,
+    );
+    assert_world_near(world_of(&editor, probe), pivot_before + grown, "probe");
+    assert!((world_of(&editor, probe) - probe_before).length() > 1e-3);
     let (_, after) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     assert_eq!(after.origin(), handle.origin());
 }
