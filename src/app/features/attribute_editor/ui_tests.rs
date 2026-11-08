@@ -814,7 +814,9 @@ fn transform_attributes_render_read_only_for_a_node_with_extras() {
         "yzx",
         "Rotate Axis",
         "Pivots (read-only)",
+        "Rotate Pivot",
         "Rotate Pivot Translate",
+        "Scale Pivot",
         "Scale Pivot Translate",
     ]
     .map(position);

@@ -186,8 +186,8 @@ impl Editor {
         }
     }
 
-    /// Shear, Rotate Order, Rotate Axis (Maya 2026 Transform Attributes order) and the pivot
-    /// translations under their own Pivots heading, all read-only. The 2026 transform node page
+    /// Shear, Rotate Order, Rotate Axis (Maya 2026 Transform Attributes order) and the pivots and
+    /// pivot translations under their own Pivots heading, all read-only. The 2026 transform node page
     /// lists no keyable flag for them, so no Channel Box rows are added (an inference: Autodesk
     /// does not state what the Channel Box shows). No row has an edit control.
     fn transform_attributes_section(&self, ui: &mut egui::Ui) {
@@ -209,7 +209,7 @@ impl Editor {
             }
         };
         let triple = |v: [f64; 3]| format!("{} {} {}", v[0], v[1], v[2]);
-        let rows = |ui: &mut egui::Ui, id: &str, rows: [(&str, String); 2]| {
+        let rows = |ui: &mut egui::Ui, id: &str, rows: [(&str, String); 4]| {
             egui::Grid::new(id)
                 .num_columns(2)
                 .spacing([8.0, 5.0])
@@ -241,10 +241,12 @@ impl Editor {
             ui,
             "transform_pivots",
             [
+                ("Rotate Pivot", triple(attributes.rotate_pivot)),
                 (
                     "Rotate Pivot Translate",
                     triple(attributes.rotate_pivot_translate),
                 ),
+                ("Scale Pivot", triple(attributes.scale_pivot)),
                 (
                     "Scale Pivot Translate",
                     triple(attributes.scale_pivot_translate),
