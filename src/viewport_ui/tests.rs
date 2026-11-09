@@ -1307,6 +1307,31 @@ fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     assert!(next.marquee().is_some());
 }
 
+/// Coalesced release, press, release in one frame is as ambiguous for a marquee as for a click.
+#[test]
+fn an_ambiguous_same_frame_release_raises_no_marquee() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.1, vec![primary(START, true, none)]);
+    frame(0.2, vec![Event::PointerMoved(end)]);
+    let released = frame(
+        0.3,
+        vec![
+            primary(end, false, none),
+            primary(START, true, none),
+            Event::PointerMoved(end),
+            primary(end, false, none),
+        ],
+    );
+    assert!(released.marquee().is_none());
+}
+
 #[test]
 fn escape_on_the_release_frame_cancels_and_escape_outside_a_drag_does_not() {
     let context = egui::Context::default();

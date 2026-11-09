@@ -238,6 +238,7 @@ pub fn capture(
     }
     let mut marquee = None;
     if !cancelled
+        && !ambiguous
         && unsupported_selection.is_none()
         && response.drag_stopped_by(PointerButton::Primary)
         && let Some((end, modifiers)) = released
