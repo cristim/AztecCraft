@@ -211,6 +211,8 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
                 rotate_order: "xyz",
                 rotate_axis_degrees: [0.0; 3],
                 shear: [0.0; 3],
+                rotate_pivot: [0.0; 3],
+                scale_pivot: [0.0; 3],
                 rotate_pivot_translate: [0.0; 3],
                 scale_pivot_translate: [0.0; 3],
                 non_default: vec!["shear"],

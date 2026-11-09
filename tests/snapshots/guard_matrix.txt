@@ -1902,9 +1902,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect => Ok(scene) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3869,9 +3869,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  set_keyframe(node,frame_9) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  delete_keys(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -4000,9 +4000,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  set_keyframe(node,frame_9) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
-  delete_keys(selection) => Err(ReadOnlyKeys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -4131,9 +4131,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4262,9 +4262,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4393,9 +4393,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4524,9 +4524,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4607,6 +4607,58 @@
   dolly => Ok(changed) | camera changed
   set_camera_pose => Ok(changed) | camera changed
 
+## pivoted / native
+  baseline:
+    nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object"
+    channel_fields=1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  begin_move => Ok(manipulation_started) | active_move: none -> native
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  update_move => Err(Move: manipulation identifier is absent or stale) | no state change
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> native
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> native
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_scale(object) => Ok(manipulation_started) | active_move: none -> native
+  begin_scale(world) => Ok(manipulation_started) | active_move: none -> native
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
+
+## pivoted / remote
+  baseline:
+    nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="object"
+    channel_fields=1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  begin_move => Ok(manipulation_started) | active_move: none -> remote
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
+  update_move => Err(Move: manipulation identifier is absent or stale) | no state change
+  begin_rotate(object) => Ok(manipulation_started) | active_move: none -> remote
+  begin_rotate(world) => Ok(manipulation_started) | active_move: none -> remote
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
+  begin_scale(object) => Ok(manipulation_started) | active_move: none -> remote
+  begin_scale(world) => Ok(manipulation_started) | active_move: none -> remote
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
+
 ## no_install / native
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
@@ -4655,9 +4707,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -4786,9 +4838,9 @@
   set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
   play => Ok(changed) | timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=true keys=0
   stop => Ok(unchanged) | no state change
-  set_keyframe(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  set_keyframe(node,frame_9) => Err(Scene: native ownership or edit effects are unsupported) | no state change
-  delete_keys(selection) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -5131,4 +5183,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 4619
+cells: 4643

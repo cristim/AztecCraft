@@ -599,7 +599,10 @@ fn a_scene_with_keys_cannot_be_saved_and_stays_dirty() {
     use azteccraft::document::NativeSaveError;
     // Save As of a new scene writes a new .mb on Unix, which refuses session keys; other
     // platforms cannot write at all. Nothing is created in either case.
-    let path = std::env::temp_dir().join("azteccraft-keys-never-written.mb");
+    // A unique directory, so a leftover file cannot make Save As refuse the destination before
+    // it ever reaches the keys refusal this test is about.
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("keys-never-written.mb");
     let result = editor.apply_operation(Operation::SaveSceneAs { path: path.clone() });
     #[cfg(unix)]
     let expected =

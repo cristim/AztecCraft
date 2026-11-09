@@ -699,7 +699,7 @@ release; renderer submission uses the same captured physical aspect.
 
 Only object translation is implemented. Plane/center handles, components,
 rotation/scale manipulation, snapping and alternate orientations remain
-unsupported. Missing source translation leaves, selected pivots, driven data and
+unsupported. Missing source translation leaves, driven data and
 unstable or unrepresentable transforms refuse editing. Pixel sizes, ray thresholds
 and last-valid release behavior are provisional application policies (rows 14 to 16
 and 22 to 23 of the [policy constants table](#application-policy-constants)).

@@ -169,6 +169,8 @@ Pointers from other families that resolve here:
 
 AztecCraft's own File > Close (`src/app/menus.rs "request_close"`, MCP `request_close`) is not a Maya item and has no scored row; the README menu map places it in SCN.
 
+Pivots in tools (#39 slice A, no score change): SCN-051 Center Pivot, SCN-052 Zero Pivot and SCN-053 Bake Pivot stay Missing. What changed is that Move, Rotate and Scale now work on objects whose rotate or scale pivots are nonzero (opened `.mb`), with the handle at the pivot (PROVISIONAL, known-issues P27), and `inspect_scene` and the Attribute Editor show the pivots read-only. No tool creates or edits a pivot yet. This is not a parity claim.
+
 ## Counts (documentation conformance, not parity)
 
 102 rows, of which 3 are retired (SCN-063, 064: folded into SCN-062 under the README row rule; SCN-088: folded into MOD-017, which already scores the Type Manipulator; the IDs are not reused or renumbered). Partial 23 (SCN-001, 002, 003, 006, 025, 027, 028, 029, 033, 034, 035, 036, 045, 046, 047, 061, 075, 077, 078, 089, 090, 100, 101), Visible-unsupported 4 (SCN-007, 008, 026, 038), Missing 72, Out-of-scope 0, Retired 3, Implemented-untested 0, Doc-conformant 0. `runtime-only` 2, all Missing (SCN-015, 030: the result can only be compared against a Maya run, #5); `feature-gated` 0. In scope 99; Doc-conformant 0 of 99. No percentage is stated (see the README measurement rule). By menu, counting retired rows: File 1, Edit 17, Create 7, Select 25, Modify 37, Outliner 15 (SCN-087 to SCN-099 are appended after SCN-086 because IDs are stable: SCN-087 to SCN-090 and SCN-093 to SCN-098 are Modify rows, SCN-091 and SCN-092 Outliner rows, SCN-099 an Edit row; SCN-100 to SCN-102 are appended after SCN-099 and are Select rows).

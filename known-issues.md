@@ -539,16 +539,21 @@ PROVISIONAL until native Save QA on Windows:
   stay Unix-only, because Windows refuses that move; the Windows core tests cover
   the same receipt through injected faults.
 
-## Save of a very large new scene is refused (#380)
+## Save of a very large new scene is refused
 
 **Severity:** low
 **Area:** native document lifecycle
 
-Saving a new scene as Maya Binary decodes the written bytes to check them, and the
-decoder's resource budget rejects a scene of more than a few hundred objects (400
-cubes fail). Save refuses with the too-large message, writes nothing and leaves the
-scene open and unsaved. Split the scene or save it in pieces until the appearance
-binding step meter (`MAX_STEPS` in `src/native_scene/binary/appearance.rs`) is revisited (#380).
+Saving a new scene as Maya Binary decodes the written bytes to check them. Since #380 the
+appearance binder indexes each shape's parent and face count once per decode, instead of
+scanning every DAG edge, binding and shape per shape. That scan had capped a new scene at
+about 335 default cubes. The remaining bound is the decoder's whole-file work admission
+(`admit_work` in `src/native_scene/binary/admission.rs`, quadratic in transforms, DAG edges
+and leaves): measured with default cubes in a release build, 1700 save and 1792 refuse.
+Save then refuses with the too-large message, writes nothing and leaves the scene open and
+unsaved. `a_512_cube_scene_reads_back_through_the_self_check` and
+`a_scene_past_the_decoder_work_bound_refuses_as_too_large` pin both sides. Raising the work
+bound is a separate change to a check that also guards untrusted files.
 
 ## Native MCP idle responsiveness remains unverified
 
@@ -583,7 +588,7 @@ SIGTERM (macOS and Linux) starts the same close guard. PROVISIONAL policy: the f
 Move currently implements one selected object transform, World X/Y/Z arrows and
 one guarded preview transaction through native UI and MCP. Plane/center/component
 handles, snapping, other orientations and Rotate/Scale tools are unavailable.
-Selected pivots, driven data, unsupported/unstable parents and translations with
+Driven data, unsupported/unstable parents and translations with
 unproved retained source words reject editing. MA and general source authoring
 remain subject to their existing read-only/source guards. The 72-physical-pixel
 geometry and near-parallel threshold are application policies, not Maya parity.
@@ -1269,6 +1274,9 @@ The pages say little about several objects, so these choices are pinned by tests
 - P23: MCP `update_manipulation distance` applies the same World displacement to every member (`sdk_move_with_the_current_generation_moves_every_selected_object_in_one_undo_step`).
 - P24: not done: Object and Parent axis orientations (each object moving along its own axes) need a Move orientation setting, which does not exist; only World is available.
 - P25: when the lead is covered by a selected ancestor, the pivot is still the lead's own origin and the inspection reports the lead's own channels (`the_lead_may_be_the_covered_member`).
+- P27 (#39): Move and Rotate handles are drawn and dragged at the rotate pivot (T + RT + RP in the parent's space), and the Scale handle at the scale fixed point (the full matrix applied to the scale pivot). Maya's pages do not place the handles relative to the pivots (`handle_origin_is_the_rotate_pivot_for_move_and_rotate_and_the_scale_fixed_point_for_scale`, `the_rotate_ring_is_picked_at_the_rotate_pivot_and_not_at_the_translate`).
+- P28 (#39): Frame Selected keeps using T + RT and ignores the rotate pivot (see the frame-selected entry above); Move, Rotate and Scale channel edits never write the pivots (`move_rotate_and_scale_patch_only_their_words_through_save_save_as_and_reopen`).
+- P29 (#39): pivots with rotatePivotTranslate, scalePivotTranslate or shear are covered by in-memory test fixtures only; a `.mb` carrying those keys does not import until #105, and nothing edits, creates or saves pivots until #39 slice B (an authored scene with a pivot is refused with NonDefaultPivot).
 - P26: an uncovered selected object that a selected ancestor also carries through another instance path is refused whole with `AlternatePathAncestor` (see "Move: a selected ancestor on another instance path of an uncovered object is refused" below; `an_uncovered_mover_with_a_selected_ancestor_on_another_path_is_refused`).
 
 Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and one update about 45 ms

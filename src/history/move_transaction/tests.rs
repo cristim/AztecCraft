@@ -864,7 +864,9 @@ fn rotate_refusal_in_drag_keeps_the_last_valid_preview() {
 
 #[test]
 fn refused_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
-    let mut history = History::new(test_fixtures::pivoted_shape().0);
+    let (mut scene, node) = test_fixtures::pivoted_shape();
+    test_fixtures::restrict_edits(&mut scene, node);
+    let mut history = History::new(scene);
     let before = history.scene.clone();
     let result = history.begin_rotate(
         &target(&history),
@@ -876,9 +878,7 @@ fn refused_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
     );
     assert!(matches!(
         result,
-        Err(ManipulationError::Native(NativeError::UnsupportedRotate(
-            RotateUnsupported::SelectedPivot
-        )))
+        Err(ManipulationError::Native(NativeError::UnsupportedEdit))
     ));
     assert!(history.active_manipulation().is_none());
     assert_eq!(history.next_manipulation_id, 0);
@@ -1003,7 +1003,9 @@ fn scale_refusal_in_drag_keeps_the_last_valid_preview_and_identity_is_unchanged(
 
 #[test]
 fn refused_scale_begin_consumes_no_id() {
-    let mut history = History::new(test_fixtures::pivoted_shape().0);
+    let (mut scene, node) = test_fixtures::pivoted_shape();
+    test_fixtures::restrict_edits(&mut scene, node);
+    let mut history = History::new(scene);
     let result = history.begin_scale(
         &target(&history),
         ScaleHandle::Y,
@@ -1014,9 +1016,7 @@ fn refused_scale_begin_consumes_no_id() {
     );
     assert!(matches!(
         result,
-        Err(ManipulationError::Native(NativeError::UnsupportedScale(
-            ScaleUnsupported::SelectedPivot
-        )))
+        Err(ManipulationError::Native(NativeError::UnsupportedEdit))
     ));
     assert!(history.active_manipulation().is_none());
     assert_eq!(history.next_manipulation_id, 0);

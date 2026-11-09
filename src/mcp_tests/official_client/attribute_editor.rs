@@ -486,6 +486,7 @@ async fn sdk_inspection_reports_transform_extras_with_units_and_non_default_name
         "-l centimeter -a degree",
         "setAttr \".ro\" 1; setAttr \".ra\" -type \"double3\" 10 20 -30; \
              setAttr \".sh\" -type \"double3\" 0.5 0 0.25; \
+             setAttr \".rp\" -type \"double3\" 4 5 6; setAttr \".sp\" -type \"double3\" 0 0 7; \
              setAttr \".rpt\" -type \"double3\" 1 2 3; setAttr \".spt\" -type \"double3\" -1 0 2;",
         "yzx",
         [10.0, 20.0, -30.0],
@@ -505,6 +506,8 @@ async fn sdk_inspection_reports_transform_extras_with_units_and_non_default_name
             "{units}: {first}"
         );
         assert_eq!(first["shear"], json!([0.5, 0.0, 0.25]));
+        assert_eq!(first["rotate_pivot"], json!([4.0, 5.0, 6.0]));
+        assert_eq!(first["scale_pivot"], json!([0.0, 0.0, 7.0]));
         assert_eq!(first["rotate_pivot_translate"], json!(rpt));
         assert_eq!(first["scale_pivot_translate"], json!([-1.0, 0.0, 2.0]));
         assert_eq!(
@@ -513,7 +516,9 @@ async fn sdk_inspection_reports_transform_extras_with_units_and_non_default_name
                 "rotate_order",
                 "rotate_axis",
                 "shear",
+                "rotate_pivot",
                 "rotate_pivot_translate",
+                "scale_pivot",
                 "scale_pivot_translate"
             ])
         );
