@@ -7,13 +7,6 @@ use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformExtr
 use crate::scene::{NodeId, SceneError};
 use glam::{DMat3, DVec3};
 
-/// Whether a pivot operation changed the scene, so callers record an undo entry only for `Changed`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PivotOutcome {
-    Changed,
-    Unchanged,
-}
-
 /// `d - M d`, exactly zero where `M` fixes `d` component-wise.
 fn residual(m: DMat3, d: DVec3) -> DVec3 {
     d - m * d
@@ -52,7 +45,7 @@ impl NativeScene {
         rotate: Option<[f64; 3]>,
         scale: Option<[f64; 3]>,
         preserve: bool,
-    ) -> Result<PivotOutcome, NativeError> {
+    ) -> Result<(), NativeError> {
         if rotate
             .iter()
             .chain(&scale)
@@ -82,8 +75,6 @@ impl NativeScene {
                 _ => &mut next.scale_pivot,
             };
             for (component, value) in target.into_iter().enumerate() {
-                delta[component] =
-                    Storage::Centimeters.internal(value, &self.units)? - old_cm[component];
                 slots[component] = slots[component].replacement(
                     value,
                     self.source.as_ref(),
@@ -92,6 +83,15 @@ impl NativeScene {
                     field,
                     component,
                 )?;
+                // From the stored word: an unedited leaf keeps its original word, so a unit
+                // round trip of the declared value must not read as a change.
+                delta[component] = slots[component].internal(
+                    self.source.as_ref(),
+                    &self.units,
+                    node.transform_id,
+                    field,
+                    component,
+                )? - old_cm[component];
             }
             Ok(delta)
         };
@@ -134,7 +134,7 @@ impl NativeScene {
     /// Zero Pivot over each of `ids` independently: rp, sp, rpt and spt become zero and the node's
     /// translate absorbs `v = rt + (I - Rs) rp + Rs ((I - K) sp + st)`, so the matrix is kept.
     /// PROVISIONAL: follows `xform -zeroTransformPivots`. Nothing is mutated on error.
-    pub fn zero_pivots(&mut self, ids: &[NodeId]) -> Result<PivotOutcome, NativeError> {
+    pub fn zero_pivots(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         let mut seen = std::collections::HashSet::new();
         if !ids.iter().all(|id| seen.insert(*id)) {
             return Err(SceneError::InvalidIds.into());
@@ -227,16 +227,13 @@ impl NativeScene {
 
     /// Replaces the nodes at `writes` after checking each still composes a finite matrix, so an
     /// overflowing edit is a typed error and leaves the scene as it was.
-    fn install(
-        &mut self,
-        writes: &[(usize, NativeTransformNode)],
-    ) -> Result<PivotOutcome, NativeError> {
+    fn install(&mut self, writes: &[(usize, NativeTransformNode)]) -> Result<(), NativeError> {
         let changed: Vec<_> = writes
             .iter()
             .filter(|(index, next)| self.nodes[*index] != *next)
             .collect();
         if changed.is_empty() {
-            return Ok(PivotOutcome::Unchanged);
+            return Ok(());
         }
         let previous: Vec<_> = changed
             .iter()
@@ -252,7 +249,7 @@ impl NativeScene {
                 .is_ok_and(|internal| internal.matrix().is_some())
         });
         if finite {
-            return Ok(PivotOutcome::Changed);
+            return Ok(());
         }
         for (index, node) in previous {
             self.nodes[index] = node;
