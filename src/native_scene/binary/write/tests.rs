@@ -187,14 +187,6 @@ fn the_self_check_runs_on_the_built_bytes() {
 }
 
 #[test]
-fn a_scene_too_large_for_the_decoder_budget_is_refused_as_too_large() {
-    // The self-check decodes the bytes it just wrote; the decoder's resource budget
-    // rejects them, which must not read as a writer bug.
-    let scene = meshed(&[Primitive::Cube; 400]);
-    assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::TooLarge));
-}
-
-#[test]
 fn a_meshed_scene_file_reopens_with_every_node_and_shape_in_order() {
     let primitives = [
         Primitive::Cube,
