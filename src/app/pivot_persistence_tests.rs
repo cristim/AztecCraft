@@ -1,12 +1,14 @@
 //! Issue #39 slice A: Move, Rotate and Scale edit only the t, r or s words of an opened Maya
 //! binary scene that carries rotate and scale pivots. Save, Save As and reopen keep every other
-//! byte, rp and sp included, and undo restores the original bytes. Synthetic scene, unix only
-//! (the native binary save is).
+//! byte, rp and sp included, and undo restores the original bytes. Synthetic scene; the native
+//! binary Save and Save As exist on unix and Windows.
 use super::tests::remote;
 use super::*;
 use crate::editor_operations::{ManipulationSpace, ManipulationValue, MoveDistance};
-use azteccraft::history::{ManipulationFinish, ManipulationId};
-use azteccraft::native_scene::{RotateAxis, ScaleHandle, TransformTarget, WorldAxis};
+use azteccraft::history::{ManipulationError, ManipulationFinish, ManipulationId};
+use azteccraft::native_scene::{
+    ChannelLeaf, NativeError, RotateAxis, ScaleHandle, TransformTarget, WorldAxis,
+};
 use std::ops::Range;
 
 #[allow(dead_code)]
@@ -287,7 +289,13 @@ fn an_absent_rotate_leaf_with_a_pivot_refuses_rotate_and_changes_nothing() {
     let [rotate, scale, mv] = begin_all(&mut editor);
     let error = rotate.unwrap_err();
     assert!(
-        format!("{error:?}").contains("AbsentChannelLeaf"),
+        matches!(
+            &error,
+            OperationError::Move(ManipulationError::Native(NativeError::AbsentChannelLeaf {
+                channel: ChannelLeaf::Rotate,
+                component: 0
+            }))
+        ),
         "{error:?}"
     );
     assert_eq!(editor.history.scene(), &before);
@@ -322,10 +330,50 @@ fn a_sourced_ascii_scene_with_a_pivot_refuses_every_tool_as_read_only() {
     {
         let error = result.unwrap_err();
         assert!(
-            format!("{error:?}").contains("ReadOnlyFormat"),
+            matches!(
+                &error,
+                OperationError::Scene(NativeError::ReadOnlyFormat)
+                    | OperationError::Move(ManipulationError::Native(NativeError::ReadOnlyFormat))
+            ),
             "{tool}: {error:?}"
         );
     }
     assert_eq!(editor.history.scene(), &before);
     assert!(editor.history.active_manipulation().is_none());
+}
+
+/// The untitled-scene Save As is unix only (`save_as_available`). Slice A gives an authored
+/// node no pivot; slice B owns writing one, so the writer must refuse it and write nothing.
+#[cfg(all(unix, feature = "mcp-test-client"))]
+#[test]
+fn save_as_of_a_pivoted_authored_scene_is_refused_and_writes_no_file() {
+    use azteccraft::document::NativeSaveError;
+    use azteccraft::native_scene::binary::AuthoredRefusalCode;
+    let directory = tempfile::tempdir().unwrap();
+    let destination = directory.path().join("pivoted.mb");
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let node = editor.single_target().unwrap().0;
+    let mut scene = editor.history.scene().clone();
+    scene
+        .set_pivots_for_test(node, [1.0, 0.25, -2.0], [-0.5, 1.0, 0.0])
+        .unwrap();
+    editor.history = azteccraft::history::History::new(scene);
+    let result = remote(
+        &mut editor,
+        Operation::SaveSceneAs {
+            path: destination.clone(),
+        },
+    );
+    assert!(
+        matches!(
+            result,
+            Err(OperationError::NativeSave(NativeSaveError::Unwritable(
+                AuthoredRefusalCode::NonDefaultPivot
+            )))
+        ),
+        "{result:?}"
+    );
+    assert!(!destination.exists());
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }

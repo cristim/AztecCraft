@@ -434,5 +434,5 @@ mod gpu_viewport_tests;
 #[cfg(test)]
 mod rotated_scale_tests;
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, any(unix, windows)))]
 mod pivot_persistence_tests;
