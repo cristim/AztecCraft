@@ -579,8 +579,7 @@ impl NativeScene {
         // The Move handle sits at the rotate pivot, T + RT + RP in the parent's space. The pivots
         // are fixed points of the rotate and scale stages, so they never enter the channel maths.
         // PROVISIONAL: the docs do not place the Move handle relative to the pivot (plan section 1).
-        let origin_cm = parent_world
-            .transform_point3(transform.origin_cm() + DVec3::from_array(transform.rotate_pivot_cm));
+        let origin_cm = parent_world.transform_point3(transform.pivot_origin_cm());
         if !inverse_parent.is_finite()
             || !condition.is_finite()
             || condition > MAX_PARENT_CONDITION
