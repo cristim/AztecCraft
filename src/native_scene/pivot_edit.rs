@@ -44,12 +44,14 @@ fn shifted(
 
 impl NativeScene {
     /// Sets the rotate and scale pivots of `id` in declared linear units and keeps the node's
-    /// matrix by adjusting rpt and spt. Nothing is mutated on error.
+    /// matrix by adjusting rpt and spt when `preserve`; otherwise only rp and sp change and the
+    /// matrix moves like a plain attribute write. Nothing is mutated on error.
     pub fn set_pivots(
         &mut self,
         id: NodeId,
         rotate: Option<[f64; 3]>,
         scale: Option<[f64; 3]>,
+        preserve: bool,
     ) -> Result<PivotOutcome, NativeError> {
         if rotate
             .iter()
@@ -60,6 +62,7 @@ impl NativeScene {
             return Err(NativeError::NonFinite);
         }
         let index = self.editable(id)?;
+        self.refuse_keyed(id)?;
         let internal = self.internal_transform(id)?;
         let rotation = internal
             .rotation_frame()
@@ -98,24 +101,43 @@ impl NativeScene {
             internal.rotate_pivot_cm,
         )?;
         let d_sp = change(scale, TransformField::ScalePivot, internal.scale_pivot_cm)?;
-        let v_rp = residual(rotation, d_rp);
-        let v_sp = residual(internal.scale_stage(), d_sp);
-        if !v_rp.is_finite() || !v_sp.is_finite() {
-            return Err(NativeError::NonFinite);
+        if preserve {
+            let v_rp = residual(rotation, d_rp);
+            let v_sp = residual(internal.scale_stage(), d_sp);
+            if !v_rp.is_finite() || !v_sp.is_finite() {
+                return Err(NativeError::NonFinite);
+            }
+            let binary = self
+                .source
+                .as_ref()
+                .is_some_and(|source| source.format == SourceFormat::Binary);
+            if binary && (v_rp != DVec3::ZERO || v_sp != DVec3::ZERO) {
+                return Err(NativeError::PivotNeedsTranslateCorrection);
+            }
+            next.extras = TransformExtras {
+                rotate_pivot_translate: shifted(
+                    node.extras.rotate_pivot_translate,
+                    v_rp,
+                    &self.units,
+                )?,
+                scale_pivot_translate: shifted(
+                    node.extras.scale_pivot_translate,
+                    v_sp,
+                    &self.units,
+                )?,
+                ..node.extras.clone()
+            };
         }
-        let binary = self
-            .source
-            .as_ref()
-            .is_some_and(|source| source.format == SourceFormat::Binary);
-        if binary && (v_rp != DVec3::ZERO || v_sp != DVec3::ZERO) {
-            return Err(NativeError::PivotNeedsTranslateCorrection);
-        }
-        next.extras = TransformExtras {
-            rotate_pivot_translate: shifted(node.extras.rotate_pivot_translate, v_rp, &self.units)?,
-            scale_pivot_translate: shifted(node.extras.scale_pivot_translate, v_sp, &self.units)?,
-            ..node.extras.clone()
-        };
         self.install(&[(index, next)])
+    }
+
+    /// A keyed channel is rewritten on every frame change and the compensation is valid only at
+    /// the current pose, so every pivot edit of a keyed node is refused (PROVISIONAL).
+    fn refuse_keyed(&self, id: NodeId) -> Result<(), NativeError> {
+        if self.key_rows(Some(id)).next().is_some() {
+            return Err(NativeError::PivotOnKeyedNode);
+        }
+        Ok(())
     }
 
     /// Replaces the nodes at `writes` after checking each still composes a finite matrix, so an

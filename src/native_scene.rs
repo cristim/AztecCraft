@@ -2120,6 +2120,8 @@ pub enum NativeError {
     UnsupportedView(&'static str),
     /// An opened Maya Binary has no pivot translate to carry the compensation (#105).
     PivotNeedsTranslateCorrection,
+    /// A keyed channel is rewritten on every frame change, so a pivot edit would be overwritten.
+    PivotOnKeyedNode,
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2214,6 +2216,9 @@ impl fmt::Display for NativeError {
             Self::PivotNeedsTranslateCorrection => f.write_str(
                 "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet",
             ),
+            Self::PivotOnKeyedNode => {
+                f.write_str("Pivots cannot be edited on an animated (keyed) object")
+            }
         }
     }
 }
