@@ -222,6 +222,7 @@ impl Editor {
                     | Operation::Select { .. }
                     | Operation::ModifySelection { .. }
                     | Operation::SelectByRule(_)
+                    | Operation::SelectInRect { .. }
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }

@@ -184,6 +184,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::Select { .. }
         | Operation::ModifySelection { .. }
         | Operation::SelectByRule(_)
+        | Operation::SelectInRect { .. }
         | Operation::SetSelectionMode(_)
         | Operation::DeselectAll
         | Operation::SelectFace { .. }

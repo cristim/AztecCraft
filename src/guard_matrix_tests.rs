@@ -11,8 +11,8 @@
 
 use super::*;
 use crate::editor_operations::{
-    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, SelectRule,
-    ToolHandle, TransformInput,
+    FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance, RemoteRequest,
+    SelectRule, ToolHandle, TransformInput,
 };
 use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -219,6 +219,10 @@ struct Sample {
     /// Restricts the sample to these states; `None` means every reachable state.
     only: Option<&'static [State]>,
     operation: Operation,
+}
+
+fn whole_viewport() -> azteccraft::viewport::NdcRect {
+    azteccraft::viewport::NdcRect::new(glam::Vec2::NEG_ONE, glam::Vec2::ONE).unwrap()
 }
 
 fn sample(label: &'static str, operation: Operation) -> Sample {
@@ -729,6 +733,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             instance_path: Some(t.path.clone()),
         },
         Operation::SelectByRule(SelectRule::All),
+        Operation::SelectInRect {
+            rect: whole_viewport(),
+            mode: MarqueeMode::Replace,
+        },
         Operation::SetSelectionMode(SelectionMode::Face),
         Operation::DeselectAll,
         Operation::SelectFace {
@@ -1308,6 +1316,33 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::SelectInRect { .. } => {
+            let marquee = |mode| Operation::SelectInRect {
+                rect: whole_viewport(),
+                mode,
+            };
+            vec![
+                sample("select_in_rect(replace)", marquee(MarqueeMode::Replace)),
+                sample("select_in_rect(add)", marquee(MarqueeMode::Add)),
+                sample("select_in_rect(remove)", marquee(MarqueeMode::Remove)),
+                sample("select_in_rect(toggle)", marquee(MarqueeMode::Toggle)),
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample(
+                        "select_in_rect(replace,face_mode)",
+                        marquee(MarqueeMode::Replace),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "select_in_rect(toggle,multi_selection)",
+                        marquee(MarqueeMode::Toggle),
+                    )
+                },
+            ]
+        }
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),

@@ -133,6 +133,7 @@ mod official_client {
     mod inspect_paging;
     mod manipulation_mcp_tests;
     mod manipulator_size;
+    mod marquee;
     mod material;
     mod multi_move;
     mod node_edit;

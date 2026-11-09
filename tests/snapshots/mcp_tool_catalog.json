@@ -1013,6 +1013,88 @@
     }
   },
   {
+    "name": "select_in_rect",
+    "description": "Marquee-select objects by a rectangle in normalised device coordinates (x right, y up, each within -1 to 1; corners in either order), the same typed operation as a viewport drag. mode replace (default, Maya select -replace) sets the selection to the hits, add appends the absent hits, remove (select -deselect) drops the hit members, toggle flips each hit; the hits are in instance order and the last appended or last hit is the lead. Object and Hierarchy modes only (Hierarchy maps hits to their roots). Any overlap of a visible mesh selects it; objects hidden behind others inside the rectangle ARE selected, as in Maya's object marquee (camera-based selection is documented for components only; PROVISIONAL, #30). Hidden instances and curves are not selectable. A zero-area rectangle (min equals max) picks like a click: the nearest hit only. Uses the aspect of the last painted frame (1 before the first), so read the camera with inspect_scene first. A replace with no hit clears the selection; add, remove and toggle with no hit change nothing. Not idempotent because toggle flips; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "MarqueeMode": {
+          "enum": [
+            "replace",
+            "add",
+            "remove",
+            "toggle"
+          ],
+          "type": "string"
+        },
+        "NdcRectArgs": {
+          "additionalProperties": false,
+          "description": "A rectangle in normalised device coordinates: x right, y up, both within -1 to 1. The corners\nmay come in either order.",
+          "properties": {
+            "max": {
+              "items": {
+                "format": "float",
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "min": {
+              "items": {
+                "format": "float",
+                "maximum": 1.0,
+                "minimum": -1.0,
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "type": "object"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MarqueeMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Defaults to replace."
+        },
+        "rect": {
+          "$ref": "#/$defs/NdcRectArgs"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "rect"
+      ],
+      "title": "SelectInRectArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "deselect_all",
     "description": "Select > Deselect All (Alt+D): clear the object and any face, vertex or edge selection and return to Object selection mode, as Maya's SelectNone does. Session-only and idempotent; does not edit the scene",
     "inputSchema": {

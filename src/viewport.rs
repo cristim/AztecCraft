@@ -11,6 +11,8 @@ use std::fmt;
 
 mod lens;
 pub use lens::Lens;
+mod rect_pick;
+pub use rect_pick::{InvalidRect, NdcRect};
 
 /// Whether framing a selected transform takes in the geometry of its descendants.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

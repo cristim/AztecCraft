@@ -384,6 +384,10 @@ impl Editor {
                 && !text_edit_focused(ui.ctx())
                 && !egui::Popup::is_any_open(ui.ctx());
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
+            // A mode shortcut on the release frame leaves the drag belonging to the old mode: drop it.
+            let marquee = input
+                .marquee()
+                .filter(|_| can_select && !consumed && selection_intent.is_none());
             let selection_intent = selection_intent.filter(|_| can_select);
             let delete_intent = delete_intent && can_select;
             // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
@@ -402,8 +406,9 @@ impl Editor {
                 can_select
                     && !(object_mode
                         && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
-                    && (*refusal != crate::viewport_ui::SelectionRefusal::Marquee
-                        || !(consumed || mode_refused))
+                    && (*refusal != crate::viewport_ui::SelectionRefusal::ComponentMarquee
+                        || (!object_mode
+                            && !(consumed || mode_refused || selection_intent.is_some())))
             });
             let navigation = if current_document && !consumed {
                 navigation
@@ -456,9 +461,16 @@ impl Editor {
             if delete_intent && !self.selection.is_empty() {
                 self.native_operation(Operation::DeleteSelection);
             }
+            // Component modes show the refusal below; the object modes select by the drag.
+            if object_mode && let Some((rect, modifiers)) = marquee {
+                self.apply_operation(Operation::SelectInRect {
+                    rect,
+                    mode: features::marquee::marquee_mode(modifiers),
+                })?;
+            }
             match selection_refusal {
-                Some(crate::viewport_ui::SelectionRefusal::Marquee) => {
-                    self.status = crate::viewport_ui::SelectionRefusal::Marquee
+                Some(crate::viewport_ui::SelectionRefusal::ComponentMarquee) => {
+                    self.status = crate::viewport_ui::SelectionRefusal::ComponentMarquee
                         .message()
                         .into();
                     self.error = false;
@@ -487,22 +499,12 @@ impl Editor {
                             .camera
                             .pick_view(&view, ndc, self.aspect)
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        let (node, instance_path) = if let Some(hit) = hit {
-                            let mut prefix = hit.path;
-                            prefix.pop();
-                            if self.selection_mode == SelectionMode::Hierarchy {
-                                prefix.truncate(1);
-                                let root = self
-                                    .history
-                                    .scene()
-                                    .root_transform(&prefix)
-                                    .map_err(OperationError::Scene)?;
-                                (Some(root), Some(prefix))
-                            } else {
-                                (Some(hit.transform), Some(prefix))
+                        let (node, instance_path) = match hit {
+                            Some(hit) => {
+                                let (node, path) = self.object_target_for_hit(hit)?;
+                                (Some(node), Some(path))
                             }
-                        } else {
-                            (None, None)
+                            None => (None, None),
                         };
                         // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
                         // click on empty space leaves the selection alone.
@@ -590,6 +592,19 @@ impl Editor {
             self.vertex_markers_hidden = degraded && self.selection_mode == SelectionMode::Vertex;
             self.paint_move(&input);
             self.paint_manipulation(&input);
+            if object_mode
+                && can_select
+                && !consumed
+                && let Some(band) = input.marquee_preview()
+            {
+                input.painter().rect(
+                    band,
+                    0.0,
+                    egui::Color32::from_rgba_unmultiplied(120, 170, 255, 28),
+                    egui::Stroke::new(1.0, egui::Color32::from_rgb(170, 205, 255)),
+                    egui::StrokeKind::Inside,
+                );
+            }
             match painted {
                 Ok(_) | Err(crate::viewport_renderer::RenderError::Uninitialized) => Ok(()),
                 Err(error) => Err(OperationError::View(error.to_string())),
