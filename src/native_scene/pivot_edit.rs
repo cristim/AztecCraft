@@ -3,8 +3,8 @@
 //! `rt' = rt - (I - Rs) d`, and moving sp by `d` keeps it when `st' = st - (I - K) d`. PROVISIONAL:
 //! the compensation goes to rpt and spt as `xform -preserve` documents; Maya is not compared (#5).
 use super::source::{SourceFormat, Storage, TransformField};
-use super::{NativeError, NativeScene, NativeTransformNode, TransformExtras};
-use crate::scene::NodeId;
+use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformExtras};
+use crate::scene::{NodeId, SceneError};
 use glam::{DMat3, DVec3};
 
 /// Whether a pivot operation changed the scene, so callers record an undo entry only for `Changed`.
@@ -129,6 +129,91 @@ impl NativeScene {
             };
         }
         self.install(&[(index, next)])
+    }
+
+    /// Zero Pivot over each of `ids` independently: rp, sp, rpt and spt become zero and the node's
+    /// translate absorbs `v = rt + (I - Rs) rp + Rs ((I - K) sp + st)`, so the matrix is kept.
+    /// PROVISIONAL: follows `xform -zeroTransformPivots`. Nothing is mutated on error.
+    pub fn zero_pivots(&mut self, ids: &[NodeId]) -> Result<PivotOutcome, NativeError> {
+        let mut seen = std::collections::HashSet::new();
+        if !ids.iter().all(|id| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        let mut writes = Vec::new();
+        for id in ids {
+            let index = self.editable_node(*id)?;
+            self.refuse_keyed(*id)?;
+            if let Some(next) = self.zeroed(index)? {
+                writes.push((index, next));
+            }
+        }
+        self.install(&writes)
+    }
+
+    /// The node with its pivots zeroed, or `None` when every pivot value is already +-0. Only the
+    /// translate components with a nonzero `v` and the nonzero pivot words are written, so a
+    /// `-0.0` elsewhere keeps its bits (a plain `t' = M(0)` would re-round them).
+    fn zeroed(&self, index: usize) -> Result<Option<NativeTransformNode>, NativeError> {
+        let node = &self.nodes[index];
+        let nonzero = |v: &[Scalar; 3]| v.iter().any(|s| s.value != 0.0);
+        let translate = |t: Option<[f64; 3]>| t.is_some_and(|v| v.iter().any(|c| *c != 0.0));
+        let extras = &node.extras;
+        if !nonzero(&node.rotate_pivot)
+            && !nonzero(&node.scale_pivot)
+            && !translate(extras.rotate_pivot_translate)
+            && !translate(extras.scale_pivot_translate)
+        {
+            return Ok(None);
+        }
+        let internal = self.internal_transform(node.id)?;
+        let rotation = internal
+            .rotation_frame()
+            .ok_or(NativeError::InvalidTransformExtras)?;
+        let (rt, st) = internal.extras.map_or((DVec3::ZERO, DVec3::ZERO), |e| {
+            (
+                DVec3::from_array(e.rotate_pivot_translate_cm),
+                DVec3::from_array(e.scale_pivot_translate_cm),
+            )
+        });
+        let rp = DVec3::from_array(internal.rotate_pivot_cm);
+        let sp = DVec3::from_array(internal.scale_pivot_cm);
+        let v =
+            rt + residual(rotation, rp) + rotation * (residual(internal.scale_stage(), sp) + st);
+        if !v.is_finite() {
+            return Err(NativeError::NonFinite);
+        }
+        let mut next = node.clone();
+        let (source, units) = (self.source.as_ref(), &self.units);
+        for (component, delta) in v.to_array().into_iter().enumerate() {
+            if delta != 0.0 {
+                let value =
+                    node.channels[component].value + Storage::Centimeters.declared(delta, units)?;
+                next.channels[component] = node.channels[component].replacement(
+                    value,
+                    source,
+                    units,
+                    node.transform_id,
+                    TransformField::Translation,
+                    component,
+                )?;
+            }
+        }
+        for (slots, field) in [
+            (&mut next.rotate_pivot, TransformField::RotatePivot),
+            (&mut next.scale_pivot, TransformField::ScalePivot),
+        ] {
+            for (component, slot) in slots.iter_mut().enumerate() {
+                if slot.value != 0.0 {
+                    *slot =
+                        slot.replacement(0.0, source, units, node.transform_id, field, component)?;
+                }
+            }
+        }
+        next.extras.rotate_pivot_translate = None;
+        next.extras.scale_pivot_translate = None;
+        Ok(Some(next))
     }
 
     /// A keyed channel is rewritten on every frame change and the compensation is valid only at

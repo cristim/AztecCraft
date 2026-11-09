@@ -562,3 +562,159 @@ fn a_keyed_node_refuses_every_pivot_edit() {
         "Pivots cannot be edited on an animated (keyed) object"
     );
 }
+
+fn translation_bits(scene: &NativeScene) -> [u64; 3] {
+    bits(scene.nodes[0].transform().translation)
+}
+
+#[test]
+fn zero_pivot_keeps_the_matrix_and_clears_every_pivot_over_the_case_table() {
+    for c in table() {
+        let (mut scene, id) = build(&c);
+        let before = matrix(&scene, id);
+        let expected = if c.name == "identity" {
+            PivotOutcome::Unchanged
+        } else {
+            PivotOutcome::Changed
+        };
+        assert_eq!(scene.zero_pivots(&[id]), Ok(expected), "{}", c.name);
+        let node = scene.node(id).unwrap();
+        for pivot in [node.rotate_pivot(), node.scale_pivot()] {
+            assert!(pivot.iter().all(|v| *v == 0.0), "{}", c.name);
+        }
+        let extras = node.extras();
+        if expected == PivotOutcome::Changed {
+            assert_eq!(
+                (extras.rotate_pivot_translate, extras.scale_pivot_translate),
+                (None, None)
+            );
+        }
+        assert_same_matrix(c.name, before, matrix(&scene, id));
+    }
+}
+
+#[test]
+fn zero_pivot_with_nothing_to_clear_changes_nothing() {
+    let (mut scene, id) = cube();
+    scene.nodes[0].rotate_pivot = [-0.0, 0.0, -0.0].map(Scalar::new);
+    scene.nodes[0].extras.rotate_pivot_translate = Some([0.0, -0.0, 0.0]);
+    scene.nodes[0].channels[0] = Scalar::new(-0.0);
+    let before = scene.clone();
+    assert_eq!(scene.zero_pivots(&[id]), Ok(PivotOutcome::Unchanged));
+    assert_eq!(scene.zero_pivots(&[]), Ok(PivotOutcome::Unchanged));
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn zero_pivot_writes_translate_only_where_the_compensation_is_nonzero() {
+    // (a) R = I, S = 1: v is exactly zero, so a -0.0 translate keeps its bits.
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[0] = Scalar::new(-0.0);
+    scene.nodes[0].rotate_pivot = [1.0, 2.0, 3.0].map(Scalar::new);
+    scene.zero_pivots(&[id]).unwrap();
+    assert_eq!(translation_bits(&scene), bits([-0.0, 0.0, 0.0]));
+    // (c) the same with rp = sp = (0.7, 1e-17, 3) and an inexact t: t + rp - rp would differ.
+    let (mut scene, id) = cube();
+    let t = [0.1, 0.2, 0.3];
+    scene.nodes[0].channels[..3].clone_from_slice(&t.map(Scalar::new));
+    scene.nodes[0].rotate_pivot = [0.7, 1e-17, 3.0].map(Scalar::new);
+    scene.nodes[0].scale_pivot = [0.7, 1e-17, 3.0].map(Scalar::new);
+    scene.zero_pivots(&[id]).unwrap();
+    assert_eq!(translation_bits(&scene), bits(t));
+    // (e) Rz(40 degrees) with rp = (0, 1, 0): v_z is exactly zero, v_x and v_y are not.
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[0] = Scalar::new(2.0);
+    scene.nodes[0].channels[2] = Scalar::new(-0.0);
+    scene.nodes[0].channels[5] = Scalar::new(40.0);
+    scene.nodes[0].rotate_pivot = [0.0, 1.0, 0.0].map(Scalar::new);
+    let before = scene.clone();
+    scene.zero_pivots(&[id]).unwrap();
+    let after = scene.nodes[0].transform().translation;
+    assert_eq!(after[2].to_bits(), (-0.0f64).to_bits());
+    assert!(!scene.nodes[0].channels[2].replaced);
+    assert_ne!(after[0], 2.0);
+    assert_ne!(after[1], 0.0);
+    assert_same_matrix("zero e", matrix(&before, id), matrix(&scene, id));
+}
+
+#[test]
+fn zero_pivot_leaves_an_authored_scene_saveable() {
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[5] = Scalar::new(40.0);
+    scene.nodes[0].rotate_pivot = [0.0, 1.0, 2.0].map(Scalar::new);
+    scene.nodes[0].scale_pivot = [3.0, 0.0, 0.0].map(Scalar::new);
+    scene.nodes[0].extras.rotate_pivot_translate = Some([0.5, 0.0, 0.0]);
+    scene.nodes[0].extras.scale_pivot_translate = Some([0.0, 0.5, 0.0]);
+    assert!(binary::encode_authored(&scene).is_err());
+    scene.zero_pivots(&[id]).unwrap();
+    assert_eq!(scene.nodes[0].extras, TransformExtras::default());
+    binary::encode_authored(&scene).unwrap();
+}
+
+#[test]
+fn zero_pivot_acts_on_each_node_and_refuses_duplicates_and_keyed_nodes() {
+    let (mut scene, first) = build(&base("first"));
+    let second = scene.create(Primitive::Cube, "second").unwrap();
+    scene.nodes[1].rotate_pivot = [1.0, 0.0, 0.0].map(Scalar::new);
+    let before = scene.clone();
+    assert_eq!(
+        scene.zero_pivots(&[first, first]),
+        Err(SceneError::InvalidIds.into())
+    );
+    scene.set_keys(&[second], 1, ALL_CHANNELS, 1).unwrap();
+    let keyed = scene.clone();
+    assert_eq!(
+        scene.zero_pivots(&[first, second]),
+        Err(NativeError::PivotOnKeyedNode)
+    );
+    assert_eq!(scene, keyed);
+    assert_ne!(keyed, before);
+    assert_eq!(scene.zero_pivots(&[first]), Ok(PivotOutcome::Changed));
+}
+
+#[test]
+fn zero_pivot_on_an_opened_binary_patches_only_t_rp_and_sp() {
+    let (mut scene, id) = opened([0.0, 0.0, 0.7], [2.0, 3.0, 1.0]);
+    let before = matrix(&scene, id);
+    assert_eq!(scene.zero_pivots(&[id]), Ok(PivotOutcome::Changed));
+    let node = &scene.nodes[0];
+    assert!(node.channels[..3].iter().any(|s| s.replaced));
+    assert!(node.channels[3..].iter().all(|s| !s.replaced));
+    assert!(
+        node.rotate_pivot
+            .iter()
+            .chain(&node.scale_pivot)
+            .all(|s| s.value == 0.0 && s.replaced)
+    );
+    assert_eq!(node.extras, TransformExtras::default());
+    assert_same_matrix("opened zero", before, matrix(&scene, id));
+    // No pivot leaf means nothing to clear.
+    let bare = binary_scene(&[(b"t", [1.0, 2.0, 3.0]), (b"r", [0.1, 0.2, 0.3])]);
+    let id = bare.nodes()[0].id();
+    let mut same = bare.clone();
+    assert_eq!(same.zero_pivots(&[id]), Ok(PivotOutcome::Unchanged));
+    assert_eq!(same, bare);
+}
+
+#[test]
+fn zero_pivot_needing_an_absent_translate_leaf_follows_the_insertion_rules() {
+    let bare = binary_scene(&[(b"r", [0.0, 0.0, 0.7]), (b"rp", [0.0, 1.0, 0.0])]);
+    let id = bare.nodes()[0].id();
+    let mut removed = bare.clone();
+    removed.source.as_mut().unwrap().has_removals = true;
+    let before = removed.clone();
+    assert_eq!(
+        removed.zero_pivots(&[id]),
+        Err(NativeError::InsertionAfterDelete)
+    );
+    assert_eq!(removed, before);
+}
+
+#[test]
+fn zero_pivot_is_read_only_on_ascii() {
+    let mut scene = ascii::decode(Arc::from(ascii_fixture::specimen())).unwrap();
+    let id = scene.nodes()[0].id();
+    let before = scene.clone();
+    assert_eq!(scene.zero_pivots(&[id]), Err(NativeError::ReadOnlyFormat));
+    assert_eq!(scene, before);
+}
