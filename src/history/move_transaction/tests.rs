@@ -1238,3 +1238,44 @@ fn extras_policy_refusals_leave_no_transaction_and_no_consumed_id() {
         assert_eq!(history.scene, before);
     }
 }
+
+#[test]
+fn redo_of_a_rotate_on_a_pivoted_node_restores_the_applied_channels_bit_for_bit() {
+    let (_, scene, node) = test_fixtures::pivoted_family([20.0, 35.0, -15.0], [0.0; 3], true)
+        .into_iter()
+        .nth(1)
+        .unwrap();
+    let mut history = History::new(scene);
+    let channel_bits = |history: &History| {
+        history
+            .scene
+            .node(node)
+            .unwrap()
+            .transform()
+            .values()
+            .map(f64::to_bits)
+    };
+    let baseline = channel_bits(&history);
+    let token = Uuid::new_v4();
+    let id = start_rotate(&mut history, RotateAxis::Y, token);
+    history
+        .update_move(token, id, ManipulationProvenance::Native, 37.5)
+        .unwrap();
+    assert_eq!(
+        history
+            .finish_move(
+                token,
+                id,
+                ManipulationProvenance::Native,
+                ManipulationFinish::Commit
+            )
+            .unwrap(),
+        EditOutcome::Changed
+    );
+    let applied = channel_bits(&history);
+    assert_ne!(applied, baseline);
+    assert!(history.undo());
+    assert_eq!(channel_bits(&history), baseline);
+    assert!(history.redo());
+    assert_eq!(channel_bits(&history), applied);
+}
