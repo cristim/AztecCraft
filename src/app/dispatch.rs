@@ -1041,8 +1041,14 @@ impl Editor {
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
         );
         let outcome = self.history.execute(command).map_err(|error| {
-            if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
-                return OperationError::ReadOnlyKeys;
+            if key_command
+                && matches!(
+                    error,
+                    azteccraft::native_scene::NativeError::ReadOnlyFormat
+                        | azteccraft::native_scene::NativeError::UnsupportedEdit
+                )
+            {
+                return OperationError::Keys(error);
             }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command

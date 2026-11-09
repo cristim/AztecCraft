@@ -84,7 +84,11 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
-                OperationError::ReadOnlyKeys => "read_only_format",
+                OperationError::Keys(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
