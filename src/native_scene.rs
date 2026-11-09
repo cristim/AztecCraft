@@ -609,6 +609,12 @@ impl InternalTransform {
         }
     }
 
+    /// T + RT + RP in the parent's space: the Move and Rotate handle position. The one place this
+    /// sum is written, so the manipulator frame and the Move drag axis cannot drift apart.
+    pub(crate) fn pivot_origin_cm(self) -> DVec3 {
+        self.origin_cm() + DVec3::from_array(self.rotate_pivot_cm)
+    }
+
     /// R(ro) * RA as a linear map: the node's own axes before shear and scale.
     /// `None` for a rotate order validation would have rejected.
     pub(crate) fn rotation_frame(self) -> Option<DMat3> {
