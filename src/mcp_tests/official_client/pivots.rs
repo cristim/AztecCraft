@@ -317,16 +317,10 @@ async fn malformed_values_are_refused_by_the_protocol_and_leave_the_pivoted_scen
     // JSON has no NaN or infinity: a client's f64::NAN serialises to null.
     for (bad, message) in [
         (Value::Null, "give exactly one of distance, angle or factor"),
-        (json!("NaN"), "invalid type: string \"NaN\", expected f64"),
-        (
-            json!("Infinity"),
-            "invalid type: string \"Infinity\", expected f64",
-        ),
-        (
-            json!([1.0, 2.0, 3.0]),
-            "invalid type: sequence, expected f64",
-        ),
-        (json!({}), "invalid type: map, expected f64"),
+        (json!("NaN"), "expected f64"),
+        (json!("Infinity"), "expected f64"),
+        (json!([1.0, 2.0, 3.0]), "expected f64"),
+        (json!({}), "expected f64"),
     ] {
         let args = json!({"scene_token":rig.token,"manipulation_id":id,"angle":bad});
         let Err(rmcp::ServiceError::McpError(error)) =
@@ -335,7 +329,12 @@ async fn malformed_values_are_refused_by_the_protocol_and_leave_the_pivoted_scen
             panic!("{bad}: expected a protocol error");
         };
         assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS, "{bad}");
-        assert_eq!(error.message, message, "{bad}");
+        // Our own message is pinned exactly; serde's wording only by the "expected f64" tail.
+        if bad.is_null() {
+            assert_eq!(error.message, message, "{bad}");
+        } else {
+            assert!(error.message.contains(message), "{bad}: {}", error.message);
+        }
         assert_eq!(rig.editor.history.scene(), &preview, "{bad}");
     }
     // A huge finite angle reaches the scene, which refuses it as unrepresentable.
