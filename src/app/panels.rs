@@ -471,12 +471,7 @@ impl Editor {
             let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
                 Ok(view) => view,
                 Err(e) => {
-                    self.viewport_error = Some(match e {
-                        azteccraft::view_scene::ViewError::ResourceLimit => {
-                            crate::viewport_renderer::ViewportError::ResourceLimit
-                        }
-                        _ => crate::viewport_renderer::ViewportError::SceneGeometry,
-                    });
+                    self.viewport_error = Some(view_error_category(&e));
                     // No handles are painted this frame, so the capture must not outlive them.
                     self.missing_move_viewport()?;
                     return Err(OperationError::View(e.to_string()));
@@ -619,6 +614,57 @@ impl Editor {
                     Color32::from_rgb(255, 160, 130),
                 );
             }
+        }
+    }
+}
+
+/// The `viewport_error` category for a failed view build. Exhaustive on purpose (#384): a new
+/// `ViewError` variant must be given a category here instead of falling into scene geometry.
+fn view_error_category(
+    error: &azteccraft::view_scene::ViewError,
+) -> crate::viewport_renderer::ViewportError {
+    use crate::viewport_renderer::ViewportError;
+    use azteccraft::view_scene::ViewError;
+    match error {
+        ViewError::ResourceLimit => ViewportError::ResourceLimit,
+        // `from_native` never returns `Camera` today; it is a camera fault, not the scene's.
+        ViewError::Camera(_) => ViewportError::CameraInput,
+        ViewError::Native(_)
+        | ViewError::InvalidGeometry
+        | ViewError::UnsupportedPolygon
+        | ViewError::UnsupportedTransform
+        | ViewError::NonFiniteWorld => ViewportError::SceneGeometry,
+    }
+}
+
+#[cfg(test)]
+mod view_error_category_tests {
+    use super::view_error_category;
+    use crate::viewport_renderer::ViewportError;
+    use azteccraft::view_scene::ViewError;
+
+    #[test]
+    fn each_view_error_has_its_viewport_error_category() {
+        let cases = [
+            (ViewError::ResourceLimit, ViewportError::ResourceLimit),
+            (
+                ViewError::Camera(azteccraft::viewport::InvalidCameraInput),
+                ViewportError::CameraInput,
+            ),
+            (
+                ViewError::Native(azteccraft::native_scene::NativeError::ResourceLimit),
+                ViewportError::SceneGeometry,
+            ),
+            (ViewError::InvalidGeometry, ViewportError::SceneGeometry),
+            (ViewError::UnsupportedPolygon, ViewportError::SceneGeometry),
+            (
+                ViewError::UnsupportedTransform,
+                ViewportError::SceneGeometry,
+            ),
+            (ViewError::NonFiniteWorld, ViewportError::SceneGeometry),
+        ];
+        for (error, category) in cases {
+            assert_eq!(view_error_category(&error), category, "{error:?}");
         }
     }
 }
