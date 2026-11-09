@@ -2263,6 +2263,68 @@ fn a_no_op_mode_shortcut_on_the_release_frame_leaves_the_marquee_to_the_current_
     }
 }
 
+/// The Object and Hierarchy intents come only from status-line and menu clicks, which cannot share
+/// a frame with a viewport drag release, so the viewport is driven directly with the intent.
+fn marquee_release_with_intent(
+    mode: SelectionMode,
+    intent: Option<SelectionModeIntent>,
+) -> (Editor, bool) {
+    let (mut editor, context, _rect) = select_tool_editor();
+    editor.native_operation(Operation::SetSelectionMode(mode));
+    let selected = editor.selected();
+    assert!(selected.is_some());
+    let size = egui::vec2(1440.0, 900.0);
+    let from = Pos2::new(720.0, 450.0) + egui::vec2(-300.0, 200.0);
+    let to = from + egui::vec2(60.0, 30.0);
+    let release = [button(to, false), vec![]].concat();
+    for (events, intent) in [
+        (vec![], None),
+        (button(from, true), None),
+        (vec![Event::PointerMoved(to)], None),
+        (release, intent),
+    ] {
+        let token = editor.scene_token;
+        let mut native_frame = eframe::Frame::_new_kittest();
+        let mut output = context.run_ui(raw(size, Pos2::ZERO, 1.0, events), |ui| {
+            eframe::App::logic(&mut editor, ui.ctx(), &mut native_frame);
+            egui::CentralPanel::default().show(ui, |ui| {
+                editor.viewport(ui, token, intent, None, false, true)
+            });
+        });
+        output.textures_delta.clear();
+    }
+    let changed = editor.selected() != selected;
+    (editor, changed)
+}
+
+#[test]
+fn a_no_op_object_or_hierarchy_intent_on_the_release_frame_still_applies_the_marquee() {
+    for (mode, same, other) in [
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Object,
+            SelectionModeIntent::Face,
+        ),
+        (
+            SelectionMode::Hierarchy,
+            SelectionModeIntent::Hierarchy,
+            SelectionModeIntent::Face,
+        ),
+    ] {
+        let (_, without) = marquee_release_with_intent(mode, None);
+        assert!(without, "{mode:?}: the plain marquee clears the selection");
+        let (editor, with_same) = marquee_release_with_intent(mode, Some(same));
+        assert!(
+            with_same,
+            "{mode:?}: a no-op intent must not drop the marquee"
+        );
+        assert_eq!(editor.selection_mode, mode);
+        let (editor, with_other) = marquee_release_with_intent(mode, Some(other));
+        assert!(!with_other, "{mode:?}: a real change drops the marquee");
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+    }
+}
+
 #[test]
 fn the_intent_target_is_the_mode_the_intent_would_set() {
     let (mut editor, _context, _rect) = select_tool_editor();
