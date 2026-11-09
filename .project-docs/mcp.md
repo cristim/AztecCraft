@@ -495,7 +495,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Nodes | Delete every selected object (Edit > Delete, Delete key) | supported | `delete_selected` | `nodes`, `selection`, `selection_count`, `can_undo`, `undo_label` | all or nothing and one undo step; per-node refusals as for `delete_node`; a selected descendant of another selected object is deleted once (`sdk_delete_selected_with_an_ancestor_and_its_descendant_deletes_the_subtree_once`) |
 | Edit menu | Delete by Type, Delete All by Type (visible disabled rows, see #187) | unsupported | | | |
 | Nodes | Visibility edit | unsupported | | `nodes` | |
-| Nodes | Rotate order, axis, shear and pivots (read only) | supported | | `transform_attributes` | |
+| Nodes | Rotate order, axis, shear, rotate and scale pivots and pivot translations (read only) | supported | | `transform_attributes` (`rotate_pivot` and `scale_pivot` added by #39 slice A; `-0.0` is the default zero) | No tool edits pivots yet (#39 slice B). Move, Rotate and Scale accept nonzero pivots from an opened `.mb`; their handles sit at the pivots (PROVISIONAL, known-issues P27) |
 | Selection | Select object, clear selection, Outliner click, viewport pick | supported | `select_node` | `selected_node`, `selected_instance_path`, `selection`, `selection_count` | |
 | Selection | Select > Deselect All and Alt+D (returns to Object mode, as Maya) | supported | `deselect_all` | `selected_node`, `selection_mode`, `remembered_face`, `remembered_vertex`, `remembered_edge` | |
 | Selection | Select > All (Ctrl+Shift+A), Hierarchy and Inverse (Ctrl+Shift+I) | supported | `select_by_rule` | `selected_node`, `selection`, `selection_count` | component modes are refused (#30) |
@@ -558,7 +558,7 @@ unmodified Q/W outside text fields and dialogs. Move supports one or more select
 full transform instances in object mode, with World X/Y/Z shafts only. Rotation,
 scale, plane/center handles, components, snapping, alternate orientations and
 modified drags remain unsupported by Move. If any independently moved object has an
-unsupported transform, driven data, a selected pivot, an unstable parent or a source
+unsupported transform, driven data, an unstable parent or a source
 translation without a retained existing word, the whole gesture is refused. A
 refused press consumes the pointer sequence, so it does not fall through to another
 tool or to selection. This is a bounded application policy, not verified Maya parity.
