@@ -1278,6 +1278,35 @@ fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
     assert!(next.marquee().is_some());
 }
 
+/// Losing window focus mid-drag cancels like Esc: winit still delivers the release.
+#[test]
+fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, focused, events| {
+        let mut input = raw(time, none, events);
+        input.focused = focused;
+        capture_frame(&context, &camera, input, Rect::EVERYTHING).0
+    };
+    frame(0.0, true, vec![Event::PointerMoved(START)]);
+    frame(0.1, true, vec![primary(START, true, none)]);
+    frame(0.2, true, vec![Event::PointerMoved(end)]);
+    assert!(frame(0.25, false, vec![]).marquee_preview().is_none());
+    let released = frame(0.4, false, vec![primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        Rect::EVERYTHING,
+        START,
+        &[end],
+        none,
+    );
+    assert!(next.marquee().is_some());
+}
+
 #[test]
 fn escape_on_the_release_frame_cancels_and_escape_outside_a_drag_does_not() {
     let context = egui::Context::default();

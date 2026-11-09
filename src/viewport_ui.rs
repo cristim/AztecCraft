@@ -211,8 +211,8 @@ pub fn capture(
     let orbiting = ui
         .data(|data| data.get_temp::<bool>(orbit_in_drag))
         .unwrap_or(false);
-    // PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it, the release
-    // included.
+    // PROVISIONAL (the Maya docs are silent): Esc or losing window focus during a marquee drag
+    // cancels it, the release included.
     let escape = ui.input(|input| {
         input.events.iter().any(|event| {
             matches!(
@@ -228,7 +228,8 @@ pub fn capture(
     let mut cancelled = ui
         .data(|data| data.get_temp::<bool>(marquee_cancelled))
         .unwrap_or(false);
-    if escape
+    let unfocused = ui.input(|input| !input.focused);
+    if (escape || unfocused)
         && (response.dragged_by(PointerButton::Primary)
             || response.drag_stopped_by(PointerButton::Primary))
     {
