@@ -156,6 +156,39 @@ async fn sdk_select_in_rect_replace_add_remove_and_toggle_report_the_ordered_set
     server.await.unwrap();
 }
 
+/// Omitting `mode` means replace: with a non-empty selection, a rectangle that hits one other
+/// object leaves exactly that object, not the union (an `add` default would keep all three).
+#[tokio::test]
+async fn sdk_select_in_rect_without_a_mode_replaces_a_non_empty_selection() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let targets = three_cubes(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let all = ids(&targets);
+    let peer = client.peer();
+
+    let reply = marquee(&mut editor, &context, peer, whole(), None).await;
+    assert_eq!(reply["outcome"], "changed");
+    assert_eq!(reported(&mut editor, &context, peer).await, all);
+
+    let first = editor
+        .camera
+        .project(glam::Vec3::new(-2.0, 0.0, 0.0), editor.aspect)
+        .unwrap()
+        .unwrap();
+    let around =
+        json!({"min":[first.x - 0.01, first.y - 0.01],"max":[first.x + 0.01, first.y + 0.01]});
+    let reply = marquee(&mut editor, &context, peer, around, None).await;
+    assert_eq!(reply["outcome"], "changed");
+    assert_eq!(
+        reported(&mut editor, &context, peer).await,
+        [all[0].clone()]
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
 /// The same rectangle run through the native operation and through the wire, from the same
 /// document, camera and aspect, leaves the same selection and generation.
 #[tokio::test]
