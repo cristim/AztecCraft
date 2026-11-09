@@ -1027,6 +1027,31 @@ pub struct CameraInspection {
     pub far_clip: f32,
 }
 
+/// The only native refusals a key command can report; any other failure has its own `OperationError`
+/// variant, so a new `NativeError` variant cannot reach `OperationError::Keys` unnoticed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeysRefusal {
+    ReadOnlyFormat,
+    UnsupportedEdit,
+}
+
+impl KeysRefusal {
+    pub(crate) fn from_native(error: &NativeError) -> Option<Self> {
+        match error {
+            NativeError::ReadOnlyFormat => Some(Self::ReadOnlyFormat),
+            NativeError::UnsupportedEdit => Some(Self::UnsupportedEdit),
+            _ => None,
+        }
+    }
+
+    fn native(self) -> NativeError {
+        match self {
+            Self::ReadOnlyFormat => NativeError::ReadOnlyFormat,
+            Self::UnsupportedEdit => NativeError::UnsupportedEdit,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum OperationError {
     BusyEditing,
@@ -1041,7 +1066,7 @@ pub enum OperationError {
     SessionMaterial(NativeError),
     /// A key command refused because the scene is read-only (Maya ASCII) or the edit is unsupported
     /// (an opened .mb, or a node with edit restrictions); the MCP layer reports a typed code.
-    Keys(NativeError),
+    Keys(KeysRefusal),
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1121,7 +1146,7 @@ impl fmt::Display for OperationError {
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
-            Self::Keys(error) => error.fmt(f),
+            Self::Keys(refusal) => refusal.native().fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(
