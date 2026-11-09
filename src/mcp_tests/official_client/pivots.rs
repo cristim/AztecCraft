@@ -304,36 +304,50 @@ async fn a_second_begin_while_one_is_active_is_busy_and_a_close_request_waits() 
     rig.end().await;
 }
 
+/// The protocol refuses these before any pivot code runs (the exactly-one rule and serde's f64
+/// decoding): they show the shared update path rejects bad input on a pivoted scene and leaves
+/// it alone, not that pivots are handled specially. Only 1e300 reaches the scene.
 #[tokio::test]
-async fn malformed_values_are_refused_and_leave_the_pivoted_scene_alone() {
+async fn malformed_values_are_refused_by_the_protocol_and_leave_the_pivoted_scene_alone() {
     let mut rig = Rig::open().await;
     let id = rig
         .begin(json!({"kind":"rotate","axis":"y","space":"object"}))
         .await;
     let preview = rig.editor.history.scene().clone();
-    // JSON has no NaN or infinity: a client's f64::NAN serialises to null, and a string or array
-    // (wrong arity) is not a number.
-    for bad in [
-        Value::Null,
-        json!("NaN"),
-        json!("Infinity"),
-        json!([1.0, 2.0, 3.0]),
-        json!({}),
+    // JSON has no NaN or infinity: a client's f64::NAN serialises to null.
+    for (bad, message) in [
+        (Value::Null, "give exactly one of distance, angle or factor"),
+        (json!("NaN"), "invalid type: string \"NaN\", expected f64"),
+        (
+            json!("Infinity"),
+            "invalid type: string \"Infinity\", expected f64",
+        ),
+        (
+            json!([1.0, 2.0, 3.0]),
+            "invalid type: sequence, expected f64",
+        ),
+        (json!({}), "invalid type: map, expected f64"),
     ] {
         let args = json!({"scene_token":rig.token,"manipulation_id":id,"angle":bad});
-        let refused = rig.try_call("update_manipulation", args).await;
-        match refused {
-            Err(rmcp::ServiceError::McpError(error)) => {
-                assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS, "{bad}");
-            }
-            Ok(result) => assert!(result.is_error.unwrap_or(false), "{bad}: {result:?}"),
-            Err(other) => panic!("{bad}: {other:?}"),
-        }
+        let Err(rmcp::ServiceError::McpError(error)) =
+            rig.try_call("update_manipulation", args).await
+        else {
+            panic!("{bad}: expected a protocol error");
+        };
+        assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS, "{bad}");
+        assert_eq!(error.message, message, "{bad}");
         assert_eq!(rig.editor.history.scene(), &preview, "{bad}");
     }
-    // A huge but finite angle is refused by the scene, not applied.
+    // A huge finite angle reaches the scene, which refuses it as unrepresentable.
     let huge = rig.update(&id, "angle", json!(1e300)).await;
-    assert!(huge.is_error.unwrap_or(false), "{huge:?}");
+    assert_eq!(huge.is_error, Some(true));
+    let error = &huge.structured_content.as_ref().unwrap()["error"];
+    assert_eq!(error["code"], "manipulation_error");
+    assert_eq!(
+        error["message"],
+        "Rotate unsupported: rotation cannot be represented accurately"
+    );
+    assert_eq!(rig.editor.history.scene(), &preview);
     rig.finish(&id, "cancel").await;
     rig.end().await;
 }

@@ -102,6 +102,9 @@ enum State {
     AuthoredAsciiDirty,
     /// A clean opened Maya binary whose transform has rotate and scale pivots (issue #39).
     /// Manipulation cells only: Move, Rotate and Scale begin there instead of refusing a pivot.
+    /// Its update and finish cells use the samples' fixed id, so they show only the stale-id
+    /// path; begin, update and commit on live ids are covered by `mcp_tests/official_client/
+    /// pivots.rs` and `pivot_persistence_tests.rs`.
     Pivoted,
     NoInstall,
     NoInstallModal,
