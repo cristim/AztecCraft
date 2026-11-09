@@ -2,7 +2,7 @@
 //! `Rs = R(ro) * RA` and `K = SH * S`, so moving rp by `d` keeps the matrix when
 //! `rt' = rt - (I - Rs) d`, and moving sp by `d` keeps it when `st' = st - (I - K) d`. PROVISIONAL:
 //! the compensation goes to rpt and spt as `xform -preserve` documents; Maya is not compared (#5).
-use super::source::{Storage, TransformField};
+use super::source::{SourceFormat, Storage, TransformField};
 use super::{NativeError, NativeScene, NativeTransformNode, TransformExtras};
 use crate::scene::NodeId;
 use glam::{DMat3, DVec3};
@@ -102,6 +102,13 @@ impl NativeScene {
         let v_sp = residual(internal.scale_stage(), d_sp);
         if !v_rp.is_finite() || !v_sp.is_finite() {
             return Err(NativeError::NonFinite);
+        }
+        let binary = self
+            .source
+            .as_ref()
+            .is_some_and(|source| source.format == SourceFormat::Binary);
+        if binary && (v_rp != DVec3::ZERO || v_sp != DVec3::ZERO) {
+            return Err(NativeError::PivotNeedsTranslateCorrection);
         }
         next.extras = TransformExtras {
             rotate_pivot_translate: shifted(node.extras.rotate_pivot_translate, v_rp, &self.units)?,

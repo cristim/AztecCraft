@@ -2118,6 +2118,8 @@ pub enum NativeError {
     },
     BusyManipulation,
     UnsupportedView(&'static str),
+    /// An opened Maya Binary has no pivot translate to carry the compensation (#105).
+    PivotNeedsTranslateCorrection,
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2209,6 +2211,9 @@ impl fmt::Display for NativeError {
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }
+            Self::PivotNeedsTranslateCorrection => f.write_str(
+                "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet",
+            ),
         }
     }
 }

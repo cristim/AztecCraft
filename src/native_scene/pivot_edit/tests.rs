@@ -1,10 +1,25 @@
 use super::*;
 use crate::native_scene::{
-    AngularUnit, LinearUnit, NativeTransform, Scalar, Units,
+    AngularUnit, LinearUnit, NativeTransform, Scalar, Units, ascii, binary,
     test_fixtures::{cube, restrict_edits, set_extras},
 };
 use crate::scene::SceneError;
 use glam::DMat4;
+use std::sync::Arc;
+
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+#[allow(dead_code)]
+mod wire {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
 
 #[derive(Clone)]
 struct Case {
@@ -336,4 +351,116 @@ fn refusals_mutate_nothing() {
     );
     assert_eq!(scene, restricted);
     assert_ne!(restricted, before);
+}
+
+#[test]
+fn the_new_error_has_actionable_text() {
+    assert_eq!(
+        NativeError::PivotNeedsTranslateCorrection.to_string(),
+        "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet"
+    );
+}
+
+/// One transform with the given leaves and a triangle shape under it.
+fn binary_scene(leaves: &[(&[u8], [f64; 3])]) -> NativeScene {
+    let mut transform = wire::creation(b"object", None);
+    for (key, values) in leaves {
+        transform.extend(wire::triple(key, *values));
+    }
+    let bytes = wire::scene(
+        &[
+            wire::group(b"XFRM", &transform, 4),
+            wire::group(
+                b"DMSH",
+                &[
+                    wire::creation(b"shape", Some(b"object")),
+                    wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    binary::decode(bytes).unwrap()
+}
+
+fn opened(rotation: [f64; 3], scale: [f64; 3]) -> (NativeScene, NodeId) {
+    let scene = binary_scene(&[
+        (b"t", [1.0, 2.0, 3.0]),
+        (b"r", rotation),
+        (b"s", scale),
+        (b"rp", [0.5, 0.25, -1.0]),
+        (b"sp", [-1.0, 2.0, 0.5]),
+    ]);
+    let id = scene.nodes()[0].id();
+    (scene, id)
+}
+
+#[test]
+fn an_opened_binary_takes_only_edits_that_need_no_compensation() {
+    // Rotation about Z only and scale 1 on Y: moving rp along Z and sp along Y is exact.
+    let (mut scene, id) = opened([0.0, 0.0, 0.7], [2.0, 1.0, 1.0]);
+    let before = matrix(&scene, id);
+    assert_eq!(
+        scene.set_pivots(id, Some([0.5, 0.25, 4.0]), Some([-1.0, 5.0, 0.5])),
+        Ok(PivotOutcome::Changed)
+    );
+    assert_eq!(scene.node(id).unwrap().rotate_pivot()[2], 4.0);
+    assert_eq!(scene.node(id).unwrap().scale_pivot()[1], 5.0);
+    assert_same_matrix("opened exact", before, matrix(&scene, id));
+    assert_eq!(scene.nodes[0].extras, TransformExtras::default());
+}
+
+#[test]
+fn an_opened_binary_refuses_a_compensation_it_cannot_store() {
+    let (mut scene, id) = opened([0.0, 0.0, 0.7], [2.0, 1.0, 1.0]);
+    let before = scene.clone();
+    for (rotate, scale) in [
+        (Some([1.0, 0.25, -1.0]), None),
+        (None, Some([2.0, 2.0, 0.5])),
+        (Some([0.5, 0.25, 4.0]), Some([3.0, 2.0, 0.5])),
+    ] {
+        assert_eq!(
+            scene.set_pivots(id, rotate, scale),
+            Err(NativeError::PivotNeedsTranslateCorrection)
+        );
+        assert_eq!(scene, before);
+    }
+}
+
+#[test]
+fn an_absent_pivot_leaf_cannot_be_edited_in_an_opened_binary() {
+    let scene = binary_scene(&[(b"t", [1.0, 2.0, 3.0])]);
+    let id = scene.nodes()[0].id();
+    let mut edited = scene.clone();
+    assert_eq!(
+        edited.set_pivots(id, Some([1.0, 0.0, 0.0]), None),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(edited, scene);
+    // Writing the value the leaf already implies is not an edit.
+    assert_eq!(
+        edited.set_pivots(id, Some([0.0; 3]), Some([0.0; 3])),
+        Ok(PivotOutcome::Unchanged)
+    );
+    edited.source.as_mut().unwrap().has_removals = true;
+    let removed = edited.clone();
+    assert_eq!(
+        edited.set_pivots(id, None, Some([0.0, 2.0, 0.0])),
+        Err(NativeError::InsertionAfterDelete)
+    );
+    assert_eq!(edited, removed);
+}
+
+#[test]
+fn an_opened_ascii_scene_is_read_only() {
+    let mut scene = ascii::decode(Arc::from(ascii_fixture::specimen())).unwrap();
+    let id = scene.nodes()[0].id();
+    let before = scene.clone();
+    assert_eq!(
+        scene.set_pivots(id, Some([1.0; 3]), None),
+        Err(NativeError::ReadOnlyFormat)
+    );
+    assert_eq!(scene, before);
 }
