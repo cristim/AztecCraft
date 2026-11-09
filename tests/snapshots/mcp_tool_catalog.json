@@ -1922,7 +1922,7 @@
   },
   {
     "name": "create_session_material",
-    "description": "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1956,7 +1956,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2487,7 +2487,7 @@
   },
   {
     "name": "open_scene",
-    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. ASCII native writing is unavailable",
+    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; a mesh .ma written unchanged by this editor's ASCII Save opens on macOS and Linux as an editable, saveable authored document, and any other mesh .ma is refused",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2516,7 +2516,7 @@
   },
   {
     "name": "save_scene",
-    "description": "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh Maya 2025-format .mb. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
+    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2539,7 +2539,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene can be written as Maya 2025-format .mb; unsupported content is refused (save_unwritable, for example a created session material: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
+    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and a saved mesh .ma reopens as an authored document",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

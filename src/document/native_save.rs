@@ -1,4 +1,6 @@
 use super::{NativeOrigin, NativeScene};
+#[cfg(any(unix, test))]
+use crate::native_scene::ascii::write::AsciiWriteRefusal;
 use crate::native_scene::binary::{self, AuthoredRefusalCode};
 use std::{
     fmt, io,
@@ -19,7 +21,7 @@ pub enum SaveDestination<'a> {
     As(&'a Path),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeSaveError {
     Unsupported,
     /// Save on a scene that has no file yet; the caller needs a path (Save As).
@@ -32,6 +34,8 @@ pub enum NativeSaveError {
     Encode(binary::BinaryError),
     /// A new scene cannot be written as a Maya Binary file; nothing was written.
     Unwritable(AuthoredRefusalCode),
+    #[cfg(any(unix, test))]
+    AsciiWrite(AsciiWriteRefusal),
 }
 
 impl fmt::Display for NativeSaveError {
@@ -39,6 +43,9 @@ impl fmt::Display for NativeSaveError {
         match self {
             Self::Unsupported => f.write_str("this native scene or platform cannot be written"),
             Self::NoDestination => f.write_str("this scene has no file yet; use Save As"),
+            Self::InvalidDestination if cfg!(unix) => {
+                f.write_str("Save As requires a new .ma or .mb destination")
+            }
             Self::InvalidDestination => f.write_str("Save As requires a new .mb destination"),
             Self::SourceChanged => {
                 f.write_str("scene file or directory identity or contents changed")
@@ -48,6 +55,8 @@ impl fmt::Display for NativeSaveError {
             Self::Io(kind) => write!(f, "native scene IO failed: {kind:?}"),
             Self::Encode(error) => error.fmt(f),
             Self::Unwritable(code) => write!(f, "cannot write this scene as a new .mb: {code}"),
+            #[cfg(any(unix, test))]
+            Self::AsciiWrite(error) => error.fmt(f),
         }
     }
 }
