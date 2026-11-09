@@ -1,8 +1,9 @@
 use super::*;
 use crate::native_scene::{
     AngularUnit, LinearUnit, NativeTransform, Scalar, Units,
-    test_fixtures::{cube, set_extras},
+    test_fixtures::{cube, restrict_edits, set_extras},
 };
+use crate::scene::SceneError;
 use glam::DMat4;
 
 #[derive(Clone)]
@@ -163,6 +164,10 @@ fn assert_same_matrix(label: &str, before: DMat4, after: DMat4) {
     }
 }
 
+fn bits(v: [f64; 3]) -> [u64; 3] {
+    v.map(f64::to_bits)
+}
+
 #[test]
 fn preserving_edits_keep_the_matrix_over_the_case_table() {
     for c in table() {
@@ -186,4 +191,149 @@ fn preserving_edits_keep_the_matrix_over_the_case_table() {
             assert_same_matrix(&format!("{} {label}", c.name), before, matrix(&scene, id));
         }
     }
+}
+
+#[test]
+fn rotate_pivot_compensation_matches_a_hand_derived_translate() {
+    // R = Rz(90 degrees), rp from 0 to (1, 0, 0): rt' = -(d - R d) = (-1, 1, 0).
+    let c = Case {
+        r_degrees: [0.0, 0.0, 90.0],
+        s: [2.0, 1.0, 1.0],
+        rp: [0.0; 3],
+        sp: [0.0; 3],
+        rpt: [0.0; 3],
+        spt: [0.0; 3],
+        ..base("hand")
+    };
+    let (mut scene, id) = build(&c);
+    // sp from 0 to (1, 0, 0) with K = diag(2, 1, 1): st' = -(d - K d) = (1, 0, 0).
+    scene
+        .set_pivots(id, Some([1.0, 0.0, 0.0]), Some([1.0, 0.0, 0.0]))
+        .unwrap();
+    let extras = scene.node(id).unwrap().extras();
+    let (rpt, spt) = (
+        extras.rotate_pivot_translate.unwrap(),
+        extras.scale_pivot_translate.unwrap(),
+    );
+    for (got, want) in rpt.into_iter().zip([-1.0, 1.0, 0.0]) {
+        assert!((got - want).abs() < 1e-12, "{rpt:?}");
+    }
+    assert_eq!(bits(spt), bits([1.0, 0.0, 0.0]));
+    // The same edit in a meter scene stores meters, not centimeters.
+    let (mut meters, id) = build(&Case {
+        linear: LinearUnit::Meter,
+        ..c
+    });
+    meters
+        .set_pivots(id, Some([1.0, 0.0, 0.0]), Some([1.0, 0.0, 0.0]))
+        .unwrap();
+    let rpt = meters
+        .node(id)
+        .unwrap()
+        .extras()
+        .rotate_pivot_translate
+        .unwrap();
+    assert!(
+        (rpt[0] + 1.0).abs() < 1e-12 && (rpt[1] - 1.0).abs() < 1e-12,
+        "{rpt:?}"
+    );
+}
+
+#[test]
+fn an_exactly_zero_compensation_leaves_the_extras_untouched() {
+    // Rs = I and K = I: nothing to compensate, so `None` stays `None`.
+    let (mut scene, id) = cube();
+    scene.nodes[0].scale_pivot = [0.5, 0.0, 0.0].map(Scalar::new);
+    let before = scene.nodes[0].extras.clone();
+    assert_eq!(before, TransformExtras::default());
+    scene
+        .set_pivots(id, Some([1.0, 2.0, 3.0]), Some([-4.0, 5.0, 6.0]))
+        .unwrap();
+    assert_eq!(scene.nodes[0].extras, before);
+    // An authored `Some(-0.0)` triple survives bit for bit as well.
+    let mut kept = scene.clone();
+    let negative = [-0.0, 0.0, -0.0];
+    kept.nodes[0].extras.rotate_pivot_translate = Some(negative);
+    kept.set_pivots(id, Some([7.0, 8.0, 9.0]), None).unwrap();
+    assert_eq!(
+        bits(kept.nodes[0].extras.rotate_pivot_translate.unwrap()),
+        bits(negative)
+    );
+}
+
+#[test]
+fn only_components_with_a_nonzero_compensation_change() {
+    // Rotation about Z, rp.z set to -0.0 and rp.y moved: v_z is exactly zero, v_x and v_y are not.
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[5] = Scalar::new(40.0);
+    scene.nodes[0].extras.rotate_pivot_translate = Some([0.0, 2.0, -0.0]);
+    scene.set_pivots(id, Some([0.0, 1.0, -0.0]), None).unwrap();
+    let rpt = scene.nodes[0].extras.rotate_pivot_translate.unwrap();
+    assert_eq!(rpt[2].to_bits(), (-0.0f64).to_bits());
+    assert_ne!(rpt[0], 0.0);
+    assert_ne!(rpt[1], 2.0);
+}
+
+#[test]
+fn an_all_zero_result_is_stored_as_none() {
+    // K = diag(2, 1, 1), sp.x from 0 to 3: v_x = -3, so spt.x = -3 + 3 = 0 and the triple is zero.
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[6] = Scalar::new(2.0);
+    scene.nodes[0].extras.scale_pivot_translate = Some([-3.0, 0.0, 0.0]);
+    scene.set_pivots(id, None, Some([3.0, 0.0, 0.0])).unwrap();
+    assert_eq!(scene.nodes[0].extras, TransformExtras::default());
+}
+
+#[test]
+fn an_edit_that_changes_nothing_is_unchanged() {
+    let (mut scene, id) = build(&base("same"));
+    let before = scene.clone();
+    let rp = scene.node(id).unwrap().rotate_pivot();
+    assert_eq!(
+        scene.set_pivots(id, None, None),
+        Ok(PivotOutcome::Unchanged)
+    );
+    assert_eq!(
+        scene.set_pivots(id, Some(rp), None),
+        Ok(PivotOutcome::Unchanged)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn refusals_mutate_nothing() {
+    let (mut scene, id) = build(&base("refusals"));
+    let before = scene.clone();
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            scene.set_pivots(id, Some([0.0, bad, 0.0]), None),
+            Err(NativeError::NonFinite)
+        );
+        assert_eq!(
+            scene.set_pivots(id, None, Some([bad, 0.0, 0.0])),
+            Err(NativeError::NonFinite)
+        );
+    }
+    for huge in [[1.7e308; 3], [-1.7e308, 1.7e308, 1.0]] {
+        assert_eq!(
+            scene.set_pivots(id, Some(huge), None),
+            Err(NativeError::NonFinite)
+        );
+        assert_eq!(
+            scene.set_pivots(id, None, Some(huge)),
+            Err(NativeError::NonFinite)
+        );
+    }
+    assert_eq!(
+        scene.set_pivots(NodeId::new(999), Some([1.0; 3]), None),
+        Err(SceneError::MissingNode(NodeId::new(999)).into())
+    );
+    restrict_edits(&mut scene, id);
+    let restricted = scene.clone();
+    assert_eq!(
+        scene.set_pivots(id, Some([1.0; 3]), None),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene, restricted);
+    assert_ne!(restricted, before);
 }
