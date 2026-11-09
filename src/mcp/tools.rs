@@ -298,12 +298,6 @@ mod tests {
             )),
             "alternate_path_ancestor"
         );
-        assert_eq!(
-            code(NativeError::UnsupportedMove(
-                WorldMoveUnsupported::SelectedPivot
-            )),
-            "manipulation_error"
-        );
     }
 
     #[test]

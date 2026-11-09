@@ -1317,7 +1317,7 @@ fn rotate_and_scale_owner_busy_cancel_and_close_follow_move() {
 }
 
 #[test]
-fn scale_handles_sit_at_the_scale_fixed_point_and_rotate_handles_at_the_pivot() {
+fn scale_handles_sit_at_the_scale_fixed_point_and_move_and_rotate_handles_at_the_pivot() {
     let scene = azteccraft::native_scene::ascii::decode(
         concat!(
             "//Maya ASCII 2016 scene\nrequires maya \"2016\"; ",
@@ -1341,11 +1341,14 @@ fn scale_handles_sit_at_the_scale_fixed_point_and_rotate_handles_at_the_pivot() 
     editor.select(Some(node));
     let target = editor.selected_move_target().unwrap();
     let core = editor.history.scene().manipulator_frame(&target).unwrap();
-    assert!((core.scale_origin_cm - core.origin_cm).length() > 1.0);
+    assert!((core.scale_origin_cm - core.pivot_cm).length() > 0.5);
+    assert!((core.pivot_cm - core.origin_cm).length() > 0.5);
     let (_, rotate) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
     let (_, scale) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
-    assert_eq!(rotate.origin(), core.origin_cm);
+    assert_eq!(rotate.origin(), core.pivot_cm);
     assert_eq!(scale.origin(), core.scale_origin_cm);
+    let (_, shown) = editor.manipulation_frame(ActiveTool::Move).unwrap();
+    assert_eq!(shown.origin(), core.pivot_cm);
 }
 
 // Maya 2026 Scale Tool settings: Axis Orientation "World (default)". Rotate Tool settings:
@@ -2995,4 +2998,269 @@ fn a_scale_grab_too_close_to_the_pivot_reports_the_drag_refusal() {
         "World Z Scale",
         "Scale handle was grabbed too close to the pivot",
     );
+}
+
+// A binary node with the given translate and rotate and scale pivots, installed over the cube of
+// `setup`; the handle frames are read from it, no edit begins.
+fn install_pivoted_node(editor: &mut Editor, translate: Vec3, pivot: Vec3) {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let p = pivot.to_array().map(f64::from);
+    let t = translate.to_array().map(f64::from);
+    let bytes = scene(
+        &[
+            group(
+                b"XFRM",
+                &[
+                    creation(b"piv", None),
+                    triple(b"t", t),
+                    triple(b"r", [0.0; 3]),
+                    triple(b"s", [1.0; 3]),
+                    triple(b"rp", p),
+                    triple(b"sp", p),
+                ]
+                .concat(),
+                4,
+            ),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"pivShape", Some(b"piv")),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    editor.history =
+        azteccraft::history::History::new(azteccraft::native_scene::binary::decode(bytes).unwrap());
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths);
+    // The name field still holds the replaced cube's name: without this the press path sees a
+    // rename draft, which a sourced binary scene refuses (UnsupportedEdit).
+    editor.sync_fields();
+}
+
+// A point on the ring about `axis` through `centre`, as `View::ring_sized` computes it at the
+// origin. `centre` must lie in the plane through the origin perpendicular to the view.
+fn ring_about(view: &View, centre: Vec3, axis: Vec3, degrees: f32) -> Pos2 {
+    let eye = view.camera.eye();
+    let u = (eye - axis * eye.dot(axis)).normalize();
+    let v = axis.cross(u);
+    let angle = degrees.to_radians();
+    view.screen(centre + (u * angle.cos() + v * angle.sin()) * view.radius())
+}
+
+// The unit direction of the plane through the origin perpendicular to the view.
+fn pivot_dir(view: &View) -> Vec3 {
+    view.camera.eye().cross(Vec3::Y).normalize()
+}
+
+fn pixel(view: &View, at: Pos2) -> glam::DVec2 {
+    glam::DVec2::new(
+        f64::from(at.x - view.rect.min.x),
+        f64::from(at.y - view.rect.min.y),
+    )
+}
+
+// The pivoted node's translate sits 0.5 along the in-plane direction and its pivots 4.0 further,
+// so the handle must be drawn 4.5 along it and the translate point must not hit the ring.
+#[test]
+fn the_rotate_ring_is_picked_at_the_rotate_pivot_and_not_at_the_translate() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let handles = RotateHandles::new(&capture, &frame).unwrap();
+    let ring_y = Some(azteccraft::manipulator_handles::Pick::Handle(
+        azteccraft::native_scene::RotateAxis::Y,
+    ));
+    assert_eq!(
+        handles.pick(pixel(&view, ring_about(&view, dir * 4.5, Vec3::Y, 0.0))),
+        ring_y
+    );
+    // The ring that would be drawn at T + RT is half-way off the real one: some of its points miss.
+    let misses = (0..36).filter(|step| {
+        let at = ring_about(&view, dir * 0.5, Vec3::Y, *step as f32 * 10.0);
+        handles.pick(pixel(&view, at)) != ring_y
+    });
+    assert!(misses.count() > 5);
+}
+
+#[test]
+fn the_scale_box_is_picked_at_the_scale_pivot_and_not_at_the_translate() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let capture = editor.move_viewport.as_ref().unwrap().capture.clone();
+    let (_, frame) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let handles = ScaleHandles::new(&capture, &frame).unwrap();
+    let end = Vec3::X * view.radius();
+    let at_pivot = view.screen(dir * 4.5 + end);
+    let at_translate = view.screen(dir * 0.5 + end);
+    assert_eq!(
+        handles.pick(pixel(&view, at_pivot)),
+        Some(azteccraft::manipulator_handles::Pick::Handle(
+            ScaleHandle::X
+        ))
+    );
+    assert_ne!(
+        handles.pick(pixel(&view, at_translate)),
+        Some(azteccraft::manipulator_handles::Pick::Handle(
+            ScaleHandle::X
+        ))
+    );
+}
+
+fn pivot_state(editor: &Editor) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+    let node = editor
+        .history
+        .scene()
+        .node(editor.selected().unwrap())
+        .unwrap();
+    let c = node.transform().values();
+    (
+        [c[0], c[1], c[2]],
+        [c[6], c[7], c[8]],
+        node.rotate_pivot(),
+        node.scale_pivot(),
+    )
+}
+
+// The node-local point through the node's current world matrix, centimeters.
+fn world_of(editor: &Editor, local: glam::DVec3) -> glam::DVec3 {
+    let view =
+        azteccraft::view_scene::ViewScene::from_native(editor.history.scene(), 1 << 20).unwrap();
+    view.instances()[0].world_matrix().transform_point3(local)
+}
+
+fn assert_world_near(actual: glam::DVec3, expected: glam::DVec3, what: &str) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{what}: {actual} != {expected}"
+    );
+}
+
+#[test]
+fn a_rotate_ring_drag_turns_the_node_about_the_pivoted_handle_and_commits() {
+    let (mut editor, context, view) = setup(Key::E, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    idle(&mut editor, &context, 1.0);
+    let (_, handle) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    let (t, s, rp, sp) = pivot_state(&editor);
+    // r and s are identity here, so RP is also the point the rotation stage leaves fixed.
+    let pivot = glam::DVec3::from_array(rp);
+    let probe = glam::DVec3::new(1.5, -2.0, 4.0);
+    let (pivot_before, probe_before) = (world_of(&editor, pivot), world_of(&editor, probe));
+    let (y, centre) = (Vec3::Y, dir * 4.5);
+    press(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 0.0),
+    );
+    assert_eq!(editor.status, "Object Y Rotate");
+    moved(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 30.0),
+    );
+    near(channels(&editor)[4], 30.0, 0.05);
+    near(channels(&editor)[3], 0.0, 1e-9);
+    near(channels(&editor)[5], 0.0, 1e-9);
+    release(
+        &mut editor,
+        &context,
+        1.0,
+        ring_about(&view, centre, y, 30.0),
+    );
+    assert_eq!(editor.status, "Rotate committed");
+    assert_eq!(editor.history.undo_label(), Some("Rotate".to_string()));
+    let (t2, s2, rp2, sp2) = pivot_state(&editor);
+    assert_eq!(
+        (
+            t.map(f64::to_bits),
+            s.map(f64::to_bits),
+            rp.map(f64::to_bits),
+            sp.map(f64::to_bits)
+        ),
+        (
+            t2.map(f64::to_bits),
+            s2.map(f64::to_bits),
+            rp2.map(f64::to_bits),
+            sp2.map(f64::to_bits)
+        )
+    );
+    // The pivot's world image stays, another point moves, and keeps its distance to the pivot.
+    assert_world_near(world_of(&editor, pivot), pivot_before, "pivot");
+    let probe_after = world_of(&editor, probe);
+    assert!(
+        (probe_after - probe_before).length() > 1e-3,
+        "probe did not move"
+    );
+    let (was, now) = (
+        (probe_before - pivot_before).length(),
+        (probe_after - pivot_before).length(),
+    );
+    assert!((was - now).abs() <= 1e-9 * was, "{was} != {now}");
+    let (_, after) = editor.manipulation_frame(ActiveTool::Rotate).unwrap();
+    assert_eq!(after.origin(), handle.origin());
+}
+
+#[test]
+fn a_scale_box_drag_scales_about_the_scale_pivot_and_commits() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    let dir = pivot_dir(&view);
+    install_pivoted_node(&mut editor, dir * 0.5, dir * 4.0);
+    editor
+        .set_tool_space(ActiveTool::Scale, ManipulationSpace::World)
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    let (_, handle) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let (t, _, rp, sp) = pivot_state(&editor);
+    let pivot = glam::DVec3::from_array(sp);
+    let probe = glam::DVec3::new(1.5, -2.0, 4.0);
+    let (pivot_before, probe_before) = (world_of(&editor, pivot), world_of(&editor, probe));
+    let end = Vec3::X * view.radius();
+    let centre = dir * 4.5;
+    press(&mut editor, &context, 1.0, view.screen(centre + end));
+    assert_eq!(editor.status, "World X Scale");
+    moved(&mut editor, &context, 1.0, view.screen(centre + end * 1.5));
+    near(channels(&editor)[6], 1.5, 1e-3);
+    release(&mut editor, &context, 1.0, view.screen(centre + end * 1.5));
+    assert_eq!(editor.status, "Scale committed");
+    assert_eq!(editor.history.undo_label(), Some("Scale".to_string()));
+    near(channels(&editor)[6], 1.5, 1e-3);
+    near(channels(&editor)[7], 1.0, 1e-9);
+    let (t2, _, rp2, sp2) = pivot_state(&editor);
+    assert_eq!(
+        (
+            t.map(f64::to_bits),
+            rp.map(f64::to_bits),
+            sp.map(f64::to_bits)
+        ),
+        (
+            t2.map(f64::to_bits),
+            rp2.map(f64::to_bits),
+            sp2.map(f64::to_bits)
+        )
+    );
+    // SP's world image stays; a point is scaled about it along X by the committed factor.
+    assert_world_near(world_of(&editor, pivot), pivot_before, "pivot");
+    let factor = channels(&editor)[6];
+    let grown = glam::DVec3::new(
+        (probe_before.x - pivot_before.x) * factor,
+        probe_before.y - pivot_before.y,
+        probe_before.z - pivot_before.z,
+    );
+    assert_world_near(world_of(&editor, probe), pivot_before + grown, "probe");
+    assert!((world_of(&editor, probe) - probe_before).length() > 1e-3);
+    let (_, after) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    assert_eq!(after.origin(), handle.origin());
 }

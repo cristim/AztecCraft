@@ -323,15 +323,6 @@ fn non_uniform_parent_pivot_and_factor_refusals_leave_the_scene_unchanged() {
     }
     assert_eq!(scene, before);
 
-    let (mut pivot, node) = test_fixtures::cube();
-    pivot.nodes[0].scale_pivot[0] = Scalar::new(0.5);
-    assert!(matches!(
-        begin_world(&pivot, node, ScaleHandle::X),
-        Err(NativeError::UnsupportedScale(
-            ScaleUnsupported::SelectedPivot
-        ))
-    ));
-
     let (cube, node) = test_fixtures::cube();
     let frame = world_frame(&cube, node, ScaleHandle::X);
     for bad in [0.0, -1.0, -0.0] {

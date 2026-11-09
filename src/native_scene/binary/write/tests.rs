@@ -304,3 +304,20 @@ fn session_keys_are_refused_rather_than_dropped() {
         Err(AuthoredBinaryRefusal::Ineligible(AuthoredIneligible::Keys))
     );
 }
+
+/// Slice A has no operation that gives an authored node a pivot; slice B (#39) owns writing
+/// one. A pivot built by a test constructor is refused, never silently dropped.
+#[test]
+fn a_pivoted_authored_scene_is_refused_with_non_default_pivot() {
+    for (scene, _) in [
+        crate::native_scene::test_fixtures::pivoted_shape(),
+        crate::native_scene::test_fixtures::pivoted_extras_shape(),
+    ] {
+        assert!(matches!(
+            encode_authored(&scene),
+            Err(AuthoredBinaryRefusal::Ineligible(
+                crate::native_scene::authored::AuthoredIneligible::NonDefaultPivot
+            ))
+        ));
+    }
+}

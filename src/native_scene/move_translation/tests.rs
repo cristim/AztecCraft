@@ -246,23 +246,9 @@ fn transform_instances_use_the_selected_parent_and_share_the_authoring_node() {
 }
 
 #[test]
-fn admission_refuses_pivots_drivers_source_gaps_and_bad_paths_without_mutation() {
+fn admission_refuses_drivers_source_gaps_and_bad_paths_without_mutation() {
     let (mut scene, node) = test_fixtures::cube();
     let selected = target(&scene, node);
-    for scale_pivot in [false, true] {
-        let mut candidate = scene.clone();
-        if scale_pivot {
-            candidate.nodes[0].scale_pivot[1] = Scalar::new(0.25);
-        } else {
-            candidate.nodes[0].rotate_pivot[2] = Scalar::new(0.25);
-        }
-        assert!(matches!(
-            candidate.world_move_frame(&selected),
-            Err(NativeError::UnsupportedMove(
-                WorldMoveUnsupported::SelectedPivot
-            ))
-        ));
-    }
     for unsupported in [false, true] {
         let mut candidate = scene.clone();
         if unsupported {
@@ -810,6 +796,7 @@ fn world_move_frames_reports_a_read_only_scene_once_and_unnamed() {
 #[test]
 fn world_move_frames_names_the_index_of_the_refusing_target() {
     let (mut scene, pivoted) = test_fixtures::pivoted_shape();
+    scene.nodes[0].restrictions.push("driver".into());
     let plain = scene.create(Primitive::Cube, "plain").unwrap();
     let targets = [target(&scene, plain), target(&scene, pivoted)];
     let refs: Vec<&TransformTarget> = targets.iter().collect();
@@ -817,7 +804,7 @@ fn world_move_frames_names_the_index_of_the_refusing_target() {
         scene.world_move_frames(&refs, Some(WorldAxis::X)),
         Err(MoveBeginError::Member {
             index: 1,
-            source: NativeError::UnsupportedMove(WorldMoveUnsupported::SelectedPivot)
+            source: NativeError::UnsupportedEdit
         })
     ));
 }
@@ -848,4 +835,133 @@ fn world_move_frames_validates_once_for_the_whole_set() {
         scene.world_move_frames(&refs, Some(WorldAxis::X)).unwrap();
     });
     assert_eq!(batch, 1);
+}
+
+fn world_image(scene: &NativeScene, selected: &TransformTarget, point: DVec3) -> DVec3 {
+    test_fixtures::world_image(scene, selected, point)
+}
+
+fn assert_vec_near(actual: DVec3, expected: DVec3, context: &str) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{context}: {actual} != {expected}"
+    );
+}
+
+fn pivoted_move_scenes() -> Vec<(&'static str, NativeScene, NodeId)> {
+    test_fixtures::pivoted_family([20.0, 35.0, -15.0], [30.0, -20.0, 50.0], true)
+}
+
+#[test]
+fn a_pivoted_node_is_moved_by_exactly_the_requested_world_displacement() {
+    for (name, scene, node) in pivoted_move_scenes() {
+        let selected = target(&scene, node);
+        let frame = scene.world_move_frame(&selected).unwrap();
+        let local = scene.internal_transform(node).unwrap();
+        let rp = DVec3::from_array(local.rotate_pivot_cm);
+        let sp = DVec3::from_array(local.scale_pivot_cm);
+        let parent = scene.ancestor_world(&selected).unwrap().unwrap();
+        let rotate_pivot = parent.transform_point3(local.origin_cm() + rp);
+        assert_vec_near(frame.origin_cm(), rotate_pivot, name);
+        let probes = [rp, sp, DVec3::ZERO, DVec3::new(1.5, -2.0, 4.0)];
+        let before: Vec<_> = probes
+            .iter()
+            .map(|point| world_image(&scene, &selected, *point))
+            .collect();
+        for (axis, direction) in [
+            (WorldAxis::X, DVec3::X),
+            (WorldAxis::Y, DVec3::Y),
+            (WorldAxis::Z, DVec3::Z),
+        ] {
+            let translation = frame.translation(axis, 3.5).unwrap();
+            let mut moved = scene.clone();
+            let mut channels = [None; 9];
+            for (slot, value) in channels.iter_mut().zip(translation) {
+                *slot = Some(value);
+            }
+            moved.edit_node(node, None, channels).unwrap();
+            for (point, before) in probes.iter().zip(&before) {
+                assert_vec_near(
+                    world_image(&moved, &selected, *point),
+                    *before + direction * 3.5,
+                    name,
+                );
+            }
+            // #370 owns Move Object/Parent orientation: a move never turns the axes.
+            assert_eq!(
+                moved.manipulator_frame(&selected).unwrap().object_axes,
+                scene.manipulator_frame(&selected).unwrap().object_axes,
+                "{name}"
+            );
+            assert_vec_near(
+                moved.world_move_frame(&selected).unwrap().origin_cm(),
+                rotate_pivot + direction * 3.5,
+                name,
+            );
+            let index = scene.nodes.iter().position(|n| n.id == node).unwrap();
+            let (was, now) = (&scene.nodes[index], &moved.nodes[index]);
+            for slot in 3..9 {
+                assert_eq!(
+                    was.channels[slot].value.to_bits(),
+                    now.channels[slot].value.to_bits(),
+                    "{name}"
+                );
+            }
+            assert_eq!(was.rotate_pivot, now.rotate_pivot, "{name}");
+            assert_eq!(was.scale_pivot, now.scale_pivot, "{name}");
+            assert_eq!(was.extras, now.extras, "{name}");
+        }
+    }
+}
+
+#[test]
+fn the_pivoted_frame_origin_is_the_rotate_pivot_not_the_translate_plus_pivot_translate() {
+    let (scene, node) = test_fixtures::pivoted_extras_shape();
+    // T [3,-2,5] + RT [0.5,-1.5,2] + RP [1,0.25,-2]
+    let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+    near(frame.origin_cm().to_array(), [4.5, -3.25, 5.0]);
+}
+
+#[test]
+fn a_pivot_only_shifts_the_origin_and_never_the_object_axes_or_other_scenes() {
+    for (name, scene, node) in pivoted_move_scenes() {
+        let selected = target(&scene, node);
+        let mut zeroed = scene.clone();
+        let index = zeroed.nodes.iter().position(|n| n.id == node).unwrap();
+        zeroed.nodes[index].rotate_pivot = [0.0; 3].map(Scalar::new);
+        zeroed.nodes[index].scale_pivot = [0.0; 3].map(Scalar::new);
+        let with = scene.manipulator_frame(&selected).unwrap();
+        let without = zeroed.manipulator_frame(&selected).unwrap();
+        assert_eq!(with.object_axes, without.object_axes, "{name}");
+        let local = scene.internal_transform(node).unwrap();
+        let parent = scene.ancestor_world(&selected).unwrap().unwrap();
+        let shift = DMat3::from_mat4(parent) * DVec3::from_array(local.rotate_pivot_cm);
+        assert_vec_near(
+            scene.world_move_frame(&selected).unwrap().origin_cm()
+                - zeroed.world_move_frame(&selected).unwrap().origin_cm(),
+            shift,
+            name,
+        );
+    }
+}
+
+#[test]
+fn large_and_signed_zero_pivots_are_accepted_and_other_refusals_still_win() {
+    for value in [1e6, -0.0, 1e-300] {
+        let (mut scene, node) = test_fixtures::cube();
+        scene.nodes[0].rotate_pivot = [value; 3].map(Scalar::new);
+        scene.nodes[0].scale_pivot = [value; 3].map(Scalar::new);
+        let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        near(frame.origin_cm().to_array(), [value; 3]);
+    }
+    let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+    let index = scene.nodes.iter().position(|n| n.id == child).unwrap();
+    scene.nodes[index].rotate_pivot = [1e6; 3].map(Scalar::new);
+    scene.set_channel(root, Channel::ScaleX, 0.0).unwrap();
+    assert!(matches!(
+        scene.world_move_frame(&target(&scene, child)),
+        Err(NativeError::UnsupportedMove(
+            WorldMoveUnsupported::ParentTransform
+        ))
+    ));
 }
