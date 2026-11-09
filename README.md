@@ -22,7 +22,7 @@ The current prototype has a native desktop window for cube/plane/sphere/cylinder
 | OBJ export | File > Export All / Export Selection and MCP `export_obj` write world-space polygon geometry of the native scene to a new `.obj` file | [OBJ workflow tests](tests/obj_workflows.rs), [native export tests](tests/obj_native_export.rs); export option boxes unsupported |
 | OBJ import | File > Import... and MCP `import_obj` add the meshes of an `.obj` file to the scene as new objects, one per group, in one undo step; normals, UVs and materials are dropped, and a scene opened from `.mb` or `.ma` refuses it | [import tests](src/obj/import/tests.rs), [round trip with the exporter](tests/obj_import_roundtrip.rs); the import option box, Group and Single Object are unsupported |
 | MCP | Optional stdio server controls the tools listed in the [generated catalogue](.project-docs/mcp-tools.md), including Move, Rotate and Scale, Save/Save As, checked material Diffuse data, viewport Grid visibility, Face, Vertex and Edge selection, in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md); isolated application/SDK checks and bounded macOS material/Grid/Face QA remain separately scoped, with current-parent verification pending |
-| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
+| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude is limited to one picked face by Thickness (shelf button and Options window); manipulator and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
 | UVs, animation and rigging | Full workflows pending | [Implementation plan](.project-docs/plan.md) |
 | Materials | Candidate Common Material Attributes/Diffuse control and MCP editing of an existing checked Phong scalar; shared users use one History value | Core, real-widget, SDK protocol reopen and bounded macOS edit/Undo/Save/reopen checks pass; committed cold and combined-parent publication checks pending. Material rendering, assignment, textures and color processing remain unavailable |
 | Simulation and rendering | Pending | Reference scenes and output comparisons required |
@@ -37,8 +37,7 @@ Unsupported transform tools remain disabled, and Select remains a mode indicator
 scene generated through two real extrusion commands. Open it with File → Open to
 inspect the resulting L-shaped quad mesh. Tests reconstruct it, exercise
 undo/redo, save/reload, reflected OBJ export and camera picking. It is not a Maya
-reference scene; native Extrude remains unsupported until a real history and
-manipulator workflow is implemented.
+reference scene; native Extrude covers one picked face by Thickness; the manipulator workflow is not implemented.
 
 ## Build and test
 

@@ -93,7 +93,7 @@ fn parse_inspect_uvs(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "project_uv_planar",
-        description: "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the shape's bounding box so u and v fill 0 through 1. The axis-to-(u, v) assignment and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
+        description: "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
         schema: schema::<ProjectUvPlanarArgs>,
         parse: parse_project_uv_planar,
         idempotent: true,

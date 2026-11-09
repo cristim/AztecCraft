@@ -14,7 +14,7 @@ Precedence: [inventory-seed.md](inventory-seed.md) and [parity.md](parity.md) ow
 - Priority: P1 is frequent and blocking in a modeler's daily loop. P2 is regular use. P3 is occasional or outside the modeling loop.
 - Visible-unsupported rows confirmed in a native macOS screenshot on 2026-10-16 of a build whose application code is identical to ef86b64: Tool Box Move/Rotate/Scale (and a Snap placeholder removed since), shelf Extrude/Bevel/Materials, five Time Slider buttons. The screenshot shows the menu-bar labels only, with no menu open, so menu contents were checked from source. Rows tagged source-verified are not shown in that screenshot.
 - On this SHA, Move, Rotate and Scale in the Tool Box are disabled. PR #77 (Move) is not included. The Tool Box rows in section 4 were updated for the icon-only Tool Box change and are cited at that branch.
-- MCP is ahead of the native UI; the shelf Extrude is deliberately disabled (known-issues.md). Enabling it is a backlog item.
+- The shelf Extrude opens the Extrude Options window when a face is picked in Face mode and is otherwise disabled with the reason (`src/app/features/extrude_options/tests.rs "the_shelf_button_is_disabled_without_a_face_and_opens_the_window_with_one"`); Ctrl+E and the Edit Mesh menu are still missing (#44).
 - Names of tools come from `src/mcp/tools.rs`.
 
 
@@ -92,7 +92,7 @@ One fixed shelf row exists under the menu bar. Tab order and the Poly Modeling t
 | Poly Modeling tab: primitive creation icons (cube) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "UiIcon::PolyCube"`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: primitive creation icons (plane) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "button(ui, \"Plane\""`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Other primitive icons (sphere, cylinder and others) | [shelf] UNCONFIRMED contents | Visible-unsupported | no shelf icon; Create > Polygon Primitives > Sphere, Cylinder and Cone exist (provisional, #43), and the other ten primitives are disabled rows in that submenu | none | P2 | S7 Shelf (#65) |
-| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Visible-unsupported | MCP ahead of native UI; native control deliberately disabled (known-issues.md, `src/app/menus.rs "egui::Button::new(\"Extrude\")"`) | `extrude_face` | P1 | S7 Shelf (#65) |
+| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Partial | Enabled in Face mode with a picked face, where it opens the Extrude Options window (Thickness only, PROVISIONAL); disabled with the blocker text otherwise (`src/app/menus.rs "Open Extrude Options"`, `src/app/features/extrude_options/tests.rs`) | `extrude_face` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: Bevel icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Bevel"` (disabled) | none | P2 | S7 Shelf (#65) |
 | Materials icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Materials"` (disabled) | none | P3 | S7 Shelf (#65) |
 | Undo and redo buttons: AztecCraft-native shelf buttons; not documented on the Maya Status Line (Maya has Edit > Undo and Redo) | [menus] | Supported | `src/app/menus.rs "UiIcon::Undo"`, `src/app/menus.rs "UiIcon::Redo"` | `undo`, `redo` | P1 | S7 Shelf (#65) |
@@ -106,7 +106,7 @@ The Tool Box rows below reflect the icon-only Tool Box change (feat/70-wire-ui-i
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| Select tool (Q; Q-click Selection Mask marking menu) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Select)" (icon-only button, hover "Select tool (Q)" at src/app/panels.rs; Q-click marking menu unsupported) | `set_active_tool`, `select_node` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
+| Select tool (Q; Q-click Selection Mask marking menu) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Select)" (icon-only button, hover "Select tool (Q)" at src/app/panels.rs; Q-click marking menu unsupported; the viewport marquee drag selects objects in Object and Hierarchy modes, PROVISIONAL, SCN-100 and SCN-101, no component marquee, SCN-102) | `set_active_tool`, `select_node`, `select_in_rect` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Lasso tool | [toolbox] | Visible-unsupported | src/app/panels.rs "\"Lasso\", UiIcon::Lasso" (disabled, hover "not implemented yet") | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Paint Selection tool | [toolbox] | Visible-unsupported | src/app/panels.rs "UiIcon::PaintSelect" (disabled, hover "not implemented yet") | none | P3 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Move tool (W) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Move)" (icon-only button, hover "Move tool (W)" at src/app/panels.rs); Axis Orientation selector fixed at World (Maya 2026 Move Tool default) with the other seven documented orientations listed disabled (`src/app/features/manipulation_tool.rs "MOVE_ORIENTATIONS"`) | `set_active_tool`, `begin_manipulation` (`kind` `move`), `update_manipulation` (`distance`), `finish_manipulation` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36); with several objects selected a native drag moves all of them (MCP: `begin_manipulation` with `expected_selection_generation`, #325) |
@@ -173,7 +173,7 @@ A first-slice Attribute Editor exists (#60): a right dock panel that replaces th
 | --- | --- | --- | --- | --- | --- | --- |
 | Attribute Editor panel (Ctrl+A toggles with Channel Box) | [attr] | Partial | `Editor::attribute_editor` draws one dock panel; Ctrl+A is wired with an explicit Ctrl modifier (macOS Cmd-vs-Ctrl unverified) | `set_sidebar_panel_visibility` | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Node tabs across the top | [attr] | Partial | tabs for the selected transform, its direct mesh shapes and their supported materials; connected-node tabs absent | `select_attribute_editor_tab` | P1 | S4 Attribute Editor and Channel Box (#60) |
-| Attribute list | [attr] | Partial | Transform tab: name, Translate/Rotate/Scale and a read-only Visibility row (shared Channel Box drafts); Material tab: Diffuse. A read-only Transform Attributes block lists Shear, Rotate Order and Rotate Axis in Maya's 2026 order, with the two pivot translations under a separate Pivots heading. The 2026 transform node page lists no keyable flag for them, so no Channel Box rows are added (an inference; Autodesk does not state what the Channel Box shows). Other attributes, sections, editing of those values, the rotate and scale pivots and limits are absent | `edit_node`, `set_transform`, `set_material_diffuse`, `inspect_scene` (`nodes[].transform_attributes`, read-only) | P1 | S4 Attribute Editor and Channel Box (#60) |
+| Attribute list | [attr] | Partial | Transform tab: name, Translate/Rotate/Scale and a read-only Visibility row (shared Channel Box drafts); Material tab: Diffuse. A read-only Transform Attributes block lists Shear, Rotate Order and Rotate Axis in Maya's 2026 order, with the two pivot translations under a separate Pivots heading. The 2026 transform node page lists no keyable flag for them, so no Channel Box rows are added (an inference; Autodesk does not state what the Channel Box shows). The rotate and scale pivots are shown read-only in the same Pivots section (#39 slice A). Other attributes, sections, editing of those values, pivot editing and limits are absent | `edit_node`, `set_transform`, `set_material_diffuse`, `inspect_scene` (`nodes[].transform_attributes`, read-only) | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Pin Tab icon | [attr] | Visible-unsupported | drawn disabled with "Pin Tab: not implemented yet" | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Default dock position (not stated for 2026) | [attr] UNCONFIRMED; [rearrange-2016] FALLBACK 2016 | Missing | absent | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Tool Settings panel (default position UNCONFIRMED for 2026) | [rearrange-2016] FALLBACK 2016; UNCONFIRMED | Missing | absent | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
@@ -254,7 +254,7 @@ No Modeling Toolkit panel exists. Default dock is UNCONFIRMED for 2026.
 | Section: Selection options | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Selection constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Transform constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Commands and tools | [toolkit] | Missing | absent; Extrude is disabled at `src/app/menus.rs "egui::Button::new(\"Extrude\")"` | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
+| Section: Commands and tools | [toolkit] | Missing | absent; the shelf Extrude button exists (`src/app/menus.rs "Open Extrude Options"`) but there is no Modeling Toolkit panel | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
 | Section: Transform tool settings | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Custom shelf | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Hotkeys | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
@@ -309,7 +309,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 4. **S4 Attribute Editor and Channel Box** (#60): Attribute Editor panel with node tabs and attribute list, Ctrl+A, and the Visibility channel in the Channel Box.
 5. **S5 Hotkeys** (#32): one key map module for Q, W, E, R, A and the existing bindings, with MCP parity for each action.
 6. **S6 Menu content** (#66): Modify menu content and a Display menu. Edit already has Undo, Redo and Delete.
-7. **S7 Shelf** (#65): a native Extrude control wired to the existing `extrude_face` operation, so UI and MCP match.
+7. **S7 Shelf** (#65): the native Extrude control is wired to the existing `extrude_face` operation for one picked face (issue #44 slice 1); the manipulator remains.
 8. **S8 Panels and quick layouts** (#48 / #69): View and Shading panel menus and the Shading group of the Panel Toolbar (Wireframe, Smooth Shade All).
 
 ### P2

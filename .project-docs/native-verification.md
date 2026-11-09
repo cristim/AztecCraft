@@ -13,8 +13,8 @@ Fixtures: synthetic scenes created in the running window; no private assets.
 | Launch | Native window opened and accepted input |
 | File → New Scene | Worked |
 | File → Open | Worked (native panel) |
-| File → Save | Disabled (as documented; native Save QA pending) |
-| File → Save As | Disabled (as documented; native Save QA pending) |
+| File → Save | Disabled, as expected at `bcc0cc1`: Save needed a scene opened from Maya Binary on Unix, and this run used only scenes created in the window (#156). Saving an opened `.mb` was not exercised. |
+| File → Save As | Disabled for the same reason. Save As for a new scene arrived later in #242 and is not covered by this record. |
 | File → Export | Disabled (as documented; GUI Export still disabled) |
 | File → Close | Worked |
 | Edit → Undo / Redo / Delete | Worked |
@@ -24,7 +24,7 @@ Fixtures: synthetic scenes created in the running window; no private assets.
 | Channel Box: name, Translate/Rotate/Scale XYZ, Delete Selected | Worked |
 | Attribute Editor, Scene Root, Lateral Tools | Worked |
 | Component editing | Selection works; editing controls visibly disabled (expected per prototype scope, already documented in known-issues.md) |
-| Observed anomaly: sphere scale on X/Y | After creating a sphere, rotating on Z, then scaling, X/Y scaling did not apply while Z did (intermittent; reported separately) |
+| Observed anomaly: sphere scale on X/Y | After creating a sphere, rotating on Z, then scaling, X/Y scaling did not apply while Z did. Diagnosed in #253 (closed): the Scale tool defaults to World space, and after Rotate Z world X and Y are oblique to the node's axes, so the scale is refused with `NotAxisAligned`; world Z stays aligned and applies. The Channel Box scale fields and Object space apply every axis. |
 
 Not verified: Windows native interaction, packaged launch, full interactive
 file-panel navigation, GUI OBJ Export, Maya reference comparison, and any

@@ -215,7 +215,18 @@ impl NativeMesh {
         faces: Vec<NativeFace>,
         offsets: Vec<PointOffset>,
     ) -> Result<Self, NativeError> {
-        if edges.iter().any(|e| e.smooth.is_some()) || faces.iter().any(|f| !f.holes.is_empty()) {
+        Self::from_parts(base, edges, faces, offsets, None)
+    }
+    /// Builds a validated mesh whose every edge carries exactly `smooth` (`None` for binary
+    /// sources, which record no smoothing; `Some(false)` for authored ASCII's hard edges).
+    pub(super) fn from_parts(
+        base: Vec<[f32; 3]>,
+        edges: Vec<NativeEdge>,
+        faces: Vec<NativeFace>,
+        offsets: Vec<PointOffset>,
+        smooth: Option<bool>,
+    ) -> Result<Self, NativeError> {
+        if edges.iter().any(|e| e.smooth != smooth) || faces.iter().any(|f| !f.holes.is_empty()) {
             return Err(NativeError::UnsupportedEdit);
         }
         let mesh = Self {

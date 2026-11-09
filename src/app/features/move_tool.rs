@@ -168,7 +168,7 @@ impl Editor {
             self.history
                 .scene()
                 .manipulator_frame(target)
-                .map(|frame| frame.pivot_cm)
+                .map(|frame| frame.handle_origin(azteccraft::native_scene::ManipulatorTool::Move))
                 .map_err(OperationError::Scene)
         } else {
             self.history
@@ -223,6 +223,7 @@ impl Editor {
                     | Operation::Select { .. }
                     | Operation::ModifySelection { .. }
                     | Operation::SelectByRule(_)
+                    | Operation::SelectInRect { .. }
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }

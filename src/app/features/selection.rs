@@ -7,6 +7,27 @@ impl Editor {
         })
     }
 
+    /// The object a click or marquee hit selects: the hit shape's own transform instance in Object
+    /// mode, its root transform instance in Hierarchy mode.
+    pub(in crate::app) fn object_target_for_hit(
+        &self,
+        hit: FaceTarget,
+    ) -> Result<(NodeId, Vec<NativeId>), OperationError> {
+        let mut prefix = hit.path;
+        prefix.pop();
+        if self.selection_mode == SelectionMode::Hierarchy {
+            prefix.truncate(1);
+            let root = self
+                .history
+                .scene()
+                .root_transform(&prefix)
+                .map_err(OperationError::Scene)?;
+            Ok((root, prefix))
+        } else {
+            Ok((hit.transform, prefix))
+        }
+    }
+
     /// The lead, for display and drafts; with several objects selected it is still the lead.
     pub(in crate::app) fn lead_target(&self) -> Result<(NodeId, &[NativeId]), OperationError> {
         let (selected, path) = self.selection_presentation();

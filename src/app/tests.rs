@@ -1136,6 +1136,55 @@ mod ascii_fixture {
     ));
 }
 
+// Authored ASCII Save As and reopen are Unix-only.
+#[cfg(unix)]
+#[test]
+fn native_open_edit_save_of_an_authored_ma_round_trips_and_stays_clean() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("authored.ma");
+    let mut authored = Editor::default();
+    authored.create(Primitive::Cube);
+    authored
+        .apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    let first = std::fs::read(&path).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path: path.clone() })
+        .unwrap();
+    let inspection = editor.inspect(false).unwrap();
+    assert_eq!(
+        inspection.document_origin,
+        crate::editor_operations::DocumentOrigin::MayaAscii
+    );
+    assert_eq!(inspection.shapes.len(), 1);
+    assert!(inspection.read_only_reason.is_none());
+    assert!(inspection.save_available && inspection.save_as_available);
+    assert!(!editor.is_dirty());
+    let id = editor.history.scene().nodes()[0].id();
+    editor
+        .apply_operation(Operation::Rename {
+            id,
+            name: "renamed".into(),
+        })
+        .unwrap();
+    assert!(editor.is_dirty());
+    editor.apply_operation(Operation::SaveScene).unwrap();
+    assert!(!editor.is_dirty());
+    let second = std::fs::read(&path).unwrap();
+    assert_ne!(first, second);
+    assert!(
+        String::from_utf8(second.clone())
+            .unwrap()
+            .contains("renamed")
+    );
+    let mut again = Editor::default();
+    again
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert_eq!(again.history.scene().nodes()[0].name(), "renamed");
+}
+
 #[test]
 fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claims() {
     let directory = tempfile::tempdir().unwrap();
@@ -6851,6 +6900,38 @@ fn hierarchy_click_on_a_descendant_selects_the_root_and_object_click_the_leaf() 
     click_first_instance(&mut editor);
     assert_eq!(editor.selection_presentation().0, Some(child.node));
     assert_eq!(editor.selection_presentation().1, child.path);
+}
+
+#[test]
+fn object_target_for_hit_maps_a_leaf_in_object_mode_and_its_root_in_hierarchy_mode() {
+    let mut editor = group_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let (root, child) = (&paths[0], &paths[1]);
+    editor.camera = Camera::default();
+    let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
+    let vertices = view.instances()[0].world_vertices();
+    let center = vertices.iter().copied().sum::<glam::Vec3>() / vertices.len() as f32;
+    let ndc = editor
+        .camera
+        .project(center, editor.aspect)
+        .unwrap()
+        .unwrap()
+        .truncate();
+    let hit = editor
+        .camera
+        .pick_view(&view, ndc, editor.aspect)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        editor.object_target_for_hit(hit.clone()).unwrap(),
+        (child.node, child.path.clone())
+    );
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
+    assert_eq!(
+        editor.object_target_for_hit(hit).unwrap(),
+        (root.node, root.path.clone())
+    );
 }
 
 #[test]

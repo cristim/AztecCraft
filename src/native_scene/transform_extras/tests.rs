@@ -516,3 +516,31 @@ fn every_rotate_order_maps_to_its_maya_name() {
         assert_eq!(got.non_default.contains(&"rotate_order"), order != 0);
     }
 }
+
+#[test]
+fn rotate_and_scale_pivots_are_reported_in_the_declared_unit_and_minus_zero_is_default() {
+    let (mut scene, id) = cube();
+    scene.units.linear = LinearUnit::Meter;
+    let index = scene.nodes.iter().position(|n| n.id == id).unwrap();
+    scene.nodes[index].rotate_pivot = [1.0, 0.25, -2.0].map(Scalar::new);
+    scene.nodes[index].scale_pivot = [-0.0, 0.0, -0.0].map(Scalar::new);
+    let got = scene.transform_attributes(id).unwrap();
+    // Declared units, like authoring_transform.translation: meters stay meters.
+    assert_eq!(got.rotate_pivot, [1.0, 0.25, -2.0]);
+    assert_eq!(
+        got.scale_pivot.map(f64::to_bits),
+        [-0.0, 0.0, -0.0].map(f64::to_bits)
+    );
+    // -0.0 is the default value: the raw value stays inspectable but is not "non-default".
+    assert_eq!(got.non_default, ["rotate_pivot"]);
+    scene.nodes[index].rotate_pivot = [0.0; 3].map(Scalar::new);
+    scene.nodes[index].scale_pivot = [0.0, 1e-300, 0.0].map(Scalar::new);
+    assert_eq!(
+        scene.transform_attributes(id).unwrap().non_default,
+        ["scale_pivot"]
+    );
+    scene.nodes[index].scale_pivot = [0.0; 3].map(Scalar::new);
+    let plain = scene.transform_attributes(id).unwrap();
+    assert!(plain.non_default.is_empty());
+    assert_eq!(plain, TransformAttributes::default());
+}

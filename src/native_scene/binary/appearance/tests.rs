@@ -998,3 +998,72 @@ fn session_material_edits_refuse_sourced_scenes_and_keep_phong_diffuse_editable(
     assert_ne!(scene, before);
     assert!(crate::native_scene::binary::encode(&scene).is_ok());
 }
+
+// #380: the parent index answers what the per-shape DAG scans answered: a root, a parent, no
+// edge, and `AmbiguousInstance` for a shape under two transforms.
+#[test]
+fn the_parent_index_matches_the_scans_including_a_shared_shape() {
+    let (scene, first, second, shared) = crate::native_scene::test_fixtures::shared_shape();
+    let mut budget = Budget::new(0).unwrap();
+    let mut meter = Meter {
+        budget: &mut budget,
+        bytes: 0,
+        steps: 0,
+    };
+    let parents = Parents::new(&scene, &mut meter).unwrap();
+    assert_eq!(meter.steps, scene.dag_edges().len());
+    let transform = |node| scene.node(node).unwrap().transform_id();
+    assert_eq!(parents.of(transform(first)).ok(), Some(Some(None)));
+    assert_eq!(parents.of(transform(second)).ok(), Some(Some(None)));
+    assert!(matches!(
+        parents.of(shared),
+        Err(BindingFailure::Unavailable(
+            AppearanceIssue::AmbiguousInstance
+        ))
+    ));
+    let unknown = crate::native_scene::NativeId::from_decimal("999999").unwrap();
+    assert_eq!(parents.of(unknown).ok(), Some(None));
+}
+
+// The ancestor walk: a shape under a single chain resolves to its direct parent, and a shape whose
+// grandparent is instanced under two transforms is refused, as the scans refused it.
+#[test]
+fn the_ancestor_walk_refuses_an_instanced_ancestor() {
+    use crate::native_scene::{DagEdge, test_fixtures};
+    let (mut scene, root, mid, leaf) = test_fixtures::chain_of_three();
+    let transform = |scene: &NativeScene, node| scene.node(node).unwrap().transform_id();
+    let leaf_shape = scene
+        .dag_edges()
+        .iter()
+        .find(|edge| edge.parent() == Some(transform(&scene, leaf)))
+        .unwrap()
+        .child();
+    let mut budget = Budget::new(0).unwrap();
+    let mut meter = Meter {
+        budget: &mut budget,
+        bytes: 0,
+        steps: 0,
+    };
+    let parents = Parents::new(&scene, &mut meter).unwrap();
+    assert_eq!(
+        parents.single_path_parent(leaf_shape, &mut meter).ok(),
+        Some(transform(&scene, leaf))
+    );
+    // Instance the middle transform under a second root as well.
+    let other = scene
+        .create(crate::scene::Primitive::Cube, "other")
+        .unwrap();
+    let edge = DagEdge {
+        parent: Some(transform(&scene, other)),
+        child: transform(&scene, mid),
+    };
+    scene.dag.push(edge);
+    let _ = root;
+    let parents = Parents::new(&scene, &mut meter).unwrap();
+    assert!(matches!(
+        parents.single_path_parent(leaf_shape, &mut meter),
+        Err(BindingFailure::Unavailable(
+            AppearanceIssue::AmbiguousInstance
+        ))
+    ));
+}

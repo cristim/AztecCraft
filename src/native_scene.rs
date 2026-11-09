@@ -22,7 +22,7 @@ pub use appearance::{
 };
 pub use curve::{CurveForm, NativeCurveShape};
 pub use import::ObjImportPlan;
-pub use manipulator_frame::ManipulatorFrame;
+pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
@@ -601,8 +601,8 @@ pub struct InternalTransform {
 }
 
 impl InternalTransform {
-    /// T + RT in the parent's space: the Move and Rotate pivot, since both refuse a nonzero
-    /// rotate pivot (RP) and `T + RT + RP` is then the same point.
+    /// T + RT in the parent's space: the rotate pivot without RP. Not the Move or Rotate handle
+    /// position, which is `T + RT + RP`.
     pub(crate) fn origin_cm(self) -> DVec3 {
         let translate = DVec3::from_array(self.translation_cm);
         match self.extras {
@@ -688,16 +688,16 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
+    }
     #[cfg(any(unix, windows))]
     pub(crate) fn has_binary_source(&self, bytes: &std::sync::Arc<[u8]>) -> bool {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
-    }
-    /// Save authority is available only for a scene authored without a parsed source.
-    #[cfg(unix)]
-    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
-        self.source.is_none().then_some(self.authored_document_id)
     }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate
@@ -1068,6 +1068,22 @@ impl NativeScene {
         snapshot.next_id = snapshot.next_id.max(self.next_id);
         snapshot.next_native_id = snapshot.next_native_id.max(self.next_native_id);
         *self = snapshot;
+    }
+
+    /// Test seam: gives `node` rotate and scale pivots, which no operation can yet (slice B of #39).
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_pivots_for_test(
+        &mut self,
+        node: NodeId,
+        rotate: [f64; 3],
+        scale: [f64; 3],
+    ) -> Result<(), NativeError> {
+        let index = self.nodes.iter().position(|n| n.id == node);
+        let index = index.ok_or(SceneError::MissingNode(node))?;
+        self.nodes[index].rotate_pivot = rotate.map(Scalar::new);
+        self.nodes[index].scale_pivot = scale.map(Scalar::new);
+        self.validate()
     }
 
     /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
