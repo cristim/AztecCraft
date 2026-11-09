@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::SelectionModeIntent;
 use crate::editor_operations::{SelectionMode, SidebarPanel};
 use azteccraft::{
     manipulator_handles::{DisabledKind, Pick, ScaleHandles},
@@ -2233,6 +2234,72 @@ fn a_mode_shortcut_on_the_release_frame_drops_the_marquee_without_an_error() {
         assert_ne!(editor.status, MARQUEE_STATUS, "{start:?}");
         assert_eq!(editor.selected(), selected, "{start:?}");
         assert_eq!(editor.selection.generation(), generation, "{start:?}");
+    }
+}
+
+/// A mode key that leaves the mode unchanged does not make the drag stale: the release behaves
+/// exactly as it would without the key.
+#[test]
+fn a_no_op_mode_shortcut_on_the_release_frame_leaves_the_marquee_to_the_current_mode() {
+    for (mode, key_pressed) in [
+        (SelectionMode::Face, Key::F11),
+        (SelectionMode::Vertex, Key::F9),
+        (SelectionMode::Edge, Key::F10),
+    ] {
+        let (mut editor, context, rect) = select_tool_editor();
+        editor.native_operation(Operation::SetSelectionMode(mode));
+        let (from, to) = over_the_object(rect);
+        let size = egui::vec2(1440.0, 900.0);
+        for events in [
+            button(from, true),
+            vec![Event::PointerMoved(to)],
+            [button(to, false), vec![key(key_pressed)]].concat(),
+        ] {
+            frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+        }
+        assert_eq!(editor.selection_mode, mode);
+        assert_eq!(editor.status, MARQUEE_STATUS, "{mode:?}");
+        assert!(!editor.error, "{mode:?}");
+    }
+}
+
+#[test]
+fn the_intent_target_is_the_mode_the_intent_would_set() {
+    let (mut editor, _context, _rect) = select_tool_editor();
+    for (mode, intent, target) in [
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Object,
+            SelectionMode::Object,
+        ),
+        (
+            SelectionMode::Hierarchy,
+            SelectionModeIntent::Hierarchy,
+            SelectionMode::Hierarchy,
+        ),
+        (
+            SelectionMode::Edge,
+            SelectionModeIntent::Component,
+            SelectionMode::Edge,
+        ),
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Component,
+            SelectionMode::Face,
+        ),
+        (
+            SelectionMode::Face,
+            SelectionModeIntent::Toggle,
+            SelectionMode::Object,
+        ),
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Toggle,
+            SelectionMode::Face,
+        ),
+    ] {
+        editor.selection_mode = mode;
+        assert_eq!(editor.selection_mode_for(intent), target, "{mode:?}");
     }
 }
 
