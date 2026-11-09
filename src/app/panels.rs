@@ -384,7 +384,10 @@ impl Editor {
                 && !text_edit_focused(ui.ctx())
                 && !egui::Popup::is_any_open(ui.ctx());
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
-            let marquee = input.marquee().filter(|_| can_select && !consumed);
+            // A mode shortcut on the release frame leaves the drag belonging to the old mode: drop it.
+            let marquee = input
+                .marquee()
+                .filter(|_| can_select && !consumed && selection_intent.is_none());
             let selection_intent = selection_intent.filter(|_| can_select);
             let delete_intent = delete_intent && can_select;
             // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
@@ -404,7 +407,8 @@ impl Editor {
                     && !(object_mode
                         && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
                     && (*refusal != crate::viewport_ui::SelectionRefusal::ComponentMarquee
-                        || (!object_mode && !(consumed || mode_refused)))
+                        || (!object_mode
+                            && !(consumed || mode_refused || selection_intent.is_some())))
             });
             let navigation = if current_document && !consumed {
                 navigation

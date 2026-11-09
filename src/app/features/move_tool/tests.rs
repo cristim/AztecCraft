@@ -2208,6 +2208,34 @@ fn a_component_mode_drag_shows_the_status_and_changes_nothing() {
     );
 }
 
+/// A mode shortcut on the release frame changes the mode; the drag then belongs to the old mode
+/// and is dropped quietly, whichever way the mode flips.
+#[test]
+fn a_mode_shortcut_on_the_release_frame_drops_the_marquee_without_an_error() {
+    for start in [SelectionMode::Object, SelectionMode::Face] {
+        let (mut editor, context, rect) = select_tool_editor();
+        editor.native_operation(Operation::SetSelectionMode(start));
+        let selected = editor.selected();
+        assert!(selected.is_some());
+        let generation = editor.selection.generation();
+        let from = rect.center() + egui::vec2(-300.0, 200.0);
+        let to = from + egui::vec2(60.0, 30.0);
+        let size = egui::vec2(1440.0, 900.0);
+        for events in [
+            button(from, true),
+            vec![Event::PointerMoved(to)],
+            [button(to, false), vec![key(Key::F8)]].concat(),
+        ] {
+            frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+        }
+        assert_ne!(editor.selection_mode, start, "{start:?}: F8 flips the mode");
+        assert!(!editor.error, "{start:?}: {}", editor.status);
+        assert_ne!(editor.status, MARQUEE_STATUS, "{start:?}");
+        assert_eq!(editor.selected(), selected, "{start:?}");
+        assert_eq!(editor.selection.generation(), generation, "{start:?}");
+    }
+}
+
 #[test]
 fn a_marquee_drag_over_the_selected_object_leaves_selection_and_history_untouched() {
     let (mut editor, context, rect) = select_tool_editor();
