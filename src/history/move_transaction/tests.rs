@@ -863,8 +863,8 @@ fn rotate_refusal_in_drag_keeps_the_last_valid_preview() {
 }
 
 #[test]
-fn refused_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
-    let (mut scene, node) = test_fixtures::pivoted_shape();
+fn restricted_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
+    let (mut scene, node) = test_fixtures::cube();
     test_fixtures::restrict_edits(&mut scene, node);
     let mut history = History::new(scene);
     let before = history.scene.clone();
@@ -1002,8 +1002,8 @@ fn scale_refusal_in_drag_keeps_the_last_valid_preview_and_identity_is_unchanged(
 }
 
 #[test]
-fn refused_scale_begin_consumes_no_id() {
-    let (mut scene, node) = test_fixtures::pivoted_shape();
+fn restricted_scale_begin_consumes_no_id() {
+    let (mut scene, node) = test_fixtures::cube();
     test_fixtures::restrict_edits(&mut scene, node);
     let mut history = History::new(scene);
     let result = history.begin_scale(
