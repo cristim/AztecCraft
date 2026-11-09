@@ -67,9 +67,17 @@ impl Editor {
         Ok(())
     }
     pub(super) fn native_operation(&mut self, operation: Operation) {
+        let _ = self.native_operation_result(operation);
+    }
+    /// `native_operation` for callers that must tell success from refusal.
+    pub(super) fn native_operation_result(
+        &mut self,
+        operation: Operation,
+    ) -> Result<OperationReply, OperationError> {
         let feedback = self.status_feedback(&operation);
         let result = self.apply_operation(operation);
         self.record_feedback(feedback, &result);
+        result
     }
     /// What the status line reports for an operation, decided before it runs (Undo/Redo labels
     /// change once it does). Native and remote callers share it, as Maya's Command Line feedback
@@ -721,7 +729,6 @@ impl Editor {
                     transform: new_transform,
                 }
             }
-            #[cfg(any(test, feature = "mcp"))]
             Operation::ExtrudeFace { target, distance } => {
                 if !(2..=azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1)
                     .contains(&target.path.len())

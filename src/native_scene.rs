@@ -686,16 +686,16 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
+    }
     #[cfg(any(unix, windows))]
     pub(crate) fn has_binary_source(&self, bytes: &std::sync::Arc<[u8]>) -> bool {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
-    }
-    /// Save authority is available only for a scene authored without a parsed source.
-    #[cfg(unix)]
-    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
-        self.source.is_none().then_some(self.authored_document_id)
     }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate

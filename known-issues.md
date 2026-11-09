@@ -214,7 +214,7 @@ The extrusion API supports one quad with signed object-space normal displacement
 including zero-distance topology. All-face extrusion, including a one-quad plane,
 is explicitly unsupported until a pinned Maya fixture establishes default behavior.
 Region/world extrusion, divisions, offset/taper, UVs/normals, construction-history
-nodes and native Extrude controls remain pending.
+nodes, the Extrude manipulator and multi-face Extrude remain pending (native single-face Extrude with a Thickness field exists, see the component selection entry).
 
 The synthetic extruded-cube example and core journey tests exercise geometry,
 history, document persistence, OBJ export and camera picking. They don't replace
@@ -263,8 +263,7 @@ unobstructed finite degenerate centers can be selected.
 Other component masks, multiple-face gestures, component marquee (the object marquee exists, see
 "Object marquee is a provisional subset"), hover and marking menus are unsupported. The same holds in Vertex and Edge modes: a Shift or Ctrl click is refused
 with ModifiedClick and leaves the selection unchanged. Maya supports modified clicks to add
-to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude remains disabled until a real history and
-manipulator workflow exists.
+to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude of the single selected face is live (issue #44, slice 1): the shelf Extrude button opens an Extrude Options window with Thickness only (default 0, applied as the normal displacement, PROVISIONAL). The other option rows, including Taper 1 and Twist 0 (polyExtrudeFacet node defaults, PROVISIONAL), are disabled. There is no manipulator, no multi-face region and no all-face extrusion; a Thickness of 0 gives a coplanar cap with zero-height walls, and its disclosure in the status line is a later step. PROVISIONAL, with no Maya source: the shelf Extrude button opens the Options window instead of extruding at once, and the disabled Divisions 1, Offset 0, Smoothing angle 30 and Curve Selected rows show display defaults, not documented ones.
 
 Ambiguous coalesced primary releases are refused with an actionable single-click
 retry rather than guessed coordinates/modifiers. This limitation was reproduced
@@ -939,8 +938,8 @@ selection affects OBJ export). Export Selection covers every selected object and
 descendants, each instance once, in scene order rather than selection order (PROVISIONAL:
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
-unmet. Normals, UVs, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered (the option boxes are disabled), and export never overwrites an
+unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
+written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
@@ -950,6 +949,31 @@ Maya's objExport plug-in; OBJ import is unsupported. An export with no faces at 
 (`nothing_to_export`); in a mixed export an instance without faces is still written as an `o`
 group with only its vertices and counted in `objects` (PROVISIONAL: vertex-only objects are
 valid OBJ, and the Maya docs do not say what objExport writes for a mesh without faces).
+
+## Authored Maya ASCII: only the AztecCraft-written subset reopens
+
+**Severity:** medium
+**Area:** file format
+**Issue:** cristim/AztecCraft#156
+
+Save As `.ma` (macOS and Linux only) writes the authored-scene subset: one transform over one mesh per
+object, centimeter/degree/film units, no UVs, no session materials, no curves. Reopening admits a mesh
+`.ma` only when the file is byte-identical to what the writer would emit for the scene it decodes to
+(`src/native_scene/ascii/document.rs`). That makes the reader exactly as wide as the writer: a `.ma`
+with meshes written by Maya, hand-edited, reformatted or saved by another tool is refused, not
+approximated, and Maya-authored mesh files (UVs, shading connections, smooth edges, history) stay
+unsupported. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
+the written files is PROVISIONAL and unproven. A reopened file is an authored document: Save rewrites it,
+and any edit the writer cannot carry (session material, UVs, curves) refuses Save and keeps the scene
+dirty.
+
+Because the gate compares against the writer's exact output (including the fixed header text), any
+change to the ASCII writer invalidates `.ma` files saved by earlier builds: a mesh file written before
+the change is refused at Open by the later build (a file with no meshes opens read-only). Writer changes
+therefore need either a version marker the reader can branch on or an accepted break; neither exists yet.
+
+Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), UV or material writing, or a
+public Maya acceptance check (issue #5).
 
 ## Authored Maya Binary writer: unproven profile
 
@@ -1254,11 +1278,15 @@ Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and o
 
 UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
 so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
-holding them, rather than dropping them. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them, and OBJ export refuses a shape that has them
+(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
-Bounding box fit only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
-Set, the projection manipulator and construction history are missing. The axis-to-(u, v) assignment
-and the Y default are PROVISIONAL. Scenes opened from a file do not expose their UVs, which does not
+bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
+Set, the projection manipulator and construction history are missing. The projections are oriented
+as Maya's Y-up side, top and front views (X: u=-z, v=y; Y: u=x, v=-z; Z: u=x, v=y), view-matching and
+right-handed, so a face looking along +axis has positive UV area. Maya's pages state no per-axis
+orientation, so this and the Y default are PROVISIONAL. The earlier X and Y mappings were mirrored
+(fixed, #394). Scenes opened from a file do not expose their UVs, which does not
 mean they have none. The UV Editor is a read-only outline, not drawn with a texture, and the viewport
 does not show UVs. The native menu and both windows have automated UI tests but no reviewed native
 screenshot yet, and nothing has been compared with Maya (#5).

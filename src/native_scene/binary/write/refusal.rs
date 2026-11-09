@@ -32,6 +32,7 @@ pub enum AuthoredRefusalCode {
     EdgeSmoothing,
     FaceHoles,
     UnsupportedMeshChannels,
+    SessionUvs,
     TooLarge,
     MissingUuid,
     SessionMaterials,
@@ -65,6 +66,7 @@ impl From<&AuthoredBinaryRefusal> for AuthoredRefusalCode {
                 I::EdgeSmoothing => Self::EdgeSmoothing,
                 I::FaceHoles => Self::FaceHoles,
                 I::UnsupportedMeshChannels => Self::UnsupportedMeshChannels,
+                I::SessionUvs => Self::SessionUvs,
             },
             AuthoredBinaryRefusal::TooLarge => Self::TooLarge,
             AuthoredBinaryRefusal::MissingUuid => Self::MissingUuid,
@@ -101,6 +103,7 @@ impl fmt::Display for AuthoredRefusalCode {
             Self::EdgeSmoothing => "a mesh has edge smoothing that a new .mb cannot carry",
             Self::FaceHoles => "a mesh has face holes",
             Self::UnsupportedMeshChannels => "a mesh has channels a new .mb cannot carry",
+            Self::SessionUvs => "session UVs are not saved; use Delete UVs or Undo to save",
             Self::TooLarge => "the scene is too large to write and verify as a new .mb",
             Self::MissingUuid => "a node has no identity to write",
             Self::SessionMaterials => {

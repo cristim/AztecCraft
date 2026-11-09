@@ -342,7 +342,7 @@ async fn checked_appearance_open_inspection_and_document_replacement_share_live_
     );
     client.cancel().await.unwrap();
     drop(editor);
-    tokio::time::timeout(Duration::from_secs(2), server)
+    tokio::time::timeout(protocol_call_deadline(), server)
         .await
         .unwrap()
         .unwrap();

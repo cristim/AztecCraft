@@ -99,6 +99,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
     uv: features::uv::UvUi,
     native_input_pending: bool,
@@ -154,6 +155,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            extrude_options: Default::default(),
             timeline: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
@@ -340,6 +342,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .into_iter()
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
+    .chain([features::extrude_options::thickness_field_id()])
     .chain(features::timeline::field_ids())
 }
 

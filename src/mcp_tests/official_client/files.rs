@@ -344,14 +344,14 @@ async fn native_sdk_uncertain_receipt_survives_close_reply_flush_failure_until_d
     );
     assert!(editor.files.is_closing());
     assert!(editor.inspect(false).unwrap().save_reconciliation_required);
-    tokio::time::timeout(Duration::from_secs(2), async {
+    tokio::time::timeout(protocol_call_deadline(), async {
         while !failure.observed() {
             tokio::task::yield_now().await;
         }
     })
     .await
     .unwrap();
-    let _ = tokio::time::timeout(Duration::from_secs(2), handle.await_response())
+    let _ = tokio::time::timeout(protocol_call_deadline(), handle.await_response())
         .await
         .unwrap();
     let output = hidden_frame(&mut editor, &context, vec![]);
@@ -378,11 +378,11 @@ async fn native_sdk_uncertain_receipt_survives_close_reply_flush_failure_until_d
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(std::fs::read(&source).unwrap(), expected);
     assert_eq!(std::fs::metadata(&source).unwrap().ino(), inode);
-    let _ = tokio::time::timeout(Duration::from_secs(2), client.cancel())
+    let _ = tokio::time::timeout(protocol_call_deadline(), client.cancel())
         .await
         .unwrap();
     drop(editor);
-    tokio::time::timeout(Duration::from_secs(2), server)
+    tokio::time::timeout(protocol_call_deadline(), server)
         .await
         .unwrap()
         .unwrap();
@@ -484,7 +484,7 @@ async fn remote_close_and_discard_close_flush_their_own_reply_before_hidden_exit
             ),
             Err(OperationError::BusyEditing)
         ));
-        let response = tokio::time::timeout(Duration::from_secs(2), handle.await_response())
+        let response = tokio::time::timeout(protocol_call_deadline(), handle.await_response())
             .await
             .unwrap()
             .unwrap();
@@ -505,7 +505,7 @@ async fn remote_close_and_discard_close_flush_their_own_reply_before_hidden_exit
         assert_eq!(editor.scene_token.to_string(), token);
         client.cancel().await.unwrap();
         drop(editor);
-        tokio::time::timeout(Duration::from_secs(2), server)
+        tokio::time::timeout(protocol_call_deadline(), server)
             .await
             .unwrap()
             .unwrap();

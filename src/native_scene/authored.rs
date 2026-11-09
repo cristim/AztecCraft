@@ -66,6 +66,7 @@ pub(crate) enum AuthoredIneligible {
     EdgeSmoothing,
     FaceHoles,
     UnsupportedMeshChannels,
+    SessionUvs,
 }
 
 pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>, &str)> {
@@ -89,7 +90,7 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
         return Err(AuthoredIneligible::Keys);
     }
     if !scene.session_uvs.is_empty() {
-        return Err(AuthoredIneligible::UnsupportedMeshChannels);
+        return Err(AuthoredIneligible::SessionUvs);
     }
     Ok(())
 }

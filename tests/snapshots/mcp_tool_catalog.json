@@ -1867,7 +1867,7 @@
   },
   {
     "name": "project_uv_planar",
-    "description": "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the shape's bounding box so u and v fill 0 through 1. The axis-to-(u, v) assignment and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
+    "description": "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
     "inputSchema": {
       "$defs": {
         "ProjectFrom": {
@@ -2004,7 +2004,7 @@
   },
   {
     "name": "create_session_material",
-    "description": "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2038,7 +2038,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2122,7 +2122,7 @@
   },
   {
     "name": "delete_node",
-    "description": "Delete an object and all its descendants through editor undo history. A descendant transform that also hangs under a node outside the subtree is refused; a shape shared with such a node stays. Refused in Face, Vertex or Edge selection mode",
+    "description": "Delete an object and all its descendants through editor undo history; the form of Maya's delete command with no flags, applied to one node (PROVISIONAL: the documentation does not state the default of -hierarchy, so the subtree semantics are pinned by tests). A descendant transform that also hangs under a node outside the subtree is refused; a shape shared with such a node stays. Refused in Face, Vertex or Edge selection mode",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2149,7 +2149,7 @@
   },
   {
     "name": "delete_selected",
-    "description": "Delete every selected object (Edit > Delete) as one undo step. All or nothing: if any selected object or its subtree cannot be deleted (a shared descendant, or an opened file whose records cannot be dropped) the whole delete is refused with that object's error and nothing changes. A selected descendant of another selected object is deleted once, with it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
+    "description": "Delete every selected object (Edit > Delete) as one undo step; the form of Maya's delete command with no flags, each node removed with its whole subtree (PROVISIONAL, see delete_node; that the Edit > Delete menu item runs exactly this form, not a wrapper script, is also PROVISIONAL). All or nothing: if any selected object or its subtree cannot be deleted (a shared descendant, or an opened file whose records cannot be dropped) the whole delete is refused with that object's error and nothing changes. A selected descendant of another selected object is deleted once, with it. The selection is empty afterwards and Undo restores the objects but not the selection. Refused in Face, Vertex or Edge selection mode and with nothing selected",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2569,7 +2569,7 @@
   },
   {
     "name": "open_scene",
-    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. ASCII native writing is unavailable",
+    "description": "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; a mesh .ma written unchanged by this editor's ASCII Save opens on macOS and Linux as an editable, saveable authored document, and any other mesh .ma is refused",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2598,7 +2598,7 @@
   },
   {
     "name": "save_scene",
-    "description": "Save the active supported Maya binary document, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh Maya 2025-format .mb. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
+    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2621,7 +2621,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene can be written as Maya 2025-format .mb; unsupported content is refused (save_unwritable, for example a created session material: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
+    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and a saved mesh .ma reopens as an authored document",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
