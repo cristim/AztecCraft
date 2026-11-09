@@ -7,6 +7,7 @@ mod curve;
 mod manipulator_frame;
 mod mesh;
 mod move_translation;
+mod pivot_edit;
 mod rotate_frame;
 mod scale_frame;
 mod session_keys;
@@ -24,6 +25,7 @@ pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
+pub use pivot_edit::PivotOutcome;
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_keys::SessionKeys;
@@ -623,6 +625,15 @@ impl InternalTransform {
         };
         let order = transform_extras::rotation_matrix(extras.rotate_order, self.rotation_radians)?;
         Some(DMat3::from_mat4(order * extras.rotate_axis_matrix()))
+    }
+
+    /// SH * S as a linear map: the scale stage between the pivots.
+    pub(crate) fn scale_stage(self) -> DMat3 {
+        let scale = DMat3::from_diagonal(DVec3::from_array(self.scale));
+        match self.extras {
+            Some(extras) => DMat3::from_mat4(extras.shear_matrix()) * scale,
+            None => scale,
+        }
     }
 
     pub(crate) fn matrix(self) -> Option<DMat4> {
