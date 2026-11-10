@@ -359,6 +359,8 @@ fn save_as_of_a_pivoted_authored_scene_is_refused_and_writes_no_file() {
         .set_pivots_for_test(node, [1.0, 0.25, -2.0], [-0.5, 1.0, 0.0])
         .unwrap();
     editor.history = azteccraft::history::History::new(scene);
+    // The planted pivots must not read as a typed pivot draft.
+    editor.sync_fields();
     let result = remote(
         &mut editor,
         Operation::SaveSceneAs {
