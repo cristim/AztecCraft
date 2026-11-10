@@ -570,7 +570,6 @@ impl Editor {
     }
 }
 
-#[cfg(any(test, feature = "mcp"))]
 pub(in crate::app) fn linear_unit_name(unit: &LinearUnit) -> &str {
     match unit {
         LinearUnit::Centimeter => "cm",

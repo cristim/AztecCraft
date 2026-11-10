@@ -8,8 +8,9 @@ use crate::editor_operations::{
     FaceSelectionTarget, NodeInspection, RemoteRequest, SceneInspection, ShapeInspection,
     SidebarPanelsInspection, TransformInput, UnitsInspection, VertexSelectionTarget,
 };
+use azteccraft::native_scene::LinearUnit;
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{LinearUnit, NativeTransform};
+use azteccraft::native_scene::NativeTransform;
 use azteccraft::{
     history::{Command, EditOutcome, History, ManipulationProvenance, UndoQueue},
     native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
@@ -353,6 +354,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     ]
     .into_iter()
     .chain((0..9).map(channel_edit_id))
+    .chain((0..6).map(pivot_edit_id))
     .chain(features::primitive_options::option_field_ids())
     .chain(features::rigging::joint_field_ids())
     .chain([features::extrude_options::thickness_field_id()])
@@ -422,6 +424,10 @@ fn pivot_values(node: &azteccraft::native_scene::NativeTransformNode) -> [f64; 6
 
 fn channel_edit_id(index: usize) -> egui::Id {
     egui::Id::unique(("channel", index))
+}
+
+fn pivot_edit_id(index: usize) -> egui::Id {
+    egui::Id::unique(("pivot", index))
 }
 
 fn material_edit_id() -> egui::Id {
