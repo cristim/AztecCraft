@@ -1695,6 +1695,8 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
+        // T5b adds the samples and regenerates the snapshot; until then the seeds omit both.
+        Operation::SetPivots { .. } | Operation::ResetPivots { .. } => Vec::new(),
         Operation::ExtrudeFace { .. } => vec![sample(
             "extrude_face",
             Operation::ExtrudeFace {
