@@ -141,6 +141,7 @@ mod official_client {
     mod obj_export;
     mod obj_import;
     mod pivot_edit;
+    mod pivot_edit_guards;
     mod pivots;
     mod snap;
     mod torus;
