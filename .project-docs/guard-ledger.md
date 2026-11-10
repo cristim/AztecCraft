@@ -15,7 +15,10 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 3. An active Move, Rotate or Scale is `BusyManipulation` unless it is Remote and the operation is
    `UpdateMove`, `UpdateManipulation` or `FinishMove` (`src/app/dispatch.rs "active.provenance != ManipulationProvenance::Remote"`). This is default-deny.
 4. Closing, modal (all but `ResolveFileAction`), focused text edit, any draft or pending native
-   input is `BusyEditing` (`src/app/dispatch.rs "|| self.native_input_pending"`).
+   input is `BusyEditing` (`src/app/dispatch.rs "|| self.native_input_pending"`). An Attribute Editor
+   pivot field is a draft through `has_channel_draft`; the `pivot_draft` state (non-file cells only) matches the
+   `channel_draft` cells, except where the committed draft changes what the operation then sees (`select_in_rect`,
+   `reset_pivots`, whose cube moved with the channel draft and had its rp moved with the pivot draft).
 5. Then `apply_operation_guarded` with provenance Remote (`src/app/dispatch.rs "ManipulationProvenance::Remote,"`).
 
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
