@@ -1483,3 +1483,19 @@ Cost: a multi-object begin enumerates every transform path of the scene once (`t
   selected and redo does not reselect the joints, and undoing a delete does not reselect the
   deleted chain. Maya's selection undo behaviour is not documented for these operations
   (PROVISIONAL); the redo tests pin the current behaviour.
+
+## Pivot editing choices and gaps (#39 slice B)
+
+Researched on 2026-11-09 in the Maya 2027 help ([xform](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/xform.html), [Center the pivot point](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-7F4D1D6F-C2CE-4E31-B82E-FDFA9D492219.htm), [Modify menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-378D7FF6-492F-4DA4-A468-507E6ABF8B58.htm)). The pages do not state these choices, so tests pin them:
+
+- P-B1: Center Pivot uses the bounding box of the node's whole hierarchy in the node's own Object space, not a world-aligned box.
+- P-B2: a preserving pivot edit compensates through the rotate and scale pivot translates, as `xform -preserve` documents; the exact placement is not stated.
+- P-B3: Zero Pivot follows `xform -zeroTransformPivots`: pivots and pivot translates go to zero and the matrix is kept by moving the compensation into the translate.
+- P-B4: what an Attribute Editor field edit does (preserve or raw) is undocumented; `set_pivots` defaults to preserve like `xform`.
+- P-B5: Object (local) space only; World space has no tool.
+- P-B6: the undo entry is labelled Pivot.
+- P-B7: the leaf order of authored `.mb` rotate and scale pivots is invented from the corpus.
+- P-B8: pivot edits on a node with any session key are refused (`pivot_on_keyed_node`), because the next time change would overwrite the compensation.
+- P-B9: curve control points are in the Center Pivot box, proved-invisible geometry is not, and unproved visibility refuses Center Pivot (`scene_error`); a hierarchy without geometry is unchanged.
+
+Gaps: `edit_node` and `set_transform` report the same `ReadOnlyFormat`, `UnsupportedEdit` and `InsertionAfterDelete` refusals as the generic `scene_error`, while the pivot tools give them their own codes; the older tools are unchanged. Center Pivot on a selected shape node is unreachable (the editor selects transforms only).

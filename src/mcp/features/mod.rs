@@ -6,6 +6,7 @@ pub(super) mod inspect;
 pub(super) mod manipulation;
 pub(super) mod material;
 pub(super) mod node_edit;
+pub(super) mod pivots;
 mod primitive_args;
 pub(super) mod rigging;
 pub(super) mod selection;
