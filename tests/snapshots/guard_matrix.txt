@@ -5519,7 +5519,6 @@
   set_pivots(preserve) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
   set_pivots(raw) => Ok(changed) | scene changed; dirty: false -> true; can_undo: false -> true
   reset_pivots(center) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
-  reset_pivots(zero) => Ok(changed) | scene changed; channel_fields: 1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4 -> 5.170768764858835,0.09253450113358497,2.6582547349908237,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4; dirty: false -> true; can_undo: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
 
 ## pivoted / remote
@@ -5550,7 +5549,6 @@
   set_pivots(preserve) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
   set_pivots(raw) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; dirty: false -> true; can_undo: false -> true
   reset_pivots(center) => Err(Pivot: Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet) | no state change
-  reset_pivots(zero) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4 -> 5.170768764858835,0.09253450113358497,2.6582547349908237,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4; dirty: false -> true; can_undo: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
 
 ## pivoted_upright / native
@@ -6217,4 +6215,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5643
+cells: 5641
