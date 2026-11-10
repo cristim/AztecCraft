@@ -1102,6 +1102,15 @@ fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_o
             time: None,
             channels: ALL_CHANNELS,
         },
+        Operation::SetPivots {
+            id: NodeId::from_decimal("1").unwrap(),
+            rotate_pivot: None,
+            scale_pivot: None,
+            preserve: true,
+        },
+        Operation::ResetPivots {
+            mode: azteccraft::native_scene::PivotReset::Center,
+        },
     ] {
         assert!(stops_playback(&stops));
     }

@@ -502,6 +502,36 @@ pub enum Operation {
         rotation_degrees: [Option<f64>; 3],
         scale: [Option<f64>; 3],
     },
+    /// Sets the rotate and scale pivots of one node in declared linear units, Object space, as one
+    /// "Pivot" undo step. `preserve` keeps the node's matrix like `xform -preserve` (PROVISIONAL,
+    /// P-B2); false writes the raw pivots, which is the Attribute Editor field edit. Both pivots
+    /// absent checks the node and replies Unchanged.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "first callers are MCP set_pivots (T6) and the Attribute Editor (T7)"
+        )
+    )]
+    SetPivots {
+        id: NodeId,
+        rotate_pivot: Option<[f64; 3]>,
+        scale_pivot: Option<[f64; 3]>,
+        preserve: bool,
+    },
+    /// Modify > Center Pivot or Zero Pivot on every object of the object selection, each handled
+    /// independently (a selected ancestor and descendant both get their own), as one "Pivot"
+    /// undo step. Object and Hierarchy modes only.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "first callers are the Modify menu (T8) and MCP reset_pivots (T6)"
+        )
+    )]
+    ResetPivots {
+        mode: azteccraft::native_scene::PivotReset,
+    },
     ExtrudeFace {
         target: FaceTarget,
         distance: f64,
@@ -1042,6 +1072,8 @@ pub enum OperationError {
     /// A key command refused because the scene is read-only (Maya ASCII) or the edit is unsupported
     /// (an opened .mb, or a node with edit restrictions); the MCP layer reports a typed code.
     Keys(NativeError),
+    /// A pivot command refused for a reason with its own MCP code (`PivotRefusal`).
+    Pivot(NativeError),
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1121,7 +1153,7 @@ impl fmt::Display for OperationError {
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
-            Self::Keys(error) => error.fmt(f),
+            Self::Keys(error) | Self::Pivot(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(
