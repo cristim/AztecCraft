@@ -817,6 +817,8 @@ mod tests {
                 }
                 "rename_node" => json!({"scene_token":token,"node_id":"1","name":"cube"}),
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
+                "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
+                "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
                 "create_session_material" => {
                     json!({"scene_token":token,"color":[1.0,0.0,0.0]})
@@ -1617,6 +1619,62 @@ mod tests {
             ))
             .is_err()
         );
+    }
+
+    #[test]
+    fn pivot_tool_arguments_are_strict_and_preserve_defaults_to_true() {
+        let token = Uuid::new_v4().to_string();
+        let parse = |name: &str, args: serde_json::Value| {
+            parse_request(name, args.as_object().unwrap().clone())
+        };
+        let request = parse(
+            "set_pivots",
+            json!({"scene_token":token,"node_id":"1","rotate_pivot":[1,2,3]}),
+        )
+        .unwrap();
+        assert!(matches!(
+            request.operation,
+            Operation::SetPivots {
+                rotate_pivot: Some([1.0, 2.0, 3.0]),
+                scale_pivot: None,
+                preserve: true,
+                ..
+            }
+        ));
+        for bad in [
+            json!({"unknown":1}),
+            json!({"rotate_pivot":[null,0,0]}),
+            json!({"rotate_pivot":[1,2]}),
+            json!({"scale_pivot":"1,2,3"}),
+            json!({"preserve":"no"}),
+        ] {
+            let mut args = json!({"scene_token":token,"node_id":"1"});
+            args.as_object_mut()
+                .unwrap()
+                .extend(bad.as_object().unwrap().clone());
+            assert!(parse("set_pivots", args).is_err());
+        }
+        assert!(parse("reset_pivots", json!({"scene_token":token})).is_err());
+        assert!(parse("reset_pivots", json!({"scene_token":token,"mode":"bake"})).is_err());
+        assert!(
+            parse(
+                "reset_pivots",
+                json!({"scene_token":token,"mode":"center","expected_selection_generation":-1})
+            )
+            .is_err()
+        );
+        let request = parse(
+            "reset_pivots",
+            json!({"scene_token":token,"mode":"zero","expected_selection_generation":7}),
+        )
+        .unwrap();
+        assert!(matches!(
+            request.operation,
+            Operation::ResetPivots {
+                mode: azteccraft::native_scene::PivotReset::Zero,
+                expected_selection_generation: Some(7)
+            }
+        ));
     }
 
     #[test]
