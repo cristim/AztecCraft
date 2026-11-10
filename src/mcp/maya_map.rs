@@ -29,6 +29,8 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("rename_node", "`rename`", "refuses a name conflict instead of making a unique name; no `:` namespaces; shape names always follow"),
     ("set_transform", "`xform -translation -rotation -scale`, `setAttr`", "rotation in degrees regardless of `currentUnit -angle`"),
     ("edit_node", "`xform`, `setAttr`, `rename`", "one undo entry; rotation in degrees regardless of `currentUnit -angle`"),
+    ("set_pivots", "`xform -rotatePivot -scalePivot -preserve`", "Object (local) space only; the preserve placement through the pivot translates is PROVISIONAL"),
+    ("reset_pivots", "Modify > Center Pivot (`xform -centerPivots`) and Zero Pivot (`xform -zeroTransformPivots`)", "box space and Zero Pivot channel placement are PROVISIONAL; refused on a keyed node"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),
     ("create_joint", "`joint -position -relative -radius -name`", "session-only, not saved; joint chains only, no orientation, rotation 0 and scale 1 (PROVISIONAL)"),
     ("set_current_time", "`currentTime`", "whole frames only"),
