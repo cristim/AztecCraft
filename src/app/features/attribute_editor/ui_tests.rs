@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::tests::frame_with;
-use crate::app::{channel_edit_id, text_edit_focused};
+use crate::app::{channel_edit_id, pivot_edit_id, text_edit_focused};
 use crate::editor_operations::SelectionMode;
 use crate::editor_operations::SidebarPanel::{AttributeEditor as AE, ChannelBox as CB};
 use eframe::egui::{Event, Key, Modifiers, PointerButton, Pos2, Vec2, accesskit};
@@ -813,7 +813,7 @@ fn transform_attributes_render_read_only_for_a_node_with_extras() {
         "Rotate Order",
         "yzx",
         "Rotate Axis",
-        "Pivots (read-only)",
+        "Pivots",
         "Rotate Pivot",
         "Rotate Pivot Translate",
         "Scale Pivot",
@@ -849,11 +849,7 @@ fn attribute_editor_scrolls_to_the_pivots_at_the_minimum_window_size() {
     let over_body = Pos2::new(SIZE.x - 100.0, 300.0);
     let output = wheel_frames(&mut editor, &context, SIZE, over_body, 10);
     assert_eq!(editor.camera, camera, "wheel reached the viewport");
-    for text in [
-        "Pivots (read-only)",
-        "Rotate Pivot Translate",
-        "Scale Pivot Translate",
-    ] {
+    for text in ["Pivots", "Rotate Pivot Translate", "Scale Pivot Translate"] {
         assert!(
             !visible_text_rects(&output, text).is_empty(),
             "{text} unreachable"
@@ -897,4 +893,182 @@ fn empty_attribute_editor_shows_no_diagnostics_header() {
             "Select an object to edit its attributes."
         ]
     );
+}
+
+fn enter() -> Vec<Event> {
+    key_event(Key::Enter, Modifiers::NONE)
+}
+
+#[test]
+fn a_typed_pivot_field_commits_on_enter_as_one_pivot_entry_and_undoes() {
+    let (mut editor, context) = setup();
+    ctrl_a(&mut editor, &context);
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let scene = editor.history.scene().clone();
+    // An untouched field never writes back.
+    context.memory_mut(|memory| memory.request_focus(pivot_edit_id(1)));
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    assert!(
+        text_edit_focused(&context),
+        "a pivot field takes text focus"
+    );
+    frame_with(&mut editor, &context, SIZE, 1.0, enter());
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Create"));
+    // A typed edit becomes a draft, then commits through the shared blur commit.
+    context.memory_mut(|memory| memory.request_focus(pivot_edit_id(3)));
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    frame_with(
+        &mut editor,
+        &context,
+        SIZE,
+        1.0,
+        vec![Event::Text("5".into())],
+    );
+    assert!(editor.has_channel_draft() && editor.pivot_intents[3]);
+    frame_with(&mut editor, &context, SIZE, 1.0, enter());
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let id = editor.history.scene().nodes()[0].id();
+    assert_eq!(
+        editor.history.scene().node(id).unwrap().scale_pivot(),
+        [5.0, 0.0, 0.0]
+    );
+    assert_eq!(editor.pivot_drafts[3], "5");
+    assert!(!editor.has_draft());
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Pivot"));
+    editor.history_step(false);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.pivot_drafts[3], "0");
+}
+
+#[test]
+fn bad_pivot_text_in_the_field_keeps_the_draft_and_shows_the_error() {
+    let (mut editor, context) = setup();
+    ctrl_a(&mut editor, &context);
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    let scene = editor.history.scene().clone();
+    context.memory_mut(|memory| memory.request_focus(pivot_edit_id(0)));
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    frame_with(
+        &mut editor,
+        &context,
+        SIZE,
+        1.0,
+        vec![Event::Text("x".into())],
+    );
+    frame_with(&mut editor, &context, SIZE, 1.0, enter());
+    frame_with(&mut editor, &context, SIZE, 1.0, vec![]);
+    assert_eq!(editor.history.scene(), &scene);
+    assert_eq!(editor.pivot_drafts[0], "0x", "typed after the existing 0");
+    assert!(editor.error);
+    assert_eq!(editor.status, "Enter a valid number in the edited pivot");
+}
+
+/// The Attribute Editor with the first pivot field focused and text typed into it.
+fn type_into_first_pivot_field(editor: &mut Editor) -> Vec<String> {
+    let context = egui::Context::default();
+    context.memory_mut(|memory| memory.request_focus(pivot_edit_id(0)));
+    let texts = attribute_editor_texts(
+        editor,
+        &context,
+        [vec![Event::Text("7".into())], enter()].concat(),
+    );
+    assert!(!context.memory(|memory| memory.has_focus(pivot_edit_id(0))));
+    texts
+}
+
+#[test]
+fn read_only_ascii_pivot_fields_are_disabled_with_the_shared_reason() {
+    let (mut editor, _directory) =
+        open_with_attribute_editor("curve.ma", &ascii_fixture::specimen());
+    let before = editor.history.scene().clone();
+    let reason = editor
+        .history
+        .scene()
+        .authoring_read_only_reason()
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        editor.pivot_refusals(),
+        [Some(reason.clone()), Some(reason)]
+    );
+    type_into_first_pivot_field(&mut editor);
+    assert!(!editor.has_draft());
+    assert_eq!(editor.pivot_drafts[0], "0");
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn a_keyed_node_and_an_absent_leaf_disable_the_pivot_fields_with_their_reason() {
+    let (mut editor, _) = setup();
+    assert_eq!(editor.pivot_refusals(), [None, None]);
+    editor
+        .apply_operation(Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: azteccraft::native_scene::ALL_CHANNELS,
+        })
+        .unwrap();
+    let keyed = "Pivots cannot be edited on an animated (keyed) object".to_string();
+    assert_eq!(editor.pivot_refusals(), [Some(keyed.clone()), Some(keyed)]);
+    type_into_first_pivot_field(&mut editor);
+    assert!(!editor.has_draft());
+
+    let transform = [
+        binary_fixture::creation(b"object", None),
+        binary_fixture::triple(b"t", [1.0; 3]),
+        binary_fixture::triple(b"sp", [0.0; 3]),
+    ]
+    .concat();
+    let bytes = binary_fixture::scene(
+        &[
+            binary_fixture::group(b"XFRM", &transform, 4),
+            binary_fixture::group(
+                b"DMSH",
+                &[
+                    binary_fixture::creation(b"shape", Some(b"object")),
+                    binary_fixture::chunk(
+                        b"MESH",
+                        &binary_fixture::mesh_payload(&[0, 1, 0x6000_0002]),
+                        8,
+                    ),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    let (mut editor, _directory) = open_with_attribute_editor("no_rp.mb", &bytes);
+    let refusals = editor.pivot_refusals();
+    assert!(
+        refusals[0]
+            .as_deref()
+            .is_some_and(|reason| reason.contains("stores no rotate pivot")),
+        "{refusals:?}"
+    );
+    assert_eq!(refusals[1], None, "the sp leaf exists");
+    type_into_first_pivot_field(&mut editor);
+    assert!(
+        !editor.has_draft(),
+        "typing into a disabled field is refused"
+    );
+}
+
+#[test]
+fn pivot_fields_show_units_and_local_space_and_keep_the_translates_read_only() {
+    let (mut editor, _directory) = open_with_attribute_editor(
+        "plain.ma",
+        b"//Maya ASCII 2016 scene\nrequires maya \"2016\";\ncurrentUnit -l centimeter -a degree -t film;\ncreateNode transform -n \"a\";\n",
+    );
+    let texts = attribute_editor_texts(&mut editor, &egui::Context::default(), vec![]);
+    assert!(
+        texts
+            .iter()
+            .any(|text| text == "Pivots in cm | Local space"),
+        "{texts:?}"
+    );
+    for label in ["Rotate Pivot Translate", "Scale Pivot Translate"] {
+        assert!(texts.iter().any(|text| text == label), "{texts:?}");
+    }
 }
