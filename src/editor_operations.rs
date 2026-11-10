@@ -507,11 +507,8 @@ pub enum Operation {
     /// P-B2); false writes the raw pivots, which is the Attribute Editor field edit. Both pivots
     /// absent checks the node and replies Unchanged.
     #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "first callers are MCP set_pivots (T6) and the Attribute Editor (T7)"
-        )
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Attribute Editor (T7)")
     )]
     SetPivots {
         id: NodeId,
@@ -523,11 +520,8 @@ pub enum Operation {
     /// independently (a selected ancestor and descendant both get their own), as one "Pivot"
     /// undo step. Object and Hierarchy modes only.
     #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "first callers are the Modify menu (T8) and MCP reset_pivots (T6)"
-        )
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Modify menu (T8)")
     )]
     ResetPivots {
         mode: azteccraft::native_scene::PivotReset,

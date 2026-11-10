@@ -1,6 +1,6 @@
 use super::features::{
-    animation, extrude, file, history, inspect, manipulation, material, node_edit, selection,
-    status_line, uv, view,
+    animation, extrude, file, history, inspect, manipulation, material, node_edit, pivots,
+    selection, status_line, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -23,6 +23,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     manipulation::TOOLS,
     selection::TOOLS,
     node_edit::TOOLS,
+    pivots::TOOLS,
     extrude::TOOLS,
     animation::TOOLS,
     uv::TOOLS,
