@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, MaterialChoice, NativeError, NativeId, NativeScene,
-        NativeTransform, SessionMaterialId, UvProjectAxis,
+        NativeTransform, PivotReset, SessionMaterialId, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -45,6 +45,20 @@ pub enum Command {
     /// Edits channels of several nodes as one undo step; any refusal leaves the scene and history
     /// untouched. Duplicate ids are refused.
     EditNodes(Vec<(NodeId, [Option<f64>; 9])>),
+    /// Sets the rotate and scale pivots of one node in declared units. One undo step; any refusal
+    /// leaves the scene and history untouched.
+    SetPivots {
+        id: NodeId,
+        rotate_pivot: Option<[f64; 3]>,
+        scale_pivot: Option<[f64; 3]>,
+        preserve: bool,
+    },
+    /// Centres or zeroes the pivots of several nodes as one undo step; any refusal leaves the
+    /// scene and history untouched. Duplicate ids are refused.
+    ResetPivots {
+        ids: Vec<NodeId>,
+        mode: PivotReset,
+    },
     SetMaterialDiffuse {
         shape: NativeId,
         value: f64,
@@ -98,6 +112,8 @@ impl Command {
             // execute_labeled names it from the stored before/after values.
             Self::SetTransform { .. } => "Transform".to_string(),
             Self::EditNode { .. } | Self::EditNodes(_) => "Edit".to_string(),
+            // PROVISIONAL (P-B6): Maya's docs name no undo entries.
+            Self::SetPivots { .. } | Self::ResetPivots { .. } => "Pivot".to_string(),
             Self::SetMaterialDiffuse { .. }
             | Self::CreateSessionMaterial { .. }
             | Self::AssignSessionMaterial { .. }
@@ -284,6 +300,19 @@ impl History {
                 candidate.edit_nodes(&edits)?;
                 EditOutcome::Changed
             }
+            Command::SetPivots {
+                id,
+                rotate_pivot,
+                scale_pivot,
+                preserve,
+            } => {
+                candidate.set_pivots(id, rotate_pivot, scale_pivot, preserve)?;
+                EditOutcome::Changed
+            }
+            Command::ResetPivots { ids, mode } => {
+                candidate.reset_pivots(&ids, mode)?;
+                EditOutcome::Changed
+            }
             Command::SetMaterialDiffuse { shape, value } => {
                 candidate.set_material_diffuse(shape, value)?;
                 EditOutcome::Changed
@@ -412,6 +441,8 @@ impl History {
     }
 }
 
+#[cfg(test)]
+mod pivot_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
