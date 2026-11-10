@@ -90,14 +90,16 @@ impl NativeScene {
                 _ => &mut next.scale_pivot,
             };
             for (component, value) in target.into_iter().enumerate() {
-                slots[component] = slots[component].replacement(
-                    value,
-                    self.source.as_ref(),
-                    &self.units,
-                    node.transform_id,
-                    field,
-                    component,
-                )?;
+                slots[component] = slots[component]
+                    .replacement(
+                        value,
+                        self.source.as_ref(),
+                        &self.units,
+                        node.transform_id,
+                        field,
+                        component,
+                    )
+                    .map_err(absent_pivot_leaf(field))?;
                 // From the stored word: an unedited leaf keeps its original word, so a unit
                 // round trip of the declared value must not read as a change.
                 delta[component] = slots[component].internal(
@@ -259,8 +261,9 @@ impl NativeScene {
         ] {
             for (component, slot) in slots.iter_mut().enumerate() {
                 if slot.value != 0.0 {
-                    *slot =
-                        slot.replacement(0.0, source, units, node.transform_id, field, component)?;
+                    *slot = slot
+                        .replacement(0.0, source, units, node.transform_id, field, component)
+                        .map_err(absent_pivot_leaf(field))?;
                 }
             }
         }
@@ -377,6 +380,40 @@ impl NativeScene {
             self.nodes[index] = node;
         }
         Err(NativeError::NonFinite)
+    }
+}
+
+/// The pivot of a node, as named by a refusal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PivotLeaf {
+    Rotate,
+    Scale,
+}
+
+impl PivotLeaf {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Rotate => "rotate",
+            Self::Scale => "scale",
+        }
+    }
+}
+
+/// Names the pivot when `replacement` refuses to insert its absent leaf. Only the rp and sp
+/// `replacement` calls use it: restricted nodes are refused earlier, in `editable`.
+fn absent_pivot_leaf(field: TransformField) -> impl Fn(NativeError) -> NativeError {
+    move |error| match (error, field) {
+        (NativeError::UnsupportedEdit, TransformField::RotatePivot) => {
+            NativeError::AbsentPivotLeaf {
+                field: PivotLeaf::Rotate,
+            }
+        }
+        (NativeError::UnsupportedEdit, TransformField::ScalePivot) => {
+            NativeError::AbsentPivotLeaf {
+                field: PivotLeaf::Scale,
+            }
+        }
+        (error, _) => error,
     }
 }
 

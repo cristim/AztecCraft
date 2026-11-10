@@ -280,7 +280,9 @@ fn an_opened_binary_without_pivot_leaves_cannot_be_centred() {
     let before = scene.clone();
     assert_eq!(
         scene.reset_pivots(&[id], PivotReset::Center),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::AbsentPivotLeaf {
+            field: PivotLeaf::Rotate
+        })
     );
     assert_eq!(scene, before);
 }
