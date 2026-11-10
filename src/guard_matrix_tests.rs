@@ -474,10 +474,13 @@ fn pivoted_editor(directory: &std::path::Path, upright: bool) -> Editor {
 }
 
 /// The cells `Pivoted` runs: the manipulation begin, update and finish samples and the pivot
-/// operations; `PivotedUpright` runs the pivot operations only.
+/// operations except Zero Pivot, whose translate comes from sin and cos of the rotation and so
+/// prints platform-dependent digits; `PivotedUpright` runs every pivot operation exactly.
 fn runs_in_pivoted(state: State, label: &str) -> bool {
     match state {
-        State::Pivoted => is_manipulation(label) || is_pivot_operation(label),
+        State::Pivoted => {
+            is_manipulation(label) || (is_pivot_operation(label) && label != "reset_pivots(zero)")
+        }
         State::PivotedUpright => is_pivot_operation(label),
         _ => true,
     }

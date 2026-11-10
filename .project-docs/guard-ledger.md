@@ -97,8 +97,9 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   is `NoSelection`, whose message reads "Select an object or face before framing" (issue #431); the matrix has no such cell
   because every state selects a node.
 - The pivot samples run in the main matrix in every state, and also in `pivoted` (a rotated, scaled opened binary: the
-  preserving `set_pivots` and Center Pivot are refused with `PivotNeedsTranslateCorrection`, Zero Pivot and the raw
-  `set_pivots` succeed) and in `pivoted_upright` (no rotation, unit scale: all four succeed). Both states skip the file-writing
+  preserving `set_pivots` and Center Pivot are refused with `PivotNeedsTranslateCorrection`, the raw
+  `set_pivots` succeeds; Zero Pivot is left out there because its translate prints sin and cos digits that differ by
+  platform) and in `pivoted_upright` (no rotation, unit scale: all four succeed). Both states skip the file-writing
   section. Their cells are `set_pivots(preserve)`, `set_pivots(raw)`, `reset_pivots(center)`, `reset_pivots(zero)` and
   `reset_pivots(face_mode)`.
 - The `read_only_ascii` fixture is a curve-only scene with no mesh. `set_material_diffuse`,
