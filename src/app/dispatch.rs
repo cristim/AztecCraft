@@ -37,6 +37,7 @@ fn is_pivot_refusal(error: &azteccraft::native_scene::NativeError) -> bool {
         error,
         E::ReadOnlyFormat
             | E::UnsupportedEdit
+            | E::AbsentPivotLeaf { .. }
             | E::InsertionAfterDelete
             | E::PivotNeedsTranslateCorrection
             | E::PivotOnKeyedNode

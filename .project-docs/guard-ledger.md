@@ -103,7 +103,10 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   preserving `set_pivots` and Center Pivot are refused with `PivotNeedsTranslateCorrection`, the raw
   `set_pivots` succeeds; Zero Pivot is left out there because its translate prints sin and cos digits that differ by
   platform) and in `pivoted_upright` (no rotation, unit scale: all four succeed). Both states skip the file-writing
-  section. Their cells are `set_pivots(preserve)`, `set_pivots(raw)`, `reset_pivots(center)`, `reset_pivots(zero)` and
+  section. On an opened binary whose node stores no rp or sp leaf, a nonzero pivot is the typed `AbsentPivotLeaf`
+  (MCP `absent_pivot_leaf`), mapped only at the rp and sp `replacement` calls in `src/native_scene/pivot_edit.rs
+  "fn absent_pivot_leaf"`; restricted nodes stay `UnsupportedEdit`. The cells are the binary, sited, no-install and
+  material-draft states. Their cells are `set_pivots(preserve)`, `set_pivots(raw)`, `reset_pivots(center)`, `reset_pivots(zero)` and
   `reset_pivots(face_mode)`.
 - The `read_only_ascii` fixture is a curve-only scene with no mesh. `set_material_diffuse`,
   `select_face(face_mode)` and `extrude_face` therefore fail there with a missing-shape error, not
