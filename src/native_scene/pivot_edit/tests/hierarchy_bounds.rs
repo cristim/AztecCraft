@@ -267,3 +267,87 @@ fn unknown_nodes_are_refused() {
         Err(SceneError::MissingNode(NodeId::new(999)).into())
     );
 }
+
+#[test]
+fn matrices_combine_parent_first_so_a_rotated_middle_turns_the_leaf_offset() {
+    // mid scales x by 2 then turns 90 degrees about Z, and leaf sits 3 along its own x, so
+    // the leaf's x offset lands on y; swapping the product order would leave it on x.
+    let (mut scene, root, mid, leaf) = chain_of_three();
+    let mut leaf_shape = scene.shapes[0].clone();
+    leaf_shape.id = NativeId(scene.next_native_id);
+    scene.next_native_id += 1;
+    scene.dag.push(DagEdge {
+        parent: Some(scene.node(leaf).unwrap().transform_id),
+        child: leaf_shape.id,
+    });
+    scene.shapes.push(leaf_shape);
+    scene.validate().unwrap();
+    place(&mut scene, mid, [0.0; 3], [0.0, 0.0, 90.0], [2.0, 1.0, 1.0]);
+    place(&mut scene, leaf, [3.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    let h = shape_box(&scene, 0).1;
+    // Leaf box in mid's space: x in [3 - h.x, 3 + h.x]. Scaled by 2 along x, then (x, y) -> (-y, x).
+    let want = (
+        DVec3::new(-h.y, 2.0 * (3.0 - h.x), -h.z),
+        DVec3::new(h.y, 2.0 * (3.0 + h.x), h.z),
+    );
+    assert_box(
+        "mid and leaf",
+        scene.hierarchy_bounds_local(root).unwrap(),
+        want,
+    );
+}
+
+/// `count` empty transforms below the first of `many_roots`, as a flat fan or a single chain.
+fn nested(count: u64, chain: bool) -> (NativeScene, NodeId) {
+    let mut scene = crate::native_scene::test_fixtures::many_roots(count + 1);
+    let first = scene.nodes[0].transform_id;
+    for edge in &mut scene.dag {
+        if edge.child != first {
+            edge.parent = Some(if chain {
+                NativeId(edge.child.0 - 1)
+            } else {
+                first
+            });
+        }
+    }
+    scene.validate().unwrap();
+    let root = scene.nodes[0].id;
+    (scene, root)
+}
+
+#[test]
+fn the_transform_count_limit_is_exact() {
+    let (scene, root) = nested(MAX_TRANSFORM_PATHS as u64, false);
+    assert_eq!(scene.hierarchy_bounds_local(root), Ok(None));
+    let (scene, root) = nested(MAX_TRANSFORM_PATHS as u64 + 1, false);
+    assert_eq!(
+        scene.hierarchy_bounds_local(root),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
+fn shapes_do_not_count_against_the_transform_limit() {
+    let (mut scene, root) = nested(MAX_TRANSFORM_PATHS as u64, false);
+    let mut shape = cube().0.shapes[0].clone();
+    shape.id = NativeId(scene.next_native_id);
+    scene.next_native_id += 1;
+    scene.dag.push(DagEdge {
+        parent: Some(scene.nodes[0].transform_id),
+        child: shape.id,
+    });
+    scene.shapes.push(shape);
+    scene.validate().unwrap();
+    assert!(scene.hierarchy_bounds_local(root).unwrap().is_some());
+}
+
+#[test]
+fn the_depth_limit_is_exact() {
+    let (scene, root) = nested(MAX_TRANSFORM_DEPTH as u64, true);
+    assert_eq!(scene.hierarchy_bounds_local(root), Ok(None));
+    let (scene, root) = nested(MAX_TRANSFORM_DEPTH as u64 + 1, true);
+    assert_eq!(
+        scene.hierarchy_bounds_local(root),
+        Err(NativeError::ResourceLimit)
+    );
+}
