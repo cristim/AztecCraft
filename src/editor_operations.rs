@@ -1122,7 +1122,7 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::Keys(error) => error.fmt(f),
-            Self::NoSelection => f.write_str("Select an object or face before framing"),
+            Self::NoSelection => f.write_str("Select an object or face first"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(
                 f,
