@@ -29,6 +29,19 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
 const _: () =
     assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
 
+/// The pivot refusals that carry their own MCP code; every other failure stays `Scene`.
+fn is_pivot_refusal(error: &azteccraft::native_scene::NativeError) -> bool {
+    use azteccraft::native_scene::NativeError as E;
+    matches!(
+        error,
+        E::ReadOnlyFormat
+            | E::UnsupportedEdit
+            | E::InsertionAfterDelete
+            | E::PivotNeedsTranslateCorrection
+            | E::PivotOnKeyedNode
+    )
+}
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -388,6 +401,13 @@ impl Editor {
         if self.selection_mode.is_component() && matches!(operation, Operation::CreateJoint { .. })
         {
             return Err(OperationError::InvalidInput(JOINT_COMPONENT_REASON.into()));
+        }
+        if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(operation, Operation::ResetPivots { .. })
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Pivot reset on {noun} selection is unsupported; switch to Object or Hierarchy selection"
+            )));
         }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
@@ -893,6 +913,38 @@ impl Editor {
                 }
                 Command::RemoveMany(self.selection.members().iter().map(|t| t.node).collect())
             }
+            Operation::SetPivots {
+                id,
+                rotate_pivot,
+                scale_pivot,
+                preserve,
+            } => {
+                if rotate_pivot.is_none() && scale_pivot.is_none() {
+                    self.history
+                        .scene()
+                        .node(id)
+                        .map_err(OperationError::Scene)?;
+                    return Ok(OperationReply::Unchanged);
+                }
+                Command::SetPivots {
+                    id,
+                    rotate_pivot,
+                    scale_pivot,
+                    preserve,
+                }
+            }
+            Operation::ResetPivots { mode } => {
+                if self.selection.is_empty() {
+                    return Err(OperationError::NoSelection);
+                }
+                let mut ids = Vec::new();
+                for member in self.selection.members() {
+                    if !ids.contains(&member.node) {
+                        ids.push(member.node);
+                    }
+                }
+                Command::ResetPivots { ids, mode }
+            }
             Operation::SetSelectionMode(mode) => {
                 if mode.is_component() && self.selection.len() > 1 {
                     return Err(OperationError::MultipleSelection);
@@ -1239,7 +1291,14 @@ impl Editor {
             command,
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
         );
+        let pivot_command = matches!(
+            command,
+            Command::SetPivots { .. } | Command::ResetPivots { .. }
+        );
         let outcome = self.history.execute(command).map_err(|error| {
+            if pivot_command && is_pivot_refusal(&error) {
+                return OperationError::Pivot(error);
+            }
             if key_command
                 && let Some(refusal) = crate::editor_operations::KeysRefusal::from_native(&error)
             {
