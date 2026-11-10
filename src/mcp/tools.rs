@@ -44,6 +44,7 @@ fn pivot_code(error: &NativeError) -> &'static str {
     match error {
         NativeError::ReadOnlyFormat => "read_only_format",
         NativeError::UnsupportedEdit => "unsupported_edit",
+        NativeError::AbsentPivotLeaf { .. } => "absent_pivot_leaf",
         NativeError::InsertionAfterDelete => "insertion_after_delete",
         NativeError::PivotNeedsTranslateCorrection => "pivot_needs_translate_correction",
         NativeError::PivotOnKeyedNode => "pivot_on_keyed_node",
@@ -294,7 +295,7 @@ mod tests {
         MoveDistance, Operation, SelectionMode, ShadingMode, SidebarPanel,
     };
     use crate::mcp::tool_names;
-    use azteccraft::native_scene::{RotateAxis, ScaleHandle};
+    use azteccraft::native_scene::{PivotLeaf, RotateAxis, ScaleHandle};
     use rmcp::model::{ErrorCode, JsonObject};
     use uuid::Uuid;
 
@@ -331,6 +332,12 @@ mod tests {
         for (error, expected) in [
             (NativeError::ReadOnlyFormat, "read_only_format"),
             (NativeError::UnsupportedEdit, "unsupported_edit"),
+            (
+                NativeError::AbsentPivotLeaf {
+                    field: PivotLeaf::Rotate,
+                },
+                "absent_pivot_leaf",
+            ),
             (NativeError::InsertionAfterDelete, "insertion_after_delete"),
             (
                 NativeError::PivotNeedsTranslateCorrection,

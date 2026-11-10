@@ -25,7 +25,7 @@ pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
-pub use pivot_edit::PivotReset;
+pub use pivot_edit::{PivotLeaf, PivotReset};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_keys::SessionKeys;
@@ -2122,6 +2122,10 @@ pub enum NativeError {
     PivotNeedsTranslateCorrection,
     /// A keyed channel is rewritten on every frame change, so a pivot edit would be overwritten.
     PivotOnKeyedNode,
+    /// The opened Maya binary has no leaf for this pivot, and a leaf cannot be inserted.
+    AbsentPivotLeaf {
+        field: PivotLeaf,
+    },
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2213,6 +2217,11 @@ impl fmt::Display for NativeError {
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }
+            Self::AbsentPivotLeaf { field } => write!(
+                f,
+                "This object stores no {} pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet",
+                field.name()
+            ),
             Self::PivotNeedsTranslateCorrection => f.write_str(
                 "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet",
             ),
