@@ -18,8 +18,8 @@ use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, UvProjectAxis, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, NativeScene, PivotReset, RotateAxis, ScaleHandle,
+    SessionMaterialId, TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -106,11 +106,14 @@ enum State {
     /// path; begin, update and commit on live ids are covered by `mcp_tests/official_client/
     /// pivots.rs` and `pivot_persistence_tests.rs`.
     Pivoted,
+    /// The same opened binary with no rotation and unit scale, where a preserving pivot edit and
+    /// Zero Pivot are exact (the rotated `Pivoted` node refuses them). Pivot cells only.
+    PivotedUpright,
     NoInstall,
     NoInstallModal,
 }
 
-const STATES: [State; 25] = [
+const STATES: [State; 26] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -134,6 +137,7 @@ const STATES: [State; 25] = [
     State::SitedBinaryDirty,
     State::AuthoredAsciiDirty,
     State::Pivoted,
+    State::PivotedUpright,
     State::NoInstall,
     State::NoInstallModal,
 ];
@@ -164,6 +168,7 @@ impl State {
             Self::SitedBinaryDirty => "sited_binary_dirty",
             Self::AuthoredAsciiDirty => "authored_ascii_dirty",
             Self::Pivoted => "pivoted",
+            Self::PivotedUpright => "pivoted_upright",
             Self::NoInstall => "no_install",
             Self::NoInstallModal => "no_install_modal",
         }
@@ -219,6 +224,16 @@ struct Sample {
     /// Restricts the sample to these states; `None` means every reachable state.
     only: Option<&'static [State]>,
     operation: Operation,
+}
+
+/// Pivots that differ from the pivoted fixtures' (0.5, 0.25, -1) and (-1, 2, 0.5).
+fn pivots(t: &Targets, preserve: bool) -> Operation {
+    Operation::SetPivots {
+        id: t.node,
+        rotate_pivot: Some([1.0, 2.0, 3.0]),
+        scale_pivot: Some([3.0, 2.0, 1.0]),
+        preserve,
+    }
 }
 
 fn whole_viewport() -> azteccraft::viewport::NdcRect {
@@ -408,13 +423,18 @@ fn authored_ascii_editor(_: &std::path::Path) -> Editor {
 }
 
 /// An opened, unedited binary scene with t, r, s, rp and sp leaves, so every manipulation can begin.
-fn pivoted_editor(directory: &std::path::Path) -> Editor {
+fn pivoted_editor(directory: &std::path::Path, upright: bool) -> Editor {
     use material_wire::{chunk, creation, group, mesh_payload, scene, triple};
+    let (rotation, scale) = if upright {
+        ([0.0; 3], [1.0; 3])
+    } else {
+        ([10.0, 20.0, 30.0], [2.0, 3.0, 4.0])
+    };
     let transform = [
         creation(b"object", None),
         triple(b"t", [1.0, 2.0, 3.0]),
-        triple(b"r", [10.0, 20.0, 30.0]),
-        triple(b"s", [2.0, 3.0, 4.0]),
+        triple(b"r", rotation),
+        triple(b"s", scale),
         triple(b"rp", [0.5, 0.25, -1.0]),
         triple(b"sp", [-1.0, 2.0, 0.5]),
     ]
@@ -453,7 +473,20 @@ fn pivoted_editor(directory: &std::path::Path) -> Editor {
     editor
 }
 
-/// The cells `Pivoted` runs: the manipulation begin, update and finish samples.
+/// The cells `Pivoted` runs: the manipulation begin, update and finish samples and the pivot
+/// operations; `PivotedUpright` runs the pivot operations only.
+fn runs_in_pivoted(state: State, label: &str) -> bool {
+    match state {
+        State::Pivoted => is_manipulation(label) || is_pivot_operation(label),
+        State::PivotedUpright => is_pivot_operation(label),
+        _ => true,
+    }
+}
+
+fn is_pivot_operation(label: &str) -> bool {
+    label.starts_with("set_pivots") || label.starts_with("reset_pivots")
+}
+
 fn is_manipulation(label: &str) -> bool {
     [
         "begin_move",
@@ -618,7 +651,8 @@ fn build(state: State) -> Rig {
         State::BinaryDirty => editor = binary_editor(directory.path()),
         State::SitedBinaryDirty => editor = sited_binary_editor(directory.path()),
         State::AuthoredAsciiDirty => editor = authored_ascii_editor(directory.path()),
-        State::Pivoted => editor = pivoted_editor(directory.path()),
+        State::Pivoted => editor = pivoted_editor(directory.path(), false),
+        State::PivotedUpright => editor = pivoted_editor(directory.path(), true),
         State::NoInstall => {
             editor = binary_editor(directory.path());
             may_install = false;
@@ -812,6 +846,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             world_units: [1.0, 0.0],
         },
         Operation::Dolly { factor: 1.1 },
+        pivots(t, true),
+        Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        },
         // Differs from the rig's default camera so a Changed outcome is observable.
         Operation::SetCameraPose {
             target: [1.0, 0.5, -2.0],
@@ -1625,8 +1663,33 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
-        // T5b adds the samples and regenerates the snapshot; until then the seeds omit both.
-        Operation::SetPivots { .. } | Operation::ResetPivots { .. } => Vec::new(),
+        Operation::SetPivots { .. } => vec![
+            sample("set_pivots(preserve)", pivots(t, true)),
+            sample("set_pivots(raw)", pivots(t, false)),
+        ],
+        Operation::ResetPivots { .. } => vec![
+            sample(
+                "reset_pivots(center)",
+                Operation::ResetPivots {
+                    mode: PivotReset::Center,
+                },
+            ),
+            sample(
+                "reset_pivots(zero)",
+                Operation::ResetPivots {
+                    mode: PivotReset::Zero,
+                },
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "reset_pivots(face_mode)",
+                    Operation::ResetPivots {
+                        mode: PivotReset::Zero,
+                    },
+                )
+            },
+        ],
         Operation::ExtrudeFace { .. } => vec![sample(
             "extrude_face",
             Operation::ExtrudeFace {
@@ -2132,7 +2195,7 @@ fn matrix(file_writing: bool) -> (String, usize) {
     );
     let mut cells = 0;
     for state in STATES {
-        if file_writing && state == State::Pivoted {
+        if file_writing && matches!(state, State::Pivoted | State::PivotedUpright) {
             continue;
         }
         if !file_writing && state == State::AuthoredAsciiDirty {
@@ -2150,7 +2213,7 @@ fn matrix(file_writing: bool) -> (String, usize) {
                 .filter(|(_, sample)| {
                     sample.install_probe == file_writing
                         && sample.only.is_none_or(|only| only.contains(&state))
-                        && (state != State::Pivoted || is_manipulation(sample.label))
+                        && runs_in_pivoted(state, sample.label)
                 })
                 .map(|(index, _)| index)
                 .collect();
