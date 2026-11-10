@@ -921,6 +921,8 @@ mod tests {
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
+                    | "set_pivots"
+                    | "reset_pivots"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),

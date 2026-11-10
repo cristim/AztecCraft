@@ -1531,7 +1531,7 @@
   },
   {
     "name": "set_pivots",
-    "description": "Set the rotate and scale pivots of one node in one undo entry named Pivot. Pivots are f64 triples in declared scene units, Object (local) space; World space is unsupported. An omitted pivot is untouched, and both omitted only checks the node and returns unchanged. With preserve true (the default, like xform -preserve; the placement is PROVISIONAL) the node's matrix is kept by compensating through its rotate and scale pivot translates, so the object does not move; with preserve false the raw pivots are written and a rotated or scaled object moves. Does not change selection. On an opened Maya Binary scene a preserve edit is accepted only when no compensation is needed (otherwise pivot_needs_translate_correction), and a node without the rotate or scale pivot record refuses a nonzero value (absent_pivot_leaf, or unsupported_edit and insertion_after_delete); Maya ASCII is read-only (read_only_format). A node with session keys refuses (pivot_on_keyed_node). A non-finite input is a protocol error and a value that overflows when applied is invalid_input; nothing changes on any refusal",
+    "description": "Set the rotate and scale pivots of one node in one undo entry named Pivot. Pivots are f64 triples in declared scene units, Object (local) space; World space is unsupported. An omitted pivot is untouched, and both omitted only checks the node and returns unchanged. With preserve true (the default, like xform -preserve; the placement is PROVISIONAL) the node's matrix is kept by compensating through its rotate and scale pivot translates, so the object does not move; with preserve false the raw pivots are written and a rotated or scaled object moves. Does not change selection. On an opened Maya Binary scene a preserve edit is accepted only when no compensation is needed (otherwise pivot_needs_translate_correction), and a node without the rotate or scale pivot record refuses a nonzero value (absent_pivot_leaf, or insertion_after_delete when the scene has removals), and an edit-restricted node refuses with unsupported_edit; Maya ASCII is read-only (read_only_format). A node with session keys refuses (pivot_on_keyed_node). A non-finite input is a protocol error and a value that overflows when applied is invalid_input; nothing changes on any refusal",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -1583,7 +1583,7 @@
     },
     "annotations": {
       "readOnlyHint": false,
-      "idempotentHint": false,
+      "idempotentHint": true,
       "openWorldHint": false
     }
   },
@@ -1629,7 +1629,7 @@
     },
     "annotations": {
       "readOnlyHint": false,
-      "idempotentHint": false,
+      "idempotentHint": true,
       "openWorldHint": false
     }
   },

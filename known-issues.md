@@ -1376,7 +1376,7 @@ Researched on 2026-11-09 in the Maya 2027 help ([xform](https://help.autodesk.co
 - P-B4: what an Attribute Editor field edit does (preserve or raw) is undocumented; `set_pivots` defaults to preserve like `xform`.
 - P-B5: Object (local) space only; World space has no tool.
 - P-B6: the undo entry is labelled Pivot.
-- P-B7: the leaf order of authored `.mb` rotate and scale pivots is invented from the corpus.
+- P-B7 (PLANNED, T10; not implemented yet): the leaf order of authored `.mb` rotate and scale pivots will be invented from the corpus.
 - P-B8: pivot edits on a node with any session key are refused (`pivot_on_keyed_node`), because the next time change would overwrite the compensation.
 - P-B9: curve control points are in the Center Pivot box, proved-invisible geometry is not, and unproved visibility refuses Center Pivot (`scene_error`); a hierarchy without geometry is unchanged.
 
