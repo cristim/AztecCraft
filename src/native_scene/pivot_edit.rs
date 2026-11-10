@@ -3,9 +3,12 @@
 //! `rt' = rt - (I - Rs) d`, and moving sp by `d` keeps it when `st' = st - (I - K) d`. PROVISIONAL:
 //! the compensation goes to rpt and spt as `xform -preserve` documents; Maya is not compared (#5).
 use super::source::{SourceFormat, Storage, TransformField};
-use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformExtras};
+use super::{
+    MAX_TRANSFORM_DEPTH, MAX_TRANSFORM_PATHS, NativeError, NativeId, NativeScene,
+    NativeTransformNode, Scalar, TransformExtras,
+};
 use crate::scene::{NodeId, SceneError};
-use glam::{DMat3, DVec3};
+use glam::{DMat3, DMat4, DVec3};
 
 /// `d - M d`, exactly zero where `M` fixes `d` component-wise.
 fn residual(m: DMat3, d: DVec3) -> DVec3 {
@@ -56,11 +59,23 @@ impl NativeScene {
         }
         let index = self.editable(id)?;
         self.refuse_keyed(id)?;
-        let internal = self.internal_transform(id)?;
+        let next = self.pivoted(index, rotate, scale, preserve)?;
+        self.install(&[(index, next)])
+    }
+
+    /// The node at `index` with its pivots set; `set_pivots` without the checks of the scene.
+    fn pivoted(
+        &self,
+        index: usize,
+        rotate: Option<[f64; 3]>,
+        scale: Option<[f64; 3]>,
+        preserve: bool,
+    ) -> Result<NativeTransformNode, NativeError> {
+        let node = &self.nodes[index];
+        let internal = self.internal_transform(node.id)?;
         let rotation = internal
             .rotation_frame()
             .ok_or(NativeError::InvalidTransformExtras)?;
-        let node = &self.nodes[index];
         let mut next = node.clone();
         let mut change = |target: Option<[f64; 3]>,
                           field: TransformField,
@@ -128,7 +143,7 @@ impl NativeScene {
                 ..node.extras.clone()
             };
         }
-        self.install(&[(index, next)])
+        Ok(next)
     }
 
     /// Zero Pivot over each of `ids` independently: rp, sp, rpt and spt become zero and the node's
@@ -213,6 +228,79 @@ impl NativeScene {
         Ok(Some(next))
     }
 
+    /// The bounding box, in cm and in the object space of `id`, of the mesh points and curve
+    /// control points of its direct shapes and of every descendant's, each mapped through the
+    /// local matrices below `id` (`id`'s own matrix and its ancestors are not applied). Shapes
+    /// proved invisible, directly or through a descendant transform, are left out; geometry whose
+    /// visibility is unproved is `UnsupportedView`. `None` when no geometry is included.
+    /// PROVISIONAL: members and space follow `xform -bb` and the Center Pivot page (known-issues).
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "Center Pivot is the caller (#39 T3)")
+    )]
+    pub(crate) fn hierarchy_bounds_local(
+        &self,
+        id: NodeId,
+    ) -> Result<Option<(DVec3, DVec3)>, NativeError> {
+        let index = self.dag_index()?;
+        let shapes: std::collections::HashMap<NativeId, _> = self
+            .shapes
+            .iter()
+            .map(|s| (s.id, (&s.view, GeometryPoints::Mesh(&s.mesh))))
+            .chain(
+                self.curves
+                    .iter()
+                    .map(|c| (c.id, (&c.view, GeometryPoints::Curve(&c.control_vertices)))),
+            )
+            .collect();
+        let mut bounds: Option<(DVec3, DVec3)> = None;
+        let mut visited = 0usize;
+        let mut pending = vec![(
+            self.node(id)?.transform_id,
+            DMat4::IDENTITY,
+            Ok(true),
+            0usize,
+        )];
+        while let Some((parent, to_root, visible, depth)) = pending.pop() {
+            for &child in index.children(Some(parent)) {
+                visited += 1;
+                if visited > MAX_TRANSFORM_PATHS || depth >= MAX_TRANSFORM_DEPTH {
+                    return Err(NativeError::ResourceLimit);
+                }
+                if let Some(node_id) = index.node(child) {
+                    let node = self.node(node_id)?;
+                    let local = self
+                        .internal_transform(node_id)?
+                        .matrix()
+                        .ok_or(NativeError::NonFinite)?;
+                    let visible = visible.clone().and_then(|v| {
+                        if node.unsupported_transform.is_empty() {
+                            Ok(v & node.view.visible()?)
+                        } else {
+                            Err(NativeError::UnsupportedView("unproved transform effects"))
+                        }
+                    });
+                    pending.push((child, to_root * local, visible, depth + 1));
+                } else if let Some((view, points)) = shapes.get(&child) {
+                    if !visible.clone()? || !view.visible()? {
+                        continue;
+                    }
+                    points.for_each(|p| {
+                        let world = to_root.transform_point3(p);
+                        if !world.is_finite() {
+                            return Err(NativeError::NonFinite);
+                        }
+                        let (lo, hi) = bounds.get_or_insert((world, world));
+                        *lo = lo.min(world);
+                        *hi = hi.max(world);
+                        Ok(())
+                    })?;
+                }
+            }
+        }
+        Ok(bounds)
+    }
+
     /// A keyed channel is rewritten on every frame change and the compensation is valid only at
     /// the current pose, so every pivot edit of a keyed node is refused (PROVISIONAL).
     fn refuse_keyed(&self, id: NodeId) -> Result<(), NativeError> {
@@ -252,6 +340,25 @@ impl NativeScene {
             self.nodes[index] = node;
         }
         Err(NativeError::NonFinite)
+    }
+}
+
+/// The point source of one shape or curve.
+enum GeometryPoints<'a> {
+    Mesh(&'a super::NativeMesh),
+    Curve(&'a [[f64; 3]]),
+}
+
+impl GeometryPoints<'_> {
+    fn for_each(
+        &self,
+        mut f: impl FnMut(DVec3) -> Result<(), NativeError>,
+    ) -> Result<(), NativeError> {
+        match self {
+            Self::Mesh(mesh) => (0..mesh.point_count())
+                .try_for_each(|i| f(DVec3::from_array(mesh.effective_point_cm(i)?))),
+            Self::Curve(points) => points.iter().try_for_each(|p| f(DVec3::from_array(*p))),
+        }
     }
 }
 
