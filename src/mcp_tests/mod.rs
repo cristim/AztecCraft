@@ -139,6 +139,7 @@ mod official_client {
     mod node_edit;
     mod obj_export;
     mod pivot_edit;
+    mod pivot_edit_documents;
     mod pivot_edit_guards;
     mod pivots;
 
