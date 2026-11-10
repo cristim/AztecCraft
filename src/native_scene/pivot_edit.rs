@@ -181,9 +181,6 @@ impl NativeScene {
         let sp = DVec3::from_array(internal.scale_pivot_cm);
         let v =
             rt + residual(rotation, rp) + rotation * (residual(internal.scale_stage(), sp) + st);
-        if !v.is_finite() {
-            return Err(NativeError::NonFinite);
-        }
         let mut next = node.clone();
         let (source, units) = (self.source.as_ref(), &self.units);
         for (component, delta) in v.to_array().into_iter().enumerate() {

@@ -786,3 +786,29 @@ fn zero_pivot_refusals_mutate_nothing() {
     assert_eq!(scene.zero_pivots(&[id]), Err(NativeError::UnsupportedEdit));
     assert_eq!(scene, restricted);
 }
+
+#[test]
+fn a_raw_edit_that_overflows_the_matrix_is_refused() {
+    // Rotated 180 degrees the translation moves by 2 rp, so only the matrix check can refuse it.
+    let (mut scene, id) = cube();
+    scene.nodes[0].channels[5] = Scalar::new(180.0);
+    let before = scene.clone();
+    assert_eq!(
+        scene.set_pivots(id, Some([1.7e308, 0.0, 0.0]), None, false),
+        Err(NativeError::NonFinite)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn an_overflowing_compensation_on_an_opened_binary_is_non_finite() {
+    let (mut scene, id) = opened([0.0, 0.0, 0.7], [2.0, 1.0, 1.0]);
+    let before = scene.clone();
+    for (rotate, scale) in [(Some([1.7e308; 3]), None), (None, Some([1.7e308; 3]))] {
+        assert_eq!(
+            scene.set_pivots(id, rotate, scale, true),
+            Err(NativeError::NonFinite)
+        );
+        assert_eq!(scene, before);
+    }
+}
