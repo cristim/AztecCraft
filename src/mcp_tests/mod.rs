@@ -139,6 +139,7 @@ mod official_client {
     mod node_edit;
     mod obj_export;
     mod obj_import;
+    mod pivot_edit;
     mod pivots;
     mod torus;
 

@@ -10,7 +10,7 @@ const S: [f64; 3] = [2.0, 3.0, 4.0];
 const RP: [f64; 3] = [0.5, 0.25, -1.0];
 const SP: [f64; 3] = [-1.0, 2.0, 0.5];
 
-fn pivoted_bytes() -> Vec<u8> {
+pub(super) fn pivoted_bytes() -> Vec<u8> {
     use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
     let transform = [
         creation(b"object", None),
