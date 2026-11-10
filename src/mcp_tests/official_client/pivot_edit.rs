@@ -104,6 +104,16 @@ async fn set_pivots_preserves_the_matrix_through_the_pivot_translates_and_undoes
     assert_eq!(after["nodes"][0]["transform"], channels);
     assert_eq!(after["undo_label"], "Pivot");
     let edited = editor.history.scene().clone();
+    let repeat = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_pivots",
+        json!({"node_id":node,"rotate_pivot":[1,2,3],"scale_pivot":[1,2,3]}),
+    )
+    .await;
+    assert_eq!(reply(&repeat)["outcome"], "unchanged");
+    assert_eq!(editor.history.scene(), &edited);
 
     let undo = tool(&mut editor, &context, &client, "undo", json!({})).await;
     assert_eq!(reply(&undo)["outcome"], "changed");
@@ -245,6 +255,16 @@ async fn reset_pivots_zero_and_center_act_on_every_selected_object_as_one_undo_s
         assert_close(&node["transform"]["translation"], [10.0, 0.0, 0.0]);
     }
     let zeroed = editor.history.scene().clone();
+    let again = tool(
+        &mut editor,
+        &context,
+        &client,
+        "reset_pivots",
+        json!({"mode":"zero","expected_selection_generation":generation}),
+    )
+    .await;
+    assert_eq!(reply(&again)["outcome"], "unchanged");
+    assert_eq!(editor.history.scene(), &zeroed);
     tool(&mut editor, &context, &client, "undo", json!({})).await;
     assert_eq!(editor.history.scene(), &pivoted);
     tool(&mut editor, &context, &client, "redo", json!({})).await;
