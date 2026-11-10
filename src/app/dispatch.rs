@@ -798,9 +798,19 @@ impl Editor {
                     preserve,
                 }
             }
-            Operation::ResetPivots { mode } => {
+            Operation::ResetPivots {
+                mode,
+                expected_selection_generation,
+            } => {
+                self.check_generation(expected_selection_generation)?;
                 if self.selection.is_empty() {
                     return Err(OperationError::NoSelection);
+                }
+                if self.selection.len() > 1
+                    && expected_selection_generation.is_none()
+                    && provenance == ManipulationProvenance::Remote
+                {
+                    return Err(OperationError::MultipleSelection);
                 }
                 let mut ids = Vec::new();
                 for member in self.selection.members() {

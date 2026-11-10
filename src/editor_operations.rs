@@ -531,6 +531,10 @@ pub enum Operation {
     )]
     ResetPivots {
         mode: azteccraft::native_scene::PivotReset,
+        /// The `selection_generation` the caller inspected. With several objects selected a remote
+        /// caller must pass it; a value that no longer matches is refused. A native caller acts on
+        /// the current selection.
+        expected_selection_generation: Option<u64>,
     },
     ExtrudeFace {
         target: FaceTarget,

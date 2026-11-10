@@ -1110,6 +1110,7 @@ fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_o
         },
         Operation::ResetPivots {
             mode: azteccraft::native_scene::PivotReset::Center,
+            expected_selection_generation: None,
         },
     ] {
         assert!(stops_playback(&stops));
