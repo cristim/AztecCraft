@@ -41,6 +41,19 @@ impl EditorServer {
     }
 }
 
+/// The code of a pivot refusal (`OperationError::Pivot`); an error without its own code is the
+/// generic `scene_error`, as for `OperationError::Scene`.
+fn pivot_code(error: &NativeError) -> &'static str {
+    match error {
+        NativeError::ReadOnlyFormat => "read_only_format",
+        NativeError::UnsupportedEdit => "unsupported_edit",
+        NativeError::InsertionAfterDelete => "insertion_after_delete",
+        NativeError::PivotNeedsTranslateCorrection => "pivot_needs_translate_correction",
+        NativeError::PivotOnKeyedNode => "pivot_on_keyed_node",
+        _ => "scene_error",
+    }
+}
+
 /// The code of a manipulation error; a refused member of a multi-object Move has the code of its
 /// cause, so the same refusal reads the same for one object and for several.
 fn manipulation_code(error: &ManipulationError) -> &'static str {
@@ -97,6 +110,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     KeysRefusal::ReadOnlyFormat => "read_only_format",
                     KeysRefusal::UnsupportedEdit => "unsupported_edit",
                 },
+                OperationError::Pivot(error) => pivot_code(error),
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -339,6 +353,30 @@ mod tests {
             )),
             "alternate_path_ancestor"
         );
+    }
+
+    #[test]
+    fn pivot_refusals_report_their_five_codes_and_the_rest_scene_error() {
+        let code = |error| {
+            let result = tool_reply(Err(OperationError::Pivot(error)));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        for (error, expected) in [
+            (NativeError::ReadOnlyFormat, "read_only_format"),
+            (NativeError::UnsupportedEdit, "unsupported_edit"),
+            (NativeError::InsertionAfterDelete, "insertion_after_delete"),
+            (
+                NativeError::PivotNeedsTranslateCorrection,
+                "pivot_needs_translate_correction",
+            ),
+            (NativeError::PivotOnKeyedNode, "pivot_on_keyed_node"),
+            (NativeError::NonFinite, "scene_error"),
+        ] {
+            assert_eq!(code(error), expected);
+        }
     }
 
     #[test]
