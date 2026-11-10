@@ -32,6 +32,7 @@ pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError}
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
+pub use pivot_edit::PivotReset;
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_joint::SessionJoints;
