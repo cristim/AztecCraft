@@ -96,13 +96,17 @@ fn native_and_remote_reach_the_same_command_for_both_operations() {
             editor.apply_operation(set(ids[0].node, false)).unwrap();
             editor.apply_operation(set(ids[1].node, false)).unwrap();
         }
-        let operation = || Operation::ResetPivots { mode };
+        let operation = |generation| Operation::ResetPivots {
+            mode,
+            expected_selection_generation: generation,
+        };
         assert!(matches!(
-            native.apply_operation(operation()),
+            native.apply_operation(operation(None)),
             Ok(OperationReply::Changed)
         ));
+        let generation = Some(remote_editor.selection.generation());
         assert!(matches!(
-            remote(&mut remote_editor, operation()),
+            remote(&mut remote_editor, operation(generation)),
             Ok(OperationReply::Changed)
         ));
         assert_eq!(shape(&native), shape(&remote_editor));
@@ -134,6 +138,7 @@ fn reset_pivots_is_one_pivot_undo_step_for_every_selected_object() {
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         })
         .unwrap();
     for target in &ids {
@@ -175,6 +180,7 @@ fn a_stale_scene_token_refuses_both_operations_and_keeps_the_scene() {
         set(ids[0].node, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ] {
         let stale = editor.remote_operation(
@@ -195,6 +201,7 @@ fn a_draft_busies_remote_pivot_operations_and_native_ones_commit_it_first() {
         |id| set(id, true),
         |_| Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ] {
         let (mut editor, ids) = cubes(1);
@@ -251,6 +258,7 @@ fn an_invalid_draft_refuses_the_native_pivot_operation_and_keeps_everything() {
         |id| set(id, true),
         |_| Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ] {
         let (mut editor, ids) = cubes(1);
@@ -287,6 +295,7 @@ fn modal_and_closing_refuse_a_pivot_operation_before_it_commits_the_draft() {
                     set(id, true),
                     Operation::ResetPivots {
                         mode: PivotReset::Zero,
+                        expected_selection_generation: None,
                     },
                 ] {
                     let result = if native {
@@ -327,6 +336,7 @@ fn an_active_manipulation_refuses_both_operations_for_both_callers() {
         |id| set(id, true),
         |_| Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ];
     for operation in operations {
@@ -351,6 +361,7 @@ fn reset_pivots_works_in_object_and_hierarchy_modes() {
         editor
             .apply_operation(Operation::ResetPivots {
                 mode: PivotReset::Zero,
+                expected_selection_generation: None,
             })
             .unwrap();
         for target in &ids {
@@ -370,6 +381,7 @@ fn reset_pivots_leaves_unselected_objects_alone() {
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         })
         .unwrap();
     assert_eq!(pivots(&editor, ids[0].node), (RP, SP));
@@ -392,6 +404,7 @@ fn reset_pivots_in_component_modes_is_refused_for_both_callers_and_keeps_state()
             let before = baseline(&editor);
             let operation = Operation::ResetPivots {
                 mode: PivotReset::Zero,
+                expected_selection_generation: None,
             };
             let result = if native {
                 editor.apply_operation(operation)
@@ -416,6 +429,7 @@ fn reset_pivots_with_nothing_selected_reports_no_selection() {
     for native in [true, false] {
         let operation = Operation::ResetPivots {
             mode: PivotReset::Center,
+            expected_selection_generation: None,
         };
         let result = if native {
             editor.apply_operation(operation)
@@ -440,6 +454,7 @@ fn reset_pivots_applies_once_per_node_when_the_selection_repeats_it() {
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         })
         .unwrap();
     assert_eq!(pivots(&editor, ids[0].node), ([0.0; 3], [0.0; 3]));
@@ -482,6 +497,7 @@ fn zero_pivot_handles_a_selected_ancestor_and_descendant_independently() {
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         })
         .unwrap();
     for target in [&parent, &child] {
@@ -499,6 +515,7 @@ fn center_pivot_centres_each_selected_node_on_its_own_hierarchy_box() {
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Center,
+            expected_selection_generation: None,
         })
         .unwrap();
     let (parent_rp, parent_sp) = pivots(&editor, parent.node);
@@ -528,6 +545,7 @@ fn a_keyed_node_refuses_with_the_pivot_variant_and_keeps_state() {
         set(ids[0].node, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ] {
         assert!(matches!(
@@ -554,6 +572,7 @@ fn a_read_only_ascii_scene_refuses_with_the_pivot_variant() {
         set(id, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
     ] {
         assert!(matches!(
@@ -612,7 +631,8 @@ fn a_native_pivot_operation_still_runs_under_a_modal_dialog() {
     assert!(editor.files.is_modal());
     assert!(matches!(
         editor.apply_operation(Operation::ResetPivots {
-            mode: PivotReset::Zero
+            mode: PivotReset::Zero,
+            expected_selection_generation: None
         }),
         Ok(OperationReply::Changed)
     ));
@@ -622,4 +642,58 @@ fn a_native_pivot_operation_still_runs_under_a_modal_dialog() {
         Ok(OperationReply::Changed)
     ));
     assert_eq!(pivots(&editor, id), (RP, SP));
+}
+
+fn reset_with(generation: Option<u64>) -> Operation {
+    Operation::ResetPivots {
+        mode: PivotReset::Zero,
+        expected_selection_generation: generation,
+    }
+}
+
+#[test]
+fn a_remote_reset_over_several_objects_needs_the_current_selection_generation() {
+    let (mut editor, ids) = cubes(2);
+    for target in &ids {
+        editor.apply_operation(set(target.node, false)).unwrap();
+    }
+    let before = baseline(&editor);
+    let current = editor.selection.generation();
+    assert!(matches!(
+        remote(&mut editor, reset_with(None)),
+        Err(OperationError::MultipleSelection)
+    ));
+    let stale = remote(&mut editor, reset_with(Some(current.wrapping_add(1))));
+    assert!(
+        matches!(&stale, Err(OperationError::StaleSelection { expected, .. }) if *expected == current.wrapping_add(1)),
+        "{stale:?}"
+    );
+    assert_eq!(baseline(&editor), before);
+    assert!(matches!(
+        remote(&mut editor, reset_with(Some(current))),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(pivots(&editor, ids[1].node), ([0.0; 3], [0.0; 3]));
+}
+
+#[test]
+fn a_stale_generation_refuses_a_single_object_reset_and_the_native_caller_needs_none() {
+    let (mut editor, ids) = cubes(1);
+    editor.apply_operation(set(ids[0].node, false)).unwrap();
+    let before = baseline(&editor);
+    let wrong = editor.selection.generation().wrapping_add(1);
+    assert!(matches!(
+        remote(&mut editor, reset_with(Some(wrong))),
+        Err(OperationError::StaleSelection { .. })
+    ));
+    assert_eq!(baseline(&editor), before);
+    assert!(matches!(
+        remote(&mut editor, reset_with(None)),
+        Ok(OperationReply::Changed)
+    ));
+    let (mut native, _) = cubes(2);
+    assert!(matches!(
+        native.apply_operation(reset_with(None)),
+        Ok(OperationReply::Unchanged)
+    ));
 }
