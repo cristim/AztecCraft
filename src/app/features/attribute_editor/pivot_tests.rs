@@ -1,6 +1,7 @@
 //! Issue #39 slice B, T7: the Attribute Editor Pivots drafts. They share the channel drafts'
 //! guards and commit policy, and a field commits as one raw `SetPivots` ("Pivot") entry.
 use super::*;
+use crate::app::tests::remote;
 use azteccraft::native_scene::{ALL_CHANNELS, NativeError};
 
 #[allow(dead_code)]
@@ -224,4 +225,61 @@ fn a_channel_draft_and_a_pivot_draft_commit_as_two_undo_entries() {
     assert_eq!(pivots(&editor, id).1, [0.0; 3]);
     editor.history_step(false);
     assert_eq!(first_channel(&editor, id), 0.0);
+}
+
+#[test]
+fn bad_pivot_text_beside_a_channel_draft_commits_neither() {
+    let (mut editor, id) = rotated_cube();
+    editor.channels[0] = "5".into();
+    editor.channel_intents[0] = true;
+    type_pivot(&mut editor, 0, "abc");
+    assert!(!editor.commit_pending());
+    assert_eq!(editor.status, "Enter a valid number in the edited pivot");
+    assert_eq!(first_channel(&editor, id), 0.0);
+    assert!(editor.channel_intents[0] && editor.pivot_intents[0]);
+}
+
+#[test]
+fn a_refused_pivot_after_a_committed_channel_edit_keeps_only_the_pivot_draft() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut editor = open_binary(
+        directory.path(),
+        &[(b"t", [1.0; 3]), (b"s", [1.0; 3]), (b"sp", [0.0; 3])],
+    );
+    let id = editor.history.scene().nodes()[0].id();
+    editor.channels[0] = "5".into();
+    editor.channel_intents[0] = true;
+    type_pivot(&mut editor, 1, "4");
+    assert!(!editor.commit_pending());
+    assert!(editor.status.contains("stores no rotate pivot"));
+    assert_eq!(first_channel(&editor, id), 5.0, "the channel edit landed");
+    assert_eq!(editor.channel_intents, [false; 9]);
+    assert!(editor.pivot_intents[1]);
+    assert_eq!(editor.pivot_drafts[1], "4");
+}
+
+#[test]
+fn a_pivot_only_draft_refuses_a_remote_operation_like_a_channel_draft() {
+    let create = || Operation::Create {
+        primitive: Primitive::Cube,
+        options: None,
+        name: None,
+    };
+    let (mut editor, _) = rotated_cube();
+    let before = editor.history.scene().clone();
+    type_pivot(&mut editor, 0, "2");
+    assert!(editor.channel_intents.iter().all(|v| !v) && !editor.name_intent);
+    assert!(matches!(
+        remote(&mut editor, create()),
+        Err(OperationError::BusyEditing)
+    ));
+    assert_eq!(editor.history.scene(), &before);
+    assert!(editor.pivot_intents[0], "the draft survives the refusal");
+    // The same cell with a channel draft, which the pivot draft must match.
+    let (mut channel, _) = rotated_cube();
+    channel.channels[0] = "5".into();
+    assert!(matches!(
+        remote(&mut channel, create()),
+        Err(OperationError::BusyEditing)
+    ));
 }
