@@ -85,6 +85,8 @@ enum State {
     NameDraft,
     MaterialDraft,
     ChannelDraft,
+    /// A typed Attribute Editor pivot field and nothing else: it must guard like `ChannelDraft`.
+    PivotDraft,
     TextFocus,
     NativeInputPending,
     StaleToken,
@@ -113,7 +115,7 @@ enum State {
     NoInstallModal,
 }
 
-const STATES: [State; 26] = [
+const STATES: [State; 27] = [
     State::Idle,
     State::Closing,
     State::Modal,
@@ -123,6 +125,7 @@ const STATES: [State; 26] = [
     State::NameDraft,
     State::MaterialDraft,
     State::ChannelDraft,
+    State::PivotDraft,
     State::TextFocus,
     State::NativeInputPending,
     State::StaleToken,
@@ -154,6 +157,7 @@ impl State {
             Self::NameDraft => "name_draft",
             Self::MaterialDraft => "material_draft",
             Self::ChannelDraft => "channel_draft",
+            Self::PivotDraft => "pivot_draft",
             Self::TextFocus => "text_focus",
             Self::NativeInputPending => "native_input_pending",
             Self::StaleToken => "stale_token",
@@ -614,6 +618,12 @@ fn build(state: State) -> Rig {
         State::ChannelDraft => {
             editor.channels[0] = "5".into();
             assert!(editor.has_channel_draft());
+        }
+        State::PivotDraft => {
+            editor.pivot_drafts[0] = "5".into();
+            editor.pivot_intents[0] = true;
+            assert!(editor.has_channel_draft());
+            assert!(editor.channel_intents.iter().all(|touched| !touched));
         }
         State::TextFocus => {
             context.memory_mut(|memory| memory.request_focus(name_edit_id()));
@@ -2202,7 +2212,14 @@ fn matrix(file_writing: bool) -> (String, usize) {
     );
     let mut cells = 0;
     for state in STATES {
-        if file_writing && matches!(state, State::Pivoted | State::PivotedUpright) {
+        // The draft guard runs before any file operation, so ChannelDraft's file-writing cells
+        // already show it; PivotDraft adds the non-file cells only.
+        if file_writing
+            && matches!(
+                state,
+                State::Pivoted | State::PivotedUpright | State::PivotDraft
+            )
+        {
             continue;
         }
         if !file_writing && state == State::AuthoredAsciiDirty {

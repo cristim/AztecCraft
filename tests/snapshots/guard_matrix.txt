@@ -2469,6 +2469,278 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
+## pivot_draft / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_active_tool(select) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_space(rotate,world) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
+  set_tool_space(scale,object) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
+  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_handle(rotate,y) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
+  set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
+  set_manipulator_size(2) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; manipulator_size: 1 -> 2
+  set_manipulator_size(1) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  update_move => Err(Move: manipulation identifier is absent or stale) | no state change
+  begin_rotate(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_rotate(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_scale(object) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_scale(world) => Ok(manipulation_started) | scene changed; active_move: none -> native; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
+  update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
+  finish_move(commit) => Err(Move: manipulation identifier is absent or stale) | no state change
+  set_material_diffuse => Err(Scene: native ownership or edit effects are unsupported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create_session_material => Ok(session_material) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
+  assign_session_material(new) => Ok(session_material) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [] -> [[1.0, 0.0, 0.0]]; can_redo: true -> false
+  assign_session_material(initial) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_session_material_color(unknown) => Err(SessionMaterial: session material 1 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_session_material_color(created) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; session_materials: [[1.0, 0.0, 0.0]] -> [[0.0, 1.0, 0.0]]
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(Scene: a time must be a whole frame from -1000000 through 1000000) | no state change
+  set_playback_range(2,12) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=2..12 playing=false keys=0; can_redo: true -> false
+  set_playback_range(inverted) => Err(Scene: the playback start must not be after its end) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Ok(unchanged) | no state change
+  set_keyframe(selection) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
+  delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  delete_uvs => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_uvs => Ok(uvs) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
+  create(sphere) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pSphere1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pSphere1"; can_redo: true -> false
+  create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
+  create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
+  create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select(node) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select(none) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  select(none_with_path) => Err(InvalidInput: Clearing selection cannot include an instance path) | no state change
+  modify_selection(add) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_selection(toggle) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  modify_selection(remove) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  modify_selection(unknown_path) => Err(Scene: target does not match a valid full instance path) | no state change
+  select_all => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_all(face_mode) => Err(InvalidInput: Selection changes need Object or Hierarchy selection mode) | no state change
+  select_hierarchy => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_inverse => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  select_in_rect(replace) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_in_rect(add) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_in_rect(remove) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  select_in_rect(toggle) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  select_in_rect(replace,face_mode) => Err(InvalidInput: Marquee selection needs Object or Hierarchy selection mode) | no state change
+  set_selection_mode(face) => Ok(changed) | scene changed; selection_mode: Object -> Face; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  deselect_all => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  deselect_all(face_mode) => Ok(changed) | scene changed; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_mode: Face -> Object; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; can_redo: true -> false
+  select_face(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  select_face(face_mode) => Ok(changed) | scene changed; face_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_vertex(object_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_vertex(vertex_mode) => Ok(changed) | scene changed; vertex_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_vertex(vertex_mode_clear) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_vertex(face_mode) => Err(InvalidInput: Vertex selection requires Vertex mode) | no state change
+  select_edge(object_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  select_edge(edge_mode) => Ok(changed) | scene changed; edge_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_edge(edge_mode_clear) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  new_scene => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> New; can_redo: true -> false
+  request_close => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_redo: true -> false
+  open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_redo: true -> false
+  open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
+  export_obj(all) => Ok(exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  export_obj(selection) => Ok(exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
+  resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+  rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "renamed"; can_redo: true -> false
+  set_transform => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  edit_node(translate_x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
+  edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  edit_node(empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  extrude_face => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
+  delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete_selection => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
+  delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
+  undo => Ok(changed) | has_draft: true -> false; has_channel_draft: true -> false
+  redo => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  frame_selected(parents) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  frame_selected(children) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  frame_all => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  select_attribute_editor_tab(shape,panel_hidden) => Err(InvalidInput: Attribute Editor tab requires the Attribute Editor to be the active sidebar panel) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  orbit => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  pan => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  dolly => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_pivots(preserve) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_pivots(raw) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reset_pivots(center) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reset_pivots(zero) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+
+## pivot_draft / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_active_tool(select) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_manipulator_size(2) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_manipulator_size(1) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_move(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_move => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_rotate(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_rotate(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_rotate(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_scale(object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_scale(world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  begin_scale(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(degrees) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  update_manipulation(factor) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  finish_move(commit) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_material_diffuse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_session_material => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  assign_session_material(new) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  assign_session_material(initial) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_session_material_color(unknown) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_session_material_color(created) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(5) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_current_time(fractional) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(2,12) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_playback_range(inverted) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  play => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  stop => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect => Ok(scene) | no state change
+  inspect_keys => Ok(keys) | no state change
+  project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_uvs => Ok(uvs) | no state change
+  create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select(none) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select(none_with_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_selection(unknown_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_hierarchy => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_inverse => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_in_rect(replace) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_in_rect(add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_in_rect(remove) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_in_rect(toggle) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_in_rect(replace,face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_selection_mode(face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  deselect_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  deselect_all(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_face(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_face(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_vertex(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_vertex(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_vertex(vertex_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_vertex(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_edge(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_scene(empty_path) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  export_obj(not_obj) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_transform => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_selection => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_selection(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_selection(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  select_attribute_editor_tab(shape,panel_hidden) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  orbit => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  pan => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+
 ## text_focus / native
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
@@ -5422,4 +5694,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 4856
+cells: 5102
