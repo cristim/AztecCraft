@@ -1,9 +1,16 @@
 //! Issue #39 slice B: `Operation::SetPivots` and `Operation::ResetPivots` through the shared
 //! dispatch path. Native and remote callers reach the same `Command`; the guards, the
 //! `commit_pending` policy and the selection rules are the other operations'.
-use super::tests::remote;
+use super::tests::{deep_group_editor_with_leaf, remote};
 use super::*;
-use azteccraft::native_scene::{PivotReset, TransformTarget, WorldAxis};
+use azteccraft::native_scene::{ALL_CHANNELS, NativeError, PivotReset, TransformTarget, WorldAxis};
+
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
 
 const RP: [f64; 3] = [1.0, 2.0, 3.0];
 const SP: [f64; 3] = [-0.5, 0.25, 4.0];
@@ -331,4 +338,204 @@ fn an_active_manipulation_refuses_both_operations_for_both_callers() {
         assert_eq!(editor.history.scene(), &before);
         assert!(editor.history.active_manipulation().is_some());
     }
+}
+
+#[test]
+fn reset_pivots_works_in_object_and_hierarchy_modes() {
+    for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
+        let (mut editor, ids) = cubes(2);
+        for target in &ids {
+            editor.apply_operation(set(target.node, false)).unwrap();
+        }
+        editor.selection_mode = mode;
+        editor
+            .apply_operation(Operation::ResetPivots {
+                mode: PivotReset::Zero,
+            })
+            .unwrap();
+        for target in &ids {
+            assert_eq!(pivots(&editor, target.node), ([0.0; 3], [0.0; 3]));
+        }
+    }
+}
+
+#[test]
+fn reset_pivots_leaves_unselected_objects_alone() {
+    let (mut editor, ids) = cubes(2);
+    for target in &ids {
+        editor.apply_operation(set(target.node, false)).unwrap();
+    }
+    editor.set_selection_members_for_test(vec![ids[1].clone()]);
+    editor.sync_fields();
+    editor
+        .apply_operation(Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        })
+        .unwrap();
+    assert_eq!(pivots(&editor, ids[0].node), (RP, SP));
+    assert_eq!(pivots(&editor, ids[1].node), ([0.0; 3], [0.0; 3]));
+}
+
+#[test]
+fn reset_pivots_in_component_modes_is_refused_for_both_callers_and_keeps_state() {
+    for mode in [
+        SelectionMode::Face,
+        SelectionMode::Vertex,
+        SelectionMode::Edge,
+    ] {
+        for native in [true, false] {
+            let (mut editor, ids) = cubes(2);
+            editor.apply_operation(set(ids[0].node, false)).unwrap();
+            editor.set_selection_members_for_test(vec![ids[0].clone()]);
+            editor.sync_fields();
+            editor.selection_mode = mode;
+            let before = baseline(&editor);
+            let operation = Operation::ResetPivots {
+                mode: PivotReset::Zero,
+            };
+            let result = if native {
+                editor.apply_operation(operation)
+            } else {
+                remote(&mut editor, operation)
+            };
+            assert!(
+                matches!(result, Err(OperationError::InvalidInput(ref text))
+                    if text.ends_with("is unsupported; switch to Object or Hierarchy selection")),
+                "{mode:?} native={native}: {result:?}"
+            );
+            assert_eq!(baseline(&editor), before);
+        }
+    }
+}
+
+#[test]
+fn reset_pivots_with_nothing_selected_reports_no_selection() {
+    let (mut editor, _) = cubes(2);
+    editor.deselect_all();
+    let before = baseline(&editor);
+    for native in [true, false] {
+        let operation = Operation::ResetPivots {
+            mode: PivotReset::Center,
+        };
+        let result = if native {
+            editor.apply_operation(operation)
+        } else {
+            remote(&mut editor, operation)
+        };
+        assert!(matches!(result, Err(OperationError::NoSelection)));
+        assert_eq!(baseline(&editor), before);
+    }
+}
+
+/// An instanced node can appear twice in the selection; the command refuses duplicate ids, so
+/// the operation hands it each node once.
+#[test]
+fn reset_pivots_applies_once_per_node_when_the_selection_repeats_it() {
+    let (mut editor, ids) = cubes(1);
+    editor.apply_operation(set(ids[0].node, false)).unwrap();
+    let mut other = ids[0].clone();
+    other.path.insert(0, ids[0].path[0]);
+    editor.set_selection_members_for_test(vec![ids[0].clone(), other]);
+    assert_eq!(editor.selection.len(), 2);
+    editor
+        .apply_operation(Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        })
+        .unwrap();
+    assert_eq!(pivots(&editor, ids[0].node), ([0.0; 3], [0.0; 3]));
+}
+
+/// Q4: every selected object is handled on its own, a selected ancestor and descendant alike.
+#[test]
+fn reset_pivots_handles_a_selected_ancestor_and_descendant_independently() {
+    let mut editor =
+        deep_group_editor_with_leaf([1.0, 2.0, 3.0], [0.0, 0.5, 0.0], [0.5, 0.25, -1.0]);
+    let all = editor.history.scene().transform_paths().unwrap();
+    let group = all[0].clone();
+    let child = all.last().unwrap().clone();
+    assert_ne!(group.node, child.node);
+    editor.set_selection_members_for_test(vec![group.clone(), child.clone()]);
+    editor.sync_fields();
+    let group_before = editor.history.scene().node(group.node).unwrap().clone();
+    editor
+        .apply_operation(Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        })
+        .unwrap();
+    assert_eq!(pivots(&editor, child.node).0, [0.0; 3]);
+    assert_eq!(
+        editor.history.scene().node(group.node).unwrap(),
+        &group_before
+    );
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Pivot"));
+    assert!(editor.history.undo());
+    assert_eq!(pivots(&editor, child.node).0, [0.5, 0.25, -1.0]);
+}
+
+#[test]
+fn a_keyed_node_refuses_with_the_pivot_variant_and_keeps_state() {
+    let (mut editor, ids) = cubes(1);
+    editor
+        .apply_operation(Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        })
+        .unwrap();
+    let before = baseline(&editor);
+    for operation in [
+        set(ids[0].node, true),
+        Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        },
+    ] {
+        assert!(matches!(
+            editor.apply_operation(operation),
+            Err(OperationError::Pivot(NativeError::PivotOnKeyedNode))
+        ));
+        assert_eq!(baseline(&editor), before);
+    }
+}
+
+#[test]
+fn a_read_only_ascii_scene_refuses_with_the_pivot_variant() {
+    let scene = azteccraft::native_scene::ascii::decode(ascii_fixture::specimen().into()).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let id = editor.history.scene().nodes()[0].id();
+    let path = editor.history.scene().transform_paths().unwrap()[0].clone();
+    editor.set_selection_members_for_test(vec![path]);
+    editor.sync_fields();
+    let before = editor.history.scene().clone();
+    for operation in [
+        set(id, true),
+        Operation::ResetPivots {
+            mode: PivotReset::Zero,
+        },
+    ] {
+        assert!(matches!(
+            editor.apply_operation(operation),
+            Err(OperationError::Pivot(NativeError::ReadOnlyFormat))
+        ));
+    }
+    assert_eq!(editor.history.scene(), &before);
+}
+
+/// A refusal without its own MCP code stays the generic `Scene` error.
+#[test]
+fn a_non_finite_pivot_is_the_generic_scene_error() {
+    let (mut editor, ids) = cubes(1);
+    let before = baseline(&editor);
+    assert!(matches!(
+        editor.apply_operation(Operation::SetPivots {
+            id: ids[0].node,
+            rotate_pivot: Some([f64::NAN, 0.0, 0.0]),
+            scale_pivot: None,
+            preserve: true,
+        }),
+        Err(OperationError::Scene(NativeError::NonFinite))
+    ));
+    assert_eq!(baseline(&editor), before);
 }
