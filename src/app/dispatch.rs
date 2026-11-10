@@ -1,5 +1,6 @@
 use super::*;
 use azteccraft::history::{ManipulationFinish, ManipulationKindState};
+use azteccraft::native_scene::NativeTransformNode;
 
 /// Status-line feedback planned for one operation; see [`Editor::status_feedback`].
 struct StatusFeedback {
@@ -1375,20 +1376,72 @@ impl Editor {
             .is_some_and(MaterialDraft::changed)
             || self.has_channel_draft()
     }
+    /// A name, channel or pivot draft. Pivot drafts share the channel guards, so the remote
+    /// `BusyEditing` check and `has_draft` need no pivot case of their own.
     pub(super) fn has_channel_draft(&self) -> bool {
+        self.has_transform_draft() || self.has_pivot_draft()
+    }
+    fn has_transform_draft(&self) -> bool {
+        self.selected_node().is_some_and(|node| {
+            let values = node.transform().values();
+            self.name_intent
+                || self.channel_intents.iter().any(|v| *v)
+                || node.name() != self.name
+                || values
+                    .iter()
+                    .zip(&self.channels)
+                    .any(|(value, draft)| draft != &value.to_string())
+        })
+    }
+    fn has_pivot_draft(&self) -> bool {
+        self.selected_node().is_some_and(|node| {
+            self.pivot_intents.iter().any(|v| *v)
+                || pivot_values(node)
+                    .iter()
+                    .zip(&self.pivot_drafts)
+                    .any(|(value, draft)| draft != &value.to_string())
+        })
+    }
+    fn selected_node(&self) -> Option<&NativeTransformNode> {
         self.selection_presentation()
             .0
             .and_then(|id| self.history.scene().node(id).ok())
-            .is_some_and(|node| {
-                let values = node.transform().values();
-                self.name_intent
-                    || self.channel_intents.iter().any(|v| *v)
-                    || node.name() != self.name
-                    || values
-                        .iter()
-                        .zip(&self.channels)
-                        .any(|(value, draft)| draft != &value.to_string())
-            })
+    }
+    /// The raw `SetPivots` the touched pivot fields ask for, or `None` when no field was touched.
+    /// Only a touched pivot is sent, and an untouched component of it keeps the node's own value:
+    /// re-sending a value that is not a change would still be a write when a typed text equals it.
+    pub(super) fn pivot_command(&self, id: NodeId) -> Result<Option<Command>, String> {
+        let node = self.history.scene().node(id).map_err(|e| e.to_string())?;
+        let original = pivot_values(node);
+        let mut touched = [false; 6];
+        let mut values = original;
+        for index in 0..6 {
+            if self.pivot_intents[index] || self.pivot_drafts[index] != original[index].to_string()
+            {
+                touched[index] = true;
+                values[index] = self.pivot_drafts[index]
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|value| value.is_finite())
+                    .ok_or("Enter a valid number in the edited pivot")?;
+            }
+        }
+        let triple = |from: usize| {
+            touched[from..from + 3]
+                .iter()
+                .any(|v| *v)
+                .then(|| [values[from], values[from + 1], values[from + 2]])
+        };
+        let (rotate_pivot, scale_pivot) = (triple(0), triple(3));
+        Ok(
+            (rotate_pivot.is_some() || scale_pivot.is_some()).then_some(Command::SetPivots {
+                id,
+                rotate_pivot,
+                scale_pivot,
+                // PROVISIONAL (Q5, P-B4): an Attribute Editor field is a node attribute, so a raw write.
+                preserve: false,
+            }),
+        )
     }
     pub(super) fn commit_pending(&mut self) -> bool {
         if self.history.active_manipulation().is_some() {
@@ -1454,7 +1507,7 @@ impl Editor {
         if !self.has_draft() {
             return true;
         }
-        let result = || -> Result<Command, String> {
+        let result = || -> Result<(Option<Command>, Option<Command>), String> {
             let node = self.history.scene().node(id).map_err(|e| e.to_string())?;
             let original = node.transform().values();
             let mut channels = [None; 9];
@@ -1468,32 +1521,54 @@ impl Editor {
                         })?);
                 }
             }
-            Ok(Command::EditNode {
+            let edit = self.has_transform_draft().then(|| Command::EditNode {
                 id,
                 name: (self.name_intent || node.name() != self.name).then(|| self.name.clone()),
                 channels,
-            })
+            });
+            Ok((edit, self.pivot_command(id)?))
         };
-        let outcome = result().and_then(|command| {
-            self.history
-                .execute(command)
-                .map(|outcome| outcome != EditOutcome::Unchanged)
-                .map_err(|e| e.to_string())
-        });
-        match outcome {
-            Ok(changed) => {
-                self.sync_fields();
-                if changed {
-                    self.status = "Scene edited".into();
-                    self.error = false;
-                }
-                true
-            }
+        let (edit, pivots) = match result() {
+            Ok(commands) => commands,
             Err(error) => {
                 self.status = error;
                 self.error = true;
-                false
+                return false;
+            }
+        };
+        let mut changed = false;
+        let mut failure = None;
+        // Two undo entries when both kinds of draft are pending: Edit, then Pivot (documented).
+        if let Some(edit) = edit {
+            match self.history.execute(edit) {
+                Ok(outcome) => changed |= outcome != EditOutcome::Unchanged,
+                Err(error) => failure = Some(error.to_string()),
+            }
+            if failure.is_none() && pivots.is_some() {
+                // The channel draft landed; refill it without dropping the pending pivot draft.
+                let (drafts, intents) = (self.pivot_drafts.clone(), self.pivot_intents);
+                self.sync_fields();
+                (self.pivot_drafts, self.pivot_intents) = (drafts, intents);
             }
         }
+        if failure.is_none()
+            && let Some(pivots) = pivots
+        {
+            match self.history.execute(pivots) {
+                Ok(outcome) => changed |= outcome != EditOutcome::Unchanged,
+                Err(error) => failure = Some(error.to_string()),
+            }
+        }
+        if let Some(error) = failure {
+            self.status = error;
+            self.error = true;
+            return false;
+        }
+        self.sync_fields();
+        if changed {
+            self.status = "Scene edited".into();
+            self.error = false;
+        }
+        true
     }
 }

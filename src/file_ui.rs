@@ -434,6 +434,8 @@ impl Editor {
         self.name.clear();
         self.channels = Default::default();
         self.channel_intents = [false; 9];
+        self.pivot_drafts = Default::default();
+        self.pivot_intents = [false; 6];
         self.name_intent = false;
         self.material_shape = None;
         self.material_draft = None;
