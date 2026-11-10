@@ -445,7 +445,16 @@ fn an_absent_pivot_leaf_cannot_be_edited_in_an_opened_binary() {
     let mut edited = scene.clone();
     assert_eq!(
         edited.set_pivots(id, Some([1.0, 0.0, 0.0]), None, true),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::AbsentPivotLeaf {
+            field: PivotLeaf::Rotate
+        })
+    );
+    assert_eq!(edited, scene);
+    assert_eq!(
+        edited.set_pivots(id, None, Some([0.0, 2.0, 0.0]), true),
+        Err(NativeError::AbsentPivotLeaf {
+            field: PivotLeaf::Scale
+        })
     );
     assert_eq!(edited, scene);
     // Writing the value the leaf already implies is not an edit.
@@ -538,7 +547,9 @@ fn a_raw_edit_on_an_opened_binary_patches_an_existing_leaf_only() {
     let mut edited = bare.clone();
     assert_eq!(
         edited.set_pivots(id, Some([1.0, 0.0, 0.0]), None, false),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::AbsentPivotLeaf {
+            field: PivotLeaf::Rotate
+        })
     );
     assert_eq!(edited, bare);
 }
@@ -723,6 +734,34 @@ fn zero_pivot_needing_an_absent_translate_leaf_follows_the_insertion_rules() {
         Err(NativeError::InsertionAfterDelete)
     );
     assert_eq!(removed, before);
+}
+
+#[test]
+fn zero_pivot_names_an_absent_pivot_leaf_it_would_have_to_rewrite() {
+    // No opened file gives a node a nonzero pivot without its leaf, so the state is built by hand.
+    let mut scene = binary_scene(&[(b"t", [1.0, 2.0, 3.0])]);
+    let id = scene.nodes()[0].id();
+    scene.nodes[0].scale_pivot = [0.0, 2.0, 0.0].map(Scalar::new);
+    let before = scene.clone();
+    assert_eq!(
+        scene.zero_pivots(&[id]),
+        Err(NativeError::AbsentPivotLeaf {
+            field: PivotLeaf::Scale
+        })
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn the_absent_pivot_leaf_message_names_the_pivot() {
+    for (field, word) in [(PivotLeaf::Rotate, "rotate"), (PivotLeaf::Scale, "scale")] {
+        assert_eq!(
+            NativeError::AbsentPivotLeaf { field }.to_string(),
+            format!(
+                "This object stores no {word} pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet"
+            )
+        );
+    }
 }
 
 #[test]
