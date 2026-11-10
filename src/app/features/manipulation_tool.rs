@@ -401,7 +401,10 @@ impl Editor {
     }
 
     /// A caller that names the selection generation it inspected gets a refusal if it moved on.
-    fn check_generation(&self, expected: Option<u64>) -> Result<(), OperationError> {
+    pub(in crate::app) fn check_generation(
+        &self,
+        expected: Option<u64>,
+    ) -> Result<(), OperationError> {
         match expected {
             Some(expected) if expected != self.selection.generation() => {
                 Err(OperationError::StaleSelection {

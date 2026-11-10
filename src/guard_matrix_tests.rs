@@ -898,6 +898,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         pivots(t, true),
         Operation::ResetPivots {
             mode: PivotReset::Zero,
+            expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
         Operation::SetCameraPose {
@@ -1763,12 +1764,14 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "reset_pivots(center)",
                 Operation::ResetPivots {
                     mode: PivotReset::Center,
+                    expected_selection_generation: None,
                 },
             ),
             sample(
                 "reset_pivots(zero)",
                 Operation::ResetPivots {
                     mode: PivotReset::Zero,
+                    expected_selection_generation: None,
                 },
             ),
             Sample {
@@ -1777,6 +1780,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     "reset_pivots(face_mode)",
                     Operation::ResetPivots {
                         mode: PivotReset::Zero,
+                        expected_selection_generation: None,
                     },
                 )
             },
