@@ -300,11 +300,11 @@ impl NativeScene {
         )];
         while let Some((parent, to_root, visible, depth)) = pending.pop() {
             for &child in index.children(Some(parent)) {
-                visited += 1;
-                if visited > MAX_TRANSFORM_PATHS || depth >= MAX_TRANSFORM_DEPTH {
-                    return Err(NativeError::ResourceLimit);
-                }
                 if let Some(node_id) = index.node(child) {
+                    visited += 1;
+                    if visited > MAX_TRANSFORM_PATHS || depth >= MAX_TRANSFORM_DEPTH {
+                        return Err(NativeError::ResourceLimit);
+                    }
                     let node = self.node(node_id)?;
                     let local = self
                         .internal_transform(node_id)?
