@@ -829,4 +829,5 @@ fn an_overflowing_compensation_on_an_opened_binary_is_non_finite() {
     }
 }
 
+mod center;
 mod hierarchy_bounds;
