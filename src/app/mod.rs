@@ -440,6 +440,9 @@ mod mcp_editor_tests;
 mod gpu_viewport_tests;
 
 #[cfg(test)]
+mod pivot_ops_tests;
+
+#[cfg(test)]
 mod rotated_scale_tests;
 
 #[cfg(all(test, any(unix, windows)))]
