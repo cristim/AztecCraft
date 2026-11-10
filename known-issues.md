@@ -1531,3 +1531,7 @@ Researched on 2026-11-09 in the Maya 2027 help ([xform](https://help.autodesk.co
 - P-B9: curve control points are in the Center Pivot box, proved-invisible geometry is not, and unproved visibility refuses Center Pivot (`scene_error`); a hierarchy without geometry is unchanged.
 
 Gaps: `edit_node` and `set_transform` report the same `ReadOnlyFormat`, `UnsupportedEdit` and `InsertionAfterDelete` refusals as the generic `scene_error`, while the pivot tools give them their own codes; the older tools are unchanged. Center Pivot on a selected shape node is unreachable (the editor selects transforms only).
+
+## Save with a typed pivot draft commits the draft, then refuses (until T9/T10, #39)
+
+Save, Save As and Resolve(save) first commit a pending Attribute Editor pivot draft, as for any draft. Until the writers support nondefault pivots (T9 `.ma`, T10 `.mb`) the save then fails with "nondefault pivots are unsupported" or "a transform has a non-zero pivot". The scene keeps the committed pivot and its undo entry and stays unsaved. Pinned by the `pivot_draft` cells of `tests/snapshots/guard_matrix_file_writing.txt`; T9/T10 flip them.

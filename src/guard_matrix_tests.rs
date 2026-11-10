@@ -2432,13 +2432,11 @@ fn matrix(file_writing: bool) -> (String, usize) {
     );
     let mut cells = 0;
     for state in STATES {
-        // The draft guard runs before any file operation, so ChannelDraft's file-writing cells
-        // already show it; PivotDraft adds the non-file cells only.
+        // PivotDraft's file-writing cells differ from ChannelDraft's: Save commits the draft and
+        // then the writer refuses nondefault pivots. The Windows snapshot has no such cells.
         if file_writing
-            && matches!(
-                state,
-                State::Pivoted | State::PivotedUpright | State::PivotDraft
-            )
+            && (matches!(state, State::Pivoted | State::PivotedUpright)
+                || (cfg!(windows) && state == State::PivotDraft))
         {
             continue;
         }
