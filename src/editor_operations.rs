@@ -8,7 +8,7 @@ use azteccraft::{
         ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
-    viewport::{InvalidCameraInput, InvalidCameraPose},
+    viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -53,6 +53,17 @@ pub enum SelectionChange {
     Add,
     Toggle,
     Remove,
+}
+
+/// How a marquee combines the objects it hits with the selection (Maya `select -replace`, `-add`,
+/// `-deselect`, `-toggle`). Replace sets the selection to the hits in instance order, so the lead
+/// is the last hit; Add and Toggle append absent hits in that order; Remove drops the hit members.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MarqueeMode {
+    Replace,
+    Add,
+    Remove,
+    Toggle,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -435,6 +446,13 @@ pub enum Operation {
     },
     /// Replaces the object selection by a rule (Select > All, Hierarchy, Inverse). Object and Hierarchy modes only.
     SelectByRule(SelectRule),
+    /// Selects the objects whose visible mesh overlaps `rect`, an NDC rectangle at the last
+    /// painted aspect, combined by `mode`. Object and Hierarchy modes only; every hit counts,
+    /// occluded ones included, as Maya's object marquee does (PROVISIONAL: camera-based selection is documented for components only).
+    SelectInRect {
+        rect: NdcRect,
+        mode: MarqueeMode,
+    },
     SetSelectionMode(SelectionMode),
     /// Maya's Select > Deselect All (`SelectNone`, Alt+D): clears the object and component
     /// selection and returns to Object selection mode.
@@ -1021,8 +1039,9 @@ pub enum OperationError {
     /// A session-material operation failed in the core; the MCP layer reports a typed code.
     #[cfg(any(test, feature = "mcp"))]
     SessionMaterial(NativeError),
-    /// A key command on a scene opened from a Maya file; the MCP layer reports `read_only_format`.
-    ReadOnlyKeys,
+    /// A key command refused because the scene is read-only (Maya ASCII) or the edit is unsupported
+    /// (an opened .mb, or a node with edit restrictions); the MCP layer reports a typed code.
+    Keys(NativeError),
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1102,7 +1121,7 @@ impl fmt::Display for OperationError {
             Self::TooLarge => f.write_str("The reply exceeds the prototype response limit"),
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
-            Self::ReadOnlyKeys => NativeError::ReadOnlyFormat.fmt(f),
+            Self::Keys(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face before framing"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(

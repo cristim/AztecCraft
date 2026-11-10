@@ -288,14 +288,6 @@ fn world_rings_need_all_three_rotate_leaves_and_inherit_the_other_refusals() {
             })
         ));
     }
-    let (mut scene, node) = test_fixtures::cube();
-    scene.nodes[0].rotate_pivot[1] = Scalar::new(0.5);
-    assert!(matches!(
-        scene.begin_rotation(&target(&scene, node), RotateAxis::X, RotateSpace::World),
-        Err(NativeError::UnsupportedRotate(
-            RotateUnsupported::SelectedPivot
-        ))
-    ));
 }
 
 #[test]

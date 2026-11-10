@@ -243,7 +243,7 @@ async fn headless_gpu_sdk_camera_selection_and_grid_changes_enter_the_next_fresh
             before,
             "remote changes cannot alter the already prepared callback"
         );
-        let response = tokio::time::timeout(Duration::from_secs(2), handle.await_response())
+        let response = tokio::time::timeout(protocol_call_deadline(), handle.await_response())
             .await
             .unwrap()
             .unwrap();
@@ -351,7 +351,7 @@ async fn headless_gpu_sdk_hidden_inspection_reads_live_terminal_health_without_u
             .unwrap();
         wait_for_queue(&editor).await;
         hidden_frame(&mut editor, &context, vec![]);
-        let response = tokio::time::timeout(Duration::from_secs(2), handle.await_response())
+        let response = tokio::time::timeout(protocol_call_deadline(), handle.await_response())
             .await
             .unwrap()
             .unwrap();

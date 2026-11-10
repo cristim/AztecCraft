@@ -401,13 +401,18 @@ fn a_covered_lead_with_a_rotate_pivot_has_its_handle_at_the_pivot_and_move_is_av
 }
 
 #[test]
-fn an_uncovered_lead_keeps_refusing_a_rotate_pivot() {
+fn an_uncovered_lead_with_a_rotate_pivot_has_its_handle_at_the_pivot_and_move_is_available() {
     let mut editor = group_and_pivoted_child();
     let child = editor.selection.lead().unwrap().clone();
     editor.set_selection_members_for_test(vec![child]);
+    let lead = editor.selected_move_lead().unwrap();
+    assert_eq!(
+        editor.move_handle_origin(&lead).unwrap(),
+        glam::DVec3::new(3.0, 3.0, 0.0)
+    );
     let kinds = editor.inspect(false).unwrap().manipulation.kinds;
     let mv = kinds.iter().find(|k| k.kind == "move").unwrap();
-    assert!(!mv.available);
+    assert!(mv.available, "{:?}", mv.unavailable_reason);
 }
 
 /// Two objects in a binary scene: `full` has a translate leaf, `bare` has none.

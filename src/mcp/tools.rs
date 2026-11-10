@@ -84,7 +84,11 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
-                OperationError::ReadOnlyKeys => "read_only_format",
+                OperationError::Keys(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -146,6 +150,8 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    #[cfg(unix)]
+                    azteccraft::document::NativeSaveError::AsciiWrite(_) => "save_ascii_write",
                     azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
                 },
                 OperationError::ObjExport(error) => match error {
@@ -295,12 +301,6 @@ mod tests {
                 WorldMoveUnsupported::AlternatePathAncestor
             )),
             "alternate_path_ancestor"
-        );
-        assert_eq!(
-            code(NativeError::UnsupportedMove(
-                WorldMoveUnsupported::SelectedPivot
-            )),
-            "manipulation_error"
         );
     }
 
@@ -721,6 +721,9 @@ mod tests {
                     json!({"scene_token":token,"change":"toggle","node_id":"1"})
                 }
                 "select_by_rule" => json!({"scene_token":token,"rule":"all"}),
+                "select_in_rect" => {
+                    json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1]}})
+                }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})

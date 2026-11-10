@@ -1,6 +1,6 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, Operation, OperationError, OperationReply, SelectRule,
-    SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
+    ActiveTool, AttributeEditorTab, MarqueeMode, Operation, OperationError, OperationReply,
+    SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
@@ -433,3 +433,6 @@ mod gpu_viewport_tests;
 
 #[cfg(test)]
 mod rotated_scale_tests;
+
+#[cfg(all(test, any(unix, windows)))]
+mod pivot_persistence_tests;

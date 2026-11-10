@@ -96,6 +96,7 @@ impl Editor {
             Operation::Select { .. }
             | Operation::ModifySelection { .. }
             | Operation::SelectByRule(_)
+            | Operation::SelectInRect { .. }
             | Operation::DeselectAll
             | Operation::SelectFace { .. }
             | Operation::SelectVertex { .. }
@@ -415,6 +416,7 @@ impl Editor {
                     | Operation::Select { .. }
                     | Operation::ModifySelection { .. }
                     | Operation::SelectByRule(_)
+                    | Operation::SelectInRect { .. }
                     | Operation::DeselectAll
                     | Operation::SetSelectionMode(_)
                     | Operation::SelectFace { .. }
@@ -457,6 +459,11 @@ impl Editor {
             Operation::SelectByRule(_) if self.selection_mode.is_component() => {
                 return Err(OperationError::InvalidInput(
                     "Selection changes need Object or Hierarchy selection mode".into(),
+                ));
+            }
+            Operation::SelectInRect { .. } if self.selection_mode.is_component() => {
+                return Err(OperationError::InvalidInput(
+                    "Marquee selection needs Object or Hierarchy selection mode".into(),
                 ));
             }
             _ => None,
@@ -835,6 +842,7 @@ impl Editor {
                 });
             }
             Operation::SelectByRule(rule) => return self.select_by_rule(rule),
+            Operation::SelectInRect { rect, mode } => return self.select_in_rect(rect, mode),
             Operation::ModifySelection { change, node, .. } => {
                 let target = TransformTarget {
                     node,
@@ -1041,8 +1049,14 @@ impl Editor {
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
         );
         let outcome = self.history.execute(command).map_err(|error| {
-            if key_command && error == azteccraft::native_scene::NativeError::ReadOnlyFormat {
-                return OperationError::ReadOnlyKeys;
+            if key_command
+                && matches!(
+                    error,
+                    azteccraft::native_scene::NativeError::ReadOnlyFormat
+                        | azteccraft::native_scene::NativeError::UnsupportedEdit
+                )
+            {
+                return OperationError::Keys(error);
             }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command

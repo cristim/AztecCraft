@@ -1,4 +1,5 @@
 use crate::native_scene::{MAX_TRANSFORM_PATHS, TransformTarget};
+use std::collections::HashSet;
 use std::fmt;
 
 /// The selection already holds `MAX_TRANSFORM_PATHS` objects, so another one is refused.
@@ -137,6 +138,64 @@ impl ObjectSelection {
             }
             None => false,
         }
+    }
+
+    /// Appends the targets that are not members, in order and each once; the last appended is the
+    /// lead. Members keep their place. Over the cap the selection is unchanged.
+    pub fn extend_absent(
+        &mut self,
+        targets: impl IntoIterator<Item = TransformTarget>,
+    ) -> Result<(), SelectionFull> {
+        let mut seen: HashSet<TransformTarget> = self.members.iter().cloned().collect();
+        let absent: Vec<TransformTarget> = targets
+            .into_iter()
+            .filter(|target| seen.insert(target.clone()))
+            .collect();
+        if absent.is_empty() {
+            return Ok(());
+        }
+        if self.members.len() + absent.len() > MAX_TRANSFORM_PATHS {
+            return Err(SelectionFull);
+        }
+        self.members.extend(absent);
+        self.bump();
+        Ok(())
+    }
+
+    /// Removes the targets that are members and returns whether any was. Removing the lead
+    /// promotes the previous member.
+    pub fn remove_all(&mut self, targets: &[TransformTarget]) -> bool {
+        let doomed: HashSet<&TransformTarget> = targets.iter().collect();
+        let before = self.members.len();
+        self.members.retain(|member| !doomed.contains(member));
+        let changed = self.members.len() != before;
+        if changed {
+            self.bump();
+        }
+        changed
+    }
+
+    /// Removes the targets that are members and appends the others in order, each once; the last
+    /// appended is the lead, else a removed lead promotes the previous member. Over the cap, counted
+    /// after the removals, the selection is unchanged.
+    pub fn toggle_all(&mut self, targets: &[TransformTarget]) -> Result<(), SelectionFull> {
+        let members: HashSet<&TransformTarget> = self.members.iter().collect();
+        let mut seen = HashSet::new();
+        let (present, absent): (Vec<_>, Vec<_>) = targets
+            .iter()
+            .filter(|target| seen.insert(*target))
+            .partition(|target| members.contains(target));
+        if present.is_empty() && absent.is_empty() {
+            return Ok(());
+        }
+        if self.members.len() - present.len() + absent.len() > MAX_TRANSFORM_PATHS {
+            return Err(SelectionFull);
+        }
+        let doomed: HashSet<&TransformTarget> = present.into_iter().collect();
+        self.members.retain(|member| !doomed.contains(member));
+        self.members.extend(absent.into_iter().cloned());
+        self.bump();
+        Ok(())
     }
 
     /// Keeps the members `keep` accepts, in their order.

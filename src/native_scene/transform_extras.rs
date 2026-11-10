@@ -175,6 +175,9 @@ pub struct TransformAttributes {
     pub rotate_order: &'static str,
     pub rotate_axis_degrees: [f64; 3],
     pub shear: [f64; 3],
+    /// rotatePivot and scalePivot, in the scene's declared linear unit.
+    pub rotate_pivot: [f64; 3],
+    pub scale_pivot: [f64; 3],
     pub rotate_pivot_translate: [f64; 3],
     pub scale_pivot_translate: [f64; 3],
     pub non_default: Vec<&'static str>,
@@ -186,6 +189,8 @@ impl Default for TransformAttributes {
             rotate_order: "xyz",
             rotate_axis_degrees: [0.0; 3],
             shear: [0.0; 3],
+            rotate_pivot: [0.0; 3],
+            scale_pivot: [0.0; 3],
             rotate_pivot_translate: [0.0; 3],
             scale_pivot_translate: [0.0; 3],
             non_default: Vec::new(),
@@ -198,7 +203,8 @@ impl super::NativeScene {
         &self,
         id: super::NodeId,
     ) -> Result<TransformAttributes, NativeError> {
-        let declared = self.node(id)?.extras().clone();
+        let node = self.node(id)?;
+        let declared = node.extras().clone();
         let degrees = self.units().angular_degrees_factor()?;
         let rotate_order = declared.rotate_order.unwrap_or(0);
         let name = ROTATE_ORDER_NAMES
@@ -211,6 +217,8 @@ impl super::NativeScene {
             // Declared values pass through; only a radian scene is converted.
             rotate_axis_degrees: triple(declared.rotate_axis).map(|angle| angle * degrees),
             shear: triple(declared.shear),
+            rotate_pivot: node.rotate_pivot(),
+            scale_pivot: node.scale_pivot(),
             rotate_pivot_translate: triple(declared.rotate_pivot_translate),
             scale_pivot_translate: triple(declared.scale_pivot_translate),
             non_default: Vec::new(),
@@ -220,10 +228,12 @@ impl super::NativeScene {
             ("rotate_order", rotate_order != 0),
             ("rotate_axis", nonzero(attributes.rotate_axis_degrees)),
             ("shear", nonzero(attributes.shear)),
+            ("rotate_pivot", nonzero(attributes.rotate_pivot)),
             (
                 "rotate_pivot_translate",
                 nonzero(attributes.rotate_pivot_translate),
             ),
+            ("scale_pivot", nonzero(attributes.scale_pivot)),
             (
                 "scale_pivot_translate",
                 nonzero(attributes.scale_pivot_translate),

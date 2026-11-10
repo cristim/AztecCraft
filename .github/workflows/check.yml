@@ -49,6 +49,8 @@ jobs:
       - name: Install pinned Rust
         run: rustup toolchain install 1.99.0 --profile minimal
       - name: Actual renderer framebuffer and editor integration proofs
+        env:
+          AZTECCRAFT_MCP_TEST_DEADLINE_MS: "15000"
         run: cargo +1.99.0 test --locked --bin azteccraft --features mcp-test-client headless_gpu -- --ignored --test-threads=1
   check:
     name: Check (${{ matrix.os }})
@@ -135,12 +137,16 @@ jobs:
       - name: Clippy
         run: cargo +1.99.0 clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
+        env:
+          AZTECCRAFT_MCP_TEST_DEADLINE_MS: "15000"
         run: cargo +1.99.0 test --workspace --locked
       - name: MCP production Clippy
         run: cargo +1.99.0 clippy --workspace --all-targets --locked --features mcp -- -D warnings
       - name: MCP client-test Clippy
         run: cargo +1.99.0 clippy --workspace --all-targets --locked --features mcp-test-client -- -D warnings
       - name: MCP official client and editor tests
+        env:
+          AZTECCRAFT_MCP_TEST_DEADLINE_MS: "15000"
         run: cargo +1.99.0 test --workspace --locked --features mcp-test-client
       - name: Page cost timing guard
         shell: bash

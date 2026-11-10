@@ -49,7 +49,6 @@ impl ChannelLeaf {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorldMoveUnsupported {
-    SelectedPivot,
     TranslationSource,
     ParentTransform,
     NumericalDisplacement,
@@ -63,7 +62,6 @@ pub enum WorldMoveUnsupported {
 impl fmt::Display for WorldMoveUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::SelectedPivot => "selected rotation and scale pivots must be zero",
             Self::TranslationSource => "translation requires an existing supported source leaf",
             Self::ParentTransform => "parent transform is singular or numerically unstable",
             Self::NumericalDisplacement => "displacement cannot be represented accurately",
@@ -529,16 +527,6 @@ impl NativeScene {
         selected: &NativeTransformNode,
     ) -> Result<WorldMoveFrame, NativeError> {
         let transform = self.internal_transform(target.node)?;
-        if transform
-            .rotate_pivot_cm
-            .into_iter()
-            .chain(transform.scale_pivot_cm)
-            .any(|value| value != 0.0)
-        {
-            return Err(NativeError::UnsupportedMove(
-                WorldMoveUnsupported::SelectedPivot,
-            ));
-        }
         let mut absent_leaf = [false; 3];
         if let Some(source) = &self.source {
             if source.format != SourceFormat::Binary {
@@ -588,7 +576,10 @@ impl NativeScene {
         let inverse_parent = parent_linear.inverse();
         let parent_norm = infinity_norm(parent_linear);
         let condition = parent_norm * infinity_norm(inverse_parent);
-        let origin_cm = parent_world.transform_point3(transform.origin_cm());
+        // The Move handle sits at the rotate pivot, T + RT + RP in the parent's space. The pivots
+        // are fixed points of the rotate and scale stages, so they never enter the channel maths.
+        // PROVISIONAL: the docs do not place the Move handle relative to the pivot (plan section 1).
+        let origin_cm = parent_world.transform_point3(transform.pivot_origin_cm());
         if !inverse_parent.is_finite()
             || !condition.is_finite()
             || condition > MAX_PARENT_CONDITION

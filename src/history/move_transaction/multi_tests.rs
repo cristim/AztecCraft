@@ -114,14 +114,15 @@ fn cancel_restores_every_member() {
 }
 
 #[test]
-fn begin_with_an_unsupported_member_names_it_and_changes_nothing() {
-    let (mut scene, pivoted) = test_fixtures::pivoted_shape();
+fn begin_with_an_edit_restricted_member_names_it_and_changes_nothing() {
+    let (mut scene, restricted) = test_fixtures::cube();
+    test_fixtures::restrict_edits(&mut scene, restricted);
     let plain = scene.create(Primitive::Cube, "plain").unwrap();
     let mut history = History::new(scene);
-    let targets = [target_of(&history, plain), target_of(&history, pivoted)];
+    let targets = [target_of(&history, plain), target_of(&history, restricted)];
     let before = history.scene.clone();
     let revision = history.revision();
-    let name = history.scene.node(pivoted).unwrap().name().to_string();
+    let name = history.scene.node(restricted).unwrap().name().to_string();
     for order in [[0, 1], [1, 0]] {
         let ordered = order.map(|index| targets[index].clone());
         let error = begin(&mut history, &ordered, Uuid::new_v4()).unwrap_err();
@@ -129,9 +130,7 @@ fn begin_with_an_unsupported_member_names_it_and_changes_nothing() {
             error,
             ManipulationError::Member {
                 name: name.clone(),
-                source: Box::new(NativeError::UnsupportedMove(
-                    WorldMoveUnsupported::SelectedPivot
-                )),
+                source: Box::new(NativeError::UnsupportedEdit),
             }
         );
         assert!(history.active_manipulation().is_none());
@@ -375,16 +374,17 @@ fn four_thousand_members_begin_within_the_budget_and_not_one_byte_less() {
 }
 
 #[test]
-fn check_move_axes_gives_the_refusal_a_begin_would_without_starting_one() {
-    let (mut scene, pivoted) = test_fixtures::pivoted_shape();
+fn check_move_axes_gives_the_restricted_refusal_a_begin_would_without_starting_one() {
+    let (mut scene, restricted) = test_fixtures::cube();
+    test_fixtures::restrict_edits(&mut scene, restricted);
     let plain = scene.create(Primitive::Cube, "plain").unwrap();
     let history = History::new(scene);
-    let targets = [target_of(&history, plain), target_of(&history, pivoted)];
+    let targets = [target_of(&history, plain), target_of(&history, restricted)];
     let before = history.scene.clone();
     let both = history.check_move_axes(&targets);
     assert!(
         matches!(&both, Err(ManipulationError::Member { source, .. })
-        if **source == NativeError::UnsupportedMove(WorldMoveUnsupported::SelectedPivot))
+        if **source == NativeError::UnsupportedEdit)
     );
     let cubes = [target_of(&history, plain), target_of(&history, plain)];
     assert!(
