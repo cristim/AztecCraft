@@ -150,21 +150,62 @@ impl NativeScene {
     /// translate absorbs `v = rt + (I - Rs) rp + Rs ((I - K) sp + st)`, so the matrix is kept.
     /// PROVISIONAL: follows `xform -zeroTransformPivots`. Nothing is mutated on error.
     pub fn zero_pivots(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
+        let mut writes = Vec::new();
+        for index in self.pivot_targets(ids)? {
+            if let Some(next) = self.zeroed(index)? {
+                writes.push((index, next));
+            }
+        }
+        self.install(&writes)
+    }
+
+    /// Center Pivot over each of `ids` independently: rp and sp become the centre of the
+    /// node's `hierarchy_bounds_local` and the matrix is kept like `set_pivots` with preserve.
+    /// A node with no geometry is left as it is. PROVISIONAL (P-B1, P-B9). Nothing is mutated on
+    /// error.
+    fn center_pivots(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
+        let mut writes = Vec::new();
+        for index in self.pivot_targets(ids)? {
+            let Some((low, high)) = self.hierarchy_bounds_local(self.nodes[index].id)? else {
+                continue;
+            };
+            let centre = low * 0.5 + high * 0.5;
+            let mut declared = [0.0; 3];
+            for (slot, component) in declared.iter_mut().zip(centre.to_array()) {
+                *slot = Storage::Centimeters.declared(component, &self.units)?;
+            }
+            writes.push((
+                index,
+                self.pivoted(index, Some(declared), Some(declared), true)?,
+            ));
+        }
+        self.install(&writes)
+    }
+
+    /// Modify > Center Pivot or Zero Pivot over each of `ids`.
+    pub fn reset_pivots(&mut self, ids: &[NodeId], mode: PivotReset) -> Result<(), NativeError> {
+        match mode {
+            PivotReset::Center => self.center_pivots(ids),
+            PivotReset::Zero => self.zero_pivots(ids),
+        }
+    }
+
+    /// The node indexes of `ids` once the scene allows pivot edits: no duplicate ids, every node
+    /// editable and not keyed.
+    fn pivot_targets(&self, ids: &[NodeId]) -> Result<Vec<usize>, NativeError> {
         let mut seen = std::collections::HashSet::new();
         if !ids.iter().all(|id| seen.insert(*id)) {
             return Err(SceneError::InvalidIds.into());
         }
         self.authoring_preflight()?;
         self.validate()?;
-        let mut writes = Vec::new();
-        for id in ids {
-            let index = self.editable_node(*id)?;
-            self.refuse_keyed(*id)?;
-            if let Some(next) = self.zeroed(index)? {
-                writes.push((index, next));
-            }
-        }
-        self.install(&writes)
+        ids.iter()
+            .map(|id| {
+                let index = self.editable_node(*id)?;
+                self.refuse_keyed(*id)?;
+                Ok(index)
+            })
+            .collect()
     }
 
     /// The node with its pivots zeroed, or `None` when every pivot value is already +-0. Only the
@@ -234,10 +275,6 @@ impl NativeScene {
     /// proved invisible, directly or through a descendant transform, are left out; geometry whose
     /// visibility is unproved is `UnsupportedView`. `None` when no geometry is included.
     /// PROVISIONAL: members and space follow `xform -bb` and the Center Pivot page (known-issues).
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "Center Pivot is the caller (#39 T3)")
-    )]
     pub(crate) fn hierarchy_bounds_local(
         &self,
         id: NodeId,
@@ -341,6 +378,13 @@ impl NativeScene {
         }
         Err(NativeError::NonFinite)
     }
+}
+
+/// Which pivots `reset_pivots` resets: the Modify menu's Center Pivot and Zero Pivot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PivotReset {
+    Center,
+    Zero,
 }
 
 /// The point source of one shape or curve.
