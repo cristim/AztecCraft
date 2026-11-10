@@ -22,7 +22,7 @@ Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `a
 provenance Native and no token or draft checks. In order:
 
 0. `stops_playback` (`src/app/features/timeline.rs "fn stops_playback"`) stops playback before anything else, for native and remote callers alike, even when the operation is then refused. Reads, selection, the camera, tool settings and view settings keep playing; any new variant stops it by default. A remote request refused by its outer guards never gets here.
-1. A Delete or DeleteSelection in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
+1. A Delete, DeleteSelection or ResetPivots in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
    `SetActiveTool`, `Select`, `ModifySelection`, `SelectByRule`, `SelectInRect`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
    and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
@@ -89,6 +89,20 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `check_move_target`, so the 37 `begin_move` cells also cover a multi begin.
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
   `apply_operation`, not `native_operation`, so a pick takes the shared guards like any other native operation.
+- `ResetPivots` in Face, Vertex or Edge mode is refused by the second component-mode check at the top of
+  `apply_operation_guarded` (`src/app/dispatch.rs "Pivot reset on {noun} selection is unsupported"`), ahead of
+  `guard_move_dispatch`, so it shows in every native state (closing, move, modal, draft) as the `reset_pivots(face_mode)`
+  cells; remote cells still report the outer state guard first. `SetPivots` names its node and has no such check.
+- The two pivot operations are not in the modal list of step 5 and not in `guard_move_dispatch`'s cancelling list: during a
+  Move they are `BusyManipulation`, while native ones run under a file modal (`set_pivots(preserve)` is `Ok(changed)` in
+  `modal/native`; issue #430), and remote ones are refused by the outer modal guard. `ResetPivots` with an empty selection
+  is `NoSelection`, whose message reads "Select an object or face before framing" (issue #431); the matrix has no such cell
+  because every state selects a node.
+- The pivot samples run in the main matrix in every state, and also in `pivoted` (a rotated, scaled opened binary: the
+  preserving `set_pivots` and Center Pivot are refused with `PivotNeedsTranslateCorrection`, Zero Pivot and the raw
+  `set_pivots` succeed) and in `pivoted_upright` (no rotation, unit scale: all four succeed). Both states skip the file-writing
+  section. Their cells are `set_pivots(preserve)`, `set_pivots(raw)`, `reset_pivots(center)`, `reset_pivots(zero)` and
+  `reset_pivots(face_mode)`.
 - The `read_only_ascii` fixture is a curve-only scene with no mesh. `set_material_diffuse`,
   `select_face(face_mode)` and `extrude_face` therefore fail there with a missing-shape error, not
   `ReadOnlyFormat`; read-only refusal is shown by `create`, `delete`, `rename` and the other
