@@ -85,9 +85,23 @@ fn pivoted_history() -> (History, NodeId, NodeId) {
 
 fn assert_one_pivot_step(history: &mut History, command: Command) {
     let before = history.scene().clone();
+    // The oracle: the core call applied directly, so a dropped or swapped argument fails.
+    let mut expected = before.clone();
+    match &command {
+        Command::SetPivots {
+            id,
+            rotate_pivot,
+            scale_pivot,
+            preserve,
+        } => expected.set_pivots(*id, *rotate_pivot, *scale_pivot, *preserve),
+        Command::ResetPivots { ids, mode } => expected.reset_pivots(ids, *mode),
+        other => panic!("{other:?}"),
+    }
+    .unwrap();
     let depth = history.undo.len();
     assert_eq!(history.execute(command).unwrap(), EditOutcome::Changed);
     assert_ne!(history.scene(), &before);
+    assert_eq!(history.scene(), &expected);
     assert_eq!(history.undo.len(), depth + 1);
     assert!(history.can_undo() && !history.can_redo());
     assert_eq!(history.undo_label().as_deref(), Some("Pivot"));
@@ -108,6 +122,17 @@ fn set_pivots_is_one_pivot_step_that_undoes_and_redoes_bit_identically() {
             &mut history,
             set(a, Some([0.3, -4.0, 2.5]), Some([1.0, 1.0, -1.0]), preserve),
         );
+    }
+}
+
+#[test]
+fn an_omitted_pivot_stays_untouched() {
+    for (rotate, scale) in [
+        (None, Some([1.0, 1.0, -1.0])),
+        (Some([0.3, -4.0, 2.5]), None),
+    ] {
+        let (mut history, a, _) = pivoted_history();
+        assert_one_pivot_step(&mut history, set(a, rotate, scale, false));
     }
 }
 
@@ -361,4 +386,41 @@ fn a_pivot_command_is_refused_during_a_manipulation() {
         assert_eq!(history.execute(command), Err(NativeError::BusyManipulation));
     }
     assert_eq!(history.revision(), before);
+}
+
+#[test]
+fn a_member_that_fails_while_computing_leaves_the_staged_one_unapplied() {
+    let mut body = Vec::new();
+    for (name, shape, rotation) in [
+        (&b"o1"[..], &b"s1"[..], [0.0; 3]),
+        (&b"o2"[..], &b"s2"[..], [0.0, 0.0, 0.7]),
+    ] {
+        let mut transform = wire::creation(name, None);
+        transform.extend(wire::triple(b"r", rotation));
+        transform.extend(wire::triple(b"rp", [0.5, 0.25, -1.0]));
+        transform.extend(wire::triple(b"sp", [-1.0, 2.0, 0.5]));
+        body.extend(wire::group(b"XFRM", &transform, 4));
+        body.extend(wire::group(
+            b"DMSH",
+            &[
+                wire::creation(shape, Some(name)),
+                wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    let scene = binary::decode(wire::scene_with_units(&body, b"cm", b"deg")).unwrap();
+    let ids: Vec<NodeId> = scene.nodes().iter().map(|n| n.id()).collect();
+    let mut history = History::new(scene);
+    history
+        .execute(set(ids[0], Some([2.0, 2.0, 2.0]), None, false))
+        .unwrap();
+    assert!(history.undo());
+    let before = snapshot(&history);
+    assert_eq!(
+        history.execute(reset(&ids, PivotReset::Center)),
+        Err(NativeError::PivotNeedsTranslateCorrection)
+    );
+    assert_eq!(snapshot(&history), before);
 }
