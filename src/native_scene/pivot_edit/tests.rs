@@ -636,14 +636,28 @@ fn zero_pivot_writes_translate_only_where_the_compensation_is_nonzero() {
     assert_same_matrix("zero e", matrix(&before, id), matrix(&scene, id));
 }
 
-#[test]
-fn zero_pivot_leaves_an_authored_scene_saveable() {
+fn pivoted_cube_with_translates() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();
     scene.nodes[0].channels[5] = Scalar::new(40.0);
     scene.nodes[0].rotate_pivot = [0.0, 1.0, 2.0].map(Scalar::new);
     scene.nodes[0].scale_pivot = [3.0, 0.0, 0.0].map(Scalar::new);
     scene.nodes[0].extras.rotate_pivot_translate = Some([0.5, 0.0, 0.0]);
     scene.nodes[0].extras.scale_pivot_translate = Some([0.0, 0.5, 0.0]);
+    (scene, id)
+}
+
+#[test]
+fn zero_pivot_stores_default_extras() {
+    let (mut scene, id) = pivoted_cube_with_translates();
+    scene.zero_pivots(&[id]).unwrap();
+    assert_eq!(scene.nodes[0].extras, TransformExtras::default());
+}
+
+/// The authored binary writer exists on Unix only (`binary::encode_authored`).
+#[cfg(unix)]
+#[test]
+fn zero_pivot_leaves_an_authored_scene_saveable() {
+    let (mut scene, id) = pivoted_cube_with_translates();
     assert!(binary::encode_authored(&scene).is_err());
     scene.zero_pivots(&[id]).unwrap();
     assert_eq!(scene.nodes[0].extras, TransformExtras::default());
