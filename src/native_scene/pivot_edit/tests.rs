@@ -868,3 +868,76 @@ fn an_overflowing_compensation_on_an_opened_binary_is_non_finite() {
 
 mod center;
 mod hierarchy_bounds;
+
+#[test]
+fn the_edit_refusal_matches_what_a_raw_nonzero_set_pivots_does() {
+    let raw = |scene: &NativeScene, id, leaf: PivotLeaf| {
+        let value = Some([1.0, 2.0, 3.0]);
+        let (rotate, scale) = match leaf {
+            PivotLeaf::Rotate => (value, None),
+            PivotLeaf::Scale => (None, value),
+        };
+        scene.clone().set_pivots(id, rotate, scale, false)
+    };
+    let mut cases = Vec::new();
+    let (scene, id) = cube();
+    cases.push(("authored", scene, id, None, None));
+    let (mut restricted, id) = cube();
+    restrict_edits(&mut restricted, id);
+    cases.push((
+        "restricted",
+        restricted,
+        id,
+        Some(NativeError::UnsupportedEdit),
+        Some(NativeError::UnsupportedEdit),
+    ));
+    let (mut keyed, id) = cube();
+    keyed.set_keys(&[id], 1, ALL_CHANNELS, 1).unwrap();
+    cases.push((
+        "keyed",
+        keyed,
+        id,
+        Some(NativeError::PivotOnKeyedNode),
+        Some(NativeError::PivotOnKeyedNode),
+    ));
+    let ascii = ascii::decode(Arc::from(ascii_fixture::specimen())).unwrap();
+    let id = ascii.nodes()[0].id();
+    cases.push((
+        "ascii",
+        ascii,
+        id,
+        Some(NativeError::ReadOnlyFormat),
+        Some(NativeError::ReadOnlyFormat),
+    ));
+    let (full, id) = opened([0.0; 3], [1.0; 3]);
+    cases.push(("binary with both leaves", full, id, None, None));
+    let missing = binary_scene(&[(b"t", [1.0; 3]), (b"sp", [0.0; 3])]);
+    let id = missing.nodes()[0].id();
+    let absent = |field| Some(NativeError::AbsentPivotLeaf { field });
+    cases.push((
+        "binary without rp",
+        missing,
+        id,
+        absent(PivotLeaf::Rotate),
+        None,
+    ));
+    for (name, scene, id, rotate, scale) in cases {
+        for (leaf, expected) in [(PivotLeaf::Rotate, rotate), (PivotLeaf::Scale, scale)] {
+            assert_eq!(scene.pivot_edit_refusal(id, leaf), expected, "{name}");
+            assert_eq!(
+                raw(&scene, id, leaf).err(),
+                expected,
+                "{name}: the query and the edit disagree"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_edit_refusal_of_an_unknown_node_is_the_missing_node_error() {
+    let (scene, _) = cube();
+    assert_eq!(
+        scene.pivot_edit_refusal(NodeId::new(999), PivotLeaf::Rotate),
+        Some(SceneError::MissingNode(NodeId::new(999)).into())
+    );
+}

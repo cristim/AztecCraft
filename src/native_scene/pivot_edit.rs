@@ -63,6 +63,35 @@ impl NativeScene {
         self.install(&[(index, next)])
     }
 
+    /// Why a field of the `leaf` pivot of `id` cannot be edited now, for the Attribute Editor to
+    /// disable it before the user types: the checks `set_pivots` makes in the same order. An
+    /// opened binary node without the leaf stores no pivot to patch (T13 inserts leaves).
+    pub fn pivot_edit_refusal(&self, id: NodeId, leaf: PivotLeaf) -> Option<NativeError> {
+        if let Some(reason) = self.authoring_read_only_reason() {
+            return Some(reason);
+        }
+        let index = match self.editable_node(id) {
+            Ok(index) => index,
+            Err(error) => return Some(error),
+        };
+        if let Err(error) = self.refuse_keyed(id) {
+            return Some(error);
+        }
+        let node = &self.nodes[index];
+        let (field, slots) = match leaf {
+            PivotLeaf::Rotate => (TransformField::RotatePivot, &node.rotate_pivot),
+            PivotLeaf::Scale => (TransformField::ScalePivot, &node.scale_pivot),
+        };
+        self.source
+            .as_ref()
+            .filter(|source| {
+                source.format == SourceFormat::Binary
+                    && slots.iter().any(|slot| slot.origin.is_none())
+                    && !source.can_insert(node.transform_id, field)
+            })
+            .map(|_| NativeError::AbsentPivotLeaf { field: leaf })
+    }
+
     /// The node at `index` with its pivots set; `set_pivots` without the checks of the scene.
     fn pivoted(
         &self,
