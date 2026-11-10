@@ -828,3 +828,5 @@ fn an_overflowing_compensation_on_an_opened_binary_is_non_finite() {
         assert_eq!(scene, before);
     }
 }
+
+mod hierarchy_bounds;
