@@ -29,7 +29,7 @@ serde_json = { version = "=1.0.154", features = ["float_roundtrip"] }
 craft-atomic = { path = "vendor/craft-atomic" }
 nom = "=8.0.0"
 eframe = { version = "=0.37.0", optional = true, default-features = false, features = ["default_fonts", "wgpu", "x11", "wayland", "accesskit"] }
-rfd = { version = "=0.17.2", optional = true }
+rfd = { version = "=0.18.0", optional = true }
 uuid = { version = "=1.29.0", features = ["v4"] }
 rmcp = { version = "=3.9.0", default-features = false, features = ["server", "transport-io"], optional = true }
 tokio = { version = "=1.54.1", features = ["rt", "macros", "sync", "time", "io-std", "io-util"], optional = true }
