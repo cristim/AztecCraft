@@ -154,3 +154,5 @@ fn shapes_without_uvs_keep_todays_bytes() {
     assert_eq!(&text[..boundary], &first[..boundary]);
     assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
 }
+
+mod limits;
