@@ -1111,9 +1111,11 @@ fn marquee_drag(
     release: Modifiers,
 ) -> (ViewportInput, ViewportInput) {
     let camera = camera();
+    // Continue a reused Context's clock: egui rejects time moving backwards.
+    let base = context.input(|input| input.time);
     let none = Modifiers::NONE;
     let frame = |time, modifiers, events| {
-        capture_frame(context, &camera, raw(time, modifiers, events), clip).0
+        capture_frame(context, &camera, raw(base + time, modifiers, events), clip).0
     };
     frame(0.0, none, vec![Event::PointerMoved(press)]);
     frame(0.1, none, vec![primary(press, true, none)]);
@@ -1268,13 +1270,7 @@ fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
     // The next drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
+    let (_, next) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
     assert!(next.marquee().is_some());
 }
 
@@ -1297,13 +1293,7 @@ fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     let released = frame(0.4, false, vec![primary(end, false, none)]);
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
+    let (_, next) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
     assert!(next.marquee().is_some());
 }
 
@@ -1397,12 +1387,6 @@ fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
     // The next plain drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        clip,
-        START,
-        &[end],
-        Modifiers::NONE,
-    );
+    let (_, next) = marquee_drag(&context, clip, START, &[end], Modifiers::NONE);
     assert!(next.marquee().is_some());
 }
