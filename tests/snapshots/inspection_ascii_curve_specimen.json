@@ -55,17 +55,17 @@
         {
           "available": false,
           "kind": "move",
-          "unavailable_reason": "Select an object or face before framing"
+          "unavailable_reason": "Select an object or face first"
         },
         {
           "available": false,
           "kind": "rotate",
-          "unavailable_reason": "Select an object or face before framing"
+          "unavailable_reason": "Select an object or face first"
         },
         {
           "available": false,
           "kind": "scale",
-          "unavailable_reason": "Select an object or face before framing"
+          "unavailable_reason": "Select an object or face first"
         }
       ],
       "manipulator_size": 1.0,
@@ -83,17 +83,17 @@
         "axes": [
           {
             "axis": "x",
-            "unavailable_reason": "Select an object or face before framing",
+            "unavailable_reason": "Select an object or face first",
             "visible": false
           },
           {
             "axis": "y",
-            "unavailable_reason": "Select an object or face before framing",
+            "unavailable_reason": "Select an object or face first",
             "visible": false
           },
           {
             "axis": "z",
-            "unavailable_reason": "Select an object or face before framing",
+            "unavailable_reason": "Select an object or face first",
             "visible": false
           }
         ],
