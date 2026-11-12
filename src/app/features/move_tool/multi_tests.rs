@@ -534,3 +534,92 @@ fn a_refused_move_press_consumes_the_pointer_sequence() {
     assert!(editor.move_suppress_primary, "{}", editor.status);
     assert!(editor.history.active_manipulation().is_none());
 }
+
+fn set_move_space(editor: &mut Editor, space: MoveSpace) -> OperationReply {
+    editor
+        .apply_operation(Operation::SetMoveSpace { space })
+        .unwrap()
+}
+
+fn edit_rotation(editor: &mut Editor, node: azteccraft::scene::NodeId, degrees: [f64; 3]) {
+    editor
+        .apply_operation(Operation::EditNode {
+            id: node,
+            name: None,
+            translation: [None; 3],
+            rotation_degrees: degrees.map(Some),
+            scale: [None; 3],
+        })
+        .unwrap();
+}
+
+#[test]
+fn move_space_defaults_to_world_and_reports_change_and_no_change() {
+    let (mut editor, _, _) = two_selected();
+    assert_eq!(editor.manipulation.move_space(), MoveSpace::World);
+    assert!(matches!(
+        set_move_space(&mut editor, MoveSpace::World),
+        OperationReply::Unchanged
+    ));
+    assert!(matches!(
+        set_move_space(&mut editor, MoveSpace::Parent),
+        OperationReply::Changed
+    ));
+    assert_eq!(editor.manipulation.move_space(), MoveSpace::Parent);
+}
+
+#[test]
+fn a_remote_object_move_sends_each_selected_object_along_its_own_axis() {
+    let (mut editor, _, _) = two_selected();
+    let members = editor.selection.members().to_vec();
+    edit_rotation(&mut editor, members[0].node, [0.0, 0.0, 90.0]);
+    edit_rotation(&mut editor, members[1].node, [0.0, 90.0, 0.0]);
+    set_move_space(&mut editor, MoveSpace::Object);
+    let lead = editor.selection.lead().unwrap().clone();
+    let generation = editor.selection.generation();
+    let Ok(OperationReply::ManipulationStarted { manipulation_id }) =
+        remote(&mut editor, begin_op(lead, Some(generation)))
+    else {
+        panic!("begin refused");
+    };
+    let id = ManipulationId::from_decimal(&manipulation_id).unwrap();
+    remote(
+        &mut editor,
+        Operation::UpdateMove {
+            id,
+            distance: MoveDistance::Centimeters(5.0),
+        },
+    )
+    .unwrap();
+    let translation = |editor: &Editor, member: &TransformTarget| {
+        editor
+            .history
+            .scene()
+            .node(member.node)
+            .unwrap()
+            .transform()
+            .translation
+    };
+    // Object X of Rz(90) is world +Y; of Ry(90) it is world -Z.
+    for (member, expected) in members.iter().zip([[0.0, 5.0, 0.0], [0.0, 0.0, -5.0]]) {
+        let actual = translation(&editor, member);
+        for (a, e) in actual.iter().zip(expected) {
+            assert!((a - e).abs() < 1e-4, "{actual:?} != {expected:?}");
+        }
+    }
+}
+
+#[test]
+fn a_native_drag_refuses_a_non_world_orientation_until_the_handles_follow_it() {
+    let (mut editor, _, _) = two_selected();
+    set_move_space(&mut editor, MoveSpace::Object);
+    let scene = editor.history.scene().clone();
+    let lead = editor.selection.lead().unwrap().clone();
+    let result = editor.apply_operation(begin_op(lead, None));
+    assert!(
+        matches!(&result, Err(OperationError::InvalidInput(message)) if message.starts_with("unsupported")),
+        "{result:?}"
+    );
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &scene);
+}
