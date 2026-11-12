@@ -1,4 +1,5 @@
 pub(super) mod animation;
+pub(super) mod camera_bookmarks;
 pub(super) mod extrude;
 pub(super) mod file;
 pub(super) mod history;
