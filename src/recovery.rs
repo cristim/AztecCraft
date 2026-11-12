@@ -392,3 +392,6 @@ fn remove_regular(path: &Path) -> Result<(), RecoveryError> {
         Err(source) => Err(io_error("remove")(source)),
     }
 }
+
+#[cfg(test)]
+mod tests;
