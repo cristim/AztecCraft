@@ -582,8 +582,8 @@ async fn animation_sdk_a_full_key_table_answers_key_limit_and_changes_nothing() 
 async fn animation_sdk_a_scene_in_another_time_unit_refuses_every_time_tool() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
-    // The ASCII reader only takes film, so patch the one TUNI token of a committed Maya Binary
-    // fixture from film to ntsc (the same four bytes).
+    // Patch the one TUNI token of a committed Maya Binary fixture from film to ntsc (the same
+    // four bytes); an ASCII ntsc scene is covered by the same `check_time_unit` refusal.
     let mut bytes =
         include_bytes!("../../../tests/fixtures/mayascenekit/file_owner_delete.mb").to_vec();
     let at = bytes.windows(4).position(|word| word == b"film").unwrap();

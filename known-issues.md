@@ -17,8 +17,8 @@ back. No parity with Maya is claimed, and nothing was compared with a running Ma
   `inspect_keys` says so through `unavailable_reason`. A file's current time and range are not read.
 - **Transform channels only.** Whole frames from -1000000 through 1000000, and 65536 keys a scene.
   Fractional times are refused. Rotation keys are in the scene's declared angular unit.
-- **Time units.** Only `film` is accepted. The ASCII reader refuses other units, and a binary scene
-  with another unit refuses every time operation; that refusal is tested in the core only.
+- **Time units.** Only `film` plays. An ASCII or binary scene in another
+  admitted unit (ntsc) opens, and every time operation refuses (`unsupported_time_unit`); that refusal is tested in the core only.
 
 PROVISIONAL, because the docs do not state it or the feature behind it is absent:
 
@@ -465,7 +465,7 @@ covered MCP-driven mode switches on one macOS debug build only
 The supported legacy 2016 static cubic ASCII class now has inert native Open,
 canonical f64 curve state, evaluated GPU line geometry, conservative framing and
 bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
-admit general Maya ASCII, arbitrary units/history/drivers, rigs, imported
+admit general Maya ASCII, arbitrary units (only mm/cm/m/in/ft, deg/rad, film/ntsc; curves need centimeter and meshes need centimeter/degree/film) or history/drivers, rigs, imported
 instancing or Maya 2026 behavior. Unknown effects refuse the complete candidate.
 Scene scripts remain retained inert data.
 

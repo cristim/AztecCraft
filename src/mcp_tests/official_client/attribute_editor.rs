@@ -480,8 +480,8 @@ fn extras_scene(units: &str, attributes: &str) -> azteccraft::native_scene::Nati
 
 #[tokio::test]
 async fn sdk_inspection_reports_transform_extras_with_units_and_non_default_names() {
-    // Maya ASCII only opens centimeter/degree scenes, so radian and meter units are covered by the
-    // core test `transform_attributes_report_names_degrees_and_declared_linear_units`.
+    // Radian and meter units are covered by the core test
+    // `transform_attributes_report_names_degrees_and_declared_linear_units`.
     let cases = [(
         "-l centimeter -a degree",
         "setAttr \".ro\" 1; setAttr \".ra\" -type \"double3\" 10 20 -30; \

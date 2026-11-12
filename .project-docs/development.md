@@ -427,7 +427,17 @@ admitted class is clamped open cubic, nonrational three-dimensional curves with
 finite f64 CVs/knots, strict positive interior spans (repeated interior knots,
 i.e. C0 curves, are refused as Unsupported), supported parent transforms and the
 explicit startup/metadata envelope. The retained legacy 2016 reference
-uses centimeter/degree/film units. Unsupported classes, commands, drivers,
+uses centimeter/degree/film units. Declared units (#17, PROVISIONAL until compared
+with the pinned Maya reference, #5): `currentUnit` once with all of `-l`
+millimeter|centimeter|meter|inch|foot, `-a` degree|radian and `-t` film|ntsc.
+Transform translate, pivots, pivot translations, rotate and rotate axis are read as
+values in the declared units and converted through `Units`. Limits: a curve under any
+linear unit other than centimeter is refused Unsupported (whether `.cc` CVs are
+written in the declared unit is unverified, so they are never guessed); polygon
+meshes still require centimeter/degree/film because the writer-identity gate
+requires it; an ntsc scene opens but every time and key tool refuses with
+`unsupported_time_unit`; kilometer, yard, mile, other angular and time units and any
+repeated, missing or unknown flag refuse the whole candidate. Other unsupported classes, commands, drivers,
 history, units or unknown effects refuse the whole candidate. This is not general
 Maya ASCII, rig or Maya 2026 compatibility. Original bytes, including quoted
 script bodies, remain inert and unchanged.

@@ -1,7 +1,7 @@
 use super::{
-    DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeMesh,
-    NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar, TransformExtras,
-    Units,
+    AngularUnit, DagEdge, GeometryViewFacts, LinearUnit, NativeCurveShape, NativeError, NativeId,
+    NativeMesh, NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar,
+    TransformExtras, Units,
     admission::Budget,
     authored::BUILTINS,
     curve::CurveSource,
@@ -1034,11 +1034,32 @@ impl Builder<'_, '_> {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
                 let mut flags = 0;
+                let mut units = Units::default();
                 while c.position < c.tokens.len() {
                     let bit = match (c.word()?, c.word()?) {
-                        ("-l", "centimeter") => 1,
-                        ("-a", "degree") => 2,
-                        ("-t", "film") => 4,
+                        ("-l", unit) => {
+                            units.linear = match unit {
+                                "millimeter" => LinearUnit::Millimeter,
+                                "centimeter" => LinearUnit::Centimeter,
+                                "meter" => LinearUnit::Meter,
+                                "inch" => LinearUnit::Inch,
+                                "foot" => LinearUnit::Foot,
+                                _ => return Err(error(ErrorKind::Unsupported, c.offset)),
+                            };
+                            1
+                        }
+                        ("-a", unit) => {
+                            units.angular = match unit {
+                                "degree" => AngularUnit::Degree,
+                                "radian" => AngularUnit::Radian,
+                                _ => return Err(error(ErrorKind::Unsupported, c.offset)),
+                            };
+                            2
+                        }
+                        ("-t", unit @ ("film" | "ntsc")) => {
+                            units.time = self.budget.string(unit).map_err(|_| resource())?;
+                            4
+                        }
                         _ => return Err(error(ErrorKind::Unsupported, c.offset)),
                     };
                     if flags & bit != 0 {
@@ -1049,6 +1070,7 @@ impl Builder<'_, '_> {
                 if flags != 7 {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
+                self.scene.units = units;
                 self.units = true;
             }
             "createNode" => self.create(c)?,
@@ -1200,6 +1222,12 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     if !builder.units {
         return Err(error(ErrorKind::Unsupported, 0));
     }
+    // Whether `.cc` CVs are written in the declared linear unit is unverified against the Maya
+    // reference (#5); curves are refused rather than guessed. Meshes never reach here with
+    // other units: `decode_document` requires writer-identical bytes (centimeter/degree/film).
+    if builder.scene.units.linear != LinearUnit::Centimeter && !builder.scene.curves.is_empty() {
+        return Err(error(ErrorKind::Unsupported, 0));
+    }
     builder.finish_meshes()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
     NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
@@ -1219,6 +1247,8 @@ mod document;
 mod mesh;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod units_tests;
 pub(crate) mod write;
 #[cfg(test)]
 pub(super) use write::{AsciiWriteRefusal, emit_geometry_prefix};
