@@ -5,6 +5,8 @@ mod editor_operations;
 #[cfg(feature = "mcp")]
 mod mcp;
 mod tool_icons;
+#[cfg(test)]
+mod viewport_renderer;
 mod viewport_ui;
 
 fn main() -> eframe::Result {

@@ -31,6 +31,7 @@ tokio-util = { version = "=0.7.20", features = ["codec", "rt"], optional = true 
 futures-util = { version = "=0.3.34", features = ["sink"], optional = true }
 
 [dev-dependencies]
+pollster = "=1.0.1"
 tempfile = "=3.27.0"
 
 [profile.dev]
