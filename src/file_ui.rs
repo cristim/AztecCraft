@@ -439,6 +439,7 @@ impl Editor {
         self.material_draft = None;
         self.attribute_editor_tab = None;
         self.camera = camera;
+        self.bookmarks.clear();
         self.status = "Scene ready".into();
         self.error = false;
     }
