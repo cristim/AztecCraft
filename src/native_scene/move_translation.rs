@@ -29,6 +29,18 @@ impl WorldAxis {
     }
 }
 
+/// The Move tool's Axis Orientation: the axes a Move handle is aligned to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MoveSpace {
+    /// Maya's default.
+    #[default]
+    World,
+    /// The node's own rotation (rotate order, no Rotate Axis) inside its parents' map.
+    Object,
+    /// The parents' map alone; the world for a root node.
+    Parent,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChannelLeaf {
     Translate,
@@ -88,6 +100,8 @@ pub struct WorldMoveFrame {
     parent_linear: DMat3,
     inverse_parent: DMat3,
     parent_norm: f64,
+    /// The node's own rotation R(rotate order), without Rotate Axis, shear or scale.
+    object_rotation: DMat3,
     translation: [f64; 3],
     translation_cm: DVec3,
     linear_factor: f64,
@@ -137,7 +151,30 @@ impl WorldMoveFrame {
     // where the file recorded an insertion site (`absent_leaf` is false there); elsewhere the
     // edit could never be saved.
     pub fn require_leaves(&self, axis: WorldAxis) -> Result<(), NativeError> {
-        let local = self.inverse_parent * axis.direction();
+        self.require_leaves_in(MoveSpace::World, axis)
+    }
+
+    /// The unit world direction of `axis` in `space`. Parent and Object axes are normalized, so a
+    /// parent's scale never changes the distance moved.
+    pub fn direction(&self, space: MoveSpace, axis: WorldAxis) -> Result<DVec3, NativeError> {
+        let unit = axis.direction();
+        let along = match space {
+            MoveSpace::World => return Ok(unit),
+            MoveSpace::Parent => self.parent_linear * unit,
+            MoveSpace::Object => self.parent_linear * (self.object_rotation * unit),
+        };
+        let length = along.length();
+        let direction = along / length;
+        if !length.is_finite() || !direction.is_finite() {
+            return Err(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::ParentTransform,
+            ));
+        }
+        Ok(direction)
+    }
+
+    pub fn require_leaves_in(&self, space: MoveSpace, axis: WorldAxis) -> Result<(), NativeError> {
+        let local = self.inverse_parent * self.direction(space, axis)?;
         for (component, delta) in local.to_array().into_iter().enumerate() {
             if delta != 0.0 && self.absent_leaf[component] {
                 return Err(NativeError::AbsentChannelLeaf {
@@ -150,13 +187,22 @@ impl WorldMoveFrame {
     }
 
     pub fn translation(&self, axis: WorldAxis, distance_cm: f64) -> Result<[f64; 3], NativeError> {
+        self.translation_in(MoveSpace::World, axis, distance_cm)
+    }
+
+    pub fn translation_in(
+        &self,
+        space: MoveSpace,
+        axis: WorldAxis,
+        distance_cm: f64,
+    ) -> Result<[f64; 3], NativeError> {
         if !distance_cm.is_finite() {
             return Err(NativeError::NonFinite);
         }
         if distance_cm == 0.0 {
             return Ok(self.translation);
         }
-        let displacement = axis.direction() * distance_cm;
+        let displacement = self.direction(space, axis)? * distance_cm;
         let local_delta = self.inverse_parent * displacement;
         let bound = self.parent_norm * local_delta.abs().max_element();
         let tolerance = ROUNDTRIP_EPSILON * bound.max(distance_cm.abs()).max(1.0);
@@ -594,6 +640,11 @@ impl NativeScene {
             parent_linear,
             inverse_parent,
             parent_norm,
+            object_rotation: transform
+                .rotation_only()
+                .ok_or(NativeError::UnsupportedMove(
+                    WorldMoveUnsupported::ParentTransform,
+                ))?,
             translation: selected.transform().translation,
             translation_cm: DVec3::from_array(transform.translation_cm),
             linear_factor: self.units.linear_factor()?,

@@ -23,7 +23,9 @@ pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
-pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
+pub use move_translation::{
+    ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_keys::SessionKeys;
@@ -623,6 +625,17 @@ impl InternalTransform {
         };
         let order = transform_extras::rotation_matrix(extras.rotate_order, self.rotation_radians)?;
         Some(DMat3::from_mat4(order * extras.rotate_axis_matrix()))
+    }
+
+    /// R(rotate order) alone: `rotation_frame` without the Rotate Axis.
+    pub(crate) fn rotation_only(self) -> Option<DMat3> {
+        match self.extras {
+            None => Some(rotate_frame::rotation_matrix(self.rotation_radians)),
+            Some(extras) => {
+                transform_extras::rotation_matrix(extras.rotate_order, self.rotation_radians)
+                    .map(DMat3::from_mat4)
+            }
+        }
     }
 
     pub(crate) fn matrix(self) -> Option<DMat4> {
