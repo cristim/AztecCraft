@@ -1189,6 +1189,7 @@ impl NativeScene {
             Primitive::Sphere => "pSphere",
             Primitive::Cylinder => "pCylinder",
             Primitive::Cone => "pCone",
+            Primitive::Torus => "pTorus",
         };
         let count = authored::names(self).count();
         let free = |prefix: &str| {

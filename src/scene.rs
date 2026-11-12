@@ -30,6 +30,7 @@ pub enum Primitive {
     Sphere,
     Cylinder,
     Cone,
+    Torus,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]

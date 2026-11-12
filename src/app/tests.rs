@@ -9566,6 +9566,7 @@ fn every_primitive_variant_is_in_the_create_menu() {
         Primitive::Sphere,
         Primitive::Cylinder,
         Primitive::Cone,
+        Primitive::Torus,
     ] {
         match primitive {
             Primitive::Cube
@@ -9573,6 +9574,8 @@ fn every_primitive_variant_is_in_the_create_menu() {
             | Primitive::Sphere
             | Primitive::Cylinder
             | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
+            // The Torus row stays disabled until the UI slice (#43).
+            Primitive::Torus => assert!(!listed(primitive)),
         }
     }
     let built = menus::POLYGON_PRIMITIVES
