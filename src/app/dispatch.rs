@@ -110,6 +110,7 @@ impl Editor {
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
+            | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
@@ -390,14 +391,7 @@ impl Editor {
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
-                let text = path.to_str().ok_or_else(|| {
-                    OperationError::InvalidInput("Scene path must be UTF-8".into())
-                })?;
-                if text.is_empty() || text.len() > 4096 || text.contains('\0') {
-                    return Err(OperationError::InvalidInput(
-                        "Scene path must contain 1 to 4096 bytes and no NUL".into(),
-                    ));
-                }
+                super::files::validate_scene_path(path)?;
                 if matches!(operation, Operation::OpenScene { .. }) {
                     return self.open_candidate(path);
                 }
@@ -419,7 +413,13 @@ impl Editor {
             Operation::ResolveFileAction {
                 pending_id,
                 decision,
-            } => return self.resolve_file_action_guarded(*pending_id, *decision, may_install),
+            } => {
+                return self.resolve_file_action_guarded(
+                    *pending_id,
+                    decision.clone(),
+                    may_install,
+                );
+            }
             _ => {}
         }
         if self.files.is_modal()
@@ -427,6 +427,7 @@ impl Editor {
                 operation,
                 Operation::SetActiveTool(_)
                     | Operation::SetToolSpace { .. }
+                    | Operation::SetMoveSpace { .. }
                     | Operation::SetToolHandle(_)
                     | Operation::SetManipulatorSize(_)
                     | Operation::BeginMove { .. }
@@ -449,6 +450,29 @@ impl Editor {
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
+                    | Operation::Create { .. }
+                    | Operation::Delete(_)
+                    | Operation::DeleteSelection
+                    | Operation::ExtrudeFace { .. }
+                    | Operation::ProjectUvPlanar { .. }
+                    | Operation::DeleteUvs { .. }
+                    | Operation::Undo
+                    | Operation::Redo
+            )
+        {
+            return Err(OperationError::BusyEditing);
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if self.files.is_modal()
+            && matches!(
+                operation,
+                Operation::Rename { .. }
+                    | Operation::SetTransform { .. }
+                    | Operation::EditNode { .. }
+                    | Operation::SetMaterialDiffuse { .. }
+                    | Operation::CreateSessionMaterial { .. }
+                    | Operation::AssignSessionMaterial { .. }
+                    | Operation::SetSessionMaterialColor { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -564,6 +588,7 @@ impl Editor {
             }
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
+            Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
             Operation::BeginMove {

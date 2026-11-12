@@ -230,6 +230,127 @@ fn face_click_does_not_borrow_a_later_drag_release_modifiers() {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Gesture {
+    Click(Modifiers, f32),
+    Drag(Modifiers, f32),
+}
+
+fn gesture_events(gestures: &[Gesture], y: f32) -> Vec<Event> {
+    let mut events = Vec::new();
+    for gesture in gestures {
+        let (modifiers, x, end) = match *gesture {
+            Gesture::Click(modifiers, x) => (modifiers, x, x),
+            Gesture::Drag(modifiers, x) => (modifiers, x, x + 36.0),
+        };
+        events.push(Event::ModifiersChanged(modifiers));
+        events.push(Event::PointerMoved(egui::pos2(x, y)));
+        for (pressed, at) in [(true, x), (false, end)] {
+            if pressed || end != x {
+                events.push(Event::PointerMoved(egui::pos2(at, y)));
+            }
+            events.push(Event::PointerButton {
+                pos: egui::pos2(at, y),
+                button: PointerButton::Primary,
+                pressed,
+                modifiers,
+            });
+        }
+    }
+    events
+}
+
+#[test]
+fn coalesced_primary_releases_decide_per_event_with_exact_modifiers() {
+    use Gesture::{Click, Drag};
+    let (none, shift) = (Modifiers::NONE, Modifiers::SHIFT);
+    type Case = (
+        &'static str,
+        Vec<Gesture>,
+        Option<f32>,
+        Option<SelectionRefusal>,
+    );
+    let cases: [Case; 8] = [
+        (
+            "shift then plain click",
+            vec![Click(shift, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain then plain click",
+            vec![Click(none, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain drag then plain click",
+            vec![Drag(none, 20.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "shift click then drag",
+            vec![Click(shift, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain click then drag",
+            vec![Click(none, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain then shift click",
+            vec![Click(none, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "shift then shift click",
+            vec![Click(shift, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "ctrl click then plain click",
+            vec![Click(Modifiers::CTRL, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+    ];
+    for (name, gestures, click_x, refusal) in cases {
+        let context = egui::Context::default();
+        let camera = camera();
+        let start = egui::pos2(gestures_first_x(&gestures), 48.0);
+        capture_frame(
+            &context,
+            &camera,
+            raw(0.0, Modifiers::NONE, vec![Event::PointerMoved(start)]),
+            Rect::EVERYTHING,
+        );
+        let (input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(0.1, Modifiers::NONE, gesture_events(&gestures, 48.0)),
+            Rect::EVERYTHING,
+        );
+        assert_eq!(input.unsupported_selection(), refusal, "{name}");
+        assert_eq!(
+            input.click_points.map(|point| point.x),
+            click_x,
+            "{name}: the click is the last release at its own position"
+        );
+    }
+}
+
+fn gestures_first_x(gestures: &[Gesture]) -> f32 {
+    match gestures[0] {
+        Gesture::Click(_, x) | Gesture::Drag(_, x) => x,
+    }
+}
+
 #[test]
 fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once() {
     let context = egui::Context::default();
@@ -1111,9 +1232,11 @@ fn marquee_drag(
     release: Modifiers,
 ) -> (ViewportInput, ViewportInput) {
     let camera = camera();
+    // Continue a reused Context's clock: egui rejects time moving backwards.
+    let base = context.input(|input| input.time);
     let none = Modifiers::NONE;
     let frame = |time, modifiers, events| {
-        capture_frame(context, &camera, raw(time, modifiers, events), clip).0
+        capture_frame(context, &camera, raw(base + time, modifiers, events), clip).0
     };
     frame(0.0, none, vec![Event::PointerMoved(press)]);
     frame(0.1, none, vec![primary(press, true, none)]);
@@ -1241,44 +1364,8 @@ fn escape() -> Event {
     }
 }
 
-/// PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it.
-#[test]
-fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
-    let context = egui::Context::default();
-    let camera = camera();
-    let none = Modifiers::NONE;
-    let end = START + egui::vec2(32.0, 24.0);
-    let frame = |time, events| {
-        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
-    };
-    frame(0.0, vec![Event::PointerMoved(START)]);
-    frame(0.1, vec![primary(START, true, none)]);
-    assert!(
-        frame(0.2, vec![Event::PointerMoved(end)])
-            .marquee_preview()
-            .is_some()
-    );
-    assert!(frame(0.25, vec![escape()]).marquee_preview().is_none());
-    assert!(
-        frame(0.3, vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))])
-            .marquee_preview()
-            .is_none()
-    );
-    let released = frame(0.4, vec![primary(end, false, none)]);
-    assert!(released.marquee().is_none());
-    assert_eq!(released.unsupported_selection(), None);
-    // The next drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
-    assert!(next.marquee().is_some());
-}
-
-/// Losing window focus mid-drag cancels like Esc: winit still delivers the release.
+/// Losing window focus mid-drag cancels the marquee: winit still delivers the release. (Esc needs
+/// no test here: egui itself ends the drag on Esc, so the Esc branch cannot be observed.)
 #[test]
 fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     let context = egui::Context::default();
@@ -1297,13 +1384,7 @@ fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     let released = frame(0.4, false, vec![primary(end, false, none)]);
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
+    let (_, next) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
     assert!(next.marquee().is_some());
 }
 
@@ -1397,12 +1478,6 @@ fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
     // The next plain drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        clip,
-        START,
-        &[end],
-        Modifiers::NONE,
-    );
+    let (_, next) = marquee_drag(&context, clip, START, &[end], Modifiers::NONE);
     assert!(next.marquee().is_some());
 }

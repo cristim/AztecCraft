@@ -1,5 +1,6 @@
 use super::*;
 use glam::DMat3;
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 const MAX_PARENT_CONDITION: f64 = 1e12;
@@ -27,6 +28,19 @@ impl WorldAxis {
             Self::Z => DVec3::Z,
         }
     }
+}
+
+/// The Move tool's Axis Orientation: the axes a Move handle is aligned to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoveSpace {
+    /// Maya's default.
+    #[default]
+    World,
+    /// The node's own rotation (rotate order, no Rotate Axis) inside its parents' map.
+    Object,
+    /// The parents' map alone; the world for a root node.
+    Parent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,6 +102,8 @@ pub struct WorldMoveFrame {
     parent_linear: DMat3,
     inverse_parent: DMat3,
     parent_norm: f64,
+    /// The node's own rotation R(rotate order), without Rotate Axis, shear or scale.
+    object_rotation: DMat3,
     translation: [f64; 3],
     translation_cm: DVec3,
     linear_factor: f64,
@@ -137,7 +153,30 @@ impl WorldMoveFrame {
     // where the file recorded an insertion site (`absent_leaf` is false there); elsewhere the
     // edit could never be saved.
     pub fn require_leaves(&self, axis: WorldAxis) -> Result<(), NativeError> {
-        let local = self.inverse_parent * axis.direction();
+        self.require_leaves_in(MoveSpace::World, axis)
+    }
+
+    /// The unit world direction of `axis` in `space`. Parent and Object axes are normalized, so a
+    /// parent's scale never changes the distance moved.
+    pub fn direction(&self, space: MoveSpace, axis: WorldAxis) -> Result<DVec3, NativeError> {
+        let unit = axis.direction();
+        let along = match space {
+            MoveSpace::World => return Ok(unit),
+            MoveSpace::Parent => self.parent_linear * unit,
+            MoveSpace::Object => self.parent_linear * (self.object_rotation * unit),
+        };
+        let length = along.length();
+        let direction = along / length;
+        if !length.is_finite() || !direction.is_finite() {
+            return Err(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::ParentTransform,
+            ));
+        }
+        Ok(direction)
+    }
+
+    pub fn require_leaves_in(&self, space: MoveSpace, axis: WorldAxis) -> Result<(), NativeError> {
+        let local = self.inverse_parent * self.direction(space, axis)?;
         for (component, delta) in local.to_array().into_iter().enumerate() {
             if delta != 0.0 && self.absent_leaf[component] {
                 return Err(NativeError::AbsentChannelLeaf {
@@ -150,13 +189,22 @@ impl WorldMoveFrame {
     }
 
     pub fn translation(&self, axis: WorldAxis, distance_cm: f64) -> Result<[f64; 3], NativeError> {
+        self.translation_in(MoveSpace::World, axis, distance_cm)
+    }
+
+    pub fn translation_in(
+        &self,
+        space: MoveSpace,
+        axis: WorldAxis,
+        distance_cm: f64,
+    ) -> Result<[f64; 3], NativeError> {
         if !distance_cm.is_finite() {
             return Err(NativeError::NonFinite);
         }
         if distance_cm == 0.0 {
             return Ok(self.translation);
         }
-        let displacement = axis.direction() * distance_cm;
+        let displacement = self.direction(space, axis)? * distance_cm;
         let local_delta = self.inverse_parent * displacement;
         let bound = self.parent_norm * local_delta.abs().max_element();
         let tolerance = ROUNDTRIP_EPSILON * bound.max(distance_cm.abs()).max(1.0);
@@ -211,13 +259,23 @@ impl WorldMoveFrame {
 }
 
 impl NativeScene {
+    #[cfg(test)]
     pub(crate) fn begin_move_translation(
         &self,
         target: &TransformTarget,
         axis: WorldAxis,
     ) -> Result<(WorldMoveFrame, ChannelBaseline), NativeError> {
+        self.begin_move_translation_in(target, MoveSpace::World, axis)
+    }
+
+    pub(crate) fn begin_move_translation_in(
+        &self,
+        target: &TransformTarget,
+        space: MoveSpace,
+        axis: WorldAxis,
+    ) -> Result<(WorldMoveFrame, ChannelBaseline), NativeError> {
         let frame = self.world_move_frame(target)?;
-        frame.require_leaves(axis)?;
+        frame.require_leaves_in(space, axis)?;
         let node = self.node(target.node)?;
         Ok((
             frame,
@@ -416,28 +474,36 @@ impl NativeScene {
         Ok(changes)
     }
 
-    /// Product of the local matrices of the ancestors on `target.path` (the selected node
-    /// excluded); `None` when one has no finite matrix.
+    /// World frame in which the selected node's local matrix applies: the ancestors on
+    /// `target.path` composed with their offsetParentMatrix and inheritsTransform, then the
+    /// selected node's own prefix (`it`, `opm`). `None` when one has no finite matrix.
     pub(super) fn ancestor_world(
         &self,
         target: &TransformTarget,
     ) -> Result<Option<DMat4>, NativeError> {
         let mut world = DMat4::IDENTITY;
-        for id in target.path.iter().take(target.path.len().saturating_sub(1)) {
+        let ancestors = target.path.len().saturating_sub(1);
+        for id in target.path.iter().take(ancestors) {
             let node = self
                 .nodes
                 .iter()
                 .find(|node| node.transform_id == *id)
                 .ok_or(NativeError::InvalidInstancePath)?;
-            let Some(local) = self.internal_transform(node.id)?.matrix() else {
+            let Some(composed) = self.internal_transform(node.id)?.compose_world(world) else {
                 return Ok(None);
             };
-            world *= local;
-            if !world.is_finite() {
-                return Ok(None);
-            }
+            world = composed;
         }
-        Ok(Some(world))
+        let Some(id) = target.path.last() else {
+            return Ok(Some(world));
+        };
+        let selected = self
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == *id)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        let prefix = self.internal_transform(selected.id)?.frame_prefix(world);
+        Ok(prefix.is_finite().then_some(prefix))
     }
 
     pub fn world_move_frame(
@@ -496,9 +562,19 @@ impl NativeScene {
 
     /// Frames and translation baselines for every target, after one scene-level check (a single
     /// validation for the whole set). Fails whole, naming the offending target's index.
+    #[cfg(test)]
     pub(crate) fn world_move_frames(
         &self,
         targets: &[&TransformTarget],
+        axis: Option<WorldAxis>,
+    ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
+        self.world_move_frames_in(targets, MoveSpace::World, axis)
+    }
+
+    pub(crate) fn world_move_frames_in(
+        &self,
+        targets: &[&TransformTarget],
+        space: MoveSpace,
         axis: Option<WorldAxis>,
     ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
         self.move_scene_check().map_err(MoveBeginError::Scene)?;
@@ -510,7 +586,7 @@ impl NativeScene {
             let member = |source| MoveBeginError::Member { index, source };
             let frame = self.member_move_frame(target).map_err(member)?;
             if let Some(axis) = axis {
-                frame.require_leaves(axis).map_err(member)?;
+                frame.require_leaves_in(space, axis).map_err(member)?;
             }
             let node = self.node(target.node).map_err(member)?;
             movers.push((
@@ -579,8 +655,7 @@ impl NativeScene {
         // The Move handle sits at the rotate pivot, T + RT + RP in the parent's space. The pivots
         // are fixed points of the rotate and scale stages, so they never enter the channel maths.
         // PROVISIONAL: the docs do not place the Move handle relative to the pivot (plan section 1).
-        let origin_cm = parent_world
-            .transform_point3(transform.origin_cm() + DVec3::from_array(transform.rotate_pivot_cm));
+        let origin_cm = parent_world.transform_point3(transform.pivot_origin_cm());
         if !inverse_parent.is_finite()
             || !condition.is_finite()
             || condition > MAX_PARENT_CONDITION
@@ -595,6 +670,11 @@ impl NativeScene {
             parent_linear,
             inverse_parent,
             parent_norm,
+            object_rotation: transform
+                .rotation_only()
+                .ok_or(NativeError::UnsupportedMove(
+                    WorldMoveUnsupported::ParentTransform,
+                ))?,
             translation: selected.transform().translation,
             translation_cm: DVec3::from_array(transform.translation_cm),
             linear_factor: self.units.linear_factor()?,

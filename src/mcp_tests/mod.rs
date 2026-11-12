@@ -140,6 +140,7 @@ mod official_client {
     mod obj_export;
     mod obj_import;
     mod pivots;
+    mod torus;
 
     mod pointer_hit;
     mod primitive_options;

@@ -1233,7 +1233,7 @@ fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claim
             .replace("setAttr \".t\"", "setAttr \".v\" no; setAttr \".t\""),
         String::from_utf8(source)
             .unwrap()
-            .replace("12 0 0", "100000000 0 0"),
+            .replace("12 0 0", "100000000000000000000 0 0"),
     ] {
         let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
         let mut editor = Editor {
@@ -1872,6 +1872,7 @@ fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
     editor.new_document().unwrap();
     assert!(editor.files.is_modal());
     let ctx = egui::Context::default();
+    ctx.enable_accesskit();
     let output = frame(&mut editor, &ctx, vec![]);
     for text in [
         "Warning: Scene Not Saved",
@@ -1887,7 +1888,14 @@ fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
         buttons.windows(2).all(|pair| pair[0] < pair[1]),
         "{buttons:?}"
     );
-    // An untitled scene cannot be saved in place yet (Maya would Save As), so Save is inert.
+    // An untitled scene cannot be saved in place yet (Maya would Save As): Save is disabled in
+    // the accessibility tree, Save As follows the platform rule, and a click is inert.
+    assert!(button_disabled(&output, "Save"), "Save must be disabled");
+    assert_eq!(
+        button_disabled(&output, "Save As..."),
+        !cfg!(unix),
+        "Save As is enabled for an untitled scene on Unix only"
+    );
     let before = editor.history.scene().clone();
     let save = face_text_position(&output, "Save");
     face_pointer_click(&mut editor, &ctx, save, egui::Modifiers::NONE, vec![]);
@@ -4841,6 +4849,55 @@ fn face_native_menu_explicit_face_beats_toggle_and_modal_replacement_drops_inten
     assert!(!editor.files.is_modal());
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     assert!(editor.history.scene().nodes().is_empty());
+}
+
+#[test]
+fn face_native_menu_key_and_coalesced_click_journey_selects_the_last_plain_click() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.camera =
+        Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let before = editor.history.scene().clone();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let center = face_viewport_rect(&output).center();
+    let select = face_text_position(&output, "Select");
+    let output = face_pointer_click(&mut editor, &ctx, select, egui::Modifiers::NONE, vec![]);
+    let components = face_text_position(&output, "Components");
+    let output = face_pointer_click(&mut editor, &ctx, components, egui::Modifiers::NONE, vec![]);
+    let face = face_text_position(&output, "Face   F11");
+    face_pointer_click(&mut editor, &ctx, face, egui::Modifiers::NONE, vec![]);
+    assert_eq!(editor.selection_mode, SelectionMode::Face);
+    assert!(
+        !egui::Popup::is_any_open(&ctx),
+        "the menu closed on activation"
+    );
+    frame(&mut editor, &ctx, vec![key(Key::F8)]);
+    assert_eq!(editor.selection_mode, SelectionMode::Object);
+    frame(&mut editor, &ctx, vec![key(Key::F11)]);
+    assert_eq!(editor.selection_mode, SelectionMode::Face);
+    frame(&mut editor, &ctx, vec![egui::Event::PointerMoved(center)]);
+    let button = |pressed, modifiers| egui::Event::PointerButton {
+        pos: center,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers,
+    };
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::ModifiersChanged(egui::Modifiers::SHIFT),
+            button(true, egui::Modifiers::SHIFT),
+            button(false, egui::Modifiers::SHIFT),
+            egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+            button(true, egui::Modifiers::NONE),
+            button(false, egui::Modifiers::NONE),
+        ],
+    );
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+    assert_eq!(editor.history.scene(), &before);
 }
 
 #[test]
@@ -9560,6 +9617,7 @@ fn every_primitive_variant_is_in_the_create_menu() {
         Primitive::Sphere,
         Primitive::Cylinder,
         Primitive::Cone,
+        Primitive::Torus,
     ] {
         match primitive {
             Primitive::Cube
@@ -9567,6 +9625,8 @@ fn every_primitive_variant_is_in_the_create_menu() {
             | Primitive::Sphere
             | Primitive::Cylinder
             | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
+            // The Torus row stays disabled until the UI slice (#43).
+            Primitive::Torus => assert!(!listed(primitive)),
         }
     }
     let built = menus::POLYGON_PRIMITIVES
@@ -9596,12 +9656,14 @@ fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reason
     ];
     for (label, primitive) in menus::POLYGON_PRIMITIVES {
         if primitive.is_none() {
-            rows.push((
-                label.into(),
+            let reason = if label == "Torus" {
+                "Torus is available through the MCP create_primitive tool only; its menu entry is not built yet".to_owned()
+            } else {
                 format!(
                     "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
-                ),
-            ));
+                )
+            };
+            rows.push((label.into(), reason));
         }
     }
     assert_eq!(rows.len(), 12);
@@ -11627,4 +11689,51 @@ fn radians_keeping_stored_never_perturbs_an_unchanged_rotation() {
         );
     }
     assert!(drifted > 0, "the sample no longer exercises the drift");
+}
+
+#[test]
+fn native_scene_edits_are_refused_while_a_modal_is_open() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.single_target().unwrap().0;
+    editor.create(Primitive::Cube);
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let scene = editor.history.scene().clone();
+    let operations = [
+        Operation::Undo,
+        Operation::Redo,
+        Operation::Create {
+            primitive: Primitive::Cube,
+            options: None,
+            name: None,
+        },
+        Operation::Delete(id),
+        Operation::DeleteSelection,
+        Operation::EditNode {
+            id,
+            name: Some("blocked".into()),
+            translation: [Some(1.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        },
+        Operation::Rename {
+            id,
+            name: "blocked".into(),
+        },
+    ];
+    for (index, operation) in operations.into_iter().enumerate() {
+        let label = format!("operation #{index}");
+        assert!(
+            matches!(
+                editor.apply_operation(operation),
+                Err(OperationError::BusyEditing)
+            ),
+            "{label}"
+        );
+        assert_eq!(editor.history.scene(), &scene, "{label}");
+        assert!(editor.files.is_modal(), "{label}");
+    }
 }

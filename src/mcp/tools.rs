@@ -64,6 +64,12 @@ fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     )
 }
 
+fn tool_error_with_reason(code: &str, reason: &str, message: impl ToString) -> CallToolResult {
+    CallToolResult::structured_error(
+        json!({ "error": { "code": code, "reason": reason, "message": message.to_string() } }),
+    )
+}
+
 fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
     match reply {
         Ok(reply) => {
@@ -188,6 +194,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::StalePendingAction => "stale_pending_action",
             };
             match error {
+                OperationError::NativeSave(azteccraft::document::NativeSaveError::Unwritable(
+                    refusal,
+                )) => tool_error_with_reason(code, refusal.as_str(), error),
                 // File text comes from DocumentError/ObjError Display, which embeds the path; the
                 // typed variant is the only reliable signal, so withhold it.
                 OperationError::File(_) => {
@@ -414,7 +423,7 @@ mod tests {
             ),
             (
                 "set_tool_space",
-                json!({"scene_token":token,"tool":"move","space":"world"}),
+                json!({"scene_token":token,"tool":"move","space":"gimbal"}),
             ),
             (
                 "set_tool_space",
@@ -1454,6 +1463,26 @@ mod tests {
                 ..
             }
         ));
+        let save_as = json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":"out.mb"});
+        assert!(matches!(
+            parse_request("resolve_file_action", save_as.as_object().unwrap().clone())
+                .unwrap()
+                .operation,
+            Operation::ResolveFileAction {
+                decision: FileDecision::SaveAs { .. },
+                ..
+            }
+        ));
+        for args in [
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as"}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save","path":"out.mb"}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":""}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":"a\u{0}b"}),
+        ] {
+            assert!(
+                parse_request("resolve_file_action", args.as_object().unwrap().clone()).is_err()
+            );
+        }
         let args = json!({"scene_token":token,"node_id":"1","translation":[16777217.125,0,0],"rotation_degrees":[90,0,0],"scale":[1,1,1]});
         let request = parse_request("set_transform", args.as_object().unwrap().clone()).unwrap();
         let Operation::SetTransform { transform, .. } = request.operation else {

@@ -4,7 +4,15 @@ AztecCraft is a Rust desktop 3D authoring project with the objective of reproduc
 
 The current prototype has a native desktop window for cube/plane/sphere/cylinder/cone creation, selection, numeric transforms, undo/redo and perspective navigation. Open stages Maya binary scenes or legacy JSON documents into the authoritative native model. This candidate adds Unix and Windows Maya binary Save/Save As for supported existing-record edits through the ordinary vendored writer; current application checks and native Save QA remain pending. Overall Maya coverage is unmeasured.
 
-[Current capabilities](#current-capabilities) · [Build and test](#build-and-test) · [Roadmap](#roadmap-and-publication) · [Project documentation](.project-docs/INDEX.md)
+[Quick start](#quick-start) · [Current capabilities](#current-capabilities) · [Build and test](#build-and-test) · [Roadmap](#roadmap-and-publication) · [Project documentation](.project-docs/INDEX.md)
+
+## Quick start
+
+1. Get a build: [download the CI artifact for your OS](#ci-builds), or [build from source](#build-and-test).
+2. Unpack it and get past the unsigned-build prompt for your OS (steps under [CI builds](#ci-builds)).
+3. Launch it. Use File, Open Scene to load `examples/extruded-cube.aztec` from a checkout, or create a cube from the shelf, select it and edit its channels. Undo is Ctrl/Cmd-Z; redo is Ctrl/Cmd-Y or Ctrl/Cmd-Shift-Z.
+
+This is an early prototype. It does not reproduce Maya's feature set or behavior; the [capability table](#current-capabilities) lists what exists and what is pending.
 
 ## Current capabilities
 
@@ -41,7 +49,7 @@ reference scene; native Extrude covers one picked face by Thickness; the manipul
 
 ## Build and test
 
-Install Rust through rustup and GNU Make. [rust-toolchain.toml](rust-toolchain.toml) pins Rust 1.99.0, rustfmt and Clippy. Run these commands from the repository root:
+Install Rust through rustup (and GNU Make for the `make` targets). [rust-toolchain.toml](rust-toolchain.toml) pins Rust 1.99.0, rustfmt and Clippy, and `rust-version = "1.99"` in [Cargo.toml](Cargo.toml) is the minimum. With rustup, Cargo installs the pinned toolchain on first use in the checkout. On Linux install `pkg-config`, `libwayland-dev` and `libxkbcommon-dev` first (the packages CI installs). Run these commands from the repository root:
 
 ```sh
 cargo run --locked
@@ -56,13 +64,30 @@ cargo run --locked
 | `make lint` | Check formatting and run Clippy with warnings treated as errors |
 | `cargo test --locked --no-default-features` | Run the core workflow suites without the desktop target |
 
+If the build fails with an error that a package requires a newer rustc, or with unstable-feature errors, your compiler is older than 1.99. A non-rustup Rust (a distribution package, for example) ignores `rust-toolchain.toml`: run `rustup update` or install Rust through rustup, then check `rustc --version`.
+
 The `desktop` feature is enabled by default and uses eframe/egui with wgpu. The core suites can run without a display using `--no-default-features`. [Development instructions](.project-docs/development.md) describe system prerequisites, controls, scene conventions and optional local hooks.
 
 For MCP, build with `cargo build --release --locked --features mcp` and configure the client to launch that binary with `--mcp-stdio`. It opens a new native editor window and requires a graphical session. Default build packages omit MCP. Run `cargo test --locked --features mcp-test-client` for the official SDK client suite. See [MCP setup, tools and shutdown behavior](.project-docs/mcp.md).
 
 ### CI builds
 
-Every push builds test binaries for macOS (aarch64, x86_64), Linux (x86_64) and Windows (x86_64). Open Actions, the run for a commit, then Artifacts. They are not on the Releases page, and each download is a zip containing the archive. The builds are not notarized: on macOS unzip, try to open the app once, then choose System Settings, Privacy & Security, Open Anyway (shown for about an hour; [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac)), or run `xattr -dr com.apple.quarantine AztecCraft.app` in a terminal; on Windows choose More info, Run anyway in SmartScreen; on Linux `chmod +x azteccraft` if needed. Details in [CI build downloads](.project-docs/development.md#download-ci-builds).
+There is no release yet: publishing one needs the owner's authorization. Every push builds development packages in CI, and they are the only prebuilt binaries. Open Actions, the "Rust checks" run for a commit, then its Artifacts section. Artifacts are named `azteccraft-<platform>-<arch>-<commit>`, where the arch is `X64` or `ARM64` for the main jobs (for example `azteccraft-macos-ARM64-<commit>`) and the literal `x86_64` for the Intel macOS job, and expire after 7 days. GitHub wraps each artifact in a zip, so unzip it once to get the archive and `manifest.json` (SHA-256 of the archive and binary). Details and caveats in [CI build downloads](.project-docs/development.md#download-ci-builds).
+
+| OS | Archive inside the artifact | Unpack and run |
+| --- | --- | --- |
+| macOS (Apple silicon) | `azteccraft-<version>-macos-aarch64.zip` | Unzip, then open `AztecCraft.app` |
+| macOS (Intel) | `azteccraft-<version>-macos-x86_64.zip` | Same. Cross-compiled in CI and never launched there |
+| Windows (x86_64) | `azteccraft-<version>-windows-x86_64.zip` | Unzip, then run `azteccraft\azteccraft.exe` |
+| Linux (x86_64) | `azteccraft-<version>-linux-x86_64.tar.gz` | `tar xzf` the archive, then run `azteccraft/azteccraft` |
+
+`<version>` is the `Cargo.toml` package version (currently 0.1.0). Each archive is portable: there is no installer, and it runs from wherever you unpack it. It holds the executable and a `licenses/` directory (under `Contents/Resources/licenses` inside the app bundle on macOS). The application has no settings or configuration persistence (eframe's persistence feature is not enabled); it only writes files you save or export. The builds are not notarized, so the first launch needs one extra step:
+
+- macOS: try to open the app once, then choose System Settings, Privacy & Security, Open Anyway (shown for about an hour; [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac)), or run `xattr -dr com.apple.quarantine AztecCraft.app`. Right-click, Open no longer works on macOS 15 and later.
+- Windows: in SmartScreen choose More info, then Run anyway.
+- Linux: run `chmod +x azteccraft/azteccraft` if the executable bit was lost. A graphical session and a graphics driver that wgpu supports are required (CI renders with software Vulkan).
+
+The minimum supported OS versions are not established. CI builds on macOS 15, Windows Server 2025 and Ubuntu 24.04, and the packaged-binary smoke check only runs the usage exit (no window). Graphical launch of the packages on each OS is unverified (Windows and Linux are tracked in [#8](https://github.com/cristim/AztecCraft/issues/8)). Default-feature builds omit MCP.
 
 ## Architecture and platforms
 

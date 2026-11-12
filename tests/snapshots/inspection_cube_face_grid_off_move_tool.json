@@ -54,6 +54,7 @@
         }
       ],
       "manipulator_size": 1.0,
+      "move_space": "world",
       "refusal": null,
       "rotate_axis": "x",
       "rotate_space": "object",

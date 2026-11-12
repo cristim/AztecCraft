@@ -42,8 +42,23 @@ pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String)
     }
 }
 
-/// Why the prompt's Save is disabled outside reconciliation.
-pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene or, on Unix, a new scene through Save As (#156, #289)";
+/// Why the prompt's Save or Save As is disabled outside reconciliation. Save writes in place only
+/// a directly opened (not symlinked) Maya Binary scene with a known destination, or on Unix a
+/// Maya ASCII scene this build saved (`NativeOrigin::active_save_available`); Save As (#289) is
+/// the way to save an untitled scene (Unix only, #156).
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: Save writes in place only a directly opened Maya Binary scene (not a symlink) or, on Unix, a Maya ASCII scene saved by this build; use Save As for an untitled scene (Unix only, #156, #289)";
+
+pub(super) fn validate_scene_path(path: &Path) -> Result<(), OperationError> {
+    let text = path
+        .to_str()
+        .ok_or_else(|| OperationError::InvalidInput("Scene path must be UTF-8".into()))?;
+    if text.is_empty() || text.len() > 4096 || text.contains('\0') {
+        return Err(OperationError::InvalidInput(
+            "Scene path must contain 1 to 4096 bytes and no NUL".into(),
+        ));
+    }
+    Ok(())
+}
 
 /// A scene with no retained source was written by the authored writer, whose files Maya has
 /// not been shown to accept.
@@ -323,10 +338,13 @@ impl Editor {
         if self.files.is_modal() || !self.files.save_as_available() {
             return;
         }
+        if let Some(path) = self.pick_save_as_path() {
+            self.native_operation(Operation::SaveSceneAs { path });
+        }
+    }
+    fn pick_save_as_path(&self) -> Option<PathBuf> {
         let extensions = self.files.origin.save_as_extensions();
-        let Some(first) = extensions.first() else {
-            return;
-        };
+        let first = extensions.first()?;
         let mut dialog = rfd::FileDialog::new().set_title("Save scene to a new file");
         for extension in extensions {
             dialog = match *extension {
@@ -334,10 +352,9 @@ impl Editor {
                 _ => dialog.add_filter("Maya binary scene", &["mb"]),
             };
         }
-        dialog = dialog.set_file_name(format!("untitled.{first}"));
-        if let Some(path) = dialog.save_file() {
-            self.native_operation(Operation::SaveSceneAs { path });
-        }
+        dialog
+            .set_file_name(format!("untitled.{first}"))
+            .save_file()
     }
     fn open_path(&mut self, path: &Path) {
         self.native_operation(Operation::OpenScene { path: path.into() });
@@ -453,7 +470,10 @@ impl Editor {
         {
             return Err(OperationError::NativeSave(NativeSaveError::SourceChanged));
         }
-        if matches!(decision, FileDecision::Save) {
+        if let FileDecision::SaveAs { path } = &decision {
+            validate_scene_path(path)?;
+        }
+        if matches!(decision, FileDecision::Save | FileDecision::SaveAs { .. }) {
             let closing = matches!(
                 self.files.pending,
                 Some(PendingAction {
@@ -461,7 +481,11 @@ impl Editor {
                     ..
                 })
             );
-            let mut reply = match self.save_document(SaveDestination::Active, may_install) {
+            let destination = match &decision {
+                FileDecision::SaveAs { path } => SaveDestination::As(path),
+                _ => SaveDestination::Active,
+            };
+            let mut reply = match self.save_document(destination, may_install) {
                 Ok(reply) => reply,
                 Err(error) => {
                     if closing {
@@ -504,17 +528,19 @@ impl Editor {
             }
             saved_reply = Some(reply);
         }
-        if matches!(decision, FileDecision::Discard | FileDecision::Save)
-            && let Some(PendingAction {
-                action:
-                    FileAction::Open {
-                        document,
-                        camera,
-                        framed_aspect,
-                        ..
-                    },
-                ..
-            }) = &mut self.files.pending
+        if matches!(
+            decision,
+            FileDecision::Discard | FileDecision::Save | FileDecision::SaveAs { .. }
+        ) && let Some(PendingAction {
+            action:
+                FileAction::Open {
+                    document,
+                    camera,
+                    framed_aspect,
+                    ..
+                },
+            ..
+        }) = &mut self.files.pending
             && *framed_aspect != self.aspect
         {
             let reframed = match camera_for_scene(&document.scene, self.aspect) {
@@ -543,7 +569,9 @@ impl Editor {
                     scene_token: self.scene_token.to_string(),
                 })
             }
-            FileDecision::Discard | FileDecision::Save => self.apply_file_action(pending.action),
+            FileDecision::Discard | FileDecision::Save | FileDecision::SaveAs { .. } => {
+                self.apply_file_action(pending.action)
+            }
         }
     }
     #[cfg(test)]
@@ -659,6 +687,7 @@ impl Editor {
         let mut decision = ctx
             .input(|i| i.key_pressed(Key::Escape))
             .then_some(FileDecision::Cancel);
+        let mut save_as = false;
         let (heading, question) = save_changes_prompt(self.files.path.as_deref());
         egui::Modal::new(egui::Id::unique("unsaved_scene")).show(ctx, |ui| {
             ui.heading(heading);
@@ -699,17 +728,35 @@ impl Editor {
                 {
                     decision = Some(FileDecision::Save);
                 }
+                // After Don't Save so the first Tab stop stays Don't Save (the keyboard proof).
                 if ui
                     .add_enabled(!source_changed, egui::Button::new("Don't Save"))
                     .clicked()
                 {
                     decision = Some(FileDecision::Discard);
                 }
+                if ui
+                    .add_enabled(
+                        !source_changed && self.files.save_as_available(),
+                        egui::Button::new("Save As..."),
+                    )
+                    .on_disabled_hover_text(if source_changed {
+                        "The queued Open source changed. Cancel and reopen the file."
+                    } else {
+                        PROMPT_SAVE_UNAVAILABLE
+                    })
+                    .clicked()
+                {
+                    save_as = true;
+                }
                 if ui.button("Cancel").clicked() {
                     decision = Some(FileDecision::Cancel);
                 }
             });
         });
+        if save_as && let Some(path) = self.pick_save_as_path() {
+            decision = Some(FileDecision::SaveAs { path });
+        }
         if let Some(decision) = decision {
             if let Err(error) = self.apply_operation(Operation::ResolveFileAction {
                 pending_id: id,
@@ -955,6 +1002,92 @@ mod tests {
         assert_eq!(std::fs::metadata(&destination).unwrap().ino(), inode);
         assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
         assert_eq!(std::fs::read(&source).unwrap(), original);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn authored_uncertain_save_stays_dirty_until_reconcile_then_binds_the_file() {
+        // An empty scene equals its Untitled baseline, so the pending receipt is the only reason
+        // the editor is dirty.
+        for (extension, populated) in [("mb", true), ("ma", true), ("mb", false)] {
+            let directory = tempfile::tempdir().unwrap();
+            let parent = directory.path().join("document");
+            let moved = directory.path().join("moved");
+            std::fs::create_dir(&parent).unwrap();
+            let destination = parent.join(format!("fresh.{extension}"));
+            let mut editor = Editor::default();
+            if populated {
+                editor.create(Primitive::Cube);
+            }
+            let token = editor.scene_token;
+            let scene = editor.history.scene().clone();
+            let relocated = std::cell::Cell::new(false);
+            let guard = || {
+                if !relocated.get()
+                    && std::fs::read_dir(&parent).unwrap().any(|entry| {
+                        let name = entry.unwrap().file_name();
+                        name.to_string_lossy().ends_with(".craft_tmp")
+                    })
+                {
+                    std::fs::rename(&parent, &moved).unwrap();
+                    relocated.set(true);
+                }
+                true
+            };
+            assert!(matches!(
+                editor
+                    .apply_operation_guarded(
+                        azteccraft::history::ManipulationProvenance::Native,
+                        Operation::SaveSceneAs {
+                            path: destination.clone()
+                        },
+                        &guard
+                    )
+                    .unwrap(),
+                OperationReply::SaveUncertain { dirty: true, .. }
+            ));
+            assert!(relocated.get());
+            assert!(editor.files.uncertain.is_some() && editor.files.path.is_none());
+            assert!(editor.is_dirty());
+            assert_eq!(editor.history.scene() != &editor.files.saved, populated);
+            assert!(editor.inspect(false).unwrap().save_reconciliation_required);
+            // The destination is still displaced: reconcile fails with a typed error and keeps
+            // the receipt, the work and the dirty state.
+            assert_eq!(
+                editor
+                    .apply_operation(Operation::SaveScene)
+                    .unwrap_err()
+                    .to_string(),
+                NativeSaveError::SourceChanged.to_string()
+            );
+            assert!(editor.files.uncertain.is_some() && editor.is_dirty());
+            assert!(editor.files.path.is_none());
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.scene_token, token);
+            let installed = moved.join(format!("fresh.{extension}"));
+            let bytes = std::fs::read(&installed).unwrap();
+            std::fs::rename(&moved, &parent).unwrap();
+            assert!(matches!(
+                editor.apply_operation(Operation::SaveScene).unwrap(),
+                OperationReply::SaveReconciled { dirty: false, .. }
+            ));
+            assert!(editor.files.uncertain.is_none() && !editor.is_dirty());
+            assert_eq!(
+                editor.files.path.as_ref(),
+                Some(&destination.canonicalize().unwrap())
+            );
+            assert_eq!(editor.files.saved, scene);
+            assert_eq!(std::fs::read(&destination).unwrap(), bytes);
+            let inspection = editor.inspect(false).unwrap();
+            assert!(inspection.has_file && !inspection.save_reconciliation_required);
+            // Bound: an Active save now writes through the same document.
+            editor.create(Primitive::Cube);
+            assert!(matches!(
+                editor.apply_operation(Operation::SaveScene).unwrap(),
+                OperationReply::Saved { dirty: false, .. }
+            ));
+            assert_ne!(std::fs::read(&destination).unwrap(), bytes);
+        }
     }
 
     #[cfg(unix)]
@@ -1487,6 +1620,130 @@ mod tests {
         assert!(editor.status.contains("PROVISIONAL"), "{}", editor.status);
     }
 
+    #[cfg(unix)]
+    fn dirty_untitled_with_pending_close() -> (Editor, Uuid) {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.apply_operation(Operation::RequestClose).unwrap();
+        let id = editor.files.pending.as_ref().unwrap().id;
+        (editor, id)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn close_prompt_save_as_writes_the_untitled_scene_then_closes() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("closing.mb");
+        let (mut editor, id) = dirty_untitled_with_pending_close();
+        assert!(!editor.files.save_available() && editor.files.save_as_available());
+        // Plain Save has no destination for an Untitled scene and keeps the prompt.
+        assert!(matches!(
+            editor.resolve_file_action(id, FileDecision::Save),
+            Err(OperationError::NativeSave(NativeSaveError::NoDestination))
+        ));
+        assert!(editor.files.is_modal() && !editor.files.close_approved);
+        let reply = editor
+            .resolve_file_action(
+                id,
+                FileDecision::SaveAs {
+                    path: destination.clone(),
+                },
+            )
+            .unwrap();
+        assert!(
+            matches!(reply, OperationReply::CloseRequested { .. }),
+            "{reply:?}"
+        );
+        assert!(destination.is_file());
+        assert!(editor.files.close_approved && !editor.files.is_modal());
+        assert!(!editor.is_dirty());
+        assert_eq!(
+            editor
+                .files
+                .path
+                .as_ref()
+                .map(|p| p.canonicalize().unwrap()),
+            Some(destination.canonicalize().unwrap())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn close_prompt_failed_save_as_keeps_the_prompt_the_window_and_the_scene() {
+        let directory = tempfile::tempdir().unwrap();
+        let occupied = directory.path().join("taken.mb");
+        std::fs::write(&occupied, b"keep").unwrap();
+        let (mut editor, id) = dirty_untitled_with_pending_close();
+        let before = editor.history.scene().clone();
+        for path in [occupied.clone(), PathBuf::new()] {
+            assert!(
+                editor
+                    .resolve_file_action(id, FileDecision::SaveAs { path })
+                    .is_err()
+            );
+            assert!(editor.files.is_modal(), "prompt stays pending");
+            assert!(!editor.files.close_approved, "window stays open");
+            assert!(editor.is_dirty());
+            assert_eq!(editor.history.scene(), &before);
+        }
+        assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
+        let reply = editor
+            .resolve_file_action(id, FileDecision::Cancel)
+            .unwrap();
+        assert!(matches!(reply, OperationReply::Cancelled { .. }));
+        assert!(!editor.files.close_approved && editor.is_dirty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_as_decision_validates_its_path_and_treats_relative_paths_like_save_scene_as() {
+        let (mut editor, id) = dirty_untitled_with_pending_close();
+        for path in [PathBuf::from("a\0b.mb"), PathBuf::from("a".repeat(4097))] {
+            assert!(matches!(
+                editor.resolve_file_action(id, FileDecision::SaveAs { path }),
+                Err(OperationError::InvalidInput(_))
+            ));
+            assert!(editor.files.is_modal() && editor.is_dirty());
+        }
+        // No relative-path rejection: it reaches the writer exactly as save_scene_as's does.
+        let relative = PathBuf::from("no_such_dir_289/x.mb");
+        let via_decision = editor
+            .resolve_file_action(
+                id,
+                FileDecision::SaveAs {
+                    path: relative.clone(),
+                },
+            )
+            .unwrap_err();
+        editor.files.pending = None;
+        let via_save_as = editor
+            .apply_operation(Operation::SaveSceneAs { path: relative })
+            .unwrap_err();
+        assert_eq!(via_decision.to_string(), via_save_as.to_string());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn save_as_decision_applies_a_pending_new_after_the_save() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("before_new.mb");
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        editor.apply_operation(Operation::NewScene).unwrap();
+        let id = editor.files.pending.as_ref().unwrap().id;
+        editor
+            .resolve_file_action(
+                id,
+                FileDecision::SaveAs {
+                    path: destination.clone(),
+                },
+            )
+            .unwrap();
+        assert!(destination.is_file());
+        assert!(editor.history.scene().nodes().is_empty());
+        assert!(editor.files.path.is_none() && !editor.is_dirty());
+    }
+
     #[test]
     fn saved_status_carries_the_caveat_only_for_scenes_without_a_retained_source() {
         let new = azteccraft::native_scene::NativeScene::default();
@@ -1866,7 +2123,7 @@ mod tests {
         let path = directory.path().join("bad.ma");
         let source = String::from_utf8(ascii_fixture::specimen())
             .unwrap()
-            .replace("12 0 0", "100000000 0 0");
+            .replace("12 0 0", "100000000000000000000 0 0");
         std::fs::write(&path, &source).unwrap();
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
@@ -1884,7 +2141,11 @@ mod tests {
         let selected = (editor.selected(), editor.selected_path().to_vec());
         let fields = (editor.name.clone(), editor.channels.clone());
         let token = editor.scene_token;
-        assert!(editor.open_candidate(&path).is_err());
+        let error = editor.open_candidate(&path).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("world geometry cannot be represented"),
+            "{error:?}"
+        );
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
         assert_eq!(
@@ -1930,10 +2191,10 @@ mod tests {
         assert!(!editor.is_dirty() && !editor.history.can_undo());
         assert!(editor.selected().is_none() && editor.selected_path().is_empty());
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
-        for point in view.curve_instances()[0].segments().iter().flatten() {
+        for point in view.curve_instances()[0].world_segments().flatten() {
             let ndc = editor
                 .camera
-                .project(*point, editor.aspect)
+                .project(point, editor.aspect)
                 .unwrap()
                 .unwrap();
             assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
@@ -2043,10 +2304,10 @@ mod tests {
                 let view =
                     ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
                 assert_eq!(view.curve_instances().len(), 1);
-                for point in view.curve_instances()[0].segments().iter().flatten() {
+                for point in view.curve_instances()[0].world_segments().flatten() {
                     let ndc = editor
                         .camera
-                        .project(*point, editor.aspect)
+                        .project(point, editor.aspect)
                         .unwrap()
                         .unwrap();
                     assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);

@@ -35,6 +35,26 @@ impl Editor {
         ctx.memory_mut(|memory| memory.request_focus(target));
     }
 
+    pub(super) fn selection_mode_for(&self, intent: SelectionModeIntent) -> SelectionMode {
+        match intent {
+            SelectionModeIntent::Face => SelectionMode::Face,
+            SelectionModeIntent::Vertex => SelectionMode::Vertex,
+            SelectionModeIntent::Edge => SelectionMode::Edge,
+            SelectionModeIntent::Object => SelectionMode::Object,
+            SelectionModeIntent::Hierarchy => SelectionMode::Hierarchy,
+            SelectionModeIntent::Component if self.selection_mode.is_component() => {
+                self.selection_mode
+            }
+            SelectionModeIntent::Component => SelectionMode::Face,
+            SelectionModeIntent::Toggle => match self.selection_mode {
+                SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge => {
+                    SelectionMode::Object
+                }
+                SelectionMode::Object | SelectionMode::Hierarchy => SelectionMode::Face,
+            },
+        }
+    }
+
     pub(super) fn render(&mut self, ui: &mut egui::Ui) {
         let deferred_surrender = super::defer_focus_surrender(ui.ctx());
         let frame_token = self.scene_token;
@@ -384,11 +404,14 @@ impl Editor {
                 && !text_edit_focused(ui.ctx())
                 && !egui::Popup::is_any_open(ui.ctx());
             let clickable = input.click_ndc().filter(|_| can_select && !consumed);
-            // A mode shortcut on the release frame leaves the drag belonging to the old mode: drop it.
+            let selection_intent = selection_intent.filter(|_| can_select);
+            // A mode change on the release frame leaves the drag belonging to the old mode: drop it.
+            // An intent that keeps the mode leaves the release as if no intent were present.
+            let mode_changes = selection_intent
+                .is_some_and(|intent| self.selection_mode_for(intent) != self.selection_mode);
             let marquee = input
                 .marquee()
-                .filter(|_| can_select && !consumed && selection_intent.is_none());
-            let selection_intent = selection_intent.filter(|_| can_select);
+                .filter(|_| can_select && !consumed && !mode_changes);
             let delete_intent = delete_intent && can_select;
             // Mirrors the press-time mode refusal in move_tool.rs, which is more specific.
             let mode_refused = features::manipulation_tool::is_manipulation_tool(self.active_tool)
@@ -407,8 +430,7 @@ impl Editor {
                     && !(object_mode
                         && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
                     && (*refusal != crate::viewport_ui::SelectionRefusal::ComponentMarquee
-                        || (!object_mode
-                            && !(consumed || mode_refused || selection_intent.is_some())))
+                        || (!object_mode && !(consumed || mode_refused || mode_changes)))
             });
             let navigation = if current_document && !consumed {
                 navigation
@@ -439,23 +461,7 @@ impl Editor {
                 }
             }
             if let Some(intent) = selection_intent {
-                let mode = match intent {
-                    SelectionModeIntent::Face => SelectionMode::Face,
-                    SelectionModeIntent::Vertex => SelectionMode::Vertex,
-                    SelectionModeIntent::Edge => SelectionMode::Edge,
-                    SelectionModeIntent::Object => SelectionMode::Object,
-                    SelectionModeIntent::Hierarchy => SelectionMode::Hierarchy,
-                    SelectionModeIntent::Component if self.selection_mode.is_component() => {
-                        self.selection_mode
-                    }
-                    SelectionModeIntent::Component => SelectionMode::Face,
-                    SelectionModeIntent::Toggle => match self.selection_mode {
-                        SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge => {
-                            SelectionMode::Object
-                        }
-                        SelectionMode::Object | SelectionMode::Hierarchy => SelectionMode::Face,
-                    },
-                };
+                let mode = self.selection_mode_for(intent);
                 self.apply_operation(Operation::SetSelectionMode(mode))?;
             }
             if delete_intent && !self.selection.is_empty() {

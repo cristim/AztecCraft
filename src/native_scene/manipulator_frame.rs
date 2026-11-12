@@ -55,8 +55,7 @@ impl NativeScene {
         let refused = NativeError::UnsupportedMove(WorldMoveUnsupported::ParentTransform);
         let parent_world = self.ancestor_world(target)?.ok_or(refused.clone())?;
         let origin_cm = parent_world.transform_point3(transform.origin_cm());
-        let pivot_cm = parent_world
-            .transform_point3(transform.origin_cm() + DVec3::from_array(transform.rotate_pivot_cm));
+        let pivot_cm = parent_world.transform_point3(transform.pivot_origin_cm());
         let scale_origin_cm = transform
             .matrix()
             .map(|local| {

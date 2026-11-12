@@ -241,6 +241,17 @@ impl Camera {
             Vec4::W,
         )
     }
+    /// View-projection without the eye translation, for points already expressed relative to
+    /// `eye()`; subtracting the eye in f64 first keeps far-from-origin geometry precise.
+    pub fn eye_relative_matrix(&self, aspect: f32) -> Result<Mat4, InvalidCameraInput> {
+        let mut view = self.view_matrix();
+        view.w_axis = Vec4::W;
+        let matrix = self.projection_matrix(aspect)? * view;
+        matrix
+            .is_finite()
+            .then_some(matrix)
+            .ok_or(InvalidCameraInput)
+    }
     pub fn projection_matrix(&self, aspect: f32) -> Result<Mat4, InvalidCameraInput> {
         if !aspect.is_finite() || aspect <= 0.0 {
             return Err(InvalidCameraInput);

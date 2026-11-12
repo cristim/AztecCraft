@@ -527,3 +527,36 @@ fn other_refusals_still_win_on_a_pivoted_node() {
         );
     }
 }
+
+#[test]
+fn ancestor_offsets_and_inherits_off_shape_the_handle_frame() {
+    let (mut scene, root, node, _) = test_fixtures::grouped_shape();
+    let at = |scene: &mut NativeScene, id, x| {
+        scene
+            .set_transform(
+                id,
+                NativeTransform {
+                    translation: [x, 0.0, 0.0],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+    };
+    at(&mut scene, root, 10.0);
+    at(&mut scene, node, 1.0);
+    let mut offset = TransformExtras {
+        offset_parent_matrix: Some([
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 4.0, 0.0, 1.0,
+        ]),
+        ..TransformExtras::default()
+    };
+    test_fixtures::set_extras(&mut scene, root, offset.clone());
+    let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
+    near(frame.pivot_cm, DVec3::new(11.0, 4.0, 0.0));
+    // The selected node's own inheritsTransform off drops the whole parent chain.
+    test_fixtures::set_extras(&mut scene, root, TransformExtras::default());
+    offset.inherits_transform = Some(false);
+    test_fixtures::set_extras(&mut scene, node, offset);
+    let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
+    near(frame.pivot_cm, DVec3::new(1.0, 4.0, 0.0));
+}

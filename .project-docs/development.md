@@ -207,8 +207,10 @@ modes F frames the selected parents only and Ctrl+F includes their descendants. 
 valid-draft commitment and remote draft-refusal rules remain in force.
 
 Shift/Ctrl component selection, component marquee (object marquee: see Marquee selection), multiple faces, other component masks, preselection
-hover and marking menus are unsupported. Ambiguous coalesced primary-release
-frames refuse selection with a single-click retry message; they do not guess an
+hover and marking menus are unsupported. A same-frame run of primary releases whose last
+is a plain click selects with that click's own position and modifiers (earlier ones are
+superseded, #31); any other coalesced primary-release
+frame refuses selection with a single-click retry message; it does not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
 remains on its established route. Delete refuses the whole object under any
 component mode (Face, Vertex or Edge), natively and over MCP, with the same
@@ -218,11 +220,10 @@ Native Extrude of one picked face is available from the shelf button; the manipu
 Focused actual framebuffer proofs can be selected with `cargo test --locked
 --bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,
 protocol and framebuffer tests establish their exercised callers, not an OS
-window journey or Maya parity. The attempted genuine combined menu
-activation/key/viewport-click sequence was blocked by pinned egui's popup
-routing. The retained proofs cover menu+F8 and F11+F8+viewport click separately, plus blocked-popup
-nonmutation. Full coalesced-event support and platform/reference comparison
-remain follow-up work.
+window journey or Maya parity. The combined menu activation (real clicks), F8, F11 and
+coalesced viewport click journey is one native-event test across frames; Enter on a focused menu
+item plus a viewport click inside a single frame stays intercepted by pinned egui's popup
+routing (blocked-popup nonmutation test). Platform/reference comparison remains follow-up work.
 
 ## Vertex and Edge selection
 
@@ -435,7 +436,17 @@ admitted class is clamped open cubic, nonrational three-dimensional curves with
 finite f64 CVs/knots, strict positive interior spans (repeated interior knots,
 i.e. C0 curves, are refused as Unsupported), supported parent transforms and the
 explicit startup/metadata envelope. The retained legacy 2016 reference
-uses centimeter/degree/film units. Unsupported classes, commands, drivers,
+uses centimeter/degree/film units. Declared units (#17, PROVISIONAL until compared
+with the pinned Maya reference, #5): `currentUnit` once with all of `-l`
+millimeter|centimeter|meter|inch|foot, `-a` degree|radian and `-t` film|ntsc.
+Transform translate, pivots, pivot translations, rotate and rotate axis are read as
+values in the declared units and converted through `Units`. Limits: a curve under any
+linear unit other than centimeter is refused Unsupported (whether `.cc` CVs are
+written in the declared unit is unverified, so they are never guessed); polygon
+meshes still require centimeter/degree/film because the writer-identity gate
+requires it; an ntsc scene opens but every time and key tool refuses with
+`unsupported_time_unit`; kilometer, yard, mile, other angular and time units and any
+repeated, missing or unknown flag refuse the whole candidate. Other unsupported classes, commands, drivers,
 history, units or unknown effects refuse the whole candidate. This is not general
 Maya ASCII, rig or Maya 2026 compatibility. Original bytes, including quoted
 script bodies, remain inert and unchanged.
@@ -444,11 +455,13 @@ NativeScene owns the canonical curve identity, parent edges and f64 source
 values. ViewScene evaluates supported spans and prepares derived world-space
 segments; the CV hull is used only as a conservative framing bound. Its chord
 tolerance is application policy, max(1e-6cm, world CV-hull diagonal*1e-4) plus an
-f32 allowance min(max|world coord|*f32::EPSILON, 0.01*diagonal), not a Maya
-tessellation constant. Error checks include actual emitted f32 endpoints. A curve
-whose f32 viewport grid is coarser than about 1% of its size (the ~3.6cm
-specimen: drawn at x=2e6cm, refused at 3e6cm) is refused and Open fails, never
-drawn as noise. Unrepresentable or over-tolerance conversion refuses instead of
+f32 offset allowance diagonal*f32::EPSILON plus the f64 grid at the curve's
+coordinates, not a Maya tessellation constant. Segments are f32 offsets from an f64
+origin (the bounds centre) and the renderer subtracts the f64 eye, so distance from
+the world origin does not cost precision. Error checks include actual emitted f32
+endpoints. The camera and non-curve overlays stay f32, so a curve whose f32 grid at its
+coordinates exceeds a tenth of its size is refused and Open fails, never drawn
+off-screen or as noise. Unrepresentable or over-tolerance conversion refuses instead of
 relaxing the bound. Candidate-validation refusals that name an unsupported view
 fact (today only repeated interior knots are reachable from ASCII) report
 Unsupported rather than Malformed; structural errors stay Malformed.
@@ -767,3 +780,20 @@ Run `cargo test --locked --no-default-features --test maya_ascii_material_declar
 for its standalone caller. This does not enable Save or native/MCP operations,
 validate deep geometry or material graphs, or establish Maya acceptance.
 Reserved/default-name eligibility and Maya float3 storage remain unproved.
+
+## Save check timing guard (manual)
+
+`save_cost_at_512_and_4096_nodes` in `src/native_scene/binary/write/tests.rs` is an
+ignored, release-only timing measurement of the new-scene Binary Save path (#374). CI
+does not run it; run it by hand after touching the authored eligibility checks, the
+Binary writer or its self-check:
+
+```
+cargo test --release --locked --no-default-features --lib save_cost -- --ignored --nocapture
+```
+
+It prints the best of five times for the eligibility checks and the whole encode at 512
+and 4096 nodes (default cubes and bare transforms). Expected order of magnitude on Apple
+Silicon: checks under 1 ms at 512 nodes and under 10 ms at 4096; whole encode about 7 ms
+at 512 and about 50 ms at 4096 cubes (4096 nodes are refused as too large by the decoder
+budget). Tens of milliseconds for the checks at 4096 nodes mean a quadratic scan came back.

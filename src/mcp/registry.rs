@@ -86,13 +86,18 @@ mod tests {
         let mut doc = String::from(
             "# MCP tool catalogue\n\nGenerated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. \
 Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. \
-Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits.\n\n",
+Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits. \
+The Maya column names the equivalent Maya 2027 command (command reference pages, summarised); PROVISIONAL marks an unconfirmed mapping and \"no equivalent\" a truthful gap.\n\n",
         );
         doc.push_str(&format!("{} tools.\n\n", specs().count()));
-        doc.push_str("| Tool | Access | Idempotent | Description |\n|---|---|---|---|\n");
+        doc.push_str("| Tool | Access | Idempotent | Maya equivalent | Difference from Maya | Description |\n|---|---|---|---|---|---|\n");
         for spec in specs() {
+            let (_, maya, difference) = super::super::maya_map::MAYA_MAP
+                .iter()
+                .find(|(name, _, _)| *name == spec.name)
+                .unwrap_or_else(|| panic!("maya_map.rs has no row for tool {}", spec.name));
             doc.push_str(&format!(
-                "| `{}` | {} | {} | {} |\n",
+                "| `{}` | {} | {} | {} | {} | {} |\n",
                 spec.name,
                 if spec.read_only {
                     "read-only"
@@ -100,10 +105,25 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
                     "mutating"
                 },
                 if spec.idempotent { "yes" } else { "no" },
+                maya.replace('|', "\\|"),
+                difference.replace('|', "\\|"),
                 spec.description.replace('|', "\\|"),
             ));
         }
         doc
+    }
+
+    #[test]
+    fn maya_map_has_exactly_the_registered_tools() {
+        let registered: Vec<_> = tool_names().collect();
+        let mapped: Vec<_> = super::super::maya_map::MAYA_MAP
+            .iter()
+            .map(|(name, _, _)| *name)
+            .collect();
+        assert_eq!(
+            mapped, registered,
+            "maya_map.rs must list every tool once, in registry order"
+        );
     }
 
     #[test]

@@ -2,6 +2,8 @@
 //!
 //! The table is not saved, so writers refuse a scene that holds any. One (u, v) belongs to each
 //! outer corner of each face, in face order, so faces never share a UV and there are no seams.
+//! Every stored value is exactly representable as f32: Maya stores `uvsp` as `float2`, so
+//! construction rounds to f32 and `validate` rejects anything else. See `.project-docs/uv-ascii-format.md`.
 //! Sourced scenes refuse the edit like every other structural edit.
 
 use super::{NativeError, NativeId, NativeMesh, NativeMeshShape, NativeScene};
@@ -47,6 +49,44 @@ impl UvSet {
     pub fn corner_count(&self) -> usize {
         self.faces.iter().map(Vec::len).sum()
     }
+
+    /// Builds a set from one UV list per face of `mesh`, rounding each value to the nearest f32.
+    /// Refuses a face-count or corner-count mismatch, a face with holes, a non-finite value and a
+    /// finite value too large for f32.
+    pub fn from_corners(
+        mesh: &NativeMesh,
+        mut faces: Vec<Vec<[f64; 2]>>,
+    ) -> Result<UvSet, NativeError> {
+        if faces.len() != mesh.faces().len() {
+            return Err(NativeError::InvalidSessionUvs);
+        }
+        for (face, corners) in mesh.faces().iter().zip(&mut faces) {
+            if !face.holes().is_empty() {
+                return Err(NativeError::UnsupportedUvTopology);
+            }
+            if face.outer().len() != corners.len() {
+                return Err(NativeError::InvalidSessionUvs);
+            }
+            for value in corners.iter_mut().flatten() {
+                *value = quantize(*value)?;
+            }
+        }
+        Ok(UvSet { faces })
+    }
+}
+
+/// The nearest f32 as f64, or an error when `value` is not finite or overflows f32.
+fn quantize(value: f64) -> Result<f64, NativeError> {
+    let rounded = f64::from(value as f32);
+    if rounded.is_finite() {
+        Ok(rounded)
+    } else {
+        Err(NativeError::InvalidSessionUvs)
+    }
+}
+
+fn is_f32_exact(value: f64) -> bool {
+    value.is_finite() && f64::from(value as f32) == value
 }
 
 fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> {
@@ -90,7 +130,7 @@ fn planar(mesh: &NativeMesh, axis: UvProjectAxis) -> Result<UvSet, NativeError> 
                     (value - low[slot]) / extent[slot]
                 };
             }
-            corners.push(uv);
+            corners.push([quantize(uv[0])?, quantize(uv[1])?]);
         }
         faces.push(corners);
     }
@@ -138,7 +178,12 @@ impl SessionUvs {
                     .iter()
                     .zip(&set.faces)
                     .any(|(face, corners)| face.outer().len() != corners.len())
-                || set.faces.iter().flatten().flatten().any(|v| !v.is_finite())
+                || set
+                    .faces
+                    .iter()
+                    .flatten()
+                    .flatten()
+                    .any(|v| !is_f32_exact(*v))
             {
                 return Err(NativeError::InvalidSessionUvs);
             }

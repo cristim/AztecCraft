@@ -388,6 +388,16 @@ impl NativeMesh {
                 &revolve(radius, sub_axis, sub_height, axis),
                 height,
             )),
+            PrimitiveOptions::Torus {
+                radius,
+                section_radius,
+                sub_axis,
+                sub_height,
+                axis,
+            } => Ok(Self::polygon_torus(
+                &revolve(radius, sub_axis, sub_height, axis),
+                section_radius,
+            )),
         }
     }
     pub(super) fn from_legacy(mesh: &Mesh) -> Self {
@@ -650,6 +660,9 @@ mod sphere;
 mod sphere_tests;
 #[cfg(test)]
 mod tests;
+mod torus;
+#[cfg(test)]
+mod torus_tests;
 
 fn revolve(
     radius: f64,

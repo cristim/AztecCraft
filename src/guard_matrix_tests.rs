@@ -18,8 +18,8 @@ use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, UvProjectAxis, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, RotateAxis, ScaleHandle,
+    SessionMaterialId, TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -649,6 +649,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             tool: ActiveTool::Scale,
             space: ManipulationSpace::Object,
         },
+        Operation::SetMoveSpace {
+            space: MoveSpace::Object,
+        },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
         Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
         Operation::BeginMove {
@@ -877,6 +880,12 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
+        Operation::SetMoveSpace { .. } => vec![sample(
+            "set_move_space(parent)",
+            Operation::SetMoveSpace {
+                space: MoveSpace::Parent,
+            },
+        )],
         Operation::SetToolHandle(_) => vec![
             sample(
                 "set_tool_handle(rotate,y)",

@@ -863,8 +863,8 @@ fn rotate_refusal_in_drag_keeps_the_last_valid_preview() {
 }
 
 #[test]
-fn refused_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
-    let (mut scene, node) = test_fixtures::pivoted_shape();
+fn restricted_rotate_begin_consumes_no_id_and_leaves_no_transaction() {
+    let (mut scene, node) = test_fixtures::cube();
     test_fixtures::restrict_edits(&mut scene, node);
     let mut history = History::new(scene);
     let before = history.scene.clone();
@@ -1002,8 +1002,8 @@ fn scale_refusal_in_drag_keeps_the_last_valid_preview_and_identity_is_unchanged(
 }
 
 #[test]
-fn refused_scale_begin_consumes_no_id() {
-    let (mut scene, node) = test_fixtures::pivoted_shape();
+fn restricted_scale_begin_consumes_no_id() {
+    let (mut scene, node) = test_fixtures::cube();
     test_fixtures::restrict_edits(&mut scene, node);
     let mut history = History::new(scene);
     let result = history.begin_scale(
@@ -1237,4 +1237,45 @@ fn extras_policy_refusals_leave_no_transaction_and_no_consumed_id() {
         assert_eq!(history.next_manipulation_id, 0);
         assert_eq!(history.scene, before);
     }
+}
+
+#[test]
+fn redo_of_a_rotate_on_a_pivoted_node_restores_the_applied_channels_bit_for_bit() {
+    let (_, scene, node) = test_fixtures::pivoted_family([20.0, 35.0, -15.0], [0.0; 3], true)
+        .into_iter()
+        .nth(1)
+        .unwrap();
+    let mut history = History::new(scene);
+    let channel_bits = |history: &History| {
+        history
+            .scene
+            .node(node)
+            .unwrap()
+            .transform()
+            .values()
+            .map(f64::to_bits)
+    };
+    let baseline = channel_bits(&history);
+    let token = Uuid::new_v4();
+    let id = start_rotate(&mut history, RotateAxis::Y, token);
+    history
+        .update_move(token, id, ManipulationProvenance::Native, 37.5)
+        .unwrap();
+    assert_eq!(
+        history
+            .finish_move(
+                token,
+                id,
+                ManipulationProvenance::Native,
+                ManipulationFinish::Commit
+            )
+            .unwrap(),
+        EditOutcome::Changed
+    );
+    let applied = channel_bits(&history);
+    assert_ne!(applied, baseline);
+    assert!(history.undo());
+    assert_eq!(channel_bits(&history), baseline);
+    assert!(history.redo());
+    assert_eq!(channel_bits(&history), applied);
 }
