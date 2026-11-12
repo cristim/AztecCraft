@@ -9605,12 +9605,14 @@ fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reason
     ];
     for (label, primitive) in menus::POLYGON_PRIMITIVES {
         if primitive.is_none() {
-            rows.push((
-                label.into(),
+            let reason = if label == "Torus" {
+                "Torus is available through the MCP create_primitive tool only; its menu entry is not built yet".to_owned()
+            } else {
                 format!(
                     "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
-                ),
-            ));
+                )
+            };
+            rows.push((label.into(), reason));
         }
     }
     assert_eq!(rows.len(), 12);
