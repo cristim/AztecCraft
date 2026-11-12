@@ -39,6 +39,7 @@ enum FileDecisionInput {
     Cancel,
     Discard,
     Save,
+    SaveAs,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -47,6 +48,9 @@ struct ResolveFileArgs {
     scene_token: String,
     pending_action_id: String,
     decision: FileDecisionInput,
+    /// Fresh destination, required for and only allowed with decision save_as (1 to 4096 bytes).
+    #[schemars(length(min = 1, max = 4096))]
+    path: Option<String>,
 }
 
 fn parse_path(arguments: JsonObject) -> Result<(Uuid, String), ErrorData> {
@@ -99,10 +103,31 @@ fn parse_resolve_file_action(arguments: JsonObject) -> Result<RemoteRequest, Err
     let args: ResolveFileArgs = decode(arguments)?;
     let pending_id = Uuid::parse_str(&args.pending_action_id)
         .map_err(|_| ErrorData::invalid_params("pending_action_id must be a UUID", None))?;
-    let decision = match args.decision {
-        FileDecisionInput::Cancel => FileDecision::Cancel,
-        FileDecisionInput::Discard => FileDecision::Discard,
-        FileDecisionInput::Save => FileDecision::Save,
+    let decision = match (args.decision, args.path) {
+        (FileDecisionInput::Cancel, None) => FileDecision::Cancel,
+        (FileDecisionInput::Discard, None) => FileDecision::Discard,
+        (FileDecisionInput::Save, None) => FileDecision::Save,
+        (FileDecisionInput::SaveAs, Some(path)) => {
+            if path.is_empty() || path.len() > 4096 || path.contains('\0') {
+                return Err(ErrorData::invalid_params(
+                    "path must contain 1 to 4096 UTF-8 bytes and no NUL",
+                    None,
+                ));
+            }
+            FileDecision::SaveAs { path: path.into() }
+        }
+        (FileDecisionInput::SaveAs, None) => {
+            return Err(ErrorData::invalid_params(
+                "decision save_as requires path",
+                None,
+            ));
+        }
+        _ => {
+            return Err(ErrorData::invalid_params(
+                "path is only allowed with decision save_as",
+                None,
+            ));
+        }
     };
     Ok(scoped(
         token(&args.scene_token)?,
@@ -160,7 +185,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "resolve_file_action",
-        description: "Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening",
+        description: "Cancel, discard, save or save_as (with a fresh path; the only save for a pending Untitled scene) before the exact pending file action using its UUID and current scene token; a failed save leaves the prompt pending; source-changed Open requires Cancel and reopening",
         schema: schema::<ResolveFileArgs>,
         parse: parse_resolve_file_action,
         idempotent: false,

@@ -82,11 +82,16 @@ pub enum FileActionKind {
     Close,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum FileDecision {
     Cancel,
     Discard,
     Save,
+    /// Save to a fresh path (the prompt's Save As, the only save for an Untitled scene), then
+    /// apply the pending action; a failed save keeps the prompt and the window open.
+    SaveAs {
+        path: PathBuf,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]

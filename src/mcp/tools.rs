@@ -1445,6 +1445,26 @@ mod tests {
                 ..
             }
         ));
+        let save_as = json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":"out.mb"});
+        assert!(matches!(
+            parse_request("resolve_file_action", save_as.as_object().unwrap().clone())
+                .unwrap()
+                .operation,
+            Operation::ResolveFileAction {
+                decision: FileDecision::SaveAs { .. },
+                ..
+            }
+        ));
+        for args in [
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as"}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save","path":"out.mb"}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":""}),
+            json!({"scene_token":token,"pending_action_id":pending,"decision":"save_as","path":"a\u{0}b"}),
+        ] {
+            assert!(
+                parse_request("resolve_file_action", args.as_object().unwrap().clone()).is_err()
+            );
+        }
         let args = json!({"scene_token":token,"node_id":"1","translation":[16777217.125,0,0],"rotation_degrees":[90,0,0],"scale":[1,1,1]});
         let request = parse_request("set_transform", args.as_object().unwrap().clone()).unwrap();
         let Operation::SetTransform { transform, .. } = request.operation else {

@@ -2708,14 +2708,15 @@
   },
   {
     "name": "resolve_file_action",
-    "description": "Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening",
+    "description": "Cancel, discard, save or save_as (with a fresh path; the only save for a pending Untitled scene) before the exact pending file action using its UUID and current scene token; a failed save leaves the prompt pending; source-changed Open requires Cancel and reopening",
     "inputSchema": {
       "$defs": {
         "FileDecisionInput": {
           "enum": [
             "cancel",
             "discard",
-            "save"
+            "save",
+            "save_as"
           ],
           "type": "string"
         }
@@ -2725,6 +2726,15 @@
       "properties": {
         "decision": {
           "$ref": "#/$defs/FileDecisionInput"
+        },
+        "path": {
+          "description": "Fresh destination, required for and only allowed with decision save_as (1 to 4096 bytes).",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "pending_action_id": {
           "type": "string"
