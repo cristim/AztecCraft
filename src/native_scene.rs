@@ -704,6 +704,14 @@ impl Default for NativeScene {
     }
 }
 
+fn is_valid_name(name: &str) -> bool {
+    let mut chars = name.bytes();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == b'_')
+}
+
 impl NativeScene {
     /// Save authority is available only for a scene authored without a parsed source.
     #[cfg(unix)]
@@ -1358,12 +1366,7 @@ impl NativeScene {
         Ok(shape)
     }
     fn validate_new_name(&self, id: Option<NodeId>, name: &str) -> Result<(), NativeError> {
-        let mut chars = name.bytes();
-        if !chars
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
-            || chars.any(|c| !c.is_ascii_alphanumeric() && c != b'_')
-        {
+        if !is_valid_name(name) {
             return Err(NativeError::InvalidName);
         }
         if self
