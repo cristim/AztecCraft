@@ -547,6 +547,8 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
             json!({"scene_token":token,"mode":mode}),
         )
         .await;
+        let before = editor.history.scene().clone();
+        let can_undo = editor.history.can_undo();
         let refused = call(
             &mut editor,
             &context,
@@ -556,13 +558,41 @@ async fn sdk_delete_node_is_refused_in_component_selection_modes() {
         )
         .await;
         assert_eq!(refused.is_error, Some(true), "{mode}");
+        let refused = refused.structured_content.unwrap();
+        assert_eq!(refused["error"]["code"], "invalid_input", "{mode}");
         assert_eq!(
-            refused.structured_content.unwrap()["error"]["message"],
+            refused["error"]["message"],
             format!("{noun} deletion is unsupported; switch to Object or Hierarchy selection"),
             "{mode}"
         );
+        assert_eq!(editor.scene_token.to_string(), token, "{mode}");
         assert_eq!(editor.selection_mode, selection);
+        assert_eq!(editor.history.scene(), &before, "{mode}");
         assert!(editor.history.scene().node(id).is_ok());
+        assert_eq!(editor.history.can_undo(), can_undo, "{mode}");
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        assert_eq!(
+            inspected["inspection"]["scene_token"].as_str().unwrap(),
+            token.as_str(),
+            "{mode}"
+        );
+        assert!(
+            inspected["inspection"]["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|node| node["id"] == node_id),
+            "{mode}"
+        );
     }
     call(
         &mut editor,
