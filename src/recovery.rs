@@ -20,11 +20,16 @@
 //! Every default here is PROVISIONAL: the Maya autosave defaults are not verified against the
 //! pinned reference (#5), and nothing in this module claims parity.
 
+mod session;
+pub use session::SessionGuard;
+
 use craft_atomic::{AtomicFs, NewFilePermissions, RealFs, WriteOptions};
 use std::{
     cell::RefCell,
     collections::HashMap,
-    fmt, fs, io,
+    fmt, fs,
+    fs::File,
+    io,
     path::{Path, PathBuf},
 };
 
