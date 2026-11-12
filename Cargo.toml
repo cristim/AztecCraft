@@ -23,7 +23,7 @@ path = "examples/icon_sheet.rs"
 required-features = ["desktop"]
 
 [dependencies]
-glam = { version = "=0.34.2", features = ["serde"] }
+glam = { version = "=0.34.3", features = ["serde"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.154", features = ["float_roundtrip"] }
 craft-atomic = { path = "vendor/craft-atomic" }
