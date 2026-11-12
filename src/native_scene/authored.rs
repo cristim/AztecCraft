@@ -3,10 +3,11 @@
 //! enum with an exhaustive `match`, so the checks exist once.
 
 use super::{
-    GeometryViewFacts, NativeError, NativeMeshShape, NativeScene, NativeTransformNode, Points,
-    TransformExtras, Units,
+    GeometryViewFacts, NativeError, NativeId, NativeMeshShape, NativeScene, NativeTransformNode,
+    Points, TransformExtras, Units,
 };
 use crate::scene::NodeId;
+use std::collections::{HashMap, HashSet};
 
 /// Names of the default Maya scene nodes that a file omitting that scene still
 /// collides with on load. `BUILTINS` holds the remaining default names.
@@ -116,20 +117,18 @@ pub(super) fn check_scene(scene: &NativeScene) -> Result<(), AuthoredIneligible>
     {
         return Err(R::NonAuthoredHierarchy);
     }
+    let edges = EdgeCounts::new(scene);
+    let shapes: HashMap<NativeId, &NativeMeshShape> =
+        scene.shapes.iter().map(|shape| (shape.id, shape)).collect();
     for node in &scene.nodes {
-        let (mut roots, mut children) = (0, 0);
-        for edge in &scene.dag {
-            if edge.parent.is_none() && edge.child == node.transform_id {
-                roots += 1;
-            }
-            if edge.parent == Some(node.transform_id) {
-                children += 1;
-            }
-        }
-        if roots != 1 || children != 1 {
+        // The root count mirrors validate() and cannot fail alone once the child count holds.
+        if edges.roots(node.transform_id) != 1 || edges.children(node.transform_id) != 1 {
             return Err(R::NonAuthoredHierarchy);
         }
-        let shape = shape_of(scene, node)?;
+        let shape = edges
+            .first_child(node.transform_id)
+            .and_then(|id| shapes.get(&id))
+            .ok_or(R::NonAuthoredHierarchy)?;
         if shape.mesh().point_count() == 0 || shape.mesh().faces().is_empty() {
             return Err(R::EmptyMesh);
         }
@@ -154,13 +153,9 @@ pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredI
     if !scene.shapes.is_empty() || scene.dag.len() != scene.nodes.len() {
         return Err(R::NonAuthoredHierarchy);
     }
+    let edges = EdgeCounts::new(scene);
     for node in &scene.nodes {
-        let roots = scene
-            .dag
-            .iter()
-            .filter(|edge| edge.parent.is_none() && edge.child == node.transform_id)
-            .count();
-        if roots != 1 {
+        if edges.roots(node.transform_id) != 1 {
             return Err(R::NonAuthoredHierarchy);
         }
         node_eligibility(node)?;
@@ -170,20 +165,57 @@ pub(super) fn check_transforms_only(scene: &NativeScene) -> Result<(), AuthoredI
 
 fn check_names(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
-    for (index, (id, name)) in names(scene).enumerate() {
-        scene.validate_new_name(id, name).map_err(|e| match e {
-            NativeError::InvalidName => R::InvalidName,
-            NativeError::NameCollision => R::NameCollision,
-            other => R::InvalidScene(other),
-        })?;
+    let mut node_names: HashMap<&str, usize> = HashMap::new();
+    for node in &scene.nodes {
+        *node_names.entry(node.name()).or_default() += 1;
+    }
+    let mut seen = HashSet::new();
+    for (_, name) in names(scene) {
+        if !super::is_valid_name(name) {
+            return Err(R::InvalidName);
+        }
+        // A repeated node name is a collision even when it is also reserved; a shape that
+        // repeats a node's name is caught below, after that node's own checks.
+        if node_names.get(name).is_some_and(|count| *count > 1) {
+            return Err(R::NameCollision);
+        }
         if RESERVED.contains(&name) || BUILTINS.contains(&name) {
             return Err(R::ReservedName);
         }
-        if names(scene).take(index).any(|(_, earlier)| earlier == name) {
+        if !seen.insert(name) {
             return Err(R::NameCollision);
         }
     }
     Ok(())
+}
+
+/// How many root edges and child edges each transform has, from one pass over the DAG.
+struct EdgeCounts {
+    roots: HashMap<NativeId, usize>,
+    children: HashMap<NativeId, (usize, NativeId)>,
+}
+
+impl EdgeCounts {
+    fn new(scene: &NativeScene) -> Self {
+        let mut roots: HashMap<NativeId, usize> = HashMap::new();
+        let mut children: HashMap<NativeId, (usize, NativeId)> = HashMap::new();
+        for edge in &scene.dag {
+            match edge.parent {
+                None => *roots.entry(edge.child).or_default() += 1,
+                Some(parent) => children.entry(parent).or_insert((0, edge.child)).0 += 1,
+            }
+        }
+        Self { roots, children }
+    }
+    fn roots(&self, transform: NativeId) -> usize {
+        self.roots.get(&transform).copied().unwrap_or(0)
+    }
+    fn children(&self, transform: NativeId) -> usize {
+        self.children.get(&transform).map_or(0, |entry| entry.0)
+    }
+    fn first_child(&self, transform: NativeId) -> Option<NativeId> {
+        self.children.get(&transform).map(|entry| entry.1)
+    }
 }
 
 /// The one shape parented to `node`.

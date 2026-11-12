@@ -293,3 +293,48 @@ fn a_parented_transform_is_not_flat() {
         Err(AuthoredIneligible::NonAuthoredHierarchy)
     );
 }
+
+#[test]
+fn a_large_authored_scene_is_eligible_and_its_late_faults_are_found() {
+    use AuthoredIneligible as R;
+    let names: Vec<String> = (0..512).map(|i| format!("n{i}")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    let base = scene(&refs);
+    check(&base).unwrap();
+    let last = refs.len() - 1;
+    type Case = (fn(&mut NativeScene, usize), R);
+    let cases: [Case; 6] = [
+        (
+            |s, i| s.shapes[i].name = s.shapes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (
+            |s, i| s.shapes[i].name = s.nodes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (
+            |s, i| s.nodes[i].name = s.nodes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (|s, i| s.nodes[i].name = "persp".into(), R::ReservedName),
+        (
+            |s, i| {
+                s.nodes[0].name = "persp".into();
+                s.nodes[i].name = "persp".into();
+            },
+            R::NameCollision,
+        ),
+        (
+            |s, i| {
+                let child = s.dag.iter().position(|e| e.parent.is_some()).unwrap();
+                s.dag[child].parent = Some(s.nodes[i].transform_id);
+            },
+            R::NonAuthoredHierarchy,
+        ),
+    ];
+    for (mutate, expected) in cases {
+        let mut scene = base.clone();
+        mutate(&mut scene, last);
+        assert_eq!(check(&scene), Err(expected));
+    }
+}
