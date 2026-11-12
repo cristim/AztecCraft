@@ -799,6 +799,7 @@ mod tests {
                         | "inspect_uvs"
                         | "inspect_vertices"
                         | "get_recovery_status"
+                        | "list_camera_bookmarks"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -875,6 +876,13 @@ mod tests {
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
                 "set_camera_pose" => {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
+                }
+                "list_camera_bookmarks" => json!({}),
+                "create_camera_bookmark" | "delete_camera_bookmark" | "apply_camera_bookmark" => {
+                    json!({"scene_token":token,"name":"v"})
+                }
+                "rename_camera_bookmark" => {
+                    json!({"scene_token":token,"name":"v","new_name":"w"})
                 }
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "set_snap_mode" => json!({"scene_token":token,"grid":true}),
@@ -995,6 +1003,8 @@ mod tests {
                     | "set_camera_pose"
                     | "set_pivots"
                     | "reset_pivots"
+                    | "list_camera_bookmarks"
+                    | "apply_camera_bookmark"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),
