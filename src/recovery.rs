@@ -6,16 +6,31 @@
 //! occupied destination (`craft_atomic::write_new`), and a failed write leaves earlier recovery
 //! files as they were. The payload is opaque bytes: the caller serializes the scene.
 //!
-//! Files carry the writing session's pid, and retention only prunes files this store instance wrote, so a
-//! live session never deletes what a crashed one left. Known limits: on volumes without hard links
-//! the install falls back to a copy that a power loss can leave truncated, so callers must treat a
-//! payload as untrusted until it parses; the store directory is checked, not pinned by file
-//! descriptor, so a concurrent swap of the directory itself is not defended against; orphaned
-//! `.craft_tmp` staging files from a crash are not swept yet.
+//! Files carry the writing session's pid. Retention prunes only the exact files this store instance
+//! created, so neither a crashed earlier session nor another live writer sharing the pid (pid
+//! namespaces, two stores in one process, a synced directory) loses a file to it. A file this
+//! store wrote and that was then removed through another store can have its name reused by a
+//! third writer; `remove` through this store forgets the name, other stores cannot. Stems are
+//! matched case-insensitively for sequencing, since volumes such as macOS APFS fold case.
 //!
-//! A marker can be unlinked by a concurrent `clear_crashed_session` between a restarting session's
-//! open and lock; that session then runs unmarked and a later crash of it goes undetected, though
-//! its recovery files are still listed.
+//! Known limits:
+//! - On volumes without hard links the install falls back to a copy straight into the final
+//!   name. A process crash or power loss mid-copy can leave a truncated newest file, so treat a
+//!   payload as untrusted until it parses.
+//! - The store directory is checked, not pinned by file descriptor; a concurrent swap of the
+//!   directory itself is not defended against.
+//! - Orphaned `.craft_tmp` staging files from a crash are not swept yet.
+//! - Crash markers use advisory file locks, which are only reliable on a local disk. On NFS,
+//!   other network mounts and synced folders (Dropbox, iCloud) a live session can look crashed
+//!   to another process or host, or locks can be lost. Callers must put the directory on local
+//!   storage; `clear_crashed_session` only removes a marker whose lock it can take, and never
+//!   touches recovery files, so a false crash report costs a prompt, not data. This process
+//!   never probes its own marker through a second descriptor (per store instance: a second
+//!   store with the same pid in one process still does, which is correct with per-descriptor
+//!   `flock` but not with POSIX-style NFS emulation).
+//! - A marker can be unlinked by a concurrent `clear_crashed_session` between a restarting
+//!   session's open and lock; that session then runs unmarked and a later crash of it goes
+//!   undetected, though its recovery files are still listed.
 //!
 //! Every default here is PROVISIONAL: the Maya autosave defaults are not verified against the
 //! pinned reference (#5), and nothing in this module claims parity.
@@ -25,12 +40,13 @@ pub use session::SessionGuard;
 
 use craft_atomic::{AtomicFs, NewFilePermissions, RealFs, WriteOptions};
 use std::{
-    cell::RefCell,
-    collections::HashMap,
+    cell::{Cell, RefCell},
+    collections::{BTreeMap, HashMap},
     fmt, fs,
     fs::File,
-    io,
+    io::{self, Read},
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 /// PROVISIONAL default for the number of recovery files kept per source.
@@ -43,7 +59,6 @@ const WRITE_ATTEMPTS: u32 = 8;
 const INFIX: &str = ".autosave";
 const SUFFIX: &str = ".recovery";
 
-#[derive(Debug)]
 pub enum RecoveryError {
     InvalidRetention,
     InvalidPid,
@@ -63,7 +78,6 @@ pub enum RecoveryError {
 }
 
 impl fmt::Display for RecoveryError {
-    // Deliberately omits `source`: its message can embed absolute local paths.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidRetention => f.write_str("recovery retention must be at least 1"),
@@ -81,14 +95,30 @@ impl fmt::Display for RecoveryError {
     }
 }
 
-impl std::error::Error for RecoveryError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+// Neither Debug nor `source()` exposes the inner `io::Error`: craft-atomic puts the absolute
+// destination path (which embeds the scene stem) in its message, and Debug, `{:#}` and error
+// chains would otherwise carry it into logs. Only the operation and `ErrorKind` survive.
+impl fmt::Debug for RecoveryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io { source, .. } => Some(source),
-            _ => None,
+            Self::Io { operation, source } => f
+                .debug_struct("Io")
+                .field("operation", operation)
+                .field("kind", &source.kind())
+                .finish(),
+            Self::InvalidRetention => f.write_str("InvalidRetention"),
+            Self::InvalidPid => f.write_str("InvalidPid"),
+            Self::EmptyPayload => f.write_str("EmptyPayload"),
+            Self::TooLarge => f.write_str("TooLarge"),
+            Self::DirectoryNotUsable => f.write_str("DirectoryNotUsable"),
+            Self::SequenceExhausted => f.write_str("SequenceExhausted"),
+            Self::Contended => f.write_str("Contended"),
+            Self::NotInStore => f.write_str("NotInStore"),
         }
     }
 }
+
+impl std::error::Error for RecoveryError {}
 
 fn io_error(operation: &'static str) -> impl FnOnce(io::Error) -> RecoveryError {
     move |source| RecoveryError::Io { operation, source }
@@ -160,14 +190,27 @@ fn parse_name(name: &str) -> Option<(&str, u32, u32)> {
     ))
 }
 
-#[derive(Debug, Clone)]
 pub struct RecoveryStore {
     dir: PathBuf,
     max_backups: usize,
     pid: u32,
-    /// First sequence this store wrote per stem; older same-pid files belong to an earlier
-    /// process that reused the pid and are never pruned.
-    floors: RefCell<HashMap<String, u32>>,
+    /// Exact files this instance created, by case-folded stem. Retention prunes only these, so
+    /// no other writer, however its pid and stem collide with ours, loses a file to us.
+    written: RefCell<HashMap<String, BTreeMap<u32, String>>>,
+    /// A session guard of this store is alive: its marker is never probed from this process.
+    active: Rc<Cell<bool>>,
+    /// `begin_session` took over an unheld marker for this pid; reported until cleared.
+    stale_takeover: Cell<bool>,
+}
+
+impl fmt::Debug for RecoveryStore {
+    // Omits the directory and stems: they are absolute paths and scene names.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RecoveryStore")
+            .field("max_backups", &self.max_backups)
+            .field("pid", &self.pid)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RecoveryStore {
@@ -187,7 +230,9 @@ impl RecoveryStore {
             dir: dir.into(),
             max_backups,
             pid,
-            floors: RefCell::default(),
+            written: RefCell::default(),
+            active: Rc::default(),
+            stale_takeover: Cell::default(),
         })
     }
 
@@ -225,10 +270,11 @@ impl RecoveryStore {
             }
             match options.write_new_custom(fs, &self.dir.join(&name), bytes) {
                 Ok(()) => {
-                    self.floors
+                    self.written
                         .borrow_mut()
-                        .entry(stem.clone())
-                        .or_insert(sequence);
+                        .entry(stem.to_ascii_lowercase())
+                        .or_default()
+                        .insert(sequence, name.clone());
                     let entry = RecoveryEntry {
                         stem,
                         pid: self.pid,
@@ -290,7 +336,18 @@ impl RecoveryStore {
         if meta.len() > MAX_RECOVERY_BYTES as u64 {
             return Err(RecoveryError::TooLarge);
         }
-        fs::read(&path).map_err(io_error("read"))
+        // Bounded by the read itself, so a file that grows after the check stays under the cap.
+        let mut bytes = Vec::new();
+        File::open(&path)
+            .and_then(|file| {
+                file.take(MAX_RECOVERY_BYTES as u64 + 1)
+                    .read_to_end(&mut bytes)
+            })
+            .map_err(io_error("read"))?;
+        if bytes.len() > MAX_RECOVERY_BYTES {
+            return Err(RecoveryError::TooLarge);
+        }
+        Ok(bytes)
     }
 
     /// Remove one recovery file, after recovery or when the user discards it.
@@ -298,7 +355,16 @@ impl RecoveryStore {
         if parse_name(&entry.file_name) != Some((entry.stem.as_str(), entry.pid, entry.sequence)) {
             return Err(RecoveryError::NotInStore);
         }
-        remove_regular(&self.dir.join(&entry.file_name))
+        remove_regular(&self.dir.join(&entry.file_name))?;
+        if let Some(files) = self
+            .written
+            .borrow_mut()
+            .get_mut(&entry.stem.to_ascii_lowercase())
+            && entry.pid == self.pid
+        {
+            files.remove(&entry.sequence);
+        }
+        Ok(())
     }
 
     fn read_dir(&self) -> Result<Vec<io::Result<fs::DirEntry>>, RecoveryError> {
@@ -337,7 +403,7 @@ impl RecoveryStore {
         for item in self.read_dir()? {
             let item = item.map_err(io_error("scan sequence"))?;
             if let Some((found, pid, sequence)) = item.file_name().to_str().and_then(parse_name)
-                && found == stem
+                && found.eq_ignore_ascii_case(stem)
                 && pid == self.pid
             {
                 highest = highest.max(sequence);
@@ -349,34 +415,28 @@ impl RecoveryStore {
         }
     }
 
-    /// Remove the oldest regular recovery files of `kept`'s stem beyond the retention limit.
+    /// Remove the oldest files this instance wrote beyond the retention limit.
     /// Best effort: a failure is counted, never raised, and `kept` is never removed.
     fn prune(&self, fs: &dyn AtomicFs, kept: &RecoveryEntry) -> (usize, usize) {
-        let Ok(entries) = self.list() else {
-            return (0, 1);
-        };
-        let same: Vec<_> = entries
+        let mut written = self.written.borrow_mut();
+        let files = written.entry(kept.stem.to_ascii_lowercase()).or_default();
+        let excess = files.len().saturating_sub(self.max_backups);
+        let victims: Vec<(u32, String)> = files
             .iter()
-            .filter(|e| {
-                e.stem == kept.stem
-                    && e.pid == kept.pid
-                    && self
-                        .floors
-                        .borrow()
-                        .get(&e.stem)
-                        .is_some_and(|floor| e.sequence >= *floor)
-            })
-            .collect();
-        let excess = same.len().saturating_sub(self.max_backups);
-        let (mut pruned, mut failures) = (0, 0);
-        for old in same
-            .iter()
-            .filter(|e| e.sequence != kept.sequence)
+            .filter(|(sequence, _)| **sequence != kept.sequence)
             .take(excess)
-        {
-            match fs.remove(&self.dir.join(&old.file_name)) {
-                Ok(()) => pruned += 1,
-                Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            .map(|(sequence, name)| (*sequence, name.clone()))
+            .collect();
+        let (mut pruned, mut failures) = (0, 0);
+        for (sequence, name) in victims {
+            match fs.remove(&self.dir.join(name)) {
+                Ok(()) => {
+                    pruned += 1;
+                    files.remove(&sequence);
+                }
+                Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                    files.remove(&sequence);
+                }
                 Err(_) => failures += 1,
             }
         }
