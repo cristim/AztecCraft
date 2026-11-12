@@ -2150,6 +2150,8 @@ pub enum NativeError {
     /// A Maya scene import refused its source or options; the reason carries no file content.
     MayaImport(MayaImportRefusal),
     BusyManipulation,
+    /// An undo preference or chunk call the current undo state refuses.
+    UndoState(&'static str),
     UnsupportedView(&'static str),
 }
 impl From<SceneError> for NativeError {
@@ -2240,6 +2242,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedScale(reason) => write!(f, "Scale unsupported: {reason}"),
             Self::MayaImport(reason) => reason.fmt(f),
             Self::BusyManipulation => f.write_str("finish or cancel the active manipulation"),
+            Self::UndoState(reason) => write!(f, "undo: {reason}"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }

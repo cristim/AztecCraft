@@ -2336,6 +2336,141 @@
     }
   },
   {
+    "name": "set_undo_queue",
+    "description": "Set the Undo queue (Preferences > Undo): finite with a size from 1 to 1000 (default finite 50) or infinite. A smaller size drops the oldest steps at once. Session-only: it survives New and Open but not a restart. Refused while an undo chunk or manipulation is open. Read it from inspect_scene undo_state",
+    "inputSchema": {
+      "$defs": {
+        "QueueKind": {
+          "enum": [
+            "finite",
+            "infinite"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "`queue` is \"finite\" (with `size`) or \"infinite\" (no `size`).",
+      "properties": {
+        "queue": {
+          "$ref": "#/$defs/QueueKind"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "size": {
+          "description": "Finite queue size, 1 to 1000; required for \"finite\", refused for \"infinite\".",
+          "format": "uint",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token",
+        "queue"
+      ],
+      "title": "UndoQueueArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_undo_enabled",
+    "description": "Turn Undo on or off (undoInfo -state, or -stateWithoutFlush with flush false). While off, edits apply and record nothing, Undo and Redo do nothing, and an edit flushes both queues so no stale step can erase it. Refused while an undo chunk or manipulation is open. Read it from inspect_scene undo_state",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "flush": {
+          "description": "Clear both queues (`undoInfo -state`) or keep them (`-stateWithoutFlush`). Default true when turning undo off and false when turning it on (PROVISIONAL: the docs state no flush rule).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "enabled"
+      ],
+      "title": "UndoEnabledArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "open_undo_chunk",
+    "description": "Start an undo chunk: every edit until close_undo_chunk joins one undo step named name (default Chunk). Chunks do not nest. While one is open the native Undo and Redo close it first, so an abandoned chunk cannot block them; an open chunk is reported by inspect_scene undo_state.open_chunk. Close every chunk you open: until then edits from any source, native ones included, join it",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Name of the single undo step, at most 64 characters; empty or omitted is \"Chunk\".",
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "OpenChunkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "close_undo_chunk",
+    "description": "Close the open undo chunk and record its edits as one undo step; a chunk with no net scene change records no step",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "frame_selected",
     "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
     "inputSchema": {

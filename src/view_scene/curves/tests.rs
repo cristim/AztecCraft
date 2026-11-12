@@ -164,10 +164,18 @@ fn actual_f32_endpoint_quantization_cannot_spend_extra_error() {
         ),
         Err(ViewError::NonFiniteWorld)
     ));
-    let world = DMat4::from_translation(DVec3::splat(1e-6));
+    // At x = 1e-4 the gate passes (grid 1.2e-11 < 5% of 3e-9) while plain f32 world endpoints
+    // would be off by ~2.5e-12; the f64 origin keeps them exact.
+    let world = DMat4::from_translation(DVec3::new(1e-4, 0.0, 0.0));
     let result = prepared(tiny, world);
     assert_eq!(result.segments.len(), 1);
-    assert!((result.segments[0][1] - result.segments[0][0]).length() > 2e-9);
+    let [first, last] = [result.segments[0][0], result.segments[0][1]];
+    assert!((result.origin + first.as_dvec3() - DVec3::new(1e-4, 0.0, 0.0)).length() < 1e-13);
+    assert!((result.origin + last.as_dvec3() - DVec3::new(1e-4 + 3e-9, 0.0, 0.0)).length() < 1e-13);
+    assert_ne!(
+        DVec3::new(1e-4, 0.0, 0.0).as_vec3().as_dvec3(),
+        DVec3::new(1e-4, 0.0, 0.0)
+    );
     assert_bound(tiny, world, &result);
 }
 
@@ -279,7 +287,7 @@ fn real_many_span_curve_accepts_65536_segments_and_refuses_65537() {
 }
 
 #[test]
-fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_a_tenth_of_curve() {
+fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_five_percent_of_curve() {
     // ~3.6 cm specimen (CV hull diagonal ~8.8 cm). With f32 world segments it was drawn at
     // x = 2e6 and refused at x = 3e6; offsets from an f64 origin keep it exact up to the f32 camera limit below.
     let points = [
@@ -298,7 +306,7 @@ fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_a_tenth_of
             &mut CurveWork::default(),
         )
     };
-    for x in [2000.3, 1e6, 3e6, 3e6 + 0.37, 5e6, -5e6 + 0.37] {
+    for x in [2000.3, 1e6, 3e6, 3e6 + 0.37, 3.5e6, -3.5e6 + 0.37] {
         let world = DMat4::from_translation(DVec3::new(x, 0.0, 0.0));
         let result = run(x).unwrap();
         assert!(result.segments.len() > 1, "{x}");
@@ -310,9 +318,10 @@ fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_a_tenth_of
             );
         }
     }
-    // The f32 camera cannot frame or orbit a curve once its grid is coarser than a tenth of
-    // the curve (the 8.8 cm curve: 1e7 and beyond), so it is refused instead of drawn off-screen.
+    // The f32 camera cannot frame or orbit a curve once its grid is coarser than 5% of
+    // the curve (the 8.8 cm curve: about 3.7e6 and beyond), so it is refused instead of drawn off-screen.
     for x in [
+        4e6,
         1e7 + 0.37,
         1e8 + 0.37,
         -1e9 + 0.37,
@@ -323,6 +332,26 @@ fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_a_tenth_of
         1e15 + 0.37,
     ] {
         assert!(matches!(run(x), Err(ViewError::NonFiniteWorld)), "{x}");
+    }
+    // A single-point curve has no size for the grid gate; it still must fit the f32 camera.
+    for t in [2e18, 3e38, 1e39] {
+        let world = DMat4::from_scale_rotation_translation(
+            DVec3::ZERO,
+            glam::DQuat::IDENTITY,
+            DVec3::new(t, 0.0, 0.0),
+        );
+        assert!(
+            matches!(
+                prepare(
+                    &source.curves()[0],
+                    &world,
+                    usize::MAX,
+                    &mut CurveWork::default()
+                ),
+                Err(ViewError::NonFiniteWorld)
+            ),
+            "{t}"
+        );
     }
     let non_finite = DMat4::from_translation(DVec3::new(f64::NAN, 0.0, 0.0));
     assert!(matches!(
