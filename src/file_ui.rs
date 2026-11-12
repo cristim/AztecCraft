@@ -725,6 +725,13 @@ impl Editor {
                 {
                     decision = Some(FileDecision::Save);
                 }
+                // After Don't Save so the first Tab stop stays Don't Save (the keyboard proof).
+                if ui
+                    .add_enabled(!source_changed, egui::Button::new("Don't Save"))
+                    .clicked()
+                {
+                    decision = Some(FileDecision::Discard);
+                }
                 if ui
                     .add_enabled(
                         !source_changed && self.files.save_as_available(),
@@ -738,12 +745,6 @@ impl Editor {
                     .clicked()
                 {
                     save_as = true;
-                }
-                if ui
-                    .add_enabled(!source_changed, egui::Button::new("Don't Save"))
-                    .clicked()
-                {
-                    decision = Some(FileDecision::Discard);
                 }
                 if ui.button("Cancel").clicked() {
                     decision = Some(FileDecision::Cancel);
