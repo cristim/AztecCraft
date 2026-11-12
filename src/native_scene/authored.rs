@@ -110,6 +110,12 @@ pub(super) fn check_content_kind(
 /// Everything after the writer's own resource admission: validity, units, the flat
 /// transform-over-one-mesh hierarchy, per-node eligibility and names.
 pub(super) fn check_scene(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+    check_structure(scene)?;
+    check_names(scene)
+}
+
+/// `check_scene` without the name rules: for a scene whose names are rewritten before use.
+pub(super) fn check_structure(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     use AuthoredIneligible as R;
     check_valid_units(scene)?;
     if scene.shapes.len() != scene.nodes.len()
@@ -134,7 +140,7 @@ pub(super) fn check_scene(scene: &NativeScene) -> Result<(), AuthoredIneligible>
         }
         eligibility(node, shape)?;
     }
-    check_names(scene)
+    Ok(())
 }
 
 fn check_valid_units(scene: &NativeScene) -> Result<(), AuthoredIneligible> {

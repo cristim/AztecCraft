@@ -5,6 +5,7 @@ mod authored;
 pub mod binary;
 mod curve;
 mod manipulator_frame;
+mod maya_import;
 mod mesh;
 mod move_translation;
 mod rotate_frame;
@@ -21,6 +22,7 @@ pub use appearance::{
 };
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
+pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{
@@ -2144,6 +2146,8 @@ pub enum NativeError {
         channel: ChannelLeaf,
         component: usize,
     },
+    /// A Maya scene import refused its source or options; the reason carries no file content.
+    MayaImport(MayaImportRefusal),
     BusyManipulation,
     UnsupportedView(&'static str),
 }
@@ -2233,6 +2237,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedMove(reason) => write!(f, "World-axis move unsupported: {reason}"),
             Self::UnsupportedRotate(reason) => write!(f, "Rotate unsupported: {reason}"),
             Self::UnsupportedScale(reason) => write!(f, "Scale unsupported: {reason}"),
+            Self::MayaImport(reason) => reason.fmt(f),
             Self::BusyManipulation => f.write_str("finish or cancel the active manipulation"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
