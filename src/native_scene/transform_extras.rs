@@ -1,7 +1,9 @@
 //! Optional transform attributes beyond translate, rotate, scale and the two pivots:
 //! rotateOrder (`ro`), rotateAxis (`ra`), shear (`sh`), rotatePivotTranslate (`rpt`) and
 //! scalePivotTranslate (`spt`). `None` means the source did not state the attribute.
-//! `opm` and `it` are deliberately absent (Slice A2); sources that carry them stay refused.
+//! inheritsTransform (`it`) and offsetParentMatrix (`opm`) are modeled too (#105). `None` means
+//! the source did not state them; the binary importer still refuses both because their binary
+//! encoding is unconfirmed.
 use super::{NativeError, Units, source::Storage};
 use glam::{DMat4, DVec3};
 use serde::Serialize;
@@ -17,7 +19,16 @@ pub struct TransformExtras {
     /// Declared in the scene's linear unit.
     pub rotate_pivot_translate: Option<[f64; 3]>,
     pub scale_pivot_translate: Option<[f64; 3]>,
+    /// `it`; Maya's default is true.
+    pub inherits_transform: Option<bool>,
+    /// `opm` as stored (row-vector layout, translation in elements 12 to 14, linear unit of the
+    /// scene). Maya's default is the identity.
+    pub offset_parent_matrix: Option<[f64; 16]>,
 }
+
+const IDENTITY_ROWS: [f64; 16] = [
+    1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+];
 
 fn zero(value: Option<[f64; 3]>) -> bool {
     value.is_none_or(|v| v.iter().all(|c| *c == 0.0))
@@ -31,6 +42,8 @@ impl TransformExtras {
             && zero(self.shear)
             && zero(self.rotate_pivot_translate)
             && zero(self.scale_pivot_translate)
+            && self.inherits_transform.is_none_or(|it| it)
+            && self.offset_parent_matrix.is_none_or(|m| m == IDENTITY_ROWS)
     }
 
     pub(crate) fn validate(&self) -> Result<(), NativeError> {
@@ -46,11 +59,21 @@ impl TransformExtras {
         .into_iter()
         .flatten()
         .all(|v| v.iter().all(|c| c.is_finite()));
-        if finite {
-            Ok(())
-        } else {
-            Err(NativeError::NonFinite)
+        let matrix_finite = self
+            .offset_parent_matrix
+            .is_none_or(|m| m.iter().all(|c| c.is_finite()));
+        if !finite || !matrix_finite {
+            return Err(NativeError::NonFinite);
         }
+        // Consumers transform points with the affine part only, so a projective offset would
+        // silently misplace geometry.
+        if self
+            .offset_parent_matrix
+            .is_some_and(|m| m[3] != 0.0 || m[7] != 0.0 || m[11] != 0.0 || m[15] != 1.0)
+        {
+            return Err(NativeError::InvalidTransformExtras);
+        }
+        Ok(())
     }
 
     /// `None` when all values are default, so callers keep the unchanged matrix path.
@@ -72,8 +95,20 @@ impl TransformExtras {
             shear: convert(self.shear, Storage::Unitless)?,
             rotate_pivot_translate_cm: convert(self.rotate_pivot_translate, Storage::Centimeters)?,
             scale_pivot_translate_cm: convert(self.scale_pivot_translate, Storage::Centimeters)?,
+            inherits_transform: self.inherits_transform.unwrap_or(true),
+            offset_parent: offset_parent(self.offset_parent_matrix, units)?,
         }))
     }
+}
+
+/// Column-form offset matrix: the stored row-vector array is its transpose, and only the
+/// translation row is a length (converted to cm).
+fn offset_parent(value: Option<[f64; 16]>, units: &Units) -> Result<DMat4, NativeError> {
+    let mut m = value.unwrap_or(IDENTITY_ROWS);
+    for slot in &mut m[12..15] {
+        *slot = Storage::Centimeters.internal(*slot, units)?;
+    }
+    Ok(DMat4::from_cols_array(&m))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -83,6 +118,9 @@ pub struct InternalExtras {
     pub shear: [f64; 3],
     pub rotate_pivot_translate_cm: [f64; 3],
     pub scale_pivot_translate_cm: [f64; 3],
+    pub inherits_transform: bool,
+    /// Column form, translation in cm.
+    pub offset_parent: DMat4,
 }
 
 /// Axis indices applied first to last for each rotateOrder value; `None` outside 0 to 5.
@@ -184,6 +222,13 @@ pub struct TransformAttributes {
     pub scale_pivot: [f64; 3],
     pub rotate_pivot_translate: [f64; 3],
     pub scale_pivot_translate: [f64; 3],
+    /// Maya's `inheritsTransform`; false drops the parent's world matrix. PROVISIONAL together
+    /// with `offset_parent_matrix`: the combination is unconfirmed against a Maya reference scene.
+    pub inherits_transform: bool,
+    /// `offsetParentMatrix` as stored (row-vector, translation in elements 12 to 14, declared
+    /// linear unit); absent when it is the identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset_parent_matrix: Option<[f64; 16]>,
     pub non_default: Vec<&'static str>,
 }
 
@@ -197,6 +242,8 @@ impl Default for TransformAttributes {
             scale_pivot: [0.0; 3],
             rotate_pivot_translate: [0.0; 3],
             scale_pivot_translate: [0.0; 3],
+            inherits_transform: true,
+            offset_parent_matrix: None,
             non_default: Vec::new(),
         }
     }
@@ -225,6 +272,10 @@ impl super::NativeScene {
             scale_pivot: node.scale_pivot(),
             rotate_pivot_translate: triple(declared.rotate_pivot_translate),
             scale_pivot_translate: triple(declared.scale_pivot_translate),
+            inherits_transform: declared.inherits_transform.unwrap_or(true),
+            offset_parent_matrix: declared
+                .offset_parent_matrix
+                .filter(|matrix| *matrix != IDENTITY_ROWS),
             non_default: Vec::new(),
         };
         let nonzero = |v: [f64; 3]| v.iter().any(|c| *c != 0.0);
@@ -241,6 +292,11 @@ impl super::NativeScene {
             (
                 "scale_pivot_translate",
                 nonzero(attributes.scale_pivot_translate),
+            ),
+            ("inherits_transform", !attributes.inherits_transform),
+            (
+                "offset_parent_matrix",
+                attributes.offset_parent_matrix.is_some(),
             ),
         ]
         .into_iter()

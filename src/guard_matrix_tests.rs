@@ -14,12 +14,12 @@ use crate::editor_operations::{
     FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance, RemoteRequest,
     SelectRule, ToolHandle, TransformInput,
 };
-use azteccraft::history::Command;
+use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, UvProjectAxis, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, RotateAxis, ScaleHandle,
+    SessionMaterialId, TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -641,6 +641,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             tool: ActiveTool::Scale,
             space: ManipulationSpace::Object,
         },
+        Operation::SetMoveSpace {
+            space: MoveSpace::Object,
+        },
         Operation::SetToolHandle(ToolHandle::RotateAxis(RotateAxis::Y)),
         Operation::SetManipulatorSize(ManipulatorSize::new(2.0).unwrap()),
         Operation::BeginMove {
@@ -792,6 +795,15 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
+        Operation::SetUndoQueue(UndoQueue::Infinite),
+        Operation::SetUndoEnabled {
+            enabled: false,
+            flush: true,
+        },
+        Operation::OpenUndoChunk {
+            name: "chunk".into(),
+        },
+        Operation::CloseUndoChunk,
         Operation::FrameSelected {
             with_children: false,
         },
@@ -866,6 +878,12 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
         ],
+        Operation::SetMoveSpace { .. } => vec![sample(
+            "set_move_space(parent)",
+            Operation::SetMoveSpace {
+                space: MoveSpace::Parent,
+            },
+        )],
         Operation::SetToolHandle(_) => vec![
             sample(
                 "set_tool_handle(rotate,y)",
@@ -1672,6 +1690,39 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
+        Operation::SetUndoQueue(_) => vec![
+            sample(
+                "set_undo_queue(infinite)",
+                Operation::SetUndoQueue(UndoQueue::Infinite),
+            ),
+            sample(
+                "set_undo_queue(finite 3)",
+                Operation::SetUndoQueue(UndoQueue::Finite(3)),
+            ),
+        ],
+        Operation::SetUndoEnabled { .. } => vec![
+            sample(
+                "set_undo_enabled(off)",
+                Operation::SetUndoEnabled {
+                    enabled: false,
+                    flush: true,
+                },
+            ),
+            sample(
+                "set_undo_enabled(on)",
+                Operation::SetUndoEnabled {
+                    enabled: true,
+                    flush: false,
+                },
+            ),
+        ],
+        Operation::OpenUndoChunk { .. } => vec![sample(
+            "open_undo_chunk",
+            Operation::OpenUndoChunk {
+                name: "chunk".into(),
+            },
+        )],
+        Operation::CloseUndoChunk => vec![sample("close_undo_chunk", Operation::CloseUndoChunk)],
         Operation::FrameSelected { .. } => vec![
             sample(
                 "frame_selected(parents)",

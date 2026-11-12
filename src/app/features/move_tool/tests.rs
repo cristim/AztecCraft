@@ -2026,9 +2026,16 @@ fn drag_off_a_handle_selects_by_marquee_and_on_a_handle_moves() {
 
     let (mut editor, context, rect) = setup(1.0);
     let node = editor.selected().unwrap();
+    let generation = editor.selection.generation();
     let from = rect.center() + egui::vec2(40.0, 0.0);
     drag(&mut editor, &context, from, from + egui::vec2(60.0, 0.0));
     assert_ne!(editor.status, MARQUEE_STATUS);
+    assert_eq!(
+        editor.selected(),
+        Some(node),
+        "a handle drag keeps the selection"
+    );
+    assert_eq!(editor.selection.generation(), generation);
     assert!(editor.history.active_manipulation().is_none());
     let translation = editor
         .history

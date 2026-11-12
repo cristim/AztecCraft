@@ -40,6 +40,7 @@ pub struct ViewCurveInstance {
     path: Vec<NativeId>,
     transform: NodeId,
     shape: NativeId,
+    origin: DVec3,
     segments: Vec<[Vec3; 2]>,
     bounds: [DVec3; 2],
     appearance_incomplete: bool,
@@ -64,8 +65,19 @@ impl ViewCurveInstance {
     pub fn shape(&self) -> NativeId {
         self.shape
     }
-    pub fn segments(&self) -> &[[Vec3; 2]] {
+    /// f64 world point that `local_segments` are offsets from.
+    pub fn origin(&self) -> DVec3 {
+        self.origin
+    }
+    /// Segment endpoints as f32 offsets from `origin`; precise at any distance from the world origin.
+    pub fn local_segments(&self) -> &[[Vec3; 2]] {
         &self.segments
+    }
+    /// Endpoints in f32 world space, which is only as precise as the f32 grid at their coordinates.
+    pub fn world_segments(&self) -> impl Iterator<Item = [Vec3; 2]> + '_ {
+        self.segments
+            .iter()
+            .map(|segment| segment.map(|p| (self.origin + p.as_dvec3()).as_vec3()))
     }
     pub fn bounds(&self) -> [DVec3; 2] {
         self.bounds
@@ -149,12 +161,12 @@ impl ViewScene {
                     if !node.unsupported_transform_effects().is_empty() {
                         return Err(ViewError::UnsupportedTransform);
                     }
-                    parent_world
-                        * local_matrix(
-                            scene
-                                .internal_transform(node.id())
-                                .map_err(ViewError::Native)?,
-                        )?
+                    compose_world(
+                        scene
+                            .internal_transform(node.id())
+                            .map_err(ViewError::Native)?,
+                        parent_world,
+                    )?
                 }
                 Record::Shape(_) | Record::Curve(_) => parent_world,
             };
@@ -221,6 +233,7 @@ impl ViewScene {
                                 path,
                                 transform: transform.id(),
                                 shape: shape.id(),
+                                origin: prepared.origin,
                                 segments: prepared.segments,
                                 bounds: prepared.bounds,
                                 appearance_incomplete: admission.appearance_incomplete(),
@@ -839,8 +852,15 @@ impl<'a> Graph<'a> {
     }
 }
 
+#[cfg(test)]
 fn local_matrix(transform: InternalTransform) -> Result<DMat4, ViewError> {
     transform.matrix().ok_or(ViewError::NonFiniteWorld)
+}
+
+fn compose_world(transform: InternalTransform, parent_world: DMat4) -> Result<DMat4, ViewError> {
+    transform
+        .compose_world(parent_world)
+        .ok_or(ViewError::NonFiniteWorld)
 }
 
 #[cfg(test)]

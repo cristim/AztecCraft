@@ -5,7 +5,9 @@ use crate::{
         SelectRule, SelectionChange, SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
-        args::{MutationArgs, decode, mutation, native_id, node_id, schema, scoped, token},
+        args::{
+            MutationArgs, decode, mutation, native_id, node_id, schema, scoped, token, unit_point,
+        },
         registry::ToolSpec,
     },
 };
@@ -70,10 +72,11 @@ struct SelectByRuleArgs {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct NdcRectArgs {
-    #[schemars(inner(range(min = -1.0, max = 1.0)))]
-    min: [f32; 2],
-    #[schemars(inner(range(min = -1.0, max = 1.0)))]
-    max: [f32; 2],
+    // Parsed as f64 so `unit_point` checks the wire value; the schema keeps the f32 format.
+    #[schemars(with = "[f32; 2]", inner(range(min = -1.0, max = 1.0)))]
+    min: [f64; 2],
+    #[schemars(with = "[f32; 2]", inner(range(min = -1.0, max = 1.0)))]
+    max: [f64; 2],
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -213,8 +216,11 @@ fn parse_select_by_rule(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
 
 fn parse_select_in_rect(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: SelectInRectArgs = decode(arguments)?;
-    let rect = NdcRect::new(args.rect.min.into(), args.rect.max.into())
-        .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    let rect = NdcRect::new(
+        unit_point("rect.min", args.rect.min)?,
+        unit_point("rect.max", args.rect.max)?,
+    )
+    .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
     let mode = match args.mode.unwrap_or(Marquee::Replace) {
         Marquee::Replace => MarqueeMode::Replace,
         Marquee::Add => MarqueeMode::Add,
@@ -389,7 +395,7 @@ fn select_edge_schema() -> JsonObject {
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "create_primitive",
-        description: "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+        description: "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
         schema: schema::<CreateArgs>,
         parse: parse_create_primitive,
         idempotent: false,

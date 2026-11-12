@@ -88,8 +88,8 @@ impl Editor {
             Operation::SetActiveTool(ActiveTool::Rotate | ActiveTool::Scale)
         );
         let step_label = match *operation {
-            Operation::Undo => self.history.undo_label(),
-            Operation::Redo => self.history.redo_label(),
+            Operation::Undo => self.history.undo_label_after_chunk(),
+            Operation::Redo => self.history.redo_label_after_chunk(),
             _ => None,
         };
         let status = match *operation {
@@ -106,8 +106,13 @@ impl Editor {
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
+            | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
+            | Operation::SetUndoQueue(_)
+            | Operation::SetUndoEnabled { .. }
+            | Operation::OpenUndoChunk { .. }
+            | Operation::CloseUndoChunk
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
@@ -368,14 +373,7 @@ impl Editor {
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
-                let text = path.to_str().ok_or_else(|| {
-                    OperationError::InvalidInput("Scene path must be UTF-8".into())
-                })?;
-                if text.is_empty() || text.len() > 4096 || text.contains('\0') {
-                    return Err(OperationError::InvalidInput(
-                        "Scene path must contain 1 to 4096 bytes and no NUL".into(),
-                    ));
-                }
+                super::files::validate_scene_path(path)?;
                 if matches!(operation, Operation::OpenScene { .. }) {
                     return self.open_candidate(path);
                 }
@@ -397,7 +395,13 @@ impl Editor {
             Operation::ResolveFileAction {
                 pending_id,
                 decision,
-            } => return self.resolve_file_action_guarded(*pending_id, *decision, may_install),
+            } => {
+                return self.resolve_file_action_guarded(
+                    *pending_id,
+                    decision.clone(),
+                    may_install,
+                );
+            }
             _ => {}
         }
         if self.files.is_modal()
@@ -405,6 +409,7 @@ impl Editor {
                 operation,
                 Operation::SetActiveTool(_)
                     | Operation::SetToolSpace { .. }
+                    | Operation::SetMoveSpace { .. }
                     | Operation::SetToolHandle(_)
                     | Operation::SetManipulatorSize(_)
                     | Operation::BeginMove { .. }
@@ -427,6 +432,33 @@ impl Editor {
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
+                    | Operation::Create { .. }
+                    | Operation::Delete(_)
+                    | Operation::DeleteSelection
+                    | Operation::ExtrudeFace { .. }
+                    | Operation::ProjectUvPlanar { .. }
+                    | Operation::DeleteUvs { .. }
+                    | Operation::Undo
+                    | Operation::Redo
+                    | Operation::SetUndoQueue(_)
+                    | Operation::SetUndoEnabled { .. }
+                    | Operation::OpenUndoChunk { .. }
+                    | Operation::CloseUndoChunk
+            )
+        {
+            return Err(OperationError::BusyEditing);
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if self.files.is_modal()
+            && matches!(
+                operation,
+                Operation::Rename { .. }
+                    | Operation::SetTransform { .. }
+                    | Operation::EditNode { .. }
+                    | Operation::SetMaterialDiffuse { .. }
+                    | Operation::CreateSessionMaterial { .. }
+                    | Operation::AssignSessionMaterial { .. }
+                    | Operation::SetSessionMaterialColor { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -536,6 +568,7 @@ impl Editor {
         let command = match operation {
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
+            Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
             Operation::BeginMove {
@@ -872,6 +905,48 @@ impl Editor {
                 } else {
                     OperationReply::Unchanged
                 });
+            }
+            Operation::SetUndoQueue(queue) => {
+                let changed = self.history.undo_queue() != queue
+                    || matches!(queue, UndoQueue::Finite(size) if self.history.undo_len() > size);
+                self.history
+                    .set_undo_queue(queue)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SetUndoEnabled { enabled, flush } => {
+                let changed = self.history.undo_enabled() != enabled
+                    || (flush && (self.history.can_undo() || self.history.can_redo()));
+                self.history
+                    .set_undo_enabled(enabled, flush)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::OpenUndoChunk { name } => {
+                self.history
+                    .open_chunk(&name)
+                    .map_err(OperationError::from_history)?;
+                return Ok(OperationReply::Changed);
+            }
+            Operation::CloseUndoChunk => {
+                return Ok(
+                    match self
+                        .history
+                        .close_chunk()
+                        .map_err(OperationError::from_history)?
+                    {
+                        EditOutcome::Unchanged => OperationReply::Unchanged,
+                        _ => OperationReply::Changed,
+                    },
+                );
             }
             Operation::Undo | Operation::Redo => {
                 let changed = if matches!(operation, Operation::Redo) {

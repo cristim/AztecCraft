@@ -167,6 +167,20 @@ fn an_authored_baseline_can_save_as_a_second_file() {
     assert!(next.active_save_available());
 }
 
+// #375: `prepare`'s Untitled branch refuses with `SourceChanged` when `authored_document_id` is
+// `None`. Two tests together show it cannot happen. This one: the id is `None` exactly when the
+// scene has a parsed source. And `a_scene_the_writer_refuses_is_reported_by_code_and_writes_nothing`:
+// the writer refuses such a scene with `SourcedScene` before the id is read. So the refusal only
+// guards that invariant.
+#[test]
+fn the_authored_document_id_is_present_exactly_when_the_scene_has_no_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, opened) = opened(directory.path());
+    assert!(opened.scene.authored_document_id().is_none());
+    assert!(authored().authored_document_id().is_some());
+    assert!(NativeScene::default().authored_document_id().is_some());
+}
+
 mod maya_ascii {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),

@@ -12,7 +12,7 @@
 //! 2. `remote_operation_guarded(` is called only from `remote_operation` (a test wrapper) and the
 //!    MCP bridge, and nothing under `src/mcp*` reaches the editor any other way.
 //! 3. Every call site of the history mutators (`.execute(`, `.undo()`, `.redo()`,
-//!    `.begin_move(`, `.begin_move_many(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
+//!    `.begin_move(`, `.begin_move_many_in(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
 //!    and every `self.history =` assignment sits in an allowlisted function.
 //!
 //! Sources are found by walking `src/`, not by a fixed list, so `app.rs -> app/mod.rs` and files
@@ -293,10 +293,23 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         ".apply_evaluated(",
         &["apply_operation_guarded", "write_time"],
     );
+    for (what, call) in [
+        ("undo queue", ".set_undo_queue("),
+        ("undo enabled", ".set_undo_enabled("),
+        ("chunk open", ".open_chunk("),
+        ("chunk close", ".close_chunk("),
+    ] {
+        expect(what, call, &["apply_operation_guarded"]);
+    }
+    expect(
+        "undo settings carry",
+        ".inherit_undo_settings(",
+        &["replace_scene"],
+    );
     expect("history undo", ".undo()", &["apply_operation_guarded"]);
     expect("history redo", ".redo()", &["apply_operation_guarded"]);
     expect("single move begin", ".begin_move(", &[]);
-    expect("move begin", ".begin_move_many(", &["begin_editor_move"]);
+    expect("move begin", ".begin_move_many_in(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);
     expect("scale begin", ".begin_scale(", &["begin_editor_scale"]);
     expect("move update", ".update_move(", &["update_editor_move"]);

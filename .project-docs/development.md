@@ -207,8 +207,10 @@ modes F frames the selected parents only and Ctrl+F includes their descendants. 
 valid-draft commitment and remote draft-refusal rules remain in force.
 
 Shift/Ctrl component selection, component marquee (object marquee: see Marquee selection), multiple faces, other component masks, preselection
-hover and marking menus are unsupported. Ambiguous coalesced primary-release
-frames refuse selection with a single-click retry message; they do not guess an
+hover and marking menus are unsupported. A same-frame run of primary releases whose last
+is a plain click selects with that click's own position and modifiers (earlier ones are
+superseded, #31); any other coalesced primary-release
+frame refuses selection with a single-click retry message; it does not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
 remains on its established route. Delete refuses the whole object under any
 component mode (Face, Vertex or Edge), natively and over MCP, with the same
@@ -218,11 +220,10 @@ Native Extrude of one picked face is available from the shelf button; the manipu
 Focused actual framebuffer proofs can be selected with `cargo test --locked
 --bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,
 protocol and framebuffer tests establish their exercised callers, not an OS
-window journey or Maya parity. The attempted genuine combined menu
-activation/key/viewport-click sequence was blocked by pinned egui's popup
-routing. The retained proofs cover menu+F8 and F11+F8+viewport click separately, plus blocked-popup
-nonmutation. Full coalesced-event support and platform/reference comparison
-remain follow-up work.
+window journey or Maya parity. The combined menu activation (real clicks), F8, F11 and
+coalesced viewport click journey is one native-event test across frames; Enter on a focused menu
+item plus a viewport click inside a single frame stays intercepted by pinned egui's popup
+routing (blocked-popup nonmutation test). Platform/reference comparison remains follow-up work.
 
 ## Vertex and Edge selection
 
@@ -357,7 +358,7 @@ Sources:
 | 18 | Manipulator size default | 1.0 | `src/move_handles.rs` `ManipulatorSize::DEFAULT` | provisional | The page states the range but no default. | `manipulator_size_accepts_only_finite_values_in_range_and_rounds_to_milli` |
 | 19 | Size key steps | grid 1.25^k, k from -10 to 10, three-decimal display, held key steps again, session only | `src/move_handles.rs` `SIZE_STEP`, `GRID_LIMIT` | provisional | Resize: "you can use the plus (+) and minus (-) key to grow and shrink it". No step, repeat or persistence. | `key_steps_from_any_grid_value_return_to_it_bit_exactly`, `every_milli_size_steps_to_the_adjacent_visibly_different_grid_value`, `an_exact_tie_steps_by_its_shown_value_and_keeps_the_raw_grid_value`, `key_limits_are_the_ends_of_the_grid` |
 | 20 | Rotate and Scale handle geometry | box half 5 px, centre box half 7 px, ring of 64 segments, view ring 1.2 times, edge-on limit 1e-3 (the absolute dot product of the ray and the ring normal, about 0.06 degrees from the plane), pivot grab 1 px, uniform reference 100 px, plane handles at 0.3 to 0.5 | `src/manipulator_handles.rs` constants | provisional | Manipulators: "Plane handle offset Sets the distance between the plane handles and the center of the manipulator." No value. Nothing else is stated. | box `scale_boxes_share_drawing_and_pick_geometry`; ring `ring_pick_threshold_is_the_pixel_distance_to_the_nearest_segment`; view ring `hover_status_names_pickable_refused_and_unsupported_handles_and_restores_the_help`; edge-on `edge_on_limit_sits_between_five_ten_thousandths_and_two_thousandths`; pivot `scale_refuses_a_start_too_close_to_the_pivot`; uniform `uniform_scale_grows_right_and_up_from_a_reference_distance`; plane near `scale_plane_handles_are_drawn_but_only_reported_unsupported`. exact literals for the centre box half, both plane edges, the view ring factor and the edge-on limit `handle_geometry_constants_are_pinned_exactly`. |
-| 21 | Undo queue | newest 50 snapshots kept, oldest dropped silently, fixed size | `src/history.rs` `UNDO_LIMIT` | default 50 is verified-by-docs; a fixed queue is differs-from-docs | Undo: "If Finite is the selected Queue setting, specify here the number of undo operations you can perform. The default is 50." and "Select Finite to limit the number of undo operations you can perform (specified in the Queue Size box). The default is Finite." The page also offers "Select Infinite to perform an unlimited number of undo operations." We offer neither choice. What happens to the oldest entry when the queue fills is not stated. | `undo_limit_is_pinned_to_fifty`, `undo_keeps_only_the_newest_limit_entries_and_redo_is_intact` |
+| 21 | Undo queue | Finite (default 50, 1 to 1000 PROVISIONAL cap) or Infinite; a smaller size drops the oldest steps at once; undo on or off; undo chunks | `src/history.rs` `UndoQueue`, `UNDO_LIMIT`, `History::set_undo_queue`, `set_undo_enabled`, `open_chunk`, `close_chunk` | default 50 is verified-by-docs; Finite and Infinite exist; session-only (no persisted Preferences window until #178 and the display unlock) is differs-from-docs; the trim rule, chunk nesting and the chunk default name are PROVISIONAL (undoInfo 2027 states none); an edit while undo is off flushes both queues, stricter than `-stateWithoutFlush` | Undo: "Select Finite to limit the number of undo operations you can perform (specified in the Queue Size box). The default is Finite." and "Select Infinite to perform an unlimited number of undo operations." `undoInfo -openChunk` groups later undoable operations until `-closeChunk` into one undo step. | `undo_limit_is_pinned_to_fifty`, `undo_keeps_only_the_newest_limit_entries_and_redo_is_intact`, `tests/undo_preferences.rs`, `sdk_undo_chunk_groups_several_tool_calls_into_one_named_step` |
 | 22 | Undo granularity | one entry per edit and per Move release; selection, selection mode, camera, tool and panel operations add none | `src/history.rs` `History::execute` | provisional | Undo: "When this option is active, all consecutive time/playback commands are considered a single undo step." Nothing says whether selection is undoable. | `selection_mode_camera_tool_and_panel_changes_add_no_undo_entry`, `real_axis_press_absolute_motion_release_makes_one_undo_at_fractional_dpi` |
 | 23 | Move cancellation | Escape, a modifier change, focus loss, pointer loss and a window change cancel a Move preview; an Escape that closes a menu does not also cancel it | `src/app/shortcuts.rs` `cancel_on_escape`, `src/app/features/move_tool.rs` `cancel_move` | provisional | No docs for Move. | `escape_modifiers_focus_and_pointer_loss_cancel_real_captured_gestures`, `stationary_release_in_changed_window_origin_size_or_dpi_cancels_without_fallthrough`, `escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_cancels_it` |
 | 24 | Default camera pose | target 0, yaw 0.6 rad, pitch 0.4 rad, distance 8 | `src/viewport.rs` `impl Default for Camera` | provisional | The pages checked state no default perspective camera pose. | `default_camera_is_pinned_bit_for_bit` |
@@ -375,8 +376,9 @@ Sources:
 | 36 | Marquee result order and lead | hits in instance order; Replace sets the members to the hits and the last hit leads; Add and Toggle append absent hits and the last appended leads; a Replace with the same members and order is `unchanged` | `src/app/features/marquee.rs` `select_in_rect`, `src/selection.rs` | provisional | Docs are silent on order and key object for a marquee. | `marquee_lead_is_the_last_hit_in_instance_order`, `replace_with_identical_members_keeps_generation`, `move_after_marquee_uses_the_last_hit_as_pivot` |
 | 37 | Marquee drag capture | the end clamps to the viewport (a release over another panel still selects); a drag back to its start is a point rectangle; Alt or any Orbit during the drag means no marquee; Esc during the drag cancels it | `src/viewport_ui.rs` `capture` | provisional | Docs are silent on all four. egui, not us, decides click versus drag. | `a_release_outside_the_viewport_clamps_the_end_to_its_edge`, `returning_to_the_start_is_a_zero_area_rect_at_that_point`, `escape_mid_drag_cancels_the_marquee_and_removes_the_band` |
 | 38 | Marquee rubber band | 1 px outline (170, 205, 255) and fill (120, 170, 255) at alpha 28, inside the viewport, Object and Hierarchy modes only | `src/app/panels.rs` | provisional | Our own values; Maya's marquee colours are not documented. | `the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport` pins the rectangle, not the colours |
+| 39 | Shift axis lock | Shift+Alt tumble (primary) and track (middle): after 4 points of accumulated drag since Shift was held, the larger of horizontal or vertical absolute displacement wins (tie horizontal) and the other axis is dropped for the rest of the drag; the accumulated displacement is emitted at the lock; releasing Shift, drag stop or focus loss resets it; non-finite deltas emit nothing | `src/viewport_ui/axis_lock.rs` | provisional | Camera tools 2027: "Hold Shift to constrain the camera movement"; Track tip: "Press the Shift key to constrain movement in horizontal or vertical directions." Which axis, the threshold and the reset are not stated; see row 27 for the gains. | `axis_lock_*`, `shift_alt_primary_drag_tumbles_on_the_locked_axis_only`, `shift_alt_middle_drag_tracks_on_the_locked_axis_only`, `releasing_shift_mid_drag_restores_free_tumble_and_pressing_it_again_relocks` |
 
-Tally: 38 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 39 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
@@ -426,7 +428,17 @@ admitted class is clamped open cubic, nonrational three-dimensional curves with
 finite f64 CVs/knots, strict positive interior spans (repeated interior knots,
 i.e. C0 curves, are refused as Unsupported), supported parent transforms and the
 explicit startup/metadata envelope. The retained legacy 2016 reference
-uses centimeter/degree/film units. Unsupported classes, commands, drivers,
+uses centimeter/degree/film units. Declared units (#17, PROVISIONAL until compared
+with the pinned Maya reference, #5): `currentUnit` once with all of `-l`
+millimeter|centimeter|meter|inch|foot, `-a` degree|radian and `-t` film|ntsc.
+Transform translate, pivots, pivot translations, rotate and rotate axis are read as
+values in the declared units and converted through `Units`. Limits: a curve under any
+linear unit other than centimeter is refused Unsupported (whether `.cc` CVs are
+written in the declared unit is unverified, so they are never guessed); polygon
+meshes still require centimeter/degree/film because the writer-identity gate
+requires it; an ntsc scene opens but every time and key tool refuses with
+`unsupported_time_unit`; kilometer, yard, mile, other angular and time units and any
+repeated, missing or unknown flag refuse the whole candidate. Other unsupported classes, commands, drivers,
 history, units or unknown effects refuse the whole candidate. This is not general
 Maya ASCII, rig or Maya 2026 compatibility. Original bytes, including quoted
 script bodies, remain inert and unchanged.
@@ -435,11 +447,13 @@ NativeScene owns the canonical curve identity, parent edges and f64 source
 values. ViewScene evaluates supported spans and prepares derived world-space
 segments; the CV hull is used only as a conservative framing bound. Its chord
 tolerance is application policy, max(1e-6cm, world CV-hull diagonal*1e-4) plus an
-f32 allowance min(max|world coord|*f32::EPSILON, 0.01*diagonal), not a Maya
-tessellation constant. Error checks include actual emitted f32 endpoints. A curve
-whose f32 viewport grid is coarser than about 1% of its size (the ~3.6cm
-specimen: drawn at x=2e6cm, refused at 3e6cm) is refused and Open fails, never
-drawn as noise. Unrepresentable or over-tolerance conversion refuses instead of
+f32 offset allowance diagonal*f32::EPSILON plus the f64 grid at the curve's
+coordinates, not a Maya tessellation constant. Segments are f32 offsets from an f64
+origin (the bounds centre) and the renderer subtracts the f64 eye, so distance from
+the world origin does not cost precision. Error checks include actual emitted f32
+endpoints. The camera and non-curve overlays stay f32, so a curve whose f32 grid at its
+coordinates exceeds 5% of its size (or any coordinate past 1e18cm) is refused and Open fails, never drawn
+off-screen or as noise. Unrepresentable or over-tolerance conversion refuses instead of
 relaxing the bound. Candidate-validation refusals that name an unsupported view
 fact (today only repeated interior knots are reachable from ASCII) report
 Unsupported rather than Malformed; structural errors stay Malformed.
@@ -758,3 +772,20 @@ Run `cargo test --locked --no-default-features --test maya_ascii_material_declar
 for its standalone caller. This does not enable Save or native/MCP operations,
 validate deep geometry or material graphs, or establish Maya acceptance.
 Reserved/default-name eligibility and Maya float3 storage remain unproved.
+
+## Save check timing guard (manual)
+
+`save_cost_at_512_and_4096_nodes` in `src/native_scene/binary/write/tests.rs` is an
+ignored, release-only timing measurement of the new-scene Binary Save path (#374). CI
+does not run it; run it by hand after touching the authored eligibility checks, the
+Binary writer or its self-check:
+
+```
+cargo test --release --locked --no-default-features --lib save_cost -- --ignored --nocapture
+```
+
+It prints the best of five times for the eligibility checks and the whole encode at 512
+and 4096 nodes (default cubes and bare transforms). Expected order of magnitude on Apple
+Silicon: checks under 1 ms at 512 nodes and under 10 ms at 4096; whole encode about 7 ms
+at 512 and about 50 ms at 4096 cubes (4096 nodes are refused as too large by the decoder
+budget). Tens of milliseconds for the checks at 4096 nodes mean a quadratic scan came back.

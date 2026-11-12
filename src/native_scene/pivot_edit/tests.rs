@@ -154,6 +154,8 @@ fn build(c: &Case) -> (NativeScene, NodeId) {
         shear: Some(c.sh),
         rotate_pivot_translate: Some(c.rpt),
         scale_pivot_translate: Some(c.spt),
+        inherits_transform: None,
+        offset_parent_matrix: None,
     };
     let node = &mut scene.nodes[0];
     node.channels = channels.values().map(Scalar::new);

@@ -534,3 +534,179 @@ fn a_refused_move_press_consumes_the_pointer_sequence() {
     assert!(editor.move_suppress_primary, "{}", editor.status);
     assert!(editor.history.active_manipulation().is_none());
 }
+
+fn set_move_space(editor: &mut Editor, space: MoveSpace) -> OperationReply {
+    editor
+        .apply_operation(Operation::SetMoveSpace { space })
+        .unwrap()
+}
+
+fn edit_rotation(editor: &mut Editor, node: azteccraft::scene::NodeId, degrees: [f64; 3]) {
+    editor
+        .apply_operation(Operation::EditNode {
+            id: node,
+            name: None,
+            translation: [None; 3],
+            rotation_degrees: degrees.map(Some),
+            scale: [None; 3],
+        })
+        .unwrap();
+}
+
+#[test]
+fn move_space_defaults_to_world_and_reports_change_and_no_change() {
+    let (mut editor, _, _) = two_selected();
+    assert_eq!(editor.manipulation.move_space(), MoveSpace::World);
+    assert!(matches!(
+        set_move_space(&mut editor, MoveSpace::World),
+        OperationReply::Unchanged
+    ));
+    assert!(matches!(
+        set_move_space(&mut editor, MoveSpace::Parent),
+        OperationReply::Changed
+    ));
+    assert_eq!(
+        editor.inspect_manipulation().unwrap().move_space,
+        MoveSpace::Parent
+    );
+}
+
+#[test]
+fn a_remote_object_move_sends_each_selected_object_along_its_own_axis() {
+    let (mut editor, _, _) = two_selected();
+    let members = editor.selection.members().to_vec();
+    edit_rotation(&mut editor, members[0].node, [0.0, 0.0, 90.0]);
+    edit_rotation(&mut editor, members[1].node, [0.0, 90.0, 0.0]);
+    set_move_space(&mut editor, MoveSpace::Object);
+    let lead = editor.selection.lead().unwrap().clone();
+    let generation = editor.selection.generation();
+    let Ok(OperationReply::ManipulationStarted { manipulation_id }) =
+        remote(&mut editor, begin_op(lead, Some(generation)))
+    else {
+        panic!("begin refused");
+    };
+    let id = ManipulationId::from_decimal(&manipulation_id).unwrap();
+    remote(
+        &mut editor,
+        Operation::UpdateMove {
+            id,
+            distance: MoveDistance::Centimeters(5.0),
+        },
+    )
+    .unwrap();
+    let translation = |editor: &Editor, member: &TransformTarget| {
+        editor
+            .history
+            .scene()
+            .node(member.node)
+            .unwrap()
+            .transform()
+            .translation
+    };
+    // Object X of Rz(90) is world +Y; of Ry(90) it is world -Z.
+    for (member, expected) in members.iter().zip([[0.0, 5.0, 0.0], [0.0, 0.0, -5.0]]) {
+        let actual = translation(&editor, member);
+        for (a, e) in actual.iter().zip(expected) {
+            assert!((a - e).abs() < 1e-4, "{actual:?} != {expected:?}");
+        }
+    }
+}
+
+#[test]
+fn a_native_object_drag_follows_the_rotated_handle_and_names_the_orientation() {
+    let (mut editor, context, rect) = setup(1.0);
+    let node = editor.selection.members()[0].node;
+    edit_rotation(&mut editor, node, [0.0, 0.0, 90.0]);
+    set_move_space(&mut editor, MoveSpace::Object);
+    // Object X of Rz(90) points up on screen, where the World Y handle would be.
+    let position = rect.center() + egui::vec2(0.0, -40.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            button(position, true),
+        ),
+    );
+    assert!(editor.native_move.is_some(), "{}", editor.status);
+    assert_eq!(editor.status, "Object X Move");
+    let end = position - egui::vec2(0.0, rect.height() / 20.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            vec![Event::PointerMoved(end)],
+        ),
+    );
+    let moved = editor
+        .history
+        .scene()
+        .node(node)
+        .unwrap()
+        .transform()
+        .translation;
+    assert!(
+        moved[0].abs() < 1e-4 && (moved[1] - 1.0).abs() < 2e-4,
+        "{moved:?}"
+    );
+}
+
+fn rotated_bare() -> Editor {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let mut transform = creation(b"bare", None);
+    transform.extend(triple(b"r", [0.0, 0.0, std::f64::consts::FRAC_PI_2]));
+    let object = [
+        group(b"XFRM", &transform, 4),
+        group(
+            b"DMSH",
+            &[
+                creation(b"bare_shape", Some(b"bare")),
+                chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ),
+    ]
+    .concat();
+    let scene = azteccraft::native_scene::binary::decode(scene(&object)).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths);
+    editor.sync_fields();
+    editor
+}
+
+#[test]
+fn a_single_rotated_object_reports_the_refusals_of_the_orientation_it_would_begin_in() {
+    let mut editor = rotated_bare();
+    let reasons = |editor: &mut Editor, space| {
+        set_move_space(editor, space);
+        let (available, reason) = move_kind(editor);
+        assert!(!available);
+        reason.unwrap()
+    };
+    let world = reasons(&mut editor, MoveSpace::World);
+    let object = reasons(&mut editor, MoveSpace::Object);
+    let parent = reasons(&mut editor, MoveSpace::Parent);
+    // Without a parent, Parent axes are the World axes; the rotated Object axes need other leaves.
+    assert_eq!(parent, world);
+    assert_ne!(object, world, "{object}");
+    // The inspection and an actual begin agree on each axis.
+    let target = editor.selection.lead().unwrap().clone();
+    for space in [MoveSpace::World, MoveSpace::Object, MoveSpace::Parent] {
+        set_move_space(&mut editor, space);
+        let begun = editor.apply_operation(begin_op(target.clone(), None));
+        assert!(
+            matches!(begun, Err(OperationError::Move(_))),
+            "{space:?} {begun:?}"
+        );
+    }
+}

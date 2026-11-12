@@ -1,7 +1,7 @@
 use super::*;
 
 /// MCP primitive, options, then expected points, edges and faces (closed forms: Euler 2).
-const BUILDS: [(&str, &str, [u64; 3]); 6] = [
+const BUILDS: [(&str, &str, [u64; 3]); 7] = [
     (
         "cube",
         r#"{"width":2,"height":3,"depth":4,"subdivisions_width":2,"subdivisions_height":3,"subdivisions_depth":4,"axis":"x"}"#,
@@ -26,6 +26,11 @@ const BUILDS: [(&str, &str, [u64; 3]); 6] = [
         "cone",
         r#"{"radius":3,"height":1e6,"subdivisions_axis":6,"subdivisions_height":3,"axis":"y"}"#,
         [19, 36, 19],
+    ),
+    (
+        "torus",
+        r#"{"radius":3,"section_radius":4,"subdivisions_axis":6,"subdivisions_height":5,"axis":"x"}"#,
+        [30, 60, 30],
     ),
     // An empty options object is the defaults, like omitting it.
     ("cube", "{}", [8, 12, 6]),
@@ -97,6 +102,7 @@ async fn calls_without_options_keep_the_default_meshes() {
         ("sphere", [382, 780, 400]),
         ("cylinder", [40, 60, 22]),
         ("cone", [21, 40, 21]),
+        ("torus", [400, 800, 400]),
     ] {
         let reply = call(
             &mut editor,
@@ -161,6 +167,13 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ("cone", json!({"depth":1})),
         ("cone", json!({"radius":0})),
         ("cone", json!({"subdivisions_height":129})),
+        ("torus", json!({"height":1})),
+        ("torus", json!({"section_radius":0})),
+        ("torus", json!({"radius":null})),
+        ("torus", json!({"subdivisions_axis":2})),
+        ("torus", json!({"subdivisions_height":2})),
+        ("torus", json!({"subdivisions_height":129})),
+        ("torus", json!({"subdivisions_axis":2.5})),
     ];
     for (primitive, options) in cases {
         let rejected = call_response(
@@ -188,7 +201,7 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         assert!(!editor.history.can_redo());
     }
     for arguments in [
-        json!({"scene_token":token,"primitive":"torus"}),
+        json!({"scene_token":token,"primitive":"disc"}),
         json!({"scene_token":token,"primitive":"cube","extra":1}),
         json!({"scene_token":token,"options":{}}),
     ] {

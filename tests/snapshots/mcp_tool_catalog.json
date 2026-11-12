@@ -1,7 +1,7 @@
 [
   {
     "name": "inspect_scene",
-    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
+    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -73,9 +73,18 @@
   },
   {
     "name": "set_tool_space",
-    "description": "Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool",
+    "description": "Set the Axis Orientation of the Move (object, world or parent), Rotate or Scale (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes. Does not change the active tool",
     "inputSchema": {
       "$defs": {
+        "MoveSpaceInput": {
+          "description": "The Move tool also works in its parent's axes (`parent`).",
+          "enum": [
+            "object",
+            "world",
+            "parent"
+          ],
+          "type": "string"
+        },
         "SpaceInput": {
           "description": "Rotate and Scale work in the node's own axes (`object`) or the world axes (`world`).",
           "enum": [
@@ -83,33 +92,74 @@
             "world"
           ],
           "type": "string"
-        },
-        "SpaceToolInput": {
-          "enum": [
-            "rotate",
-            "scale"
-          ],
-          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "description": "Sets the Axis Orientation the Rotate or Scale tool settings use for the next manipulation.",
-      "properties": {
-        "scene_token": {
-          "type": "string"
+      "description": "Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next\nmanipulation. Only Move accepts `parent`.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/MoveSpaceInput"
+            },
+            "tool": {
+              "const": "move",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         },
-        "space": {
-          "$ref": "#/$defs/SpaceInput"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/SpaceInput"
+            },
+            "tool": {
+              "const": "rotate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         },
-        "tool": {
-          "$ref": "#/$defs/SpaceToolInput"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/SpaceInput"
+            },
+            "tool": {
+              "const": "scale",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "scene_token",
-        "tool",
-        "space"
       ],
       "title": "ToolSpaceArgs",
       "type": "object"
@@ -517,7 +567,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -741,6 +791,49 @@
             }
           },
           "type": "object"
+        },
+        "TorusOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "radius": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "section_radius": {
+              "default": 0.5,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -863,6 +956,32 @@
             },
             "primitive": {
               "const": "cone",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/TorusOptions"
+            },
+            "primitive": {
+              "const": "torus",
               "type": "string"
             },
             "scene_token": {
@@ -1942,7 +2061,7 @@
   },
   {
     "name": "inspect_uvs",
-    "description": "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order. `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+    "description": "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2196,6 +2315,141 @@
   {
     "name": "redo",
     "description": "Redo the last undone authoring operation",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_undo_queue",
+    "description": "Set the Undo queue (Preferences > Undo): finite with a size from 1 to 1000 (default finite 50) or infinite. A smaller size drops the oldest steps at once. Session-only: it survives New and Open but not a restart. Refused while an undo chunk or manipulation is open. Read it from inspect_scene undo_state",
+    "inputSchema": {
+      "$defs": {
+        "QueueKind": {
+          "enum": [
+            "finite",
+            "infinite"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "`queue` is \"finite\" (with `size`) or \"infinite\" (no `size`).",
+      "properties": {
+        "queue": {
+          "$ref": "#/$defs/QueueKind"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "size": {
+          "description": "Finite queue size, 1 to 1000; required for \"finite\", refused for \"infinite\".",
+          "format": "uint",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token",
+        "queue"
+      ],
+      "title": "UndoQueueArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_undo_enabled",
+    "description": "Turn Undo on or off (undoInfo -state, or -stateWithoutFlush with flush false). While off, edits apply and record nothing, Undo and Redo do nothing, and an edit flushes both queues so no stale step can erase it. Refused while an undo chunk or manipulation is open. Read it from inspect_scene undo_state",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "flush": {
+          "description": "Clear both queues (`undoInfo -state`) or keep them (`-stateWithoutFlush`). Default true when turning undo off and false when turning it on (PROVISIONAL: the docs state no flush rule).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "enabled"
+      ],
+      "title": "UndoEnabledArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "open_undo_chunk",
+    "description": "Start an undo chunk: every edit until close_undo_chunk joins one undo step named name (default Chunk). Chunks do not nest. While one is open the native Undo and Redo close it first, so an abandoned chunk cannot block them; an open chunk is reported by inspect_scene undo_state.open_chunk. Close every chunk you open: until then edits from any source, native ones included, join it",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Name of the single undo step, at most 64 characters; empty or omitted is \"Chunk\".",
+          "maxLength": 64,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "OpenChunkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "close_undo_chunk",
+    "description": "Close the open undo chunk and record its edits as one undo step; a chunk with no net scene change records no step",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2621,7 +2875,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and a saved mesh .ma reopens as an authored document",
+    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, with a stable error.reason such as session_materials or session_uvs, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and a saved mesh .ma reopens as an authored document",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2708,14 +2962,15 @@
   },
   {
     "name": "resolve_file_action",
-    "description": "Cancel, discard or save before the exact pending file action using its UUID and current scene token; source-changed Open requires Cancel and reopening",
+    "description": "Cancel, discard, save or save_as (with a fresh path; the only save for a pending Untitled scene) before the exact pending file action using its UUID and current scene token; a failed save leaves the prompt pending; source-changed Open requires Cancel and reopening",
     "inputSchema": {
       "$defs": {
         "FileDecisionInput": {
           "enum": [
             "cancel",
             "discard",
-            "save"
+            "save",
+            "save_as"
           ],
           "type": "string"
         }
@@ -2725,6 +2980,15 @@
       "properties": {
         "decision": {
           "$ref": "#/$defs/FileDecisionInput"
+        },
+        "path": {
+          "description": "Fresh destination, required for and only allowed with decision save_as (1 to 4096 bytes).",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "pending_action_id": {
           "type": "string"

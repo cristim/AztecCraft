@@ -270,6 +270,26 @@ fn owed_save_of_an_untitled_scene_over_the_remote_path_answers_false() {
 }
 
 #[cfg(unix)]
+#[test]
+fn owed_failed_save_as_answers_false_and_resets_the_close_state() {
+    let dir = tempfile::tempdir().unwrap();
+    let occupied = dir.path().join("taken.mb");
+    std::fs::write(&occupied, b"keep").unwrap();
+    let mut rig = Rig::new(true);
+    rig.frame(vec![]);
+    assert!(
+        rig.resolve(FileDecision::SaveAs { path: occupied })
+            .is_err()
+    );
+    assert_eq!(rig.probe.replies(), [false]);
+    assert!(!rig.editor.files.is_closing() && !rig.editor.files.close_sent);
+    rig.frames(3);
+    assert_eq!(rig.probe.replies(), [false]);
+    assert!(rig.editor.is_dirty());
+    assert_eq!(rig.closes, 0);
+}
+
+#[cfg(unix)]
 mod saving {
     use super::*;
     use crate::app::files::binary_fixture;

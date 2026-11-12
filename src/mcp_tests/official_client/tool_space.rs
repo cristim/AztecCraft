@@ -1,17 +1,19 @@
 use super::*;
 use crate::editor_operations::{ActiveTool, ManipulationSpace};
+use azteccraft::native_scene::MoveSpace;
 
 async fn spaces(
     editor: &mut Editor,
     context: &egui::Context,
     client: &rmcp::service::RunningService<RoleClient, ()>,
-) -> [Value; 2] {
+) -> [Value; 3] {
     let inspected = call(editor, context, client.peer(), "inspect_scene", json!({}))
         .await
         .structured_content
         .unwrap();
     let manipulation = &inspected["inspection"]["manipulation"];
     [
+        manipulation["move_space"].clone(),
         manipulation["rotate_space"].clone(),
         manipulation["scale_space"].clone(),
     ]
@@ -29,13 +31,21 @@ async fn sdk_tool_space_reads_defaults_sets_per_tool_and_shares_the_native_opera
     let tool = editor.active_tool;
     assert_eq!(
         spaces(&mut editor, &context, &client).await,
-        ["object", "world"]
+        ["world", "object", "world"]
     );
     for (name, space, outcome, expected) in [
-        ("scale", "object", "changed", ["object", "object"]),
-        ("scale", "object", "unchanged", ["object", "object"]),
-        ("rotate", "world", "changed", ["world", "object"]),
-        ("scale", "world", "changed", ["world", "world"]),
+        ("scale", "object", "changed", ["world", "object", "object"]),
+        (
+            "scale",
+            "object",
+            "unchanged",
+            ["world", "object", "object"],
+        ),
+        ("rotate", "world", "changed", ["world", "world", "object"]),
+        ("scale", "world", "changed", ["world", "world", "world"]),
+        ("move", "parent", "changed", ["parent", "world", "world"]),
+        ("move", "parent", "unchanged", ["parent", "world", "world"]),
+        ("move", "object", "changed", ["object", "world", "world"]),
     ] {
         let result = call(
             &mut editor,
@@ -52,14 +62,17 @@ async fn sdk_tool_space_reads_defaults_sets_per_tool_and_shares_the_native_opera
         assert_eq!(editor.is_dirty(), dirty);
         assert_eq!(editor.scene_token.to_string(), token);
     }
-    // The native selector dispatches the same typed operation.
+    // The native selector dispatches the same typed operations.
+    editor.native_operation(Operation::SetMoveSpace {
+        space: MoveSpace::World,
+    });
     editor.native_operation(Operation::SetToolSpace {
         tool: ActiveTool::Rotate,
         space: ManipulationSpace::Object,
     });
     assert_eq!(
         spaces(&mut editor, &context, &client).await,
-        ["object", "world"]
+        ["world", "object", "world"]
     );
     client.cancel().await.unwrap();
     drop(editor);
@@ -74,7 +87,9 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
     frame(&mut editor, &context, vec![]);
     let token = editor.scene_token.to_string();
     for arguments in [
-        json!({"scene_token":token,"tool":"move","space":"world"}),
+        json!({"scene_token":token,"tool":"move","space":"gimbal"}),
+        json!({"scene_token":token,"tool":"rotate","space":"parent"}),
+        json!({"scene_token":token,"tool":"scale","space":"parent"}),
         json!({"scene_token":token,"tool":"select","space":"world"}),
         json!({"scene_token":token,"tool":"rotate","space":"gimbal"}),
         json!({"scene_token":token,"tool":"rotate"}),
@@ -104,7 +119,7 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
     ));
     assert_eq!(
         spaces(&mut editor, &context, &client).await,
-        ["object", "world"]
+        ["world", "object", "world"]
     );
 
     let set = |token: &str| json!({"scene_token":token,"tool":"scale","space":"object"});
@@ -181,7 +196,7 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
     assert_eq!(code(modal), "busy_editing");
     assert_eq!(
         spaces(&mut editor, &context, &client).await,
-        ["object", "world"]
+        ["world", "object", "world"]
     );
     client.cancel().await.unwrap();
     drop(editor);
