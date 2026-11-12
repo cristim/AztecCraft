@@ -1,12 +1,12 @@
 use super::image::{Image, MAX_SAMPLES, RenderError};
-use super::ray::intersect;
+use super::ray::{Ray, intersect};
 use crate::view_scene::ViewScene;
 use crate::viewport::Camera;
 use glam::{Vec2, Vec3};
 use std::thread;
 
 // PROVISIONAL: the light and the sky are fixed constants, not scene data, and `intersect` tests
-// every triangle of every instance per ray (no BVH, one allocation per instance per ray). This
+// every triangle of every instance per ray (no BVH). This
 // is a prototype integrator. No Maya, Arnold or viewport-render parity is claimed.
 const LIGHT_POSITION: Vec3 = Vec3::new(3.0, 5.0, 3.0);
 const LIGHT_COLOR: Vec3 = Vec3::new(50.0, 50.0, 50.0);
@@ -35,7 +35,7 @@ fn random_unit_vector(seed: &mut u32) -> Vec3 {
     Vec3::new(r * theta.cos(), r * theta.sin(), z)
 }
 
-fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u32) -> Vec3 {
+fn trace_path(scene: &ViewScene, ray: &Ray, depth: u32, seed: &mut u32) -> Vec3 {
     if depth == 0 {
         return Vec3::ZERO;
     }
@@ -58,7 +58,7 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
             let light_dir = to_light / distance_sq.sqrt();
             let offset = normal * hit.point.length().max(1.0) * 1e-4;
 
-            let shadow_ray = super::ray::Ray {
+            let shadow_ray = Ray {
                 origin: hit.point + offset,
                 direction: light_dir,
             };
@@ -82,7 +82,7 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
         }
 
         let offset = normal * hit.point.length().max(1.0) * 1e-4;
-        let next_ray = super::ray::Ray {
+        let next_ray = Ray {
             origin: hit.point + offset,
             direction: next_dir,
         };
@@ -96,6 +96,14 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
     }
 
     SKY_COLOR
+}
+
+/// A valid `Camera` and bounded image sizes make this infallible in practice; a failure still
+/// aborts the render with a typed error instead of dropping the sample.
+fn sample_ray(camera: &Camera, ndc: Vec2, aspect: f32) -> Result<Ray, RenderError> {
+    camera
+        .ray(ndc, aspect)
+        .map_err(|_| RenderError::InvalidCameraInput)
 }
 
 pub fn render(
@@ -115,10 +123,6 @@ pub fn render(
 
     let mut image = Image::new(settings.width, settings.height)?;
     let aspect = settings.width as f32 / settings.height as f32;
-
-    if camera.projection_matrix(aspect).is_err() {
-        return Err(RenderError::InvalidCameraInput);
-    }
 
     let threads = thread::available_parallelism().map_or(1, |n| n.get());
     let rows_per_thread = (settings.height as usize).div_ceil(threads);
@@ -146,9 +150,7 @@ pub fn render(
                                 1.0 - 2.0 * (y as f32 + 0.5 + jitter_y) / settings.height as f32,
                             );
 
-                            let ray = camera
-                                .ray(ndc, aspect)
-                                .map_err(|_| RenderError::CameraRay)?;
+                            let ray = sample_ray(camera, ndc, aspect)?;
                             row[x as usize] +=
                                 trace_path(scene, &ray, settings.max_depth, &mut seed);
                         }
@@ -296,7 +298,7 @@ mod tests {
 
     #[test]
     fn occluder_between_point_and_light_removes_direct_light() {
-        let ray = super::super::ray::Ray {
+        let ray = super::Ray {
             origin: Vec3::new(1.5, 1.0, 1.5),
             direction: Vec3::NEG_Y,
         };
@@ -313,6 +315,24 @@ mod tests {
             Vec3::ZERO,
             "occluded point must get no direct light"
         );
+    }
+
+    #[test]
+    fn sample_ray_reports_invalid_camera_input_as_a_typed_error() {
+        let camera = Camera::default();
+        assert!(sample_ray(&camera, Vec2::ZERO, 1.0).is_ok());
+        for (ndc, aspect) in [
+            (Vec2::ZERO, f32::NAN),
+            (Vec2::ZERO, 0.0),
+            (Vec2::new(f32::NAN, 0.0), 1.0),
+            (Vec2::new(2.0, 0.0), 1.0),
+        ] {
+            assert_eq!(
+                sample_ray(&camera, ndc, aspect).err(),
+                Some(RenderError::InvalidCameraInput),
+                "ndc {ndc:?}, aspect {aspect}"
+            );
+        }
     }
 
     #[test]

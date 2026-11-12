@@ -18,7 +18,6 @@ pub enum RenderError {
     ResourceLimit,
     DimensionsTooLarge,
     TooManySamples,
-    CameraRay,
 }
 
 impl std::fmt::Display for RenderError {
@@ -35,7 +34,6 @@ impl std::fmt::Display for RenderError {
                 "width and height must be at most 8192 and the pixel count at most 16777216",
             ),
             Self::TooManySamples => f.write_str("samples must be at most 4096"),
-            Self::CameraRay => f.write_str("camera could not generate a ray for a sample"),
         }
     }
 }
