@@ -451,7 +451,7 @@ coordinates, not a Maya tessellation constant. Segments are f32 offsets from an 
 origin (the bounds centre) and the renderer subtracts the f64 eye, so distance from
 the world origin does not cost precision. Error checks include actual emitted f32
 endpoints. The camera and non-curve overlays stay f32, so a curve whose f32 grid at its
-coordinates exceeds a tenth of its size is refused and Open fails, never drawn
+coordinates exceeds 5% of its size (or any coordinate past 1e18cm) is refused and Open fails, never drawn
 off-screen or as noise. Unrepresentable or over-tolerance conversion refuses instead of
 relaxing the bound. Candidate-validation refusals that name an unsupported view
 fact (today only repeated interior knots are reachable from ASCII) report
