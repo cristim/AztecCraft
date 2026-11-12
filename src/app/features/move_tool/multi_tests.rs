@@ -655,3 +655,58 @@ fn a_native_object_drag_follows_the_rotated_handle_and_names_the_orientation() {
         "{moved:?}"
     );
 }
+
+fn rotated_bare() -> Editor {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let mut transform = creation(b"bare", None);
+    transform.extend(triple(b"r", [0.0, 0.0, std::f64::consts::FRAC_PI_2]));
+    let object = [
+        group(b"XFRM", &transform, 4),
+        group(
+            b"DMSH",
+            &[
+                creation(b"bare_shape", Some(b"bare")),
+                chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ),
+    ]
+    .concat();
+    let scene = azteccraft::native_scene::binary::decode(scene(&object)).unwrap();
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths);
+    editor.sync_fields();
+    editor
+}
+
+#[test]
+fn a_single_rotated_object_reports_the_refusals_of_the_orientation_it_would_begin_in() {
+    let mut editor = rotated_bare();
+    let reasons = |editor: &mut Editor, space| {
+        set_move_space(editor, space);
+        let (available, reason) = move_kind(editor);
+        assert!(!available);
+        reason.unwrap()
+    };
+    let world = reasons(&mut editor, MoveSpace::World);
+    let object = reasons(&mut editor, MoveSpace::Object);
+    let parent = reasons(&mut editor, MoveSpace::Parent);
+    // Without a parent, Parent axes are the World axes; the rotated Object axes need other leaves.
+    assert_eq!(parent, world);
+    assert_ne!(object, world, "{object}");
+    // The inspection and an actual begin agree on each axis.
+    let target = editor.selection.lead().unwrap().clone();
+    for space in [MoveSpace::World, MoveSpace::Object, MoveSpace::Parent] {
+        set_move_space(&mut editor, space);
+        let begun = editor.apply_operation(begin_op(target.clone(), None));
+        assert!(
+            matches!(begun, Err(OperationError::Move(_))),
+            "{space:?} {begun:?}"
+        );
+    }
+}
