@@ -595,3 +595,16 @@ standalone caller. Exact array values/order, topology and material graph validit
 require later oracles; this scope does not enable Save, native/MCP operations or
 establish Maya acceptance. Later writer proofs must also check deep geometry on
 the exact pre-tail byte segment with the unchanged strict prefix decoder.
+
+## Independent Maya ASCII material declarations
+
+The test-only declaration oracle consumes the complete geometry roster once,
+validates supported Lambert/color/shadingEngine pairs and observed name
+uniqueness, and preserves finite unquoted f64 color text in the application
+range [0, 1]. It returns the inherited actual byte seam and shape order plus
+moved raw connection vectors. Connections remain unvalidated graph data.
+
+Run `cargo test --locked --no-default-features --test maya_ascii_material_declarations`
+for its standalone caller. This does not enable Save or native/MCP operations,
+validate deep geometry or material graphs, or establish Maya acceptance.
+Reserved/default-name eligibility and Maya float3 storage remain unproved.
