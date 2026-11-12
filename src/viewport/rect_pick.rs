@@ -3,7 +3,7 @@
 
 use super::{Camera, InvalidCameraInput};
 use crate::view_scene::{ViewError, ViewScene};
-use glam::{Vec2, Vec4};
+use glam::{DVec2, Vec2, Vec4};
 use std::fmt;
 
 /// An axis-aligned rectangle in normalised device coordinates (x right, y up, both within
@@ -178,10 +178,13 @@ pub(super) fn polygon_overlaps_rect(polygon: &[Vec2], rect: NdcRect) -> bool {
     if polygon.len() < 3 {
         return false;
     }
-    let mut twice_area = 0.0_f32;
-    let (mut lo, mut hi) = (Vec2::splat(f32::INFINITY), Vec2::splat(f32::NEG_INFINITY));
-    for (index, &p) in polygon.iter().enumerate() {
-        let next = polygon[(index + 1) % polygon.len()];
+    // Widened to f64 so products of f32 values are exact: a sliver far from the NDC origin (one
+    // crossing the near plane) has f32 terms that cancel to zero or the wrong sign.
+    let mut twice_area = 0.0_f64;
+    let (mut lo, mut hi) = (DVec2::splat(f64::INFINITY), DVec2::splat(f64::NEG_INFINITY));
+    for (index, p) in polygon.iter().enumerate() {
+        let p = p.as_dvec2();
+        let next = polygon[(index + 1) % polygon.len()].as_dvec2();
         twice_area += p.x * next.y - next.x * p.y;
         lo = lo.min(p);
         hi = hi.max(p);
@@ -189,17 +192,19 @@ pub(super) fn polygon_overlaps_rect(polygon: &[Vec2], rect: NdcRect) -> bool {
     if twice_area == 0.0 {
         return false;
     }
-    if hi.x < rect.min.x || lo.x > rect.max.x || hi.y < rect.min.y || lo.y > rect.max.y {
+    let (rect_min, rect_max) = (rect.min.as_dvec2(), rect.max.as_dvec2());
+    if hi.x < rect_min.x || lo.x > rect_max.x || hi.y < rect_min.y || lo.y > rect_max.y {
         return false;
     }
     // Separating axes along each polygon edge's outward normal; the rectangle's own axes were
     // tested above.
     let outward = twice_area.signum();
-    let corners = rect.corners();
-    for (index, &a) in polygon.iter().enumerate() {
-        let b = polygon[(index + 1) % polygon.len()];
+    let corners = rect.corners().map(|c| c.as_dvec2());
+    for (index, a) in polygon.iter().enumerate() {
+        let a = a.as_dvec2();
+        let b = polygon[(index + 1) % polygon.len()].as_dvec2();
         let edge = b - a;
-        let normal = Vec2::new(edge.y, -edge.x) * outward;
+        let normal = DVec2::new(edge.y, -edge.x) * outward;
         let polygon_max = normal.dot(a);
         if corners.iter().all(|c| normal.dot(*c) > polygon_max) {
             return false;
