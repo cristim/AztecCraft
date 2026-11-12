@@ -965,3 +965,228 @@ fn large_and_signed_zero_pivots_are_accepted_and_other_refusals_still_win() {
         ))
     ));
 }
+
+mod move_space {
+    use super::*;
+
+    fn posed(scene: &mut NativeScene, node: NodeId, rotation: [f64; 3]) {
+        scene
+            .set_transform(
+                node,
+                NativeTransform {
+                    rotation,
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+    }
+
+    // World displacement of a translation change, through the parent's linear map.
+    fn world_delta(frame: &WorldMoveFrame, translation: [f64; 3]) -> DVec3 {
+        frame.parent_linear
+            * (DVec3::from_array(translation) - DVec3::from_array(frame.translation))
+    }
+
+    fn near_v(actual: DVec3, expected: DVec3) {
+        near(actual.to_array(), expected.to_array());
+    }
+
+    #[test]
+    fn world_moves_along_the_world_axes_whatever_the_rotations() {
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        posed(&mut scene, root, [30.0, -20.0, 50.0]);
+        posed(&mut scene, child, [11.0, 19.0, -8.0]);
+        let frame = scene.world_move_frame(&target(&scene, child)).unwrap();
+        for (axis, expected) in [
+            (WorldAxis::X, DVec3::X),
+            (WorldAxis::Y, DVec3::Y),
+            (WorldAxis::Z, DVec3::Z),
+        ] {
+            assert_eq!(frame.direction(MoveSpace::World, axis).unwrap(), expected);
+            let moved = frame.translation_in(MoveSpace::World, axis, 4.25).unwrap();
+            near_v(world_delta(&frame, moved), expected * 4.25);
+        }
+    }
+
+    #[test]
+    fn a_zero_length_or_non_finite_axis_is_refused() {
+        let (mut scene, node) = test_fixtures::cube();
+        posed(&mut scene, node, [0.0, 0.0, 90.0]);
+        let good = scene.world_move_frame(&target(&scene, node)).unwrap();
+        let broken = [
+            DMat3::ZERO,
+            DMat3::from_diagonal(DVec3::new(f64::NAN, 1.0, 1.0)),
+            DMat3::from_diagonal(DVec3::new(f64::INFINITY, 1.0, 1.0)),
+        ];
+        for linear in broken {
+            let mut frame = good;
+            frame.parent_linear = linear;
+            for space in [MoveSpace::Parent, MoveSpace::Object] {
+                assert!(matches!(
+                    frame.direction(space, WorldAxis::X),
+                    Err(NativeError::UnsupportedMove(
+                        WorldMoveUnsupported::ParentTransform
+                    ))
+                ));
+            }
+        }
+        let mut frame = good;
+        frame.object_rotation = DMat3::ZERO;
+        assert!(frame.direction(MoveSpace::Object, WorldAxis::X).is_err());
+        assert!(frame.direction(MoveSpace::Parent, WorldAxis::X).is_ok());
+    }
+
+    #[test]
+    fn object_moves_along_the_nodes_own_rotated_axes() {
+        let (mut scene, node) = test_fixtures::cube();
+        posed(&mut scene, node, [0.0, 0.0, 90.0]);
+        let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        let moved = frame
+            .translation_in(MoveSpace::Object, WorldAxis::X, 5.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(0.0, 5.0, 0.0));
+        let moved = frame
+            .translation_in(MoveSpace::Object, WorldAxis::Y, 5.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(-5.0, 0.0, 0.0));
+        let moved = frame
+            .translation_in(MoveSpace::Object, WorldAxis::Z, 5.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(0.0, 0.0, 5.0));
+    }
+
+    #[test]
+    fn object_follows_the_rotate_order_and_ignores_the_rotate_axis() {
+        let (mut scene, node) = test_fixtures::cube();
+        let r = [23.0, -41.0, 67.0];
+        posed(&mut scene, node, r);
+        test_fixtures::set_extras(
+            &mut scene,
+            node,
+            TransformExtras {
+                rotate_order: Some(1),
+                rotate_axis: Some([17.0, -33.0, 52.0]),
+                ..TransformExtras::default()
+            },
+        );
+        let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        let rad = r.map(f64::to_radians);
+        // yzx order: Y is applied first, then Z, then X (rightmost factor first).
+        let own = DMat3::from_rotation_x(rad[0])
+            * DMat3::from_rotation_z(rad[2])
+            * DMat3::from_rotation_y(rad[1]);
+        let moved = frame
+            .translation_in(MoveSpace::Object, WorldAxis::Y, 3.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), own * DVec3::new(0.0, 3.0, 0.0));
+    }
+
+    #[test]
+    fn object_composes_the_parents_rotation_with_the_nodes_own() {
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        posed(&mut scene, root, [90.0, 0.0, 0.0]);
+        posed(&mut scene, child, [0.0, 0.0, 90.0]);
+        let frame = scene.world_move_frame(&target(&scene, child)).unwrap();
+        // The child's X is its parent's Y, which a 90 degree turn about world X sends to Z.
+        let moved = frame
+            .translation_in(MoveSpace::Object, WorldAxis::X, 2.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(0.0, 0.0, 2.0));
+    }
+
+    #[test]
+    fn parent_uses_the_parents_rotation_not_the_nodes_own() {
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        posed(&mut scene, root, [0.0, 90.0, 0.0]);
+        posed(&mut scene, child, [0.0, 0.0, 90.0]);
+        let frame = scene.world_move_frame(&target(&scene, child)).unwrap();
+        // Parent X is the world -Z (Ry(90) maps X to -Z); the child's own Z rotation is ignored.
+        let moved = frame
+            .translation_in(MoveSpace::Parent, WorldAxis::X, 2.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(0.0, 0.0, -2.0));
+        // and the move is a pure child-local X translation
+        near(
+            [
+                moved[1] - frame.translation[1],
+                moved[2] - frame.translation[2],
+                0.0,
+            ],
+            [0.0; 3],
+        );
+    }
+
+    #[test]
+    fn parent_of_a_root_is_the_world_and_unit_length_ignores_parent_scale() {
+        let (mut scene, node) = test_fixtures::cube();
+        posed(&mut scene, node, [10.0, 20.0, 30.0]);
+        let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        for axis in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z] {
+            assert_eq!(
+                frame.translation_in(MoveSpace::Parent, axis, 1.5).unwrap(),
+                frame.translation(axis, 1.5).unwrap()
+            );
+        }
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        scene
+            .set_transform(
+                root,
+                NativeTransform {
+                    scale: [4.0, 1.0, 1.0],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        let frame = scene.world_move_frame(&target(&scene, child)).unwrap();
+        let moved = frame
+            .translation_in(MoveSpace::Parent, WorldAxis::X, 2.0)
+            .unwrap();
+        near_v(world_delta(&frame, moved), DVec3::new(2.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn several_objects_each_move_the_same_distance_along_their_own_axes() {
+        let (mut scene, first) = test_fixtures::cube();
+        let second = scene.create(Primitive::Cube, "second").unwrap();
+        posed(&mut scene, first, [0.0, 0.0, 90.0]);
+        posed(&mut scene, second, [0.0, 90.0, 0.0]);
+        let targets = [target(&scene, first), target(&scene, second)];
+        let frames = scene
+            .world_move_frames(&[&targets[0], &targets[1]], None)
+            .unwrap();
+        let deltas: Vec<_> = frames
+            .iter()
+            .map(|(frame, _)| {
+                let moved = frame
+                    .translation_in(MoveSpace::Object, WorldAxis::X, 5.0)
+                    .unwrap();
+                world_delta(frame, moved)
+            })
+            .collect();
+        near_v(deltas[0], DVec3::new(0.0, 5.0, 0.0));
+        near_v(deltas[1], DVec3::new(0.0, 0.0, -5.0));
+    }
+
+    #[test]
+    fn an_absent_leaf_refuses_the_space_that_needs_it() {
+        let (mut scene, node) = test_fixtures::cube();
+        posed(&mut scene, node, [0.0, 0.0, 90.0]);
+        let mut frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        frame.absent_leaf = [false, true, false];
+        // Object X is world Y here, so it needs translateY.
+        assert!(matches!(
+            frame.require_leaves_in(MoveSpace::Object, WorldAxis::X),
+            Err(NativeError::AbsentChannelLeaf { component: 1, .. })
+        ));
+        // A rotation about Z leaves translateZ exactly untouched in every space.
+        frame.absent_leaf = [false, false, true];
+        for axis in [WorldAxis::X, WorldAxis::Y] {
+            assert!(frame.require_leaves_in(MoveSpace::Object, axis).is_ok());
+        }
+        assert!(
+            frame
+                .require_leaves_in(MoveSpace::World, WorldAxis::X)
+                .is_ok()
+        );
+    }
+}

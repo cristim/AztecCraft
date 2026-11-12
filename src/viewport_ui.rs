@@ -17,6 +17,52 @@ pub enum SelectionRefusal {
     ComponentMarquee,
 }
 
+#[derive(Clone, Copy)]
+struct PrimaryRelease {
+    pos: egui::Pos2,
+    modifiers: egui::Modifiers,
+    clicked: bool,
+}
+
+impl PrimaryRelease {
+    fn is_plain_click(&self) -> bool {
+        self.clicked
+            && !(self.modifiers.alt
+                || self.modifiers.shift
+                || self.modifiers.ctrl
+                || self.modifiers.command)
+    }
+}
+
+/// Primary releases of one frame in event order; a release is a click when it lies within
+/// `max_click_dist` of the latest press before it in the same frame.
+fn primary_releases(events: &[egui::Event], max_click_dist: f32) -> Vec<PrimaryRelease> {
+    let mut press = None;
+    let mut releases = Vec::new();
+    for event in events {
+        if let egui::Event::PointerButton {
+            pos,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers,
+        } = event
+        {
+            if *pressed {
+                press = Some(*pos);
+            } else {
+                releases.push(PrimaryRelease {
+                    pos: *pos,
+                    modifiers: *modifiers,
+                    clicked: press
+                        .take()
+                        .is_some_and(|from| from.distance(*pos) <= max_click_dist),
+                });
+            }
+        }
+    }
+    releases
+}
+
 impl SelectionRefusal {
     pub fn message(self) -> &'static str {
         match self {
@@ -162,26 +208,21 @@ pub fn capture(
     let mut click_points = None;
     let mut click_modifiers = None;
     let mut unsupported_selection = None;
+    let max_click_dist = ui
+        .ctx()
+        .options(|options| options.input_options.max_click_dist);
     let (released, ambiguous, only_alt) = ui.input(|input| {
-        let mut releases = input
-            .events
-            .iter()
-            .rev()
-            .filter_map(|event| match event {
-                egui::Event::PointerButton {
-                    pos,
-                    button: PointerButton::Primary,
-                    pressed: false,
-                    modifiers,
-                } => Some((*pos, *modifiers)),
-                _ => None,
-            })
-            .peekable();
-        let released = releases.next();
-        let ambiguous = releases.peek().is_some();
+        let releases = primary_releases(&input.events, max_click_dist);
+        let released = releases
+            .last()
+            .map(|release| (release.pos, release.modifiers));
+        let many = releases.len() > 1;
         let only_alt = released.is_some_and(|(_, modifiers)| modifiers.alt)
-            && releases.all(|(_, modifiers)| modifiers.alt);
-        (released, ambiguous, only_alt)
+            && releases.iter().all(|release| release.modifiers.alt);
+        // The last release decides when it is a plain click: earlier releases of the frame cannot
+        // own the click, so each event keeps its own position and modifiers.
+        let superseded = many && releases.last().is_some_and(PrimaryRelease::is_plain_click);
+        (released, many && !superseded, only_alt)
     });
     if response.clicked_by(PointerButton::Primary) && ambiguous && !only_alt {
         unsupported_selection = Some(SelectionRefusal::AmbiguousPrimaryInput);

@@ -980,7 +980,7 @@ fn actual_mesh_producer_propagates_both_consumers_at_each_chunk_boundary() {
     let mesh = scene.shapes[0].mesh();
     assert_eq!(PLANE_ARRAY.len(), 188);
     let mut chunks = Vec::new();
-    mesh_arrays(mesh, |bytes| {
+    mesh_arrays(mesh, None, |bytes| {
         chunks.push(bytes.to_vec());
         Ok(())
     })
@@ -1011,7 +1011,7 @@ fn actual_mesh_producer_propagates_both_consumers_at_each_chunk_boundary() {
         };
         let mut length = MAX_BYTES - available;
         let mut calls = 0;
-        let result = mesh_arrays(mesh, |bytes| {
+        let result = mesh_arrays(mesh, None, |bytes| {
             calls += 1;
             length = add_prefix_bytes(length, bytes.len())?;
             Ok(())
@@ -1024,7 +1024,7 @@ fn actual_mesh_producer_propagates_both_consumers_at_each_chunk_boundary() {
         let mut out = Vec::with_capacity(PLANE_ARRAY.len() + 1);
         let capacity = out.capacity();
         calls = 0;
-        let result = mesh_arrays(mesh, |bytes| {
+        let result = mesh_arrays(mesh, None, |bytes| {
             calls += 1;
             append(&mut out, available, bytes)
         });
@@ -1397,6 +1397,8 @@ fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
         AuthoredRefusalCode::SessionMaterials
     );
 }
+
+mod uv_block;
 
 #[test]
 fn session_uvs_are_refused_before_ascii_output() {

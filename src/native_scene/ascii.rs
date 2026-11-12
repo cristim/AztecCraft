@@ -1,7 +1,7 @@
 use super::{
-    DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeMesh,
-    NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar, TransformExtras,
-    Units,
+    AngularUnit, DagEdge, GeometryViewFacts, LinearUnit, NativeCurveShape, NativeError, NativeId,
+    NativeMesh, NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar,
+    TransformExtras, Units,
     admission::Budget,
     authored::BUILTINS,
     curve::CurveSource,
@@ -84,8 +84,11 @@ enum Kind {
 
 /// Owner attribute bits (1..=1024 are channels): a transform that already has a mesh child, or a
 /// curve child. A mesh needs a transform with no other shape; several curves may share one.
+/// The bits share one word with the channel bits, so every new bit must be distinct.
 const HAS_MESH: u32 = 2048;
 const HAS_CURVE: u32 = 4096;
+const HAS_IT: u32 = 8192;
+const HAS_OPM: u32 = 16384;
 
 struct Owner {
     name: Range<usize>,
@@ -679,6 +682,23 @@ impl Builder<'_, '_> {
                         self.mark(owner, 64, c)?;
                         self.scene.nodes[index].extras.rotate_order = Some(order);
                     }
+                    ".it" => {
+                        flags.plain(c)?;
+                        let inherits = c.boolean()?;
+                        c.done()?;
+                        self.mark(owner, HAS_IT, c)?;
+                        self.scene.nodes[index].extras.inherits_transform = Some(inherits);
+                    }
+                    ".opm" => {
+                        flags.typed("matrix", c)?;
+                        let mut value = [0.0; 16];
+                        for slot in &mut value {
+                            *slot = c.number()?;
+                        }
+                        c.done()?;
+                        self.mark(owner, HAS_OPM, c)?;
+                        self.scene.nodes[index].extras.offset_parent_matrix = Some(value);
+                    }
                     ".ra" | ".sh" | ".rpt" | ".spt" => {
                         flags.typed("double3", c)?;
                         let value = c.triple()?;
@@ -1034,11 +1054,32 @@ impl Builder<'_, '_> {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
                 let mut flags = 0;
+                let mut units = Units::default();
                 while c.position < c.tokens.len() {
                     let bit = match (c.word()?, c.word()?) {
-                        ("-l", "centimeter") => 1,
-                        ("-a", "degree") => 2,
-                        ("-t", "film") => 4,
+                        ("-l", unit) => {
+                            units.linear = match unit {
+                                "millimeter" => LinearUnit::Millimeter,
+                                "centimeter" => LinearUnit::Centimeter,
+                                "meter" => LinearUnit::Meter,
+                                "inch" => LinearUnit::Inch,
+                                "foot" => LinearUnit::Foot,
+                                _ => return Err(error(ErrorKind::Unsupported, c.offset)),
+                            };
+                            1
+                        }
+                        ("-a", unit) => {
+                            units.angular = match unit {
+                                "degree" => AngularUnit::Degree,
+                                "radian" => AngularUnit::Radian,
+                                _ => return Err(error(ErrorKind::Unsupported, c.offset)),
+                            };
+                            2
+                        }
+                        ("-t", unit @ ("film" | "ntsc")) => {
+                            units.time = self.budget.string(unit).map_err(|_| resource())?;
+                            4
+                        }
                         _ => return Err(error(ErrorKind::Unsupported, c.offset)),
                     };
                     if flags & bit != 0 {
@@ -1049,6 +1090,7 @@ impl Builder<'_, '_> {
                 if flags != 7 {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
+                self.scene.units = units;
                 self.units = true;
             }
             "createNode" => self.create(c)?,
@@ -1200,6 +1242,12 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     if !builder.units {
         return Err(error(ErrorKind::Unsupported, 0));
     }
+    // Whether `.cc` CVs are written in the declared linear unit is unverified against the Maya
+    // reference (#5); curves are refused rather than guessed. Meshes never reach here with
+    // other units: `decode_document` requires writer-identical bytes (centimeter/degree/film).
+    if builder.scene.units.linear != LinearUnit::Centimeter && !builder.scene.curves.is_empty() {
+        return Err(error(ErrorKind::Unsupported, 0));
+    }
     builder.finish_meshes()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
     NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
@@ -1219,6 +1267,8 @@ mod document;
 mod mesh;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod units_tests;
 pub(crate) mod write;
 #[cfg(test)]
 pub(super) use write::{AsciiWriteRefusal, emit_geometry_prefix};

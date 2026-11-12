@@ -1,5 +1,9 @@
 mod args;
 mod features;
+// `#[path]` keeps `production_text` (src/entry_point_tests.rs) from cutting this file at a bare `#[cfg(test)]` `mod` line.
+#[cfg(test)]
+#[path = "mcp/maya_map.rs"]
+mod maya_map;
 mod registry;
 mod tools;
 mod transport;
