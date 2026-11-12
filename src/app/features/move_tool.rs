@@ -670,6 +670,7 @@ impl Editor {
             });
         Ok(ManipulationInspection {
             active_tool: self.active_tool,
+            move_space: self.manipulation.move_space(),
             rotate_space: self.manipulation.space(ActiveTool::Rotate),
             scale_space: self.manipulation.space(ActiveTool::Scale),
             rotate_axis: rotate_axis_id(self.manipulation.rotate_axis()),

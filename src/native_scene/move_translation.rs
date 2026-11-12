@@ -1,5 +1,6 @@
 use super::*;
 use glam::DMat3;
+use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 const MAX_PARENT_CONDITION: f64 = 1e12;
@@ -30,7 +31,8 @@ impl WorldAxis {
 }
 
 /// The Move tool's Axis Orientation: the axes a Move handle is aligned to.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum MoveSpace {
     /// Maya's default.
     #[default]

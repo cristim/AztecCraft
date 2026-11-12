@@ -405,7 +405,7 @@ mod tests {
             ),
             (
                 "set_tool_space",
-                json!({"scene_token":token,"tool":"move","space":"world"}),
+                json!({"scene_token":token,"tool":"move","space":"gimbal"}),
             ),
             (
                 "set_tool_space",

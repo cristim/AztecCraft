@@ -73,9 +73,18 @@
   },
   {
     "name": "set_tool_space",
-    "description": "Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool",
+    "description": "Set the Axis Orientation of the Move (object, world or parent), Rotate or Scale (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes. Does not change the active tool",
     "inputSchema": {
       "$defs": {
+        "MoveSpaceInput": {
+          "description": "The Move tool also works in its parent's axes (`parent`).",
+          "enum": [
+            "object",
+            "world",
+            "parent"
+          ],
+          "type": "string"
+        },
         "SpaceInput": {
           "description": "Rotate and Scale work in the node's own axes (`object`) or the world axes (`world`).",
           "enum": [
@@ -83,33 +92,74 @@
             "world"
           ],
           "type": "string"
-        },
-        "SpaceToolInput": {
-          "enum": [
-            "rotate",
-            "scale"
-          ],
-          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "additionalProperties": false,
-      "description": "Sets the Axis Orientation the Rotate or Scale tool settings use for the next manipulation.",
-      "properties": {
-        "scene_token": {
-          "type": "string"
+      "description": "Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next\nmanipulation. Only Move accepts `parent`.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/MoveSpaceInput"
+            },
+            "tool": {
+              "const": "move",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         },
-        "space": {
-          "$ref": "#/$defs/SpaceInput"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/SpaceInput"
+            },
+            "tool": {
+              "const": "rotate",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         },
-        "tool": {
-          "$ref": "#/$defs/SpaceToolInput"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "scene_token": {
+              "type": "string"
+            },
+            "space": {
+              "$ref": "#/$defs/SpaceInput"
+            },
+            "tool": {
+              "const": "scale",
+              "type": "string"
+            }
+          },
+          "required": [
+            "tool",
+            "scene_token",
+            "space"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "scene_token",
-        "tool",
-        "space"
       ],
       "title": "ToolSpaceArgs",
       "type": "object"
