@@ -1003,6 +1003,92 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn authored_uncertain_save_stays_dirty_until_reconcile_then_binds_the_file() {
+        // An empty scene equals its Untitled baseline, so the pending receipt is the only reason
+        // the editor is dirty.
+        for (extension, populated) in [("mb", true), ("ma", true), ("mb", false)] {
+            let directory = tempfile::tempdir().unwrap();
+            let parent = directory.path().join("document");
+            let moved = directory.path().join("moved");
+            std::fs::create_dir(&parent).unwrap();
+            let destination = parent.join(format!("fresh.{extension}"));
+            let mut editor = Editor::default();
+            if populated {
+                editor.create(Primitive::Cube);
+            }
+            let token = editor.scene_token;
+            let scene = editor.history.scene().clone();
+            let relocated = std::cell::Cell::new(false);
+            let guard = || {
+                if !relocated.get()
+                    && std::fs::read_dir(&parent).unwrap().any(|entry| {
+                        let name = entry.unwrap().file_name();
+                        name.to_string_lossy().ends_with(".craft_tmp")
+                    })
+                {
+                    std::fs::rename(&parent, &moved).unwrap();
+                    relocated.set(true);
+                }
+                true
+            };
+            assert!(matches!(
+                editor
+                    .apply_operation_guarded(
+                        azteccraft::history::ManipulationProvenance::Native,
+                        Operation::SaveSceneAs {
+                            path: destination.clone()
+                        },
+                        &guard
+                    )
+                    .unwrap(),
+                OperationReply::SaveUncertain { dirty: true, .. }
+            ));
+            assert!(relocated.get());
+            assert!(editor.files.uncertain.is_some() && editor.files.path.is_none());
+            assert!(editor.is_dirty());
+            assert_eq!(editor.history.scene() != &editor.files.saved, populated);
+            assert!(editor.inspect(false).unwrap().save_reconciliation_required);
+            // The destination is still displaced: reconcile fails with a typed error and keeps
+            // the receipt, the work and the dirty state.
+            assert_eq!(
+                editor
+                    .apply_operation(Operation::SaveScene)
+                    .unwrap_err()
+                    .to_string(),
+                NativeSaveError::SourceChanged.to_string()
+            );
+            assert!(editor.files.uncertain.is_some() && editor.is_dirty());
+            assert!(editor.files.path.is_none());
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.scene_token, token);
+            let installed = moved.join(format!("fresh.{extension}"));
+            let bytes = std::fs::read(&installed).unwrap();
+            std::fs::rename(&moved, &parent).unwrap();
+            assert!(matches!(
+                editor.apply_operation(Operation::SaveScene).unwrap(),
+                OperationReply::SaveReconciled { dirty: false, .. }
+            ));
+            assert!(editor.files.uncertain.is_none() && !editor.is_dirty());
+            assert_eq!(
+                editor.files.path.as_ref(),
+                Some(&destination.canonicalize().unwrap())
+            );
+            assert_eq!(editor.files.saved, scene);
+            assert_eq!(std::fs::read(&destination).unwrap(), bytes);
+            let inspection = editor.inspect(false).unwrap();
+            assert!(inspection.has_file && !inspection.save_reconciliation_required);
+            // Bound: an Active save now writes through the same document.
+            editor.create(Primitive::Cube);
+            assert!(matches!(
+                editor.apply_operation(Operation::SaveScene).unwrap(),
+                OperationReply::Saved { dirty: false, .. }
+            ));
+            assert_ne!(std::fs::read(&destination).unwrap(), bytes);
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn dirty_reconciliation_verifies_queued_open_before_returning() {
         let directory = tempfile::tempdir().unwrap();
         let parent = directory.path().join("document");
