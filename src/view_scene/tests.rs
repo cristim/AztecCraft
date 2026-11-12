@@ -2483,3 +2483,53 @@ fn a_view_build_indexes_admission_once_for_every_instance() {
     );
     assert_eq!(view.instances().len(), 64);
 }
+
+fn translation_offset(v: [f64; 3]) -> crate::native_scene::TransformExtras {
+    let mut m = [
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ];
+    m[12..15].copy_from_slice(&v);
+    crate::native_scene::TransformExtras {
+        offset_parent_matrix: Some(m),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn view_places_a_child_with_offset_parent_matrix_and_inherits_transform_off() {
+    let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+    let set = |scene: &mut NativeScene, node, x| {
+        scene
+            .set_transform(
+                node,
+                NativeTransform {
+                    translation: [x, 0.0, 0.0],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+    };
+    set(&mut scene, root, 10.0);
+    set(&mut scene, child, 1.0);
+    let world_x = |scene: &NativeScene| {
+        let view = ViewScene::from_native(scene, VIEW_BUDGET).unwrap();
+        view.instances()[0].world_matrix().w_axis.x
+    };
+    assert_eq!(world_x(&scene), 11.0);
+    let mut extras = translation_offset([0.0, 5.0, 0.0]);
+    test_fixtures::set_extras(&mut scene, child, extras.clone());
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let w = view.instances()[0].world_matrix().w_axis;
+    assert_eq!((w.x, w.y), (11.0, 5.0));
+    extras.inherits_transform = Some(false);
+    test_fixtures::set_extras(&mut scene, child, extras);
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let w = view.instances()[0].world_matrix().w_axis;
+    assert_eq!((w.x, w.y), (1.0, 5.0));
+    // An ancestor's offset reaches the descendant.
+    test_fixtures::set_extras(&mut scene, child, Default::default());
+    test_fixtures::set_extras(&mut scene, root, translation_offset([0.0, 0.0, 3.0]));
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let w = view.instances()[0].world_matrix().w_axis;
+    assert_eq!((w.x, w.z), (11.0, 3.0));
+}

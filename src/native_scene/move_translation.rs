@@ -474,28 +474,36 @@ impl NativeScene {
         Ok(changes)
     }
 
-    /// Product of the local matrices of the ancestors on `target.path` (the selected node
-    /// excluded); `None` when one has no finite matrix.
+    /// World frame in which the selected node's local matrix applies: the ancestors on
+    /// `target.path` composed with their offsetParentMatrix and inheritsTransform, then the
+    /// selected node's own prefix (`it`, `opm`). `None` when one has no finite matrix.
     pub(super) fn ancestor_world(
         &self,
         target: &TransformTarget,
     ) -> Result<Option<DMat4>, NativeError> {
         let mut world = DMat4::IDENTITY;
-        for id in target.path.iter().take(target.path.len().saturating_sub(1)) {
+        let ancestors = target.path.len().saturating_sub(1);
+        for id in target.path.iter().take(ancestors) {
             let node = self
                 .nodes
                 .iter()
                 .find(|node| node.transform_id == *id)
                 .ok_or(NativeError::InvalidInstancePath)?;
-            let Some(local) = self.internal_transform(node.id)?.matrix() else {
+            let Some(composed) = self.internal_transform(node.id)?.compose_world(world) else {
                 return Ok(None);
             };
-            world *= local;
-            if !world.is_finite() {
-                return Ok(None);
-            }
+            world = composed;
         }
-        Ok(Some(world))
+        let Some(id) = target.path.last() else {
+            return Ok(Some(world));
+        };
+        let selected = self
+            .nodes
+            .iter()
+            .find(|node| node.transform_id == *id)
+            .ok_or(NativeError::InvalidInstancePath)?;
+        let prefix = self.internal_transform(selected.id)?.frame_prefix(world);
+        Ok(prefix.is_finite().then_some(prefix))
     }
 
     pub fn world_move_frame(

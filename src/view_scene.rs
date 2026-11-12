@@ -161,12 +161,12 @@ impl ViewScene {
                     if !node.unsupported_transform_effects().is_empty() {
                         return Err(ViewError::UnsupportedTransform);
                     }
-                    parent_world
-                        * local_matrix(
-                            scene
-                                .internal_transform(node.id())
-                                .map_err(ViewError::Native)?,
-                        )?
+                    compose_world(
+                        scene
+                            .internal_transform(node.id())
+                            .map_err(ViewError::Native)?,
+                        parent_world,
+                    )?
                 }
                 Record::Shape(_) | Record::Curve(_) => parent_world,
             };
@@ -852,8 +852,15 @@ impl<'a> Graph<'a> {
     }
 }
 
+#[cfg(test)]
 fn local_matrix(transform: InternalTransform) -> Result<DMat4, ViewError> {
     transform.matrix().ok_or(ViewError::NonFiniteWorld)
+}
+
+fn compose_world(transform: InternalTransform, parent_world: DMat4) -> Result<DMat4, ViewError> {
+    transform
+        .compose_world(parent_world)
+        .ok_or(ViewError::NonFiniteWorld)
 }
 
 #[cfg(test)]

@@ -638,6 +638,29 @@ impl InternalTransform {
         }
     }
 
+    /// Where this node's local `matrix` is applied: `(inheritsTransform ? parent_world : I) *
+    /// offsetParentMatrix`, column form of Maya's `matrix * opm * parentWorld`. PROVISIONAL for
+    /// `it` off together with `opm` until a Maya reference scene confirms.
+    pub(crate) fn frame_prefix(self, parent_world: DMat4) -> DMat4 {
+        match self.extras {
+            Some(extras) => {
+                let parent = if extras.inherits_transform {
+                    parent_world
+                } else {
+                    DMat4::IDENTITY
+                };
+                parent * extras.offset_parent
+            }
+            None => parent_world,
+        }
+    }
+
+    /// World matrix of the node given its parent's world matrix; `None` when not finite.
+    pub(crate) fn compose_world(self, parent_world: DMat4) -> Option<DMat4> {
+        let world = self.frame_prefix(parent_world) * self.matrix()?;
+        world.is_finite().then_some(world)
+    }
+
     pub(crate) fn matrix(self) -> Option<DMat4> {
         if let Some(extras) = self.extras {
             let matrix = extras.matrix(

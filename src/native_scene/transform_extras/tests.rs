@@ -123,6 +123,8 @@ fn internal(c: &Case) -> InternalTransform {
             shear: c.sh,
             rotate_pivot_translate_cm: c.rpt,
             scale_pivot_translate_cm: c.spt,
+            inherits_transform: true,
+            offset_parent: DMat4::IDENTITY,
         }),
     }
 }
@@ -286,6 +288,7 @@ fn default_extras_are_bit_identical_to_the_legacy_matrix_including_negative_zero
             shear: Some([-0.0; 3]),
             rotate_pivot_translate: Some([0.0; 3]),
             scale_pivot_translate: Some([0.0; 3]),
+            ..TransformExtras::default()
         },
         TransformExtras::default(),
     ] {
@@ -338,6 +341,7 @@ fn extras_convert_per_field_units() {
         shear: Some([0.5, 0.0, 0.0]),
         rotate_pivot_translate: Some([1.0, 0.0, 0.0]),
         scale_pivot_translate: Some([0.0, 2.0, 0.0]),
+        ..TransformExtras::default()
     };
     let e = scene.internal_transform(id).unwrap().extras.unwrap();
     assert_eq!(e.rotate_order, 2);
@@ -433,6 +437,8 @@ fn out_of_range_rotate_order_has_no_matrix() {
         shear: [0.0; 3],
         rotate_pivot_translate_cm: [0.0; 3],
         scale_pivot_translate_cm: [0.0; 3],
+        inherits_transform: true,
+        offset_parent: DMat4::IDENTITY,
     };
     let t = InternalTransform {
         translation_cm: [0.0; 3],
@@ -460,6 +466,7 @@ fn transform_attributes_report_names_degrees_and_declared_linear_units() {
         shear: Some([0.5, 0.0, 0.25]),
         rotate_pivot_translate: Some([1.0, 2.0, 3.0]),
         scale_pivot_translate: Some([0.0; 3]),
+        ..TransformExtras::default()
     };
     let got = scene.transform_attributes(id).unwrap();
     assert_eq!(got.rotate_order, "yzx");
@@ -543,4 +550,147 @@ fn rotate_and_scale_pivots_are_reported_in_the_declared_unit_and_minus_zero_is_d
     let plain = scene.transform_attributes(id).unwrap();
     assert!(plain.non_default.is_empty());
     assert_eq!(plain, TransformAttributes::default());
+}
+
+fn trs(translate: [f64; 3], extras: TransformExtras) -> InternalTransform {
+    InternalTransform {
+        translation_cm: translate,
+        rotation_radians: [0.0; 3],
+        scale: [1.0; 3],
+        rotate_pivot_cm: [0.0; 3],
+        scale_pivot_cm: [0.0; 3],
+        extras: extras.internal(&Units::default()).unwrap(),
+    }
+}
+
+fn opm_translation(v: [f64; 3]) -> TransformExtras {
+    let mut m = [
+        1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ];
+    m[12..15].copy_from_slice(&v);
+    TransformExtras {
+        offset_parent_matrix: Some(m),
+        ..TransformExtras::default()
+    }
+}
+
+fn point(m: DMat4) -> DVec3 {
+    m.transform_point3(DVec3::ZERO)
+}
+
+#[test]
+fn inherits_and_identity_offset_are_defaults_and_keep_the_unchanged_path() {
+    let explicit = TransformExtras {
+        inherits_transform: Some(true),
+        offset_parent_matrix: Some([
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ]),
+        ..TransformExtras::default()
+    };
+    assert!(explicit.is_default());
+    assert!(explicit.internal(&Units::default()).unwrap().is_none());
+    assert!(
+        !TransformExtras {
+            inherits_transform: Some(false),
+            ..TransformExtras::default()
+        }
+        .is_default()
+    );
+}
+
+#[test]
+fn offset_parent_matrix_sits_between_the_parent_and_the_local_matrix() {
+    let parent = DMat4::from_translation(DVec3::new(10.0, 0.0, 0.0));
+    let node = trs([0.0, 0.0, 1.0], opm_translation([0.0, 5.0, 0.0]));
+    let world = node.compose_world(parent).unwrap();
+    assert_eq!(point(world), DVec3::new(10.0, 5.0, 1.0));
+    // A rotating offset moves the local translation, which proves the order opm * matrix.
+    let mut rotate_z_90 = opm_translation([0.0; 3]);
+    rotate_z_90.offset_parent_matrix = Some([
+        0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]);
+    let node = trs([1.0, 0.0, 0.0], rotate_z_90);
+    let world = node.compose_world(DMat4::IDENTITY).unwrap();
+    assert!((point(world) - DVec3::new(0.0, 1.0, 0.0)).length() < 1e-12);
+}
+
+#[test]
+fn inherits_transform_off_ignores_the_parent_but_keeps_the_offset() {
+    let parent = DMat4::from_translation(DVec3::new(10.0, 0.0, 0.0));
+    let mut extras = opm_translation([0.0, 5.0, 0.0]);
+    extras.inherits_transform = Some(false);
+    let node = trs([0.0, 0.0, 1.0], extras);
+    assert_eq!(
+        point(node.compose_world(parent).unwrap()),
+        DVec3::new(0.0, 5.0, 1.0)
+    );
+    let only_it = TransformExtras {
+        inherits_transform: Some(false),
+        ..TransformExtras::default()
+    };
+    let node = trs([2.0, 0.0, 0.0], only_it);
+    assert_eq!(
+        point(node.compose_world(parent).unwrap()),
+        DVec3::new(2.0, 0.0, 0.0)
+    );
+}
+
+#[test]
+fn offset_translation_converts_to_centimeters_and_rotation_part_does_not() {
+    let units = Units {
+        linear: LinearUnit::Meter,
+        ..Units::default()
+    };
+    let internal = opm_translation([1.0, 0.0, 0.0])
+        .internal(&units)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        internal.offset_parent.w_axis.truncate(),
+        DVec3::new(100.0, 0.0, 0.0)
+    );
+    assert_eq!(internal.offset_parent.x_axis.x, 1.0);
+}
+
+#[test]
+fn offset_matrix_must_be_finite_and_affine() {
+    let mut bad = opm_translation([0.0; 3]);
+    bad.offset_parent_matrix.as_mut().unwrap()[15] = 2.0;
+    assert_eq!(bad.validate(), Err(NativeError::InvalidTransformExtras));
+    let mut bad = opm_translation([0.0; 3]);
+    bad.offset_parent_matrix.as_mut().unwrap()[3] = 0.5;
+    assert_eq!(bad.validate(), Err(NativeError::InvalidTransformExtras));
+    let mut bad = opm_translation([0.0; 3]);
+    bad.offset_parent_matrix.as_mut().unwrap()[12] = f64::NAN;
+    assert_eq!(bad.validate(), Err(NativeError::NonFinite));
+}
+
+#[test]
+fn frame_prefix_feeds_the_handle_frame_of_a_node_with_its_own_offset() {
+    let (mut scene, id) = cube();
+    test_fixtures::set_extras(&mut scene, id, opm_translation([0.0, 7.0, 0.0]));
+    let target = scene
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|path| path.node == id)
+        .unwrap();
+    let frame = scene.manipulator_frame(&target).unwrap();
+    assert_eq!(
+        frame.pivot_cm.y,
+        7.0 + scene.internal_transform(id).unwrap().origin_cm().y
+    );
+}
+
+#[test]
+fn offset_validation_accepts_negative_zero_and_matrix_keeps_its_last_entry() {
+    let mut m = opm_translation([0.0; 3]);
+    m.offset_parent_matrix.as_mut().unwrap()[3] = -0.0;
+    assert_eq!(m.validate(), Ok(()));
+    let internal = opm_translation([1.0, 2.0, 3.0])
+        .internal(&Units::default())
+        .unwrap()
+        .unwrap();
+    assert_eq!(internal.offset_parent.w_axis.w, 1.0);
+    assert_eq!(internal.offset_parent.x_axis.w, 0.0);
 }
