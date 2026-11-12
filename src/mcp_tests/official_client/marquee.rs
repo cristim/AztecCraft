@@ -237,6 +237,10 @@ async fn sdk_select_in_rect_rejects_malformed_arguments_without_changing_anythin
         json!({"scene_token":token,"rect":{"min":[-1,-1,0],"max":[1,1]}}),
         json!({"scene_token":token,"rect":{"min":[-1.5,-1],"max":[1,1]}}),
         json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1.0001]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1.00000001,1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1.00000001]}}),
+        json!({"scene_token":token,"rect":{"min":[-1.00000001,-1],"max":[1,1]}}),
+        json!({"scene_token":token,"rect":{"min":[-1,-1.00000001],"max":[1,1]}}),
         json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1],"extra":1}}),
         json!({"scene_token":token,"rect":whole(),"mode":"invert"}),
         json!({"scene_token":token,"rect":whole(),"unknown":true}),
@@ -258,6 +262,43 @@ async fn sdk_select_in_rect_rejects_malformed_arguments_without_changing_anythin
         );
     }
     assert!(editor.selection.is_empty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_select_in_rect_range_applies_to_the_wire_value_not_the_f32() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    three_cubes(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    for rect in [
+        json!({"min":[-1.0,-1.0],"max":[1.0,1.0]}),
+        json!({"min":[1.0,1.0],"max":[-1.0,-1.0]}),
+    ] {
+        let reply = marquee(&mut editor, &context, client.peer(), rect, None).await;
+        assert!(reply.get("error").is_none(), "{reply}");
+    }
+    editor.selection.clear();
+    let before = editor.scene_token;
+    for rect in [
+        json!({"min":[-1,-1],"max":[1.00000001,1]}),
+        json!({"min":[-1,-1.00000001],"max":[1,1]}),
+    ] {
+        let result = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_in_rect",
+            json!({"scene_token":token,"rect":rect}),
+        )
+        .await;
+        assert!(result.is_err(), "{rect}");
+    }
+    assert!(editor.selection.is_empty());
+    assert_eq!(editor.scene_token, before);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

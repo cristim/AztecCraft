@@ -61,6 +61,11 @@ impl Meter<'_> {
             .ok_or_else(resource)?;
         Ok(())
     }
+    /// Charges a hash map of `entries` pairs before it is built: the pair plus a word of
+    /// control and load-factor slack per entry, doubled for the table's growth headroom.
+    fn charge_map<K, V>(&mut self, entries: usize) -> Result<(), BinaryError> {
+        self.charge(map_bytes::<K, V>(entries)?)
+    }
     fn vector<T>(&mut self, count: usize) -> Result<Vec<T>, BinaryError> {
         let bytes = count.checked_mul(size_of::<T>()).ok_or_else(resource)?;
         if self
@@ -79,6 +84,14 @@ impl Meter<'_> {
         )?;
         Ok(vector)
     }
+}
+
+fn map_bytes<K, V>(entries: usize) -> Result<usize, BinaryError> {
+    size_of::<(K, V)>()
+        .checked_add(size_of::<usize>())
+        .and_then(|entry| entry.checked_mul(2))
+        .and_then(|entry| entry.checked_mul(entries))
+        .ok_or_else(resource)
 }
 
 struct Link {
@@ -1068,6 +1081,8 @@ impl FaceCounts {
                 .checked_add(shapes.len())
                 .ok_or_else(resource)?,
         )?;
+        meter.charge_map::<NativeId, usize>(shapes.len())?;
+        meter.charge_map::<usize, usize>(bindings.len())?;
         let mut by_id = HashMap::new();
         by_id.try_reserve(shapes.len()).map_err(|_| resource())?;
         for shape in shapes {
@@ -1106,6 +1121,7 @@ impl Parents {
     fn new(scene: &NativeScene, meter: &mut Meter<'_>) -> Result<Self, BinaryError> {
         let edges = scene.dag_edges();
         meter.step(edges.len())?;
+        meter.charge_map::<NativeId, Option<Option<NativeId>>>(edges.len())?;
         let mut map = HashMap::new();
         map.try_reserve(edges.len()).map_err(|_| resource())?;
         for edge in edges {
