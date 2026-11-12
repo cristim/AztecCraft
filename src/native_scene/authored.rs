@@ -77,9 +77,20 @@ pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>
         .chain(scene.shapes.iter().map(|s| (None, s.name())))
 }
 
+/// Whether a writer carries session UVs: the ASCII writer does through its UV entry point, the
+/// public ASCII entry point and the binary writer refuse them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum UvPolicy {
+    Refuse,
+    Admit,
+}
+
 /// The first checks: a retained source, curve content or session keys cannot be written as
-/// authored.
-pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
+/// authored, nor can session UVs under `UvPolicy::Refuse`.
+pub(super) fn check_content_kind(
+    scene: &NativeScene,
+    uvs: UvPolicy,
+) -> Result<(), AuthoredIneligible> {
     if scene.source.is_some() {
         return Err(AuthoredIneligible::SourcedScene);
     }
@@ -89,7 +100,7 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);
     }
-    if !scene.session_uvs.is_empty() {
+    if uvs == UvPolicy::Refuse && !scene.session_uvs.is_empty() {
         return Err(AuthoredIneligible::SessionUvs);
     }
     Ok(())

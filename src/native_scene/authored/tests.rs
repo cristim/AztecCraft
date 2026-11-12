@@ -28,7 +28,7 @@ fn scene(names: &[&str]) -> NativeScene {
     scene
 }
 fn check(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
-    check_content_kind(scene)?;
+    check_content_kind(scene, UvPolicy::Refuse)?;
     check_scene(scene)
 }
 
@@ -230,7 +230,7 @@ fn transforms_only(names: &[&str]) -> NativeScene {
     scene
 }
 fn check_bare(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
-    check_content_kind(scene)?;
+    check_content_kind(scene, UvPolicy::Refuse)?;
     check_transforms_only(scene)
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_scene::authored::{AuthoredIneligible, check_content_kind};
+use crate::native_scene::authored::{AuthoredIneligible, UvPolicy, check_content_kind};
 use crate::primitive_options::{Axis, PrimitiveOptions};
 use crate::scene::Primitive;
 
@@ -310,12 +310,13 @@ fn validate_rejects_non_finite_uvs() {
 #[test]
 fn authored_writers_refuse_a_scene_with_session_uvs() {
     let (mut scene, shape) = scene_with(Primitive::Cube);
-    assert_eq!(check_content_kind(&scene), Ok(()));
+    assert_eq!(check_content_kind(&scene, UvPolicy::Refuse), Ok(()));
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
     assert_eq!(
-        check_content_kind(&scene),
+        check_content_kind(&scene, UvPolicy::Refuse),
         Err(AuthoredIneligible::SessionUvs)
     );
+    assert_eq!(check_content_kind(&scene, UvPolicy::Admit), Ok(()));
     assert_eq!(
         crate::native_scene::ascii::emit_geometry_prefix(&scene).map(|_| ()),
         Err(crate::native_scene::ascii::AsciiWriteRefusal::SessionUvs)

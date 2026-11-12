@@ -1,6 +1,7 @@
 # UV storage contract for authored Maya ASCII (issue #156)
 
-Status: task 1 only. Nothing writes or reads UVs in a file yet; writers still refuse session UVs.
+Status: tasks 1 and 2. A crate-private ASCII emit function writes the block below (tests only); Save and the binary writer
+still refuse session UVs and no reader parses the block yet.
 
 ## Documented (Maya 2027 pin, reference.md)
 
@@ -26,4 +27,11 @@ face edges (negative means reversed), `h n e...` hole edges, `mf`/`mh` obsolete 
   and `setAttr ".cuvs" -type "string" "map1";`. The attribute names are corroborated by the binary reader
   (`src/native_scene/binary/appearance.rs` parses `uvst[0].uvsp`, `uvsn` and `cuvs` from Maya `.mb`); the ASCII
   text layout, `mu` placement inside an `f` row and whether Maya writes `uvst` before `.fc` are not.
-- Text form of an f32 value (planned: the writer's existing shortest round-trip f32 formatting).
+- Text form of an f32 value: Rust's shortest round-trip `Display` of the f32, as for `.vt` points.
+- Emitted layout per shape that has a set (shapes without one emit exactly the previous bytes), after the
+  `.fc` rows, PROVISIONAL in every detail:
+  - each `.fc` row gains ` mu 0 <corners> <id>...` (running corner ids, one `mu` for set 0), e.g. `f 4 0 1 2 3 mu 0 4 0 1 2 3`;
+  - then `.uvst[0].uvsn` ("map1"), `.uvst[0].uvsp[0:N-1]` as a `float2` array written one `u v` row per line,
+    terminated by `;`, then `.cuvs` ("map1"). Maya's own placement (it may put `uvst` before `.vt`) is unchecked.
+- Writer admission: the extra output is charged to `resource_admission` (`mesh_uv_work`) and counted exactly by
+  `prefix_bytes`; ids and counts must fit signed 32 bits.
