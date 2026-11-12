@@ -2728,6 +2728,136 @@
     }
   },
   {
+    "name": "list_camera_bookmarks",
+    "description": "List the session's camera bookmarks in creation order: name, target, distance, yaw_degrees and pitch_degrees in the units inspect_scene reports for the camera. Needs no scene_token. Bookmarks are session-only: they are not saved in the scene, are cleared when New or Open replaces the document and are lost on close",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "ListBookmarksArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "create_camera_bookmark",
+    "description": "Save the live camera pose (target, distance, yaw, pitch; not the field of view or clip planes) as a named bookmark. A name already in use is refused with bookmark_exists, an invalid name with invalid_bookmark_name and more than 64 bookmarks with bookmark_limit. Session-only: not an undo step, does not edit or dirty the scene",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Bookmark name: 1 to 64 characters, no control or invisible formatting characters, no\nleading or trailing whitespace. Names are unique and case-sensitive.",
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "name"
+      ],
+      "title": "BookmarkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "rename_camera_bookmark",
+    "description": "Rename a bookmark, keeping its pose and position in the list. An unknown name returns bookmark_not_found, a new_name already in use bookmark_exists; renaming to the same name returns unchanged. Session-only; does not edit the scene",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "new_name": {
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "name",
+        "new_name"
+      ],
+      "title": "RenameBookmarkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "delete_camera_bookmark",
+    "description": "Delete a bookmark by name; an unknown name returns bookmark_not_found. Session-only: not an undo step, does not edit the scene",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Bookmark name: 1 to 64 characters, no control or invisible formatting characters, no\nleading or trailing whitespace. Names are unique and case-sensitive.",
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "name"
+      ],
+      "title": "BookmarkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "apply_camera_bookmark",
+    "description": "Set the live camera to a bookmark's saved pose exactly (target, distance, yaw, pitch); the field of view and clip planes are untouched. The change is immediate, with no animation. An unknown name returns bookmark_not_found. Session-only; does not edit the scene",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Bookmark name: 1 to 64 characters, no control or invisible formatting characters, no\nleading or trailing whitespace. Names are unique and case-sensitive.",
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "name"
+      ],
+      "title": "BookmarkArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_sidebar_panel_visibility",
     "description": "Set one sidebar panel's visibility explicitly. Session-only and idempotent; does not edit the scene. The dock shows one panel: showing attribute_editor hides channel_box and the reverse",
     "inputSchema": {

@@ -710,7 +710,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs" | "list_camera_bookmarks"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -780,6 +780,13 @@ mod tests {
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
                 "set_camera_pose" => {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
+                }
+                "list_camera_bookmarks" => json!({}),
+                "create_camera_bookmark" | "delete_camera_bookmark" | "apply_camera_bookmark" => {
+                    json!({"scene_token":token,"name":"v"})
+                }
+                "rename_camera_bookmark" => {
+                    json!({"scene_token":token,"name":"v","new_name":"w"})
                 }
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "set_shading_mode" => json!({"scene_token":token,"mode":"wireframe"}),
@@ -894,6 +901,8 @@ mod tests {
                     | "select_vertex"
                     | "select_edge"
                     | "set_camera_pose"
+                    | "list_camera_bookmarks"
+                    | "apply_camera_bookmark"
             );
             assert_eq!(
                 tool.annotations.unwrap().idempotent_hint == Some(true),
