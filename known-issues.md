@@ -252,7 +252,7 @@ existing records and reconciles uncertain installations. It does not support May
 ASCII or structural rewrites, and still needs native Save QA. Windows limits are
 listed under "Windows binary Save limits".
 A core recovery-file store (`src/recovery.rs`: staged private writes, never replaces an occupied name, per-session retention, lock-based crash markers) exists but is not wired to the editor, preferences, MCP or a launch dialog; autosave, recovery UI and camera/history persistence remain
-pending (#21). Legacy JSON v1 and OBJ remain separate library utilities; their geometry
+pending (#21). The store's crash markers are advisory locks reliable only on a local disk (not NFS or a synced folder), and a copy-fallback install can leave a truncated newest file after a crash. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
 tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
