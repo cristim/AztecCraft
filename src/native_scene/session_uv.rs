@@ -211,6 +211,11 @@ impl NativeScene {
         self.session_uvs.sets.get(&shape)
     }
 
+    /// Stores a set read back from a file on the source-free candidate; `validate` still checks it.
+    pub(super) fn attach_authored_uv_set(&mut self, shape: NativeId, set: UvSet) {
+        self.session_uvs.sets.insert(shape, set);
+    }
+
     /// Replaces the shape's `map1` with a planar projection along `axis`, fitted to the
     /// object-space bounds of the face corners so both directions fill 0 through 1.
     pub fn project_uv_planar(

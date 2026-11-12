@@ -117,7 +117,7 @@ fn walk(
     let spans = curve
         .control_vertices()
         .len()
-        .checked_sub(3)
+        .checked_sub(curve.degree() as usize)
         .ok_or(ViewError::InvalidGeometry)?;
     let mut count = 0usize;
     let mut stack = [None; MAX_DEPTH + 1];

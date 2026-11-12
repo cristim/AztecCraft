@@ -809,6 +809,14 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
+        Operation::CreateCameraBookmark { name: "v".into() },
+        Operation::RenameCameraBookmark {
+            name: "v".into(),
+            new_name: "w".into(),
+        },
+        Operation::DeleteCameraBookmark { name: "v".into() },
+        Operation::ApplyCameraBookmark { name: "v".into() },
+        Operation::ListCameraBookmarks,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
             panel: crate::editor_operations::SidebarPanel::ChannelBox,
@@ -1742,6 +1750,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },
         )],
+        Operation::CreateCameraBookmark { .. } => vec![sample(
+            "create_camera_bookmark(v)",
+            Operation::CreateCameraBookmark { name: "v".into() },
+        )],
+        Operation::RenameCameraBookmark { .. } => vec![sample(
+            "rename_camera_bookmark(missing)",
+            Operation::RenameCameraBookmark {
+                name: "v".into(),
+                new_name: "w".into(),
+            },
+        )],
+        Operation::DeleteCameraBookmark { .. } => vec![sample(
+            "delete_camera_bookmark(missing)",
+            Operation::DeleteCameraBookmark { name: "v".into() },
+        )],
+        Operation::ApplyCameraBookmark { .. } => vec![sample(
+            "apply_camera_bookmark(missing)",
+            Operation::ApplyCameraBookmark { name: "v".into() },
+        )],
+        Operation::ListCameraBookmarks => vec![sample(
+            "list_camera_bookmarks",
+            Operation::ListCameraBookmarks,
+        )],
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
@@ -1970,6 +2001,16 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         (
             "manipulator_size",
             editor.manipulation.manipulator_size().get().to_string(),
+        ),
+        (
+            "bookmarks",
+            editor
+                .bookmarks
+                .list()
+                .iter()
+                .map(|b| b.name.as_str())
+                .collect::<Vec<_>>()
+                .join(","),
         ),
     ];
     Observed {

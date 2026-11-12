@@ -220,7 +220,7 @@ impl fmt::Display for NativeLoadError {
             Self::Read(kind) => write!(f, "cannot read regular scene file: {kind:?}"),
             Self::TooLarge => write!(f, "scene exceeds {MAX_DOCUMENT_BYTES} byte limit"),
             Self::UnsupportedFormat => {
-                f.write_str("Open supports Maya .mb, static cubic .ma and legacy .aztec scenes")
+                f.write_str("Open supports Maya .mb, static curve .ma and legacy .aztec scenes")
             }
             Self::Legacy => f.write_str("invalid legacy scene document"),
             Self::Native(error) => error.fmt(f),

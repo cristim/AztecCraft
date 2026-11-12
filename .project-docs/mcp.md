@@ -101,7 +101,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
 | `set_camera_pose` | `target`: three finite numbers; `distance`: positive; `yaw_degrees`, `pitch_degrees`: the values `inspect_scene` reports | Changed or unchanged camera; yaw wraps, pitch beyond the orbit limit is rejected, lens and clip planes untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
-| `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static cubic `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
+| `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static curve `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
 | `save_scene` | None | Active Unix or Windows Maya binary Save, or on Unix Save of an editor-authored `.ma`, or reconciliation of an uncertain installation without another write; imported ASCII stays read-only; on Unix an Untitled scene returns `save_needs_path`; Untitled saves remain unsupported on Windows |
 | `save_scene_as` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Fresh Maya 2025-format `.mb` for Maya binary or Untitled scenes on Unix, or on Unix only a fresh Maya ASCII `.ma` for an Untitled or editor-authored scene (the extension picks the format, and an authored document saved as either `.ma` or `.mb` can be saved as the other; an opened Maya binary scene refuses `.ma` with `save_ascii_write`; any session material refuses with `save_ascii_write`; a mesh `.ma` written unchanged by this editor reopens on macOS and Linux as an authored document that can be edited and saved again, any other mesh `.ma` is refused); fresh `.mb` for opened binary scenes on Windows; never overwrite; an existing receipt is reconciled instead (Maya acceptance and mesh UVs remain PROVISIONAL) |
 | `export_obj` | `path`: 1 to 4096 UTF-8 bytes, no NUL, ending in `.obj` (any case); optional `selection_only` (default `false`) | File > Export All / Export Selection (`Operation::ExportObj`, the operation the native menu dispatches). Writes the displayed polygon geometry (hidden or non-displayed instances are skipped) in world space (centimetres, full f64 precision, one `o` group per instance, mirrored instances re-wound) to a new file only; an existing destination returns `destination_exists` and is untouched. Never changes the scene, history, dirty state, selection or scene token. Returns `objects`, `vertices` and `faces`. `selection_only` exports the instances under every selected object and returns `no_selection` without one; an empty scene, or one whose instances have no faces, returns `nothing_to_export`. Like Save, the live caller guard is asked before the staged file is created and again before it is given the destination's name; a closed connection, cancellation or expiry returns `export_cancelled` and leaves no file behind. Normals, UVs, materials, groups and smoothing are not written; an exported shape that has session UVs returns `export_invalid` rather than losing them silently |
@@ -165,7 +165,7 @@ Exact Maya CBS, numeric, visual and event-order parity remain unverified. Native
 Native Extrude of the selected face runs from the shelf button and the Extrude Options window (Thickness only); a manipulator and several faces are still missing. The
 existing explicit `extrude_face` tool keeps its checked authoring semantics.
 
-Supported static cubic Maya ASCII `.ma` scenes open through the same native
+Supported static curve Maya ASCII `.ma` scenes open through the same native
 document lifecycle. Original script bodies remain inert retained data. Unknown
 commands, node classes, geometry dependencies or unsupported curve classes refuse
 the complete candidate before adoption. This subset is read-only: authoring and
@@ -439,7 +439,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | --- | --- |
 | Object create/select/rename/transform/delete, history and framing | Nine tools listed above, including inspection |
 | Native New/Open and pending confirmation | `new_scene`, `open_scene` and `resolve_file_action` share native candidate and lifecycle handlers |
-| Read-only static cubic Maya ASCII curves | `open_scene` loads the admitted inert class; `inspect_scene` returns canonical class/counts/domain/read-only/prepared-draw metadata, and `select_node`/`frame_selected` use the same owner and camera. Curve picking, CV editing, native writing and broader ASCII evaluation remain unsupported |
+| Read-only static Maya ASCII curves (degree 1 to 3) | `open_scene` loads the admitted inert class; `inspect_scene` returns canonical class/counts/domain/read-only/prepared-draw metadata, and `select_node`/`frame_selected` use the same owner and camera. Curve picking, CV editing, native writing and broader ASCII evaluation remain unsupported |
 | Native Close | `request_close` and matching pending resolution use the native close guard and response-delivery barrier |
 | Native Save/Save As | Provisional `save_scene`/`save_scene_as` and matching pending Save; source-bound Unix and Windows binary, new Unix scenes through Save As as a fresh PROVISIONAL `.mb`, and a limited Unix authored ASCII `.ma` writer (saved mesh ASCII read-back is unsupported); current integration/native Save QA remains pending |
 | Core OBJ export | `export_obj` shares `Operation::ExportObj` with the native menu items; create-new only, never overwrites, read-only on the scene. The Export option boxes, other formats and OBJ import remain unsupported with no tool |
@@ -510,7 +510,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Lasso, Paint Selection, UV mask | unsupported | | | |
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
-| Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | |
+| Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | Shift+Alt tumble and track constrain to one screen axis (native input filter, policy row 39); MCP zeroes an axis instead |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
 | Camera | Frame selected with children (Ctrl+F) | supported | `frame_selected` | `camera` | Pass `with_children: true` |
 | Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |

@@ -426,6 +426,195 @@ fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_onc
     assert_eq!(camera, before);
 }
 
+#[test]
+fn axis_lock_emits_nothing_until_four_points_then_locks_the_dominant_axis() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(2.0, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(1.0, 3.0)), Vec2::new(0.0, 4.0));
+}
+
+#[test]
+fn axis_lock_horizontal_emits_the_accumulated_x_then_only_x() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(3.0, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(3.0, -2.0)), Vec2::new(6.0, 0.0));
+    assert_eq!(lock.constrain(Vec2::new(-1.0, 9.0)), Vec2::new(-1.0, 0.0));
+}
+
+#[test]
+fn axis_lock_vertical_emits_the_accumulated_y_then_only_y() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(1.0, -3.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(-2.0, -3.0)), Vec2::new(0.0, -6.0));
+    assert_eq!(lock.constrain(Vec2::new(9.0, 2.0)), Vec2::new(0.0, 2.0));
+}
+
+#[test]
+fn axis_lock_ignores_non_finite_deltas_without_poisoning_the_lock() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(f32::NAN, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(f32::INFINITY, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(0.0, 5.0)), Vec2::new(0.0, 5.0));
+}
+
+#[test]
+fn axis_lock_tie_goes_horizontal() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(-5.0, 5.0)), Vec2::new(-5.0, 0.0));
+}
+
+fn shift_alt() -> Modifiers {
+    Modifiers {
+        alt: true,
+        shift: true,
+        ..Modifiers::NONE
+    }
+}
+
+/// Presses `button` at (40, 30), then moves by each step in its own frame, returning every frame's
+/// captured operations.
+fn drag_frames(
+    button: PointerButton,
+    modifiers: &[Modifiers],
+    steps: &[Vec2],
+) -> Vec<Vec<Operation>> {
+    let context = egui::Context::default();
+    let camera = camera();
+    let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
+    let point = egui::pos2(40.0, 30.0);
+    let first = modifiers[0];
+    let _ = capture_frame(
+        &context,
+        &camera,
+        raw(0.0, first, vec![Event::PointerMoved(point)]),
+        clip,
+    );
+    let press = Event::PointerButton {
+        pos: point,
+        button,
+        pressed: true,
+        modifiers: first,
+    };
+    let _ = capture_frame(&context, &camera, raw(1.0 / 60.0, first, vec![press]), clip);
+    let mut at = point;
+    steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| {
+            at += egui::vec2(step.x, step.y);
+            let modifiers = modifiers[(index + 1).min(modifiers.len() - 1)];
+            let (mut input, _) = capture_frame(
+                &context,
+                &camera,
+                raw(
+                    (index as f64 + 2.0) / 60.0,
+                    modifiers,
+                    vec![Event::PointerMoved(at)],
+                ),
+                clip,
+            );
+            input.take_navigation()
+        })
+        .collect()
+}
+
+fn orbit_of(operations: &[Operation]) -> [f32; 2] {
+    let [Operation::Orbit { radians }] = operations else {
+        panic!("expected one orbit, got {} operations", operations.len())
+    };
+    *radians
+}
+
+fn pan_of(operations: &[Operation]) -> [f32; 2] {
+    let [Operation::Pan { world_units }] = operations else {
+        panic!("expected one pan, got {} operations", operations.len())
+    };
+    *world_units
+}
+
+#[test]
+fn shift_alt_primary_drag_tumbles_on_the_locked_axis_only() {
+    // egui starts a drag only past its click distance, so the first step is already large.
+    let frames = drag_frames(
+        PointerButton::Primary,
+        &[shift_alt()],
+        &[Vec2::new(9.0, 3.0), Vec2::new(1.0, 20.0)],
+    );
+    assert_eq!(orbit_of(&frames[0]), [-9.0 * 0.007, 0.0]);
+    assert_eq!(orbit_of(&frames[1]), [-0.007, 0.0]);
+}
+
+#[test]
+fn shift_alt_middle_drag_tracks_on_the_locked_axis_only() {
+    let frames = drag_frames(
+        PointerButton::Middle,
+        &[shift_alt()],
+        &[Vec2::new(1.0, 8.0), Vec2::new(30.0, 2.0)],
+    );
+    let scale = camera().distance() * 0.002;
+    assert_eq!(pan_of(&frames[0]), [0.0, 8.0 * scale]);
+    assert_eq!(pan_of(&frames[1]), [0.0, 2.0 * scale]);
+}
+
+#[test]
+fn alt_drag_without_shift_stays_unconstrained() {
+    let alt = Modifiers {
+        alt: true,
+        ..Modifiers::NONE
+    };
+    let frames = drag_frames(PointerButton::Primary, &[alt], &[Vec2::new(9.0, 3.0)]);
+    assert_eq!(orbit_of(&frames[0]), [-9.0 * 0.007, 3.0 * 0.007]);
+}
+
+#[test]
+fn a_second_shift_alt_drag_locks_afresh() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
+    let modifiers = shift_alt();
+    let point = egui::pos2(40.0, 30.0);
+    let button = |pos, pressed| Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers,
+    };
+    let mut time = 0.0;
+    let mut frame = |events: Vec<Event>| {
+        time += 1.0 / 60.0;
+        let (mut input, _) = capture_frame(&context, &camera, raw(time, modifiers, events), clip);
+        input.take_navigation()
+    };
+    frame(vec![Event::PointerMoved(point)]);
+    frame(vec![button(point, true)]);
+    let first = frame(vec![Event::PointerMoved(point + egui::vec2(8.0, 0.0))]);
+    assert_eq!(orbit_of(&first), [-8.0 * 0.007, 0.0]);
+    frame(vec![button(point + egui::vec2(8.0, 0.0), false)]);
+    frame(vec![button(point, true)]);
+    let second = frame(vec![Event::PointerMoved(point + egui::vec2(0.0, 8.0))]);
+    assert_eq!(orbit_of(&second), [0.0, 8.0 * 0.007]);
+}
+
+#[test]
+fn releasing_shift_mid_drag_restores_free_tumble_and_pressing_it_again_relocks() {
+    let alt = Modifiers {
+        alt: true,
+        ..Modifiers::NONE
+    };
+    let frames = drag_frames(
+        PointerButton::Primary,
+        &[shift_alt(), shift_alt(), alt, shift_alt()],
+        &[
+            Vec2::new(8.0, 0.0),
+            Vec2::new(5.0, 6.0),
+            Vec2::new(1.0, 9.0),
+        ],
+    );
+    assert_eq!(orbit_of(&frames[0]), [-8.0 * 0.007, 0.0]);
+    assert_eq!(orbit_of(&frames[1]), [-5.0 * 0.007, 6.0 * 0.007]);
+    assert_eq!(orbit_of(&frames[2]), [0.0, 9.0 * 0.007]);
+}
+
 fn painted_submission(
     view: &ViewScene,
     camera: &Camera,

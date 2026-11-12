@@ -7,6 +7,7 @@ use crate::editor_operations::{
     KeysRefusal, MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply,
 };
 use azteccraft::{
+    camera_bookmarks::BookmarkError,
     history::ManipulationError,
     native_scene::{NativeError, WorldMoveUnsupported},
     scene::SceneError,
@@ -107,6 +108,12 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::MissingShape(_) => "unknown_shape",
                     NativeError::ResourceLimit => "session_material_limit",
                     _ => "scene_error",
+                },
+                OperationError::CameraBookmark(error) => match error {
+                    BookmarkError::InvalidName(_) => "invalid_bookmark_name",
+                    BookmarkError::Duplicate => "bookmark_exists",
+                    BookmarkError::NotFound => "bookmark_not_found",
+                    BookmarkError::LimitReached => "bookmark_limit",
                 },
                 OperationError::NoSelection => "no_selection",
                 OperationError::MultipleSelection => "multiple_selection",
