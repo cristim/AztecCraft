@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod camera_bookmarks;
 pub mod document;
 pub mod history;
 pub mod manipulator_handles;
