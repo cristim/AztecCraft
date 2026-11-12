@@ -9,7 +9,7 @@ use crate::editor_operations::{
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::ManipulationError,
-    native_scene::{NativeError, WorldMoveUnsupported},
+    native_scene::{NativeError, ScaleUnsupported, WorldMoveUnsupported},
     scene::SceneError,
 };
 use rmcp::{
@@ -52,7 +52,8 @@ fn manipulation_code(error: &ManipulationError) -> &'static str {
         ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => "absent_channel_leaf",
         ManipulationError::Member { source, .. } => match source.as_ref() {
             NativeError::AbsentChannelLeaf { .. } => "absent_channel_leaf",
-            NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor) => {
+            NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor)
+            | NativeError::UnsupportedScale(ScaleUnsupported::AlternatePathAncestor) => {
                 "alternate_path_ancestor"
             }
             _ => "manipulation_error",

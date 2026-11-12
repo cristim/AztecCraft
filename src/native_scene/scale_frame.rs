@@ -30,6 +30,11 @@ pub enum ScaleUnsupported {
     NotAxisAligned,
     InvalidFactor,
     Unrepresentable,
+    /// One object selected through several instances: its instances share channels.
+    SharedInstances,
+    /// A selected ancestor also carries another instance of this uncovered selected object,
+    /// whose scale would be applied twice there.
+    AlternatePathAncestor,
 }
 
 impl fmt::Display for ScaleUnsupported {
@@ -42,6 +47,12 @@ impl fmt::Display for ScaleUnsupported {
             Self::NotAxisAligned => "that world axis is not aligned with a local axis",
             Self::InvalidFactor => "scale factors must be finite and greater than zero",
             Self::Unrepresentable => "scaled channel overflows or underflows",
+            Self::SharedInstances => {
+                "the same object is selected through several instances and shares one scale"
+            }
+            Self::AlternatePathAncestor => {
+                "a selected ancestor also carries another instance of this object, so it would scale twice"
+            }
         })
     }
 }
@@ -119,6 +130,22 @@ impl NativeScene {
         handle: ScaleHandle,
         space: ScaleSpace,
     ) -> Result<(ScaleFrame, ChannelBaseline), NativeError> {
+        let (frame, baseline) = self.scale_frame_of(target, space)?;
+        frame.require_leaves(handle)?;
+        Ok((frame, baseline))
+    }
+
+    /// The scale baseline of `node` alone, for a selected lead that gets no mover.
+    pub(crate) fn scale_baseline(&self, node: NodeId) -> Result<ChannelBaseline, NativeError> {
+        Ok(self.channel_baseline(self.node(node)?, TransformField::Scale))
+    }
+
+    /// The frame and baseline of `target` before any handle is chosen: what every handle shares.
+    pub(crate) fn scale_frame_of(
+        &self,
+        target: &TransformTarget,
+        space: ScaleSpace,
+    ) -> Result<(ScaleFrame, ChannelBaseline), NativeError> {
         if target.path.len() > MAX_TRANSFORM_DEPTH {
             return Err(NativeError::ResourceLimit);
         }
@@ -174,7 +201,6 @@ impl NativeScene {
             scale: std::array::from_fn(|component| selected.channels[6 + component].value),
             absent_leaf,
         };
-        frame.require_leaves(handle)?;
         Ok((
             frame,
             self.channel_baseline(selected, TransformField::Scale),
