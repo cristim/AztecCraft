@@ -427,6 +427,29 @@ impl Editor {
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
+                    | Operation::Create { .. }
+                    | Operation::Delete(_)
+                    | Operation::DeleteSelection
+                    | Operation::ExtrudeFace { .. }
+                    | Operation::ProjectUvPlanar { .. }
+                    | Operation::DeleteUvs { .. }
+                    | Operation::Undo
+                    | Operation::Redo
+            )
+        {
+            return Err(OperationError::BusyEditing);
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if self.files.is_modal()
+            && matches!(
+                operation,
+                Operation::Rename { .. }
+                    | Operation::SetTransform { .. }
+                    | Operation::EditNode { .. }
+                    | Operation::SetMaterialDiffuse { .. }
+                    | Operation::CreateSessionMaterial { .. }
+                    | Operation::AssignSessionMaterial { .. }
+                    | Operation::SetSessionMaterialColor { .. }
             )
         {
             return Err(OperationError::BusyEditing);
