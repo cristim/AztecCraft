@@ -72,6 +72,8 @@ pub struct Editor {
     remembered_vertex: Option<VertexTarget>,
     remembered_edge: Option<EdgeTarget>,
     camera: Camera,
+    /// Session-only; cleared when a document replaces the scene (New, Open).
+    bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     grid_visible: bool,
     shading: ShadingMode,
     menu_set: MenuSet,
@@ -133,6 +135,7 @@ impl Default for Editor {
             remembered_vertex: None,
             remembered_edge: None,
             camera: Camera::default(),
+            bookmarks: Default::default(),
             grid_visible: true,
             shading: ShadingMode::default(),
             menu_set: MenuSet::default(),

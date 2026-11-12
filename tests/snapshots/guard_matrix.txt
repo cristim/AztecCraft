@@ -14,7 +14,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -143,6 +143,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -165,7 +170,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -294,6 +299,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -316,7 +326,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -436,6 +446,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -458,7 +473,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -578,6 +593,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -600,7 +620,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -720,6 +740,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -742,7 +767,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -862,6 +887,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -884,7 +914,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1004,6 +1034,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -1026,7 +1061,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene edited" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene edited" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -1146,6 +1181,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -1168,7 +1208,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1288,6 +1328,11 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1310,7 +1355,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1430,6 +1475,11 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1452,7 +1502,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Move -> Rotate; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Move -> Scale; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1572,6 +1622,11 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1594,7 +1649,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(rotate) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_active_tool(scale) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1714,6 +1769,11 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1736,7 +1796,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1856,6 +1916,11 @@
   frame_selected(children) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_all => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_grid_visible(false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create_camera_bookmark(v) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  rename_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  delete_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  apply_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  list_camera_bookmarks => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_shading_mode(wireframe) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_menu_set(rigging) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(channel_box,false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1878,7 +1943,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1998,6 +2063,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2021,7 +2091,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; can_undo: false -> true
@@ -2141,6 +2211,11 @@
   frame_selected(children) => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_all => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create_camera_bookmark(v) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2164,7 +2239,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2284,6 +2359,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2306,7 +2386,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(rotate) => Ok(changed) | scene changed; active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_active_tool(scale) => Ok(changed) | scene changed; active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2426,6 +2506,11 @@
   frame_selected(children) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_all => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create_camera_bookmark(v) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2448,7 +2533,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2568,6 +2653,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2590,7 +2680,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2710,6 +2800,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -2732,7 +2827,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2852,6 +2947,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2874,7 +2974,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2994,6 +3094,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -3016,7 +3121,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3136,6 +3241,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3158,7 +3268,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3279,6 +3389,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3301,7 +3416,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3421,6 +3536,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3443,7 +3563,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3563,6 +3683,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3585,7 +3710,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3705,6 +3830,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3727,7 +3857,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3847,6 +3977,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3869,7 +4004,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3989,6 +4124,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4011,7 +4151,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(rotate) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_active_tool(scale) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4131,6 +4271,11 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4153,7 +4298,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4273,6 +4418,11 @@
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -4295,7 +4445,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4415,6 +4565,11 @@
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -4438,7 +4593,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4558,6 +4713,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -4581,7 +4741,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4701,6 +4861,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -4724,7 +4889,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4844,6 +5009,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -4867,7 +5037,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -4987,6 +5157,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -5010,7 +5185,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   begin_move => Ok(manipulation_started) | active_move: none -> native
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -5036,7 +5211,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   begin_move => Ok(manipulation_started) | active_move: none -> remote
   begin_move(face_mode) => Err(InvalidInput: Move is unavailable in Face selection; switch to Object selection) | no state change
   update_move => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -5062,7 +5237,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -5182,6 +5357,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -5205,7 +5385,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
   set_active_tool(rotate) => Ok(changed) | active_tool: Select -> Rotate; status: "Scene ready" -> "Rotate tool (Object): drag a ring to turn about that axis | Esc cancels | view ring and free rotate are unsupported"
   set_active_tool(scale) => Ok(changed) | active_tool: Select -> Scale; status: "Scene ready" -> "Scale tool (World): drag an axis box or the center box | Esc cancels | plane scale is unsupported"
@@ -5325,6 +5505,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
+  rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
@@ -5348,7 +5533,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -5468,6 +5653,11 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5491,7 +5681,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(rotate) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_active_tool(scale) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5611,6 +5801,11 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5622,4 +5817,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5074
+cells: 5269

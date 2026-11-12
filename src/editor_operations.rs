@@ -1,6 +1,7 @@
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{NativeTransform, TransformAttributes};
 use azteccraft::{
+    camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
     move_handles::ManipulatorSize,
     native_scene::{
@@ -449,6 +450,28 @@ pub enum Operation {
         shape: NativeId,
         cursor: Option<PageCursor>,
     },
+    /// A read, like `Inspect`: it passes no guard.
+    #[cfg(any(test, feature = "mcp"))]
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    ListCameraBookmarks,
+    /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying.
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    CreateCameraBookmark {
+        name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    RenameCameraBookmark {
+        name: String,
+        new_name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    DeleteCameraBookmark {
+        name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    ApplyCameraBookmark {
+        name: String,
+    },
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -616,6 +639,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Uvs {
         inspection: Box<UvInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    CameraBookmarks {
+        bookmarks: Vec<CameraBookmarkInspection>,
     },
     Created {
         node_id: String,
@@ -1090,6 +1117,17 @@ pub struct CameraInspection {
     pub far_clip: f32,
 }
 
+/// A bookmarked pose in the units `CameraInspection` reports, so a listed pose compares directly.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct CameraBookmarkInspection {
+    pub name: String,
+    pub target: [f32; 3],
+    pub distance: f32,
+    pub yaw_degrees: f64,
+    pub pitch_degrees: f64,
+}
+
 /// `undoInfo -q` state: the Undo preferences, queue lengths and any open chunk.
 #[cfg(any(test, feature = "mcp"))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1142,6 +1180,7 @@ pub enum OperationError {
     Camera(InvalidCameraInput),
     /// A refused absolute pose; names the field.
     CameraPose(InvalidCameraPose),
+    CameraBookmark(BookmarkError),
     /// An update parameter that does not belong to the active manipulation's kind.
     KindMismatch {
         parameter: &'static str,
@@ -1218,6 +1257,7 @@ impl fmt::Display for OperationError {
             }
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
+            Self::CameraBookmark(error) => error.fmt(f),
             Self::KindMismatch { parameter, active } => write!(
                 f,
                 "{} {parameter} does not apply to the active {active} manipulation",
