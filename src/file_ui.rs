@@ -23,7 +23,7 @@ use uuid::Uuid;
 /// rows keep saying how much of each format is read (#189).
 pub(super) const OPEN_FILTERS: [(&str, &[&str]); 4] = [
     ("Maya Scenes", &["ma", "mb"]),
-    ("Maya static cubic ASCII scene", &["ma"]),
+    ("Maya static curve ASCII scene", &["ma"]),
     ("Maya binary scene", &["mb"]),
     ("Legacy AztecCraft scene", &["aztec"]),
 ];
@@ -420,7 +420,9 @@ impl Editor {
         self.files.close_sent = false;
         self.files.path = path;
         self.files.uncertain = None;
-        self.history = History::new(scene);
+        let mut history = History::new(scene);
+        history.inherit_undo_settings(&self.history);
+        self.history = history;
         self.timeline = Default::default();
         self.active_tool = crate::editor_operations::ActiveTool::Select;
         self.native_move = None;

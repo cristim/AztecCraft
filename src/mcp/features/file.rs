@@ -165,7 +165,7 @@ fn parse_request_close(arguments: JsonObject) -> Result<RemoteRequest, ErrorData
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "open_scene",
-        description: "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; a mesh .ma written unchanged by this editor's ASCII Save opens on macOS and Linux as an editable, saveable authored document, and any other mesh .ma is refused",
+        description: "Open a Maya binary .mb, supported read-only static curve Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. Imported ASCII scenes remain read-only; a mesh .ma written unchanged by this editor's ASCII Save opens on macOS and Linux as an editable, saveable authored document, and any other mesh .ma is refused",
         schema: schema::<OpenArgs>,
         parse: parse_open_scene,
         idempotent: false,

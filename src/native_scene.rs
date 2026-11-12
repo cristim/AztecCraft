@@ -2159,6 +2159,8 @@ pub enum NativeError {
     /// A Maya scene import refused its source or options; the reason carries no file content.
     MayaImport(MayaImportRefusal),
     BusyManipulation,
+    /// An undo preference or chunk call the current undo state refuses.
+    UndoState(&'static str),
     UnsupportedView(&'static str),
     /// An OBJ import would leave a scene the viewport cannot display; the text says why.
     ImportUndisplayable(&'static str),
@@ -2178,7 +2180,7 @@ impl fmt::Display for NativeError {
             Self::InvalidIdentity => f.write_str("invalid native identities or DAG references"),
             Self::InvalidRetention => f.write_str("invalid retained source ranges"),
             Self::InvalidTopology => f.write_str("invalid native polygon connectivity"),
-            Self::InvalidCurve => f.write_str("invalid supported native cubic curve"),
+            Self::InvalidCurve => f.write_str("invalid supported native curve"),
             Self::InvalidTransformExtras => {
                 f.write_str("rotate order must be 0 through 5 for supported transform extras")
             }
@@ -2253,6 +2255,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedScale(reason) => write!(f, "Scale unsupported: {reason}"),
             Self::MayaImport(reason) => reason.fmt(f),
             Self::BusyManipulation => f.write_str("finish or cancel the active manipulation"),
+            Self::UndoState(reason) => write!(f, "undo: {reason}"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }

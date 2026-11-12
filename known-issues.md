@@ -504,7 +504,7 @@ covered MCP-driven mode switches on one macOS debug build only
 **Severity:** high
 **Area:** native documents and viewport
 
-The supported legacy 2016 static cubic ASCII class now has inert native Open,
+The supported legacy 2016 static ASCII curve class (open, nonrational, degree 1 to 3) now has inert native Open,
 canonical f64 curve state, evaluated GPU line geometry, conservative framing and
 bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
 admit general Maya ASCII, arbitrary units (only mm/cm/m/in/ft, deg/rad, film/ntsc; curves need centimeter and meshes need centimeter/degree/film) or history/drivers, rigs, imported
@@ -522,10 +522,14 @@ visual or functional parity is claimed.
 Curve segments are f32 offsets from an f64 origin and the renderer subtracts the f64 eye, so
 a small curve far from the origin is no longer refused for the f32 grid of its segments.
 The camera target and eye and all non-curve overlays are still world-space f32, so a curve
-is refused (Open fails) once the f32 grid at its coordinates exceeds a tenth of its size
-(an ~8.8cm curve: drawn at x=5e6cm, refused at 1e7cm), a deliberate loud limit instead of
+is refused (Open fails) once the f32 grid at its coordinates exceeds 5% of its size
+(an ~8.8cm curve: drawn at x=3e6cm, refused at 1e7cm; any curve past 1e18cm), a deliberate loud limit instead of
 an off-screen curve (decided by claude-optimizer; the alternative is an f64 camera). Within
-it, curve and overlay positions agree within one f32 grid step; framing and orbit hold,
+it the curve is exact but overlays (meshes, edges, markers; full f32 matrix) can land up to
+about 0.3 NDC from it at the limit with the default Film lens (measured over axes, orbit
+poses and aspects; a 120-degree lens measured 0.65), and can be depth-clipped when the
+far plane margin is only the near distance (framing sets far to distance+radius+near;
+observed with fov 10, small near, or curves over ~1e3cm), less nearer the origin; framing and orbit hold,
 but pan and dolly of a curve near the limit are coarse (they move in f32 grid steps). Core and CPU submission
 tests cover this; the in-app visual check of a far-origin curve is pending.
 [Development notes](.project-docs/development.md#read-only-static-cubic-maya-ascii)

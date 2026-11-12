@@ -22,6 +22,7 @@ fn candidate() -> (NativeScene, crate::scene::NodeId) {
         id,
         uuid: Some(Uuid::nil()),
         name: "curveShape".into(),
+        degree: 3,
         control_vertices: vec![
             [0.0, -0.0, 0.0],
             [1.0, 2.0, 0.0],
@@ -413,4 +414,136 @@ fn finite_canonical_words_refuse_nonfinite_evaluation_intermediates() {
         curve.bezier_span(0),
         Err(NativeError::UnsupportedView(_))
     ));
+}
+
+fn spline_degree(degree: u32, points: &[[f64; 3]], knots: &[f64]) -> NativeCurveShape {
+    let (mut scene, _) = candidate();
+    scene.curves[0].degree = degree;
+    scene.curves[0].control_vertices = points.to_vec();
+    scene.curves[0].knots = knots.to_vec();
+    scene.validate().unwrap();
+    scene.curves.remove(0)
+}
+
+fn basis(full: &[f64], i: usize, d: usize, u: f64, last_span: usize) -> f64 {
+    if d == 0 {
+        let inside = full[i] <= u && u < full[i + 1];
+        return f64::from(u8::from(
+            inside || (u == full[full.len() - 1] && i == last_span),
+        ));
+    }
+    let mut value = 0.0;
+    if full[i + d] > full[i] {
+        value += (u - full[i]) / (full[i + d] - full[i]) * basis(full, i, d - 1, u, last_span);
+    }
+    if full[i + d + 1] > full[i + 1] {
+        value += (full[i + d + 1] - u) / (full[i + d + 1] - full[i + 1])
+            * basis(full, i + 1, d - 1, u, last_span);
+    }
+    value
+}
+
+/// Independent Cox-de Boor oracle over the padded knot vector.
+fn oracle(degree: usize, points: &[[f64; 3]], knots: &[f64], u: f64) -> DVec3 {
+    let mut full = vec![knots[0]];
+    full.extend_from_slice(knots);
+    full.push(knots[knots.len() - 1]);
+    let last_span = points.len() - 1;
+    points.iter().enumerate().fold(DVec3::ZERO, |sum, (i, p)| {
+        sum + DVec3::from_array(*p) * basis(&full, i, degree, u, last_span)
+    })
+}
+
+fn cubic(controls: [DVec3; 4], t: f64) -> DVec3 {
+    let s = 1.0 - t;
+    controls[0] * (s * s * s)
+        + controls[1] * (3.0 * s * s * t)
+        + controls[2] * (3.0 * s * t * t)
+        + controls[3] * (t * t * t)
+}
+
+fn assert_matches_oracle(degree: usize, points: &[[f64; 3]], knots: &[f64]) {
+    let curve = spline_degree(u32::try_from(degree).unwrap(), points, knots);
+    let [start, end] = curve.domain().unwrap();
+    assert_eq!(
+        [start, end],
+        [knots[degree - 1], knots[knots.len() - degree]]
+    );
+    for step in 0..=20 {
+        let u = start + (end - start) * f64::from(step) / 20.0;
+        close(curve.evaluate(u).unwrap(), oracle(degree, points, knots, u));
+    }
+    for span in 0..points.len() - degree {
+        let controls = curve.bezier_span(span).unwrap();
+        let a = knots[degree + span - 1];
+        let b = knots[degree + span];
+        for step in 0..=8 {
+            let t = f64::from(step) / 8.0;
+            close(
+                cubic(controls, t),
+                oracle(degree, points, knots, a + (b - a) * t),
+            );
+        }
+    }
+    assert!(curve.bezier_span(points.len() - degree).is_err());
+}
+
+const POINTS: [[f64; 3]; 5] = [
+    [0.0, 1.0, 2.0],
+    [1.0, 3.0, -2.0],
+    [2.0, -4.0, 1.0],
+    [4.0, 2.0, 3.0],
+    [5.0, 7.0, -3.0],
+];
+
+#[test]
+fn degree_one_polyline_matches_the_cox_de_boor_oracle_and_segment_midpoints() {
+    let knots = [0.0, 1.0, 2.5, 3.0, 7.0];
+    assert_matches_oracle(1, &POINTS, &knots);
+    let curve = spline_degree(1, &POINTS, &knots);
+    close(
+        curve.evaluate(1.75).unwrap(),
+        (DVec3::from_array(POINTS[1]) + DVec3::from_array(POINTS[2])) / 2.0,
+    );
+}
+
+#[test]
+fn degree_two_uniform_and_nonuniform_match_the_cox_de_boor_oracle() {
+    assert_matches_oracle(2, &POINTS, &[0.0, 0.0, 1.0, 2.0, 3.0, 3.0]);
+    assert_matches_oracle(2, &POINTS, &[0.0, 0.0, 1.0, 3.5, 4.0, 4.0]);
+}
+
+#[test]
+fn degree_three_oracle_agrees_with_the_existing_evaluator() {
+    assert_matches_oracle(3, &POINTS, &[0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0]);
+}
+
+#[test]
+fn clamp_and_count_rules_follow_the_degree() {
+    let (mut scene, _) = candidate();
+    let mut refused = |degree: u32, points: &[[f64; 3]], knots: &[f64]| {
+        scene.curves[0].degree = degree;
+        scene.curves[0].control_vertices = points.to_vec();
+        scene.curves[0].knots = knots.to_vec();
+        scene.validate().is_err()
+    };
+    // Degree 2 needs exactly two clamp knots on each side, not three.
+    assert!(refused(2, &POINTS, &[0.0, 1.0, 2.0, 3.0, 4.0, 4.0]));
+    assert!(refused(2, &POINTS, &[0.0, 0.0, 1.0, 2.0, 3.0, 4.0]));
+    assert!(!refused(2, &POINTS, &[0.0, 0.0, 1.0, 2.0, 3.0, 3.0]));
+    // Knot count is cv + degree - 1.
+    assert!(refused(2, &POINTS, &[0.0, 0.0, 1.0, 2.0, 2.0]));
+    assert!(refused(1, &POINTS, &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]));
+    // Too few CVs, degree 0 and degree 4.
+    assert!(refused(2, &POINTS[..2], &[0.0, 0.0, 1.0]));
+    assert!(refused(1, &POINTS[..1], &[0.0]));
+    assert!(refused(0, &POINTS, &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]));
+    assert!(refused(
+        4,
+        &POINTS,
+        &[0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+    ));
+    // Repeated interior knots stay unsupported at every degree.
+    assert!(refused(1, &POINTS, &[0.0, 1.0, 1.0, 2.0, 3.0]));
+    assert!(refused(2, &POINTS, &[0.0, 0.0, 1.0, 1.0, 2.0, 2.0]));
 }

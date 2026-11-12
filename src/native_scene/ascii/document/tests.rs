@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_scene::ascii::{decode_inner, write::emit_geometry_prefix};
 use crate::{
     native_scene::{
         DirectedEdge, NativeEdge, NativeFace, NativeMesh, ascii::write::AsciiWriteRefusal,
@@ -20,24 +21,24 @@ fn bytes_of(scene: &NativeScene) -> Vec<u8> {
     emit_geometry_prefix(scene).unwrap()
 }
 
-fn decode(bytes: &[u8], adoption: bool) -> Result<AsciiDecoded, AsciiDocumentError> {
+pub(super) fn decode(bytes: &[u8], adoption: bool) -> Result<AsciiDecoded, AsciiDocumentError> {
     decode_document(Arc::from(bytes.to_vec()), adoption)
 }
 
-fn authored(bytes: &[u8]) -> AuthoredProjection {
+pub(super) fn authored(bytes: &[u8]) -> AuthoredProjection {
     match decode(bytes, true).unwrap() {
         AsciiDecoded::Authored(projection) => projection,
         other => panic!("not authored: {other:?}"),
     }
 }
 
-fn refused(bytes: &[u8]) -> AsciiDocumentError {
+pub(super) fn refused(bytes: &[u8]) -> AsciiDocumentError {
     decode(bytes, true).err().unwrap_or_else(|| {
         panic!("accepted: {}", String::from_utf8_lossy(bytes));
     })
 }
 
-fn replace(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
+pub(super) fn replace(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
     let text = std::str::from_utf8(bytes).unwrap();
     assert!(text.contains(from), "{from}");
     text.replacen(from, to, 1).into_bytes()

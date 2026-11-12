@@ -92,8 +92,8 @@ impl Editor {
             Operation::SetActiveTool(ActiveTool::Rotate | ActiveTool::Scale)
         );
         let step_label = match *operation {
-            Operation::Undo => self.history.undo_label(),
-            Operation::Redo => self.history.redo_label(),
+            Operation::Undo => self.history.undo_label_after_chunk(),
+            Operation::Redo => self.history.redo_label_after_chunk(),
             _ => None,
         };
         let status = match *operation {
@@ -113,6 +113,10 @@ impl Editor {
             | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
+            | Operation::SetUndoQueue(_)
+            | Operation::SetUndoEnabled { .. }
+            | Operation::OpenUndoChunk { .. }
+            | Operation::CloseUndoChunk
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
@@ -458,6 +462,10 @@ impl Editor {
                     | Operation::DeleteUvs { .. }
                     | Operation::Undo
                     | Operation::Redo
+                    | Operation::SetUndoQueue(_)
+                    | Operation::SetUndoEnabled { .. }
+                    | Operation::OpenUndoChunk { .. }
+                    | Operation::CloseUndoChunk
             )
         {
             return Err(OperationError::BusyEditing);
@@ -925,6 +933,48 @@ impl Editor {
                 } else {
                     OperationReply::Unchanged
                 });
+            }
+            Operation::SetUndoQueue(queue) => {
+                let changed = self.history.undo_queue() != queue
+                    || matches!(queue, UndoQueue::Finite(size) if self.history.undo_len() > size);
+                self.history
+                    .set_undo_queue(queue)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SetUndoEnabled { enabled, flush } => {
+                let changed = self.history.undo_enabled() != enabled
+                    || (flush && (self.history.can_undo() || self.history.can_redo()));
+                self.history
+                    .set_undo_enabled(enabled, flush)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::OpenUndoChunk { name } => {
+                self.history
+                    .open_chunk(&name)
+                    .map_err(OperationError::from_history)?;
+                return Ok(OperationReply::Changed);
+            }
+            Operation::CloseUndoChunk => {
+                return Ok(
+                    match self
+                        .history
+                        .close_chunk()
+                        .map_err(OperationError::from_history)?
+                    {
+                        EditOutcome::Unchanged => OperationReply::Unchanged,
+                        _ => OperationReply::Changed,
+                    },
+                );
             }
             Operation::Undo | Operation::Redo => {
                 let changed = if matches!(operation, Operation::Redo) {

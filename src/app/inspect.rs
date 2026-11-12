@@ -513,6 +513,17 @@ impl Editor {
             undo_label: self.history.undo_label(),
             can_redo: self.history.can_redo(),
             redo_label: self.history.redo_label(),
+            undo_state: crate::editor_operations::UndoStateInspection {
+                enabled: self.history.undo_enabled(),
+                infinite: self.history.undo_queue() == UndoQueue::Infinite,
+                queue_size: match self.history.undo_queue() {
+                    UndoQueue::Finite(size) => Some(size),
+                    UndoQueue::Infinite => None,
+                },
+                undo_length: self.history.undo_len(),
+                redo_length: self.history.redo_len(),
+                open_chunk: self.history.open_chunk_name().map(str::to_string),
+            },
             dirty: self.is_dirty(),
             has_draft: self.has_draft(),
             native_input_pending: self.native_input_pending,
@@ -864,7 +875,7 @@ mod lower_bound_tests {
     #[test]
     fn the_bound_holds_for_transform_attributes_and_unproved_or_false_visibility() {
         let source = "//Maya ASCII 2016 scene\nrequires maya \"2016\";\ncurrentUnit -l centimeter -a degree -t film;\n\
-            createNode transform -n \"a\";\nsetAttr \".ro\" 3;\nsetAttr \".sh\" -type \"double3\" 1 2 3;\n\
+            createNode transform -n \"a\";\nsetAttr \".ro\" 3;\nsetAttr \".sh\" -type \"double3\" 1 2 3;\nsetAttr \".it\" no;\nsetAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 2 3 4 1;\n\
             createNode transform -n \"b\";\nsetAttr \".v\" no;\ncreateNode transform -n \"c\";\n";
         let editor = editor_for(ascii::decode(source.as_bytes().to_vec().into()).unwrap());
         let inspection = editor.inspect(false).unwrap();

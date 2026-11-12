@@ -8,7 +8,10 @@ const MAX_DEPTH: usize = 24;
 const MAX_WORK: usize = 1_000_000;
 /// Largest f32 grid at a curve's coordinates, as a fraction of its size, that the f32 camera can
 /// still frame and that overlays still agree with the curve within.
-const CAMERA_GRID_FRACTION: f64 = 0.1;
+const CAMERA_GRID_FRACTION: f64 = 0.05;
+/// Coordinate beyond which f32 distance-squared overflows; a coarse backstop for single-point
+/// curves, which the grid gate exempts (the camera may still refuse them below it).
+const MAX_CAMERA_COORDINATE: f64 = 1e18;
 
 #[derive(Default)]
 pub(super) struct CurveWork(usize);
@@ -64,6 +67,9 @@ pub(super) fn prepare(
     // curve the camera cannot frame or orbit it and overlays drift from it by more than that,
     // so the curve is refused loudly instead of drawn off-screen. A single-point curve has no
     // shape to distort.
+    if magnitude > MAX_CAMERA_COORDINATE {
+        return Err(ViewError::NonFiniteWorld);
+    }
     let camera_grid = scalar(magnitude * f64::from(f32::EPSILON))?;
     if diagonal > 0.0 && camera_grid > scalar(diagonal * CAMERA_GRID_FRACTION)? {
         return Err(ViewError::NonFiniteWorld);
@@ -111,7 +117,7 @@ fn walk(
     let spans = curve
         .control_vertices()
         .len()
-        .checked_sub(3)
+        .checked_sub(curve.degree() as usize)
         .ok_or(ViewError::InvalidGeometry)?;
     let mut count = 0usize;
     let mut stack = [None; MAX_DEPTH + 1];

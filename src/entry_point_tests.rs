@@ -294,6 +294,19 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         ".apply_evaluated(",
         &["apply_operation_guarded", "write_time"],
     );
+    for (what, call) in [
+        ("undo queue", ".set_undo_queue("),
+        ("undo enabled", ".set_undo_enabled("),
+        ("chunk open", ".open_chunk("),
+        ("chunk close", ".close_chunk("),
+    ] {
+        expect(what, call, &["apply_operation_guarded"]);
+    }
+    expect(
+        "undo settings carry",
+        ".inherit_undo_settings(",
+        &["replace_scene"],
+    );
     expect("history undo", ".undo()", &["apply_operation_guarded"]);
     expect("history redo", ".redo()", &["apply_operation_guarded"]);
     expect("single move begin", ".begin_move(", &[]);

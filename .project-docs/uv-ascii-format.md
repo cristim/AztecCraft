@@ -1,7 +1,9 @@
 # UV storage contract for authored Maya ASCII (issue #156)
 
-Status: tasks 1 and 2. A crate-private ASCII emit function writes the block below (tests only); Save and the binary writer
-still refuse session UVs and no reader parses the block yet.
+Status: tasks 1 to 3. A crate-private ASCII emit function writes the block below; the reader parses it into a
+per-shape side table and the reopen gate (`decode_document`) attaches it to the source-free candidate and admits it only
+when re-emitting the candidate with its UVs gives the same bytes. Save and the binary writer still refuse session UVs, so
+no user path writes such a file yet (task 4).
 
 ## Documented (Maya 2027 pin, reference.md)
 
