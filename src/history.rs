@@ -151,6 +151,39 @@ pub enum EditOutcome {
 /// Most undo steps kept; matches Maya's documented default Finite queue size
 /// (Preferences > Undo > Queue size = 50). Older steps are dropped silently.
 pub const UNDO_LIMIT: usize = 50;
+/// Largest Finite queue size accepted. Every entry holds a whole-scene snapshot, so the size is
+/// bounded (PROVISIONAL: the docs name no maximum); Infinite is the documented unbounded choice.
+pub const UNDO_LIMIT_MAX: usize = 1000;
+
+/// Preferences > Undo > Queue: Finite with a size, or Infinite.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UndoQueue {
+    Finite(usize),
+    Infinite,
+}
+
+impl UndoQueue {
+    /// A Finite queue of `size` steps, 1 to [`UNDO_LIMIT_MAX`].
+    pub fn finite(size: usize) -> Result<Self, NativeError> {
+        if (1..=UNDO_LIMIT_MAX).contains(&size) {
+            Ok(Self::Finite(size))
+        } else {
+            Err(NativeError::UndoState("the queue size must be 1 to 1000"))
+        }
+    }
+}
+
+impl Default for UndoQueue {
+    fn default() -> Self {
+        Self::Finite(UNDO_LIMIT)
+    }
+}
+
+/// An open `undoInfo -openChunk`: the scene before its first change, if it has changed yet.
+struct OpenChunk {
+    name: String,
+    base: Option<(NativeScene, i32)>,
+}
 
 pub struct History {
     scene: NativeScene,
@@ -165,6 +198,9 @@ pub struct History {
     /// restored snapshot that is stale for the current time from one that already is current.
     /// `apply_evaluated`, a key command (at its `current_frame`), Undo and Redo write it.
     pose_frame: i32,
+    queue: UndoQueue,
+    undo_enabled: bool,
+    chunk: Option<OpenChunk>,
 }
 
 impl Default for History {
@@ -183,7 +219,132 @@ impl History {
             next_manipulation_id: 0,
             revision: 0,
             pose_frame: DEFAULT_FRAME,
+            queue: UndoQueue::default(),
+            undo_enabled: true,
+            chunk: None,
         }
+    }
+
+    pub fn undo_queue(&self) -> UndoQueue {
+        self.queue
+    }
+    pub fn undo_enabled(&self) -> bool {
+        self.undo_enabled
+    }
+    pub fn undo_len(&self) -> usize {
+        self.undo.len()
+    }
+    pub fn redo_len(&self) -> usize {
+        self.redo.len()
+    }
+    /// The name of the open undo chunk, if any.
+    pub fn open_chunk_name(&self) -> Option<&str> {
+        self.chunk.as_ref().map(|chunk| chunk.name.as_str())
+    }
+
+    /// Sets the queue. A smaller Finite size drops the oldest entries at once (PROVISIONAL: the
+    /// docs state no trim rule). Refused while a chunk or manipulation is open.
+    pub fn set_undo_queue(&mut self, queue: UndoQueue) -> Result<(), NativeError> {
+        self.refuse_while_open()?;
+        if let UndoQueue::Finite(size) = queue {
+            UndoQueue::finite(size)?;
+        }
+        self.queue = queue;
+        self.trim();
+        Ok(())
+    }
+
+    /// `undoInfo -state` (`flush`) or `-stateWithoutFlush`. While off, edits apply and record
+    /// nothing, and any edit flushes both stacks (a snapshot from before an unrecorded edit would
+    /// erase it on Undo; stricter than Maya, which warns of unstable undos instead).
+    pub fn set_undo_enabled(&mut self, enabled: bool, flush: bool) -> Result<(), NativeError> {
+        self.refuse_while_open()?;
+        self.undo_enabled = enabled;
+        if flush {
+            self.undo.clear();
+            self.redo.clear();
+        }
+        Ok(())
+    }
+
+    /// `undoInfo -openChunk -chunkName`: until `close_chunk`, edits join one undo step. The empty
+    /// name becomes "Chunk" (PROVISIONAL). Chunks do not nest (the docs are silent).
+    pub fn open_chunk(&mut self, name: &str) -> Result<(), NativeError> {
+        if self.active_manipulation.is_some() {
+            return Err(NativeError::BusyManipulation);
+        }
+        if self.chunk.is_some() {
+            return Err(NativeError::UndoState("an undo chunk is already open"));
+        }
+        let name = if name.trim().is_empty() {
+            "Chunk"
+        } else {
+            name
+        };
+        self.chunk = Some(OpenChunk {
+            name: name.to_string(),
+            base: None,
+        });
+        Ok(())
+    }
+
+    /// `undoInfo -closeChunk`: records the chunk as one entry, or none if the scene is unchanged.
+    pub fn close_chunk(&mut self) -> Result<EditOutcome, NativeError> {
+        if self.active_manipulation.is_some() {
+            return Err(NativeError::BusyManipulation);
+        }
+        let chunk = self
+            .chunk
+            .take()
+            .ok_or(NativeError::UndoState("no undo chunk is open"))?;
+        let Some((scene, pose_frame)) = chunk.base.filter(|(base, _)| *base != self.scene) else {
+            return Ok(EditOutcome::Unchanged);
+        };
+        self.record(Entry {
+            scene,
+            label: chunk.name,
+            pose_frame,
+        });
+        Ok(EditOutcome::Changed)
+    }
+
+    /// Undo and Redo first close an open chunk, so a client that never closes one cannot leave
+    /// the native Undo blocked; the chunk's step is then the one Undo reverts.
+    fn close_chunk_for_step(&mut self) {
+        if self.active_manipulation.is_none() && self.chunk.is_some() {
+            let _ = self.close_chunk();
+        }
+    }
+
+    /// Carries the Undo preferences (queue and on/off) across a replaced History; they are
+    /// global settings in Maya, not part of a scene.
+    pub fn inherit_undo_settings(&mut self, other: &History) {
+        self.queue = other.queue;
+        self.undo_enabled = other.undo_enabled;
+    }
+
+    fn refuse_while_open(&self) -> Result<(), NativeError> {
+        if self.active_manipulation.is_some() {
+            return Err(NativeError::BusyManipulation);
+        }
+        if self.chunk.is_some() {
+            return Err(NativeError::UndoState("close the open undo chunk first"));
+        }
+        Ok(())
+    }
+
+    fn trim(&mut self) {
+        if let UndoQueue::Finite(size) = self.queue {
+            while self.undo.len() > size {
+                self.undo.pop_front();
+            }
+        }
+    }
+
+    fn record(&mut self, entry: Entry) {
+        self.undo.push_back(entry);
+        self.trim();
+        self.redo.clear();
     }
 
     /// The frame the scene's keyed channels were last evaluated at.
@@ -217,6 +378,31 @@ impl History {
     /// The name of the edit Undo would revert.
     pub fn undo_label(&self) -> Option<String> {
         self.undo.back().map(|entry| entry.label.clone())
+    }
+    /// The step Undo would revert once it has closed an open chunk: the chunk when it changed the
+    /// scene, otherwise the entry below it.
+    pub fn undo_label_after_chunk(&self) -> Option<String> {
+        match self.chunk_with_net_change() {
+            Some(chunk) => Some(chunk.name.clone()),
+            None => self.undo_label(),
+        }
+    }
+    /// The step Redo would reapply once it has closed an open chunk (closing one with a net
+    /// change clears Redo).
+    pub fn redo_label_after_chunk(&self) -> Option<String> {
+        if self.chunk_with_net_change().is_some() {
+            None
+        } else {
+            self.redo_label()
+        }
+    }
+    fn chunk_with_net_change(&self) -> Option<&OpenChunk> {
+        self.chunk.as_ref().filter(|chunk| {
+            chunk
+                .base
+                .as_ref()
+                .is_some_and(|(base, _)| *base != self.scene)
+        })
     }
     /// The name of the edit Redo would reapply.
     pub fn redo_label(&self) -> Option<String> {
@@ -345,16 +531,20 @@ impl History {
             },
             None => label,
         };
-        if self.undo.len() == UNDO_LIMIT {
-            self.undo.pop_front();
-        }
         let previous = std::mem::replace(self.scene_mut(), candidate);
-        self.undo.push_back(Entry {
-            scene: previous,
-            label,
-            pose_frame: self.pose_frame,
-        });
-        self.redo.clear();
+        let pose_frame = self.pose_frame;
+        if !self.undo_enabled {
+            self.undo.clear();
+            self.redo.clear();
+        } else if let Some(chunk) = self.chunk.as_mut() {
+            chunk.base.get_or_insert((previous, pose_frame));
+        } else {
+            self.record(Entry {
+                scene: previous,
+                label,
+                pose_frame,
+            });
+        }
         if let Some(frame) = evaluated_at {
             self.pose_frame = frame;
         }
@@ -378,7 +568,8 @@ impl History {
     }
 
     pub fn undo(&mut self) -> bool {
-        if self.active_manipulation.is_some() {
+        self.close_chunk_for_step();
+        if self.active_manipulation.is_some() || !self.undo_enabled {
             return false;
         }
         let Some(previous) = self.undo.pop_back() else {
@@ -395,7 +586,8 @@ impl History {
     }
 
     pub fn redo(&mut self) -> bool {
-        if self.active_manipulation.is_some() {
+        self.close_chunk_for_step();
+        if self.active_manipulation.is_some() || !self.undo_enabled {
             return false;
         }
         let Some(next) = self.redo.pop() else {
@@ -406,6 +598,7 @@ impl History {
             label: next.label,
             pose_frame: self.pose_frame,
         });
+        self.trim();
         self.pose_frame = next.pose_frame;
         self.scene_mut().restore_authoring(next.scene);
         true
