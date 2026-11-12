@@ -106,6 +106,11 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
 | `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
+| `list_camera_bookmarks` | None; no token required | The session's camera bookmarks in creation order, each `name`, `target`, `distance`, `yaw_degrees`, `pitch_degrees` in the units `inspect_scene` `camera` reports. Returns before the token and draft guards, like `inspect_keys`, so a client holding an old token reads the current document's bookmarks |
+| `create_camera_bookmark` | `name`: 1 to 64 characters, no control or invisible formatting characters, no leading or trailing whitespace | Changed. Saves the live pose (target, distance, yaw, pitch; not fov or clip planes). Errors `bookmark_exists`, `invalid_bookmark_name`, `bookmark_limit` (64 bookmarks) |
+| `rename_camera_bookmark` | `name`, `new_name` | Changed or unchanged (same name). Errors `bookmark_not_found`, `bookmark_exists`, `invalid_bookmark_name` |
+| `delete_camera_bookmark` | `name` | Changed; `bookmark_not_found` for an unknown name |
+| `apply_camera_bookmark` | `name` | Changed or unchanged camera. Restores the saved pose bit-exactly and instantly (no `-animate`); fov and clip planes untouched. `bookmark_not_found` for an unknown name |
 | `set_camera_pose` | `target`: three finite numbers; `distance`: positive; `yaw_degrees`, `pitch_degrees`: the values `inspect_scene` reports | Changed or unchanged camera; yaw wraps, pitch beyond the orbit limit is rejected, lens and clip planes untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
 | `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static curve `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
@@ -548,6 +553,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
 | Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | Shift+Alt tumble and track constrain to one screen axis (native input filter, policy row 39); MCP zeroes an axis instead |
+| Camera | Camera bookmarks (in-session pose bookmarks: list, create, rename, delete, apply). Native View > Bookmarks menu and Edit Bookmarks window are not built yet (#292); bookmarks are not saved in .ma/.mb, are cleared by New and Open and lost on close; not undoable and apply is instant (PROVISIONAL, see the #292 decisions) | supported | `list_camera_bookmarks`, `create_camera_bookmark`, `rename_camera_bookmark`, `delete_camera_bookmark`, `apply_camera_bookmark` | | |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
 | Camera | Frame selected with children (Ctrl+F) | supported | `frame_selected` | `camera` | Pass `with_children: true` |
 | Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |
