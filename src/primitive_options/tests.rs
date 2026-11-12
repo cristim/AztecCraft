@@ -180,6 +180,59 @@ fn division_range_boundaries() {
 }
 
 #[test]
+fn torus_ranges_counts_and_mismatch_are_checked() {
+    let torus = |radius, section_radius, sub_axis, sub_height| PrimitiveOptions::Torus {
+        radius,
+        section_radius,
+        sub_axis,
+        sub_height,
+        axis: Axis::Y,
+    };
+    let check = |o: PrimitiveOptions| o.validate(Primitive::Torus);
+    assert_eq!(check(torus(1.0, 0.5, 20, 20)), Ok(()));
+    assert_eq!(
+        check(PrimitiveOptions::default_for(Primitive::Torus)),
+        Ok(())
+    );
+    for bad in [0.0, -1.0, f64::NAN, f64::INFINITY, MAX_SIZE_CM * 2.0] {
+        assert_eq!(
+            check(torus(bad, 0.5, 20, 20)),
+            Err(PrimitiveOptionsError::SizeOutOfRange { field: "radius" })
+        );
+        assert_eq!(
+            check(torus(1.0, bad, 20, 20)),
+            Err(PrimitiveOptionsError::SizeOutOfRange {
+                field: "section_radius"
+            })
+        );
+    }
+    for (value, ok) in [(0, false), (2, false), (3, true), (128, true), (129, false)] {
+        assert_eq!(
+            check(torus(1.0, 0.5, value, 20)).is_ok(),
+            ok,
+            "axis {value}"
+        );
+        assert_eq!(
+            check(torus(1.0, 0.5, 20, value)).is_ok(),
+            ok,
+            "height {value}"
+        );
+    }
+    assert_eq!(torus(1.0, 0.5, 8, 6).face_count(), 48);
+    assert_eq!(
+        torus(1.0, 0.5, u32::MAX, u32::MAX).face_count(),
+        u64::from(u32::MAX) * u64::from(u32::MAX)
+    );
+    assert_eq!(check(torus(1.0, 0.5, 128, 128)), Ok(()));
+    assert_eq!(
+        check(PrimitiveOptions::default_for(Primitive::Sphere)),
+        Err(PrimitiveOptionsError::PrimitiveMismatch {
+            expected: Primitive::Torus
+        })
+    );
+}
+
+#[test]
 fn face_counts_cover_caps_and_saturate() {
     assert_eq!(
         PrimitiveOptions::default_for(Primitive::Cube).face_count(),
@@ -256,6 +309,7 @@ fn face_budget_binds_and_admits_the_other_maxima() {
         Primitive::Sphere,
         Primitive::Cylinder,
         Primitive::Cone,
+        Primitive::Torus,
     ] {
         let mut o = PrimitiveOptions::default_for(primitive);
         match &mut o {
@@ -278,6 +332,11 @@ fn face_budget_binds_and_admits_the_other_maxima() {
                 ..
             }
             | PrimitiveOptions::Cone {
+                sub_axis,
+                sub_height,
+                ..
+            }
+            | PrimitiveOptions::Torus {
                 sub_axis,
                 sub_height,
                 ..

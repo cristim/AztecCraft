@@ -49,7 +49,7 @@ impl Mesh {
                 ],
                 faces: vec![[0, 1, 2, 3]],
             },
-            Primitive::Sphere | Primitive::Cylinder | Primitive::Cone => {
+            Primitive::Sphere | Primitive::Cylinder | Primitive::Cone | Primitive::Torus => {
                 return Err(SceneError::UnsupportedPrimitive(primitive));
             }
         })
