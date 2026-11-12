@@ -129,6 +129,7 @@ fn commit(editor: &mut Editor, edit: Edit) {
                 target,
                 handle: ScaleHandle::X,
                 space: ManipulationSpace::Object,
+                expected_selection_generation: None,
             },
         },
     )
@@ -252,6 +253,7 @@ fn begin_all(editor: &mut Editor) -> [Result<(), OperationError>; 3] {
             target: target.clone(),
             handle: ScaleHandle::X,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         },
         Operation::BeginMove {
             target,

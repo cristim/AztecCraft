@@ -357,11 +357,22 @@ impl Editor {
         provenance: ManipulationProvenance,
         expected_generation: Option<u64>,
     ) -> Result<(), OperationError> {
+        self.check_selection_target("Move", target, provenance, expected_generation)
+    }
+
+    /// The rule Move and Scale share: the tool acts on the whole selection with `target` as lead.
+    fn check_selection_target(
+        &self,
+        tool: &str,
+        target: &TransformTarget,
+        provenance: ManipulationProvenance,
+        expected_generation: Option<u64>,
+    ) -> Result<(), OperationError> {
         self.check_generation(expected_generation)?;
         if self.selection.len() <= 1 {
-            return self.check_manipulation_target("Move", target);
+            return self.check_manipulation_target(tool, target);
         }
-        if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
+        if let Some(refusal) = mode_refusal(tool, self.selection_mode) {
             return Err(OperationError::InvalidInput(refusal));
         }
         if self.selection.lead() != Some(target) {
@@ -418,12 +429,13 @@ impl Editor {
         handle: ScaleHandle,
         space: ManipulationSpace,
         provenance: ManipulationProvenance,
+        expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
-        self.check_manipulation_target("Scale", target)?;
+        self.check_selection_target("Scale", target, provenance, expected_selection_generation)?;
         let id = self
             .history
-            .begin_scale(
-                target,
+            .begin_scale_many(
+                self.selection.members(),
                 handle,
                 space.scale(),
                 self.scene_token,
@@ -568,9 +580,13 @@ impl Editor {
                 refusal,
             )));
         }
-        let target = self
-            .selected_move_target()
-            .map_err(FrameFailure::Operation)?;
+        // Scale acts on the whole selection and draws at the lead, like Move.
+        let target = if tool == ActiveTool::Scale {
+            self.selected_move_lead()
+        } else {
+            self.selected_move_target()
+        }
+        .map_err(FrameFailure::Operation)?;
         let frame = self
             .history
             .scene()
@@ -763,6 +779,7 @@ impl Editor {
                     target,
                     handle,
                     space,
+                    expected_selection_generation: None,
                 },
                 format!("{} {} Scale", space_name(space), scale_handle_name(handle)),
             ),
@@ -1032,7 +1049,11 @@ impl Editor {
             .trim()
             .parse()
             .map_err(|_| OperationError::InvalidInput("Enter a number".into()))?;
-        let target = self.selected_move_target()?;
+        let target = if tool == ActiveTool::Scale {
+            self.selected_move_lead()?
+        } else {
+            self.selected_move_target()?
+        };
         let space = self.manipulation.space(tool);
         let (begin, value) = match tool {
             ActiveTool::Rotate => (
@@ -1048,6 +1069,7 @@ impl Editor {
                     target,
                     handle: self.manipulation.scale_handle(),
                     space,
+                    expected_selection_generation: None,
                 },
                 ManipulationValue::Factor(number),
             ),

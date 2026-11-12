@@ -196,6 +196,7 @@ fn scale_tool_x(
             target: TransformTarget { node: id, path },
             handle: ScaleHandle::X,
             space,
+            expected_selection_generation: None,
         },
     );
     let result = match started {
@@ -243,6 +244,7 @@ fn begin_scale(
             target: TransformTarget { node: id, path },
             handle,
             space,
+            expected_selection_generation: None,
         },
     )
 }

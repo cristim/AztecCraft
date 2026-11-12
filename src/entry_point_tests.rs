@@ -314,7 +314,8 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     expect("single move begin", ".begin_move(", &[]);
     expect("move begin", ".begin_move_many_in(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);
-    expect("scale begin", ".begin_scale(", &["begin_editor_scale"]);
+    expect("single scale begin", ".begin_scale(", &[]);
+    expect("scale begin", ".begin_scale_many(", &["begin_editor_scale"]);
     expect("move update", ".update_move(", &["update_editor_move"]);
     expect(
         "rotate update",

@@ -143,28 +143,20 @@ fn remote_begin_needs_the_current_generation_and_a_lead_target() {
 }
 
 #[test]
-fn rotate_and_scale_still_refuse_several_objects() {
+fn rotate_still_refuses_several_objects() {
     let (mut editor, _, _) = two_selected();
     let lead = editor.selection.lead().unwrap().clone();
     let space = crate::editor_operations::ManipulationSpace::World;
     let scene = editor.history.scene().clone();
-    for operation in [
-        Operation::BeginRotate {
-            target: lead.clone(),
-            axis: azteccraft::native_scene::RotateAxis::X,
-            space,
-        },
-        Operation::BeginScale {
-            target: lead.clone(),
-            handle: azteccraft::native_scene::ScaleHandle::Uniform,
-            space,
-        },
-    ] {
-        assert!(matches!(
-            editor.apply_operation(operation),
-            Err(OperationError::MultipleSelection)
-        ));
-    }
+    let operation = Operation::BeginRotate {
+        target: lead,
+        axis: azteccraft::native_scene::RotateAxis::X,
+        space,
+    };
+    assert!(matches!(
+        editor.apply_operation(operation),
+        Err(OperationError::MultipleSelection)
+    ));
     assert_eq!(editor.history.scene(), &scene);
 }
 
@@ -709,4 +701,115 @@ fn a_single_rotated_object_reports_the_refusals_of_the_orientation_it_would_begi
             "{space:?} {begun:?}"
         );
     }
+}
+
+/// Two objects in a binary scene: `full` has a scale leaf, `bare` has none.
+fn full_and_bare_scale() -> Editor {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
+    let object = |name: &[u8], shape: &[u8], scale: bool| {
+        let mut transform = creation(name, None);
+        if scale {
+            transform.extend(triple(b"s", [2.0, 1.0, 1.0]));
+        }
+        [
+            group(b"XFRM", &transform, 4),
+            group(
+                b"DMSH",
+                &[
+                    creation(shape, Some(name)),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat()
+    };
+    let bytes = scene(
+        &[
+            object(b"bare", b"bare_shape", false),
+            object(b"full", b"full_shape", true),
+        ]
+        .concat(),
+    );
+    let scene = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    }
+}
+
+fn scale_kind(editor: &Editor) -> (bool, Option<String>) {
+    let kinds = editor.inspect(false).unwrap().manipulation.kinds;
+    let scale = kinds.into_iter().find(|k| k.kind == "scale").unwrap();
+    (scale.available, scale.unavailable_reason)
+}
+
+#[test]
+fn scale_availability_checks_every_member_and_names_the_refusing_one() {
+    let mut editor = full_and_bare_scale();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let name = |t: &TransformTarget| {
+        editor
+            .history
+            .scene()
+            .node(t.node)
+            .unwrap()
+            .name()
+            .to_string()
+    };
+    let (full, bare) = if name(&paths[0]) == "full" {
+        (paths[0].clone(), paths[1].clone())
+    } else {
+        (paths[1].clone(), paths[0].clone())
+    };
+    editor.set_selection_members_for_test(vec![full.clone()]);
+    assert!(scale_kind(&editor).0);
+    // The bare member is not the lead, yet it makes every handle unavailable and is named.
+    editor.set_selection_members_for_test(vec![bare, full]);
+    let (available, reason) = scale_kind(&editor);
+    assert!(!available);
+    assert!(reason.unwrap().contains("bare"));
+}
+
+#[test]
+fn native_numeric_scale_acts_on_the_whole_selection_and_hierarchy_mode_too() {
+    let (mut editor, _, _) = two_selected();
+    let lead = editor.selection.lead().unwrap().clone();
+    editor
+        .apply_operation(Operation::BeginScale {
+            target: lead,
+            handle: azteccraft::native_scene::ScaleHandle::Uniform,
+            space: crate::editor_operations::ManipulationSpace::Object,
+            expected_selection_generation: None,
+        })
+        .unwrap();
+    assert_eq!(
+        editor.history.active_manipulation().unwrap().member_count(),
+        2
+    );
+    editor.cancel_move().unwrap();
+    editor.selection_mode = crate::editor_operations::SelectionMode::Hierarchy;
+    let lead = editor.selection.lead().unwrap().clone();
+    editor
+        .apply_operation(Operation::BeginScale {
+            target: lead,
+            handle: azteccraft::native_scene::ScaleHandle::Uniform,
+            space: crate::editor_operations::ManipulationSpace::Object,
+            expected_selection_generation: None,
+        })
+        .unwrap();
+    editor.cancel_move().unwrap();
+    editor.selection_mode = crate::editor_operations::SelectionMode::Face;
+    let lead = editor.selection.lead().unwrap().clone();
+    assert!(
+        editor
+            .apply_operation(Operation::BeginScale {
+                target: lead,
+                handle: azteccraft::native_scene::ScaleHandle::Uniform,
+                space: crate::editor_operations::ManipulationSpace::Object,
+                expected_selection_generation: None,
+            })
+            .is_err()
+    );
 }

@@ -441,7 +441,11 @@ impl Editor {
             None => self.selected_move_lead(),
         };
         let rotate_target = target_for("Rotate");
-        let scale_target = target_for("Scale");
+        // Scale acts on the whole selection like Move: its target is the lead.
+        let scale_target = match mode_refusal("Scale", self.selection_mode) {
+            Some(refusal) => Err(OperationError::InvalidInput(refusal)),
+            None => self.selected_move_lead(),
+        };
         let origin = target
             .as_ref()
             .map_err(ToString::to_string)
@@ -527,6 +531,21 @@ impl Editor {
         let scale_space = self.manipulation.space(ActiveTool::Scale).scale();
         let scale_refusals = match &scale_target {
             Err(error) => Err(error.to_string()),
+            // Several: every member decides, a covered lead included.
+            Ok(_) if self.selection.len() > 1 => self
+                .history
+                .check_scale_handles(self.selection.members(), scale_space)
+                .map_err(|error| error.to_string())
+                .map(|handles| {
+                    ["X handle", "Y handle", "Z handle", "uniform handle"]
+                        .into_iter()
+                        .zip(
+                            handles
+                                .into_iter()
+                                .map(|error| error.map(|e| e.to_string())),
+                        )
+                        .collect()
+                }),
             Ok(target) => Ok([
                 (ScaleHandle::X, "X handle"),
                 (ScaleHandle::Y, "Y handle"),

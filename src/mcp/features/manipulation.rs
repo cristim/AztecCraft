@@ -137,6 +137,10 @@ enum BeginManipulationArgs {
         instance_path: Vec<String>,
         handle: HandleInput,
         space: SpaceInput,
+        /// The `selection_generation` that `inspect_scene` reported; the rule is the one of
+        /// Move: the Scale acts on the whole current selection with this node as its lead.
+        #[serde(default)]
+        expected_selection_generation: Option<u64>,
     },
 }
 
@@ -320,12 +324,14 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             instance_path,
             handle,
             space: input,
+            expected_selection_generation,
         } => (
             scene_token,
             Operation::BeginScale {
                 target: target(&node_id, instance_path)?,
                 handle: scale_handle(handle),
                 space: space(input),
+                expected_selection_generation,
             },
         ),
     };
@@ -465,7 +471,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
+        description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,

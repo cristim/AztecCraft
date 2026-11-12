@@ -648,8 +648,15 @@ impl Editor {
                 target,
                 handle,
                 space,
+                expected_selection_generation,
             } => {
-                return self.begin_editor_scale(&target, handle, space, provenance);
+                return self.begin_editor_scale(
+                    &target,
+                    handle,
+                    space,
+                    provenance,
+                    expected_selection_generation,
+                );
             }
             Operation::UpdateManipulation { id, value } => {
                 return self.update_editor_manipulation(id, value, provenance);

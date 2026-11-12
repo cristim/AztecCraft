@@ -282,7 +282,7 @@
   },
   {
     "name": "begin_manipulation",
-    "description": "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
+    "description": "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object",
     "inputSchema": {
       "$defs": {
         "AxisInput": {
@@ -399,6 +399,16 @@
         {
           "additionalProperties": false,
           "properties": {
+            "expected_selection_generation": {
+              "default": null,
+              "description": "The `selection_generation` that `inspect_scene` reported; the rule is the one of\nMove: the Scale acts on the whole current selection with this node as its lead.",
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
             "handle": {
               "$ref": "#/$defs/HandleInput"
             },

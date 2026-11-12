@@ -1060,6 +1060,7 @@ fn begin_operation(editor: &Editor, kind: ActiveTool, space: ManipulationSpace) 
             target,
             handle: ScaleHandle::Uniform,
             space,
+            expected_selection_generation: None,
         },
     }
 }
@@ -3287,4 +3288,53 @@ fn a_scale_box_drag_scales_about_the_scale_pivot_and_commits() {
     assert!((world_of(&editor, probe) - probe_before).length() > 1e-3);
     let (_, after) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     assert_eq!(after.origin(), handle.origin());
+}
+
+#[test]
+fn a_y_scale_handle_drag_scales_every_selected_object_in_one_undo_step() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    editor.create(Primitive::Cube);
+    let paths = editor.history.scene().transform_paths().unwrap();
+    editor.set_selection_members_for_test(paths.clone());
+    let radius = view.radius();
+    let begin = view.screen(Vec3::Y * radius);
+    moved(&mut editor, &context, 1.0, begin);
+    assert_eq!(pointer_pick(&editor), (Some("y"), None));
+    press(&mut editor, &context, 1.0, begin);
+    let state = editor.history.active_manipulation().unwrap();
+    assert_eq!((state.member_count(), state.covered_count()), (2, 0));
+    moved(
+        &mut editor,
+        &context,
+        1.0,
+        view.screen(Vec3::Y * radius * 2.0),
+    );
+    let scales = |editor: &Editor| {
+        paths
+            .iter()
+            .map(|path| {
+                editor
+                    .history
+                    .scene()
+                    .node(path.node)
+                    .unwrap()
+                    .transform()
+                    .scale
+            })
+            .collect::<Vec<_>>()
+    };
+    for scale in scales(&editor) {
+        near(scale[1], 2.0, 1e-3);
+        assert_eq!((scale[0], scale[2]), (1.0, 1.0));
+    }
+    release(
+        &mut editor,
+        &context,
+        1.0,
+        view.screen(Vec3::Y * radius * 2.0),
+    );
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Scale"));
+    // Two creations and one Scale: a single undo restores both scaled members.
+    assert!(editor.history.undo());
+    assert_eq!(scales(&editor), vec![[1.0; 3]; 2]);
 }

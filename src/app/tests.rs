@@ -10141,7 +10141,8 @@ fn multi_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
 }
 
 #[test]
-fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_acts() {
+fn rotate_and_every_remote_begin_without_a_generation_refuse_several_objects_but_native_move_and_scale_act()
+ {
     let mut editor = two_cube_editor();
     let baseline = multi_baseline(&editor);
     let target = editor.selection.lead().unwrap().clone();
@@ -10161,12 +10162,13 @@ fn rotate_scale_and_remote_move_refuse_several_selected_objects_but_native_move_
             target: target.clone(),
             handle: azteccraft::native_scene::ScaleHandle::Uniform,
             space,
+            expected_selection_generation: None,
         },
     };
     for (index, label) in ["move", "rotate", "scale"].into_iter().enumerate() {
-        if index == 0 {
-            // A native Move acts on the whole selection; cancelling restores the baseline.
-            editor.apply_operation(make(0)).unwrap();
+        if index != 1 {
+            // A native Move or Scale acts on the whole selection; cancelling restores the baseline.
+            editor.apply_operation(make(index)).unwrap();
             assert_eq!(
                 editor.history.active_manipulation().unwrap().member_count(),
                 2

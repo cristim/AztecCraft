@@ -674,6 +674,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             target: t.transform_target(),
             handle: ScaleHandle::X,
             space: ManipulationSpace::Object,
+            expected_selection_generation: None,
         },
         Operation::UpdateManipulation {
             id: t.move_id,
@@ -1018,6 +1019,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     target: t.transform_target(),
                     handle: ScaleHandle::X,
                     space: ManipulationSpace::Object,
+                    expected_selection_generation: None,
                 },
             ),
             sample(
@@ -1026,8 +1028,22 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     target: t.transform_target(),
                     handle: ScaleHandle::Uniform,
                     space: ManipulationSpace::World,
+                    expected_selection_generation: None,
                 },
             ),
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "begin_scale(multi)",
+                    Operation::BeginScale {
+                        target: t.transform_target(),
+                        handle: ScaleHandle::Uniform,
+                        space: ManipulationSpace::Object,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
             Sample {
                 pre: Pre::FaceMode,
                 ..sample(
@@ -1036,6 +1052,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                         target: t.transform_target(),
                         handle: ScaleHandle::X,
                         space: ManipulationSpace::Object,
+                        expected_selection_generation: None,
                     },
                 )
             },
