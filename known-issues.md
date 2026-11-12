@@ -725,13 +725,14 @@ Polygon Primitives > Torus row is still disabled; enabling it needs an in-app ch
 
 ## World-space Rotate
 
-`NativeScene` does not model a node's `inheritsTransform` (`it`) or `offsetParentMatrix`
-(`opm`) attributes. World-space Rotate relies on the importers refusing them: the ASCII
-importer rejects any `.it` or `.opm` line, and the binary importer rejects any undeclared
-transform record with such a key (`it`, `inheritsTransform`, `opm`), so these scenes do not
-open. Maya's on-disk binary encoding of these attributes is not confirmed by any fixture in the
-repo; the tests only pin the refusal of the keys. A scene is therefore safe from
-`inheritsTransform` off only while that importer behavior holds.
+The ASCII importer reads a node's `inheritsTransform` (`.it`) and `offsetParentMatrix` (`.opm`,
+row-vector `matrix`, finite and affine, #105). The view, picking and the handle frames compose
+`(it ? parentWorld : I) * opm * matrix` (column form of Maya's `matrix * opm * parentWorld`). That
+formula is PROVISIONAL: the `it` off case together with `opm` is inferred from the documented
+order and is unconfirmed against a Maya reference scene, so no parity is claimed for it. The binary
+importer still refuses `it` and `opm` at open because their on-disk encoding is not confirmed by
+any fixture; the tests only pin the refusal. ASCII-sourced scenes are read-only, so nothing edits
+these attributes.
 
 The ASCII importer does read `.ro`, `.ra`, `.sh`, `.rpt` and `.spt` into the transform, and
 the view, picking and handle frames use them. Those scenes are read-only, so nothing edits

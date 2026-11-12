@@ -84,8 +84,11 @@ enum Kind {
 
 /// Owner attribute bits (1..=1024 are channels): a transform that already has a mesh child, or a
 /// curve child. A mesh needs a transform with no other shape; several curves may share one.
+/// The bits share one word with the channel bits, so every new bit must be distinct.
 const HAS_MESH: u32 = 2048;
 const HAS_CURVE: u32 = 4096;
+const HAS_IT: u32 = 8192;
+const HAS_OPM: u32 = 16384;
 
 struct Owner {
     name: Range<usize>,
@@ -678,6 +681,23 @@ impl Builder<'_, '_> {
                         c.done()?;
                         self.mark(owner, 64, c)?;
                         self.scene.nodes[index].extras.rotate_order = Some(order);
+                    }
+                    ".it" => {
+                        flags.plain(c)?;
+                        let inherits = c.boolean()?;
+                        c.done()?;
+                        self.mark(owner, HAS_IT, c)?;
+                        self.scene.nodes[index].extras.inherits_transform = Some(inherits);
+                    }
+                    ".opm" => {
+                        flags.typed("matrix", c)?;
+                        let mut value = [0.0; 16];
+                        for slot in &mut value {
+                            *slot = c.number()?;
+                        }
+                        c.done()?;
+                        self.mark(owner, HAS_OPM, c)?;
+                        self.scene.nodes[index].extras.offset_parent_matrix = Some(value);
                     }
                     ".ra" | ".sh" | ".rpt" | ".spt" => {
                         flags.typed("double3", c)?;
