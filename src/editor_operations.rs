@@ -1,11 +1,11 @@
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{NativeTransform, TransformAttributes};
 use azteccraft::{
-    history::{ManipulationError, ManipulationFinish, ManipulationId},
+    history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
     move_handles::ManipulatorSize,
     native_scene::{
-        EdgeTarget, FaceTarget, NativeError, NativeId, RotateAxis, RotateSpace, ScaleHandle,
-        ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
+        EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
+        ScaleHandle, ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
@@ -92,11 +92,16 @@ pub enum FileActionKind {
     Close,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum FileDecision {
     Cancel,
     Discard,
     Save,
+    /// Save to a fresh path (the prompt's Save As, the only save for an Untitled scene), then
+    /// apply the pending action; a failed save keeps the prompt and the window open.
+    SaveAs {
+        path: PathBuf,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -334,6 +339,12 @@ pub enum Operation {
         tool: ActiveTool,
         space: ManipulationSpace,
     },
+    /// Sets the Axis Orientation of the Move tool settings (World by default). `BeginMove` reads
+    /// it, so a Move started later moves each object along that orientation's axes.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetMoveSpace {
+        space: MoveSpace,
+    },
     /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
     SetToolHandle(ToolHandle),
     /// Sets the global manipulator size, a session-only tool setting.
@@ -535,6 +546,23 @@ pub enum Operation {
     DeleteSelection,
     Undo,
     Redo,
+    /// `undoInfo -infinity` / `-length`: the Preferences > Undo queue. Session-only.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetUndoQueue(UndoQueue),
+    /// `undoInfo -state` (`flush`) / `-stateWithoutFlush`: Preferences > Undo on or off.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetUndoEnabled {
+        enabled: bool,
+        flush: bool,
+    },
+    /// `undoInfo -openChunk -chunkName`: groups the following edits into one undo step.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    OpenUndoChunk {
+        name: String,
+    },
+    /// `undoInfo -closeChunk`.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    CloseUndoChunk,
     /// F frames the selected objects without their descendants, Ctrl+F (`with_children`) with
     /// them. Component modes frame the component and ignore the flag.
     FrameSelected {
@@ -704,6 +732,7 @@ pub struct SceneInspection {
     pub can_redo: bool,
     pub undo_label: Option<String>,
     pub redo_label: Option<String>,
+    pub undo_state: UndoStateInspection,
     pub dirty: bool,
     pub has_draft: bool,
     pub native_input_pending: bool,
@@ -809,6 +838,7 @@ pub enum FaceSelectionPolicy {
 pub struct ManipulationInspection {
     pub active_tool: ActiveTool,
     /// The Axis Orientation each tool uses for its next manipulation.
+    pub move_space: MoveSpace,
     pub rotate_space: ManipulationSpace,
     pub scale_space: ManipulationSpace,
     /// The persistent Rotate axis ("x", "y", "z") and Scale handle ("x", "y", "z", "uniform")
@@ -1060,6 +1090,19 @@ pub struct CameraInspection {
     pub far_clip: f32,
 }
 
+/// `undoInfo -q` state: the Undo preferences, queue lengths and any open chunk.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct UndoStateInspection {
+    pub enabled: bool,
+    pub infinite: bool,
+    /// The Finite queue size; null when the queue is Infinite.
+    pub queue_size: Option<usize>,
+    pub undo_length: usize,
+    pub redo_length: usize,
+    pub open_chunk: Option<String>,
+}
+
 #[derive(Debug)]
 pub enum OperationError {
     BusyEditing,
@@ -1272,7 +1315,7 @@ pub(crate) const MIN_EDGE_TARGET: &str =
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_FIXED: &str = concat!(
     r#"{"scene_token":"00000000-0000-0000-0000-000000000000","#,
-    r#""manipulation":{"active_tool":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
+    r#""manipulation":{"active_tool":"","move_space":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
     r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
     r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
     r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,
@@ -1289,7 +1332,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
-    r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0},"#,

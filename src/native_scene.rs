@@ -5,6 +5,7 @@ mod authored;
 pub mod binary;
 mod curve;
 mod manipulator_frame;
+mod maya_import;
 mod mesh;
 mod move_translation;
 mod rotate_frame;
@@ -22,9 +23,12 @@ pub use appearance::{
 };
 pub use curve::{CurveForm, NativeCurveShape};
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
+pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
-pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
+pub use move_translation::{
+    ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_joint::SessionJoints;
@@ -644,6 +648,40 @@ impl InternalTransform {
         }
     }
 
+    /// R(rotate order) alone: `rotation_frame` without the Rotate Axis.
+    pub(crate) fn rotation_only(self) -> Option<DMat3> {
+        match self.extras {
+            None => Some(rotate_frame::rotation_matrix(self.rotation_radians)),
+            Some(extras) => {
+                transform_extras::rotation_matrix(extras.rotate_order, self.rotation_radians)
+                    .map(DMat3::from_mat4)
+            }
+        }
+    }
+
+    /// Where this node's local `matrix` is applied: `(inheritsTransform ? parent_world : I) *
+    /// offsetParentMatrix`, column form of Maya's `matrix * opm * parentWorld`. PROVISIONAL for
+    /// `it` off together with `opm` until a Maya reference scene confirms.
+    pub(crate) fn frame_prefix(self, parent_world: DMat4) -> DMat4 {
+        match self.extras {
+            Some(extras) => {
+                let parent = if extras.inherits_transform {
+                    parent_world
+                } else {
+                    DMat4::IDENTITY
+                };
+                parent * extras.offset_parent
+            }
+            None => parent_world,
+        }
+    }
+
+    /// World matrix of the node given its parent's world matrix; `None` when not finite.
+    pub(crate) fn compose_world(self, parent_world: DMat4) -> Option<DMat4> {
+        let world = self.frame_prefix(parent_world) * self.matrix()?;
+        world.is_finite().then_some(world)
+    }
+
     pub(crate) fn matrix(self) -> Option<DMat4> {
         if let Some(extras) = self.extras {
             let matrix = extras.matrix(
@@ -716,6 +754,14 @@ impl Default for NativeScene {
             next_native_id: 1,
         }
     }
+}
+
+fn is_valid_name(name: &str) -> bool {
+    let mut chars = name.bytes();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == b'_')
 }
 
 impl NativeScene {
@@ -1213,6 +1259,7 @@ impl NativeScene {
             Primitive::Sphere => "pSphere",
             Primitive::Cylinder => "pCylinder",
             Primitive::Cone => "pCone",
+            Primitive::Torus => "pTorus",
         };
         let count = authored::names(self).count();
         let free = |prefix: &str| {
@@ -1415,12 +1462,7 @@ impl NativeScene {
         Ok(shape)
     }
     fn validate_new_name(&self, id: Option<NodeId>, name: &str) -> Result<(), NativeError> {
-        let mut chars = name.bytes();
-        if !chars
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic() || c == b'_')
-            || chars.any(|c| !c.is_ascii_alphanumeric() && c != b'_')
-        {
+        if !is_valid_name(name) {
             return Err(NativeError::InvalidName);
         }
         if self
@@ -2194,7 +2236,11 @@ pub enum NativeError {
         channel: ChannelLeaf,
         component: usize,
     },
+    /// A Maya scene import refused its source or options; the reason carries no file content.
+    MayaImport(MayaImportRefusal),
     BusyManipulation,
+    /// An undo preference or chunk call the current undo state refuses.
+    UndoState(&'static str),
     UnsupportedView(&'static str),
 }
 impl From<SceneError> for NativeError {
@@ -2210,7 +2256,7 @@ impl fmt::Display for NativeError {
             Self::InvalidIdentity => f.write_str("invalid native identities or DAG references"),
             Self::InvalidRetention => f.write_str("invalid retained source ranges"),
             Self::InvalidTopology => f.write_str("invalid native polygon connectivity"),
-            Self::InvalidCurve => f.write_str("invalid supported native cubic curve"),
+            Self::InvalidCurve => f.write_str("invalid supported native curve"),
             Self::InvalidTransformExtras => {
                 f.write_str("rotate order must be 0 through 5 for supported transform extras")
             }
@@ -2285,7 +2331,9 @@ impl fmt::Display for NativeError {
             Self::UnsupportedMove(reason) => write!(f, "World-axis move unsupported: {reason}"),
             Self::UnsupportedRotate(reason) => write!(f, "Rotate unsupported: {reason}"),
             Self::UnsupportedScale(reason) => write!(f, "Scale unsupported: {reason}"),
+            Self::MayaImport(reason) => reason.fmt(f),
             Self::BusyManipulation => f.write_str("finish or cancel the active manipulation"),
+            Self::UndoState(reason) => write!(f, "undo: {reason}"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
             }

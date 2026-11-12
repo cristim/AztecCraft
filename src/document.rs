@@ -220,7 +220,7 @@ impl fmt::Display for NativeLoadError {
             Self::Read(kind) => write!(f, "cannot read regular scene file: {kind:?}"),
             Self::TooLarge => write!(f, "scene exceeds {MAX_DOCUMENT_BYTES} byte limit"),
             Self::UnsupportedFormat => {
-                f.write_str("Open supports Maya .mb, static cubic .ma and legacy .aztec scenes")
+                f.write_str("Open supports Maya .mb, static curve .ma and legacy .aztec scenes")
             }
             Self::Legacy => f.write_str("invalid legacy scene document"),
             Self::Native(error) => error.fmt(f),
@@ -540,7 +540,7 @@ mod native_open_tests {
         assert!(document.scene.shapes().is_empty());
         let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();
         assert_eq!(view.curve_instances().len(), 1);
-        assert!(view.curve_instances()[0].segments().len() > 1);
+        assert!(view.curve_instances()[0].local_segments().len() > 1);
         assert_eq!(std::fs::read(path).unwrap(), source);
     }
 
@@ -668,8 +668,8 @@ mod native_open_tests {
         for aspect in [0.5, 1.19, 2.0] {
             let mut camera = Camera::default();
             camera.frame_view(&view, None, aspect).unwrap();
-            for p in view.curve_instances()[0].segments().iter().flatten() {
-                let ndc = camera.project(*p, aspect).unwrap().unwrap();
+            for p in view.curve_instances()[0].world_segments().flatten() {
+                let ndc = camera.project(p, aspect).unwrap().unwrap();
                 assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
             }
         }

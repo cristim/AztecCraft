@@ -104,7 +104,7 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     expect(dead_code, reason = "only the Unix save path calls the writer")
 )]
 pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
-    authored::check_content_kind(scene)?;
+    authored::check_content_kind(scene, authored::UvPolicy::Refuse)?;
     if scene.shapes().is_empty() {
         authored::check_transforms_only(scene)?;
     } else {

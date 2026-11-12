@@ -2,9 +2,9 @@ use super::{add, mul, resource};
 use crate::maya_ascii::{AsciiError, MAX_BYTES, Work};
 use crate::native_scene::{
     DirectedEdge, NativeError, NativeMesh, NativeMeshShape, NativeScene, NativeTransformNode,
-    Points, SessionMaterials,
+    Points, SessionMaterials, UvSet,
     admission::{self, Budget},
-    authored::{self, AuthoredIneligible, names},
+    authored::{self, AuthoredIneligible, UvPolicy, names},
 };
 use std::{error::Error, fmt};
 
@@ -27,6 +27,15 @@ const FACE_HEADER_BYTES: usize = ARRAY_HEADER_BYTES + " -type \"polyFaces\"".len
 const FACE_ROW_BYTES: usize = "\tf \n".len() + "2147483647".len() + 1;
 const FACE_TOKEN_BYTES: usize = " -2147483648".len();
 const ARRAY_END: &[u8] = b";\n";
+const UVSN_STATEMENT: &str = "\tsetAttr \".uvst[0].uvsn\" -type \"string\" \"map1\";\n";
+const CUVS_STATEMENT: &str = "\tsetAttr \".cuvs\" -type \"string\" \"map1\";\n";
+const UV_HEADER_BYTES: usize =
+    ARRAY_HEADER_BYTES + ".uvst[0].uvsp".len() - ".vt".len() + " -type \"float2\"".len();
+const UV_SCALAR_BYTES: usize = 1 + 2 + 44 + 9;
+const UV_ROW_BYTES: usize = 2 * UV_SCALAR_BYTES + "\t \n".len();
+const MU_FACE_BYTES: usize = " mu 0 ".len() + "2147483647".len();
+const MU_ID_BYTES: usize = " 2147483647".len();
+const UV_STATEMENT_BYTES: usize = UVSN_STATEMENT.len() + CUVS_STATEMENT.len();
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsciiWriteRefusal {
@@ -138,6 +147,18 @@ fn mesh_face_work(faces: usize, corners: usize) -> Result<usize, AsciiError> {
         )?,
     )
 }
+fn mesh_uv_work(faces: usize, corners: usize) -> Result<usize, AsciiError> {
+    mul(
+        2,
+        add(
+            add(UV_HEADER_BYTES, mul(corners, UV_ROW_BYTES + MU_ID_BYTES)?)?,
+            add(
+                mul(faces, MU_FACE_BYTES)?,
+                ARRAY_END.len() + UV_STATEMENT_BYTES,
+            )?,
+        )?,
+    )
+}
 fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
     let n = scene.nodes.len();
     let s = scene.shapes.len();
@@ -180,12 +201,16 @@ fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
             }
         }
         work.charge(mesh_face_work(mesh.faces().len(), corners)?)?;
+        if let Some(set) = scene.uv_set(shape.id()) {
+            work.charge(mul(32, set.corner_count())?)?;
+            work.charge(mesh_uv_work(set.faces().len(), set.corner_count())?)?;
+        }
     }
     Ok(())
 }
 
-fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
-    authored::check_content_kind(scene)?;
+fn check(scene: &NativeScene, uvs: UvPolicy) -> Result<(), AsciiWriteRefusal> {
+    authored::check_content_kind(scene, uvs)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
@@ -208,7 +233,8 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
         removed: _,
         // Created, assigned or reassigned materials: the file has only the default pair.
         session_materials,
-        // `check_content_kind` refuses session joints, UVs and keys.
+        // Refused by `check_content_kind` under `UvPolicy::Refuse`, emitted per shape otherwise; keys
+        // and joints are always refused.
         session_joints: _,
         session_uvs: _,
         session_keys: _,
@@ -292,6 +318,17 @@ impl ChannelLine {
         self.used = 0;
         self.format(format_args!("\t{a} {b} 0\n"))
     }
+    fn uv_header(&mut self, count: usize) -> Result<(), AsciiWriteRefusal> {
+        let count = i32::try_from(count).map_err(|_| AsciiWriteRefusal::IndexOutOfRange)?;
+        let last = count
+            .checked_sub(1)
+            .filter(|last| *last >= 0)
+            .ok_or(AsciiWriteRefusal::EmptyMesh)?;
+        self.used = 0;
+        self.format(format_args!(
+            "\tsetAttr -s {count} \".uvst[0].uvsp[0:{last}]\" -type \"float2\"\n"
+        ))
+    }
     fn face_header(&mut self, count: usize) -> Result<(), AsciiWriteRefusal> {
         let count = i32::try_from(count).map_err(|_| AsciiWriteRefusal::IndexOutOfRange)?;
         let last = count
@@ -354,6 +391,7 @@ fn add_prefix_bytes(base: usize, added: usize) -> Result<usize, AsciiWriteRefusa
 }
 fn mesh_arrays(
     mesh: &NativeMesh,
+    uvs: Option<&UvSet>,
     mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
 ) -> Result<(), AsciiWriteRefusal> {
     let Points::Float3(points) = mesh.points() else {
@@ -380,7 +418,8 @@ fn mesh_arrays(
     consume(ARRAY_END)?;
     line.face_header(mesh.faces().len())?;
     consume(&line.bytes[..line.used])?;
-    for face in mesh.faces() {
+    let mut next_uv = 0usize;
+    for (index, face) in mesh.faces().iter().enumerate() {
         let corners =
             i32::try_from(face.outer().len()).map_err(|_| AsciiWriteRefusal::IndexOutOfRange)?;
         line.used = 0;
@@ -392,9 +431,37 @@ fn mesh_arrays(
             line.format(format_args!(" {token}"))?;
             consume(&line.bytes[..line.used])?;
         }
+        if let Some(set) = uvs {
+            let uv_corners = set.faces().get(index).map_or(0, Vec::len);
+            let count =
+                i32::try_from(uv_corners).map_err(|_| AsciiWriteRefusal::IndexOutOfRange)?;
+            line.used = 0;
+            line.format(format_args!(" mu 0 {count}"))?;
+            consume(&line.bytes[..line.used])?;
+            for _ in 0..uv_corners {
+                let id = i32::try_from(next_uv).map_err(|_| AsciiWriteRefusal::IndexOutOfRange)?;
+                next_uv += 1;
+                line.used = 0;
+                line.format(format_args!(" {id}"))?;
+                consume(&line.bytes[..line.used])?;
+            }
+        }
         consume(b"\n")?;
     }
-    consume(ARRAY_END)
+    consume(ARRAY_END)?;
+    let Some(set) = uvs else {
+        return Ok(());
+    };
+    consume(UVSN_STATEMENT.as_bytes())?;
+    line.uv_header(set.corner_count())?;
+    consume(&line.bytes[..line.used])?;
+    for [u, v] in set.faces().iter().flatten() {
+        line.used = 0;
+        line.format(format_args!("\t{} {}\n", *u as f32, *v as f32))?;
+        consume(&line.bytes[..line.used])?;
+    }
+    consume(ARRAY_END)?;
+    consume(CUVS_STATEMENT.as_bytes())
 }
 fn prefix_bytes(scene: &NativeScene) -> Result<usize, AsciiWriteRefusal> {
     let name_bytes = scene
@@ -423,7 +490,7 @@ fn prefix_bytes(scene: &NativeScene) -> Result<usize, AsciiWriteRefusal> {
         ] {
             length = add_prefix_bytes(length, bytes)?;
         }
-        mesh_arrays(shape.mesh(), |bytes| {
+        mesh_arrays(shape.mesh(), scene.uv_set(shape.id()), |bytes| {
             length = add_prefix_bytes(length, bytes.len())?;
             Ok(())
         })?;
@@ -440,7 +507,19 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
 }
 
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
-    check(scene)?;
+    emit(scene, UvPolicy::Refuse)
+}
+
+/// Like `emit_geometry_prefix`, but carries each shape's session UVs. Save keeps using the refusing
+/// entry point until task 4 of #156 turns UV saving on; the reopen gate is the caller of this one.
+pub(crate) fn emit_geometry_prefix_with_uvs(
+    scene: &NativeScene,
+) -> Result<Vec<u8>, AsciiWriteRefusal> {
+    emit(scene, UvPolicy::Admit)
+}
+
+fn emit(scene: &NativeScene, uvs: UvPolicy) -> Result<Vec<u8>, AsciiWriteRefusal> {
+    check(scene, uvs)?;
     let length = prefix_bytes(scene)?;
     let mut out = Budget::new(0)
         .and_then(|mut b| b.vector::<u8>(length))
@@ -460,7 +539,9 @@ pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, Ascii
             append(&mut out, length, bytes.as_bytes())?;
         }
         append_uuid(&mut out, length, shape.uuid())?;
-        mesh_arrays(shape.mesh(), |bytes| append(&mut out, length, bytes))?;
+        mesh_arrays(shape.mesh(), scene.uv_set(shape.id()), |bytes| {
+            append(&mut out, length, bytes)
+        })?;
     }
     Ok(out)
 }

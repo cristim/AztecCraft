@@ -891,7 +891,9 @@ fn owner_table_capacity_counts_toward_the_local_metadata_boundary() {
         - graph_bytes
         - promoted_bytes
         - size_of::<SourceAppearance>()
-        - 2 * size_of::<usize>();
+        - 2 * size_of::<usize>()
+        - map_bytes::<usize, usize>(1).unwrap()
+        - map_bytes::<NativeId, Option<Option<NativeId>>>(1).unwrap();
     assert!(decode_with_retained_bytes(bytes.clone(), 0, retained).is_ok());
     assert_eq!(
         decode_with_retained_bytes(bytes, 0, retained + 1)
@@ -1066,4 +1068,112 @@ fn the_ancestor_walk_refuses_an_instanced_ancestor() {
             AppearanceIssue::AmbiguousInstance
         ))
     ));
+}
+
+// #413: the index maps are charged to the metadata budget before they are built.
+#[test]
+fn the_parent_index_is_charged_to_the_metadata_budget() {
+    let (scene, ..) = crate::native_scene::test_fixtures::shared_shape();
+    let mut budget = Budget::new(0).unwrap();
+    let mut meter = Meter {
+        budget: &mut budget,
+        bytes: 0,
+        steps: 0,
+    };
+    assert!(Parents::new(&scene, &mut meter).is_ok());
+    assert!(meter.bytes > 0);
+    let mut full = Meter {
+        budget: &mut budget,
+        bytes: MAX_METADATA,
+        steps: 0,
+    };
+    assert_eq!(
+        Parents::new(&scene, &mut full).err().map(|e| e.kind()),
+        Some(ErrorKind::ResourceLimit)
+    );
+}
+
+#[test]
+fn the_face_count_index_is_charged_to_the_metadata_budget() {
+    let (scene, ..) = crate::native_scene::test_fixtures::shared_shape();
+    let mut budget = Budget::new(0).unwrap();
+    let mut meter = Meter {
+        budget: &mut budget,
+        bytes: 0,
+        steps: 0,
+    };
+    assert!(FaceCounts::new(&[], &scene, &mut meter).is_ok());
+    assert!(meter.bytes > 0);
+    let mut full = Meter {
+        budget: &mut budget,
+        bytes: MAX_METADATA,
+        steps: 0,
+    };
+    assert_eq!(
+        FaceCounts::new(&[], &scene, &mut full)
+            .err()
+            .map(|e| e.kind()),
+        Some(ErrorKind::ResourceLimit)
+    );
+}
+
+#[test]
+fn the_parent_index_charge_has_an_exact_boundary() {
+    let (scene, ..) = crate::native_scene::test_fixtures::shared_shape();
+    let need = map_bytes::<
+        crate::native_scene::NativeId,
+        Option<Option<crate::native_scene::NativeId>>,
+    >(scene.dag_edges().len())
+    .unwrap();
+    let mut budget = Budget::new(0).unwrap();
+    let mut at = Meter {
+        budget: &mut budget,
+        bytes: MAX_METADATA - need,
+        steps: 0,
+    };
+    assert!(Parents::new(&scene, &mut at).is_ok());
+    let mut over = Meter {
+        budget: &mut budget,
+        bytes: MAX_METADATA - need + 1,
+        steps: 0,
+    };
+    assert_eq!(
+        Parents::new(&scene, &mut over).err().map(|e| e.kind()),
+        Some(ErrorKind::ResourceLimit)
+    );
+}
+
+/// The charge is an estimate made before the map is built, so pin it as an upper bound of the
+/// real hash table allocation (buckets of entries, one control byte each and a trailing group),
+/// not just against itself. Maps of 1 to 3 entries allocate a 4-bucket minimum and are
+/// intentionally not covered.
+#[test]
+fn the_map_charge_covers_the_real_hash_table_allocation() {
+    fn real_bytes<K: std::hash::Hash + Eq, V>(map: &HashMap<K, V>) -> usize {
+        let capacity = map.capacity();
+        let buckets = if capacity < 8 {
+            if capacity < 4 { 4 } else { 8 }
+        } else {
+            (capacity * 8 / 7).next_power_of_two()
+        };
+        buckets * size_of::<(K, V)>() + buckets + 16
+    }
+    for entries in [8_usize, 9, 100, 1_000, 5_000, 10_000] {
+        let mut by_count = HashMap::new();
+        let mut by_node = HashMap::new();
+        for index in 0..entries {
+            by_count.insert(index, index);
+            let id = NativeId::from_decimal(&index.to_string()).unwrap();
+            by_node.insert(id, Some(Some(id)));
+        }
+        assert!(
+            map_bytes::<usize, usize>(entries).unwrap() >= real_bytes(&by_count),
+            "{entries} (usize, usize) entries"
+        );
+        assert!(
+            map_bytes::<NativeId, Option<Option<NativeId>>>(entries).unwrap()
+                >= real_bytes(&by_node),
+            "{entries} parent entries"
+        );
+    }
 }

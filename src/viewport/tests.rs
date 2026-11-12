@@ -1586,3 +1586,20 @@ mod joints {
         assert!(camera.target().x > 4.0 && camera.target().x < 6.0);
     }
 }
+
+#[test]
+fn eye_relative_matrix_matches_full_view_projection_for_a_rotated_camera() {
+    let mut camera = camera();
+    camera
+        .set_pose(Vec3::new(3.0, -2.0, 1.0), 7.0, 0.7, 0.4)
+        .unwrap();
+    for aspect in [0.5, 1.0, 1.77] {
+        let full = camera.projection_matrix(aspect).unwrap() * camera.view_matrix();
+        let relative = camera.eye_relative_matrix(aspect).unwrap();
+        for p in [Vec3::new(1.0, 2.0, 3.0), Vec3::new(-4.0, 0.5, -2.0)] {
+            let a = full * p.extend(1.0);
+            let b = relative * (p - camera.eye()).extend(1.0);
+            assert!((a - b).abs().max_element() < 1e-4 * a.abs().max_element().max(1.0));
+        }
+    }
+}

@@ -987,3 +987,85 @@ async fn open_scene_failure_withholds_directory_and_file_names() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_close_prompt_save_as_writes_the_untitled_scene_and_a_failure_keeps_the_prompt()
+{
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let occupied = directory.path().join("taken.mb");
+    std::fs::write(&occupied, b"keep").unwrap();
+    let destination = directory.path().join("closing.mb");
+    let token = editor.scene_token.to_string();
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "create_primitive",
+        json!({"scene_token": token, "primitive": "cube"}),
+    )
+    .await;
+    let pending = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "request_close",
+        json!({"scene_token": token}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(pending["outcome"], "pending_confirmation");
+    let id = pending["pending_action_id"].clone();
+    // The dead end of #289: plain save and save_scene_as cannot serve the pending prompt.
+    for (name, args) in [
+        ("save_scene", json!({"scene_token": token})),
+        (
+            "save_scene_as",
+            json!({"scene_token": token, "path": destination}),
+        ),
+    ] {
+        let refused = call(&mut editor, &context, client.peer(), name, args)
+            .await
+            .structured_content
+            .unwrap();
+        assert_eq!(refused["error"]["code"], "busy_editing", "{name}");
+    }
+    let resolve = |decision: &str, path: Option<&std::path::Path>| {
+        let mut args = json!({"scene_token": token, "pending_action_id": id, "decision": decision});
+        if let Some(path) = path {
+            args["path"] = json!(path);
+        }
+        args
+    };
+    let failed = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "resolve_file_action",
+        resolve("save_as", Some(&occupied)),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert!(failed.get("error").is_some(), "{failed}");
+    assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
+    assert!(editor.files.is_modal() && !editor.files.is_closing() && editor.is_dirty());
+    let saved = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "resolve_file_action",
+        resolve("save_as", Some(&destination)),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(saved["outcome"], "close_requested", "{saved}");
+    assert!(destination.is_file());
+    assert!(editor.files.is_closing() && !editor.is_dirty());
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}

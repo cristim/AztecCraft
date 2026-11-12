@@ -11,7 +11,7 @@ use crate::editor_operations::{
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{LinearUnit, NativeTransform};
 use azteccraft::{
-    history::{Command, EditOutcome, History, ManipulationProvenance},
+    history::{Command, EditOutcome, History, ManipulationProvenance, UndoQueue},
     native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
     scene::{NodeId, Primitive},
     selection::ObjectSelection,

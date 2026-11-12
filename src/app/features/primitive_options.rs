@@ -12,12 +12,13 @@ use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
-const PRIMITIVES: [Primitive; 5] = [
+const PRIMITIVES: [Primitive; 6] = [
     Primitive::Cube,
     Primitive::Plane,
     Primitive::Sphere,
     Primitive::Cylinder,
     Primitive::Cone,
+    Primitive::Torus,
 ];
 
 pub(in crate::app) fn option_field_ids() -> impl Iterator<Item = egui::Id> {
@@ -39,6 +40,7 @@ fn slot(primitive: Primitive) -> usize {
         Primitive::Sphere => 2,
         Primitive::Cylinder => 3,
         Primitive::Cone => 4,
+        Primitive::Torus => 5,
     }
 }
 
@@ -49,6 +51,7 @@ fn title(primitive: Primitive) -> &'static str {
         Primitive::Sphere => "Polygon Sphere Options",
         Primitive::Cylinder => "Polygon Cylinder Options",
         Primitive::Cone => "Polygon Cone Options",
+        Primitive::Torus => "Polygon Torus Options",
     }
 }
 
@@ -70,6 +73,10 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
         Primitive::Sphere => (&["Radius"], &["Subdivisions axis", "Subdivisions height"]),
         Primitive::Cylinder | Primitive::Cone => (
             &["Radius", "Height"],
+            &["Subdivisions axis", "Subdivisions height"],
+        ),
+        Primitive::Torus => (
+            &["Radius", "Section radius"],
             &["Subdivisions axis", "Subdivisions height"],
         ),
     }
@@ -116,6 +123,13 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
             sub_height,
             ..
         } => (vec![radius, height], vec![sub_axis, sub_height]),
+        PrimitiveOptions::Torus {
+            radius,
+            section_radius,
+            sub_axis,
+            sub_height,
+            ..
+        } => (vec![radius, section_radius], vec![sub_axis, sub_height]),
     };
     sizes
         .iter()
@@ -130,7 +144,8 @@ fn axis_of(options: &PrimitiveOptions) -> Axis {
         | PrimitiveOptions::Plane { axis, .. }
         | PrimitiveOptions::Sphere { axis, .. }
         | PrimitiveOptions::Cylinder { axis, .. }
-        | PrimitiveOptions::Cone { axis, .. } => axis,
+        | PrimitiveOptions::Cone { axis, .. }
+        | PrimitiveOptions::Torus { axis, .. } => axis,
     }
 }
 
@@ -202,6 +217,15 @@ fn assemble(
             sub_height,
             axis,
         },
+        (Primitive::Torus, &[radius, section_radius], &[sub_axis, sub_height]) => {
+            PrimitiveOptions::Torus {
+                radius,
+                section_radius,
+                sub_axis,
+                sub_height,
+                axis,
+            }
+        }
         _ => return Err("Option fields are out of sync; reopen the window".into()),
     };
     options.validate(primitive).map_err(|e| e.to_string())?;
@@ -216,7 +240,7 @@ struct Dialog {
 }
 
 pub(in crate::app) struct PrimitiveOptionsUi {
-    remembered: [PrimitiveOptions; 5],
+    remembered: [PrimitiveOptions; 6],
     dialog: Option<Dialog>,
     /// Any text field (dialog, name, channel, ...) held focus at the end of the last frame; egui
     /// clears focus before Escape runs, so the key still belongs to that field.

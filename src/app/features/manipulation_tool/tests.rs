@@ -811,7 +811,7 @@ fn unsupported_spaces_are_listed_disabled_with_the_reason() {
 }
 
 #[test]
-fn move_lists_maya_axis_orientations_with_only_world_enabled() {
+fn move_lists_maya_axis_orientations_with_object_world_and_parent_enabled() {
     let (mut editor, context, _) = setup(Key::W, 1.0);
     assert_eq!(editor.active_tool, ActiveTool::Move);
     context.enable_accesskit();
@@ -860,8 +860,32 @@ fn move_lists_maya_axis_orientations_with_only_world_enabled() {
             .filter(|(_, node)| node.label() == Some(name))
             .map(|(_, node)| node.is_disabled())
             .collect();
-        assert_eq!(found, [name != "World"], "{name}");
+        assert_eq!(
+            found,
+            [!matches!(name, "Object" | "World" | "Parent")],
+            "{name}"
+        );
     }
+    assert_eq!(editor.manipulation.move_space(), MoveSpace::World);
+    let parent = nodes
+        .iter()
+        .find_map(|(_, node)| (node.label() == Some("Parent")).then(|| node.bounds().unwrap()))
+        .unwrap();
+    let on_parent = Pos2::new(
+        ((parent.x0 + parent.x1) / 2.0) as f32,
+        ((parent.y0 + parent.y1) / 2.0) as f32,
+    );
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, button(on_parent, true)),
+    );
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, button(on_parent, false)),
+    );
+    assert_eq!(editor.manipulation.move_space(), MoveSpace::Parent);
     assert_eq!(
         (
             editor.history.scene().clone(),

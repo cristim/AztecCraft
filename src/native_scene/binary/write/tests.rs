@@ -348,3 +348,49 @@ fn a_pivoted_authored_scene_is_refused_with_non_default_pivot() {
         ));
     }
 }
+
+/// Issue #374 measurement, not a gate: `cargo test --release -- --ignored --nocapture save_cost`.
+#[test]
+#[ignore = "timing measurement; run in release"]
+fn save_cost_at_512_and_4096_nodes() {
+    use std::time::{Duration, Instant};
+    fn best(mut run: impl FnMut()) -> Duration {
+        (0..5)
+            .map(|_| {
+                let start = Instant::now();
+                run();
+                start.elapsed()
+            })
+            .min()
+            .unwrap()
+    }
+    let names: Vec<String> = (0..4096).map(|i| format!("n{i}")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    for (label, count, meshes) in [
+        ("cubes", 512, true),
+        ("cubes", 4096, true),
+        ("bare", 512, false),
+        ("bare", 4096, false),
+    ] {
+        let scene = if meshes {
+            meshed(&vec![Primitive::Cube; count])
+        } else {
+            bare(&refs[..count])
+        };
+        assert_eq!(scene.nodes().len(), count);
+        let check = best(|| {
+            if meshes {
+                authored::check_scene(&scene).unwrap();
+            } else {
+                authored::check_transforms_only(&scene).unwrap();
+            }
+        });
+        let total = best(|| {
+            let _ = encode_authored(&scene);
+        });
+        let outcome = encode_authored(&scene).map(|bytes| bytes.len());
+        eprintln!(
+            "save_cost {label} nodes={count} checks={check:?} encode_total={total:?} outcome={outcome:?}"
+        );
+    }
+}

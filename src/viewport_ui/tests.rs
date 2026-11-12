@@ -230,6 +230,127 @@ fn face_click_does_not_borrow_a_later_drag_release_modifiers() {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Gesture {
+    Click(Modifiers, f32),
+    Drag(Modifiers, f32),
+}
+
+fn gesture_events(gestures: &[Gesture], y: f32) -> Vec<Event> {
+    let mut events = Vec::new();
+    for gesture in gestures {
+        let (modifiers, x, end) = match *gesture {
+            Gesture::Click(modifiers, x) => (modifiers, x, x),
+            Gesture::Drag(modifiers, x) => (modifiers, x, x + 36.0),
+        };
+        events.push(Event::ModifiersChanged(modifiers));
+        events.push(Event::PointerMoved(egui::pos2(x, y)));
+        for (pressed, at) in [(true, x), (false, end)] {
+            if pressed || end != x {
+                events.push(Event::PointerMoved(egui::pos2(at, y)));
+            }
+            events.push(Event::PointerButton {
+                pos: egui::pos2(at, y),
+                button: PointerButton::Primary,
+                pressed,
+                modifiers,
+            });
+        }
+    }
+    events
+}
+
+#[test]
+fn coalesced_primary_releases_decide_per_event_with_exact_modifiers() {
+    use Gesture::{Click, Drag};
+    let (none, shift) = (Modifiers::NONE, Modifiers::SHIFT);
+    type Case = (
+        &'static str,
+        Vec<Gesture>,
+        Option<f32>,
+        Option<SelectionRefusal>,
+    );
+    let cases: [Case; 8] = [
+        (
+            "shift then plain click",
+            vec![Click(shift, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain then plain click",
+            vec![Click(none, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain drag then plain click",
+            vec![Drag(none, 20.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "shift click then drag",
+            vec![Click(shift, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain click then drag",
+            vec![Click(none, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain then shift click",
+            vec![Click(none, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "shift then shift click",
+            vec![Click(shift, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "ctrl click then plain click",
+            vec![Click(Modifiers::CTRL, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+    ];
+    for (name, gestures, click_x, refusal) in cases {
+        let context = egui::Context::default();
+        let camera = camera();
+        let start = egui::pos2(gestures_first_x(&gestures), 48.0);
+        capture_frame(
+            &context,
+            &camera,
+            raw(0.0, Modifiers::NONE, vec![Event::PointerMoved(start)]),
+            Rect::EVERYTHING,
+        );
+        let (input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(0.1, Modifiers::NONE, gesture_events(&gestures, 48.0)),
+            Rect::EVERYTHING,
+        );
+        assert_eq!(input.unsupported_selection(), refusal, "{name}");
+        assert_eq!(
+            input.click_points.map(|point| point.x),
+            click_x,
+            "{name}: the click is the last release at its own position"
+        );
+    }
+}
+
+fn gestures_first_x(gestures: &[Gesture]) -> f32 {
+    match gestures[0] {
+        Gesture::Click(_, x) | Gesture::Drag(_, x) => x,
+    }
+}
+
 #[test]
 fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once() {
     let context = egui::Context::default();
@@ -303,6 +424,195 @@ fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_onc
     assert_eq!(*wheel, (-scroll * 0.002).exp());
     assert!(input.take_navigation().is_empty());
     assert_eq!(camera, before);
+}
+
+#[test]
+fn axis_lock_emits_nothing_until_four_points_then_locks_the_dominant_axis() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(2.0, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(1.0, 3.0)), Vec2::new(0.0, 4.0));
+}
+
+#[test]
+fn axis_lock_horizontal_emits_the_accumulated_x_then_only_x() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(3.0, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(3.0, -2.0)), Vec2::new(6.0, 0.0));
+    assert_eq!(lock.constrain(Vec2::new(-1.0, 9.0)), Vec2::new(-1.0, 0.0));
+}
+
+#[test]
+fn axis_lock_vertical_emits_the_accumulated_y_then_only_y() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(1.0, -3.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(-2.0, -3.0)), Vec2::new(0.0, -6.0));
+    assert_eq!(lock.constrain(Vec2::new(9.0, 2.0)), Vec2::new(0.0, 2.0));
+}
+
+#[test]
+fn axis_lock_ignores_non_finite_deltas_without_poisoning_the_lock() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(f32::NAN, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(f32::INFINITY, 1.0)), Vec2::ZERO);
+    assert_eq!(lock.constrain(Vec2::new(0.0, 5.0)), Vec2::new(0.0, 5.0));
+}
+
+#[test]
+fn axis_lock_tie_goes_horizontal() {
+    let mut lock = AxisLock::default();
+    assert_eq!(lock.constrain(Vec2::new(-5.0, 5.0)), Vec2::new(-5.0, 0.0));
+}
+
+fn shift_alt() -> Modifiers {
+    Modifiers {
+        alt: true,
+        shift: true,
+        ..Modifiers::NONE
+    }
+}
+
+/// Presses `button` at (40, 30), then moves by each step in its own frame, returning every frame's
+/// captured operations.
+fn drag_frames(
+    button: PointerButton,
+    modifiers: &[Modifiers],
+    steps: &[Vec2],
+) -> Vec<Vec<Operation>> {
+    let context = egui::Context::default();
+    let camera = camera();
+    let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
+    let point = egui::pos2(40.0, 30.0);
+    let first = modifiers[0];
+    let _ = capture_frame(
+        &context,
+        &camera,
+        raw(0.0, first, vec![Event::PointerMoved(point)]),
+        clip,
+    );
+    let press = Event::PointerButton {
+        pos: point,
+        button,
+        pressed: true,
+        modifiers: first,
+    };
+    let _ = capture_frame(&context, &camera, raw(1.0 / 60.0, first, vec![press]), clip);
+    let mut at = point;
+    steps
+        .iter()
+        .enumerate()
+        .map(|(index, step)| {
+            at += egui::vec2(step.x, step.y);
+            let modifiers = modifiers[(index + 1).min(modifiers.len() - 1)];
+            let (mut input, _) = capture_frame(
+                &context,
+                &camera,
+                raw(
+                    (index as f64 + 2.0) / 60.0,
+                    modifiers,
+                    vec![Event::PointerMoved(at)],
+                ),
+                clip,
+            );
+            input.take_navigation()
+        })
+        .collect()
+}
+
+fn orbit_of(operations: &[Operation]) -> [f32; 2] {
+    let [Operation::Orbit { radians }] = operations else {
+        panic!("expected one orbit, got {} operations", operations.len())
+    };
+    *radians
+}
+
+fn pan_of(operations: &[Operation]) -> [f32; 2] {
+    let [Operation::Pan { world_units }] = operations else {
+        panic!("expected one pan, got {} operations", operations.len())
+    };
+    *world_units
+}
+
+#[test]
+fn shift_alt_primary_drag_tumbles_on_the_locked_axis_only() {
+    // egui starts a drag only past its click distance, so the first step is already large.
+    let frames = drag_frames(
+        PointerButton::Primary,
+        &[shift_alt()],
+        &[Vec2::new(9.0, 3.0), Vec2::new(1.0, 20.0)],
+    );
+    assert_eq!(orbit_of(&frames[0]), [-9.0 * 0.007, 0.0]);
+    assert_eq!(orbit_of(&frames[1]), [-0.007, 0.0]);
+}
+
+#[test]
+fn shift_alt_middle_drag_tracks_on_the_locked_axis_only() {
+    let frames = drag_frames(
+        PointerButton::Middle,
+        &[shift_alt()],
+        &[Vec2::new(1.0, 8.0), Vec2::new(30.0, 2.0)],
+    );
+    let scale = camera().distance() * 0.002;
+    assert_eq!(pan_of(&frames[0]), [0.0, 8.0 * scale]);
+    assert_eq!(pan_of(&frames[1]), [0.0, 2.0 * scale]);
+}
+
+#[test]
+fn alt_drag_without_shift_stays_unconstrained() {
+    let alt = Modifiers {
+        alt: true,
+        ..Modifiers::NONE
+    };
+    let frames = drag_frames(PointerButton::Primary, &[alt], &[Vec2::new(9.0, 3.0)]);
+    assert_eq!(orbit_of(&frames[0]), [-9.0 * 0.007, 3.0 * 0.007]);
+}
+
+#[test]
+fn a_second_shift_alt_drag_locks_afresh() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let clip = Rect::from_min_size(Pos2::ZERO, egui::vec2(128.0, 96.0));
+    let modifiers = shift_alt();
+    let point = egui::pos2(40.0, 30.0);
+    let button = |pos, pressed| Event::PointerButton {
+        pos,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers,
+    };
+    let mut time = 0.0;
+    let mut frame = |events: Vec<Event>| {
+        time += 1.0 / 60.0;
+        let (mut input, _) = capture_frame(&context, &camera, raw(time, modifiers, events), clip);
+        input.take_navigation()
+    };
+    frame(vec![Event::PointerMoved(point)]);
+    frame(vec![button(point, true)]);
+    let first = frame(vec![Event::PointerMoved(point + egui::vec2(8.0, 0.0))]);
+    assert_eq!(orbit_of(&first), [-8.0 * 0.007, 0.0]);
+    frame(vec![button(point + egui::vec2(8.0, 0.0), false)]);
+    frame(vec![button(point, true)]);
+    let second = frame(vec![Event::PointerMoved(point + egui::vec2(0.0, 8.0))]);
+    assert_eq!(orbit_of(&second), [0.0, 8.0 * 0.007]);
+}
+
+#[test]
+fn releasing_shift_mid_drag_restores_free_tumble_and_pressing_it_again_relocks() {
+    let alt = Modifiers {
+        alt: true,
+        ..Modifiers::NONE
+    };
+    let frames = drag_frames(
+        PointerButton::Primary,
+        &[shift_alt(), shift_alt(), alt, shift_alt()],
+        &[
+            Vec2::new(8.0, 0.0),
+            Vec2::new(5.0, 6.0),
+            Vec2::new(1.0, 9.0),
+        ],
+    );
+    assert_eq!(orbit_of(&frames[0]), [-8.0 * 0.007, 0.0]);
+    assert_eq!(orbit_of(&frames[1]), [-5.0 * 0.007, 6.0 * 0.007]);
+    assert_eq!(orbit_of(&frames[2]), [0.0, 9.0 * 0.007]);
 }
 
 fn painted_submission(
@@ -1111,9 +1421,11 @@ fn marquee_drag(
     release: Modifiers,
 ) -> (ViewportInput, ViewportInput) {
     let camera = camera();
+    // Continue a reused Context's clock: egui rejects time moving backwards.
+    let base = context.input(|input| input.time);
     let none = Modifiers::NONE;
     let frame = |time, modifiers, events| {
-        capture_frame(context, &camera, raw(time, modifiers, events), clip).0
+        capture_frame(context, &camera, raw(base + time, modifiers, events), clip).0
     };
     frame(0.0, none, vec![Event::PointerMoved(press)]);
     frame(0.1, none, vec![primary(press, true, none)]);
@@ -1241,44 +1553,8 @@ fn escape() -> Event {
     }
 }
 
-/// PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it.
-#[test]
-fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
-    let context = egui::Context::default();
-    let camera = camera();
-    let none = Modifiers::NONE;
-    let end = START + egui::vec2(32.0, 24.0);
-    let frame = |time, events| {
-        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
-    };
-    frame(0.0, vec![Event::PointerMoved(START)]);
-    frame(0.1, vec![primary(START, true, none)]);
-    assert!(
-        frame(0.2, vec![Event::PointerMoved(end)])
-            .marquee_preview()
-            .is_some()
-    );
-    assert!(frame(0.25, vec![escape()]).marquee_preview().is_none());
-    assert!(
-        frame(0.3, vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))])
-            .marquee_preview()
-            .is_none()
-    );
-    let released = frame(0.4, vec![primary(end, false, none)]);
-    assert!(released.marquee().is_none());
-    assert_eq!(released.unsupported_selection(), None);
-    // The next drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
-    assert!(next.marquee().is_some());
-}
-
-/// Losing window focus mid-drag cancels like Esc: winit still delivers the release.
+/// Losing window focus mid-drag cancels the marquee: winit still delivers the release. (Esc needs
+/// no test here: egui itself ends the drag on Esc, so the Esc branch cannot be observed.)
 #[test]
 fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     let context = egui::Context::default();
@@ -1297,13 +1573,7 @@ fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
     let released = frame(0.4, false, vec![primary(end, false, none)]);
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        Rect::EVERYTHING,
-        START,
-        &[end],
-        none,
-    );
+    let (_, next) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
     assert!(next.marquee().is_some());
 }
 
@@ -1397,12 +1667,6 @@ fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early
     assert!(released.marquee().is_none());
     assert_eq!(released.unsupported_selection(), None);
     // The next plain drag is unaffected.
-    let (_, next) = marquee_drag(
-        &egui::Context::default(),
-        clip,
-        START,
-        &[end],
-        Modifiers::NONE,
-    );
+    let (_, next) = marquee_drag(&context, clip, START, &[end], Modifiers::NONE);
     assert!(next.marquee().is_some());
 }

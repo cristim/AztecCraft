@@ -164,13 +164,7 @@ fn unknown_effects_nodes_owners_and_connections_refuse_the_whole_candidate() {
         );
         assert!(error.offset().is_none_or(|offset| offset <= before.len()));
     }
-    for effect in [
-        "setAttr \".rotateOrder\" 1;",
-        "setAttr \".it\" no;",
-        "setAttr \".it\" yes;",
-        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
-        "setAttr \".tx\" 1;",
-    ] {
+    for effect in ["setAttr \".rotateOrder\" 1;", "setAttr \".tx\" 1;"] {
         assert_eq!(
             decode(input(&format!(
                 "createNode transform -n \"ancestor\"; {effect} {CREATE} {CC}"
@@ -220,7 +214,7 @@ fn interior_knot_multiplicity_is_unsupported_but_bad_knots_stay_malformed() {
 #[test]
 fn every_curve_header_count_numeric_word_and_metadata_arity_is_consumed() {
     for (before, after, expected) in [
-        ("3 1 0 no 3", "1 1 0 no 3", ErrorKind::Unsupported),
+        ("3 1 0 no 3", "4 1 0 no 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 1 no 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 0 yes 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 0 no 2", ErrorKind::Unsupported),
@@ -405,11 +399,7 @@ fn ascii_reports_local_visibility_for_transform_and_curve_shape() {
 
 #[test]
 fn transform_attributes_outside_the_modeled_channels_are_refused_at_open() {
-    for attribute in [
-        "setAttr \".it\" no;",
-        "setAttr \".it\" yes;",
-        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
-    ] {
+    for attribute in ["setAttr \".tx\" 1;", "setAttr \".inheritsTransform\" no;"] {
         let body = format!(
             "createNode transform -n \"curve1\"; {attribute} createNode nurbsCurve -n \"curveShape1\" -p \"curve1\"; {CC}"
         );
@@ -652,4 +642,96 @@ fn several_curves_may_still_share_one_transform() {
          createNode nurbsCurve -n \"c2\" -p \"a\"; {CC}"
     ));
     assert_eq!(decode(source).unwrap().curves().len(), 2);
+}
+
+#[test]
+fn inherits_transform_and_offset_parent_matrix_are_read_into_extras() {
+    let scene = transform_extras(
+        "setAttr \".it\" no; setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 2 3 4 1;",
+    )
+    .unwrap();
+    let extras = scene.nodes()[0].extras();
+    assert_eq!(extras.inherits_transform, Some(false));
+    assert_eq!(
+        extras.offset_parent_matrix,
+        Some([
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 3.0, 4.0, 1.0
+        ])
+    );
+    let internal = scene.internal_transform(scene.nodes()[0].id()).unwrap();
+    assert!(internal.extras.is_some_and(|e| !e.inherits_transform));
+    // Explicit defaults are stated by the source but compose as the absent default.
+    let stated = transform_extras(
+        "setAttr \".it\" yes; setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
+    )
+    .unwrap();
+    assert_eq!(stated.nodes()[0].extras().inherits_transform, Some(true));
+    assert!(stated.nodes()[0].extras().is_default());
+    assert!(
+        stated
+            .internal_transform(stated.nodes()[0].id())
+            .unwrap()
+            .extras
+            .is_none()
+    );
+}
+
+#[test]
+fn malformed_or_unsupported_it_and_opm_are_typed_refusals() {
+    for attrs in [
+        "setAttr \".it\" maybe;",
+        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0;",
+        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 nan 1;",
+    ] {
+        assert_eq!(
+            transform_extras(attrs).unwrap_err().kind(),
+            ErrorKind::Malformed,
+            "{attrs}"
+        );
+    }
+    for attrs in [
+        "setAttr \".it\" no; setAttr \".it\" no;",
+        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1; setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
+        "setAttr \".opm\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
+        "setAttr \".opm\" -type \"double3\" 1 0 0;",
+        "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1;",
+        "connectAttr \"defaultRenderLayer.msg\" \"ancestor.it\";",
+        "connectAttr \"defaultRenderLayer.msg\" \"ancestor.opm\";",
+    ] {
+        assert_eq!(
+            transform_extras(attrs).unwrap_err().kind(),
+            ErrorKind::Unsupported,
+            "{attrs}"
+        );
+    }
+    // A projective offset parses but is refused by validation, never silently dropped to affine.
+    assert!(
+        transform_extras("setAttr \".opm\" -type \"matrix\" 1 0 0 0.5 0 1 0 0 0 0 1 0 0 0 0 1;")
+            .is_err()
+    );
+}
+
+#[test]
+fn it_and_opm_on_a_transform_that_parents_a_curve_do_not_collide_with_shape_bits() {
+    let opm = "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 5 0 0 1;";
+    for attrs in [
+        "setAttr \".it\" no;",
+        opm,
+        &format!("setAttr \".it\" no; {opm}"),
+    ] {
+        let body = format!(
+            "createNode transform -n \"curve1\"; {attrs} createNode nurbsCurve -n \"curveShape1\" -p \"curve1\"; {CC}"
+        );
+        let scene = decode(input(&body)).unwrap_or_else(|e| panic!("{attrs}: {e:?}"));
+        assert_eq!(scene.curves().len(), 1, "{attrs}");
+        assert!(!scene.nodes()[0].extras().is_default(), "{attrs}");
+    }
+}
+
+#[test]
+fn a_projective_offset_parent_matrix_fails_validation_with_its_own_error() {
+    let error =
+        transform_extras("setAttr \".opm\" -type \"matrix\" 1 0 0 0.5 0 1 0 0 0 0 1 0 0 0 0 1;")
+            .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Malformed);
 }

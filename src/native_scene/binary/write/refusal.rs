@@ -78,6 +78,42 @@ impl From<&AuthoredBinaryRefusal> for AuthoredRefusalCode {
     }
 }
 
+impl AuthoredRefusalCode {
+    /// The stable snake_case name MCP clients receive as `error.reason`; never reworded.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SourcedScene => "sourced_scene",
+            Self::Curves => "curves",
+            Self::Joints => "joints",
+            Self::Keys => "keys",
+            Self::InvalidScene => "invalid_scene",
+            Self::UnsupportedUnits => "unsupported_units",
+            Self::NonAuthoredHierarchy => "non_authored_hierarchy",
+            Self::InvalidName => "invalid_name",
+            Self::ReservedName => "reserved_name",
+            Self::NameCollision => "name_collision",
+            Self::EmptyMesh => "empty_mesh",
+            Self::NonDefaultPivot => "non_default_pivot",
+            Self::TransformExtras => "transform_extras",
+            Self::TransformRestriction => "transform_restriction",
+            Self::UnsupportedTransformEffect => "unsupported_transform_effect",
+            Self::TransformVisibility => "transform_visibility",
+            Self::ShapeRestriction => "shape_restriction",
+            Self::ShapeVisibility => "shape_visibility",
+            Self::Double3Points => "double3_points",
+            Self::PointOffsets => "point_offsets",
+            Self::EdgeSmoothing => "edge_smoothing",
+            Self::FaceHoles => "face_holes",
+            Self::UnsupportedMeshChannels => "unsupported_mesh_channels",
+            Self::SessionUvs => "session_uvs",
+            Self::TooLarge => "too_large",
+            Self::MissingUuid => "missing_uuid",
+            Self::SessionMaterials => "session_materials",
+            Self::SelfCheckMismatch => "self_check_mismatch",
+        }
+    }
+}
+
 impl fmt::Display for AuthoredRefusalCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
@@ -120,6 +156,16 @@ impl fmt::Display for AuthoredRefusalCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reason_names_are_stable_snake_case() {
+        assert_eq!(AuthoredRefusalCode::Keys.as_str(), "keys");
+        assert_eq!(AuthoredRefusalCode::SessionUvs.as_str(), "session_uvs");
+        assert_eq!(
+            AuthoredRefusalCode::Double3Points.as_str(),
+            "double3_points"
+        );
+    }
 
     #[test]
     fn a_refusal_maps_to_its_code_without_a_payload() {

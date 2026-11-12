@@ -40,6 +40,9 @@ pub const DEFAULT_HEIGHT_CM: f64 = 2.0;
 pub const DEFAULT_AXIS_DIVISIONS: u32 = 20;
 pub const DEFAULT_SPHERE_HEIGHT_DIVISIONS: u32 = 20;
 pub const DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS: u32 = 1;
+/// polyTorus node page (sectionRadius 0.5, 20x20); PROVISIONAL, Maya 2026 is unverified.
+pub const DEFAULT_SECTION_RADIUS_CM: f64 = 0.5;
+pub const DEFAULT_TORUS_HEIGHT_DIVISIONS: u32 = 20;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Axis {
@@ -83,6 +86,13 @@ pub enum PrimitiveOptions {
     Cone {
         radius: f64,
         height: f64,
+        sub_axis: u32,
+        sub_height: u32,
+        axis: Axis,
+    },
+    Torus {
+        radius: f64,
+        section_radius: f64,
         sub_axis: u32,
         sub_height: u32,
         axis: Axis,
@@ -179,6 +189,13 @@ impl PrimitiveOptions {
                 sub_height: DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS,
                 axis,
             },
+            Primitive::Torus => Self::Torus {
+                radius: DEFAULT_RADIUS_CM,
+                section_radius: DEFAULT_SECTION_RADIUS_CM,
+                sub_axis: DEFAULT_AXIS_DIVISIONS,
+                sub_height: DEFAULT_TORUS_HEIGHT_DIVISIONS,
+                axis,
+            },
         }
     }
 
@@ -189,6 +206,7 @@ impl PrimitiveOptions {
             Self::Sphere { .. } => Primitive::Sphere,
             Self::Cylinder { .. } => Primitive::Cylinder,
             Self::Cone { .. } => Primitive::Cone,
+            Self::Torus { .. } => Primitive::Torus,
         }
     }
 
@@ -261,6 +279,11 @@ impl PrimitiveOptions {
             } => u64::from(sub_axis)
                 .checked_mul(u64::from(sub_height))
                 .and_then(|n| n.checked_add(1)),
+            Self::Torus {
+                sub_axis,
+                sub_height,
+                ..
+            } => u64::from(sub_axis).checked_mul(u64::from(sub_height)),
         };
         counted.unwrap_or(u64::MAX)
     }
@@ -330,6 +353,19 @@ impl PrimitiveOptions {
                 vec![
                     ("subdivisions_axis", sub_axis, MIN_AXIS_DIVISIONS),
                     ("subdivisions_height", sub_height, MIN_DIVISIONS),
+                ],
+            ),
+            Self::Torus {
+                radius,
+                section_radius,
+                sub_axis,
+                sub_height,
+                ..
+            } => (
+                vec![("radius", radius), ("section_radius", section_radius)],
+                vec![
+                    ("subdivisions_axis", sub_axis, MIN_AXIS_DIVISIONS),
+                    ("subdivisions_height", sub_height, MIN_AXIS_DIVISIONS),
                 ],
             ),
         }

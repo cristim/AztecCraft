@@ -28,7 +28,7 @@ fn scene(names: &[&str]) -> NativeScene {
     scene
 }
 fn check(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
-    check_content_kind(scene)?;
+    check_content_kind(scene, UvPolicy::Refuse)?;
     check_scene(scene)
 }
 
@@ -164,7 +164,10 @@ fn joints_are_refused_by_kind_so_no_writer_can_emit_plain_transforms() {
     }
     // Root joints look exactly like the bare transforms the Binary writer accepts.
     assert_eq!(check_transforms_only(&roots), Ok(()));
-    assert_eq!(check_content_kind(&roots), Err(AuthoredIneligible::Joints));
+    assert_eq!(
+        check_content_kind(&roots, UvPolicy::Refuse),
+        Err(AuthoredIneligible::Joints)
+    );
 }
 
 #[test]
@@ -249,7 +252,7 @@ fn transforms_only(names: &[&str]) -> NativeScene {
     scene
 }
 fn check_bare(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
-    check_content_kind(scene)?;
+    check_content_kind(scene, UvPolicy::Refuse)?;
     check_transforms_only(scene)
 }
 
@@ -311,4 +314,49 @@ fn a_parented_transform_is_not_flat() {
         check_bare(&nested),
         Err(AuthoredIneligible::NonAuthoredHierarchy)
     );
+}
+
+#[test]
+fn a_large_authored_scene_is_eligible_and_its_late_faults_are_found() {
+    use AuthoredIneligible as R;
+    let names: Vec<String> = (0..512).map(|i| format!("n{i}")).collect();
+    let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+    let base = scene(&refs);
+    check(&base).unwrap();
+    let last = refs.len() - 1;
+    type Case = (fn(&mut NativeScene, usize), R);
+    let cases: [Case; 6] = [
+        (
+            |s, i| s.shapes[i].name = s.shapes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (
+            |s, i| s.shapes[i].name = s.nodes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (
+            |s, i| s.nodes[i].name = s.nodes[0].name.clone(),
+            R::NameCollision,
+        ),
+        (|s, i| s.nodes[i].name = "persp".into(), R::ReservedName),
+        (
+            |s, i| {
+                s.nodes[0].name = "persp".into();
+                s.nodes[i].name = "persp".into();
+            },
+            R::NameCollision,
+        ),
+        (
+            |s, i| {
+                let child = s.dag.iter().position(|e| e.parent.is_some()).unwrap();
+                s.dag[child].parent = Some(s.nodes[i].transform_id);
+            },
+            R::NonAuthoredHierarchy,
+        ),
+    ];
+    for (mutate, expected) in cases {
+        let mut scene = base.clone();
+        mutate(&mut scene, last);
+        assert_eq!(check(&scene), Err(expected));
+    }
 }

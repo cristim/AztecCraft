@@ -20,6 +20,7 @@ pub struct NativeCurveShape {
     pub(super) id: NativeId,
     pub(super) uuid: Option<Uuid>,
     pub(super) name: String,
+    pub(super) degree: u32,
     pub(super) control_vertices: Vec<[f64; 3]>,
     pub(super) knots: Vec<f64>,
     pub(super) source: CurveSource,
@@ -31,6 +32,7 @@ impl PartialEq for NativeCurveShape {
         self.id == other.id
             && self.uuid == other.uuid
             && self.name == other.name
+            && self.degree == other.degree
             && self.source == other.source
             && self.view == other.view
             && self.control_vertices.len() == other.control_vertices.len()
@@ -52,6 +54,7 @@ impl fmt::Debug for NativeCurveShape {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NativeCurveShape")
             .field("id", &self.id)
+            .field("degree", &self.degree)
             .field("cv_count", &self.control_vertices.len())
             .field("knot_count", &self.knots.len())
             .finish()
@@ -73,7 +76,7 @@ impl NativeCurveShape {
         &self.name
     }
     pub fn degree(&self) -> u32 {
-        3
+        self.degree
     }
     pub fn form(&self) -> CurveForm {
         CurveForm::Open
@@ -85,13 +88,17 @@ impl NativeCurveShape {
         &self.knots
     }
     pub fn domain(&self) -> Result<[f64; 2], NativeError> {
+        let degree = self.degree as usize;
         let end = self
             .knots
             .len()
-            .checked_sub(3)
+            .checked_sub(degree)
             .ok_or(NativeError::InvalidCurve)?;
         Ok([
-            *self.knots.get(2).ok_or(NativeError::InvalidCurve)?,
+            *self
+                .knots
+                .get(degree.checked_sub(1).ok_or(NativeError::InvalidCurve)?)
+                .ok_or(NativeError::InvalidCurve)?,
             *self.knots.get(end).ok_or(NativeError::InvalidCurve)?,
         ])
     }
@@ -133,7 +140,14 @@ impl NativeCurveShape {
     }
 
     fn de_boor(&self, span: usize, parameter: f64, derivative: bool) -> Result<DVec3, NativeError> {
-        let degree = if derivative { 2usize } else { 3usize };
+        let curve_degree = self.degree as usize;
+        let degree = if derivative {
+            curve_degree
+                .checked_sub(1)
+                .ok_or(NativeError::InvalidCurve)?
+        } else {
+            curve_degree
+        };
         let knot_offset = usize::from(derivative);
         let span = span
             .checked_sub(knot_offset)
@@ -156,14 +170,18 @@ impl NativeCurveShape {
                         .ok_or(NativeError::InvalidCurve)?,
                 );
                 let denominator = finite_scalar(
-                    self.full_knot(index.checked_add(4).ok_or(NativeError::ResourceLimit)?)?
-                        - self
-                            .full_knot(index.checked_add(1).ok_or(NativeError::ResourceLimit)?)?,
+                    self.full_knot(
+                        index
+                            .checked_add(curve_degree + 1)
+                            .ok_or(NativeError::ResourceLimit)?,
+                    )? - self.full_knot(index.checked_add(1).ok_or(NativeError::ResourceLimit)?)?,
                 )?;
                 if denominator <= 0.0 {
                     return Err(NativeError::InvalidCurve);
                 }
-                finite_point(finite_point(finite_point(next - p)? * 3.0)? / denominator)?
+                finite_point(
+                    finite_point(finite_point(next - p)? * curve_degree as f64)? / denominator,
+                )?
             } else {
                 finite_point(p)?
             };
@@ -198,7 +216,9 @@ impl NativeCurveShape {
     }
 
     pub(crate) fn bezier_span(&self, index: usize) -> Result<[DVec3; 4], NativeError> {
-        let span = index.checked_add(3).ok_or(NativeError::ResourceLimit)?;
+        let span = index
+            .checked_add(self.degree as usize)
+            .ok_or(NativeError::ResourceLimit)?;
         if span >= self.control_vertices.len() {
             return Err(NativeError::InvalidCurve);
         }
@@ -231,8 +251,12 @@ impl NativeCurveShape {
         {
             return Err(NativeError::InvalidRetention);
         }
+        let degree = self.degree as usize;
         let count = self.control_vertices.len();
-        if count < 4 || count.checked_add(2) != Some(self.knots.len()) {
+        if !(1..=3).contains(&degree)
+            || count <= degree
+            || count.checked_add(degree - 1) != Some(self.knots.len())
+        {
             return Err(NativeError::InvalidCurve);
         }
         if self
@@ -247,15 +271,17 @@ impl NativeCurveShape {
         let [start, end] = self.domain()?;
         if start >= end
             || !(end - start).is_finite()
-            || self.knots[..3].iter().any(|v| *v != start)
-            || self.knots[self.knots.len() - 3..].iter().any(|v| *v != end)
-            || self.knots[2..=self.knots.len() - 3]
+            || self.knots[..degree].iter().any(|v| *v != start)
+            || self.knots[self.knots.len() - degree..]
+                .iter()
+                .any(|v| *v != end)
+            || self.knots[degree - 1..=self.knots.len() - degree]
                 .windows(2)
                 .any(|pair| pair[0] > pair[1] || !(pair[1] - pair[0]).is_finite())
         {
             return Err(NativeError::InvalidCurve);
         }
-        if self.knots[2..=self.knots.len() - 3]
+        if self.knots[degree - 1..=self.knots.len() - degree]
             .windows(2)
             .any(|pair| pair[0] == pair[1])
         {

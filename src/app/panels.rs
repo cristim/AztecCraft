@@ -659,9 +659,12 @@ fn view_error_category(
     error: &azteccraft::view_scene::ViewError,
 ) -> crate::viewport_renderer::ViewportError {
     use crate::viewport_renderer::ViewportError;
+    use azteccraft::native_scene::NativeError;
     use azteccraft::view_scene::ViewError;
     match error {
-        ViewError::ResourceLimit => ViewportError::ResourceLimit,
+        ViewError::ResourceLimit | ViewError::Native(NativeError::ResourceLimit) => {
+            ViewportError::ResourceLimit
+        }
         // `from_native` never returns `Camera` today; it is a camera fault, not the scene's.
         ViewError::Camera(_) => ViewportError::CameraInput,
         ViewError::Native(_)
@@ -688,6 +691,10 @@ mod view_error_category_tests {
             ),
             (
                 ViewError::Native(azteccraft::native_scene::NativeError::ResourceLimit),
+                ViewportError::ResourceLimit,
+            ),
+            (
+                ViewError::Native(azteccraft::native_scene::NativeError::NonFinite),
                 ViewportError::SceneGeometry,
             ),
             (ViewError::InvalidGeometry, ViewportError::SceneGeometry),

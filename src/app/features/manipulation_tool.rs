@@ -16,7 +16,7 @@ use azteccraft::{
         paint::{paint_rotate, paint_scale},
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
-    native_scene::{RotateAxis, ScaleHandle, TransformTarget},
+    native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
 };
 use eframe::egui;
 use glam::{DVec3, Vec2};
@@ -33,6 +33,7 @@ const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 /// Rotate and Scale tool settings. Maya keeps the axis orientation per tool and defaults it to
 /// Object for Rotate and World for Scale (2026 tool settings pages).
 pub(in crate::app) struct ManipulationOptions {
+    move_space: MoveSpace,
     rotate_space: ManipulationSpace,
     scale_space: ManipulationSpace,
     rotate_axis: RotateAxis,
@@ -56,6 +57,7 @@ pub(in crate::app) struct ManipulationOptions {
 impl Default for ManipulationOptions {
     fn default() -> Self {
         Self {
+            move_space: MoveSpace::World,
             rotate_space: ManipulationSpace::Object,
             scale_space: ManipulationSpace::World,
             rotate_axis: RotateAxis::X,
@@ -78,6 +80,10 @@ impl ManipulationOptions {
         }
     }
 
+    pub(in crate::app) fn move_space(&self) -> MoveSpace {
+        self.move_space
+    }
+
     pub(in crate::app) fn rotate_axis(&self) -> RotateAxis {
         self.rotate_axis
     }
@@ -92,6 +98,14 @@ impl ManipulationOptions {
 }
 
 impl Editor {
+    pub(in crate::app) fn set_move_space(&mut self, space: MoveSpace) -> OperationReply {
+        if std::mem::replace(&mut self.manipulation.move_space, space) == space {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
+        }
+    }
+
     pub(in crate::app) fn set_tool_space(
         &mut self,
         tool: ActiveTool,
@@ -102,7 +116,7 @@ impl Editor {
             ActiveTool::Scale => &mut self.manipulation.scale_space,
             ActiveTool::Select | ActiveTool::Move => {
                 return Err(OperationError::InvalidInput(format!(
-                    "{} has no Axis Orientation; use rotate or scale",
+                    "{} sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here",
                     tool_name(tool)
                 )));
             }
@@ -199,7 +213,8 @@ fn scale_handle_name(handle: ScaleHandle) -> &'static str {
 
 // Maya's other modes for these tools. Each is drawn disabled in the selector.
 const UNSUPPORTED_SPACES: [&str; 5] = ["Gimbal", "Parent", "Normal", "Custom", "Component"];
-/// Maya 2026 Move Tool Axis Orientation entries in documented order; only World is implemented.
+/// Maya 2026 Move Tool Axis Orientation entries in documented order; Object, World and Parent are
+/// implemented.
 const MOVE_ORIENTATIONS: [&str; 8] = [
     "Object",
     "World",
@@ -210,6 +225,20 @@ const MOVE_ORIENTATIONS: [&str; 8] = [
     "Along Live Object Axis",
     "Custom",
 ];
+
+pub(in crate::app) fn move_space_name(space: MoveSpace) -> &'static str {
+    match space {
+        MoveSpace::World => "World",
+        MoveSpace::Object => "Object",
+        MoveSpace::Parent => "Parent",
+    }
+}
+
+fn move_space_entry(name: &str) -> Option<MoveSpace> {
+    [MoveSpace::Object, MoveSpace::World, MoveSpace::Parent]
+        .into_iter()
+        .find(|space| move_space_name(*space) == name)
+}
 
 pub(in crate::app) fn mode_refusal(tool: &str, mode: SelectionMode) -> Option<String> {
     let name = match mode {
@@ -856,27 +885,33 @@ impl Editor {
             && !self.files.is_closing()
             && self.history.active_manipulation().is_none();
         if tool == ActiveTool::Move {
-            // Move drags along World axes only (Maya's default); the other orientations are shown
-            // so their absence is visible.
+            // The other Maya orientations are drawn disabled so their absence is visible.
+            let current = self.manipulation.move_space();
+            let mut chosen = None;
             ui.horizontal(|ui| {
                 ui.label("Move tool");
                 ui.add_enabled_ui(enabled, |ui| {
                     egui::ComboBox::from_id_salt("move_axis_orientation")
-                        .selected_text("World")
+                        .selected_text(move_space_name(current))
                         .show_ui(ui, |ui| {
                             for name in MOVE_ORIENTATIONS {
-                                if name == "World" {
-                                    let _ = ui.selectable_label(true, name);
+                                if let Some(space) = move_space_entry(name) {
+                                    if ui.selectable_label(current == space, name).clicked() {
+                                        chosen = Some(space);
+                                    }
                                 } else {
                                     ui.add_enabled(false, egui::Button::selectable(false, name))
                                         .on_disabled_hover_text(
-                                            "unsupported: Move uses World axes only",
+                                            "unsupported: Move supports Object, World and Parent",
                                         );
                                 }
                             }
                         });
                 });
             });
+            if let Some(space) = chosen {
+                self.native_operation(Operation::SetMoveSpace { space });
+            }
             return;
         }
         if !matches!(tool, ActiveTool::Rotate | ActiveTool::Scale) {

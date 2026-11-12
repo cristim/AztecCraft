@@ -293,7 +293,8 @@ async fn uv_sdk_reads_a_128_by_128_sphere_with_long_decimals() {
 #[test]
 fn a_full_page_of_the_longest_uvs_fits_the_reply_limit() {
     use crate::editor_operations::{MAX_UV_CORNERS_PER_PAGE, UvInspection};
-    let corner = [1.234_567_890_123_456_7e-308, 1.234_567_890_123_456_7e-308];
+    let long = f64::from(1.234_567_9e-38_f32);
+    let corner = [long, long];
     let page = OperationReply::Uvs {
         inspection: Box::new(UvInspection {
             scene_token: Uuid::new_v4().to_string(),
@@ -328,6 +329,7 @@ async fn uv_sdk_save_as_and_a_confirmed_save_are_refused_with_the_uv_remedy() {
     let assert_uv_refusal = |reply: &rmcp::model::CallToolResult| {
         let error = &reply.structured_content.as_ref().unwrap()["error"];
         assert_eq!(error["code"], "save_unwritable", "{reply:?}");
+        assert_eq!(error["reason"], "session_uvs", "{reply:?}");
         let message = error["message"].as_str().unwrap();
         assert!(
             message.contains("session UVs") && message.contains("Delete UVs"),

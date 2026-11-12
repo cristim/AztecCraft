@@ -489,3 +489,114 @@ fn the_agreement_sweep_holds_for_nested_and_instanced_paths() {
     let (grouped, ..) = test_fixtures::grouped_shape();
     assert_point_rects_agree_with_pick_view(&view_of(&grouped));
 }
+
+// Slivers whose vertices are far from the NDC origin, as a triangle crossing the near plane
+// gives. Absolute-coordinate area terms cancel to zero or flip sign here; the true areas are
+// about 5e-3.
+const FAR_ZERO_AREA: [Vec2; 3] = [
+    Vec2::new(380.8495, 911.8197),
+    Vec2::new(-380.74948, -911.61975),
+    Vec2::new(-22.772835, -54.54303),
+];
+const FAR_FLIPPED_AREA: [Vec2; 3] = [
+    Vec2::new(-379.0048, 214.43462),
+    Vec2::new(379.1048, -214.2346),
+    Vec2::new(-60.885017, 34.55541),
+];
+
+#[test]
+fn far_sliver_with_cancelling_area_terms_still_hits_a_rect_it_crosses() {
+    assert!(hits(&FAR_ZERO_AREA, rect([-0.5, -0.5], [0.5, 0.5])));
+}
+
+#[test]
+fn far_sliver_with_a_flipped_area_sign_hits_a_crossed_rect_and_misses_a_clear_one() {
+    assert!(hits(&FAR_FLIPPED_AREA, rect([-0.5, -0.5], [0.5, 0.5])));
+    // The sliver runs along y = -0.57 x + 0.01 through the origin; this rect is far above it
+    // yet inside its bounding box.
+    assert!(!hits(&FAR_FLIPPED_AREA, rect([0.8, 0.8], [1.0, 1.0])));
+}
+
+#[test]
+fn far_sliver_hit_does_not_depend_on_winding() {
+    let reversed = [
+        FAR_FLIPPED_AREA[2],
+        FAR_FLIPPED_AREA[1],
+        FAR_FLIPPED_AREA[0],
+    ];
+    assert!(hits(&reversed, rect([-0.5, -0.5], [0.5, 0.5])));
+    assert!(!hits(&reversed, rect([0.8, 0.8], [1.0, 1.0])));
+}
+
+#[test]
+fn exactly_collinear_far_triangle_is_still_skipped() {
+    let line = [v(-1000.0, -2000.0), v(0.0, 0.0), v(1000.0, 2000.0)];
+    assert!(!hits(&line, rect([-0.5, -0.5], [0.5, 0.5])));
+}
+
+/// Independent f64 reference: per-edge cross-product half-plane test plus a bounding-box test.
+fn reference_hits(polygon: &[Vec2], rect: NdcRect) -> bool {
+    let p: Vec<[f64; 2]> = polygon.iter().map(|q| [q.x as f64, q.y as f64]).collect();
+    let cross = |o: [f64; 2], a: [f64; 2], b: [f64; 2]| {
+        (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    };
+    let area = cross(p[0], p[1], p[2]);
+    if area == 0.0 {
+        return false;
+    }
+    let (min, max) = (rect.min(), rect.max());
+    let corners = [
+        [min.x as f64, min.y as f64],
+        [max.x as f64, min.y as f64],
+        [max.x as f64, max.y as f64],
+        [min.x as f64, max.y as f64],
+    ];
+    // Overlap unless the rect is strictly outside one edge's half-plane or the boxes are apart.
+    for i in 0..3 {
+        let (a, b) = (p[i], p[(i + 1) % 3]);
+        if corners
+            .iter()
+            .all(|c| cross(a, b, *c) * area.signum() < 0.0)
+        {
+            return false;
+        }
+    }
+    let lo = [
+        p.iter().map(|q| q[0]).fold(f64::MAX, f64::min),
+        p.iter().map(|q| q[1]).fold(f64::MAX, f64::min),
+    ];
+    let hi = [
+        p.iter().map(|q| q[0]).fold(f64::MIN, f64::max),
+        p.iter().map(|q| q[1]).fold(f64::MIN, f64::max),
+    ];
+    !(hi[0] < min.x as f64 || lo[0] > max.x as f64 || hi[1] < min.y as f64 || lo[1] > max.y as f64)
+}
+
+#[test]
+fn random_far_slivers_agree_with_the_f64_reference() {
+    let mut state = 99_u64;
+    let mut next = move || {
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (state >> 33) as f64 / 2147483648.0
+    };
+    for case in 0..4000 {
+        let m = [1e2, 1e3, 1e4][case % 3];
+        let (dx, dy) = (next() * 2.0 - 1.0, next() * 2.0 - 1.0);
+        let (a, b) = ((-m * dx + 0.1, -m * dy), (m * dx, m * dy + 0.2));
+        let (t, off) = (next() * 0.5 + 0.25, (next() - 0.5) * 0.02);
+        let c = (
+            a.0 + (b.0 - a.0) * t - (b.1 - a.1) * off / m,
+            a.1 + (b.1 - a.1) * t + (b.0 - a.0) * off / m,
+        );
+        let tri = [a, b, c].map(|q| v(q.0 as f32, q.1 as f32));
+        let (rx, ry) = (next() as f32 * 1.6 - 0.8, next() as f32 * 1.6 - 0.8);
+        let r = rect([rx, ry], [rx + 0.1, ry + 0.1]);
+        assert_eq!(
+            hits(&tri, r),
+            reference_hits(&tri, r),
+            "case {case}: {tri:?}"
+        );
+    }
+}

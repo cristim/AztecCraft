@@ -381,7 +381,7 @@ fn check_move_axes_gives_the_restricted_refusal_a_begin_would_without_starting_o
     let history = History::new(scene);
     let targets = [target_of(&history, plain), target_of(&history, restricted)];
     let before = history.scene.clone();
-    let both = history.check_move_axes(&targets);
+    let both = history.check_move_axes(&targets, MoveSpace::World);
     assert!(
         matches!(&both, Err(ManipulationError::Member { source, .. })
         if **source == NativeError::UnsupportedEdit)
@@ -389,7 +389,7 @@ fn check_move_axes_gives_the_restricted_refusal_a_begin_would_without_starting_o
     let cubes = [target_of(&history, plain), target_of(&history, plain)];
     assert!(
         history
-            .check_move_axes(&cubes[..1])
+            .check_move_axes(&cubes[..1], MoveSpace::World)
             .unwrap()
             .iter()
             .all(Option::is_none)
@@ -407,7 +407,7 @@ fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
     // to a different local component, so the three refusals differ.
     let targets = [target_of(&history, bare), target_of(&history, full)];
     let name = history.scene.node(bare).unwrap().name().to_string();
-    let axes = history.check_move_axes(&targets).unwrap();
+    let axes = history.check_move_axes(&targets, MoveSpace::World).unwrap();
     for (component, (axis, checked)) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
         .into_iter()
         .zip(axes)
@@ -430,8 +430,51 @@ fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
         assert_eq!(begun.err(), checked, "{axis:?}");
     }
     // The complete node alone is available on every axis.
-    let alone = history.check_move_axes(&targets[1..]);
+    let alone = history.check_move_axes(&targets[1..], MoveSpace::World);
     assert!(alone.unwrap().iter().all(Option::is_none));
+}
+
+#[test]
+fn check_move_axes_in_object_space_agrees_with_an_object_begin() {
+    let (scene, full, bare) = test_fixtures::binary_cubes_with_bare_rotation(90.0);
+    let history = History::new(scene.clone());
+    let targets = [target_of(&history, bare), target_of(&history, full)];
+    let world = history.check_move_axes(&targets, MoveSpace::World).unwrap();
+    let object = history
+        .check_move_axes(&targets, MoveSpace::Object)
+        .unwrap();
+    // Every translate leaf of the rotated cube is absent, so each axis is refused at the first
+    // component its direction touches: World Y needs translateY (1), but Object Y is world -X
+    // (plus rounding noise in Y) and is refused at translateX (0).
+    let component = |checked: &Option<ManipulationError>| match checked {
+        Some(ManipulationError::Member { source, .. }) => match **source {
+            NativeError::AbsentChannelLeaf { component, .. } => Some(component),
+            _ => None,
+        },
+        _ => None,
+    };
+    assert_eq!(world.each_ref().map(component), [Some(0), Some(1), Some(2)]);
+    assert_eq!(
+        object.each_ref().map(component),
+        [Some(0), Some(0), Some(2)]
+    );
+    for (axis, checked) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+        .into_iter()
+        .zip(object)
+    {
+        let mut fresh = History::new(scene.clone());
+        let begun = fresh
+            .begin_move_many_in(
+                &targets,
+                MoveSpace::Object,
+                axis,
+                Uuid::new_v4(),
+                NATIVE,
+                BUDGET,
+            )
+            .map(|_| ());
+        assert_eq!(begun.err(), checked, "{axis:?}");
+    }
 }
 
 #[test]

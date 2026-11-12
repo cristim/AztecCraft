@@ -1,8 +1,8 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
-    ChannelBaseline, ChannelEdits, MoveBeginError, NativeError, NativeId, NativeScene, RotateAxis,
-    RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget, WorldAxis,
-    WorldMoveFrame, WorldMoveUnsupported,
+    ChannelBaseline, ChannelEdits, MoveBeginError, MoveSpace, NativeError, NativeId, NativeScene,
+    RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget,
+    WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
 use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
@@ -143,6 +143,7 @@ enum ManipulationKind {
     /// in which case `covered_lead` holds the lead's own baseline for inspection.
     Move {
         axis: WorldAxis,
+        space: MoveSpace,
         movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
         covered_lead: Option<ChannelBaseline>,
     },
@@ -211,10 +212,15 @@ impl ManipulationKind {
         declared: Option<f64>,
     ) -> Result<(Vec<ChannelBaseline>, bool), NativeError> {
         let values = match self {
-            Self::Move { axis, movers, .. } => {
+            Self::Move {
+                axis,
+                space,
+                movers,
+                ..
+            } => {
                 let values = movers
                     .iter()
-                    .map(|(frame, _)| frame.translation(*axis, parameter))
+                    .map(|(frame, _)| frame.translation_in(*space, *axis, parameter))
                     .collect::<Result<Vec<_>, _>>()?;
                 return scene.preview_channels_many(
                     movers.iter().map(|(_, baseline)| baseline).zip(values),
@@ -290,6 +296,7 @@ impl ManipulationBegin {
 
     fn new(
         axis: WorldAxis,
+        space: MoveSpace,
         movers: Vec<(WorldMoveFrame, ChannelBaseline)>,
         covered_lead: Option<ChannelBaseline>,
         member_count: usize,
@@ -299,6 +306,7 @@ impl ManipulationBegin {
         Self {
             kind: ManipulationKind::Move {
                 axis,
+                space,
                 movers,
                 covered_lead,
             },
@@ -397,13 +405,15 @@ fn refuse_alternate_path_ancestors(
 fn plan_move(
     scene: &NativeScene,
     targets: &[TransformTarget],
+    space: MoveSpace,
     axis: Option<WorldAxis>,
     lead: &TransformTarget,
 ) -> Result<ManipulationBegin, ManipulationError> {
     if let ([target], Some(axis)) = (targets, axis) {
-        let (frame, baseline) = scene.begin_move_translation(target, axis)?;
+        let (frame, baseline) = scene.begin_move_translation_in(target, space, axis)?;
         return Ok(ManipulationBegin::new(
             axis,
+            space,
             vec![(frame, baseline)],
             None,
             1,
@@ -443,7 +453,7 @@ fn plan_move(
     );
     refuse_alternate_path_ancestors(scene, &movers, &selected)?;
     let frames = scene
-        .world_move_frames(&movers, axis)
+        .world_move_frames_in(&movers, space, axis)
         .map_err(|error| match error {
             MoveBeginError::Scene(error) => ManipulationError::Native(error),
             MoveBeginError::Member { index, source } => {
@@ -467,6 +477,7 @@ fn plan_move(
     };
     Ok(ManipulationBegin::new(
         axis.unwrap_or(WorldAxis::X),
+        space,
         frames,
         covered_lead,
         targets.len(),
@@ -525,11 +536,31 @@ impl History {
         provenance: ManipulationProvenance,
         byte_budget: usize,
     ) -> Result<ManipulationId, ManipulationError> {
+        self.begin_move_many_in(
+            targets,
+            MoveSpace::World,
+            axis,
+            scene_token,
+            provenance,
+            byte_budget,
+        )
+    }
+
+    /// `begin_move_many` along the axes of `space`: each member moves along its own.
+    pub fn begin_move_many_in(
+        &mut self,
+        targets: &[TransformTarget],
+        space: MoveSpace,
+        axis: WorldAxis,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
         let lead = targets
             .last()
             .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
         self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
-            plan_move(scene, targets, Some(axis), lead)
+            plan_move(scene, targets, space, Some(axis), lead)
         })
     }
 
@@ -539,18 +570,19 @@ impl History {
     pub fn check_move_axes(
         &self,
         targets: &[TransformTarget],
+        space: MoveSpace,
     ) -> Result<[Option<ManipulationError>; 3], ManipulationError> {
         let lead = targets
             .last()
             .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
-        let plan = plan_move(&self.scene, targets, None, lead)?;
+        let plan = plan_move(&self.scene, targets, space, None, lead)?;
         let ManipulationKind::Move { movers, .. } = &plan.kind else {
             return Ok([None, None, None]);
         };
         Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z].map(|axis| {
             movers.iter().find_map(|(frame, baseline)| {
                 frame
-                    .require_leaves(axis)
+                    .require_leaves_in(space, axis)
                     .err()
                     .map(|error| member_error(&self.scene, baseline.node(), error))
             })

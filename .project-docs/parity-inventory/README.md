@@ -60,11 +60,23 @@ Each family file carries a header with the fields below, filled when it is expan
 
 - Documentation pin: Maya 2027.2 help, with the fetch date per file.
 - Repository SHA at which the Evidence column was checked.
-- Test platform or CI job for each cited test.
+- Test platform or CI job for each cited test, in a `## Test platforms` table at the end of each expanded family file (README rules below).
 - A capability reachable only in a feature-gated build (for example `--features mcp`) is classed Partial at best, carries the tag `feature-gated: <feature>` (for example `feature-gated: mcp`), and its Evidence cell names the build that reaches it and says the default build has no user path.
 - No Maya build, GPU, locale or OCIO is involved (documentation-only). AztecCraft test evidence records its platform or CI job (above).
 - Fixtures: the repository's synthetic fixtures, by path and hash where a row cites one. None for Missing rows.
 - Scope: the documented behaviour of the cited page. Nothing is generalized to other versions, options or Maya runtime behaviour.
+
+### Test platform rules
+
+Every `#[test]` or `#[tokio::test]` cited in an Evidence cell is classified from its `cfg` attributes, the `cfg` on the `mod` declarations above it, the Cargo feature it needs and the `check.yml` step that runs it (job `Check`, matrix `ubuntu-24.04`, `windows-2025`, `macos-15`).
+
+- `Test` step: `cargo test --workspace --locked` with default features. Runs ungated tests on all three systems.
+- `MCP official client and editor tests` step: `cargo test --workspace --locked --features mcp-test-client`. Tests under `src/mcp_tests/` need feature `mcp` (`mod mcp_editor_tests` in `src/app/mod.rs`), and `src/mcp_tests/official_client/` needs `mcp-test-client`, so they run only in this step, on all three systems. This step also re-runs every `Test` step test.
+- `cfg(unix)` means ubuntu-24.04 and macos-15 only; `cfg(windows)` means windows-2025 only; `cfg(any(unix, windows))` covers all three.
+- The `gpu` job (software Vulkan, ubuntu-24.04) runs only `headless_gpu` tests that are `#[ignore]`d elsewhere. A cited test marked `#[ignore]` is not run by any `check.yml` job and is listed as "not run in CI" with its row. The Linux coverage step builds without default features and is not used as evidence.
+- A test name can be an `async fn` helper that a macro instantiates per kind (for example in `vertex_edge.rs`); it is marked and takes its file's platform.
+- A cited name that matches no test is not classified; the audit found two stale citations and corrected them in the same change.
+- Re-run the audit when a family is expanded or its tests move; the table records the repository SHA it was checked at.
 
 ## Measurement rule (PROPOSED, documentation-conformance)
 

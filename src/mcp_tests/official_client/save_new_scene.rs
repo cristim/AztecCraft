@@ -385,6 +385,7 @@ async fn native_sdk_new_scene_save_refuses_session_materials_and_undo_recovers()
     )
     .await;
     assert_eq!(refused["error"]["code"], "save_unwritable");
+    assert_eq!(refused["error"]["reason"], "session_materials");
     assert!(
         refused["error"]["message"]
             .as_str()
@@ -419,6 +420,7 @@ async fn native_sdk_new_scene_save_refuses_session_materials_and_undo_recovers()
     )
     .await;
     assert_eq!(still["error"]["code"], "save_unwritable");
+    assert_eq!(still["error"]["reason"], "session_materials");
     assert!(!refused_path.exists());
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 

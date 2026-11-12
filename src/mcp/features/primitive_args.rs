@@ -5,7 +5,8 @@ use azteccraft::{
     primitive_options::{
         Axis, DEFAULT_AXIS, DEFAULT_AXIS_DIVISIONS, DEFAULT_CUBE_DIVISIONS, DEFAULT_CUBE_SIZE_CM,
         DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
-        DEFAULT_PLANE_SIZE_CM, DEFAULT_RADIUS_CM, DEFAULT_SPHERE_HEIGHT_DIVISIONS, MAX_DIVISIONS,
+        DEFAULT_PLANE_SIZE_CM, DEFAULT_RADIUS_CM, DEFAULT_SECTION_RADIUS_CM,
+        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_TORUS_HEIGHT_DIVISIONS, MAX_DIVISIONS,
         MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS,
         PrimitiveOptions,
     },
@@ -110,6 +111,12 @@ option_structs! {
         subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
         subdivisions_height: u32 = DEFAULT_SPHERE_HEIGHT_DIVISIONS, MIN_SPHERE_HEIGHT_DIVISIONS, MAX_DIVISIONS;
     }
+    TorusOptions => Torus {
+        radius: f64 = DEFAULT_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        section_radius: f64 = DEFAULT_SECTION_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
+        subdivisions_height: u32 = DEFAULT_TORUS_HEIGHT_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
+    }
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -149,6 +156,13 @@ pub(super) enum CreateArgs {
         #[serde(default, deserialize_with = "present")]
         #[schemars(with = "ConeOptions")]
         options: Option<ConeOptions>,
+    },
+    Torus {
+        scene_token: String,
+        name: Option<String>,
+        #[serde(default, deserialize_with = "present")]
+        #[schemars(with = "TorusOptions")]
+        options: Option<TorusOptions>,
     },
 }
 
@@ -244,6 +258,22 @@ impl CreateArgs {
                     axis: o.axis.into(),
                 }),
             ),
+            Self::Torus {
+                scene_token,
+                name,
+                options,
+            } => (
+                scene_token,
+                name,
+                Primitive::Torus,
+                options.map(|o| PrimitiveOptions::Torus {
+                    radius: o.radius,
+                    section_radius: o.section_radius,
+                    sub_axis: o.subdivisions_axis,
+                    sub_height: o.subdivisions_height,
+                    axis: o.axis.into(),
+                }),
+            ),
         };
         if let Some(options) = &options {
             options
@@ -319,6 +349,14 @@ mod tests {
                 scene_token: t(),
                 name: None,
                 options: Some(ConeOptions::default()),
+            },
+        );
+        check(
+            Primitive::Torus,
+            CreateArgs::Torus {
+                scene_token: t(),
+                name: None,
+                options: Some(TorusOptions::default()),
             },
         );
     }

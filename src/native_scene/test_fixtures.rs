@@ -448,23 +448,57 @@ pub(crate) fn many_roots(count: u64) -> NativeScene {
 /// gain one (a leaf binds all three components, so a node lacks all of them or none). Returns the
 /// scene, the complete node and the leafless node.
 pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeId) {
+    binary_cubes_with_bare_rotation(0.0)
+}
+
+/// `binary_cube_and_cube_without_leaf` with the leafless cube rotated about Z by `degrees`, its
+/// rotation retained as a source leaf so the scene stays a valid retained Maya Binary.
+pub(crate) fn binary_cubes_with_bare_rotation(degrees: f64) -> (NativeScene, NodeId, NodeId) {
     use source::{SourceLeaf, Storage};
     let mut scene = NativeScene::default();
     let full = scene.create(Primitive::Cube, "full").unwrap();
     let bare = scene.create(Primitive::Cube, "bare").unwrap();
     let owner = scene.node(full).unwrap().transform_id;
+    let bare_owner = scene.node(bare).unwrap().transform_id;
+    let rotated = degrees != 0.0;
+    if rotated {
+        scene
+            .set_transform(
+                bare,
+                NativeTransform {
+                    rotation: [0.0, 0.0, degrees],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+    }
+    let mut bytes = vec![0u8; 24];
+    let mut records: Vec<std::ops::Range<usize>> = std::iter::once(0..24).collect();
+    let mut leaves = vec![SourceLeaf {
+        payload: 0..24,
+        numeric: 0..24,
+        owner,
+        field: TransformField::Translation,
+        storage: Storage::Centimeters,
+    }];
+    if rotated {
+        let radians = scene.internal_transform(bare).unwrap().rotation_radians;
+        bytes.extend(radians.into_iter().flat_map(f64::to_be_bytes));
+        records.push(24..48);
+        leaves.push(SourceLeaf {
+            payload: 24..48,
+            numeric: 24..48,
+            owner: bare_owner,
+            field: TransformField::Rotation,
+            storage: Storage::Radians,
+        });
+    }
     scene.source = Some(SourceRetention {
         sites: Vec::new(),
-        bytes: vec![0u8; 24].into(),
+        bytes: bytes.into(),
         format: SourceFormat::Binary,
-        records: std::iter::once(0..24).collect(),
-        leaves: vec![SourceLeaf {
-            payload: 0..24,
-            numeric: 0..24,
-            owner,
-            field: TransformField::Translation,
-            storage: Storage::Centimeters,
-        }],
+        records,
+        leaves,
         appearance: None,
         has_removals: false,
     });
@@ -473,6 +507,14 @@ pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeI
         scene.nodes[index].channels[component].origin =
             Some(ScalarOrigin::Binary { leaf: 0, component });
         scene.nodes[index].channels[component].replaced = false;
+    }
+    if rotated {
+        let index = scene.nodes.iter().position(|n| n.id == bare).unwrap();
+        for component in 0..3 {
+            scene.nodes[index].channels[3 + component].origin =
+                Some(ScalarOrigin::Binary { leaf: 1, component });
+            scene.nodes[index].channels[3 + component].replaced = false;
+        }
     }
     scene.validate().unwrap();
     (scene, full, bare)
