@@ -178,6 +178,21 @@ impl Editor {
         }
     }
 
+    /// The refusal a Move of the single object `target` would meet on each of X, Y and Z in the
+    /// Move Axis Orientation; the one place inspection and painting decide it.
+    fn single_move_refusals(
+        &self,
+        target: &TransformTarget,
+    ) -> Result<
+        [Option<azteccraft::native_scene::NativeError>; 3],
+        azteccraft::native_scene::NativeError,
+    > {
+        let space = self.manipulation.move_space();
+        let frame = self.history.scene().world_move_frame(target)?;
+        Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .map(|axis| frame.require_leaves_in(space, axis).err()))
+    }
+
     /// The unit world directions of the Move handles' X, Y and Z in the Move Axis Orientation,
     /// taken from the lead's frame; World needs no frame.
     pub(in crate::app) fn move_handle_directions(
@@ -467,23 +482,12 @@ impl Editor {
             Err(error) => Err(error.to_string()),
             // One object: its own frame decides, as before.
             Ok(target) if self.selection.len() <= 1 => self
-                .history
-                .scene()
-                .world_move_frame(target)
+                .single_move_refusals(target)
                 .map_err(|error| error.to_string())
-                .map(|frame| {
-                    [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+                .map(|refusals| {
+                    axis_names
                         .into_iter()
-                        .zip(axis_names)
-                        .map(|(axis, name)| {
-                            (
-                                name,
-                                frame
-                                    .require_leaves_in(self.manipulation.move_space(), axis)
-                                    .err()
-                                    .map(|e| e.to_string()),
-                            )
-                        })
+                        .zip(refusals.map(|error| error.map(|e| e.to_string())))
                         .collect()
                 }),
             // Several: every member decides, a covered lead included.
@@ -1098,18 +1102,11 @@ impl Editor {
             let target = self.selected_move_lead()?;
             let origin = self.move_handle_origin(&target)?;
             if self.selection.len() <= 1 {
-                let frame = self
-                    .history
-                    .scene()
-                    .world_move_frame(&target)
-                    .map_err(OperationError::Scene)?;
-                let mut refusals: Vec<_> = [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+                let mut refusals: Vec<_> = self
+                    .single_move_refusals(&target)
+                    .map_err(OperationError::Scene)?
                     .into_iter()
-                    .filter_map(|axis| {
-                        frame
-                            .require_leaves_in(self.manipulation.move_space(), axis)
-                            .err()
-                    })
+                    .flatten()
                     .collect();
                 if refusals.len() == 3 {
                     return Err(OperationError::Scene(refusals.swap_remove(0)));
