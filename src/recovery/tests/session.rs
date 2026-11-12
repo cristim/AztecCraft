@@ -46,7 +46,20 @@ fn stale_marker_for_our_pid_is_taken_over_and_reported() {
     assert_eq!(store.crashed_sessions().unwrap(), vec![4242]);
     let guard = store.begin_session().unwrap();
     assert!(guard.replaced_stale_marker);
+    // The earlier crash stays visible until acknowledged; the live marker is never probed.
+    assert_eq!(store.crashed_sessions().unwrap(), vec![4242]);
+    store.clear_crashed_session(4242).unwrap();
     assert!(store.crashed_sessions().unwrap().is_empty());
+    assert!(matches!(
+        store.clear_crashed_session(4242),
+        Err(RecoveryError::Contended)
+    ));
+    assert!(store.dir().join("session-4242.marker").exists());
+    drop(guard);
+    assert!(
+        store.begin_session().is_ok(),
+        "a dropped guard frees the session slot"
+    );
 }
 
 #[test]
@@ -110,4 +123,28 @@ fn invalid_pid_has_its_own_error() {
         RecoveryStore::new("x", 1, 0),
         Err(RecoveryError::InvalidPid)
     ));
+}
+
+#[test]
+fn takeover_report_is_cleared_after_the_guard_ends() {
+    let (_tmp, store) = store(10);
+    fs::create_dir_all(store.dir()).unwrap();
+    fs::write(store.dir().join("session-4242.marker"), b"").unwrap();
+    let guard = store.begin_session().unwrap();
+    guard.end().unwrap();
+    assert_eq!(store.crashed_sessions().unwrap(), vec![4242]);
+    store.clear_crashed_session(4242).unwrap();
+    assert!(store.crashed_sessions().unwrap().is_empty());
+}
+
+#[test]
+fn debug_output_omits_directory_stems_and_marker_path() {
+    let (_tmp, store) = store(10);
+    store.write("secret-stem", b"x").unwrap();
+    let guard = store.begin_session().unwrap();
+    let shown = format!("{store:?} {guard:?}");
+    assert!(
+        !shown.contains("secret-stem") && !shown.contains("recovery"),
+        "{shown}"
+    );
 }
