@@ -354,3 +354,6 @@ fn resolve(base: &str, taken: &mut HashSet<String>) -> Result<String, NativeErro
     taken.insert(name.clone());
     Ok(name)
 }
+
+#[cfg(test)]
+mod tests;
