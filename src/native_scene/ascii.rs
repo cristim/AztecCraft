@@ -1,7 +1,7 @@
 use super::{
     DagEdge, GeometryViewFacts, NativeCurveShape, NativeError, NativeId, NativeMesh,
     NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar, TransformExtras,
-    Units,
+    Units, UvSet,
     admission::Budget,
     authored::BUILTINS,
     curve::CurveSource,
@@ -1105,6 +1105,15 @@ pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, 
 }
 
 fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiError> {
+    decode_with_uvs(source, meshes).map(|(scene, _)| scene)
+}
+
+/// The sourced scene plus each shape's UV set (parallel to its shapes). A sourced scene cannot
+/// hold UVs, so the caller attaches them to the source-free candidate.
+fn decode_with_uvs(
+    source: Arc<[u8]>,
+    meshes: bool,
+) -> Result<(NativeScene, Vec<Option<UvSet>>), AsciiError> {
     let lex::Records {
         source,
         statements,
@@ -1200,9 +1209,9 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     if !builder.units {
         return Err(error(ErrorKind::Unsupported, 0));
     }
-    builder.finish_meshes()?;
+    let uvs = builder.finish_meshes()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
-    NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
+    let scene = NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
         NativeError::ResourceLimit => resource(),
         NativeError::UnsupportedView(_) => AsciiError {
             kind: ErrorKind::Unsupported,
@@ -1212,7 +1221,8 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
             kind: ErrorKind::Malformed,
             offset: None,
         },
-    })
+    })?;
+    Ok((scene, uvs))
 }
 
 mod document;
