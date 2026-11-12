@@ -436,15 +436,28 @@ fn check_move_axes_reports_a_missing_leaf_per_axis_exactly_as_begin_does() {
 
 #[test]
 fn check_move_axes_in_object_space_agrees_with_an_object_begin() {
-    let (scene, full, bare) = test_fixtures::binary_cube_and_cube_without_leaf();
+    let (scene, full, bare) = test_fixtures::binary_cubes_with_bare_rotation(90.0);
     let history = History::new(scene.clone());
     let targets = [target_of(&history, bare), target_of(&history, full)];
     let world = history.check_move_axes(&targets, MoveSpace::World).unwrap();
     let object = history
         .check_move_axes(&targets, MoveSpace::Object)
         .unwrap();
-    // Unrotated, Object axes equal World axes; a retained binary source cannot carry a rotation.
-    assert_eq!(world, object);
+    // Every translate leaf of the rotated cube is absent, so each axis is refused at the first
+    // component its direction touches: World Y needs translateY (1), but Object Y is world -X
+    // (plus rounding noise in Y) and is refused at translateX (0).
+    let component = |checked: &Option<ManipulationError>| match checked {
+        Some(ManipulationError::Member { source, .. }) => match **source {
+            NativeError::AbsentChannelLeaf { component, .. } => Some(component),
+            _ => None,
+        },
+        _ => None,
+    };
+    assert_eq!(world.each_ref().map(component), [Some(0), Some(1), Some(2)]);
+    assert_eq!(
+        object.each_ref().map(component),
+        [Some(0), Some(0), Some(2)]
+    );
     for (axis, checked) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
         .into_iter()
         .zip(object)
