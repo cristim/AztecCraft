@@ -477,12 +477,15 @@ evidence; the Save/material-parent union has its own focused SDK/UI/GPU and
 normal-hook checks. Later selected-parent composition, its CI and native preview
 remain separate gates. Native text-commit refusal was not exercised, and no exact
 visual or functional parity is claimed.
-Curve segments are f32 offsets from an f64 origin and the renderer subtracts the f64 eye,
-so a small curve far from the origin is no longer refused for f32 grid coarseness (it is
-refused only when the f64 grid exceeds about 1% of the curve). Core and CPU submission
-tests cover this; the in-app visual check of a far-origin curve is pending. The f32
-camera target and non-curve geometry are still world-space f32, so framing and picking
-a far curve are only as precise as the f32 grid.
+Curve segments are f32 offsets from an f64 origin and the renderer subtracts the f64 eye, so
+a small curve far from the origin is no longer refused for the f32 grid of its segments.
+The camera target and eye and all non-curve overlays are still world-space f32, so a curve
+is refused (Open fails) once the f32 grid at its coordinates exceeds a tenth of its size
+(an ~8.8cm curve: drawn at x=5e6cm, refused at 1e7cm), a deliberate loud limit instead of
+an off-screen curve (decided by claude-optimizer; the alternative is an f64 camera). Within
+it, curve and overlay positions agree within one f32 grid step; framing and orbit hold,
+but pan and dolly of a curve near the limit are coarse (they move in f32 grid steps). Core and CPU submission
+tests cover this; the in-app visual check of a far-origin curve is pending.
 [Development notes](.project-docs/development.md#read-only-static-cubic-maya-ascii)
 record the supported class, limits and explicitly invoked genuine consumer.
 

@@ -133,9 +133,9 @@ fn actual_f32_endpoint_quantization_cannot_spend_extra_error() {
         [1.0, 0.0, 0.0],
     ];
     let source = scene(points);
-    let world = DMat4::from_translation(DVec3::new(1e8, 0.0, 0.0));
+    let world = DMat4::from_translation(DVec3::new(5e5, 0.0, 0.0));
     assert_bound(points, world, &prepared(points, world));
-    let world = DMat4::from_translation(DVec3::new(1e15, 0.0, 0.0));
+    let world = DMat4::from_translation(DVec3::new(1e8, 0.0, 0.0));
     assert!(matches!(
         prepare(
             &source.curves()[0],
@@ -153,10 +153,20 @@ fn actual_f32_endpoint_quantization_cannot_spend_extra_error() {
         [2e-9, 0.0, 0.0],
         [3e-9, 0.0, 0.0],
     ];
+    // At x = 1 the f32 camera grid (1.2e-7) dwarfs a 3e-9 curve, so it is refused.
     let world = DMat4::from_translation(DVec3::X);
+    assert!(matches!(
+        prepare(
+            &scene(tiny).curves()[0],
+            &world,
+            usize::MAX,
+            &mut CurveWork::default()
+        ),
+        Err(ViewError::NonFiniteWorld)
+    ));
+    let world = DMat4::from_translation(DVec3::splat(1e-6));
     let result = prepared(tiny, world);
     assert_eq!(result.segments.len(), 1);
-    // Offsets from the f64 origin keep the 3e-9 span that f32 world coordinates at x = 1 lost.
     assert!((result.segments[0][1] - result.segments[0][0]).length() > 2e-9);
     assert_bound(tiny, world, &result);
 }
@@ -269,9 +279,9 @@ fn real_many_span_curve_accepts_65536_segments_and_refuses_65537() {
 }
 
 #[test]
-fn small_curve_far_from_origin_is_drawn_until_f64_grid_exceeds_one_percent_of_curve() {
+fn small_curve_far_from_origin_is_drawn_until_f32_camera_grid_exceeds_a_tenth_of_curve() {
     // ~3.6 cm specimen (CV hull diagonal ~8.8 cm). With f32 world segments it was drawn at
-    // x = 2e6 and refused at x = 3e6; offsets from an f64 origin keep it exact.
+    // x = 2e6 and refused at x = 3e6; offsets from an f64 origin keep it exact up to the f32 camera limit below.
     let points = [
         [0.0, 0.0, 0.0],
         [1.0, 2.0, 3.0],
@@ -288,15 +298,7 @@ fn small_curve_far_from_origin_is_drawn_until_f64_grid_exceeds_one_percent_of_cu
             &mut CurveWork::default(),
         )
     };
-    for x in [
-        2000.3,
-        1e6,
-        3e6,
-        3e6 + 0.37,
-        1e7 + 0.37,
-        1e8 + 0.37,
-        -1e9 + 0.37,
-    ] {
+    for x in [2000.3, 1e6, 3e6, 3e6 + 0.37, 5e6, -5e6 + 0.37] {
         let world = DMat4::from_translation(DVec3::new(x, 0.0, 0.0));
         let result = run(x).unwrap();
         assert!(result.segments.len() > 1, "{x}");
@@ -308,8 +310,18 @@ fn small_curve_far_from_origin_is_drawn_until_f64_grid_exceeds_one_percent_of_cu
             );
         }
     }
-    // The f64 grid at 1e15 cm is 0.125 cm: coarser than 1% of the 8.8 cm curve.
-    for x in [1e15, 1e15 + 0.37] {
+    // The f32 camera cannot frame or orbit a curve once its grid is coarser than a tenth of
+    // the curve (the 8.8 cm curve: 1e7 and beyond), so it is refused instead of drawn off-screen.
+    for x in [
+        1e7 + 0.37,
+        1e8 + 0.37,
+        -1e9 + 0.37,
+        1e9,
+        1e10,
+        1e12,
+        1e15,
+        1e15 + 0.37,
+    ] {
         assert!(matches!(run(x), Err(ViewError::NonFiniteWorld)), "{x}");
     }
     let non_finite = DMat4::from_translation(DVec3::new(f64::NAN, 0.0, 0.0));

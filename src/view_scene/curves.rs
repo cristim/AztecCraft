@@ -6,6 +6,9 @@ use std::mem::size_of;
 const MAX_SEGMENTS: usize = 65_536;
 const MAX_DEPTH: usize = 24;
 const MAX_WORK: usize = 1_000_000;
+/// Largest f32 grid at a curve's coordinates, as a fraction of its size, that the f32 camera can
+/// still frame and that overlays still agree with the curve within.
+const CAMERA_GRID_FRACTION: f64 = 0.1;
 
 #[derive(Default)]
 pub(super) struct CurveWork(usize);
@@ -56,13 +59,16 @@ pub(super) fn prepare(
     }
     let diagonal = scalar(squared(point(bounds[1] - bounds[0])?)?.sqrt())?;
     let magnitude = bounds[0].abs().max(bounds[1].abs()).max_element();
-    // Segments are f32 offsets from this f64 origin, so only the f64 grid at the curve's
-    // coordinates limits it. A grid coarser than a hundredth of the curve is refused instead
-    // of drawn as noise; a single-point curve has no shape to distort.
-    let grid = scalar(magnitude * f64::EPSILON)?;
-    if diagonal > 0.0 && grid > scalar(diagonal * 0.01)? {
+    // Segments are f32 offsets from an f64 origin, but the camera target and eye, and every
+    // non-curve overlay, are still world-space f32. Past a grid of CAMERA_GRID_FRACTION of the
+    // curve the camera cannot frame or orbit it and overlays drift from it by more than that,
+    // so the curve is refused loudly instead of drawn off-screen. A single-point curve has no
+    // shape to distort.
+    let camera_grid = scalar(magnitude * f64::from(f32::EPSILON))?;
+    if diagonal > 0.0 && camera_grid > scalar(diagonal * CAMERA_GRID_FRACTION)? {
         return Err(ViewError::NonFiniteWorld);
     }
+    let grid = scalar(magnitude * f64::EPSILON)?;
     let origin = point(point(bounds[0] * 0.5)? + point(bounds[1] * 0.5)?)?;
     // f32 endpoint rounding of an offset costs up to diagonal * f32::EPSILON (covering the
     // 3-axis norm of the half-diagonal) on top of the f64 grid.

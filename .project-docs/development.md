@@ -450,8 +450,9 @@ f32 offset allowance diagonal*f32::EPSILON plus the f64 grid at the curve's
 coordinates, not a Maya tessellation constant. Segments are f32 offsets from an f64
 origin (the bounds centre) and the renderer subtracts the f64 eye, so distance from
 the world origin does not cost precision. Error checks include actual emitted f32
-endpoints. A curve whose f64 grid is coarser than about 1% of its size is refused and
-Open fails, never drawn as noise. Unrepresentable or over-tolerance conversion refuses instead of
+endpoints. The camera and non-curve overlays stay f32, so a curve whose f32 grid at its
+coordinates exceeds a tenth of its size is refused and Open fails, never drawn
+off-screen or as noise. Unrepresentable or over-tolerance conversion refuses instead of
 relaxing the bound. Candidate-validation refusals that name an unsupported view
 fact (today only repeated interior knots are reachable from ASCII) report
 Unsupported rather than Malformed; structural errors stay Malformed.

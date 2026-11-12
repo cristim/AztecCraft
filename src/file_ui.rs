@@ -2123,7 +2123,7 @@ mod tests {
         let path = directory.path().join("bad.ma");
         let source = String::from_utf8(ascii_fixture::specimen())
             .unwrap()
-            .replace("12 0 0", "100000000 0 0");
+            .replace("12 0 0", "100000000000000000000 0 0");
         std::fs::write(&path, &source).unwrap();
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
@@ -2141,7 +2141,11 @@ mod tests {
         let selected = (editor.selected(), editor.selected_path().to_vec());
         let fields = (editor.name.clone(), editor.channels.clone());
         let token = editor.scene_token;
-        assert!(editor.open_candidate(&path).is_err());
+        let error = editor.open_candidate(&path).unwrap_err();
+        assert!(
+            format!("{error:?}").contains("world geometry cannot be represented"),
+            "{error:?}"
+        );
         assert_eq!(editor.history.scene(), &before);
         assert_eq!(editor.camera, camera);
         assert_eq!(
