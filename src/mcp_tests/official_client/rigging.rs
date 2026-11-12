@@ -270,25 +270,29 @@ async fn sdk_save_refuses_a_scene_holding_joints() {
         json!({"scene_token":token}),
     )
     .await;
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("joints.mb");
-    let result = call(
-        &mut editor,
-        &context,
-        client.peer(),
-        "save_scene_as",
-        json!({"scene_token":token,"path":path}),
-    )
-    .await;
-    assert_eq!(error_code(&result), "save_unwritable");
-    assert!(
-        result.structured_content.as_ref().unwrap()["error"]["message"]
-            .as_str()
-            .unwrap()
-            .contains("joints")
-    );
-    assert!(editor.is_dirty() && editor.history.can_undo());
-    assert!(!path.exists());
+    // Unix writes a new .mb; Windows cannot write an Untitled scene at all (`save_unsupported`).
+    #[cfg(unix)]
+    {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("joints.mb");
+        let result = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "save_scene_as",
+            json!({"scene_token":token,"path":path}),
+        )
+        .await;
+        assert_eq!(error_code(&result), "save_unwritable");
+        assert!(
+            result.structured_content.as_ref().unwrap()["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("joints")
+        );
+        assert!(editor.is_dirty() && editor.history.can_undo());
+        assert!(!path.exists());
+    }
     assert_eq!(
         editor.history.scene().supported_view().err(),
         Some(NativeError::UnsupportedView("joints in legacy mesh view"))
