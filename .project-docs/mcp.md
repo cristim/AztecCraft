@@ -1,6 +1,6 @@
 # Native editor MCP
 
-The optional MCP server controls the new native Editor window launched by its client. Tools use that window's canonical native scene, history, selection and camera. It cannot attach to an already running instance. This candidate exposes twenty tools; it does not establish Maya scripting, plug-in or full-functionality compatibility.
+The optional MCP server controls the new native Editor window launched by its client. Tools use that window's canonical native scene, history, selection, camera and viewport grid setting. It cannot attach to an already running instance. This candidate exposes twenty-one tools; it does not establish Maya scripting, plug-in or full-functionality compatibility.
 
 The Save integration in this working branch is provisional. Its ordinary vendored
 atomic engine and document adapter have separate consumer checks. Current
@@ -51,6 +51,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `undo` | None | Changed or unchanged history state |
 | `redo` | None | Changed or unchanged history state |
 | `frame_selected` | None | Changed or unchanged camera; requires selection |
+| `set_grid_visibility` | `visible`: required boolean | Changed or unchanged grid visibility in this window's viewport |
 | `orbit_camera` | `radians`: two finite numbers, yaw and pitch deltas | Changed or unchanged camera; pitch clamps near the poles |
 | `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
@@ -96,7 +97,21 @@ checked History command.
 
 Successful tool results provide `structuredContent` and equivalent text content. Authoring outcomes are `scene`, `created`, `changed` or `unchanged`; file lifecycle outcomes are `document_applied`, `pending_confirmation`, `cancelled`, `close_requested`, `saved`, `save_uncertain` and `save_reconciled`. A scene result nests fields under `inspection`; a created result includes `node_id`. Authoring mutations share native undo history. Selection and camera operations do not create authoring undo entries or mark the document dirty. Navigation arguments use camera units, not pointer pixels. Invalid resulting camera ranges return `camera_error` without changing the camera; finite JSON numbers outside the camera's f32 range are also rejected by camera validation.
 
-Example tool arguments after inspection:
+`set_grid_visibility` requires an explicit JSON boolean and the current scene
+token. Missing, null, string, numeric and unknown fields refuse; there is no
+remote toggle or inferred value. Repeating the same value returns unchanged.
+Inspection reports authoritative `grid_visible` even without a GPU, independently
+of `viewport_error`, `depth_complete` and `clipping_complete`. The setting starts
+true, survives successful or canceled New/Open, and belongs to this viewport's
+session. It does not edit NativeScene, create an undo entry, clear redo, mark the
+document dirty or change its token. Native clicks may first commit a valid human
+draft; remote setters reject drafts through the ordinary shared guards.
+
+The fixed XZ grid retains its existing extent, spacing and colors. Grid settings,
+global or additional panels, persistence and a default shortcut are unsupported.
+This scope does not establish Maya grid appearance or behavior parity.
+
+Example create arguments after inspection:
 
 ```json
 {
@@ -167,9 +182,11 @@ submission clears a recoverable category; it cannot clear a terminal failure.
 Rendering remains an opaque flat geometry preview. Materials, transparency,
 normal shading, textures and the document color-management transform are not
 implemented; `appearance_incomplete` and the persistent viewport HUD retain that
-limitation. Remote camera/selection edits appear in the next fresh native frame,
-after the current immutable callback snapshot. No renderer setting tool or CPU
-fallback is advertised.
+limitation. Remote camera/selection/grid changes appear in the next fresh native
+frame, after the current immutable callback snapshot. Hiding the grid leaves
+surfaces, object edges, picking and camera unchanged. Empty hidden-grid frames
+retain the viewport background without uploading or drawing an empty vertex
+buffer. There is no CPU fallback.
 
 Remote mutations return `busy_editing` while a native text field is focused, a differing draft exists, or a modal dialog is open. This includes valid uncommitted drafts. They do not commit unrelated human edits. `resolve_file_action` is the sole modal exception; text focus, drafts, pending native input and scene-token checks still apply. Inspection remains available and reports these states without returning draft text. Native inputs are processed before queued remote requests at the end of each UI frame, and remote changes request repaint.
 
@@ -223,6 +240,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |
 | Core mesh extrusion | `extrude_face` exposes the checked single-quad History command with an explicit current face target; component selection and native face-extrusion UI remain pending |
 | Interactive camera orbit/pan/dolly | Three navigation tools use the same typed operations as native captured gestures; live camera state is inspectable |
+| Viewport Grid visibility | `set_grid_visibility` shares the checkable native Grid button's typed setter; `grid_visible` exposes the authoritative session state. Fixed grid only; options, global/additional panels and persistence are unsupported |
 | GPU geometry viewport | `inspect_scene` exposes live backend/error/depth/clipping/appearance state; camera and object selection share the native frame consumer. Materials and complete appearance remain unsupported |
 
 Initial catch-up remains incomplete while these implemented capabilities lack their reviewed MCP support. Full Maya parity remains a separate unmet objective.

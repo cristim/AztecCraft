@@ -31,6 +31,7 @@ pub struct Editor {
     selected: Option<NodeId>,
     selected_path: Vec<NativeId>,
     camera: Camera,
+    grid_visible: bool,
     renderer: Option<crate::viewport_renderer::ViewportRenderer>,
     viewport_error: Option<crate::viewport_renderer::ViewportError>,
     name: String,
@@ -54,6 +55,7 @@ impl Default for Editor {
             selected: None,
             selected_path: Vec::new(),
             camera: Camera::default(),
+            grid_visible: true,
             renderer: None,
             viewport_error: None,
             name: String::new(),
@@ -154,7 +156,9 @@ impl Editor {
 
     fn native_operation(&mut self, operation: Operation) {
         let status = match operation {
-            Operation::Select { .. } | Operation::FrameSelected => None,
+            Operation::Select { .. }
+            | Operation::FrameSelected
+            | Operation::SetGridVisible { .. } => None,
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => None,
             Operation::Undo => Some("Undo"),
             Operation::Redo => Some("Redo"),
@@ -377,6 +381,7 @@ impl Editor {
                 "uninitialized"
             },
             viewport_error,
+            grid_visible: self.grid_visible,
             depth_complete: gpu_healthy,
             clipping_complete: gpu_healthy,
             appearance_incomplete: self.history.scene().appearance_incomplete(),
@@ -452,6 +457,9 @@ impl Editor {
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
         }
+        if matches!(operation, Operation::SetGridVisible { .. }) && self.files.is_modal() {
+            return Err(OperationError::BusyEditing);
+        }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
                 let text = path.to_str().ok_or_else(|| {
@@ -505,6 +513,15 @@ impl Editor {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
         let command = match operation {
+            Operation::SetGridVisible { visible } => {
+                let changed = self.grid_visible != visible;
+                self.grid_visible = visible;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
             Operation::Create { primitive, name } => {
                 let name = name.unwrap_or_else(|| {
                     let base = match primitive {
@@ -1240,8 +1257,16 @@ impl Editor {
     }
 
     fn viewport(&mut self, ui: &mut egui::Ui, frame_token: Uuid) {
+        let mut grid_requested = false;
         ui.horizontal(|ui| {
             ui.label("persp");
+            ui.separator();
+            grid_requested = ui
+                .add_enabled(
+                    !self.files.is_modal() && !self.files.is_closing(),
+                    egui::Button::new("Grid").selected(self.grid_visible),
+                )
+                .clicked();
             ui.separator();
             ui.weak("Alt + left: orbit | Middle: pan | Right / wheel: dolly");
         });
@@ -1250,6 +1275,11 @@ impl Editor {
             self.aspect = input.aspect();
         }
         self.file_modal(ui.ctx());
+        if grid_requested && self.scene_token == frame_token {
+            self.native_operation(Operation::SetGridVisible {
+                visible: !self.grid_visible,
+            });
+        }
         let result = (|| -> Result<(), OperationError> {
             let Some(mut input) = captured.map_err(|error| {
                 self.viewport_error = Some(crate::viewport_renderer::ViewportError::CameraInput);
@@ -1306,6 +1336,7 @@ impl Editor {
                 &self.camera,
                 &view,
                 self.selected.map(|_| self.selected_path.as_slice()),
+                self.grid_visible,
             );
             self.viewport_error = painted.as_ref().err().map(|error| error.category());
             match painted {
@@ -1518,6 +1549,149 @@ mod tests {
     }
 
     #[test]
+    fn grid_setter_is_idempotent_and_preserves_scene_history_and_editor_baseline() {
+        let mut editor = Editor::default();
+        assert!(editor.grid_visible);
+        editor.create(Primitive::Cube);
+        let id = editor.selected.unwrap();
+        remote(
+            &mut editor,
+            Operation::Rename {
+                id,
+                name: "renamed".into(),
+            },
+        )
+        .unwrap();
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert!(editor.history.can_redo());
+        let scene = editor.history.scene().clone();
+        let before = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        let fields = (editor.name.clone(), editor.channels.clone());
+        let status = (editor.status.clone(), editor.error);
+        for (visible, changed) in [(true, false), (false, true), (false, false), (true, true)] {
+            let reply = remote(&mut editor, Operation::SetGridVisible { visible }).unwrap();
+            assert_eq!(matches!(reply, OperationReply::Changed), changed);
+            assert_eq!(matches!(reply, OperationReply::Unchanged), !changed);
+            let mut actual = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+            assert_eq!(actual["grid_visible"], visible);
+            actual["grid_visible"] = serde_json::Value::Bool(true);
+            assert_eq!(actual, before);
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!((editor.name.clone(), editor.channels.clone()), fields);
+            assert_eq!((editor.status.clone(), editor.error), status);
+        }
+    }
+
+    #[test]
+    fn grid_native_draft_policy_and_remote_draft_refusal_share_the_typed_setter() {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let scene = editor.history.scene().clone();
+        editor.channels[0] = "invalid".into();
+        assert!(matches!(
+            editor.apply_operation(Operation::SetGridVisible { visible: false }),
+            Err(OperationError::InvalidInput(_))
+        ));
+        assert!(editor.grid_visible);
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.channels[0], "invalid");
+        for draft in ["2", "invalid"] {
+            editor.channels[0] = draft.into();
+            assert!(matches!(
+                remote(&mut editor, Operation::SetGridVisible { visible: false }),
+                Err(OperationError::BusyEditing)
+            ));
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.channels[0], draft);
+            assert!(editor.grid_visible);
+        }
+        editor.channels[0] = "2".into();
+        editor.native_operation(Operation::SetGridVisible { visible: false });
+        assert!(!editor.grid_visible);
+        assert!(!editor.has_draft());
+        assert_eq!(
+            editor.history.scene().nodes()[0].transform().translation[0],
+            2.0
+        );
+        editor.history_step(false);
+        assert_eq!(editor.history.scene(), &scene);
+        assert!(!editor.grid_visible);
+    }
+
+    #[test]
+    fn grid_native_modal_and_close_refuse_before_committing_drafts() {
+        for closing in [false, true] {
+            let mut editor = Editor::default();
+            if closing {
+                editor.close_document().unwrap();
+            } else {
+                editor.create(Primitive::Cube);
+                editor.new_document().unwrap();
+            }
+            editor.name = "pending draft".into();
+            let before = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+            let scene = editor.history.scene().clone();
+            assert!(matches!(
+                editor.apply_operation(Operation::SetGridVisible { visible: false }),
+                Err(OperationError::BusyEditing)
+            ));
+            assert_eq!(
+                serde_json::to_value(editor.inspect(false).unwrap()).unwrap(),
+                before
+            );
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.name, "pending draft");
+        }
+    }
+
+    #[test]
+    fn grid_session_setting_survives_successful_and_canceled_new_and_open() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("empty.aztec");
+        azteccraft::document::save_new(&path, &azteccraft::scene::Scene::default()).unwrap();
+        let mut editor = Editor::default();
+        remote(&mut editor, Operation::SetGridVisible { visible: false }).unwrap();
+        for open in [false, true] {
+            let operation = if open {
+                Operation::OpenScene { path: path.clone() }
+            } else {
+                Operation::NewScene
+            };
+            assert!(matches!(
+                remote(&mut editor, operation).unwrap(),
+                OperationReply::DocumentApplied { .. }
+            ));
+            assert!(!editor.grid_visible);
+            editor.create(Primitive::Cube);
+            let scene = editor.history.scene().clone();
+            let token = editor.scene_token;
+            let operation = if open {
+                Operation::OpenScene { path: path.clone() }
+            } else {
+                Operation::NewScene
+            };
+            let OperationReply::PendingConfirmation {
+                pending_action_id, ..
+            } = remote(&mut editor, operation).unwrap()
+            else {
+                panic!("expected unsaved confirmation");
+            };
+            remote(
+                &mut editor,
+                Operation::ResolveFileAction {
+                    pending_id: Uuid::parse_str(&pending_action_id).unwrap(),
+                    decision: crate::editor_operations::FileDecision::Cancel,
+                },
+            )
+            .unwrap();
+            assert!(!editor.grid_visible);
+            assert_eq!(editor.scene_token, token);
+            assert_eq!(editor.history.scene(), &scene);
+            editor.history_step(false);
+        }
+    }
+
+    #[test]
     fn sparse_nonfinite_intents_preserve_scene_fields_and_redo() {
         let mut editor = Editor::default();
         editor.create(Primitive::Cube);
@@ -1558,7 +1732,7 @@ mod tests {
     #[test]
     fn remote_operations_share_native_scene_selection_history_and_camera() {
         let mut editor = Editor::default();
-        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 20);
+        assert_eq!(crate::editor_operations::TOOL_NAMES.len(), 21);
         let OperationReply::Created { node_id } = remote(
             &mut editor,
             Operation::Create {
@@ -1979,6 +2153,67 @@ mod tests {
         assert_eq!(editor.history.scene().node(id).unwrap().name(), "pCube1");
         editor.history_step(false);
         assert!(editor.history.scene().nodes().is_empty());
+    }
+
+    #[test]
+    fn real_grid_button_dispatches_current_state_and_disables_for_modal_and_close() {
+        for blocked in [0, 1, 2] {
+            let context = egui::Context::default();
+            let mut editor = Editor {
+                renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
+                ..Editor::default()
+            };
+            if blocked == 1 {
+                editor.create(Primitive::Cube);
+                editor.new_document().unwrap();
+            } else if blocked == 2 {
+                editor.close_document().unwrap();
+            }
+            let scene = editor.history.scene().clone();
+            let token = editor.scene_token;
+            let mut position = None;
+            let mut run = |editor: &mut Editor, events| {
+                let mut output = context.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(720.0, 480.0),
+                        )),
+                        events,
+                        ..Default::default()
+                    },
+                    |ui| editor.viewport(ui, token),
+                );
+                for shape in &output.shapes {
+                    if let egui::Shape::Text(text) = &shape.shape
+                        && text.galley.job.text == "Grid"
+                    {
+                        position = Some(text.pos + text.galley.size() * 0.5);
+                    }
+                }
+                output.textures_delta.clear();
+                position
+            };
+            let point = run(&mut editor, vec![]).unwrap();
+            for expected in [blocked != 0, true] {
+                run(&mut editor, vec![egui::Event::PointerMoved(point)]);
+                for pressed in [true, false] {
+                    run(
+                        &mut editor,
+                        vec![egui::Event::PointerButton {
+                            pos: point,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        }],
+                    );
+                }
+                assert_eq!(editor.grid_visible, expected);
+                assert_eq!(editor.inspect(false).unwrap().grid_visible, expected);
+                assert_eq!(editor.scene_token, token);
+                assert_eq!(editor.history.scene(), &scene);
+            }
+        }
     }
 
     #[test]

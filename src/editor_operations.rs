@@ -57,7 +57,7 @@ pub const MAX_NAME_BYTES: usize = 4096;
 pub const MAX_RESULT_BYTES: usize = 512 * 1024;
 
 #[cfg(any(test, feature = "mcp"))]
-pub const TOOL_NAMES: [&str; 20] = [
+pub const TOOL_NAMES: [&str; 21] = [
     "inspect_scene",
     "create_primitive",
     "select_node",
@@ -69,6 +69,7 @@ pub const TOOL_NAMES: [&str; 20] = [
     "undo",
     "redo",
     "frame_selected",
+    "set_grid_visibility",
     "orbit_camera",
     "pan_camera",
     "dolly_camera",
@@ -131,6 +132,9 @@ pub enum Operation {
     Undo,
     Redo,
     FrameSelected,
+    SetGridVisible {
+        visible: bool,
+    },
     Orbit {
         radians: [f32; 2],
     },
@@ -201,6 +205,7 @@ pub struct SceneInspection {
     pub closing: bool,
     pub viewport_backend: &'static str,
     pub viewport_error: Option<crate::viewport_renderer::ViewportError>,
+    pub grid_visible: bool,
     pub depth_complete: bool,
     pub clipping_complete: bool,
     pub appearance_incomplete: bool,

@@ -159,6 +159,7 @@ impl ViewportRenderer {
         camera: &Camera,
         rect: Rect,
         selected_path: Option<&[NativeId]>,
+        grid_visible: bool,
     ) -> Result<egui::epaint::PaintCallback, RenderError> {
         if let Some(error) = self.terminal_error() {
             return Err(RenderError::Backend(error));
@@ -171,6 +172,7 @@ impl ViewportRenderer {
             camera,
             rect.width() / rect.height(),
             selected_path,
+            grid_visible,
             self.format,
             self.max_buffer_size,
         )?;
@@ -201,6 +203,7 @@ impl Submission {
         camera: &Camera,
         aspect: f32,
         selected_path: Option<&[NativeId]>,
+        grid_visible: bool,
         format: wgpu::TextureFormat,
         max_buffer_size: u64,
     ) -> Result<Self, RenderError> {
@@ -208,7 +211,7 @@ impl Submission {
             .projection_matrix(aspect)
             .map_err(RenderError::Camera)?
             * camera.view_matrix();
-        let mut vertices = 84_usize;
+        let mut vertices = if grid_visible { 84_usize } else { 0 };
         for instance in scene.instances() {
             for face in instance.faces() {
                 let surface_count = face.triangles().count() * 3;
@@ -262,16 +265,18 @@ impl Submission {
             }
         }
         let surface_end = submission.vertex_count();
-        for index in -10..=10 {
-            let coordinate = index as f32;
-            let color = Color32::from_gray(if index == 0 { 85 } else { 48 });
-            for point in [
-                Vec3::new(coordinate, 0.0, -10.0),
-                Vec3::new(coordinate, 0.0, 10.0),
-                Vec3::new(-10.0, 0.0, coordinate),
-                Vec3::new(10.0, 0.0, coordinate),
-            ] {
-                submission.vertex(matrix, point, color, format)?;
+        if grid_visible {
+            for index in -10..=10 {
+                let coordinate = index as f32;
+                let color = Color32::from_gray(if index == 0 { 85 } else { 48 });
+                for point in [
+                    Vec3::new(coordinate, 0.0, -10.0),
+                    Vec3::new(coordinate, 0.0, 10.0),
+                    Vec3::new(-10.0, 0.0, coordinate),
+                    Vec3::new(10.0, 0.0, coordinate),
+                ] {
+                    submission.vertex(matrix, point, color, format)?;
+                }
             }
         }
         for selected_pass in [false, true] {
@@ -398,6 +403,9 @@ impl GpuResources {
         queue: &wgpu::Queue,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        if submission.bytes.is_empty() {
+            return Ok(());
+        }
         let payload =
             u64::try_from(submission.bytes.len()).map_err(|_| RenderError::ResourceLimit)?;
         let device_limit = device.limits().max_buffer_size;
@@ -434,6 +442,9 @@ impl GpuResources {
         pass: &mut wgpu::RenderPass<'_>,
         submission: &Submission,
     ) -> Result<(), RenderError> {
+        if submission.bytes.is_empty() {
+            return Ok(());
+        }
         let vertices = self.vertices.as_ref().ok_or_else(|| {
             RenderError::Backend("viewport vertices have not been uploaded".into())
         })?;

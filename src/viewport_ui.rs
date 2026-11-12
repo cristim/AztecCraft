@@ -110,13 +110,16 @@ impl ViewportInput {
         camera: &Camera,
         scene: &ViewScene,
         selected_prefix: Option<&[NativeId]>,
+        grid_visible: bool,
     ) -> Result<(), RenderError> {
         let painter = &self.painter;
         let rect = self.rect;
         painter.rect_filled(rect, 0.0, Color32::from_gray(31));
         let callback = renderer
             .ok_or(RenderError::Uninitialized)
-            .and_then(|renderer| renderer.callback(scene, camera, rect, selected_prefix));
+            .and_then(|renderer| {
+                renderer.callback(scene, camera, rect, selected_prefix, grid_visible)
+            });
         let diagnostic = callback.as_ref().err().map(ToString::to_string);
         if let Ok(callback) = &callback {
             painter.add(callback.clone());

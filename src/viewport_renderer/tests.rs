@@ -110,7 +110,8 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
     let scene = cube();
     let before = scene.clone();
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
-    let submission = Submission::new(&view, &camera(4.75), 1.0, None, FORMAT, 1024 * 1024).unwrap();
+    let submission =
+        Submission::new(&view, &camera(4.75), 1.0, None, true, FORMAT, 1024 * 1024).unwrap();
     assert_eq!(submission.surfaces, 0..36);
     assert_eq!(submission.lines, 36..168);
     assert_eq!(submission.bytes.len(), 168 * VERTEX_BYTES);
@@ -127,6 +128,7 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
             &camera(4.75),
             1.0,
             None,
+            true,
             FORMAT,
             submission.bytes.len() as u64
         )
@@ -138,6 +140,7 @@ fn actual_native_submission_checks_exact_payload_limit_and_preserves_crossing_co
             &camera(4.75),
             1.0,
             None,
+            true,
             FORMAT,
             submission.bytes.len() as u64 - 1
         ),
@@ -166,6 +169,109 @@ fn aggregate_upload_budget_and_device_buffer_limit_have_independent_boundaries()
 }
 
 #[test]
+fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
+    let scene = cube();
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    let camera = Camera::default();
+    for selected in [None, Some(view.instances()[0].path())] {
+        let visible =
+            Submission::new(&view, &camera, 1.0, selected, true, FORMAT, 1024 * 1024).unwrap();
+        let hidden =
+            Submission::new(&view, &camera, 1.0, selected, false, FORMAT, 1024 * 1024).unwrap();
+        let restored =
+            Submission::new(&view, &camera, 1.0, selected, true, FORMAT, 1024 * 1024).unwrap();
+        assert_eq!(visible.bytes, restored.bytes);
+        assert_eq!(visible.surfaces, hidden.surfaces);
+        assert_eq!(visible.vertex_count() - hidden.vertex_count(), 84);
+        assert_eq!(visible.lines.start, hidden.lines.start);
+        assert_eq!(visible.lines.end - hidden.lines.end, 84);
+        let surface_bytes = visible.surfaces.end as usize * VERTEX_BYTES;
+        assert_eq!(
+            visible.bytes[..surface_bytes],
+            hidden.bytes[..surface_bytes]
+        );
+        assert_eq!(
+            visible.bytes[surface_bytes + 84 * VERTEX_BYTES..],
+            hidden.bytes[surface_bytes..]
+        );
+        assert!(
+            Submission::new(
+                &view,
+                &camera,
+                1.0,
+                selected,
+                false,
+                FORMAT,
+                hidden.bytes.len() as u64
+            )
+            .is_ok()
+        );
+        assert!(matches!(
+            Submission::new(
+                &view,
+                &camera,
+                1.0,
+                selected,
+                true,
+                FORMAT,
+                hidden.bytes.len() as u64
+            ),
+            Err(RenderError::ResourceLimit)
+        ));
+    }
+    let empty = ViewScene::from_native(&NativeScene::default(), VIEW_BUDGET).unwrap();
+    let hidden = Submission::new(&empty, &camera, 1.0, None, false, FORMAT, 0).unwrap();
+    assert!(hidden.bytes.is_empty());
+    assert_eq!(hidden.surfaces, 0..0);
+    assert_eq!(hidden.lines, 0..0);
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pixels() {
+    let creation = creation_context(egui::Context::default());
+    let producer = ViewportRenderer::initialize(&creation).unwrap();
+    let mut gpu = Offscreen::from_context(&creation);
+    let empty = ViewScene::from_native(&NativeScene::default(), VIEW_BUDGET).unwrap();
+    let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
+    let camera = Camera::default();
+    for pixels_per_point in [1.0, 2.0] {
+        let mut images = Vec::new();
+        for (scene, visible) in [
+            (&empty, false),
+            (&view, true),
+            (&empty, false),
+            (&empty, true),
+            (&empty, false),
+            (&view, false),
+            (&view, true),
+        ] {
+            let frame = ui_frame(pixels_per_point, |ui| {
+                crate::viewport_ui::capture(ui, &camera)
+                    .unwrap()
+                    .unwrap()
+                    .paint(
+                        Some(&producer),
+                        &camera,
+                        scene,
+                        scene.instances().first().map(|instance| instance.path()),
+                        visible,
+                    )
+                    .unwrap();
+            });
+            images.push(gpu.render(frame));
+            assert!(producer.terminal_error().is_none());
+        }
+        assert_eq!(images[0], images[2]);
+        assert_eq!(images[0], images[4]);
+        assert_ne!(images[0], images[3]);
+        assert_ne!(images[1], images[5]);
+        assert_eq!(images[1], images[6]);
+        assert_eq!(pixel(&images[0], 64, 40), &[31, 31, 31, 255]);
+    }
+}
+
+#[test]
 fn finite_native_world_that_overflows_clip_reports_a_render_limit() {
     let mut scene = cube();
     let node = scene.nodes()[0].id();
@@ -180,7 +286,7 @@ fn finite_native_world_that_overflows_clip_reports_a_render_limit() {
         .unwrap();
     let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
     assert!(matches!(
-        Submission::new(&view, &camera(0.01), 1.0, None, FORMAT, 1024 * 1024),
+        Submission::new(&view, &camera(0.01), 1.0, None, true, FORMAT, 1024 * 1024),
         Err(RenderError::NonFiniteClip)
     ));
 }
@@ -195,7 +301,7 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
     let renderer = renderer_handle();
     let view = ViewScene::from_native(&cube(), VIEW_BUDGET).unwrap();
     assert!(matches!(
-        renderer.callback(&view, &camera(0.01), Rect::NOTHING, None),
+        renderer.callback(&view, &camera(0.01), Rect::NOTHING, None, true),
         Err(RenderError::Camera(_))
     ));
     renderer.errors.record("first backend failure".into());
@@ -209,7 +315,8 @@ fn startup_without_wgpu_and_latched_errors_never_emit_a_callback() {
             &view,
             &camera(0.01),
             Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(128.0, 128.0)),
-            None
+            None,
+            true,
         ),
         Err(RenderError::Backend(_))
     ));
@@ -276,6 +383,7 @@ impl Offscreen {
             camera,
             1.0,
             selected,
+            true,
             self.format,
             self.device.limits().max_buffer_size,
         )
@@ -530,6 +638,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
                 &camera(4.75),
                 &view,
                 Some(&path[..path.len() - 1]),
+                true,
             )
             .unwrap();
     });
@@ -558,7 +667,13 @@ fn headless_gpu_actual_callback_scissor_and_following_egui_restore_at_one_and_tw
             let renderer = renderer_handle();
             ui.painter().with_clip_rect(clip).add(
                 renderer
-                    .callback(&view, &camera(0.01), rect, Some(&path[..path.len() - 1]))
+                    .callback(
+                        &view,
+                        &camera(0.01),
+                        rect,
+                        Some(&path[..path.len() - 1]),
+                        true,
+                    )
                     .unwrap(),
             );
             ui.painter().rect_filled(
@@ -604,6 +719,7 @@ fn headless_gpu_actual_validation_callback_latches_and_blocks_submission() {
             &camera(0.01),
             Rect::from_min_size(egui::Pos2::ZERO, egui::Vec2::splat(128.0)),
             None,
+            true,
         ),
         Err(RenderError::Backend(_))
     ));

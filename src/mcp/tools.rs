@@ -156,6 +156,13 @@ struct DollyArgs {
     factor: f32,
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct GridArgs {
+    scene_token: String,
+    visible: bool,
+}
+
 fn decode<T: DeserializeOwned>(arguments: JsonObject) -> Result<T, ErrorData> {
     serde_json::from_value(Value::Object(arguments))
         .map_err(|error| ErrorData::invalid_params(error.to_string(), None))
@@ -411,6 +418,15 @@ fn parse_request(name: &str, arguments: JsonObject) -> Result<RemoteRequest, Err
                 },
             )
         }
+        "set_grid_visibility" => {
+            let args: GridArgs = decode(arguments)?;
+            (
+                token(&args.scene_token)?,
+                Operation::SetGridVisible {
+                    visible: args.visible,
+                },
+            )
+        }
         "undo" | "redo" | "frame_selected" => {
             let args: MutationArgs = decode(arguments)?;
             let operation = match name {
@@ -487,6 +503,10 @@ fn catalog() -> Vec<Tool> {
                     "Frame the selected object using the live camera",
                     schema::<MutationArgs>(),
                 ),
+                "set_grid_visibility" => (
+                    "Set the current viewport's grid visibility explicitly. Session-only and idempotent; does not edit the scene or report GPU health",
+                    schema::<GridArgs>(),
+                ),
                 "orbit_camera" => (
                     "Orbit the live camera by [yaw, pitch] radians; pitch clamps near the poles",
                     schema::<OrbitArgs>(),
@@ -528,7 +548,7 @@ fn catalog() -> Vec<Tool> {
             Tool::new(name, description, input_schema).with_annotations(
                 ToolAnnotations::new()
                     .read_only(name == "inspect_scene")
-                    .idempotent(false)
+                    .idempotent(name == "set_grid_visibility")
                     .open_world(false),
             )
         })
@@ -728,6 +748,7 @@ mod tests {
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
+                "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
@@ -758,6 +779,61 @@ mod tests {
         assert!(parse_request("rename_node", args.as_object().unwrap().clone()).is_ok());
         args["name"] = format!("{}a", args["name"].as_str().unwrap()).into();
         assert!(parse_request("rename_node", args.as_object().unwrap().clone()).is_err());
+    }
+
+    #[test]
+    fn grid_schema_and_decoder_require_an_explicit_boolean_and_current_token() {
+        let token = Uuid::new_v4().to_string();
+        let tool = catalog()
+            .into_iter()
+            .find(|tool| tool.name == "set_grid_visibility")
+            .unwrap();
+        assert_eq!(
+            tool.input_schema["properties"]["visible"]["type"],
+            "boolean"
+        );
+        assert_eq!(tool.input_schema["additionalProperties"], false);
+        let required = tool.input_schema["required"].as_array().unwrap();
+        assert_eq!(required.len(), 2);
+        assert!(required.contains(&json!("scene_token")));
+        assert!(required.contains(&json!("visible")));
+        assert_eq!(tool.annotations.unwrap().idempotent_hint, Some(true));
+        for arguments in [
+            json!({"scene_token": token}),
+            json!({"visible": false}),
+            json!({"scene_token": token, "visible": null}),
+            json!({"scene_token": token, "visible": "false"}),
+            json!({"scene_token": token, "visible": 0}),
+            json!({"scene_token": token, "visible": []}),
+            json!({"scene_token": token, "visible": {},}),
+            json!({"scene_token": token, "visible": false, "extra": true}),
+            json!({"scene_token": "invalid", "visible": false}),
+        ] {
+            assert!(
+                parse_request(
+                    "set_grid_visibility",
+                    arguments.as_object().unwrap().clone()
+                )
+                .is_err()
+            );
+        }
+        for visible in [false, true] {
+            let request = parse_request(
+                "set_grid_visibility",
+                json!({"scene_token": token, "visible": visible})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            assert_eq!(
+                request.expected_scene_token,
+                Some(Uuid::parse_str(&token).unwrap())
+            );
+            assert!(
+                matches!(request.operation, Operation::SetGridVisible { visible: actual } if actual == visible)
+            );
+        }
     }
 
     #[test]

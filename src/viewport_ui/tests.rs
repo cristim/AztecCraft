@@ -181,7 +181,7 @@ fn painted_submission(
         capture(ui, camera)
             .unwrap()
             .unwrap()
-            .paint(Some(&producer), camera, view, prefix)
+            .paint(Some(&producer), camera, view, prefix, true)
             .unwrap();
     });
     assert_eq!(
@@ -434,7 +434,7 @@ fn missing_startup_state_fails_and_uninitialized_ui_never_paints_fake_geometry()
             capture(ui, &camera())
                 .unwrap()
                 .unwrap()
-                .paint(None, &camera(), &view, None),
+                .paint(None, &camera(), &view, None, true),
             Err(RenderError::Uninitialized)
         ));
     });

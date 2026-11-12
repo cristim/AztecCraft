@@ -239,9 +239,9 @@ fn approved_close_still_dispatches_readonly_inspection_and_refuses_mutation() {
 }
 
 #[test]
-fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
-    for condition in 0..7 {
-        for operation_index in 0..5 {
+fn camera_sparse_extrusion_and_grid_requests_keep_human_and_closed_bridge_guards() {
+    for condition in 0..8 {
+        for operation_index in 0..6 {
             let context = egui::Context::default();
             let (bridge, ingress) = mcp::test_bridge(context.clone());
             let mut editor = Editor::default();
@@ -260,7 +260,7 @@ fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
                     rotation_degrees: [None; 3],
                     scale: [None; 3],
                 },
-                _ => Operation::ExtrudeFace {
+                4 => Operation::ExtrudeFace {
                     target: FaceTarget {
                         transform: id,
                         shape,
@@ -272,6 +272,7 @@ fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
                     },
                     distance: 1.0,
                 },
+                _ => Operation::SetGridVisible { visible: false },
             };
             match condition {
                 0 => editor.name = "human_draft".into(),
@@ -279,6 +280,10 @@ fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
                 2 => context.memory_mut(|memory| memory.request_focus(name_edit_id())),
                 3 => editor.request_close(),
                 4 => editor.native_input_pending = true,
+                7 => {
+                    editor.history_step(false);
+                    editor.request_close();
+                }
                 _ => (),
             }
             let before = editor.history.scene().clone();
@@ -286,6 +291,8 @@ fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
             let name = editor.name.clone();
             let channels = editor.channels.clone();
             let token = editor.scene_token;
+            let undo = editor.history.can_undo();
+            let redo = editor.history.can_redo();
             let mut reply = ingress
                 .queue(RemoteRequest {
                     expected_scene_token: Some(if condition == 5 {
@@ -319,8 +326,9 @@ fn camera_sparse_and_extrusion_requests_keep_human_and_closed_bridge_guards() {
             assert_eq!(editor.name, name);
             assert_eq!(editor.channels, channels);
             assert_eq!(editor.scene_token, token);
-            assert!(editor.history.can_undo());
-            assert!(!editor.history.can_redo());
+            assert_eq!(editor.history.can_undo(), undo);
+            assert_eq!(editor.history.can_redo(), redo);
+            assert!(editor.grid_visible);
         }
     }
 }
@@ -2817,7 +2825,7 @@ mod official_client {
 
     #[tokio::test]
     #[ignore = "requires a real headless GPU adapter"]
-    async fn headless_gpu_sdk_camera_selection_changes_enter_the_next_fresh_callback() {
+    async fn headless_gpu_sdk_camera_selection_and_grid_changes_enter_the_next_fresh_callback() {
         use crate::viewport_renderer::tests::{creation_context, recorded_submission};
         use rmcp::model::{CallToolRequest, ClientRequest, ServerResult};
         let context = egui::Context::default();
@@ -2851,6 +2859,10 @@ mod official_client {
                 json!({"scene_token":token,"node_id":id,"instance_path":path}),
             ),
             ("frame_selected", json!({"scene_token":token})),
+            (
+                "set_grid_visibility",
+                json!({"scene_token":token,"visible":false}),
+            ),
         ] {
             let before = recorded_submission(editor.renderer.as_ref().unwrap()).vertices;
             let request = ClientRequest::CallToolRequest(CallToolRequest::new(
@@ -2917,6 +2929,7 @@ mod official_client {
         assert_eq!(inspection["selected_instance_path"], json!(path));
         assert_eq!(inspection["depth_complete"], true);
         assert_eq!(inspection["clipping_complete"], true);
+        assert_eq!(inspection["grid_visible"], false);
         client.cancel().await.unwrap();
         drop(editor);
         server.await.unwrap();
@@ -3162,9 +3175,119 @@ mod official_client {
     }
 
     #[tokio::test]
+    async fn sdk_grid_visibility_is_explicit_idempotent_and_preserves_authoring_state() {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        editor.create(Primitive::Cube);
+        editor.name = "temporary".into();
+        assert!(editor.commit_pending());
+        editor.history_step(false);
+        frame(&mut editor, &context, vec![]);
+        let token = editor.scene_token.to_string();
+        let scene = editor.history.scene().clone();
+        let baseline = serde_json::to_value(editor.inspect(false).unwrap()).unwrap();
+        for (visible, outcome) in [
+            (false, "changed"),
+            (false, "unchanged"),
+            (true, "changed"),
+            (true, "unchanged"),
+        ] {
+            let result = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "set_grid_visibility",
+                json!({"scene_token": token, "visible": visible}),
+            )
+            .await;
+            assert_eq!(result.structured_content.unwrap()["outcome"], outcome);
+            let mut inspected = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "inspect_scene",
+                json!({}),
+            )
+            .await
+            .structured_content
+            .unwrap()["inspection"]
+                .clone();
+            assert_eq!(inspected["grid_visible"], visible);
+            assert_eq!(inspected["viewport_error"], "uninitialized");
+            assert_eq!(inspected["depth_complete"], false);
+            inspected["grid_visible"] = json!(true);
+            assert_eq!(inspected, baseline);
+            assert_eq!(editor.history.scene(), &scene);
+            assert!(editor.history.can_redo());
+        }
+        for arguments in [
+            json!({"scene_token": token}),
+            json!({"visible": false}),
+            json!({"scene_token": token, "visible": null}),
+            json!({"scene_token": token, "visible": "false"}),
+            json!({"scene_token": token, "visible": 0}),
+            json!({"scene_token": token, "visible": false, "extra": true}),
+        ] {
+            assert!(
+                call_response(
+                    &mut editor,
+                    &context,
+                    client.peer(),
+                    "set_grid_visibility",
+                    arguments
+                )
+                .await
+                .is_err()
+            );
+            assert_eq!(
+                serde_json::to_value(editor.inspect(false).unwrap()).unwrap(),
+                baseline
+            );
+            assert_eq!(editor.history.scene(), &scene);
+        }
+        let stale = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "set_grid_visibility",
+            json!({"scene_token": Uuid::new_v4().to_string(), "visible": false}),
+        )
+        .await;
+        assert_eq!(
+            stale.structured_content.unwrap()["error"]["code"],
+            "stale_scene"
+        );
+        assert_eq!(
+            serde_json::to_value(editor.inspect(false).unwrap()).unwrap(),
+            baseline
+        );
+        editor.native_operation(Operation::SetGridVisible { visible: false });
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        assert_eq!(inspected["inspection"]["grid_visible"], false);
+        assert_eq!(editor.history.scene(), &scene);
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
         use rmcp::model::{CallToolRequest, ClientRequest};
-        for tool in ["create_primitive", "edit_node", "extrude_face"] {
+        for tool in [
+            "create_primitive",
+            "edit_node",
+            "extrude_face",
+            "set_grid_visibility",
+        ] {
             let context = egui::Context::default();
             let (mut editor, client, server) = start(&context).await;
             editor.create(if tool == "extrude_face" {
@@ -3173,7 +3296,9 @@ mod official_client {
                 Primitive::Plane
             });
             let before = editor.history.scene().clone();
-            let args = if tool == "edit_node" {
+            let args = if tool == "set_grid_visibility" {
+                json!({"scene_token":editor.scene_token.to_string(),"visible":false})
+            } else if tool == "edit_node" {
                 json!({"scene_token":editor.scene_token.to_string(),"node_id":editor.selected.unwrap().to_decimal(),"translation":[3,null,null]})
             } else if tool == "extrude_face" {
                 let id = editor.selected.unwrap();
@@ -3200,6 +3325,7 @@ mod official_client {
             tokio::task::yield_now().await;
             hidden_frame(&mut editor, &context, vec![]);
             assert_eq!(editor.history.scene(), &before);
+            assert!(editor.grid_visible);
             let _handle = client
                 .peer()
                 .send_cancellable_request(request, Default::default())
@@ -3216,6 +3342,7 @@ mod official_client {
             .unwrap();
             hidden_frame(&mut editor, &context, vec![]);
             assert_eq!(editor.history.scene(), &before);
+            assert!(editor.grid_visible);
             assert!(editor.files.is_modal());
             drop(editor);
             server.await.unwrap();
@@ -3224,10 +3351,12 @@ mod official_client {
 
     #[tokio::test]
     async fn ui_deadline_drops_receiver_before_paused_editor_can_apply_request() {
-        for tool in ["create_primitive", "extrude_face"] {
+        for tool in ["create_primitive", "extrude_face", "set_grid_visibility"] {
             let context = egui::Context::default();
             let (mut editor, client, server) = start(&context).await;
-            let args = if tool == "extrude_face" {
+            let args = if tool == "set_grid_visibility" {
+                json!({"scene_token":editor.scene_token.to_string(),"visible":false})
+            } else if tool == "extrude_face" {
                 editor.create(Primitive::Cube);
                 let id = editor.selected.unwrap();
                 let shape = editor.history.scene().shapes()[0].id();
@@ -3250,6 +3379,7 @@ mod official_client {
             assert_eq!(result.structured_content.unwrap()["error"]["code"], "busy");
             frame(&mut editor, &context, vec![]);
             assert_eq!(editor.history.scene(), &before);
+            assert!(editor.grid_visible);
             if tool == "create_primitive" {
                 assert!(editor.history.scene().nodes().is_empty());
             }

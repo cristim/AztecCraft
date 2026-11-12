@@ -49,6 +49,14 @@ vendored writer; current integration and native Save QA remain pending. No deriv
 GUI Export and unfinished modeling/animation/material controls are disabled.
 Docking and full Maya interaction parity aren't implemented or verified.
 
+The checkable Grid button controls this single viewport's fixed XZ ground grid.
+It defaults on and retains its session value across New/Open, including canceled
+file actions. It shares `SetGridVisible` with MCP `set_grid_visibility`; the
+explicit boolean setter is idempotent and inspection returns `grid_visible`.
+This is visual state outside NativeScene and authoring History. It has no default
+shortcut, grid options, additional/global panels or settings persistence. Grid
+spacing, extent, colors and Maya reference parity remain unverified.
+
 `NativeScene` is the editor and History's sole mutable authoring state. It owns
 separate transform/shape identities, instance DAG edges, f64 channels and pivots
 in declared units, and immutable original source bytes with typed edit intent.
@@ -166,6 +174,16 @@ azteccraft --features mcp-test-client headless_gpu -- --ignored --test-threads=1
 These require an adapter and fail when it is absent. CI additionally runs this
 suite with Mesa software Vulkan. Ordinary numeric submission tests do not
 establish rasterization or platform/native-window fidelity.
+
+For the Grid slice, `cargo test --locked --bin azteccraft --features
+mcp-test-client grid_` selects editor, schema, SDK and submission tests. Run its
+actual empty-frame and visibility proof explicitly with `cargo test --locked
+--bin azteccraft --features mcp-test-client
+viewport_renderer::tests::headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pixels
+-- --ignored --exact --test-threads=1`. The SDK camera/selection/grid callback
+suite remains part of the explicit `headless_gpu` command above. Native clicks,
+window resize, file retention and the eventual Face integration need their own
+exact-build evidence; a passing adapter test does not supply it.
 
 An empty mesh is unpickable; framing it returns an error and preserves the camera.
 Unused vertices are retained by native documents and OBJ export. Structural

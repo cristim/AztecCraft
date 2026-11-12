@@ -84,3 +84,52 @@ same binary. That observation supplies no confirmed cause or fix.
 Windows writing, Maya ASCII, structural source rewriting, complete appearance
 and Maya parity remain unsupported or unverified. No private paths, assets,
 captures or raw numeric source values are distributed with this record.
+
+## Grid candidate: automated evidence and native acceptance still pending
+
+On 2026-10-15, the isolated Grid candidate based on Save commit `4e8f87f`
+passed thirteen distinct editor, schema and official SDK tests, plus two explicitly
+selected headless GPU tests on Apple M1 Pro with Metal. The tested App source SHA256 was
+`94a3c88346817a9d5c077972e68f200f1085e2ea1223919c0b37a716ed958274`;
+the renderer SHA256 was
+`00d2b93c236f1d4d61ddbc3d717932b55659d31c53e8fa3c8cecda53ffa03758`.
+The twelve-file source/document manifest SHA256 was
+`7bc6b7201f1dd3c4a6bd2f21401ada33649671245a526e4fb773c38a73730b8f`.
+All twelve files matched before and after those runs. A later cached matrix
+attempt reused another candidate's shared-target executable; its results were
+rejected. The corrected run compiled this Grid worktree, listed eleven Grid
+tests, and executed the exact Grid SDK test before the full matrix. Default
+passed 238 tests with 25 ignored, core without default features 185 with 9
+ignored, and MCP client 304 with 27 ignored. The client run executed Grid
+setter/button, strict schema, tool catalog and SDK tests. Ignored tests are not
+claimed as executed by those matrix commands.
+
+Strict Clippy found one test-only default-field initialization issue. Two
+independent review passes confirmed the initializer rewrite preserved behavior;
+the affected Grid button test then passed. The resulting App source SHA256 is
+`6daa6d9c85bdce47fbc8dbc3fe038a3198f80b2e908d826452118693c1a62995`.
+Formatting, strict Clippy for default/core/MCP/client configurations and an
+actual Grid production MCP compilation passed with Rust/Cargo 1.99.0. The
+captured production executable SHA256 is
+`b300f8043a82f778be458fb27733904f7dcfa271ce3c8c0e37ae5003d8a058d7`.
+The earlier two explicitly executed GPU tests remain scoped unchanged-source
+evidence; they were not rerun for the equivalent test-only initializer change.
+
+Synthetic editor events exercised actual Grid button clicks, disabled modal and
+closing controls, idempotent state, drafts and New/Open retention. The GPU test
+used the production callback and retained resources across cold empty-hidden,
+nonempty and warm empty-hidden frames. At 1x and 2x, empty-hidden frames matched,
+the background pixel was `[31,31,31,255]`, visible and hidden grids differed,
+and restored grid frames matched. The backend error latch remained empty.
+The second GPU test traces an official SDK setter through the next fresh Editor
+callback submission and checks healthy inspection; it does not read framebuffer
+pixels. These checks establish the scoped automated behavior, not a native
+window journey.
+
+Native Grid clicks, remote setter visibility, camera navigation and resize,
+draft/modal refusal, file retention and supplied-scene baseline preservation
+still need exact-build native verification. The final Face, Save and NCRV union
+needs its own source review, paired Face/object GPU checks and native acceptance.
+No Maya grid appearance, complete functionality or parity claim follows from
+these results. Grid options, global/additional panels and settings persistence
+remain unsupported; no shortcut was added.
