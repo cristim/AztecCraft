@@ -10,6 +10,9 @@ use azteccraft::{
 use eframe::egui::{self, Color32, Painter, PointerButton, Rect};
 use glam::Vec2;
 
+mod axis_lock;
+use axis_lock::AxisLock;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SelectionRefusal {
     ModifiedClick,
@@ -183,13 +186,34 @@ pub fn capture(
         });
     }
     let mut navigation = Vec::with_capacity(4);
+    let focused = ui.input(|input| input.focused);
+    let lock_key = |button: PointerButton| response.id.with(("axis_lock", button as u8));
+    for button in [PointerButton::Primary, PointerButton::Middle] {
+        if !modifiers.shift || !focused || response.drag_stopped_by(button) {
+            ui.data_mut(|data| data.remove::<AxisLock>(lock_key(button)));
+        }
+    }
+    let constrained = |ui: &egui::Ui, button: PointerButton, delta: Vec2| {
+        if !modifiers.shift {
+            return delta;
+        }
+        let key = lock_key(button);
+        let mut lock = ui
+            .data(|data| data.get_temp::<AxisLock>(key))
+            .unwrap_or_default();
+        let delta = lock.constrain(delta);
+        ui.data_mut(|data| data.insert_temp(key, lock));
+        delta
+    };
     if response.dragged_by(PointerButton::Primary) && alt {
         ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
+        let delta = constrained(ui, PointerButton::Primary, Vec2::new(delta.x, delta.y));
         navigation.push(Operation::Orbit {
             radians: (Vec2::new(-delta.x, delta.y) * 0.007).to_array(),
         });
     }
     if response.dragged_by(PointerButton::Middle) && alt {
+        let delta = constrained(ui, PointerButton::Middle, Vec2::new(delta.x, delta.y));
         navigation.push(Operation::Pan {
             world_units: (Vec2::new(-delta.x, delta.y) * camera.distance() * 0.002).to_array(),
         });

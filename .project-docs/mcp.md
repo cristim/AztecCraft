@@ -510,7 +510,7 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Lasso, Paint Selection, UV mask | unsupported | | | |
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
-| Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | |
+| Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | Shift+Alt tumble and track constrain to one screen axis (native input filter, policy row 39); MCP zeroes an axis instead |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
 | Camera | Frame selected with children (Ctrl+F) | supported | `frame_selected` | `camera` | Pass `with_children: true` |
 | Camera | Frame All (A, View menu) | supported | `frame_all` | `camera` | |
