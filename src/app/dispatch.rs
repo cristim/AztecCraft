@@ -130,7 +130,13 @@ impl Editor {
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
-            | Operation::SetCameraPose { .. } => None,
+            | Operation::SetCameraPose { .. }
+            | Operation::CreateCameraBookmark { .. }
+            | Operation::RenameCameraBookmark { .. }
+            | Operation::DeleteCameraBookmark { .. }
+            | Operation::ApplyCameraBookmark { .. } => None,
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ListCameraBookmarks => None,
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
             | Operation::BeginRotate { .. }
@@ -274,6 +280,9 @@ impl Editor {
                 inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
             });
         }
+        if matches!(request.operation, Operation::ListCameraBookmarks) {
+            return Ok(self.list_camera_bookmarks());
+        }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
             return Ok(OperationReply::Uvs {
                 inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
@@ -380,6 +389,9 @@ impl Editor {
                 | Operation::SetShadingMode(_)
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
+                | Operation::CreateCameraBookmark { .. }
+                | Operation::RenameCameraBookmark { .. }
+                | Operation::DeleteCameraBookmark { .. }
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
@@ -666,6 +678,20 @@ impl Editor {
             } => self.delete_keys_command(nodes, time, channels)?,
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
+            Operation::CreateCameraBookmark { name } => {
+                return self.create_camera_bookmark(&name);
+            }
+            Operation::RenameCameraBookmark { name, new_name } => {
+                return self.rename_camera_bookmark(&name, &new_name);
+            }
+            Operation::DeleteCameraBookmark { name } => {
+                return self.delete_camera_bookmark(&name);
+            }
+            Operation::ApplyCameraBookmark { name } => {
+                return self.apply_camera_bookmark(&name);
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ListCameraBookmarks => return Ok(self.list_camera_bookmarks()),
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;

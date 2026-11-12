@@ -200,9 +200,14 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::Orbit { .. }
         | Operation::Pan { .. }
         | Operation::Dolly { .. }
-        | Operation::SetCameraPose { .. } => false,
+        | Operation::SetCameraPose { .. }
+        | Operation::CreateCameraBookmark { .. }
+        | Operation::RenameCameraBookmark { .. }
+        | Operation::DeleteCameraBookmark { .. }
+        | Operation::ApplyCameraBookmark { .. } => false,
         #[cfg(any(test, feature = "mcp"))]
-        Operation::Inspect { .. }
+        Operation::ListCameraBookmarks
+        | Operation::Inspect { .. }
         | Operation::InspectKeys { .. }
         | Operation::InspectUvs { .. } => false,
         _ => true,

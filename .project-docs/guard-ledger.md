@@ -114,6 +114,13 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - `SetShadingMode` follows Grid: session-only, idempotent (`Unchanged` when the mode already matches),
   never dirty, never a scene-token change; guards are those of `SetGridVisible`. Handler is in
   `src/app/dispatch.rs`; matrix cell is `set_shading_mode(wireframe)`.
+- Camera bookmarks (`CreateCameraBookmark`, `RenameCameraBookmark`, `DeleteCameraBookmark`, `ApplyCameraBookmark`, `ListCameraBookmarks`; handlers in
+  `src/app/features/camera_bookmarks.rs`) are session-only: never dirty, no scene-token change, not undoable (PROVISIONAL, the Maya page is silent), kept across
+  Undo/Redo and cleared by `replace_scene` (an applied New or Open; a pending or cancelled one keeps them). Create, rename and delete follow Grid
+  (native modal and closing are `BusyEditing`; otherwise a valid draft is committed first and an invalid one refuses them); apply follows `SetCameraPose` (allowed under a native modal). All four are `BusyManipulation` during a native
+  manipulation and, remotely, need the token and refuse drafts, text focus, modal and closing. `ListCameraBookmarks` is a read like `InspectKeys`: it returns
+  before the token and draft guards, so a client with an old token can read the current document's bookmarks. Matrix cells: `create_camera_bookmark(v)`,
+  `rename_camera_bookmark(missing)`, `delete_camera_bookmark(missing)`, `apply_camera_bookmark(missing)`, `list_camera_bookmarks`.
 - `SetSidebarPanelVisible` follows Grid: remote refuses a stale token, a Move (`BusyManipulation`), a
   draft of any kind (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), text focus, modal and closing (`BusyEditing`); native refuses closing and modal
   before any draft commit (the closing and modal checks at the top of `src/app/dispatch.rs "fn apply_operation_guarded"`), is
