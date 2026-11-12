@@ -204,3 +204,5 @@ fn a_reused_pid_never_prunes_the_earlier_processs_files() {
 }
 
 mod session;
+
+mod failures;
