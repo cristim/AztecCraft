@@ -433,6 +433,8 @@ impl Editor {
                     | Operation::ExtrudeFace { .. }
                     | Operation::ProjectUvPlanar { .. }
                     | Operation::DeleteUvs { .. }
+                    | Operation::Undo
+                    | Operation::Redo
             )
         {
             return Err(OperationError::BusyEditing);
