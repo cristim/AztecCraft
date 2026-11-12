@@ -139,6 +139,7 @@ mod official_client {
     mod node_edit;
     mod obj_export;
     mod pivots;
+    mod torus;
 
     mod pointer_hit;
     mod primitive_options;

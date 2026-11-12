@@ -21,7 +21,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -160,7 +161,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -300,6 +302,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -431,6 +434,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -562,6 +566,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -693,6 +698,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -823,7 +829,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -954,7 +961,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -1086,6 +1094,7 @@
   set_tool_space(rotate,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(scale,object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(move,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_move_space(parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(rotate,y) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,uniform) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1217,6 +1226,7 @@
   set_tool_space(rotate,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(scale,object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(move,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_move_space(parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(rotate,y) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,uniform) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1348,6 +1358,7 @@
   set_tool_space(rotate,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(scale,object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(move,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_move_space(parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(rotate,y) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,uniform) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1479,6 +1490,7 @@
   set_tool_space(rotate,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(scale,object) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_space(move,world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_move_space(parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(rotate,y) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,uniform) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_tool_handle(scale,x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1610,6 +1622,7 @@
   set_tool_space(rotate,world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_tool_space(scale,object) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_tool_space(move,world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_move_space(parent) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_tool_handle(rotate,y) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_tool_handle(scale,uniform) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_tool_handle(scale,x) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1741,6 +1754,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1872,7 +1886,8 @@
   set_active_tool(select) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_tool_space(rotate,world) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_move_space(parent) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_tool_handle(rotate,y) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_tool_handle(scale,x) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -2005,6 +2020,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2135,7 +2151,8 @@
   set_active_tool(select) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_tool_space(rotate,world) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_move_space(parent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_tool_handle(rotate,y) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_tool_handle(scale,x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -2267,6 +2284,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2397,7 +2415,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -2529,6 +2548,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2659,7 +2679,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -2791,6 +2812,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2922,6 +2944,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3054,6 +3077,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3185,6 +3209,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3316,6 +3341,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3447,6 +3473,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3578,6 +3605,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3709,6 +3737,7 @@
   set_tool_space(rotate,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(scale,object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_space(move,world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_move_space(parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(rotate,y) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,uniform) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_tool_handle(scale,x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3839,7 +3868,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -3970,7 +4000,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4101,7 +4132,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4232,7 +4264,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4363,7 +4396,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4494,7 +4528,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4677,7 +4712,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4808,7 +4844,8 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
+  set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
   set_tool_handle(scale,x) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=X scale_handle=X
@@ -4940,6 +4977,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5071,6 +5109,7 @@
   set_tool_space(rotate,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(scale,object) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_space(move,world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_move_space(parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(rotate,y) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,uniform) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_tool_handle(scale,x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5183,4 +5222,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 4643
+cells: 4682

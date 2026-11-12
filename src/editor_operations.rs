@@ -4,8 +4,8 @@ use azteccraft::{
     history::{ManipulationError, ManipulationFinish, ManipulationId},
     move_handles::ManipulatorSize,
     native_scene::{
-        EdgeTarget, FaceTarget, NativeError, NativeId, RotateAxis, RotateSpace, ScaleHandle,
-        ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
+        EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
+        ScaleHandle, ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
@@ -82,11 +82,16 @@ pub enum FileActionKind {
     Close,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum FileDecision {
     Cancel,
     Discard,
     Save,
+    /// Save to a fresh path (the prompt's Save As, the only save for an Untitled scene), then
+    /// apply the pending action; a failed save keeps the prompt and the window open.
+    SaveAs {
+        path: PathBuf,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -323,6 +328,12 @@ pub enum Operation {
     SetToolSpace {
         tool: ActiveTool,
         space: ManipulationSpace,
+    },
+    /// Sets the Axis Orientation of the Move tool settings (World by default). `BeginMove` reads
+    /// it, so a Move started later moves each object along that orientation's axes.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetMoveSpace {
+        space: MoveSpace,
     },
     /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
     SetToolHandle(ToolHandle),
@@ -785,6 +796,7 @@ pub enum FaceSelectionPolicy {
 pub struct ManipulationInspection {
     pub active_tool: ActiveTool,
     /// The Axis Orientation each tool uses for its next manipulation.
+    pub move_space: MoveSpace,
     pub rotate_space: ManipulationSpace,
     pub scale_space: ManipulationSpace,
     /// The persistent Rotate axis ("x", "y", "z") and Scale handle ("x", "y", "z", "uniform")
@@ -1239,7 +1251,7 @@ pub(crate) const MIN_EDGE_TARGET: &str =
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_FIXED: &str = concat!(
     r#"{"scene_token":"00000000-0000-0000-0000-000000000000","#,
-    r#""manipulation":{"active_tool":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
+    r#""manipulation":{"active_tool":"","move_space":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
     r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
     r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
     r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,

@@ -17,8 +17,8 @@ back. No parity with Maya is claimed, and nothing was compared with a running Ma
   `inspect_keys` says so through `unavailable_reason`. A file's current time and range are not read.
 - **Transform channels only.** Whole frames from -1000000 through 1000000, and 65536 keys a scene.
   Fractional times are refused. Rotation keys are in the scene's declared angular unit.
-- **Time units.** Only `film` is accepted. The ASCII reader refuses other units, and a binary scene
-  with another unit refuses every time operation; that refusal is tested in the core only.
+- **Time units.** Only `film` plays. An ASCII or binary scene in another
+  admitted unit (ntsc) opens, and every time operation refuses (`unsupported_time_unit`); that refusal is tested in the core only.
 
 PROVISIONAL, because the docs do not state it or the feature behind it is absent:
 
@@ -265,14 +265,16 @@ Other component masks, multiple-face gestures, component marquee (the object mar
 with ModifiedClick and leaves the selection unchanged. Maya supports modified clicks to add
 to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude of the single selected face is live (issue #44, slice 1): the shelf Extrude button opens an Extrude Options window with Thickness only (default 0, applied as the normal displacement, PROVISIONAL). The other option rows, including Taper 1 and Twist 0 (polyExtrudeFacet node defaults, PROVISIONAL), are disabled. There is no manipulator, no multi-face region and no all-face extrusion; a Thickness of 0 gives a coplanar cap with zero-height walls, and its disclosure in the status line is a later step. PROVISIONAL, with no Maya source: the shelf Extrude button opens the Options window instead of extruding at once, and the disabled Divisions 1, Offset 0, Smoothing angle 30 and Curve Selected rows show display defaults, not documented ones.
 
-Ambiguous coalesced primary releases are refused with an actionable single-click
-retry rather than guessed coordinates/modifiers. This limitation was reproduced
-with an actual Shift click followed by an unmodified drag release in one frame.
-Single-release event-time modifiers and pure Alt navigation are preserved. The
-attempted combined menu activation/key/viewport-click sequence is blocked by the
-pinned popup routing; separate menu+F8 and F11+F8+viewport-click tests do not prove
-that combined journey. Native window, other-platform input and Maya comparison
-remain separate verification requirements. See [selection policy](.project-docs/development.md#face-center-selection).
+When one frame carries several primary releases (egui keeps one click/drag state per frame, so
+the frame cannot say which release owns it), a last release that is a plain click acts alone with
+its own position and modifiers; earlier releases of that frame are superseded (#31). Any other
+coalesced frame (last release a drag or modified click, e.g. a Shift click followed by an
+unmodified drag) is still refused with a single-click retry rather than guessed coordinates or
+modifiers. Single-release event-time modifiers and pure Alt navigation are preserved. The combined
+menu activation, key and viewport click journey is covered by a native test across frames; pressing
+Enter on a menu item and clicking the viewport inside one frame stays intercepted by the popup.
+Real window, other-platform input and Maya comparison remain separate verification requirements.
+See [selection policy](.project-docs/development.md#face-center-selection).
 
 ## Vertex and Edge picking and drawing constants are provisional
 
@@ -425,12 +427,22 @@ Cancel. The MCP decision for Don't Save is still `discard`. AztecCraft keeps its
 for uncertain writes and changed Open sources. The default filter applies where the platform dialog has a filter list: Windows and GTK select
 the first filter, the Linux XDG portal leaves the default to its backend (PROVISIONAL), and the
 macOS panel merges every filter into its allowed types with no filter choice. In the prompt, Save
-is disabled with a reason unless the scene is an opened Maya Binary on macOS or Linux (or a write
-is being reconciled); Maya's Save would run Save As for an untitled scene (#156, #15). A read-only
+is disabled with a reason unless the scene is a directly opened (not symlinked) Maya Binary with a
+known destination on Unix or Windows, or a Maya ASCII scene this build saved on Unix (or a write is
+being reconciled); Maya's Save would run Save As for an untitled scene, which the prompt's Save As
+button (#289) does on Unix (#156, #15). The disabled Save is asserted in the app tests. A read-only
 (Maya ASCII) scene shows " (read-only)" in the window title and its reason at the top of the File
 menu, both AztecCraft additions with no Maya counterpart. File > Recent Files is not implemented
-yet: it needs persisted preferences and an MCP read path. Maya 2026 and the 2027.2 documentation
-pin are unverified.
+yet: it needs persisted preferences and an MCP read path.
+
+Researched on 2026-11-12 in the Maya 2027 help: the [Open Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-203FC12C-6C80-497C-AC29-548DF6EC91B5.htm)
+page says the "File type" option sets the default format for the next Open and, on Windows and
+macOS, the browser filter; it names no default value, so "Maya Scenes" first stays from 2025.1
+(PROVISIONAL). [Open recently saved files](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-ManagingScenes/files/GUID-699D997C-02C5-4F55-9A3D-6CD68DD0B687.htm)
+lists three entry points: the App Home icon, File > Recent Files, and a right-click on the Status
+Line Open a Scene icon; the list holds the last saved file and the last file open before a crash,
+and its length is set in the Files/Projects preferences. Neither page gives wording for the
+unsaved-changes prompt, so that wording stays Maya 2025.1 (PROVISIONAL).
 
 ## Selection changes are refused under a file modal
 
@@ -453,7 +465,7 @@ covered MCP-driven mode switches on one macOS debug build only
 The supported legacy 2016 static cubic ASCII class now has inert native Open,
 canonical f64 curve state, evaluated GPU line geometry, conservative framing and
 bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
-admit general Maya ASCII, arbitrary units/history/drivers, rigs, imported
+admit general Maya ASCII, arbitrary units (only mm/cm/m/in/ft, deg/rad, film/ntsc; curves need centimeter and meshes need centimeter/degree/film) or history/drivers, rigs, imported
 instancing or Maya 2026 behavior. Unknown effects refuse the complete candidate.
 Scene scripts remain retained inert data.
 
@@ -465,10 +477,15 @@ evidence; the Save/material-parent union has its own focused SDK/UI/GPU and
 normal-hook checks. Later selected-parent composition, its CI and native preview
 remain separate gates. Native text-commit refusal was not exercised, and no exact
 visual or functional parity is claimed.
-Small curves far from the origin are refused, not drawn, and Open fails, when
-the f32 viewport grid at their coordinates is coarser than about 1% of the curve
-size (a ~3.6cm curve is drawn at x=2e6cm and refused at x=3e6cm). Remedy
-pending: a camera-relative or f64 viewport path.
+Curve segments are f32 offsets from an f64 origin and the renderer subtracts the f64 eye, so
+a small curve far from the origin is no longer refused for the f32 grid of its segments.
+The camera target and eye and all non-curve overlays are still world-space f32, so a curve
+is refused (Open fails) once the f32 grid at its coordinates exceeds a tenth of its size
+(an ~8.8cm curve: drawn at x=5e6cm, refused at 1e7cm), a deliberate loud limit instead of
+an off-screen curve (decided by claude-optimizer; the alternative is an f64 camera). Within
+it, curve and overlay positions agree within one f32 grid step; framing and orbit hold,
+but pan and dolly of a curve near the limit are coarse (they move in f32 grid steps). Core and CPU submission
+tests cover this; the in-app visual check of a far-origin curve is pending.
 [Development notes](.project-docs/development.md#read-only-static-cubic-maya-ascii)
 record the supported class, limits and explicitly invoked genuine consumer.
 
@@ -696,15 +713,26 @@ The new node is named
 `pSphere1` with shape `pSphereShape1`, as in Maya (#175).
 The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 
+## Poly Torus is provisional and MCP only (#43)
+
+`create_primitive` with `torus` builds a radius-1, section-radius-0.5, 20x20, Y-axis torus
+(400 points, 800 edges, 400 quads, no poles). Defaults come from the polyTorus node page (2026 and 2027 pages agree; the command page was read for 2026 only, while reference.md pins 2027.2); the
+pages state no ranges or relation between the two radii, so a section radius larger than the
+radius is accepted (PROVISIONAL, self-intersecting). `twist` and Create UVs are not
+implemented and are not offered. Vertex order and winding are not claimed to match Maya.
+Edges are hard, there are no UVs or normals, and persistence follows the sphere. The Create >
+Polygon Primitives > Torus row is still disabled; enabling it needs an in-app check.
+
 ## World-space Rotate
 
-`NativeScene` does not model a node's `inheritsTransform` (`it`) or `offsetParentMatrix`
-(`opm`) attributes. World-space Rotate relies on the importers refusing them: the ASCII
-importer rejects any `.it` or `.opm` line, and the binary importer rejects any undeclared
-transform record with such a key (`it`, `inheritsTransform`, `opm`), so these scenes do not
-open. Maya's on-disk binary encoding of these attributes is not confirmed by any fixture in the
-repo; the tests only pin the refusal of the keys. A scene is therefore safe from
-`inheritsTransform` off only while that importer behavior holds.
+The ASCII importer reads a node's `inheritsTransform` (`.it`) and `offsetParentMatrix` (`.opm`,
+row-vector `matrix`, finite and affine, #105). The view, picking and the handle frames compose
+`(it ? parentWorld : I) * opm * matrix` (column form of Maya's `matrix * opm * parentWorld`). That
+formula is PROVISIONAL: the `it` off case together with `opm` is inferred from the documented
+order and is unconfirmed against a Maya reference scene, so no parity is claimed for it. The binary
+importer still refuses `it` and `opm` at open because their on-disk encoding is not confirmed by
+any fixture; the tests only pin the refusal. ASCII-sourced scenes are read-only, so nothing edits
+these attributes.
 
 The ASCII importer does read `.ro`, `.ra`, `.sh`, `.rpt` and `.spt` into the transform, and
 the view, picking and handle frames use them. Those scenes are read-only, so nothing edits
