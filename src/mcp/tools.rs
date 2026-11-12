@@ -124,6 +124,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     "invalid_playback_range"
                 }
                 OperationError::Scene(NativeError::KeyLimit) => "key_limit",
+                OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
                     if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
@@ -715,6 +716,9 @@ mod tests {
                     json!({"scene_token":token,"tool":"scale","handle":"uniform"})
                 }
                 "set_manipulator_size" => json!({"scene_token":token,"size":2.5}),
+                "set_undo_queue" => json!({"scene_token":token,"queue":"finite","size":5}),
+                "set_undo_enabled" => json!({"scene_token":token,"enabled":true}),
+                "open_undo_chunk" => json!({"scene_token":token,"name":"chunk"}),
                 "begin_manipulation" => {
                     json!({"scene_token":token,"kind":"move","node_id":"1","instance_path":["1"],"axis":"x"})
                 }
@@ -866,6 +870,8 @@ mod tests {
                     | "set_tool_space"
                     | "set_tool_handle"
                     | "set_manipulator_size"
+                    | "set_undo_queue"
+                    | "set_undo_enabled"
                     | "select_node"
                     | "deselect_all"
                     | "set_selection_mode"
