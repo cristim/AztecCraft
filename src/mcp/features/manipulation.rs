@@ -11,7 +11,7 @@ use crate::{
 use azteccraft::{
     history::ManipulationFinish,
     move_handles::ManipulatorSize,
-    native_scene::{RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
+    native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget, WorldAxis},
 };
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -52,20 +52,32 @@ enum SpaceInput {
     World,
 }
 
+/// The Move tool also works in its parent's axes (`parent`).
 #[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-enum SpaceToolInput {
-    Rotate,
-    Scale,
+enum MoveSpaceInput {
+    Object,
+    World,
+    Parent,
 }
 
-/// Sets the Axis Orientation the Rotate or Scale tool settings use for the next manipulation.
+/// Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next
+/// manipulation. Only Move accepts `parent`.
 #[derive(Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-struct ToolSpaceArgs {
-    scene_token: String,
-    tool: SpaceToolInput,
-    space: SpaceInput,
+#[serde(tag = "tool", rename_all = "snake_case", deny_unknown_fields)]
+enum ToolSpaceArgs {
+    Move {
+        scene_token: String,
+        space: MoveSpaceInput,
+    },
+    Rotate {
+        scene_token: String,
+        space: SpaceInput,
+    },
+    Scale {
+        scene_token: String,
+        space: SpaceInput,
+    },
 }
 
 /// `tool` selects which persistent selection is set: the Rotate axis or the Scale handle. Each
@@ -163,17 +175,39 @@ fn parse_set_active_tool(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
 }
 
 fn parse_set_tool_space(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    let args: ToolSpaceArgs = decode(arguments)?;
-    Ok(scoped(
-        token(&args.scene_token)?,
-        Operation::SetToolSpace {
-            tool: match args.tool {
-                SpaceToolInput::Rotate => ActiveTool::Rotate,
-                SpaceToolInput::Scale => ActiveTool::Scale,
+    let (scene_token, operation) = match decode(arguments)? {
+        ToolSpaceArgs::Move { scene_token, space } => (
+            scene_token,
+            Operation::SetMoveSpace {
+                space: match space {
+                    MoveSpaceInput::Object => MoveSpace::Object,
+                    MoveSpaceInput::World => MoveSpace::World,
+                    MoveSpaceInput::Parent => MoveSpace::Parent,
+                },
             },
-            space: space(args.space),
-        },
-    ))
+        ),
+        ToolSpaceArgs::Rotate {
+            scene_token,
+            space: requested,
+        } => (
+            scene_token,
+            Operation::SetToolSpace {
+                tool: ActiveTool::Rotate,
+                space: space(requested),
+            },
+        ),
+        ToolSpaceArgs::Scale {
+            scene_token,
+            space: requested,
+        } => (
+            scene_token,
+            Operation::SetToolSpace {
+                tool: ActiveTool::Scale,
+                space: space(requested),
+            },
+        ),
+    };
+    Ok(scoped(token(&scene_token)?, operation))
 }
 
 fn parse_set_tool_handle(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -407,7 +441,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_tool_space",
-        description: "Set the Axis Orientation (object or world) of the Rotate or Scale tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.rotate_space and scale_space. Does not change the active tool",
+        description: "Set the Axis Orientation of the Move (object, world or parent), Rotate or Scale (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes. Does not change the active tool",
         schema: schema::<ToolSpaceArgs>,
         parse: parse_set_tool_space,
         idempotent: true,

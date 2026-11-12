@@ -565,7 +565,10 @@ fn move_space_defaults_to_world_and_reports_change_and_no_change() {
         set_move_space(&mut editor, MoveSpace::Parent),
         OperationReply::Changed
     ));
-    assert_eq!(editor.manipulation.move_space(), MoveSpace::Parent);
+    assert_eq!(
+        editor.inspect_manipulation().unwrap().move_space,
+        MoveSpace::Parent
+    );
 }
 
 #[test]
