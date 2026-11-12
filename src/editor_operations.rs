@@ -463,23 +463,27 @@ pub enum Operation {
     },
     /// A read, like `Inspect`: it passes no guard.
     #[cfg(any(test, feature = "mcp"))]
-    #[allow(dead_code)] // constructed by the MCP tools in the next commit
     ListCameraBookmarks,
-    /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying.
-    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying. The four
+    /// mutating variants are unconstructed without MCP until the View menu lands.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    // until the View menu constructs it
     CreateCameraBookmark {
         name: String,
     },
-    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    // until the View menu constructs it
     RenameCameraBookmark {
         name: String,
         new_name: String,
     },
-    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    // until the View menu constructs it
     DeleteCameraBookmark {
         name: String,
     },
-    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    // until the View menu constructs it
     ApplyCameraBookmark {
         name: String,
     },
