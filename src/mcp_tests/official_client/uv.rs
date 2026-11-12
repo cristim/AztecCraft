@@ -329,6 +329,7 @@ async fn uv_sdk_save_as_and_a_confirmed_save_are_refused_with_the_uv_remedy() {
     let assert_uv_refusal = |reply: &rmcp::model::CallToolResult| {
         let error = &reply.structured_content.as_ref().unwrap()["error"];
         assert_eq!(error["code"], "save_unwritable", "{reply:?}");
+        assert_eq!(error["reason"], "session_uvs", "{reply:?}");
         let message = error["message"].as_str().unwrap();
         assert!(
             message.contains("session UVs") && message.contains("Delete UVs"),

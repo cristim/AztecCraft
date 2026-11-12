@@ -64,6 +64,12 @@ fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     )
 }
 
+fn tool_error_with_reason(code: &str, reason: &str, message: impl ToString) -> CallToolResult {
+    CallToolResult::structured_error(
+        json!({ "error": { "code": code, "reason": reason, "message": message.to_string() } }),
+    )
+}
+
 fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
     match reply {
         Ok(reply) => {
@@ -170,6 +176,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::StalePendingAction => "stale_pending_action",
             };
             match error {
+                OperationError::NativeSave(azteccraft::document::NativeSaveError::Unwritable(
+                    refusal,
+                )) => tool_error_with_reason(code, refusal.as_str(), error),
                 // File text comes from DocumentError/ObjError Display, which embeds the path; the
                 // typed variant is the only reliable signal, so withhold it.
                 OperationError::File(_) => {
