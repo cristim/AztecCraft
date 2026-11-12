@@ -109,7 +109,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "inspect_uvs",
-        description: "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order. `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+        description: "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
         schema: schema::<InspectUvsArgs>,
         parse: parse_inspect_uvs,
         idempotent: false,

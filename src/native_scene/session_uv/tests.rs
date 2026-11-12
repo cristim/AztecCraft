@@ -422,3 +422,149 @@ fn projecting_an_instanced_shape_is_accepted_and_the_set_is_per_shape() {
     assert_eq!(scene.session_uvs.sets.len(), 1);
     assert!(scene.uv_set(shape).is_some());
 }
+
+fn cube_mesh() -> NativeMesh {
+    let (scene, shape) = scene_with(Primitive::Cube);
+    scene.shape(shape).unwrap().mesh().clone()
+}
+
+fn corners_of(mesh: &NativeMesh, uv: [f64; 2]) -> Vec<Vec<[f64; 2]>> {
+    mesh.faces()
+        .iter()
+        .map(|f| vec![uv; f.outer().len()])
+        .collect()
+}
+
+#[test]
+fn planar_values_are_exactly_f32() {
+    for (axis, _, plane_axis) in AXES {
+        let mut scene = NativeScene::default();
+        let options = PrimitiveOptions::Plane {
+            width: 3.0,
+            height: 7.0,
+            sub_width: 3,
+            sub_height: 3,
+            axis: plane_axis,
+        };
+        scene
+            .create_with_options(Primitive::Plane, &options, "p")
+            .unwrap();
+        let shape = scene.shapes()[0].id();
+        scene.project_uv_planar(shape, axis).unwrap();
+        let values: Vec<f64> = scene
+            .uv_set(shape)
+            .unwrap()
+            .faces()
+            .iter()
+            .flatten()
+            .flatten()
+            .copied()
+            .collect();
+        assert!(
+            values.iter().any(|v| (*v * 3.0).fract() != 0.0),
+            "{axis:?} fixture is not fractional"
+        );
+        for v in values {
+            assert_eq!(f64::from(v as f32), v, "{axis:?}");
+        }
+    }
+}
+
+#[test]
+fn planar_projection_of_irrational_extent_is_quantised_and_valid() {
+    let (mut scene, shape) = scene_with(Primitive::Cube);
+    scene
+        .create_with_options(
+            Primitive::Plane,
+            &PrimitiveOptions::Plane {
+                width: 3.0,
+                height: 7.0,
+                sub_width: 3,
+                sub_height: 3,
+                axis: Axis::Y,
+            },
+            "p",
+        )
+        .unwrap();
+    let plane = scene.shapes()[1].id();
+    let _ = shape;
+    scene.project_uv_planar(plane, UvProjectAxis::Y).unwrap();
+    assert!(
+        scene
+            .uv_set(plane)
+            .unwrap()
+            .faces()
+            .iter()
+            .flatten()
+            .flatten()
+            .any(|v| (*v * 3.0).fract() != 0.0)
+    );
+    assert_eq!(scene.validate(), Ok(()));
+}
+
+#[test]
+fn from_corners_rounds_to_the_nearest_f32() {
+    let mesh = cube_mesh();
+    let set = UvSet::from_corners(&mesh, corners_of(&mesh, [0.1, 1.0 / 3.0])).unwrap();
+    let uv = set.faces()[0][0];
+    assert_eq!(uv, [f64::from(0.1_f32), f64::from(1.0_f32 / 3.0)]);
+    assert_ne!(uv[0], 0.1);
+    assert_eq!(set.corner_count(), 24);
+}
+
+#[test]
+fn from_corners_refuses_bad_shapes_and_values() {
+    let mesh = cube_mesh();
+    let mut short = corners_of(&mesh, [0.0, 0.0]);
+    short.pop();
+    assert_eq!(
+        UvSet::from_corners(&mesh, short),
+        Err(NativeError::InvalidSessionUvs)
+    );
+    let mut wrong = corners_of(&mesh, [0.0, 0.0]);
+    wrong[0].pop();
+    assert_eq!(
+        UvSet::from_corners(&mesh, wrong),
+        Err(NativeError::InvalidSessionUvs)
+    );
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 1e300, -1e300] {
+        for slot in 0..2 {
+            let mut uv = [0.5, 0.5];
+            uv[slot] = bad;
+            assert_eq!(
+                UvSet::from_corners(&mesh, corners_of(&mesh, uv)),
+                Err(NativeError::InvalidSessionUvs),
+                "{bad}"
+            );
+        }
+    }
+}
+
+#[test]
+fn validate_rejects_a_finite_value_that_is_not_f32_exact() {
+    let (mut scene, shape) = scene_with(Primitive::Cube);
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    scene.session_uvs.sets.get_mut(&shape).unwrap().faces[0][0][1] = 0.1;
+    assert_eq!(scene.validate(), Err(NativeError::InvalidSessionUvs));
+}
+
+#[test]
+fn from_corners_refuses_a_face_with_a_hole() {
+    let mut mesh = NativeMesh::polygon_fixture(
+        vec![
+            [0.0, 0.0, 0.0],
+            [10.0, 0.0, 0.0],
+            [10.0, 10.0, 0.0],
+            [0.0, 10.0, 0.0],
+            [2.0, 2.0, 0.0],
+            [4.0, 2.0, 0.0],
+            [4.0, 4.0, 0.0],
+        ],
+        &[vec![0, 1, 2, 3]],
+    );
+    mesh.add_hole_fixture(&[4, 5, 6]);
+    assert_eq!(
+        UvSet::from_corners(&mesh, vec![vec![[0.0, 0.0]; 4]]),
+        Err(NativeError::UnsupportedUvTopology)
+    );
+}
