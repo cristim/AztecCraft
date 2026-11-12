@@ -1,9 +1,16 @@
-use super::image::{Image, RenderError};
+use super::image::{Image, MAX_SAMPLES, RenderError};
 use super::ray::intersect;
 use crate::view_scene::ViewScene;
 use crate::viewport::Camera;
 use glam::{Vec2, Vec3};
 use std::thread;
+
+// PROVISIONAL: the light and the sky are fixed constants, not scene data, and `intersect` tests
+// every triangle of every instance per ray (no BVH, one allocation per instance per ray). This
+// is a prototype integrator. No Maya, Arnold or viewport-render parity is claimed.
+const LIGHT_POSITION: Vec3 = Vec3::new(3.0, 5.0, 3.0);
+const LIGHT_COLOR: Vec3 = Vec3::new(50.0, 50.0, 50.0);
+const SKY_COLOR: Vec3 = Vec3::new(0.05, 0.05, 0.1);
 
 #[derive(Clone, Copy, Debug)]
 pub struct RenderSettings {
@@ -43,10 +50,8 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
         };
 
         // 1. Direct Lighting
-        let light_pos = Vec3::new(3.0, 5.0, 3.0);
-        // Increment the intensity to 1000 to make it stand out against the sky
-        let light_color = Vec3::new(50.0, 50.0, 50.0);
-        let to_light = light_pos - hit.point;
+        let light_color = LIGHT_COLOR;
+        let to_light = LIGHT_POSITION - hit.point;
         let distance_sq = to_light.length_squared();
 
         if distance_sq > 1e-8 {
@@ -90,7 +95,7 @@ fn trace_path(scene: &ViewScene, ray: &super::ray::Ray, depth: u32, seed: &mut u
         return color;
     }
 
-    Vec3::new(0.05, 0.05, 0.1)
+    SKY_COLOR
 }
 
 pub fn render(
@@ -100,6 +105,9 @@ pub fn render(
 ) -> Result<Image, RenderError> {
     if settings.samples == 0 {
         return Err(RenderError::ZeroSamples);
+    }
+    if settings.samples > MAX_SAMPLES {
+        return Err(RenderError::TooManySamples);
     }
     if settings.max_depth == 0 || settings.max_depth > 16 {
         return Err(RenderError::InvalidDepth);
@@ -117,13 +125,14 @@ pub fn render(
     let row_len = settings.width as usize;
 
     thread::scope(|s| {
+        let mut handles = Vec::new();
         for (chunk_idx, chunk) in image
             .pixels
             .chunks_mut(rows_per_thread * row_len)
             .enumerate()
         {
             let start_y = chunk_idx * rows_per_thread;
-            let handle = s.spawn(move || {
+            handles.push(s.spawn(move || -> Result<(), RenderError> {
                 for (local_y, row) in chunk.chunks_mut(row_len).enumerate() {
                     let y = (start_y + local_y) as u32;
                     let mut seed = 12345u32.wrapping_add(y.wrapping_mul(2654435761));
@@ -137,17 +146,25 @@ pub fn render(
                                 1.0 - 2.0 * (y as f32 + 0.5 + jitter_y) / settings.height as f32,
                             );
 
-                            if let Ok(ray) = camera.ray(ndc, aspect) {
-                                row[x as usize] +=
-                                    trace_path(scene, &ray, settings.max_depth, &mut seed);
-                            }
+                            let ray = camera
+                                .ray(ndc, aspect)
+                                .map_err(|_| RenderError::CameraRay)?;
+                            row[x as usize] +=
+                                trace_path(scene, &ray, settings.max_depth, &mut seed);
                         }
                     }
                 }
-            });
-            let _ = handle;
+                Ok(())
+            }));
         }
-    });
+        for handle in handles {
+            match handle.join() {
+                Ok(result) => result?,
+                Err(panic) => std::panic::resume_unwind(panic),
+            }
+        }
+        Ok::<(), RenderError>(())
+    })?;
 
     Ok(image)
 }
@@ -201,8 +218,22 @@ mod tests {
             max_depth: 2,
         };
         let image = render(&view_scene, &camera, settings).unwrap();
+        assert!(
+            image
+                .pixels
+                .iter()
+                .all(|p| p.is_finite() && p.min_element() >= 0.0)
+        );
 
-        let sky_color = Vec3::new(0.05, 0.05, 0.1) * 4.0;
+        let dir = tempfile::tempdir().unwrap();
+        let ppm = dir.path().join("demo.ppm");
+        image.save_ppm(&ppm, settings.samples).unwrap();
+        assert_eq!(
+            std::fs::metadata(&ppm).unwrap().len(),
+            "P6\n64 64\n255\n".len() as u64 + 64 * 64 * 3
+        );
+
+        let sky_color = SKY_COLOR * 4.0;
 
         assert!(
             image.pixels[0].distance(sky_color) < 0.01,
@@ -223,7 +254,7 @@ mod tests {
 
         assert!(has_geometry, "The render should hit the cube or floor");
 
-        // **REGRETION TEST**:
+        // **REGRESSION TEST**:
         // The lit geometry should be significantly brighter than the shadow. If someone breaks
         // shadows, the darkest pixel would be as bright as the lit one.
         assert!(
@@ -231,6 +262,84 @@ mod tests {
             "The lit floor should be brighter than the cube's shadow. Brightest: {:?}, Darkest: {:?}",
             brightest_geom,
             darkest_geom
+        );
+    }
+
+    fn occluder_scene(with_occluder: bool) -> ViewScene {
+        let mut scene = NativeScene::default();
+        let floor_id = scene.create(Primitive::Plane, "floor").unwrap();
+        scene
+            .set_transform(
+                floor_id,
+                crate::native_scene::NativeTransform {
+                    scale: [10.0, 1.0, 10.0],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        if with_occluder {
+            // Small cube on the segment from the floor point (1.5, 0, 1.5) to the light.
+            let cube_id = scene.create(Primitive::Cube, "occluder").unwrap();
+            scene
+                .set_transform(
+                    cube_id,
+                    crate::native_scene::NativeTransform {
+                        translation: [1.95, 1.5, 1.95],
+                        scale: [0.4, 0.4, 0.4],
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
+        ViewScene::from_native(&scene, 1024 * 1024).unwrap()
+    }
+
+    #[test]
+    fn occluder_between_point_and_light_removes_direct_light() {
+        let ray = super::super::ray::Ray {
+            origin: Vec3::new(1.5, 1.0, 1.5),
+            direction: Vec3::NEG_Y,
+        };
+        let mut seed = 1;
+        // Depth 1 adds only the direct term; the indirect bounce contributes zero at depth 0.
+        let lit = trace_path(&occluder_scene(false), &ray, 1, &mut seed);
+        let shadowed = trace_path(&occluder_scene(true), &ray, 1, &mut seed);
+        assert!(
+            lit.min_element() > 0.0,
+            "unoccluded point must be lit: {lit:?}"
+        );
+        assert_eq!(
+            shadowed,
+            Vec3::ZERO,
+            "occluded point must get no direct light"
+        );
+    }
+
+    #[test]
+    fn render_rejects_oversized_settings() {
+        let (view_scene, camera) = setup_demo_scene();
+        let base = RenderSettings {
+            width: 8,
+            height: 8,
+            samples: 1,
+            max_depth: 1,
+        };
+        let too_many = RenderSettings {
+            samples: MAX_SAMPLES + 1,
+            ..base
+        };
+        assert_eq!(
+            render(&view_scene, &camera, too_many).err(),
+            Some(RenderError::TooManySamples)
+        );
+        let too_wide = RenderSettings {
+            width: u32::MAX,
+            height: u32::MAX,
+            ..base
+        };
+        assert_eq!(
+            render(&view_scene, &camera, too_wide).err(),
+            Some(RenderError::DimensionsTooLarge)
         );
     }
 
