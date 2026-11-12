@@ -11740,3 +11740,50 @@ fn radians_keeping_stored_never_perturbs_an_unchanged_rotation() {
     }
     assert!(drifted > 0, "the sample no longer exercises the drift");
 }
+
+#[test]
+fn native_scene_edits_are_refused_while_a_modal_is_open() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let id = editor.single_target().unwrap().0;
+    editor.create(Primitive::Cube);
+    editor.apply_operation(Operation::Undo).unwrap();
+    assert!(editor.history.can_undo() && editor.history.can_redo());
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    let scene = editor.history.scene().clone();
+    let operations = [
+        Operation::Undo,
+        Operation::Redo,
+        Operation::Create {
+            primitive: Primitive::Cube,
+            options: None,
+            name: None,
+        },
+        Operation::Delete(id),
+        Operation::DeleteSelection,
+        Operation::EditNode {
+            id,
+            name: Some("blocked".into()),
+            translation: [Some(1.0), None, None],
+            rotation_degrees: [None; 3],
+            scale: [None; 3],
+        },
+        Operation::Rename {
+            id,
+            name: "blocked".into(),
+        },
+    ];
+    for (index, operation) in operations.into_iter().enumerate() {
+        let label = format!("operation #{index}");
+        assert!(
+            matches!(
+                editor.apply_operation(operation),
+                Err(OperationError::BusyEditing)
+            ),
+            "{label}"
+        );
+        assert_eq!(editor.history.scene(), &scene, "{label}");
+        assert!(editor.files.is_modal(), "{label}");
+    }
+}
