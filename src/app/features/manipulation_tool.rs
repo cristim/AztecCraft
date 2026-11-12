@@ -16,7 +16,7 @@ use azteccraft::{
         paint::{paint_rotate, paint_scale},
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
-    native_scene::{RotateAxis, ScaleHandle, TransformTarget},
+    native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
 };
 use eframe::egui;
 use glam::{DVec3, Vec2};
@@ -33,6 +33,7 @@ const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 /// Rotate and Scale tool settings. Maya keeps the axis orientation per tool and defaults it to
 /// Object for Rotate and World for Scale (2026 tool settings pages).
 pub(in crate::app) struct ManipulationOptions {
+    move_space: MoveSpace,
     rotate_space: ManipulationSpace,
     scale_space: ManipulationSpace,
     rotate_axis: RotateAxis,
@@ -56,6 +57,7 @@ pub(in crate::app) struct ManipulationOptions {
 impl Default for ManipulationOptions {
     fn default() -> Self {
         Self {
+            move_space: MoveSpace::World,
             rotate_space: ManipulationSpace::Object,
             scale_space: ManipulationSpace::World,
             rotate_axis: RotateAxis::X,
@@ -78,6 +80,10 @@ impl ManipulationOptions {
         }
     }
 
+    pub(in crate::app) fn move_space(&self) -> MoveSpace {
+        self.move_space
+    }
+
     pub(in crate::app) fn rotate_axis(&self) -> RotateAxis {
         self.rotate_axis
     }
@@ -92,6 +98,14 @@ impl ManipulationOptions {
 }
 
 impl Editor {
+    pub(in crate::app) fn set_move_space(&mut self, space: MoveSpace) -> OperationReply {
+        if std::mem::replace(&mut self.manipulation.move_space, space) == space {
+            OperationReply::Unchanged
+        } else {
+            OperationReply::Changed
+        }
+    }
+
     pub(in crate::app) fn set_tool_space(
         &mut self,
         tool: ActiveTool,

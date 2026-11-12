@@ -106,6 +106,7 @@ impl Editor {
             | Operation::FrameAll
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
+            | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
             | Operation::SetGridVisible { .. }
@@ -405,6 +406,7 @@ impl Editor {
                 operation,
                 Operation::SetActiveTool(_)
                     | Operation::SetToolSpace { .. }
+                    | Operation::SetMoveSpace { .. }
                     | Operation::SetToolHandle(_)
                     | Operation::SetManipulatorSize(_)
                     | Operation::BeginMove { .. }
@@ -559,6 +561,7 @@ impl Editor {
         let command = match operation {
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
+            Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
             Operation::SetToolHandle(handle) => return Ok(self.set_tool_handle(handle)),
             Operation::SetManipulatorSize(size) => return Ok(self.set_manipulator_size(size)),
             Operation::BeginMove {
