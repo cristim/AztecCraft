@@ -758,3 +758,20 @@ Run `cargo test --locked --no-default-features --test maya_ascii_material_declar
 for its standalone caller. This does not enable Save or native/MCP operations,
 validate deep geometry or material graphs, or establish Maya acceptance.
 Reserved/default-name eligibility and Maya float3 storage remain unproved.
+
+## Save check timing guard (manual)
+
+`save_cost_at_512_and_4096_nodes` in `src/native_scene/binary/write/tests.rs` is an
+ignored, release-only timing measurement of the new-scene Binary Save path (#374). CI
+does not run it; run it by hand after touching the authored eligibility checks, the
+Binary writer or its self-check:
+
+```
+cargo test --release --locked --no-default-features --lib save_cost -- --ignored --nocapture
+```
+
+It prints the best of five times for the eligibility checks and the whole encode at 512
+and 4096 nodes (default cubes and bare transforms). Expected order of magnitude on Apple
+Silicon: checks under 1 ms at 512 nodes and under 10 ms at 4096; whole encode about 7 ms
+at 512 and about 50 ms at 4096 cubes (4096 nodes are refused as too large by the decoder
+budget). Tens of milliseconds for the checks at 4096 nodes mean a quadratic scan came back.
