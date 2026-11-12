@@ -23,7 +23,7 @@ use uuid::Uuid;
 /// rows keep saying how much of each format is read (#189).
 pub(super) const OPEN_FILTERS: [(&str, &[&str]); 4] = [
     ("Maya Scenes", &["ma", "mb"]),
-    ("Maya static cubic ASCII scene", &["ma"]),
+    ("Maya static curve ASCII scene", &["ma"]),
     ("Maya binary scene", &["mb"]),
     ("Legacy AztecCraft scene", &["aztec"]),
 ];

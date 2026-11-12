@@ -214,7 +214,7 @@ fn interior_knot_multiplicity_is_unsupported_but_bad_knots_stay_malformed() {
 #[test]
 fn every_curve_header_count_numeric_word_and_metadata_arity_is_consumed() {
     for (before, after, expected) in [
-        ("3 1 0 no 3", "1 1 0 no 3", ErrorKind::Unsupported),
+        ("3 1 0 no 3", "4 1 0 no 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 1 no 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 0 yes 3", ErrorKind::Unsupported),
         ("3 1 0 no 3", "3 1 0 no 2", ErrorKind::Unsupported),

@@ -455,6 +455,7 @@ impl Builder<'_, '_> {
                     id,
                     uuid: None,
                     name: self.budget.string(name).map_err(|_| resource())?,
+                    degree: 3,
                     control_vertices: Vec::new(),
                     knots: Vec::new(),
                     source: CurveSource {
@@ -743,7 +744,7 @@ impl Builder<'_, '_> {
                         let form = c.count()?;
                         let rational = c.boolean()?;
                         let dimension = c.count()?;
-                        if degree != 3 || form != 0 || rational || dimension != 3 {
+                        if !(1..=3).contains(&degree) || form != 0 || rational || dimension != 3 {
                             return Err(error(ErrorKind::Unsupported, c.offset));
                         }
                         let knot_count = c.count()?;
@@ -758,9 +759,9 @@ impl Builder<'_, '_> {
                             knots.push(c.number()?);
                         }
                         let cv_count = c.count()?;
-                        if cv_count < 4
-                            || cv_count.checked_sub(3) != Some(spans)
-                            || cv_count.checked_add(2) != Some(knot_count)
+                        if cv_count <= degree
+                            || cv_count.checked_sub(degree) != Some(spans)
+                            || cv_count.checked_add(degree - 1) != Some(knot_count)
                             || mul(cv_count, 3)? != c.tokens.len().saturating_sub(c.position)
                         {
                             return Err(error(ErrorKind::Malformed, c.offset));
@@ -774,6 +775,8 @@ impl Builder<'_, '_> {
                         }
                         c.done()?;
                         self.mark(owner, 1, c)?;
+                        self.scene.curves[index].degree = u32::try_from(degree)
+                            .map_err(|_| error(ErrorKind::Malformed, c.offset))?;
                         self.scene.curves[index].knots = knots;
                         self.scene.curves[index].control_vertices = cvs;
                         self.scene.curves[index].source.statement = retained;
@@ -1273,6 +1276,8 @@ fn decode_with_uvs(
     Ok((scene, uvs))
 }
 
+#[cfg(test)]
+mod degree_tests;
 mod document;
 mod mesh;
 #[cfg(test)]
