@@ -1,8 +1,8 @@
 use super::{Command, EditOutcome, History};
 use crate::native_scene::{
     ChannelBaseline, ChannelEdits, MoveBeginError, MoveSpace, NativeError, NativeId, NativeScene,
-    RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, TransformTarget,
-    WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+    RotateAxis, RotateFrame, RotateSpace, ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported,
+    TransformTarget, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
 use crate::scene::{NodeId, SceneError};
 use crate::view_scene::{ViewError, ViewScene};
@@ -152,10 +152,12 @@ enum ManipulationKind {
         frame: RotateFrame,
         baseline: ChannelBaseline,
     },
+    /// Like `Move`: every uncovered member's frame and baseline, the lead last unless covered.
     Scale {
         handle: ScaleHandle,
-        frame: ScaleFrame,
-        baseline: ChannelBaseline,
+        space: ScaleSpace,
+        movers: Vec<(ScaleFrame, ChannelBaseline)>,
+        covered_lead: Option<ChannelBaseline>,
     },
 }
 
@@ -182,9 +184,9 @@ impl ManipulationKind {
                 axis: *axis,
                 space: frame.space(),
             },
-            Self::Scale { handle, frame, .. } => ManipulationKindState::Scale {
+            Self::Scale { handle, space, .. } => ManipulationKindState::Scale {
                 handle: *handle,
-                space: frame.space(),
+                space: *space,
             },
         }
     }
@@ -199,7 +201,14 @@ impl ManipulationKind {
             } => covered_lead
                 .as_ref()
                 .or_else(|| movers.last().map(|mover| &mover.1)),
-            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => Some(baseline),
+            Self::Scale {
+                movers,
+                covered_lead,
+                ..
+            } => covered_lead
+                .as_ref()
+                .or_else(|| movers.last().map(|mover| &mover.1)),
+            Self::Rotate { baseline, .. } => Some(baseline),
         }
     }
 
@@ -234,11 +243,15 @@ impl ManipulationKind {
                 baseline,
                 frame.rotation_declared(*axis, parameter, declared)?,
             ),
-            Self::Scale {
-                handle,
-                frame,
-                baseline,
-            } => (baseline, frame.scale(*handle, parameter)?),
+            Self::Scale { handle, movers, .. } => {
+                let values = movers
+                    .iter()
+                    .map(|(frame, _)| frame.scale(*handle, parameter))
+                    .collect::<Result<Vec<_>, _>>()?;
+                return scene.preview_channels_many(
+                    movers.iter().map(|(_, baseline)| baseline).zip(values),
+                );
+            }
         };
         let (previous, changed) = scene.preview_channels(values.0, values.1)?;
         Ok((vec![previous], changed))
@@ -249,9 +262,10 @@ impl ManipulationKind {
             Self::Move { movers, .. } => {
                 scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => {
-                scene.restore_channels(baseline)
+            Self::Scale { movers, .. } => {
+                scene.restore_channels_many(movers.iter().map(|(_, baseline)| baseline))
             }
+            Self::Rotate { baseline, .. } => scene.restore_channels(baseline),
         }
     }
 
@@ -261,7 +275,10 @@ impl ManipulationKind {
             Self::Move { movers, .. } => {
                 scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
             }
-            Self::Rotate { baseline, .. } | Self::Scale { baseline, .. } => {
+            Self::Scale { movers, .. } => {
+                scene.channel_changes_many(movers.iter().map(|(_, baseline)| baseline))
+            }
+            Self::Rotate { baseline, .. } => {
                 let channels = scene.channel_changes(baseline)?;
                 Ok(if channels.iter().all(Option::is_none) {
                     Vec::new()
@@ -275,6 +292,7 @@ impl ManipulationKind {
 
 /// Retained bytes charged per mover against the view budget, beside its path.
 const MOVER_BYTES: usize = size_of::<ChannelBaseline>() + size_of::<WorldMoveFrame>();
+const SCALE_MOVER_BYTES: usize = size_of::<ChannelBaseline>() + size_of::<ScaleFrame>();
 
 /// What a begin builds: the kind, how many objects it acts on and the extra bytes to charge.
 struct ManipulationBegin {
@@ -382,6 +400,7 @@ fn refuse_alternate_path_ancestors(
     scene: &NativeScene,
     movers: &[&TransformTarget],
     selected: &HashSet<NativeId>,
+    refusal: &NativeError,
 ) -> Result<(), ManipulationError> {
     let uncovered: HashMap<NodeId, &TransformTarget> =
         movers.iter().map(|target| (target.node, *target)).collect();
@@ -391,14 +410,75 @@ fn refuse_alternate_path_ancestors(
         };
         let ancestors = &path.path[..path.path.len().saturating_sub(1)];
         if path.path != target.path && ancestors.iter().any(|id| selected.contains(id)) {
-            return Err(member_error(
-                scene,
-                target.node,
-                NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor),
-            ));
+            return Err(member_error(scene, target.node, refusal.clone()));
         }
     }
     Ok(())
+}
+
+/// The members of a multi-object Move or Scale that get their own edit.
+struct PlannedMembers<'a> {
+    /// Uncovered members in selection order: the ones that are edited.
+    movers: Vec<&'a TransformTarget>,
+    /// Bytes charged against the view budget for every member, covered ones included.
+    member_bytes: usize,
+}
+
+/// Resolves, dedupes and classifies `targets` (the last is the lead), or gives the first refusal.
+/// `shared` is the refusal for one node selected through two instances and `alternate` the one for
+/// an uncovered member reachable under a selected ancestor through another instance.
+fn plan_members<'a>(
+    scene: &NativeScene,
+    targets: &'a [TransformTarget],
+    mover_bytes: usize,
+    shared: NativeError,
+    alternate: NativeError,
+) -> Result<PlannedMembers<'a>, ManipulationError> {
+    scene
+        .resolve_move_targets(targets)
+        .map_err(|error| match error {
+            MoveBeginError::Scene(error) => ManipulationError::Native(error),
+            MoveBeginError::Member { index, source } => {
+                member_error(scene, targets[index].node, source)
+            }
+        })?;
+    let mut seen: HashMap<NodeId, &TransformTarget> = HashMap::new();
+    for target in targets {
+        if let Some(first) = seen.insert(target.node, target) {
+            // The same object twice is a malformed request; the same object through
+            // two instances shares its channels and cannot be edited as two members.
+            let refusal = if first.path == target.path {
+                NativeError::from(SceneError::InvalidIds)
+            } else {
+                shared
+            };
+            return Err(member_error(scene, target.node, refusal));
+        }
+    }
+    let selected = selected_transform_ids(targets);
+    let movers: Vec<&TransformTarget> = targets
+        .iter()
+        .filter(|target| !is_covered(&selected, target))
+        .collect();
+    debug_assert!(
+        !movers.is_empty(),
+        "a selection always has an uncovered mover"
+    );
+    refuse_alternate_path_ancestors(scene, &movers, &selected, &alternate)?;
+    let mut member_bytes = 0usize;
+    for target in targets {
+        member_bytes = target
+            .path
+            .len()
+            .checked_mul(size_of::<NativeId>())
+            .and_then(|bytes| bytes.checked_add(mover_bytes))
+            .and_then(|bytes| member_bytes.checked_add(bytes))
+            .ok_or(ViewError::ResourceLimit)?;
+    }
+    Ok(PlannedMembers {
+        movers,
+        member_bytes,
+    })
 }
 
 /// Frames, baselines and counts for a Move of `targets` (the last is `lead`), or the first refusal.
@@ -421,37 +501,16 @@ fn plan_move(
             MOVER_BYTES,
         ));
     }
-    scene
-        .resolve_move_targets(targets)
-        .map_err(|error| match error {
-            MoveBeginError::Scene(error) => ManipulationError::Native(error),
-            MoveBeginError::Member { index, source } => {
-                member_error(scene, targets[index].node, source)
-            }
-        })?;
-    let mut seen: HashMap<NodeId, &TransformTarget> = HashMap::new();
-    for target in targets {
-        if let Some(first) = seen.insert(target.node, target) {
-            // The same object twice is a malformed request; the same object through
-            // two instances shares one translation and cannot move as two members.
-            let refusal = if first.path == target.path {
-                NativeError::from(SceneError::InvalidIds)
-            } else {
-                NativeError::UnsupportedMove(WorldMoveUnsupported::SharedInstances)
-            };
-            return Err(member_error(scene, target.node, refusal));
-        }
-    }
-    let selected = selected_transform_ids(targets);
-    let movers: Vec<&TransformTarget> = targets
-        .iter()
-        .filter(|target| !is_covered(&selected, target))
-        .collect();
-    debug_assert!(
-        !movers.is_empty(),
-        "a selection always has an uncovered mover"
-    );
-    refuse_alternate_path_ancestors(scene, &movers, &selected)?;
+    let PlannedMembers {
+        movers,
+        member_bytes,
+    } = plan_members(
+        scene,
+        targets,
+        MOVER_BYTES,
+        NativeError::UnsupportedMove(WorldMoveUnsupported::SharedInstances),
+        NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor),
+    )?;
     let frames = scene
         .world_move_frames_in(&movers, space, axis)
         .map_err(|error| match error {
@@ -460,16 +519,6 @@ fn plan_move(
                 member_error(scene, movers[index].node, source)
             }
         })?;
-    let mut member_bytes = 0usize;
-    for target in targets {
-        member_bytes = target
-            .path
-            .len()
-            .checked_mul(size_of::<NativeId>())
-            .and_then(|bytes| bytes.checked_add(MOVER_BYTES))
-            .and_then(|bytes| member_bytes.checked_add(bytes))
-            .ok_or(ViewError::ResourceLimit)?;
-    }
     let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
         None
     } else {
@@ -484,6 +533,67 @@ fn plan_move(
         targets.len() - movers.len(),
         member_bytes,
     ))
+}
+
+/// Frames, baselines and counts for a Scale of `targets` (the last is `lead`), or the first
+/// refusal. `handle` is `None` when only the frames are wanted (the availability check).
+fn plan_scale(
+    scene: &NativeScene,
+    targets: &[TransformTarget],
+    space: ScaleSpace,
+    handle: Option<ScaleHandle>,
+    lead: &TransformTarget,
+) -> Result<ManipulationBegin, ManipulationError> {
+    if let ([target], Some(handle)) = (targets, handle) {
+        let (frame, baseline) = scene.begin_scale_frame(target, handle, space)?;
+        return Ok(ManipulationBegin::single(ManipulationKind::Scale {
+            handle,
+            space,
+            movers: vec![(frame, baseline)],
+            covered_lead: None,
+        }));
+    }
+    let PlannedMembers {
+        movers,
+        member_bytes,
+    } = plan_members(
+        scene,
+        targets,
+        SCALE_MOVER_BYTES,
+        NativeError::UnsupportedScale(ScaleUnsupported::SharedInstances),
+        NativeError::UnsupportedScale(ScaleUnsupported::AlternatePathAncestor),
+    )?;
+    let mut frames = Vec::new();
+    frames
+        .try_reserve_exact(movers.len())
+        .map_err(|_| NativeError::ResourceLimit)?;
+    for target in &movers {
+        let member = scene
+            .scale_frame_of(target, space)
+            .and_then(|(frame, baseline)| {
+                if let Some(handle) = handle {
+                    frame.require_leaves(handle)?;
+                }
+                Ok((frame, baseline))
+            });
+        frames.push(member.map_err(|error| member_error(scene, target.node, error))?);
+    }
+    let covered_lead = if movers.last().is_some_and(|last| last.node == lead.node) {
+        None
+    } else {
+        Some(scene.scale_baseline(lead.node)?)
+    };
+    Ok(ManipulationBegin {
+        kind: ManipulationKind::Scale {
+            handle: handle.unwrap_or(ScaleHandle::Uniform),
+            space,
+            movers: frames,
+            covered_lead,
+        },
+        member_count: targets.len(),
+        covered_count: targets.len() - movers.len(),
+        member_bytes,
+    })
 }
 
 impl History {
@@ -619,14 +729,63 @@ impl History {
         provenance: ManipulationProvenance,
         byte_budget: usize,
     ) -> Result<ManipulationId, ManipulationError> {
-        self.begin_manipulation(target, scene_token, provenance, byte_budget, |scene| {
-            let (frame, baseline) = scene.begin_scale_frame(target, handle, space)?;
-            Ok(ManipulationBegin::single(ManipulationKind::Scale {
-                handle,
-                frame,
-                baseline,
-            }))
+        self.begin_scale_many(
+            std::slice::from_ref(target),
+            handle,
+            space,
+            scene_token,
+            provenance,
+            byte_budget,
+        )
+    }
+
+    /// Begins one Scale of every target about each object's own pivot; the last target is the
+    /// lead. Covered members and instance refusals follow the Move rules (P20, P21).
+    pub fn begin_scale_many(
+        &mut self,
+        targets: &[TransformTarget],
+        handle: ScaleHandle,
+        space: ScaleSpace,
+        scene_token: Uuid,
+        provenance: ManipulationProvenance,
+        byte_budget: usize,
+    ) -> Result<ManipulationId, ManipulationError> {
+        let lead = targets
+            .last()
+            .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
+        self.begin_manipulation(lead, scene_token, provenance, byte_budget, |scene| {
+            plan_scale(scene, targets, space, Some(handle), lead)
         })
+    }
+
+    /// For each of X, Y, Z and the uniform handle, the refusal a Scale of `targets` would give, or
+    /// `None`; the frames are built once and nothing is started. `Err` applies to every handle.
+    pub fn check_scale_handles(
+        &self,
+        targets: &[TransformTarget],
+        space: ScaleSpace,
+    ) -> Result<[Option<ManipulationError>; 4], ManipulationError> {
+        let lead = targets
+            .last()
+            .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
+        let plan = plan_scale(&self.scene, targets, space, None, lead)?;
+        let ManipulationKind::Scale { movers, .. } = &plan.kind else {
+            return Ok([None, None, None, None]);
+        };
+        Ok([
+            ScaleHandle::X,
+            ScaleHandle::Y,
+            ScaleHandle::Z,
+            ScaleHandle::Uniform,
+        ]
+        .map(|handle| {
+            movers.iter().find_map(|(frame, baseline)| {
+                frame
+                    .require_leaves(handle)
+                    .err()
+                    .map(|error| member_error(&self.scene, baseline.node(), error))
+            })
+        }))
     }
 
     fn begin_manipulation(
