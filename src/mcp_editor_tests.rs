@@ -1,6 +1,104 @@
 use super::*;
 use crate::mcp;
 
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+
+#[test]
+fn ascii_remote_open_obeys_all_existing_editor_guards_before_candidate_adoption() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    for guard in 0..7 {
+        let context = egui::Context::default();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let id = editor.selected.unwrap();
+        editor
+            .apply_operation(Operation::Rename {
+                id,
+                name: "undone".into(),
+            })
+            .unwrap();
+        editor.apply_operation(Operation::Undo).unwrap();
+        match guard {
+            0 => editor.name = "pending human name".into(),
+            1 => editor.channels[0] = "nan".into(),
+            2 => context.memory_mut(|memory| memory.request_focus(name_edit_id())),
+            3 => editor.native_input_pending = true,
+            4 => (),
+            5 => {
+                editor.apply_operation(Operation::NewScene).unwrap();
+            }
+            6 => {
+                let OperationReply::PendingConfirmation {
+                    pending_action_id, ..
+                } = editor.apply_operation(Operation::RequestClose).unwrap()
+                else {
+                    panic!("expected close confirmation")
+                };
+                editor
+                    .apply_operation(Operation::ResolveFileAction {
+                        pending_id: Uuid::parse_str(&pending_action_id).unwrap(),
+                        decision: crate::editor_operations::FileDecision::Discard,
+                    })
+                    .unwrap();
+                assert!(editor.files.is_closing());
+            }
+            _ => unreachable!(),
+        }
+        let before = serde_json::to_value(
+            editor
+                .remote_operation(
+                    RemoteRequest {
+                        expected_scene_token: None,
+                        operation: Operation::Inspect,
+                    },
+                    &context,
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        let scene = editor.history.scene().clone();
+        let camera = editor.camera.clone();
+        let token = editor.scene_token;
+        let fields = (editor.name.clone(), editor.channels.clone());
+        let result = editor.remote_operation(
+            RemoteRequest {
+                expected_scene_token: Some(if guard == 4 { Uuid::new_v4() } else { token }),
+                operation: Operation::OpenScene { path: path.clone() },
+            },
+            &context,
+        );
+        if guard == 4 {
+            assert!(matches!(result, Err(OperationError::StaleScene)));
+        } else {
+            assert!(matches!(result, Err(OperationError::BusyEditing)));
+        }
+        let after = serde_json::to_value(
+            editor
+                .remote_operation(
+                    RemoteRequest {
+                        expected_scene_token: None,
+                        operation: Operation::Inspect,
+                    },
+                    &context,
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(after, before);
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.camera, camera);
+        assert_eq!(editor.scene_token, token);
+        assert_eq!((editor.name, editor.channels), fields);
+    }
+}
+
 fn camera_operations() -> [Operation; 3] {
     [
         Operation::Orbit {
@@ -968,6 +1066,269 @@ mod official_client {
     };
     use serde_json::{Value, json};
     use std::time::Duration;
+
+    async fn ascii_open_inspect_select_frame(path: &std::path::Path, expected_counts: [usize; 2]) {
+        let source = std::fs::read(path).unwrap();
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        let catalog = client.peer().list_tools(None).await.unwrap();
+        assert_eq!(
+            catalog
+                .tools
+                .iter()
+                .map(|tool| tool.name.as_ref())
+                .collect::<Vec<_>>(),
+            crate::editor_operations::TOOL_NAMES
+        );
+        let old_token = editor.scene_token.to_string();
+        let result = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "open_scene",
+            json!({"scene_token":old_token,"path":path.to_str().unwrap()}),
+        )
+        .await;
+        assert_eq!(
+            result.structured_content.unwrap()["outcome"],
+            "document_applied"
+        );
+        let token = editor.scene_token.to_string();
+        assert_ne!(token, old_token);
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let inspection = &inspected["inspection"];
+        assert_eq!(inspection["document_origin"], "maya_ascii");
+        assert_eq!(inspection["retained_source_bytes"], source.len());
+        assert!(inspection["retained_source_records"].as_u64().unwrap() > 0);
+        assert!(!inspection["read_only_reason"].as_str().unwrap().is_empty());
+        assert_eq!(inspection["shapes"].as_array().unwrap().len(), 0);
+        let curves = inspection["curves"].as_array().unwrap();
+        assert_eq!(curves.len(), 1);
+        assert_eq!(curves[0]["control_vertices"], expected_counts[0]);
+        assert_eq!(curves[0]["knots"], expected_counts[1]);
+        assert_eq!(curves[0]["degree"], 3);
+        assert_eq!(curves[0]["form"], "open");
+        assert_eq!(curves[0]["read_only"], true);
+        assert_eq!(curves[0]["draw_available"], true);
+        assert_eq!(inspection["save_available"], false);
+        assert!(
+            !serde_json::to_string(inspection)
+                .unwrap()
+                .contains("inert scene script")
+        );
+        let owner = inspection["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|node| {
+                node["shape_ids"]
+                    .as_array()
+                    .unwrap()
+                    .contains(&curves[0]["id"])
+            })
+            .unwrap();
+        let id = owner["id"].as_str().unwrap().to_owned();
+        let instance_path = owner["instance_paths"][0].clone();
+        let selected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_node",
+            json!({"scene_token":token,"node_id":id,"instance_path":instance_path}),
+        )
+        .await;
+        assert_eq!(selected.is_error, Some(false));
+        assert_eq!(editor.selected.unwrap().to_decimal(), id);
+        let baseline = editor.history.scene().clone();
+        let pan = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "pan_camera",
+            json!({"scene_token":token,"world_units":[100,25]}),
+        )
+        .await;
+        assert_eq!(pan.is_error, Some(false));
+        let frame = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "frame_selected",
+            json!({"scene_token":token}),
+        )
+        .await;
+        assert_eq!(frame.is_error, Some(false));
+        let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+        assert_eq!(view.curve_instances().len(), 1);
+        for point in view.curve_instances()[0].segments().iter().flatten() {
+            let ndc = editor
+                .camera
+                .project(*point, editor.aspect)
+                .unwrap()
+                .unwrap();
+            assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
+        }
+        for (tool, fields) in [
+            ("create_primitive", json!({"primitive":"cube"})),
+            ("rename_node", json!({"node_id":id,"name":"must_not_apply"})),
+            (
+                "set_transform",
+                json!({"node_id":id,"translation":[1,2,3],"rotation_degrees":[0,0,0],"scale":[1,1,1]}),
+            ),
+            (
+                "edit_node",
+                json!({"node_id":id,"translation":[1,null,null]}),
+            ),
+            ("delete_node", json!({"node_id":id})),
+        ] {
+            let mut args = fields;
+            args["scene_token"] = json!(token);
+            let result = call(&mut editor, &context, client.peer(), tool, args)
+                .await
+                .structured_content
+                .unwrap();
+            assert_eq!(result["error"]["code"], "scene_error");
+            assert!(
+                result["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("read-only")
+            );
+            assert_eq!(editor.history.scene(), &baseline);
+            assert_eq!(editor.selected.unwrap().to_decimal(), id);
+            assert!(!editor.is_dirty() && !editor.history.can_undo());
+        }
+        assert!(
+            call_response(
+                &mut editor,
+                &context,
+                client.peer(),
+                "open_scene",
+                json!({"scene_token":token,"path":path.to_str().unwrap(),"extra":true})
+            )
+            .await
+            .is_err()
+        );
+        assert_eq!(editor.history.scene(), &baseline);
+        assert_eq!(std::fs::read(path).unwrap(), source);
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn ascii_sdk_open_inspect_select_frame_uses_canonical_readonly_curves() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+        ascii_open_inspect_select_frame(&path, [4, 6]).await;
+    }
+
+    #[tokio::test]
+    #[ignore = "requires the explicitly supplied pinned genuine Maya ASCII fixture"]
+    async fn genuine_ascii_sdk_open_inspect_select_frame_uses_actual_editor() {
+        let path = std::env::var_os("AZTECCRAFT_MA_CURVE_FIXTURE").unwrap();
+        ascii_open_inspect_select_frame(std::path::Path::new(&path), [8, 10]).await;
+    }
+
+    #[tokio::test]
+    async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_selection() {
+        let directory = tempfile::tempdir().unwrap();
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        let token = editor.scene_token.to_string();
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "create_primitive",
+            json!({"scene_token":token,"primitive":"cube"}),
+        )
+        .await;
+        let id = editor.selected.unwrap().to_decimal();
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "rename_node",
+            json!({"scene_token":token,"node_id":id,"name":"undone_name"}),
+        )
+        .await;
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "undo",
+            json!({"scene_token":token}),
+        )
+        .await;
+        assert!(editor.history.can_undo() && editor.history.can_redo() && editor.is_dirty());
+        let baseline = editor.history.scene().clone();
+        let before = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let camera = editor.camera.clone();
+        let selected = (editor.selected, editor.selected_path.clone());
+        let valid = String::from_utf8(ascii_fixture::specimen()).unwrap();
+        for (index, source) in [
+            String::from("//Maya ASCII 2016 scene\ncreateNode"),
+            valid.replace("createNode nurbsCurve", "createNode mesh"),
+            valid.replace("12 0 0", "100000000 0 0"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let path = directory.path().join(format!("rejected{index}.ma"));
+            std::fs::write(&path, source.as_bytes()).unwrap();
+            let result = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "open_scene",
+                json!({"scene_token":token,"path":path.to_str().unwrap()}),
+            )
+            .await;
+            assert_eq!(
+                result.structured_content.unwrap()["error"]["code"],
+                "file_error"
+            );
+            let after = call(
+                &mut editor,
+                &context,
+                client.peer(),
+                "inspect_scene",
+                json!({}),
+            )
+            .await
+            .structured_content
+            .unwrap();
+            assert_eq!(after, before);
+            assert_eq!(editor.history.scene(), &baseline);
+            assert_eq!(editor.camera, camera);
+            assert_eq!((editor.selected, editor.selected_path.clone()), selected);
+            assert!(editor.history.can_undo() && editor.history.can_redo());
+            assert_eq!(std::fs::read(path).unwrap(), source.as_bytes());
+        }
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
 
     mod binary_fixture {
         include!(concat!(

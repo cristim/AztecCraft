@@ -3,6 +3,78 @@ use crate::viewport_renderer::tests::{Offscreen, creation_context, recorded_subm
 use eframe::wgpu;
 use std::time::Duration;
 
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    let source = ascii_fixture::specimen();
+    std::fs::write(&path, &source).unwrap();
+    let context = egui::Context::default();
+    let creation = creation_context(context.clone());
+    let mut editor = Editor::new(&creation).unwrap();
+    editor
+        .apply_operation(Operation::OpenScene { path: path.clone() })
+        .unwrap();
+    let owner = editor.history.scene().nodes()[0].id();
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(owner),
+            instance_path: None,
+        })
+        .unwrap();
+    editor.apply_operation(Operation::FrameSelected).unwrap();
+    let baseline = editor.history.scene().clone();
+    let token = editor.scene_token;
+    let output = context.run_ui(input(Vec::new(), egui::Vec2::splat(128.0)), |ui| {
+        editor.viewport(ui, token)
+    });
+    assert!(
+        output
+            .shapes
+            .iter()
+            .any(|shape| matches!(shape.shape, egui::Shape::Callback(_)))
+    );
+    let image = Offscreen::from_context(&creation).render_egui(context.clone(), output);
+    assert!(image.as_chunks::<4>().0.contains(&[242, 163, 70, 255]));
+    for size in [egui::vec2(640.0, 480.0), egui::vec2(1920.0, 1080.0)] {
+        let mut output = context.run_ui(input(Vec::new(), size), |ui| editor.render(ui));
+        output.textures_delta.clear();
+        assert!(
+            output
+                .shapes
+                .iter()
+                .any(|shape| matches!(shape.shape, egui::Shape::Callback(_)))
+        );
+        let submission = recorded_submission(editor.renderer.as_ref().unwrap());
+        assert!(
+            submission
+                .vertices
+                .iter()
+                .any(|vertex| vertex[4..] == [242.0 / 255.0, 163.0 / 255.0, 70.0 / 255.0, 1.0])
+        );
+        assert!(editor.renderer.as_ref().unwrap().terminal_error().is_none());
+        let inspection = editor.inspect(false).unwrap();
+        assert!(
+            inspection.curves[0].draw_available
+                && inspection.depth_complete
+                && inspection.clipping_complete
+        );
+    }
+    assert_eq!(editor.history.scene(), &baseline);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.selected, Some(owner));
+    assert!(!editor.is_dirty() && !editor.history.can_undo());
+    assert_eq!(std::fs::read(path).unwrap(), source);
+}
+
 fn input(events: Vec<egui::Event>, size: egui::Vec2) -> egui::RawInput {
     egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),

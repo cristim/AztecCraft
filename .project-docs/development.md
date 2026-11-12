@@ -51,8 +51,9 @@ Docking and full Maya interaction parity aren't implemented or verified.
 `NativeScene` is the editor and History's sole mutable authoring state. It owns
 separate transform/shape identities, instance DAG edges, f64 channels and pivots
 in declared units, and immutable original source bytes with typed edit intent.
-`ViewScene` derives bounded read-only triangle/quad instances, preserving original
-face indices and full instance paths. Unsupported evaluation or topology refuses
+`ViewScene` derives bounded read-only triangle/quad instances and evaluated static
+cubic curve segments, preserving original face indices and full instance paths.
+Unsupported evaluation or topology refuses
 projection or editing explicitly; it isn't flattened into a second authoring mesh.
 Local mesh points and sparse offsets remain separate centimeter-valued storage;
 both are promoted to f64 before addition/world transformation. Native values
@@ -107,12 +108,14 @@ count, and no history limit or history persistence exists yet.
 
 ## Native documents
 
-`document::load_native` stages Maya binary `.mb` or legacy `.aztec` data from one
+`document::load_native` stages Maya binary `.mb`, supported static cubic Maya
+ASCII `.ma`, or legacy `.aztec` data from one
 bounded regular-file handle, retaining the exact parsed Arc and opened-file
 baseline. Unix reads use nonblocking open followed by a regular-handle check so
 special files cannot wait for a writer. No equivalent Windows deadline is claimed.
 The 16 MiB input limit is application policy. Legacy validation uses these same
-bytes rather than rereading the path. Maya ASCII and genuine Maya writing remain pending.
+bytes rather than rereading the path. Genuine Maya writing remains pending in
+this source slice.
 
 Open validates/prepares an off-document candidate and frames its visible geometry
 before replacement or an unsaved confirmation. Discard applies the exact staged
@@ -123,6 +126,67 @@ MCP also requires the current scene token. Save is unavailable and cannot discar
 UI and MCP use the same handlers; [the MCP contract](mcp.md) documents the response
 delivery barrier for remote Close. Full native file-dialog navigation, native
 editing of imported scenes and other-platform interaction need separate evidence.
+
+### Read-only static cubic Maya ASCII
+
+ASCII Open uses a bounded inert command decoder, never a MEL evaluator. The
+admitted class is clamped open cubic, nonrational three-dimensional curves with
+finite f64 CVs/knots, strict positive interior spans, supported parent transforms
+and the explicit startup/metadata envelope. The retained legacy 2016 reference
+uses centimeter/degree/film units. Unsupported classes, commands, drivers,
+history, units or unknown effects refuse the whole candidate. This is not general
+Maya ASCII, rig or Maya 2026 compatibility. Original bytes, including quoted
+script bodies, remain inert and unchanged.
+
+NativeScene owns the canonical curve identity, parent edges and f64 source
+values. ViewScene evaluates supported spans and prepares derived world-space
+segments; the CV hull is used only as a conservative framing bound. Its chord
+tolerance is application policy, max(1e-6cm, world CV-hull diagonal*1e-4), not a
+Maya tessellation constant. Error checks include actual emitted f32 endpoints.
+Unrepresentable or over-tolerance conversion refuses instead of relaxing the
+bound. Each curve instance is capped at 65,536 segments and depth 24, with one million
+metered preparation visits shared across the whole derived view and the existing
+derived byte budget. Parsing separately caps input at 16 MiB, tokens/statements at one
+million each, accounted buffers at 128 MiB and metered work at 50 million. These are
+operational admission policies, not heap or timing guarantees.
+
+ASCII documents are read-only. The core authoring refusal also drives disabled
+native name/channel/Create/Delete/Save As controls and their visible reason;
+focused disabled TextEdits suppress actual text interaction. Selection through
+the Outliner or `select_node`, navigation and `frame_selected` stay available.
+Viewport curve picking, CV/component editing, animated/history-driven evaluation
+and native ASCII writing are unsupported. Binary NCRV remains refused independently of this
+ASCII path. MCP exposes bounded canonical curve metadata and source counts,
+without CV arrays, script text or file paths; see [the contract](mcp.md).
+
+Scoped local checks exercised independent uniform/nonuniform spline oracles,
+actual f32 output bounds, shared resource limits, native document/lifecycle
+admission, disabled UI text events, Outliner selection, official SDK
+Open/inspect/select/frame and an actual Editor GPU callback. The GPU callback
+check uses a 128px framebuffer; later 640×480 and 1920×1080 UI layouts check
+submission payloads only. These checks do not establish genuine-file native-window pixels, final
+integrated-stack behavior, full matrix/cold verification or Maya parity.
+
+The explicitly invoked genuine consumer is the unmodified 82,189-byte
+[Autodesk maya-usd legacy 2016 curve scene](https://github.com/Autodesk/maya-usd/blob/381650c6bcd695cebae15e2cd73f5f2a7125abb2/test/lib/usd/translators/UsdExportNurbsCurveTest/UsdExportNurbsCurveTest.ma),
+Git blob `9faa26c2a5e30f3250f86d76b2ca89a601b1f089`,
+SHA256 `943735c17b5bac97d75c3326a274702eb5e84cd5de71afeb4f9a70df43d541cc`.
+It is retained outside the repository. Set `AZTECCRAFT_MA_CURVE_FIXTURE` to the
+explicit retained file after a separate SHA256 precheck. Decoder source-word
+checks additionally require an independent private
+`AZTECCRAFT_MA_CURVE_AUDIT`; they do not treat production parsing as the oracle.
+No reference scene, embedded script or private manifest is distributed.
+
+```sh
+cargo test --locked --no-default-features --lib document::native_open_tests::genuine_ascii_native_open_and_frame_keeps_retained_source -- --ignored --exact
+cargo test --locked --features mcp-test-client --bin azteccraft app::mcp_editor_tests::official_client::genuine_ascii_sdk_open_inspect_select_frame_uses_actual_editor -- --ignored --exact --test-threads=1
+cargo test --locked --features mcp-test-client --bin azteccraft app::gpu_viewport_tests::headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback -- --ignored --exact --test-threads=1
+```
+
+The first two commands consume the real file; the last uses an original small
+synthetic curve to exercise the actual Editor framebuffer. None executes source
+scripts. Genuine-file native Open/display QA and final source-union verification
+remain separate acceptance gates.
 
 The standalone legacy `document::load`/`save_new` utilities retain validated JSON
 v1 quad scenes and create-new/no-clobber writes via vendored `craft-atomic`.

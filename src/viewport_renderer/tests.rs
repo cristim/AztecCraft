@@ -65,6 +65,162 @@ fn cube() -> NativeScene {
     scene
 }
 
+fn curve_scene(second: bool, hidden: bool, endpoint_z: f64) -> NativeScene {
+    let mut source = String::from(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film;",
+    );
+    for (index, x) in if second {
+        vec![(0, -0.8), (1, 0.8)]
+    } else {
+        vec![(0, 0.0)]
+    } {
+        source.push_str(&format!(" createNode transform -n \"curve{index}\"; setAttr \".t\" -type \"double3\" {x} 0 0; setAttr \".v\" {}; createNode nurbsCurve -n \"shape{index}\" -p \"curve{index}\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 -0.4 0.5 {endpoint_z} -0.4 1.5 0 0.4 1.5 0 0.4 0.5 {endpoint_z};", if hidden { "no" } else { "yes" }));
+    }
+    azteccraft::native_scene::ascii::decode(std::sync::Arc::from(source.into_bytes())).unwrap()
+}
+
+fn region_has(image: &[u8], camera: &Camera, world: Vec3, color: [u8; 4]) -> bool {
+    let ndc = camera.project(world, 1.0).unwrap().unwrap();
+    let x = ((ndc.x + 1.0) * 0.5 * SIZE as f32).floor() as i32;
+    let y = ((1.0 - ndc.y) * 0.5 * SIZE as f32).floor() as i32;
+    (y - 2..=y + 2).any(|y| {
+        (x - 2..=x + 2).any(|x| {
+            x >= 0
+                && y >= 0
+                && x < SIZE as i32
+                && y < SIZE as i32
+                && pixel(image, x as u32, y as u32) == color
+        })
+    })
+}
+
+#[test]
+fn curve_submission_preflight_counts_actual_segments_and_refuses_short_buffer() {
+    let native = curve_scene(true, false, 0.0);
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let vertices = 84
+        + view
+            .curve_instances()
+            .iter()
+            .map(|curve| 2 * curve.segments().len())
+            .sum::<usize>();
+    let bytes = vertices * VERTEX_BYTES;
+    let submission =
+        Submission::new(&view, &camera(0.01), 1.0, None, FORMAT, bytes as u64).unwrap();
+    assert_eq!(submission.surfaces, 0..0);
+    assert_eq!(submission.lines, 0..vertices as u32);
+    assert_eq!(submission.bytes.len(), bytes);
+    assert!(matches!(
+        Submission::new(&view, &camera(0.01), 1.0, None, FORMAT, bytes as u64 - 1),
+        Err(RenderError::ResourceLimit)
+    ));
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_curve_evaluation_differs_from_hull_and_colors_exact_instance() {
+    let native = curve_scene(true, false, 0.0);
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let camera = camera(0.01);
+    let mut gpu = Offscreen::new();
+    let first = &view.curve_instances()[0];
+    let image = gpu.image(&view, &camera, Some(&first.path()[..1]));
+    assert!(region_has(
+        &image,
+        &camera,
+        Vec3::new(-0.8, 1.25, 0.0),
+        [242, 163, 70, 255]
+    ));
+    assert!(region_has(
+        &image,
+        &camera,
+        Vec3::new(0.8, 1.25, 0.0),
+        [145, 145, 145, 255]
+    ));
+    assert!(!region_has(
+        &image,
+        &camera,
+        Vec3::new(0.8, 1.25, 0.0),
+        [242, 163, 70, 255]
+    ));
+    assert!(!region_has(
+        &image,
+        &camera,
+        Vec3::new(-0.8, 1.5, 0.0),
+        [242, 163, 70, 255]
+    ));
+    let second = &view.curve_instances()[1];
+    let image = gpu.image(&view, &camera, Some(&second.path()[..1]));
+    assert!(region_has(
+        &image,
+        &camera,
+        Vec3::new(0.8, 1.25, 0.0),
+        [242, 163, 70, 255]
+    ));
+    assert!(region_has(
+        &image,
+        &camera,
+        Vec3::new(-0.8, 1.25, 0.0),
+        [145, 145, 145, 255]
+    ));
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_curve_hardware_near_clip_and_ancestor_visibility_are_real() {
+    let native = curve_scene(false, false, 4.8);
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let mut gpu = Offscreen::new();
+    let clipped = gpu.image(&view, &camera(0.5), None);
+    assert!(clipped.as_chunks::<4>().0.contains(&[145, 145, 145, 255]));
+    let outside = gpu.image(&view, &camera(6.0), None);
+    assert!(!outside.as_chunks::<4>().0.contains(&[145, 145, 145, 255]));
+    let hidden = curve_scene(false, true, 0.0);
+    let hidden_view = ViewScene::from_native(&hidden, VIEW_BUDGET).unwrap();
+    assert!(hidden_view.curve_instances().is_empty());
+    let image = gpu.image(&hidden_view, &camera(0.01), None);
+    assert!(!image.as_chunks::<4>().0.contains(&[145, 145, 145, 255]));
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_curve_line_submission_obeys_actual_surface_depth() {
+    let native = curve_scene(false, false, 0.0);
+    let view = ViewScene::from_native(&native, VIEW_BUDGET).unwrap();
+    let camera = camera(0.01);
+    let curve = Submission::new(&view, &camera, 1.0, None, FORMAT, u64::MAX).unwrap();
+    let curve_lines = &curve.bytes[84 * VERTEX_BYTES..];
+    let mut gpu = Offscreen::new();
+    for (z, visible) in [(0.0, false), (-2.0, true)] {
+        let mut mesh = NativeScene::default();
+        let id = mesh.create(Primitive::Cube, "occluder").unwrap();
+        mesh.set_transform(
+            id,
+            NativeTransform {
+                translation: [0.0, 0.0, z],
+                scale: [4.0, 4.0, 1.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let mesh_view = ViewScene::from_native(&mesh, VIEW_BUDGET).unwrap();
+        let mut submission =
+            Submission::new(&mesh_view, &camera, 1.0, None, FORMAT, u64::MAX).unwrap();
+        submission.bytes.extend_from_slice(curve_lines);
+        submission.lines.end = submission.vertex_count();
+        let image = gpu.render(TestFrame::Geometry(submission));
+        assert_eq!(
+            region_has(
+                &image,
+                &camera,
+                Vec3::new(0.0, 1.25, 0.0),
+                [145, 145, 145, 255]
+            ),
+            visible
+        );
+    }
+}
+
 pub(crate) fn renderer_handle() -> ViewportRenderer {
     ViewportRenderer {
         errors: BackendErrors {

@@ -6,6 +6,247 @@ use crate::viewport::Camera;
 use glam::Vec2;
 
 const VIEW_BUDGET: usize = 256 * 1024 * 1024;
+const CURVE_CC: &str =
+    "setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 0 0 0 1 3 0 2 -3 0 3 0 0;";
+
+fn curve_native(body: &str) -> NativeScene {
+    crate::native_scene::ascii::decode(std::sync::Arc::from(format!(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; {body}"
+    ).into_bytes())).unwrap()
+}
+
+fn shared_curve(hidden_second: bool) -> NativeScene {
+    let mut scene = curve_native(&format!(
+        "createNode transform -n \"first\"; setAttr \".t\" -type \"double3\" 10 0 0; createNode transform -n \"second\"; setAttr \".t\" -type \"double3\" -10 0 0; setAttr \".v\" {}; createNode nurbsCurve -n \"shape\" -p \"first\"; {CURVE_CC}",
+        if hidden_second { "no" } else { "yes" }
+    ));
+    let second = scene.nodes()[1].id();
+    test_fixtures::share_curve_with_transform(&mut scene, second);
+    scene
+}
+
+#[test]
+fn curve_instances_keep_exact_paths_bounds_and_object_only_identity() {
+    let scene = shared_curve(false);
+    let before = scene.clone();
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    assert!(view.instances().is_empty());
+    assert_eq!(view.curve_instances().len(), 2);
+    let curve = scene.curves()[0].id();
+    for (index, x) in [(0, 10.0f32), (1, -10.0)] {
+        let instance = &view.curve_instances()[index];
+        let node = &scene.nodes()[index];
+        assert_eq!(instance.path(), [node.transform_id(), curve]);
+        assert_eq!(instance.transform(), node.id());
+        assert_eq!(instance.shape(), curve);
+        assert_eq!(
+            instance.segments().first().unwrap()[0],
+            Vec3::new(x, 0.0, 0.0)
+        );
+        assert_eq!(
+            instance.segments().last().unwrap()[1],
+            Vec3::new(x + 3.0, 0.0, 0.0)
+        );
+        assert_eq!(
+            instance.bounds(),
+            [
+                DVec3::new(f64::from(x), -3.0, 0.0),
+                DVec3::new(f64::from(x + 3.0), 3.0, 0.0)
+            ]
+        );
+        assert!(
+            scene
+                .resolve_face_target(&crate::native_scene::FaceTarget {
+                    transform: node.id(),
+                    shape: curve,
+                    path: instance.path().to_vec(),
+                    face_index: 0,
+                })
+                .is_err()
+        );
+    }
+    let camera = front_camera();
+    assert!(camera.pick_view(&view, Vec2::ZERO, 1.0).unwrap().is_none());
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn curve_admission_rejects_bad_paths_and_checks_hidden_ancestors() {
+    let mut scene = shared_curve(true);
+    let a = scene.nodes()[0].transform_id();
+    let b = scene.nodes()[1].transform_id();
+    let shape = scene.curves()[0].id();
+    assert!(
+        scene
+            .geometry_view_admission(&[a, shape])
+            .unwrap()
+            .visible()
+    );
+    assert!(
+        !scene
+            .geometry_view_admission(&[b, shape])
+            .unwrap()
+            .visible()
+    );
+    for path in [
+        vec![],
+        vec![shape],
+        vec![shape, a],
+        vec![a, a, shape],
+        vec![a, b, shape],
+        vec![a, b],
+        vec![shape, a, shape],
+    ] {
+        assert!(scene.geometry_view_admission(&path).is_err());
+    }
+    assert_eq!(
+        ViewScene::from_native(&scene, VIEW_BUDGET)
+            .unwrap()
+            .curve_instances()
+            .len(),
+        1
+    );
+    let hidden = scene.nodes()[1].id();
+    test_fixtures::unprove_curve_ancestor(&mut scene, hidden);
+    assert!(scene.geometry_view_admission(&[b, shape]).is_err());
+    assert!(ViewScene::from_native(&scene, VIEW_BUDGET).is_err());
+
+    let mut nested = curve_native(&format!(
+        "createNode transform -n \"root\"; setAttr \".v\" no; createNode transform -n \"child\" -p \"root\"; createNode nurbsCurve -n \"shape\" -p \"child\"; {CURVE_CC}"
+    ));
+    let root = nested.nodes()[0].transform_id();
+    let child = nested.nodes()[1].transform_id();
+    let shape = nested.curves()[0].id();
+    assert!(
+        !nested
+            .geometry_view_admission(&[root, child, shape])
+            .unwrap()
+            .visible()
+    );
+    assert!(nested.geometry_view_admission(&[child, shape]).is_err());
+    assert!(nested.geometry_view_admission(&[root, child]).is_err());
+    let child_node = nested.nodes()[1].id();
+    test_fixtures::unprove_curve_ancestor(&mut nested, child_node);
+    assert!(
+        nested
+            .geometry_view_admission(&[root, child, shape])
+            .is_err()
+    );
+    assert!(ViewScene::from_native(&nested, VIEW_BUDGET).is_err());
+}
+
+#[test]
+fn curve_only_camera_frames_conservative_hull_and_exact_selected_prefix() {
+    let scene = shared_curve(false);
+    let view = ViewScene::from_native(&scene, VIEW_BUDGET).unwrap();
+    for index in 0..2 {
+        let instance = &view.curve_instances()[index];
+        let prefix = &instance.path()[..1];
+        let mut camera = front_camera();
+        camera.frame_view(&view, Some(prefix), 1.0).unwrap();
+        let [low, high] = instance.bounds();
+        assert_eq!(camera.target(), ((low + high) * 0.5).as_vec3());
+        for p in [low, high] {
+            let ndc = camera.project(p.as_vec3(), 1.0).unwrap().unwrap();
+            assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
+        }
+    }
+    let mut camera = front_camera();
+    camera.frame_view(&view, None, 1.0).unwrap();
+    assert_eq!(camera.target(), Vec3::new(1.5, 0.0, 0.0));
+    let before = camera.clone();
+    assert!(
+        camera
+            .frame_view(&view, Some(&[scene.curves()[0].id()]), 1.0)
+            .is_err()
+    );
+    assert_eq!(camera, before);
+}
+
+#[test]
+fn complete_curve_view_budget_accounts_all_prepared_instances() {
+    let scene = shared_curve(false);
+    let mut low = 0;
+    let mut high = VIEW_BUDGET;
+    while low < high {
+        let middle = low + (high - low) / 2;
+        if ViewScene::from_native(&scene, middle).is_ok() {
+            high = middle;
+        } else {
+            low = middle + 1;
+        }
+    }
+    assert_eq!(
+        ViewScene::from_native(&scene, low)
+            .unwrap()
+            .curve_instances()
+            .len(),
+        2
+    );
+    assert!(matches!(
+        ViewScene::from_native(&scene, low - 1),
+        Err(ViewError::ResourceLimit)
+    ));
+    let first_only = curve_native(&format!(
+        "createNode transform -n \"first\"; createNode nurbsCurve -n \"shape\" -p \"first\"; {CURVE_CC}"
+    ));
+    let graph = Graph::prepare(&scene, VIEW_BUDGET).unwrap();
+    let requirements = graph.requirements(VIEW_BUDGET).unwrap();
+    let first_requirements = Graph::prepare(&first_only, VIEW_BUDGET)
+        .unwrap()
+        .requirements(VIEW_BUDGET)
+        .unwrap();
+    let mut first_low = first_requirements.bytes;
+    let mut first_high = VIEW_BUDGET;
+    while first_low < first_high {
+        let middle = first_low + (first_high - first_low) / 2;
+        if ViewScene::from_native(&first_only, middle).is_ok() {
+            first_high = middle;
+        } else {
+            first_low = middle + 1;
+        }
+    }
+    let only_one_geometry = requirements.bytes + first_low - first_requirements.bytes;
+    assert!(matches!(
+        ViewScene::from_native(&scene, only_one_geometry),
+        Err(ViewError::ResourceLimit)
+    ));
+}
+
+#[test]
+fn curve_subdivision_work_is_shared_across_all_instance_paths() {
+    use std::fmt::Write;
+    let spans = 65_536;
+    let mut body = String::from(
+        "createNode transform -n \"first\"; createNode transform -n \"second\"; createNode transform -n \"third\"; createNode transform -n \"fourth\"; createNode nurbsCurve -n \"shape\" -p \"first\"; setAttr \".cc\" -type \"nurbsCurve\" 3 65536 0 no 3 65541 0 0 0",
+    );
+    for knot in 1..spans {
+        write!(body, " {knot}").unwrap();
+    }
+    body.push_str(" 65536 65536 65536 65539");
+    body.push_str(&" 1 2 3".repeat(65_539));
+    body.push(';');
+    let mut scene = curve_native(&body);
+    for index in 1..3 {
+        let node = scene.nodes()[index].id();
+        test_fixtures::share_curve_with_transform(&mut scene, node);
+    }
+    assert_eq!(
+        ViewScene::from_native(&scene, VIEW_BUDGET)
+            .unwrap()
+            .curve_instances()
+            .len(),
+        3
+    );
+    let fourth = scene.nodes()[3].id();
+    test_fixtures::share_curve_with_transform(&mut scene, fourth);
+    let before = scene.clone();
+    assert!(matches!(
+        ViewScene::from_native(&scene, VIEW_BUDGET),
+        Err(ViewError::ResourceLimit)
+    ));
+    assert_eq!(scene, before);
+}
 const IDENTITY: InternalTransform = InternalTransform {
     translation_cm: [0.0; 3],
     rotation_radians: [0.0; 3],

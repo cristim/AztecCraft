@@ -35,7 +35,7 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 
 | Tool | Arguments besides `scene_token` | Result |
 | --- | --- | --- |
-| `inspect_scene` | No arguments; no token required | Committed node/shape metadata, units, instance paths, selected identity, history, pending action, dirty/draft/focus/modal/closing flags and camera |
+| `inspect_scene` | No arguments; no token required | Committed mesh/curve metadata, typed document origin, retained-source counts/read-only reason, units, instance paths, selected identity, history, pending action, dirty/draft/focus/modal/closing flags and camera |
 | `create_primitive` | `primitive`: `cube` or `plane`; optional `name` | Created `node_id`; selects the new node |
 | `select_node` | Optional `node_id` and `instance_path`, at most 256 decimal NativeId strings | Full root-to-transform prefix; ambiguous objects require a path. Null or omitted node clears selection and cannot include a path |
 | `rename_node` | `node_id`, `name` | Changed or unchanged authoring state |
@@ -50,11 +50,45 @@ Call `inspect_scene` first. Every other tool requires `scene_token`, a UUID stri
 | `pan_camera` | `world_units`: two finite numbers, camera right and up displacement in scene world units | Changed or unchanged camera target and eye |
 | `dolly_camera` | `factor`: positive finite distance multiplier | Changed or unchanged camera distance; below one moves closer |
 | `new_scene` | None | New empty document immediately, or a pending confirmation when dirty |
-| `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb` or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
+| `open_scene` | `path`: 1 to 4096 UTF-8 bytes, no NUL | Supported `.mb`, read-only static cubic `.ma`, or legacy `.aztec` candidate; applies immediately or stages an immutable candidate for confirmation |
 | `resolve_file_action` | `pending_action_id`: UUID; `decision`: `cancel` or `discard` | Resolve only that exact pending action with the current scene token; no Save decision |
 | `request_close` | None | Native close guard; dirty documents require confirmation, and approved remote closure waits for its own successful response flush |
 
 Transforms use the [existing coordinate conventions](development.md). The `rotation_degrees` input and normalized transform inspection always use degrees; `authoring_transform.rotation` retains the document's declared angular units, reported in `units`. Translation retains declared linear units. Camera navigation uses centimeter view space. Inspection exposes shape counts and smoothing capability, without mesh arrays, source bytes or private file paths. This is bounded metadata inspection, not a geometry dump.
+
+Supported static cubic Maya ASCII `.ma` scenes open through the same native
+document lifecycle. Original script bodies remain inert retained data. Unknown
+commands, node classes, geometry dependencies or unsupported curve classes refuse
+the complete candidate before adoption. This subset is read-only: authoring and
+Save are unavailable, while Outliner/`select_node`, navigation and
+`frame_selected` remain available. Viewport curve picking and CV/component editing
+are unsupported. Binary NCRV remains unsupported.
+
+Inspection keeps mesh `shapes` intact and adds a bounded `curves` array. Each
+curve has decimal `id`, `name`, degree, typed `form` (`open`), numeric
+`control_vertices` and `knots` counts, f64 parameter `domain`, `read_only` and
+`draw_available`. Each direct transform owner's `shape_ids` includes its curves.
+No CV/knot arrays or script text are returned. `document_origin` is `untitled`,
+`maya_binary`, `maya_ascii` or `legacy_aztec`; `retained_source_bytes` and
+`retained_source_records` report counts only, with records including retained
+trailing trivia. `read_only_reason` carries the core refusal message or null.
+
+Curve `draw_available` means at least one currently visible instance successfully
+prepared as draw geometry in one bounded whole-view preparation. Hidden curves or
+whole-view preparation refusal report false while canonical inspection remains
+available. This field does not mean the backend is initialized or healthy, that
+GPU submission/framebuffer rendering succeeded, or that Maya fidelity is proven.
+The separate viewport health fields retain their existing meaning.
+
+Scoped local tests exercised the genuine legacy 2016 reference through the
+official SDK's actual Editor Open/inspection/selection/framing path, including
+strict catalog discovery and read-only edit refusals. Synthetic tests cover
+dirty failed-Open baselines, input/token/focus/modal/close guards and the actual
+Editor GPU callback. These are separate from genuine-file native-window display,
+full-matrix/cold/probe evidence and integration with other unmerged features.
+The eighteen-tool count describes this source slice's actual catalog; it is not
+an assertion about a later integration parent. [Development notes](development.md#read-only-static-cubic-maya-ascii)
+record explicit fixture identity and consumer commands.
 
 `edit_node` uses the Channel Box's sparse native History command. Each supplied
 channel array has exactly three finite numbers or nulls. An omitted array or a
@@ -171,6 +205,7 @@ Nine verified tools establish the initial server foundation, not catch-up with e
 | --- | --- |
 | Object create/select/rename/transform/delete, history and framing | Nine tools listed above, including inspection |
 | Native New/Open and pending confirmation | `new_scene`, `open_scene` and `resolve_file_action` share native candidate and lifecycle handlers |
+| Read-only static cubic Maya ASCII curves | `open_scene` loads the admitted inert class; `inspect_scene` returns canonical class/counts/domain/read-only/prepared-draw metadata, and `select_node`/`frame_selected` use the same owner and camera. Curve picking, CV editing, native writing and broader ASCII evaluation remain unsupported |
 | Native Close | `request_close` and matching pending resolution use the native close guard and response-delivery barrier |
 | Native Save/Save As | Unavailable while native writing is pending; no file writes or lossy JSON fallback |
 | Core OBJ export | No tool; file authority and create-new/no-clobber behavior need a dedicated slice |

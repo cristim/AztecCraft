@@ -1,5 +1,24 @@
 use super::*;
 
+pub(crate) fn share_curve_with_transform(scene: &mut NativeScene, transform: NodeId) {
+    scene.dag.push(DagEdge {
+        parent: Some(scene.node(transform).unwrap().transform_id),
+        child: scene.curves[0].id,
+    });
+    scene.validate().unwrap();
+}
+
+pub(crate) fn unprove_curve_ancestor(scene: &mut NativeScene, transform: NodeId) {
+    scene
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == transform)
+        .unwrap()
+        .view
+        .geometry = None;
+    scene.validate().unwrap();
+}
+
 pub(crate) fn cube() -> (NativeScene, NodeId) {
     let mut scene = NativeScene::default();
     let id = scene.create(Primitive::Cube, "pCube1").unwrap();

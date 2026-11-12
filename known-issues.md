@@ -77,6 +77,26 @@ vendor streams is JOIN; other unseen layouts and curve semantics remain pending.
 This framing coverage does not establish complete container parsing, scene Open,
 NURBS rendering, native writing or Euler behavior.
 
+## Static ASCII curves have bounded read-only coverage
+
+**Severity:** high
+**Area:** native documents and viewport
+
+The supported legacy 2016 static cubic ASCII class now has inert native Open,
+canonical f64 curve state, evaluated GPU line geometry, conservative framing and
+bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
+admit general Maya ASCII, arbitrary units/history/drivers, rigs, imported
+instancing or Maya 2026 behavior. Unknown effects refuse the complete candidate.
+Scene scripts remain retained inert data.
+
+ASCII authoring and writing, viewport curve picking and CV/component editing are
+unsupported. Use Outliner/MCP object selection, navigation and framing for
+inspection. Binary NCRV is still refused. Full matrix, independent cold/probe
+evidence, genuine-file native-window pixels and the final selected-parent
+integration remain separate gates; no exact visual or functional parity is
+claimed. [Development notes](.project-docs/development.md#read-only-static-cubic-maya-ascii)
+record the supported class, limits and explicitly invoked genuine consumer.
+
 ## Existing Maya plug-in compatibility unverified
 
 **Severity:** high

@@ -1,4 +1,4 @@
-use crate::native_scene::{NativeError, NativeScene, binary};
+use crate::native_scene::{NativeError, NativeScene, ascii, binary};
 use crate::scene::{Scene, SceneError};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -38,6 +38,7 @@ pub enum NativeOrigin {
     #[default]
     Untitled,
     Binary(SourceBaseline),
+    Ascii(SourceBaseline),
     Legacy(SourceBaseline),
 }
 impl NativeOrigin {
@@ -45,13 +46,14 @@ impl NativeOrigin {
         match self {
             Self::Untitled => "untitled",
             Self::Binary(_) => "maya_binary",
+            Self::Ascii(_) => "maya_ascii",
             Self::Legacy(_) => "legacy_aztec",
         }
     }
     pub fn source_bytes(&self) -> Option<&Arc<[u8]>> {
         match self {
             Self::Untitled => None,
-            Self::Binary(s) | Self::Legacy(s) => Some(&s.bytes),
+            Self::Binary(s) | Self::Ascii(s) | Self::Legacy(s) => Some(&s.bytes),
         }
     }
 }
@@ -68,16 +70,20 @@ pub enum NativeLoadError {
     Legacy,
     Native(NativeError),
     Binary(binary::BinaryError),
+    Ascii(ascii::AsciiError),
 }
 impl fmt::Display for NativeLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read(kind) => write!(f, "cannot read regular scene file: {kind:?}"),
             Self::TooLarge => write!(f, "scene exceeds {MAX_DOCUMENT_BYTES} byte limit"),
-            Self::UnsupportedFormat => f.write_str("Open supports Maya binary .mb and legacy .aztec scenes; Maya ASCII is not available yet"),
+            Self::UnsupportedFormat => {
+                f.write_str("Open supports Maya .mb, static cubic .ma and legacy .aztec scenes")
+            }
             Self::Legacy => f.write_str("invalid legacy scene document"),
             Self::Native(error) => error.fmt(f),
             Self::Binary(error) => error.fmt(f),
+            Self::Ascii(error) => error.fmt(f),
         }
     }
 }
@@ -123,7 +129,8 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
         .and_then(|value| value.to_str())
         .ok_or(NativeLoadError::UnsupportedFormat)?;
     let binary_format = extension.eq_ignore_ascii_case("mb");
-    if !binary_format && !extension.eq_ignore_ascii_case("aztec") {
+    let ascii_format = extension.eq_ignore_ascii_case("ma");
+    if !binary_format && !ascii_format && !extension.eq_ignore_ascii_case("aztec") {
         return Err(NativeLoadError::UnsupportedFormat);
     }
     let (bytes, metadata, link) =
@@ -134,6 +141,8 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
     let bytes: Arc<[u8]> = bytes.into();
     let scene = if binary_format {
         binary::decode(bytes.clone()).map_err(NativeLoadError::Binary)?
+    } else if ascii_format {
+        ascii::decode(bytes.clone()).map_err(NativeLoadError::Ascii)?
     } else {
         NativeScene::from_legacy(decode_legacy(&bytes).map_err(|_| NativeLoadError::Legacy)?)
             .map_err(NativeLoadError::Native)?
@@ -147,6 +156,8 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
         scene,
         origin: if binary_format {
             NativeOrigin::Binary(source)
+        } else if ascii_format {
+            NativeOrigin::Ascii(source)
         } else {
             NativeOrigin::Legacy(source)
         },
@@ -284,6 +295,76 @@ mod native_open_tests {
     use super::*;
     use crate::{view_scene::ViewScene, viewport::Camera};
     use glam::Vec3;
+
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+
+    #[test]
+    fn ascii_native_open_keeps_exact_source_origin_and_real_curve_geometry() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.MA");
+        let source = ascii_fixture::specimen();
+        std::fs::write(&path, &source).unwrap();
+        let document = load_native(&path).unwrap();
+        assert!(matches!(document.origin, NativeOrigin::Ascii(_)));
+        assert_eq!(document.origin.kind(), "maya_ascii");
+        assert_eq!(document.origin.source_bytes().unwrap().as_ref(), source);
+        assert_eq!(document.scene.retained_source_bytes(), source.len());
+        assert_eq!(document.scene.retained_source_records(), 10);
+        assert_eq!(document.scene.curves().len(), 1);
+        assert!(document.scene.shapes().is_empty());
+        let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();
+        assert_eq!(view.curve_instances().len(), 1);
+        assert!(view.curve_instances()[0].segments().len() > 1);
+        assert_eq!(std::fs::read(path).unwrap(), source);
+    }
+
+    #[test]
+    fn ascii_native_dispatch_never_treats_json_or_binary_as_ascii() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("wrong.ma");
+        for source in [b"{}".as_slice(), b"FOR8\0\0\0\0Maya".as_slice()] {
+            std::fs::write(&path, source).unwrap();
+            assert!(matches!(load_native(&path), Err(NativeLoadError::Ascii(_))));
+            assert_eq!(std::fs::read(&path).unwrap(), source);
+        }
+        let source = ascii_fixture::specimen();
+        let binary_path = directory.path().join("wrong.mb");
+        std::fs::write(&binary_path, &source).unwrap();
+        assert!(matches!(
+            load_native(&binary_path),
+            Err(NativeLoadError::Binary(_))
+        ));
+    }
+
+    #[test]
+    #[ignore = "requires the explicitly supplied pinned genuine Maya ASCII fixture"]
+    fn genuine_ascii_native_open_and_frame_keeps_retained_source() {
+        let path = std::env::var_os("AZTECCRAFT_MA_CURVE_FIXTURE").unwrap();
+        let path = Path::new(&path);
+        let source = std::fs::read(path).unwrap();
+        let document = load_native(path).unwrap();
+        assert_eq!(document.origin.kind(), "maya_ascii");
+        assert_eq!(document.origin.source_bytes().unwrap().as_ref(), source);
+        assert_eq!(document.scene.curves().len(), 1);
+        assert_eq!(document.scene.curves()[0].control_vertices().len(), 8);
+        assert_eq!(document.scene.curves()[0].knots().len(), 10);
+        let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();
+        assert_eq!(view.curve_instances().len(), 1);
+        for aspect in [0.5, 1.19, 2.0] {
+            let mut camera = Camera::default();
+            camera.frame_view(&view, None, aspect).unwrap();
+            for p in view.curve_instances()[0].segments().iter().flatten() {
+                let ndc = camera.project(*p, aspect).unwrap().unwrap();
+                assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
+            }
+        }
+        assert_eq!(std::fs::read(path).unwrap(), source);
+    }
 
     #[cfg(unix)]
     #[test]

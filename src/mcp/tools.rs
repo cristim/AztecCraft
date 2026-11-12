@@ -435,7 +435,7 @@ fn catalog() -> Vec<Tool> {
         .map(|name| {
             let (description, input_schema) = match name {
                 "inspect_scene" => (
-                    "Inspect committed editor state, pending human edits and bounded scene/shape source-appearance readiness. Checked source associations do not imply evaluated or rendered materials",
+                    "Inspect committed editor state, document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. No CV arrays or script bodies are exposed",
                     schema::<InspectArgs>(),
                 ),
                 "create_primitive" => (
@@ -496,7 +496,7 @@ fn catalog() -> Vec<Tool> {
                     schema::<MutationArgs>(),
                 ),
                 "open_scene" => (
-                    "Open a supported scene from a local UTF-8 path (1 to 4096 bytes, no NUL); dirty documents require confirmation. No writer is available",
+                    "Open a Maya binary .mb, supported read-only static cubic Maya ASCII .ma, or legacy .aztec scene from a local UTF-8 path (1 to 4096 bytes, no NUL). ASCII scripts stay inert; unsupported commands/effects refuse the whole candidate. Dirty documents require confirmation. No writer is available",
                     schema::<OpenArgs>(),
                 ),
                 "resolve_file_action" => (

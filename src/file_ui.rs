@@ -1,6 +1,6 @@
 use super::Editor;
 #[cfg(any(test, feature = "mcp"))]
-use crate::editor_operations::PendingInspection;
+use crate::editor_operations::{DocumentOrigin, PendingInspection};
 use crate::editor_operations::{
     FileActionKind, FileDecision, Operation, OperationError, OperationReply,
 };
@@ -48,6 +48,15 @@ impl FileAction {
     }
 }
 impl FileState {
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn document_origin(&self) -> DocumentOrigin {
+        match self.origin {
+            NativeOrigin::Untitled => DocumentOrigin::Untitled,
+            NativeOrigin::Binary(_) => DocumentOrigin::MayaBinary,
+            NativeOrigin::Ascii(_) => DocumentOrigin::MayaAscii,
+            NativeOrigin::Legacy(_) => DocumentOrigin::LegacyAztec,
+        }
+    }
     pub(super) fn is_closing(&self) -> bool {
         self.close_approved
     }
@@ -122,7 +131,8 @@ impl Editor {
             return;
         }
         if let Some(path) = rfd::FileDialog::new()
-            .set_title("Open Maya binary or legacy scene")
+            .set_title("Open Maya or legacy scene")
+            .add_filter("Maya static cubic ASCII scene", &["ma"])
             .add_filter("Maya binary scene", &["mb"])
             .add_filter("Legacy AztecCraft scene", &["aztec"])
             .pick_file()
@@ -324,6 +334,7 @@ fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, Operatio
         .instances()
         .iter()
         .any(|instance| !instance.world_vertices().is_empty())
+        || !view.curve_instances().is_empty()
     {
         camera
             .frame_view(&view, None, aspect)
@@ -336,6 +347,91 @@ fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, Operatio
 mod tests {
     use super::*;
     use azteccraft::scene::Primitive;
+
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+
+    #[test]
+    fn ascii_failed_native_open_preserves_draft_history_selection_and_camera() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("bad.ma");
+        let source = String::from_utf8(ascii_fixture::specimen())
+            .unwrap()
+            .replace("12 0 0", "100000000 0 0");
+        std::fs::write(&path, &source).unwrap();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let id = editor.selected.unwrap();
+        editor
+            .apply_operation(Operation::Rename {
+                id,
+                name: "undone".into(),
+            })
+            .unwrap();
+        editor.apply_operation(Operation::Undo).unwrap();
+        editor.name = "human draft".into();
+        let before = editor.history.scene().clone();
+        let camera = editor.camera.clone();
+        let selected = (editor.selected, editor.selected_path.clone());
+        let fields = (editor.name.clone(), editor.channels.clone());
+        let token = editor.scene_token;
+        assert!(editor.open_candidate(&path).is_err());
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.camera, camera);
+        assert_eq!((editor.selected, editor.selected_path.clone()), selected);
+        assert_eq!((editor.name, editor.channels), fields);
+        assert_eq!(editor.scene_token, token);
+        assert!(editor.history.can_undo() && editor.history.can_redo());
+        assert!(!editor.files.is_modal());
+        assert_eq!(std::fs::read(path).unwrap(), source.as_bytes());
+    }
+
+    #[test]
+    fn ascii_pending_open_keeps_staged_source_and_reframes_after_resize() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        let source = ascii_fixture::specimen();
+        std::fs::write(&path, &source).unwrap();
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let before = editor.history.scene().clone();
+        let token = editor.scene_token;
+        let OperationReply::PendingConfirmation {
+            pending_action_id, ..
+        } = editor.open_candidate(&path).unwrap()
+        else {
+            panic!("expected pending Open")
+        };
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.scene_token, token);
+        std::fs::write(&path, b"changed after staging").unwrap();
+        editor.aspect = 0.1;
+        editor
+            .resolve_file_action(
+                Uuid::parse_str(&pending_action_id).unwrap(),
+                FileDecision::Discard,
+            )
+            .unwrap();
+        assert_ne!(editor.scene_token, token);
+        assert_eq!(editor.files.origin.source_bytes().unwrap().as_ref(), source);
+        assert_eq!(editor.files.document_origin(), DocumentOrigin::MayaAscii);
+        assert!(!editor.is_dirty() && !editor.history.can_undo());
+        assert!(editor.selected.is_none() && editor.selected_path.is_empty());
+        let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
+        for point in view.curve_instances()[0].segments().iter().flatten() {
+            let ndc = editor
+                .camera
+                .project(*point, editor.aspect)
+                .unwrap()
+                .unwrap();
+            assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
+        }
+        assert_eq!(std::fs::read(path).unwrap(), b"changed after staging");
+    }
 
     fn write_legacy_cube(path: &Path, translation: f32) -> azteccraft::scene::NodeId {
         let mut scene = azteccraft::scene::Scene::default();

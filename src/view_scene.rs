@@ -1,16 +1,58 @@
 use crate::native_scene::{
-    InternalTransform, NativeError, NativeId, NativeMesh, NativeMeshShape, NativeScene,
-    NativeTransformNode,
+    InternalTransform, NativeCurveShape, NativeError, NativeId, NativeMesh, NativeMeshShape,
+    NativeScene, NativeTransformNode,
 };
 use crate::scene::NodeId;
 use glam::{DMat4, DVec3, Vec3};
 use std::fmt;
 use std::mem::size_of;
 
+mod curves;
+
 #[derive(Debug)]
 /// Readonly geometry for one prepared authoring state; rebuild after any scene edit.
 pub struct ViewScene {
     instances: Vec<ViewInstance>,
+    curve_instances: Vec<ViewCurveInstance>,
+}
+
+pub struct ViewCurveInstance {
+    path: Vec<NativeId>,
+    transform: NodeId,
+    shape: NativeId,
+    segments: Vec<[Vec3; 2]>,
+    bounds: [DVec3; 2],
+    appearance_incomplete: bool,
+}
+
+impl fmt::Debug for ViewCurveInstance {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ViewCurveInstance")
+            .field("shape", &self.shape)
+            .field("segment_count", &self.segments.len())
+            .finish()
+    }
+}
+
+impl ViewCurveInstance {
+    pub fn path(&self) -> &[NativeId] {
+        &self.path
+    }
+    pub fn transform(&self) -> NodeId {
+        self.transform
+    }
+    pub fn shape(&self) -> NativeId {
+        self.shape
+    }
+    pub fn segments(&self) -> &[[Vec3; 2]] {
+        &self.segments
+    }
+    pub fn bounds(&self) -> [DVec3; 2] {
+        self.bounds
+    }
+    pub fn appearance_incomplete(&self) -> bool {
+        self.appearance_incomplete
+    }
 }
 
 #[derive(Debug)]
@@ -50,6 +92,17 @@ impl ViewScene {
             });
         }
         let mut instances = reserve(requirements.instances)?;
+        let mut curve_instances = reserve(requirements.curve_instances)?;
+        let curve_capacity_extra = buffer_bytes::<ViewCurveInstance>(
+            curve_instances
+                .capacity()
+                .checked_sub(requirements.curve_instances)
+                .ok_or(ViewError::ResourceLimit)?,
+        )?;
+        let mut remaining_bytes = byte_budget
+            .checked_sub(checked_add(requirements.bytes, curve_capacity_extra)?)
+            .ok_or(ViewError::ResourceLimit)?;
+        let mut curve_work = curves::CurveWork::default();
         let mut cursor = 0;
         while cursor < paths.len() {
             let parent_world = paths[cursor]
@@ -68,13 +121,13 @@ impl ViewScene {
                                 .map_err(ViewError::Native)?,
                         )?
                 }
-                Record::Shape(_) => parent_world,
+                Record::Shape(_) | Record::Curve(_) => parent_world,
             };
             if !world.is_finite() {
                 return Err(ViewError::NonFiniteWorld);
             }
             paths[cursor].world = world;
-            if let Record::Shape(shape) = record {
+            if !matches!(record, Record::Transform(_)) {
                 let mut path = reserve(paths[cursor].depth)?;
                 let mut ancestor = Some(cursor);
                 while let Some(index) = ancestor {
@@ -90,25 +143,48 @@ impl ViewScene {
                     let Record::Transform(transform) = graph.records[paths[parent].node] else {
                         return Err(ViewError::InvalidGeometry);
                     };
-                    let mesh = shape.mesh();
-                    let count = mesh.point_count();
-                    let mut vertices = reserve(count)?;
-                    for index in 0..count {
-                        vertices.push(world_point(
-                            world,
-                            DVec3::from_array(
-                                mesh.effective_point_cm(index).map_err(ViewError::Native)?,
-                            ),
-                        )?);
+                    match record {
+                        Record::Shape(shape) => {
+                            let mesh = shape.mesh();
+                            let count = mesh.point_count();
+                            let mut vertices = reserve(count)?;
+                            for index in 0..count {
+                                vertices.push(world_point(
+                                    world,
+                                    DVec3::from_array(
+                                        mesh.effective_point_cm(index)
+                                            .map_err(ViewError::Native)?,
+                                    ),
+                                )?);
+                            }
+                            instances.push(ViewInstance {
+                                path,
+                                transform: transform.id(),
+                                shape: shape.id(),
+                                world_vertices: vertices,
+                                faces: view_faces(mesh)?,
+                                appearance_incomplete: admission.appearance_incomplete(),
+                            });
+                        }
+                        Record::Curve(shape) => {
+                            let prepared =
+                                curves::prepare(shape, &world, remaining_bytes, &mut curve_work)?;
+                            remaining_bytes = remaining_bytes
+                                .checked_sub(buffer_bytes::<[Vec3; 2]>(
+                                    prepared.segments.capacity(),
+                                )?)
+                                .ok_or(ViewError::ResourceLimit)?;
+                            curve_instances.push(ViewCurveInstance {
+                                path,
+                                transform: transform.id(),
+                                shape: shape.id(),
+                                segments: prepared.segments,
+                                bounds: prepared.bounds,
+                                appearance_incomplete: admission.appearance_incomplete(),
+                            });
+                        }
+                        Record::Transform(_) => return Err(ViewError::InvalidGeometry),
                     }
-                    instances.push(ViewInstance {
-                        path,
-                        transform: transform.id(),
-                        shape: shape.id(),
-                        world_vertices: vertices,
-                        faces: view_faces(mesh)?,
-                        appearance_incomplete: admission.appearance_incomplete(),
-                    });
                 }
             }
             let depth = checked_add(paths[cursor].depth, 1)?;
@@ -123,11 +199,18 @@ impl ViewScene {
             cursor += 1;
         }
         instances.sort_unstable_by(|a, b| a.path.cmp(&b.path));
-        Ok(Self { instances })
+        curve_instances.sort_unstable_by(|a, b| a.path.cmp(&b.path));
+        Ok(Self {
+            instances,
+            curve_instances,
+        })
     }
 
     pub fn instances(&self) -> &[ViewInstance] {
         &self.instances
+    }
+    pub fn curve_instances(&self) -> &[ViewCurveInstance] {
+        &self.curve_instances
     }
 }
 
@@ -190,7 +273,9 @@ impl fmt::Display for ViewError {
             Self::Camera(error) => {
                 return write!(f, "native view camera input is invalid: {error}");
             }
-            Self::ResourceLimit => "derived view exceeds its byte budget or allocation capacity",
+            Self::ResourceLimit => {
+                "derived view exceeds its resource budget or allocation capacity"
+            }
             Self::InvalidGeometry => "native geometry or instance path is invalid",
             Self::UnsupportedPolygon => "view requires triangle or quad faces without holes",
             Self::UnsupportedTransform => "native transform or declared units are unsupported",
@@ -261,6 +346,7 @@ fn view_faces(mesh: &NativeMesh) -> Result<Vec<ViewFace>, ViewError> {
 enum Record<'a> {
     Transform(&'a NativeTransformNode),
     Shape(&'a NativeMeshShape),
+    Curve(&'a NativeCurveShape),
 }
 
 impl Record<'_> {
@@ -268,6 +354,7 @@ impl Record<'_> {
         match self {
             Self::Transform(node) => node.transform_id(),
             Self::Shape(shape) => shape.id(),
+            Self::Curve(shape) => shape.id(),
         }
     }
 }
@@ -301,6 +388,7 @@ struct PathRecord {
 struct Requirements {
     paths: usize,
     instances: usize,
+    curve_instances: usize,
     bytes: usize,
 }
 
@@ -324,7 +412,10 @@ fn reserve<T>(count: usize) -> Result<Vec<T>, ViewError> {
 
 impl<'a> Graph<'a> {
     fn prepare(scene: &'a NativeScene, byte_budget: usize) -> Result<Self, ViewError> {
-        let count = checked_add(scene.nodes().len(), scene.shapes().len())?;
+        let count = checked_add(
+            checked_add(scene.nodes().len(), scene.shapes().len())?,
+            scene.curves().len(),
+        )?;
         let graph_bytes = checked_add(
             buffer_bytes::<Record<'_>>(count)?,
             buffer_bytes::<Edge>(scene.dag_edges().len())?,
@@ -340,6 +431,7 @@ impl<'a> Graph<'a> {
         let mut records = reserve(count)?;
         records.extend(scene.nodes().iter().map(Record::Transform));
         records.extend(scene.shapes().iter().map(Record::Shape));
+        records.extend(scene.curves().iter().map(Record::Curve));
         records.sort_unstable_by_key(Record::id);
         if records.windows(2).any(|pair| pair[0].id() == pair[1].id()) {
             return Err(ViewError::InvalidGeometry);
@@ -353,8 +445,8 @@ impl<'a> Graph<'a> {
         for edge in scene.dag_edges() {
             let child = find(edge.child())?;
             let parent = edge.parent().map(find).transpose()?;
-            if parent.is_some_and(|index| matches!(records[index], Record::Shape(_)))
-                || (parent.is_none() && matches!(records[child], Record::Shape(_)))
+            if parent.is_some_and(|index| !matches!(records[index], Record::Transform(_)))
+                || (parent.is_none() && !matches!(records[child], Record::Transform(_)))
             {
                 return Err(ViewError::InvalidGeometry);
             }
@@ -424,6 +516,7 @@ impl<'a> Graph<'a> {
         let mut requirements = Requirements {
             paths: 0,
             instances: 0,
+            curve_instances: 0,
             bytes: 0,
         };
         let graph_bytes = checked_add(
@@ -446,31 +539,39 @@ impl<'a> Graph<'a> {
         let mut max_depth = 0;
         for (record, count) in self.records.iter().zip(counts) {
             requirements.paths = checked_add(requirements.paths, count.paths)?;
-            if let Record::Shape(shape) = record {
-                let points = shape.mesh().point_count();
-                for face in shape.mesh().faces() {
-                    if !face.holes().is_empty() || !matches!(face.outer().len(), 3 | 4) {
-                        return Err(ViewError::UnsupportedPolygon);
+            let per_instance = match record {
+                Record::Shape(shape) => {
+                    let points = shape.mesh().point_count();
+                    for face in shape.mesh().faces() {
+                        if !face.holes().is_empty() || !matches!(face.outer().len(), 3 | 4) {
+                            return Err(ViewError::UnsupportedPolygon);
+                        }
                     }
-                }
-                requirements.instances = checked_add(requirements.instances, count.paths)?;
-                let per_instance = checked_add(
-                    size_of::<ViewInstance>(),
+                    requirements.instances = checked_add(requirements.instances, count.paths)?;
                     checked_add(
-                        buffer_bytes::<Vec3>(points)?,
-                        buffer_bytes::<ViewFace>(shape.mesh().faces().len())?,
-                    )?,
-                )?;
-                output_bytes = checked_add(
-                    output_bytes,
-                    per_instance
-                        .checked_mul(count.paths)
-                        .ok_or(ViewError::ResourceLimit)?,
-                )?;
-                output_bytes =
-                    checked_add(output_bytes, buffer_bytes::<NativeId>(count.path_elements)?)?;
-                max_depth = max_depth.max(count.max_depth);
-            }
+                        size_of::<ViewInstance>(),
+                        checked_add(
+                            buffer_bytes::<Vec3>(points)?,
+                            buffer_bytes::<ViewFace>(shape.mesh().faces().len())?,
+                        )?,
+                    )?
+                }
+                Record::Curve(_) => {
+                    requirements.curve_instances =
+                        checked_add(requirements.curve_instances, count.paths)?;
+                    size_of::<ViewCurveInstance>()
+                }
+                Record::Transform(_) => continue,
+            };
+            output_bytes = checked_add(
+                output_bytes,
+                per_instance
+                    .checked_mul(count.paths)
+                    .ok_or(ViewError::ResourceLimit)?,
+            )?;
+            output_bytes =
+                checked_add(output_bytes, buffer_bytes::<NativeId>(count.path_elements)?)?;
+            max_depth = max_depth.max(count.max_depth);
         }
         output_bytes = checked_add(
             output_bytes,

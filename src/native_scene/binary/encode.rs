@@ -33,6 +33,7 @@ fn same_structure(a: &NativeScene, b: &NativeScene) -> bool {
     a.units == b.units
         && a.dag == b.dag
         && a.shapes == b.shapes
+        && a.curves == b.curves
         && a.nodes.len() == b.nodes.len()
         && a.nodes
             .iter()
@@ -59,6 +60,9 @@ fn check_appearance_metadata(
 }
 
 pub fn encode(scene: &NativeScene) -> Result<Vec<u8>, BinaryError> {
+    if !scene.curves.is_empty() {
+        return Err(unsupported());
+    }
     let source = scene
         .source
         .as_ref()

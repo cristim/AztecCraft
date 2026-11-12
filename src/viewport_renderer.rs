@@ -218,6 +218,17 @@ impl Submission {
                     .ok_or(RenderError::ResourceLimit)?;
             }
         }
+        for instance in scene.curve_instances() {
+            vertices = vertices
+                .checked_add(
+                    instance
+                        .segments()
+                        .len()
+                        .checked_mul(2)
+                        .ok_or(RenderError::ResourceLimit)?,
+                )
+                .ok_or(RenderError::ResourceLimit)?;
+        }
         let byte_count = vertices
             .checked_mul(VERTEX_BYTES)
             .ok_or(RenderError::ResourceLimit)?;
@@ -296,6 +307,22 @@ impl Submission {
                                 format,
                             )?;
                         }
+                    }
+                }
+            }
+            for instance in scene.curve_instances() {
+                let selected = selected_path.is_some_and(|path| instance.path().starts_with(path));
+                if selected != selected_pass {
+                    continue;
+                }
+                let color = if selected {
+                    Color32::from_rgb(242, 163, 70)
+                } else {
+                    Color32::from_gray(145)
+                };
+                for segment in instance.segments() {
+                    for point in segment {
+                        submission.vertex(matrix, *point, color, format)?;
                     }
                 }
             }

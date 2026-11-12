@@ -77,7 +77,7 @@ fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
 }
 
 #[test]
-fn retained_source_and_lexemes_have_one_effective_value_and_survive_restore() {
+fn retained_ascii_lexemes_are_read_only_and_survive_restore() {
     let (mut scene, id) = cube();
     retain(
         &mut scene,
@@ -86,36 +86,15 @@ fn retained_source_and_lexemes_have_one_effective_value_and_survive_restore() {
     );
     scene.nodes[0].channels[0].origin = Some(ScalarOrigin::Ascii { literal: 12..18 });
     let before = scene.clone();
-    scene.set_channel(id, Channel::TranslateX, 0.0).unwrap();
+    for value in [0.0, -0.0, 2.5] {
+        assert_eq!(
+            scene.set_channel(id, Channel::TranslateX, value),
+            Err(NativeError::ReadOnlyFormat)
+        );
+        assert_eq!(scene, before);
+    }
+    scene.nodes[0].channels[0].value = -0.0;
     assert_ne!(scene, before);
-    assert_eq!(scene.source, before.source);
-    assert_eq!(
-        scene.nodes[0].channels[0].origin,
-        before.nodes[0].channels[0].origin
-    );
-    let plus_zero = scene.clone();
-    scene.set_channel(id, Channel::TranslateX, -0.0).unwrap();
-    assert_ne!(scene, plus_zero);
-    assert_eq!(
-        scene.nodes[0].channels[0].replaced,
-        plus_zero.nodes[0].channels[0].replaced
-    );
-    assert_eq!(
-        scene.node(id).unwrap().transform().translation[0].to_bits(),
-        (-0.0f64).to_bits()
-    );
-    scene.set_channel(id, Channel::TranslateX, 2.5).unwrap();
-    assert_eq!(
-        scene
-            .supported_view()
-            .unwrap()
-            .node(id)
-            .unwrap()
-            .transform()
-            .translation
-            .x,
-        2.5
-    );
     scene.restore_authoring(before.clone());
     assert_eq!(scene, before);
     let mut deleted = before.clone();
@@ -154,11 +133,6 @@ fn source_free_identical_bits_are_noops_but_signed_zero_remains_meaningful() {
 fn dependency_unknown_transform_and_dag_effects_refuse_before_mutation() {
     for restriction in ["connection", "lock", "history", "unmapped owner"] {
         let (mut scene, id) = cube();
-        retain(
-            &mut scene,
-            restriction.as_bytes(),
-            std::iter::once(0..restriction.len()).collect(),
-        );
         scene.nodes[0].restrictions.push(restriction.into());
         let before = scene.clone();
         assert_eq!(
@@ -290,11 +264,6 @@ fn grouped_transform_and_pivots_preserve_native_precision_without_baking() {
     let (mut scene, root, child, shape) = grouped_shape();
     scene.nodes[1].rotate_pivot = [1.000000000001, -0.0, 2.0].map(Scalar::new);
     scene.nodes[1].scale_pivot = [-2.000000000001, 3.0, 4.0].map(Scalar::new);
-    retain(
-        &mut scene,
-        b"known appearance metadata",
-        std::iter::once(0..25).collect(),
-    );
     let before = scene.clone();
     scene
         .set_channel(root, Channel::TranslateY, 4.000000000001)
@@ -381,18 +350,18 @@ fn root_leaf_removal_preserves_shared_shapes_and_refuses_groups_or_source_rewrit
     let (mut scene, id) = cube();
     retain(&mut scene, b"original", std::iter::once(0..8).collect());
     let before = scene.clone();
-    assert_eq!(scene.remove(id), Err(NativeError::UnsupportedEdit));
+    assert_eq!(scene.remove(id), Err(NativeError::ReadOnlyFormat));
     assert_eq!(
         scene.rename(id, "replacement"),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::ReadOnlyFormat)
     );
     assert_eq!(
         scene.create(Primitive::Cube, "new"),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::ReadOnlyFormat)
     );
     assert_eq!(
         scene.extrude_face(scene.shapes[0].id, 1, 1.0),
-        Err(NativeError::UnsupportedEdit)
+        Err(NativeError::ReadOnlyFormat)
     );
     assert_eq!(scene, before);
     assert_eq!(scene.next_id, before.next_id);

@@ -301,11 +301,15 @@ impl Editor {
                         .iter()
                         .filter(|edge| edge.parent() == Some(node.transform_id()))
                         .filter_map(|edge| {
-                            self.history
-                                .scene()
-                                .shape(edge.child())
-                                .ok()
-                                .map(|shape| shape.id().to_decimal())
+                            let id = edge.child();
+                            (self.history.scene().shape(id).is_ok()
+                                || self
+                                    .history
+                                    .scene()
+                                    .curves()
+                                    .iter()
+                                    .any(|curve| curve.id() == id))
+                            .then(|| id.to_decimal())
                         })
                         .collect(),
                     instance_paths: paths
@@ -317,11 +321,46 @@ impl Editor {
             })
             .collect::<Result<Vec<_>, OperationError>>()?;
         let viewport_error = self.current_viewport_error();
+        let prepared_view = (!self.history.scene().curves().is_empty())
+            .then(|| ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024));
         let gpu_healthy = self.renderer.is_some()
             && viewport_error != Some(crate::viewport_renderer::ViewportError::BackendFailed);
         Ok(SceneInspection {
             scene_token: self.scene_token.to_string(),
             nodes,
+            document_origin: self.files.document_origin(),
+            retained_source_bytes: self.history.scene().retained_source_bytes(),
+            retained_source_records: self.history.scene().retained_source_records(),
+            read_only_reason: self
+                .history
+                .scene()
+                .authoring_read_only_reason()
+                .map(|reason| reason.to_string()),
+            curves: self
+                .history
+                .scene()
+                .curves()
+                .iter()
+                .map(|curve| {
+                    Ok(crate::editor_operations::CurveInspection {
+                        id: curve.id().to_decimal(),
+                        name: curve.name().into(),
+                        degree: curve.degree(),
+                        form: curve.form(),
+                        control_vertices: curve.control_vertices().len(),
+                        knots: curve.knots().len(),
+                        domain: curve.domain().map_err(OperationError::Scene)?,
+                        read_only: self.history.scene().authoring_read_only_reason().is_some(),
+                        draw_available: prepared_view.as_ref().is_some_and(|prepared| {
+                            prepared.as_ref().is_ok_and(|view| {
+                                view.curve_instances()
+                                    .iter()
+                                    .any(|instance| instance.shape() == curve.id())
+                            })
+                        }),
+                    })
+                })
+                .collect::<Result<Vec<_>, OperationError>>()?,
             shapes: self
                 .history
                 .scene()
@@ -784,6 +823,12 @@ impl Editor {
     }
 
     fn menus(&mut self, ui: &mut egui::Ui) {
+        let read_only_reason = self
+            .history
+            .scene()
+            .authoring_read_only_reason()
+            .map(|reason| reason.to_string());
+        let authoring = read_only_reason.is_none();
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New scene").clicked() {
@@ -794,7 +839,12 @@ impl Editor {
                     ui.close();
                     self.open_dialog();
                 }
-                unsupported(ui, "Save As...");
+                if let Some(reason) = read_only_reason.as_deref() {
+                    ui.add_enabled(false, egui::Button::new("Save As..."))
+                        .on_disabled_hover_text(reason);
+                } else {
+                    unsupported(ui, "Save As...");
+                }
                 unsupported(ui, "Export...");
                 ui.separator();
                 if ui.button("Close").clicked() {
@@ -824,7 +874,10 @@ impl Editor {
                     ui.close();
                 }
                 if ui
-                    .add_enabled(self.selected.is_some(), egui::Button::new("Delete"))
+                    .add_enabled(
+                        authoring && self.selected.is_some(),
+                        egui::Button::new("Delete"),
+                    )
                     .clicked()
                 {
                     if let Some(id) = self.selected {
@@ -834,11 +887,17 @@ impl Editor {
                 }
             });
             ui.menu_button("Create", |ui| {
-                if ui.button("Polygon cube").clicked() {
+                if ui
+                    .add_enabled(authoring, egui::Button::new("Polygon cube"))
+                    .clicked()
+                {
                     self.create(Primitive::Cube);
                     ui.close();
                 }
-                if ui.button("Polygon plane").clicked() {
+                if ui
+                    .add_enabled(authoring, egui::Button::new("Polygon plane"))
+                    .clicked()
+                {
                     self.create(Primitive::Plane);
                     ui.close();
                 }
@@ -858,11 +917,12 @@ impl Editor {
         ui.horizontal(|ui| {
             ui.label(RichText::new("Modeling").strong());
             ui.separator();
-            if crate::tool_icons::button(ui, "Cube", crate::tool_icons::Icon::Cube, true).clicked()
+            if crate::tool_icons::button(ui, "Cube", crate::tool_icons::Icon::Cube, authoring)
+                .clicked()
             {
                 self.create(Primitive::Cube);
             }
-            if crate::tool_icons::button(ui, "Plane", crate::tool_icons::Icon::Plane, true)
+            if crate::tool_icons::button(ui, "Plane", crate::tool_icons::Icon::Plane, authoring)
                 .clicked()
             {
                 self.create(Primitive::Plane);
@@ -1009,6 +1069,14 @@ impl Editor {
 
     fn channels(&mut self, ui: &mut egui::Ui) {
         ui.label(RichText::new("Channel Box").strong());
+        let read_only_reason = self.history.scene().authoring_read_only_reason();
+        let authoring = read_only_reason.is_none();
+        if let Some(reason) = read_only_reason {
+            ui.weak(reason.to_string());
+        }
+        if !self.history.scene().curves().is_empty() {
+            ui.weak("Curves: select in the Outliner and frame with F. Viewport curve picking and CV editing are unavailable.");
+        }
         self.appearance_summary(ui);
         ui.separator();
         let Some(id) = self.selected else {
@@ -1016,7 +1084,12 @@ impl Editor {
             return;
         };
         ui.label("Object name");
-        let response = ui.add(egui::TextEdit::singleline(&mut self.name).id(name_edit_id()));
+        let response = ui.add_enabled(
+            authoring,
+            egui::TextEdit::singleline(&mut self.name)
+                .interactive(authoring)
+                .id(name_edit_id()),
+        );
         self.name_intent |= response.changed();
         let mut apply = response.lost_focus();
         ui.separator();
@@ -1040,8 +1113,10 @@ impl Editor {
                 .enumerate()
                 {
                     ui.label(*label);
-                    let response = ui.add(
+                    let response = ui.add_enabled(
+                        authoring,
                         egui::TextEdit::singleline(value)
+                            .interactive(authoring)
                             .id(channel_edit_id(index))
                             .desired_width(100.0),
                     );
@@ -1060,7 +1135,10 @@ impl Editor {
             self.commit_pending();
         }
         ui.separator();
-        if ui.button("Delete selected").clicked() {
+        if ui
+            .add_enabled(authoring, egui::Button::new("Delete selected"))
+            .clicked()
+        {
             self.native_operation(Operation::Delete(id));
         }
         ui.separator();
@@ -1299,6 +1377,180 @@ fn channel_edit_id(index: usize) -> egui::Id {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    mod ascii_fixture {
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/support/maya_ascii.rs"
+        ));
+    }
+
+    #[test]
+    fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claims() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        let source = ascii_fixture::specimen();
+        std::fs::write(&path, &source).unwrap();
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::OpenScene { path })
+            .unwrap();
+        let inspection = editor.inspect(false).unwrap();
+        assert_eq!(
+            inspection.document_origin,
+            crate::editor_operations::DocumentOrigin::MayaAscii
+        );
+        assert_eq!(inspection.retained_source_bytes, source.len());
+        assert_eq!(inspection.retained_source_records, 10);
+        assert!(inspection.read_only_reason.unwrap().contains("read-only"));
+        assert!(inspection.shapes.is_empty());
+        assert_eq!(inspection.curves.len(), 1);
+        let curve = &inspection.curves[0];
+        assert_eq!(
+            curve.id,
+            editor.history.scene().curves()[0].id().to_decimal()
+        );
+        assert_eq!(
+            inspection.nodes[0].shape_ids.as_slice(),
+            std::slice::from_ref(&curve.id)
+        );
+        assert_eq!(curve.degree, 3);
+        assert_eq!(curve.control_vertices, 4);
+        assert_eq!(curve.knots, 6);
+        assert_eq!(curve.domain, [0.0, 1.0]);
+        assert!(curve.read_only && curve.draw_available);
+        assert_eq!(inspection.viewport_backend, "uninitialized");
+        assert!(!inspection.depth_complete && !inspection.clipping_complete);
+        let value = serde_json::to_value(curve).unwrap();
+        assert_eq!(value["form"], "open");
+        assert!(value["control_vertices"].is_number() && value["knots"].is_number());
+        assert!(!serde_json::to_string(&value).unwrap().contains("script"));
+
+        for source in [
+            String::from_utf8(source.clone())
+                .unwrap()
+                .replace("setAttr \".t\"", "setAttr \".v\" no; setAttr \".t\""),
+            String::from_utf8(source)
+                .unwrap()
+                .replace("12 0 0", "100000000 0 0"),
+        ] {
+            let scene =
+                azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
+            let mut editor = Editor {
+                history: History::new(scene),
+                ..Default::default()
+            };
+            editor.viewport_error = None;
+            let inspection = editor.inspect(false).unwrap();
+            assert_eq!(inspection.curves.len(), 1);
+            assert!(!inspection.curves[0].draw_available);
+            assert_eq!(inspection.viewport_backend, "uninitialized");
+            assert!(!inspection.depth_complete && !inspection.clipping_complete);
+        }
+    }
+
+    #[test]
+    fn ascii_channel_controls_are_disabled_and_show_the_shared_core_reason() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::OpenScene { path })
+            .unwrap();
+        let id = editor.history.scene().nodes()[0].id();
+        editor.select(Some(id));
+        let before = editor.history.scene().clone();
+        let fields = (editor.name.clone(), editor.channels.clone());
+        for text_id in [name_edit_id(), channel_edit_id(0)] {
+            let context = egui::Context::default();
+            context.memory_mut(|memory| memory.request_focus(text_id));
+            let mut output = context.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(420.0, 900.0),
+                    )),
+                    events: vec![
+                        egui::Event::Text("must not become a draft".into()),
+                        key(Key::Enter),
+                    ],
+                    ..Default::default()
+                },
+                |ui| editor.channels(ui),
+            );
+            output.textures_delta.clear();
+            let reason = editor
+                .history
+                .scene()
+                .authoring_read_only_reason()
+                .unwrap()
+                .to_string();
+            assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,egui::Shape::Text(text) if text.galley.job.text.contains(&reason))));
+            assert_eq!((&editor.name, &editor.channels), (&fields.0, &fields.1));
+            assert!(!context.memory(|memory| memory.has_focus(text_id)));
+            assert!(!editor.has_draft());
+            assert_eq!(editor.history.scene(), &before);
+        }
+    }
+
+    #[test]
+    fn ascii_outliner_selection_and_frame_use_actual_curve_owner_without_authoring() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::OpenScene { path })
+            .unwrap();
+        let before = editor.history.scene().clone();
+        let token = editor.scene_token;
+        let context = egui::Context::default();
+        let mut output = context.run_ui(egui::RawInput::default(), |ui| editor.outliner(ui));
+        output.textures_delta.clear();
+        let position = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.job.text.contains("◇  curve") => {
+                    Some(text.pos + text.galley.size() * 0.5)
+                }
+                _ => None,
+            })
+            .unwrap();
+        for pressed in [true, false] {
+            let mut output = context.run_ui(
+                egui::RawInput {
+                    events: vec![
+                        egui::Event::PointerMoved(position),
+                        egui::Event::PointerButton {
+                            pos: position,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                    ..Default::default()
+                },
+                |ui| editor.outliner(ui),
+            );
+            output.textures_delta.clear();
+        }
+        assert_eq!(
+            editor.selected,
+            Some(editor.history.scene().nodes()[0].id())
+        );
+        editor
+            .apply_operation(Operation::Pan {
+                world_units: [20.0, 10.0],
+            })
+            .unwrap();
+        editor.apply_operation(Operation::FrameSelected).unwrap();
+        assert_eq!(editor.camera.target(), glam::Vec3::new(13.5, 0.0, 0.0));
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.scene_token, token);
+        assert!(!editor.is_dirty() && !editor.history.can_undo());
+    }
 
     #[test]
     fn channel_box_appearance_summary_precedes_controls_and_preserves_human_state() {

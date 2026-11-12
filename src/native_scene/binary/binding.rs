@@ -443,6 +443,7 @@ pub(super) fn construct(
     let mut scene = NativeScene {
         nodes: budget.vector(counts.transforms)?,
         shapes: budget.vector(counts.shapes)?,
+        curves: Vec::new(),
         dag: budget.vector(counts.dag)?,
         units,
         source: None,

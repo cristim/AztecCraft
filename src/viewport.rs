@@ -201,7 +201,26 @@ impl Camera {
                 .filter(move |instance| {
                     prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
                 })
-                .flat_map(|instance| instance.world_vertices().iter().copied()),
+                .flat_map(|instance| instance.world_vertices().iter().copied())
+                .chain(
+                    scene
+                        .curve_instances()
+                        .iter()
+                        .filter(move |instance| {
+                            prefix.is_none_or(|prefix| instance.path().starts_with(prefix))
+                        })
+                        .flat_map(|instance| {
+                            let [low, high] = instance.bounds();
+                            (0..8).map(move |corner| {
+                                glam::DVec3::new(
+                                    if corner & 1 == 0 { low.x } else { high.x },
+                                    if corner & 2 == 0 { low.y } else { high.y },
+                                    if corner & 4 == 0 { low.z } else { high.z },
+                                )
+                                .as_vec3()
+                            })
+                        }),
+                ),
             aspect,
         )
     }
