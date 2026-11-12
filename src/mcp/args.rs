@@ -19,6 +19,18 @@ pub(in crate::mcp) fn decode<T: DeserializeOwned>(arguments: JsonObject) -> Resu
         .map_err(|error| ErrorData::invalid_params(error.to_string(), None))
 }
 
+/// A normalised coordinate pair, range-checked as sent (f64) and only then narrowed to f32, so a
+/// value just outside [-1, 1] is refused instead of rounding onto the boundary.
+pub(in crate::mcp) fn unit_point(name: &str, value: [f64; 2]) -> Result<glam::Vec2, ErrorData> {
+    if value.iter().any(|v| !(-1.0..=1.0).contains(v)) {
+        return Err(ErrorData::invalid_params(
+            format!("{name} must be finite and within -1 to 1 on both axes"),
+            None,
+        ));
+    }
+    Ok(glam::Vec2::new(value[0] as f32, value[1] as f32))
+}
+
 pub(in crate::mcp) fn token(value: &str) -> Result<Uuid, ErrorData> {
     Uuid::parse_str(value)
         .map_err(|_| ErrorData::invalid_params("scene_token must be a UUID", None))
