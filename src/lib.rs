@@ -11,6 +11,7 @@ pub mod move_handles;
 pub mod native_scene;
 pub mod obj;
 pub mod primitive_options;
+pub mod recovery;
 pub mod scene;
 pub mod selection;
 pub mod shading;
