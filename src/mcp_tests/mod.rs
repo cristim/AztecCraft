@@ -136,6 +136,7 @@ mod official_client {
     mod marquee;
     mod material;
     mod multi_move;
+    mod multi_scale;
     mod node_edit;
     mod obj_export;
     mod obj_import;
