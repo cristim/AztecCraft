@@ -129,6 +129,12 @@
   delete_selection(multi_selection) => Ok(changed) | scene changed; nodes: 2 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -269,6 +275,12 @@
   delete_selection(multi_selection) => Ok(changed) | scene changed; nodes: 2 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; selection_rest: pPlane1@1 -> -; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Undo Create"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; status: "Scene edited" -> "Redo Rename"; name_field: "pCube1" -> "renamed"; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -401,6 +413,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -533,6 +551,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -665,6 +689,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -797,6 +827,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -929,6 +965,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_undo_queue(finite 3) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_undo_enabled(off) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  open_undo_chunk => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -1061,6 +1103,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Undo Create"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; status: "Scene edited" -> "Redo Rename"; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_undo_queue(finite 3) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_undo_enabled(off) => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  open_undo_chunk => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -1193,6 +1241,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(finite 3) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(on) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  open_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  close_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(parents) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1325,6 +1379,12 @@
   delete_selection(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(finite 3) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(on) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  open_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  close_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(parents) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1457,6 +1517,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(finite 3) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(on) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  open_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  close_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(parents) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1589,6 +1655,12 @@
   delete_selection(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   undo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   redo => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(infinite) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_queue(finite 3) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(off) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_undo_enabled(on) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  open_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  close_undo_chunk => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(parents) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1721,6 +1793,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   redo => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_undo_queue(infinite) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_undo_queue(finite 3) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_undo_enabled(off) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_undo_enabled(on) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  open_undo_chunk => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  close_undo_chunk => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_selected(parents) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_selected(children) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_all => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1853,6 +1931,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1986,6 +2070,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; material_draft: text=0.5 intent=false -> text=0.8 intent=false; can_redo: false -> true
   redo => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_undo_queue(infinite) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_undo_queue(finite 3) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_undo_enabled(off) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  open_undo_chunk => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_selected(parents) => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_selected(children) => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_all => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2119,6 +2209,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2251,6 +2347,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1
   redo => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_undo_queue(finite 3) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_undo_enabled(off) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  open_undo_chunk => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_selected(parents) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_selected(children) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_all => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2383,6 +2485,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2515,6 +2623,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -2647,6 +2761,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2779,6 +2899,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_undo: true -> false
   redo => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false; can_redo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -2911,6 +3037,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3044,6 +3176,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3176,6 +3314,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3308,6 +3452,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3440,6 +3590,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3572,6 +3728,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3704,6 +3866,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3836,6 +4004,12 @@
   delete_selection(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   undo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   redo => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(infinite) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_queue(finite 3) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(off) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_undo_enabled(on) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  open_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  close_undo_chunk => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(parents) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3968,6 +4142,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(unchanged) | no state change
   redo => Ok(unchanged) | no state change
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | no state change
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(unchanged) | no state change
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
@@ -4100,6 +4280,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(unchanged) | status: "Scene ready" -> "No change"
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | no state change
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(unchanged) | no state change
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
@@ -4232,6 +4418,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -4364,6 +4556,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -4496,6 +4694,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -4628,6 +4832,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> 0,0,0,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -4812,6 +5022,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | no state change
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -4944,6 +5160,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Ok(changed) | scene changed; status: "Scene ready" -> "Undo Move"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 16777217.125,-2,3,0,0,14.32394487827058,1,1,1; dirty: true -> false; can_undo: true -> false; can_redo: false -> true
   redo => Ok(unchanged) | status: "Scene ready" -> "No change"
+  set_undo_queue(infinite) => Ok(changed) | no state change
+  set_undo_queue(finite 3) => Ok(changed) | no state change
+  set_undo_enabled(off) => Ok(changed) | can_undo: true -> false
+  set_undo_enabled(on) => Ok(unchanged) | no state change
+  open_undo_chunk => Ok(changed) | no state change
+  close_undo_chunk => Err(Scene: undo: no undo chunk is open) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -5076,6 +5298,12 @@
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Ok(changed) | camera changed
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
@@ -5208,6 +5436,12 @@
   delete_selection(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   undo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   redo => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(infinite) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_queue(finite 3) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(off) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_undo_enabled(on) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  open_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  close_undo_chunk => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(parents) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5222,4 +5456,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 4682
+cells: 4916

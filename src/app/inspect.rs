@@ -513,6 +513,17 @@ impl Editor {
             undo_label: self.history.undo_label(),
             can_redo: self.history.can_redo(),
             redo_label: self.history.redo_label(),
+            undo_state: crate::editor_operations::UndoStateInspection {
+                enabled: self.history.undo_enabled(),
+                infinite: self.history.undo_queue() == UndoQueue::Infinite,
+                queue_size: match self.history.undo_queue() {
+                    UndoQueue::Finite(size) => Some(size),
+                    UndoQueue::Infinite => None,
+                },
+                undo_length: self.history.undo_len(),
+                redo_length: self.history.redo_len(),
+                open_chunk: self.history.open_chunk_name().map(str::to_string),
+            },
             dirty: self.is_dirty(),
             has_draft: self.has_draft(),
             native_input_pending: self.native_input_pending,
