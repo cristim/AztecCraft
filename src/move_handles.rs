@@ -437,13 +437,23 @@ pub struct WorldHandles {
 
 impl WorldHandles {
     pub fn new(capture: &ViewportCapture, origin_cm: DVec3) -> Result<Self, HandleError> {
+        Self::new_in(capture, origin_cm, [DVec3::X, DVec3::Y, DVec3::Z])
+    }
+
+    /// Handles along the unit world `directions` of the X, Y and Z axes of an Axis Orientation.
+    pub fn new_in(
+        capture: &ViewportCapture,
+        origin_cm: DVec3,
+        directions: [DVec3; 3],
+    ) -> Result<Self, HandleError> {
         let (clip, origin) = capture.project_origin(origin_cm)?;
         let size = capture.size();
+        let mut directions = directions.into_iter();
         let axes = [WorldAxis::X, WorldAxis::Y, WorldAxis::Z].map(|axis| {
+            let along = directions.next().unwrap_or_else(|| axis.direction());
             let geometry = (|| {
-                axis_parameter(origin_cm, axis, capture.ray_at_pixel(origin)?)?;
-                let (direction, length) =
-                    capture.axis_screen_vector(origin_cm, clip, axis.direction())?;
+                axis_parameter_along(origin_cm, along, capture.ray_at_pixel(origin)?)?;
+                let (direction, length) = capture.axis_screen_vector(origin_cm, clip, along)?;
                 let tip = origin + direction * length;
                 let head = length.min(ARROWHEAD_LENGTH);
                 let base = tip - direction * head;
@@ -504,7 +514,7 @@ impl WorldHandles {
 pub struct AxisDrag {
     capture: ViewportCapture,
     origin_cm: DVec3,
-    axis: WorldAxis,
+    direction: DVec3,
     begin_parameter: f64,
 }
 
@@ -515,15 +525,26 @@ impl AxisDrag {
         axis: WorldAxis,
         pointer: Vec2,
     ) -> Result<Self, HandleError> {
+        Self::begin_along(capture, origin_cm, axis.direction(), pointer)
+    }
+
+    /// A drag along the unit world `direction` through `origin_cm`.
+    pub fn begin_along(
+        capture: ViewportCapture,
+        origin_cm: DVec3,
+        direction: DVec3,
+        pointer: Vec2,
+    ) -> Result<Self, HandleError> {
         let pixel = capture.pointer_pixel(pointer)?;
         if !capture.contains(pixel) {
             return Err(HandleError::OriginClipped);
         }
-        let begin_parameter = axis_parameter(origin_cm, axis, capture.ray_at_pixel(pixel)?)?;
+        let begin_parameter =
+            axis_parameter_along(origin_cm, direction, capture.ray_at_pixel(pixel)?)?;
         Ok(Self {
             capture,
             origin_cm,
-            axis,
+            direction,
             begin_parameter,
         })
     }
@@ -541,8 +562,11 @@ impl AxisDrag {
             return Err(HandleError::CaptureChanged);
         }
         let pixel = self.capture.pointer_pixel(pointer)?;
-        let parameter =
-            axis_parameter(self.origin_cm, self.axis, self.capture.ray_at_pixel(pixel)?)?;
+        let parameter = axis_parameter_along(
+            self.origin_cm,
+            self.direction,
+            self.capture.ray_at_pixel(pixel)?,
+        )?;
         let distance = parameter - self.begin_parameter;
         if !distance.is_finite() {
             return Err(HandleError::InvalidSolve);
@@ -593,6 +617,7 @@ pub(crate) fn clip_segment(start: DVec2, end: DVec2, size: DVec2) -> Option<Scre
     })
 }
 
+#[cfg(test)]
 fn axis_parameter(origin_cm: DVec3, axis: WorldAxis, ray: Ray) -> Result<f64, HandleError> {
     axis_parameter_along(origin_cm, axis.direction(), ray)
 }

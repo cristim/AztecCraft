@@ -21,7 +21,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -161,7 +161,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -829,7 +829,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -961,7 +961,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -1886,7 +1886,7 @@
   set_active_tool(select) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_tool_space(rotate,world) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_move_space(parent) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_tool_handle(rotate,y) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2151,7 +2151,7 @@
   set_active_tool(select) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_tool_space(rotate,world) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_move_space(parent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_tool_handle(rotate,y) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2415,7 +2415,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -2679,7 +2679,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -3868,7 +3868,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4000,7 +4000,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4132,7 +4132,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4264,7 +4264,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4396,7 +4396,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4528,7 +4528,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4712,7 +4712,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change
@@ -4844,7 +4844,7 @@
   set_active_tool(select) => Ok(unchanged) | no state change
   set_tool_space(rotate,world) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=World scale_space=World rotate_axis=X scale_handle=Uniform
   set_tool_space(scale,object) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=Object rotate_axis=X scale_handle=Uniform
-  set_tool_space(move,world) => Err(InvalidInput: Move has no Axis Orientation; use rotate or scale) | no state change
+  set_tool_space(move,world) => Err(InvalidInput: Move sets its Axis Orientation with SetMoveSpace, not SetToolSpace; use rotate or scale here) | no state change
   set_move_space(parent) => Ok(changed) | no state change
   set_tool_handle(rotate,y) => Ok(changed) | tool_settings: rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform -> rotate_space=Object scale_space=World rotate_axis=Y scale_handle=Uniform
   set_tool_handle(scale,uniform) => Ok(unchanged) | no state change

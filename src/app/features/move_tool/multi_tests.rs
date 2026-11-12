@@ -613,16 +613,45 @@ fn a_remote_object_move_sends_each_selected_object_along_its_own_axis() {
 }
 
 #[test]
-fn a_native_drag_refuses_a_non_world_orientation_until_the_handles_follow_it() {
-    let (mut editor, _, _) = two_selected();
+fn a_native_object_drag_follows_the_rotated_handle_and_names_the_orientation() {
+    let (mut editor, context, rect) = setup(1.0);
+    let node = editor.selection.members()[0].node;
+    edit_rotation(&mut editor, node, [0.0, 0.0, 90.0]);
     set_move_space(&mut editor, MoveSpace::Object);
-    let scene = editor.history.scene().clone();
-    let lead = editor.selection.lead().unwrap().clone();
-    let result = editor.apply_operation(begin_op(lead, None));
-    assert!(
-        matches!(&result, Err(OperationError::InvalidInput(message)) if message.starts_with("unsupported")),
-        "{result:?}"
+    // Object X of Rz(90) points up on screen, where the World Y handle would be.
+    let position = rect.center() + egui::vec2(0.0, -40.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            button(position, true),
+        ),
     );
-    assert!(editor.history.active_manipulation().is_none());
-    assert_eq!(editor.history.scene(), &scene);
+    assert!(editor.native_move.is_some(), "{}", editor.status);
+    assert_eq!(editor.status, "Object X Move");
+    let end = position - egui::vec2(0.0, rect.height() / 20.0);
+    frame(
+        &mut editor,
+        &context,
+        raw(
+            egui::vec2(1440.0, 900.0),
+            Pos2::ZERO,
+            1.0,
+            vec![Event::PointerMoved(end)],
+        ),
+    );
+    let moved = editor
+        .history
+        .scene()
+        .node(node)
+        .unwrap()
+        .transform()
+        .translation;
+    assert!(
+        moved[0].abs() < 1e-4 && (moved[1] - 1.0).abs() < 2e-4,
+        "{moved:?}"
+    );
 }
