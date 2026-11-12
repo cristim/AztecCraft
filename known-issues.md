@@ -427,12 +427,22 @@ Cancel. The MCP decision for Don't Save is still `discard`. AztecCraft keeps its
 for uncertain writes and changed Open sources. The default filter applies where the platform dialog has a filter list: Windows and GTK select
 the first filter, the Linux XDG portal leaves the default to its backend (PROVISIONAL), and the
 macOS panel merges every filter into its allowed types with no filter choice. In the prompt, Save
-is disabled with a reason unless the scene is an opened Maya Binary on macOS or Linux (or a write
-is being reconciled); Maya's Save would run Save As for an untitled scene (#156, #15). A read-only
+is disabled with a reason unless the scene is a directly opened (not symlinked) Maya Binary with a
+known destination on Unix or Windows, or a Maya ASCII scene this build saved on Unix (or a write is
+being reconciled); Maya's Save would run Save As for an untitled scene, which the prompt's Save As
+button (#289) does on Unix (#156, #15). The disabled Save is asserted in the app tests. A read-only
 (Maya ASCII) scene shows " (read-only)" in the window title and its reason at the top of the File
 menu, both AztecCraft additions with no Maya counterpart. File > Recent Files is not implemented
-yet: it needs persisted preferences and an MCP read path. Maya 2026 and the 2027.2 documentation
-pin are unverified.
+yet: it needs persisted preferences and an MCP read path.
+
+Researched on 2026-11-12 in the Maya 2027 help: the [Open Options](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-203FC12C-6C80-497C-AC29-548DF6EC91B5.htm)
+page says the "File type" option sets the default format for the next Open and, on Windows and
+macOS, the browser filter; it names no default value, so "Maya Scenes" first stays from 2025.1
+(PROVISIONAL). [Open recently saved files](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-ManagingScenes/files/GUID-699D997C-02C5-4F55-9A3D-6CD68DD0B687.htm)
+lists three entry points: the App Home icon, File > Recent Files, and a right-click on the Status
+Line Open a Scene icon; the list holds the last saved file and the last file open before a crash,
+and its length is set in the Files/Projects preferences. Neither page gives wording for the
+unsaved-changes prompt, so that wording stays Maya 2025.1 (PROVISIONAL).
 
 ## Selection changes are refused under a file modal
 

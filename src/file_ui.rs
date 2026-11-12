@@ -42,8 +42,11 @@ pub(super) fn save_changes_prompt(path: Option<&Path>) -> (&'static str, String)
     }
 }
 
-/// Why the prompt's Save is disabled outside reconciliation.
-pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: this build saves in place only an opened Maya Binary scene or, on Unix, a new scene through Save As (#156, #289)";
+/// Why the prompt's Save or Save As is disabled outside reconciliation. Save writes in place only
+/// a directly opened (not symlinked) Maya Binary scene with a known destination, or on Unix a
+/// Maya ASCII scene this build saved (`NativeOrigin::active_save_available`); Save As (#289) is
+/// the way to save an untitled scene (Unix only, #156).
+pub(super) const PROMPT_SAVE_UNAVAILABLE: &str = "Not available: Save writes in place only a directly opened Maya Binary scene (not a symlink) or, on Unix, a Maya ASCII scene saved by this build; use Save As for an untitled scene (Unix only, #156, #289)";
 
 pub(super) fn validate_scene_path(path: &Path) -> Result<(), OperationError> {
     let text = path

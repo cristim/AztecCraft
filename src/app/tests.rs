@@ -1821,6 +1821,7 @@ fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
     editor.new_document().unwrap();
     assert!(editor.files.is_modal());
     let ctx = egui::Context::default();
+    ctx.enable_accesskit();
     let output = frame(&mut editor, &ctx, vec![]);
     for text in [
         "Warning: Scene Not Saved",
@@ -1836,7 +1837,14 @@ fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
         buttons.windows(2).all(|pair| pair[0] < pair[1]),
         "{buttons:?}"
     );
-    // An untitled scene cannot be saved in place yet (Maya would Save As), so Save is inert.
+    // An untitled scene cannot be saved in place yet (Maya would Save As): Save is disabled in
+    // the accessibility tree, Save As follows the platform rule, and a click is inert.
+    assert!(button_disabled(&output, "Save"), "Save must be disabled");
+    assert_eq!(
+        button_disabled(&output, "Save As..."),
+        !cfg!(unix),
+        "Save As is enabled for an untitled scene on Unix only"
+    );
     let before = editor.history.scene().clone();
     let save = face_text_position(&output, "Save");
     face_pointer_click(&mut editor, &ctx, save, egui::Modifiers::NONE, vec![]);
