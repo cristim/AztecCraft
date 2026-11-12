@@ -436,11 +436,12 @@ NativeScene owns the canonical curve identity, parent edges and f64 source
 values. ViewScene evaluates supported spans and prepares derived world-space
 segments; the CV hull is used only as a conservative framing bound. Its chord
 tolerance is application policy, max(1e-6cm, world CV-hull diagonal*1e-4) plus an
-f32 allowance min(max|world coord|*f32::EPSILON, 0.01*diagonal), not a Maya
-tessellation constant. Error checks include actual emitted f32 endpoints. A curve
-whose f32 viewport grid is coarser than about 1% of its size (the ~3.6cm
-specimen: drawn at x=2e6cm, refused at 3e6cm) is refused and Open fails, never
-drawn as noise. Unrepresentable or over-tolerance conversion refuses instead of
+f32 offset allowance diagonal*f32::EPSILON plus the f64 grid at the curve's
+coordinates, not a Maya tessellation constant. Segments are f32 offsets from an f64
+origin (the bounds centre) and the renderer subtracts the f64 eye, so distance from
+the world origin does not cost precision. Error checks include actual emitted f32
+endpoints. A curve whose f64 grid is coarser than about 1% of its size is refused and
+Open fails, never drawn as noise. Unrepresentable or over-tolerance conversion refuses instead of
 relaxing the bound. Candidate-validation refusals that name an unsupported view
 fact (today only repeated interior knots are reachable from ASCII) report
 Unsupported rather than Malformed; structural errors stay Malformed.

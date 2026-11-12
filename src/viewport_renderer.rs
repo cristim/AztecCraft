@@ -466,10 +466,15 @@ impl Submission {
         if physical_size.contains(&0) {
             return Err(RenderError::Camera(InvalidCameraInput));
         }
+        let aspect = physical_size[0] as f32 / physical_size[1] as f32;
         let matrix = camera
-            .projection_matrix(physical_size[0] as f32 / physical_size[1] as f32)
+            .projection_matrix(aspect)
             .map_err(RenderError::Camera)?
             * camera.view_matrix();
+        let eye_relative = camera
+            .eye_relative_matrix(aspect)
+            .map_err(RenderError::Camera)?;
+        let eye_world = camera.eye().as_dvec3();
         let mut vertices = if grid_visible { GRID_VERTICES } else { 0 };
         for instance in scene.instances() {
             let outline_corners = if selection.edges_shown(instance) {
@@ -512,7 +517,7 @@ impl Submission {
             vertices = vertices
                 .checked_add(
                     instance
-                        .segments()
+                        .local_segments()
                         .len()
                         .checked_mul(2)
                         .ok_or(RenderError::ResourceLimit)?,
@@ -643,9 +648,11 @@ impl Submission {
                     continue;
                 }
                 let color = highlight_edge_color(highlight);
-                for segment in instance.segments() {
+                let shift = instance.origin() - eye_world;
+                for segment in instance.local_segments() {
                     for point in segment {
-                        submission.vertex(matrix, *point, color, format)?;
+                        let relative = (shift + point.as_dvec3()).as_vec3();
+                        submission.vertex(eye_relative, relative, color, format)?;
                     }
                 }
             }

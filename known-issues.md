@@ -477,10 +477,12 @@ evidence; the Save/material-parent union has its own focused SDK/UI/GPU and
 normal-hook checks. Later selected-parent composition, its CI and native preview
 remain separate gates. Native text-commit refusal was not exercised, and no exact
 visual or functional parity is claimed.
-Small curves far from the origin are refused, not drawn, and Open fails, when
-the f32 viewport grid at their coordinates is coarser than about 1% of the curve
-size (a ~3.6cm curve is drawn at x=2e6cm and refused at x=3e6cm). Remedy
-pending: a camera-relative or f64 viewport path.
+Curve segments are f32 offsets from an f64 origin and the renderer subtracts the f64 eye,
+so a small curve far from the origin is no longer refused for f32 grid coarseness (it is
+refused only when the f64 grid exceeds about 1% of the curve). Core and CPU submission
+tests cover this; the in-app visual check of a far-origin curve is pending. The f32
+camera target and non-curve geometry are still world-space f32, so framing and picking
+a far curve are only as precise as the f32 grid.
 [Development notes](.project-docs/development.md#read-only-static-cubic-maya-ascii)
 record the supported class, limits and explicitly invoked genuine consumer.
 

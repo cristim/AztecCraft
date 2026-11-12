@@ -1233,7 +1233,7 @@ fn ascii_inspection_reports_canonical_curves_without_private_arrays_or_gpu_claim
             .replace("setAttr \".t\"", "setAttr \".v\" no; setAttr \".t\""),
         String::from_utf8(source)
             .unwrap()
-            .replace("12 0 0", "100000000 0 0"),
+            .replace("12 0 0", "100000000000000000000 0 0"),
     ] {
         let scene = azteccraft::native_scene::ascii::decode(source.into_bytes().into()).unwrap();
         let mut editor = Editor {

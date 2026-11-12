@@ -114,7 +114,7 @@ fn face_mode_feedback_on_a_curves_only_scene_draws_lines_without_markers_or_high
         + view
             .curve_instances()
             .iter()
-            .map(|curve| 2 * curve.segments().len())
+            .map(|curve| 2 * curve.local_segments().len())
             .sum::<usize>();
     for selection in [
         SelectionFeedback::Face {
@@ -144,6 +144,42 @@ fn face_mode_feedback_on_a_curves_only_scene_draws_lines_without_markers_or_high
     }
 }
 
+fn curve_scene_at(x: f64) -> NativeScene {
+    let source = format!(
+        "//Maya ASCII 2016 scene\nrequires maya \"2016\"; currentUnit -l centimeter -a degree -t film; createNode transform -n \"curve\"; setAttr \".t\" -type \"double3\" {x} 0 0; createNode nurbsCurve -n \"shape\" -p \"curve\"; setAttr \".cc\" -type \"nurbsCurve\" 3 1 0 no 3 6 0 0 0 1 1 1 4 -0.4 0.5 0 -0.4 1.5 0 0.4 1.5 0 0.4 0.5 0;"
+    );
+    azteccraft::native_scene::ascii::decode(std::sync::Arc::from(source.into_bytes())).unwrap()
+}
+
+#[test]
+fn far_curve_submission_is_camera_relative_and_matches_the_origin_curve() {
+    // 3e6 cm is exact in f32 but its grid (0.25 cm) is coarser than this 1 cm curve's detail,
+    // so world-space f32 segments would be refused or distorted.
+    let far = 3_000_000.0_f64;
+    let submit = |native: &NativeScene, target: Vec3| {
+        let view = ViewScene::from_native(native, VIEW_BUDGET).unwrap();
+        let camera = Camera::new(target, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+        Submission::new(
+            &view,
+            &camera,
+            [SIZE; 2],
+            SelectionFeedback::Object(None),
+            false,
+            ShadingMode::SmoothShadeAll,
+            FORMAT,
+            u64::MAX,
+        )
+        .unwrap()
+        .bytes
+    };
+    let near = submit(&curve_scene_at(0.0), Vec3::ZERO);
+    assert!(!near.is_empty());
+    assert_eq!(
+        near,
+        submit(&curve_scene_at(far), Vec3::new(far as f32, 0.0, 0.0))
+    );
+}
+
 #[test]
 fn curve_submission_preflight_counts_actual_segments_and_refuses_short_buffer() {
     let native = curve_scene(true, false, 0.0);
@@ -152,7 +188,7 @@ fn curve_submission_preflight_counts_actual_segments_and_refuses_short_buffer() 
         + view
             .curve_instances()
             .iter()
-            .map(|curve| 2 * curve.segments().len())
+            .map(|curve| 2 * curve.local_segments().len())
             .sum::<usize>();
     let bytes = vertices * VERTEX_BYTES;
     let submission = Submission::new(

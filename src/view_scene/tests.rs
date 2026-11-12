@@ -40,11 +40,11 @@ fn curve_instances_keep_exact_paths_bounds_and_object_only_identity() {
         assert_eq!(instance.transform(), node.id());
         assert_eq!(instance.shape(), curve);
         assert_eq!(
-            instance.segments().first().unwrap()[0],
+            instance.world_segments().next().unwrap()[0],
             Vec3::new(x, 0.0, 0.0)
         );
         assert_eq!(
-            instance.segments().last().unwrap()[1],
+            instance.world_segments().last().unwrap()[1],
             Vec3::new(x + 3.0, 0.0, 0.0)
         );
         assert_eq!(

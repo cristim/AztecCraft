@@ -103,10 +103,10 @@ async fn ascii_open_inspect_select_frame(path: &std::path::Path, expected_counts
     assert_eq!(frame.is_error, Some(false));
     let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
     assert_eq!(view.curve_instances().len(), 1);
-    for point in view.curve_instances()[0].segments().iter().flatten() {
+    for point in view.curve_instances()[0].world_segments().flatten() {
         let ndc = editor
             .camera
-            .project(*point, editor.aspect)
+            .project(point, editor.aspect)
             .unwrap()
             .unwrap();
         assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
@@ -245,7 +245,7 @@ async fn ascii_sdk_rejected_open_preserves_dirty_nonempty_scene_history_and_sele
     for (index, source) in [
         String::from("//Maya ASCII 2016 scene\ncreateNode"),
         valid.replace("createNode nurbsCurve", "createNode mesh"),
-        valid.replace("12 0 0", "100000000 0 0"),
+        valid.replace("12 0 0", "100000000000000000000 0 0"),
     ]
     .into_iter()
     .enumerate()

@@ -21,6 +21,9 @@ impl CurveWork {
 }
 
 pub(super) struct PreparedCurve {
+    /// f64 world point the f32 `segments` are offsets from, so far-from-origin curves keep
+    /// their precision.
+    pub(super) origin: DVec3,
     pub(super) segments: Vec<[Vec3; 2]>,
     pub(super) bounds: [DVec3; 2],
 }
@@ -53,14 +56,20 @@ pub(super) fn prepare(
     }
     let diagonal = scalar(squared(point(bounds[1] - bounds[0])?)?.sqrt())?;
     let magnitude = bounds[0].abs().max(bounds[1].abs()).max_element();
-    // f32 endpoint rounding costs up to magnitude * f32::EPSILON (2x the
-    // per-axis half-ulp, covering the 3-axis norm). It is granted only while it
-    // stays within a hundredth of the curve size, so a grid coarser than the curve
-    // is still refused instead of drawn as noise.
-    let representable = scalar(magnitude * f64::from(f32::EPSILON))?.min(scalar(diagonal * 0.01)?);
+    // Segments are f32 offsets from this f64 origin, so only the f64 grid at the curve's
+    // coordinates limits it. A grid coarser than a hundredth of the curve is refused instead
+    // of drawn as noise; a single-point curve has no shape to distort.
+    let grid = scalar(magnitude * f64::EPSILON)?;
+    if diagonal > 0.0 && grid > scalar(diagonal * 0.01)? {
+        return Err(ViewError::NonFiniteWorld);
+    }
+    let origin = point(point(bounds[0] * 0.5)? + point(bounds[1] * 0.5)?)?;
+    // f32 endpoint rounding of an offset costs up to diagonal * f32::EPSILON (covering the
+    // 3-axis norm of the half-diagonal) on top of the f64 grid.
+    let representable = scalar(diagonal * f64::from(f32::EPSILON))? + grid;
     let tolerance = scalar(diagonal * 1e-4)?.max(1e-6) + representable;
     let tolerance_squared = scalar(tolerance * tolerance)?;
-    let count = walk(curve, world, tolerance_squared, work, |_| Ok(()))?;
+    let count = walk(curve, world, origin, tolerance_squared, work, |_| Ok(()))?;
     if checked_add(fixed, buffer_bytes::<[Vec3; 2]>(count)?)? > byte_budget {
         return Err(ViewError::ResourceLimit);
     }
@@ -68,7 +77,7 @@ pub(super) fn prepare(
     if checked_add(fixed, buffer_bytes::<[Vec3; 2]>(segments.capacity())?)? > byte_budget {
         return Err(ViewError::ResourceLimit);
     }
-    let actual = walk(curve, world, tolerance_squared, work, |segment| {
+    let actual = walk(curve, world, origin, tolerance_squared, work, |segment| {
         if segments.len() >= count {
             return Err(ViewError::InvalidGeometry);
         }
@@ -78,12 +87,17 @@ pub(super) fn prepare(
     if actual != count {
         return Err(ViewError::InvalidGeometry);
     }
-    Ok(PreparedCurve { segments, bounds })
+    Ok(PreparedCurve {
+        origin,
+        segments,
+        bounds,
+    })
 }
 
 fn walk(
     curve: &NativeCurveShape,
     world: &DMat4,
+    origin: DVec3,
     tolerance_squared: f64,
     work: &mut CurveWork,
     mut emit: impl FnMut([Vec3; 2]) -> Result<(), ViewError>,
@@ -99,7 +113,7 @@ fn walk(
         work.charge()?;
         let mut controls = curve.bezier_span(span).map_err(ViewError::Native)?;
         for control in &mut controls {
-            *control = world_point(world, *control)?;
+            *control = point(world_point(world, *control)? - origin)?;
         }
         stack[0] = Some(Piece { controls, depth: 0 });
         let mut length = 1usize;

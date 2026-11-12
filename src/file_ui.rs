@@ -2187,10 +2187,10 @@ mod tests {
         assert!(!editor.is_dirty() && !editor.history.can_undo());
         assert!(editor.selected().is_none() && editor.selected_path().is_empty());
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
-        for point in view.curve_instances()[0].segments().iter().flatten() {
+        for point in view.curve_instances()[0].world_segments().flatten() {
             let ndc = editor
                 .camera
-                .project(*point, editor.aspect)
+                .project(point, editor.aspect)
                 .unwrap()
                 .unwrap();
             assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
@@ -2300,10 +2300,10 @@ mod tests {
                 let view =
                     ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
                 assert_eq!(view.curve_instances().len(), 1);
-                for point in view.curve_instances()[0].segments().iter().flatten() {
+                for point in view.curve_instances()[0].world_segments().flatten() {
                     let ndc = editor
                         .camera
-                        .project(*point, editor.aspect)
+                        .project(point, editor.aspect)
                         .unwrap()
                         .unwrap();
                     assert!(ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0);
