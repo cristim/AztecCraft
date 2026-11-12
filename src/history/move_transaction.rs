@@ -570,18 +570,19 @@ impl History {
     pub fn check_move_axes(
         &self,
         targets: &[TransformTarget],
+        space: MoveSpace,
     ) -> Result<[Option<ManipulationError>; 3], ManipulationError> {
         let lead = targets
             .last()
             .ok_or(ManipulationError::Native(NativeError::InvalidIdentity))?;
-        let plan = plan_move(&self.scene, targets, MoveSpace::World, None, lead)?;
+        let plan = plan_move(&self.scene, targets, space, None, lead)?;
         let ManipulationKind::Move { movers, .. } = &plan.kind else {
             return Ok([None, None, None]);
         };
         Ok([WorldAxis::X, WorldAxis::Y, WorldAxis::Z].map(|axis| {
             movers.iter().find_map(|(frame, baseline)| {
                 frame
-                    .require_leaves(axis)
+                    .require_leaves_in(space, axis)
                     .err()
                     .map(|error| member_error(&self.scene, baseline.node(), error))
             })
