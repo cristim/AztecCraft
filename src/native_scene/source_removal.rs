@@ -144,6 +144,7 @@ impl NativeScene {
         });
         self.session_materials.prune(&self.shapes);
         self.session_joints.prune(&gone.iter().copied().collect());
+        self.session_keys.prune(&self.nodes);
         self.session_uvs.prune(&self.shapes);
         if let Some(source) = &mut self.source {
             source.has_removals = true;

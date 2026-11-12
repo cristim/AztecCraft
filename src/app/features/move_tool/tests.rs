@@ -1,4 +1,5 @@
 use super::*;
+use crate::app::SelectionModeIntent;
 use crate::editor_operations::{SelectionMode, SidebarPanel};
 use azteccraft::{
     manipulator_handles::{DisabledKind, Pick, ScaleHandles},
@@ -700,6 +701,7 @@ fn editor_move_guards_preserve_drafts_modal_close_tokens_and_failed_open_baselin
                 1 => Operation::BeginMove {
                     target,
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
                 2 => Operation::UpdateMove {
                     id: ManipulationId::from_decimal("1").unwrap(),
@@ -745,6 +747,7 @@ fn editor_move_guards_preserve_drafts_modal_close_tokens_and_failed_open_baselin
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1340,10 +1343,8 @@ fn face_mode_refuses_move_handles_native_and_numeric_and_keeps_face_click_workin
     assert_eq!(editor.status, FACE_MODE_REFUSAL);
     let target = editor.selected_move_target().unwrap();
     assert!(matches!(
-        editor.apply_operation(Operation::BeginMove {
-            target,
-            axis: WorldAxis::X
-        }),
+        editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+        , expected_selection_generation: None }),
         Err(OperationError::InvalidInput(message)) if message == FACE_MODE_REFUSAL
     ));
     assert!(editor.history.active_manipulation().is_none());
@@ -1380,10 +1381,8 @@ fn vertex_and_edge_modes_refuse_move_everywhere_face_does() {
         assert_eq!(editor.status, refusal);
         let target = editor.selected_move_target().unwrap();
         assert!(matches!(
-            editor.apply_operation(Operation::BeginMove {
-                target,
-                axis: WorldAxis::X
-            }),
+            editor.apply_operation(Operation::BeginMove { target, axis: WorldAxis::X
+            , expected_selection_generation: None }),
             Err(OperationError::InvalidInput(message)) if message == refusal
         ));
         let inspected = editor.inspect_manipulation().unwrap();
@@ -1451,6 +1450,7 @@ fn native_face_mode_switch_cancels_an_active_native_move_and_remote_move_blocks_
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1536,7 +1536,8 @@ fn read_only_ascii_curve_scene_refuses_move_natively_and_numerically_with_the_co
     assert!(matches!(
         editor.apply_operation(Operation::BeginMove {
             target,
-            axis: WorldAxis::X
+            axis: WorldAxis::X,
+            expected_selection_generation: None
         }),
         Err(OperationError::Scene(NativeError::ReadOnlyFormat))
     ));
@@ -1814,6 +1815,7 @@ fn a_scene_refusal_mid_move_drag_keeps_the_last_valid_preview_and_other_errors_p
         .apply_operation(Operation::BeginMove {
             target,
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let id = editor.history.active_manipulation().unwrap().id;
@@ -1908,6 +1910,7 @@ fn escape_closing_an_open_menu_leaves_the_move_in_flight_and_a_second_escape_can
             Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
             &|| true,
         )
@@ -1981,7 +1984,7 @@ fn editor_move_begins_on_a_sited_identity_node() {
     assert!(named("move").available, "{:?}", named("move"));
     assert_eq!(named("move").unavailable_reason, None);
     let started = editor
-        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native)
+        .begin_editor_move(&target, WorldAxis::X, ManipulationProvenance::Native, None)
         .unwrap();
     assert!(matches!(
         started,
@@ -1990,7 +1993,8 @@ fn editor_move_begins_on_a_sited_identity_node() {
     assert!(editor.history.active_manipulation().is_some());
 }
 
-const MARQUEE_STATUS: &str = "Marquee (drag) selection is not implemented yet; click to select";
+const MARQUEE_STATUS: &str =
+    "Marquee selection in Face/Vertex/Edge mode is not implemented yet (#30)";
 
 fn drag(editor: &mut Editor, context: &egui::Context, from: Pos2, to: Pos2) {
     let size = egui::vec2(1440.0, 900.0);
@@ -2012,11 +2016,13 @@ fn drag(editor: &mut Editor, context: &egui::Context, from: Pos2, to: Pos2) {
 }
 
 #[test]
-fn drag_off_a_handle_shows_the_marquee_refusal_and_on_a_handle_does_not() {
+fn drag_off_a_handle_selects_by_marquee_and_on_a_handle_moves() {
     let (mut editor, context, rect) = setup(1.0);
+    assert!(editor.selected().is_some());
     let from = rect.center() + egui::vec2(-300.0, 200.0);
     drag(&mut editor, &context, from, from + egui::vec2(60.0, 30.0));
-    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert_ne!(editor.status, MARQUEE_STATUS);
+    assert!(editor.selected().is_none(), "an empty marquee clears");
 
     let (mut editor, context, rect) = setup(1.0);
     let node = editor.selected().unwrap();
@@ -2086,19 +2092,281 @@ fn select_tool_editor() -> (Editor, egui::Context, Rect) {
 }
 
 #[test]
-fn a_plain_drag_after_an_orbit_drag_still_shows_the_marquee_refusal() {
+fn a_plain_drag_after_an_orbit_drag_still_selects_by_marquee() {
     let (mut editor, context, rect) = select_tool_editor();
     let from = rect.center() + egui::vec2(-300.0, 200.0);
     let to = from + egui::vec2(60.0, 30.0);
     drag_with(&mut editor, &context, from, to, Modifiers::ALT);
-    assert_ne!(editor.status, MARQUEE_STATUS);
+    assert!(editor.selected().is_some(), "an orbit drag selects nothing");
     drag_with(&mut editor, &context, from, to, Modifiers::NONE);
-    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert!(editor.selected().is_none(), "the plain drag cleared");
     assert!(!editor.error);
 }
 
+fn over_the_object(rect: Rect) -> (Pos2, Pos2) {
+    (
+        rect.center() - egui::vec2(60.0, 60.0),
+        rect.center() + egui::vec2(60.0, 60.0),
+    )
+}
+
 #[test]
-fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
+fn marquee_drags_replace_add_remove_and_toggle_by_modifier_without_history_entries() {
+    let (mut editor, context, rect) = select_tool_editor();
+    let (from, to) = over_the_object(rect);
+    let node = editor.selected().unwrap();
+    let undo = editor.history.undo_label();
+    let dirty = editor.is_dirty();
+    // Ctrl removes it, Shift toggles it back, Shift+Ctrl adds (a no-op when present), a plain
+    // drag replaces.
+    drag_with(&mut editor, &context, from, to, Modifiers::CTRL);
+    assert!(editor.selected().is_none());
+    drag_with(&mut editor, &context, from, to, Modifiers::SHIFT);
+    assert_eq!(editor.selected(), Some(node));
+    drag_with(&mut editor, &context, from, to, Modifiers::SHIFT);
+    assert!(editor.selected().is_none());
+    drag_with(
+        &mut editor,
+        &context,
+        from,
+        to,
+        Modifiers::SHIFT | Modifiers::CTRL,
+    );
+    assert_eq!(editor.selected(), Some(node));
+    let empty_from = rect.center() + egui::vec2(-300.0, 200.0);
+    let empty_to = empty_from + egui::vec2(60.0, 30.0);
+    drag_with(
+        &mut editor,
+        &context,
+        empty_from,
+        empty_to,
+        Modifiers::SHIFT,
+    );
+    assert_eq!(
+        editor.selected(),
+        Some(node),
+        "a modified empty drag keeps it"
+    );
+    drag_with(&mut editor, &context, empty_from, empty_to, Modifiers::NONE);
+    assert!(editor.selected().is_none());
+    drag_with(&mut editor, &context, from, to, Modifiers::NONE);
+    assert_eq!(editor.selected(), Some(node));
+    assert_eq!(editor.history.undo_label(), undo);
+    assert_eq!(editor.is_dirty(), dirty);
+}
+
+/// `cancel_on_escape` sees the same Esc that cancels the marquee drag; it must leave the
+/// selection and the active tool alone (it only cancels a Move and consumes the pointer sequence).
+#[test]
+fn escape_mid_marquee_drag_changes_neither_selection_nor_tool() {
+    let (mut editor, context, rect) = select_tool_editor();
+    let selected = editor.selected();
+    assert!(selected.is_some());
+    let generation = editor.selection.generation();
+    let size = egui::vec2(1440.0, 900.0);
+    let from = rect.center() + egui::vec2(-300.0, 200.0);
+    let to = from + egui::vec2(60.0, 30.0);
+    let none = Modifiers::NONE;
+    let press = |position: Pos2, pressed: bool| Event::PointerButton {
+        pos: position,
+        button: PointerButton::Primary,
+        pressed,
+        modifiers: none,
+    };
+    let escape = Event::Key {
+        key: egui::Key::Escape,
+        physical_key: Some(egui::Key::Escape),
+        pressed: true,
+        repeat: false,
+        modifiers: none,
+    };
+    for events in [
+        vec![Event::PointerMoved(from), press(from, true)],
+        vec![Event::PointerMoved(to)],
+        vec![escape],
+        vec![Event::PointerMoved(to), press(to, false)],
+    ] {
+        frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+    }
+    assert_eq!(editor.selected(), selected);
+    assert_eq!(editor.selection.generation(), generation);
+    assert_eq!(editor.active_tool, ActiveTool::Select);
+    assert!(editor.history.active_manipulation().is_none());
+}
+
+#[test]
+fn a_component_mode_drag_shows_the_status_and_changes_nothing() {
+    let (mut editor, context, rect) = select_tool_editor();
+    editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
+    let before = (editor.selection.clone(), editor.selection.generation());
+    let (from, to) = over_the_object(rect);
+    drag_with(&mut editor, &context, from, to, Modifiers::NONE);
+    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert!(!editor.error);
+    assert_eq!(
+        before,
+        (editor.selection.clone(), editor.selection.generation())
+    );
+}
+
+/// A mode shortcut on the release frame changes the mode; the drag then belongs to the old mode
+/// and is dropped quietly, whichever way the mode flips.
+#[test]
+fn a_mode_shortcut_on_the_release_frame_drops_the_marquee_without_an_error() {
+    for start in [SelectionMode::Object, SelectionMode::Face] {
+        let (mut editor, context, rect) = select_tool_editor();
+        editor.native_operation(Operation::SetSelectionMode(start));
+        let selected = editor.selected();
+        assert!(selected.is_some());
+        let generation = editor.selection.generation();
+        let from = rect.center() + egui::vec2(-300.0, 200.0);
+        let to = from + egui::vec2(60.0, 30.0);
+        let size = egui::vec2(1440.0, 900.0);
+        for events in [
+            button(from, true),
+            vec![Event::PointerMoved(to)],
+            [button(to, false), vec![key(Key::F8)]].concat(),
+        ] {
+            frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+        }
+        assert_ne!(editor.selection_mode, start, "{start:?}: F8 flips the mode");
+        assert!(!editor.error, "{start:?}: {}", editor.status);
+        assert_ne!(editor.status, MARQUEE_STATUS, "{start:?}");
+        assert_eq!(editor.selected(), selected, "{start:?}");
+        assert_eq!(editor.selection.generation(), generation, "{start:?}");
+    }
+}
+
+/// A mode key that leaves the mode unchanged does not make the drag stale: the release behaves
+/// exactly as it would without the key.
+#[test]
+fn a_no_op_mode_shortcut_on_the_release_frame_leaves_the_marquee_to_the_current_mode() {
+    for (mode, key_pressed) in [
+        (SelectionMode::Face, Key::F11),
+        (SelectionMode::Vertex, Key::F9),
+        (SelectionMode::Edge, Key::F10),
+    ] {
+        let (mut editor, context, rect) = select_tool_editor();
+        editor.native_operation(Operation::SetSelectionMode(mode));
+        let (from, to) = over_the_object(rect);
+        let size = egui::vec2(1440.0, 900.0);
+        for events in [
+            button(from, true),
+            vec![Event::PointerMoved(to)],
+            [button(to, false), vec![key(key_pressed)]].concat(),
+        ] {
+            frame(&mut editor, &context, raw(size, Pos2::ZERO, 1.0, events));
+        }
+        assert_eq!(editor.selection_mode, mode);
+        assert_eq!(editor.status, MARQUEE_STATUS, "{mode:?}");
+        assert!(!editor.error, "{mode:?}");
+    }
+}
+
+/// The Object and Hierarchy intents come only from status-line and menu clicks, which cannot share
+/// a frame with a viewport drag release, so the viewport is driven directly with the intent.
+fn marquee_release_with_intent(
+    mode: SelectionMode,
+    intent: Option<SelectionModeIntent>,
+) -> (Editor, bool) {
+    let (mut editor, context, _rect) = select_tool_editor();
+    editor.native_operation(Operation::SetSelectionMode(mode));
+    let selected = editor.selected();
+    assert!(selected.is_some());
+    let size = egui::vec2(1440.0, 900.0);
+    let from = Pos2::new(720.0, 450.0) + egui::vec2(-300.0, 200.0);
+    let to = from + egui::vec2(60.0, 30.0);
+    let release = [button(to, false), vec![]].concat();
+    for (events, intent) in [
+        (vec![], None),
+        (button(from, true), None),
+        (vec![Event::PointerMoved(to)], None),
+        (release, intent),
+    ] {
+        let token = editor.scene_token;
+        let mut native_frame = eframe::Frame::_new_kittest();
+        let mut output = context.run_ui(raw(size, Pos2::ZERO, 1.0, events), |ui| {
+            eframe::App::logic(&mut editor, ui.ctx(), &mut native_frame);
+            egui::CentralPanel::default().show(ui, |ui| {
+                editor.viewport(ui, token, intent, None, false, true)
+            });
+        });
+        output.textures_delta.clear();
+    }
+    let changed = editor.selected() != selected;
+    (editor, changed)
+}
+
+#[test]
+fn a_no_op_object_or_hierarchy_intent_on_the_release_frame_still_applies_the_marquee() {
+    for (mode, same, other) in [
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Object,
+            SelectionModeIntent::Face,
+        ),
+        (
+            SelectionMode::Hierarchy,
+            SelectionModeIntent::Hierarchy,
+            SelectionModeIntent::Face,
+        ),
+    ] {
+        let (_, without) = marquee_release_with_intent(mode, None);
+        assert!(without, "{mode:?}: the plain marquee clears the selection");
+        let (editor, with_same) = marquee_release_with_intent(mode, Some(same));
+        assert!(
+            with_same,
+            "{mode:?}: a no-op intent must not drop the marquee"
+        );
+        assert_eq!(editor.selection_mode, mode);
+        let (editor, with_other) = marquee_release_with_intent(mode, Some(other));
+        assert!(!with_other, "{mode:?}: a real change drops the marquee");
+        assert_eq!(editor.selection_mode, SelectionMode::Face);
+    }
+}
+
+#[test]
+fn the_intent_target_is_the_mode_the_intent_would_set() {
+    let (mut editor, _context, _rect) = select_tool_editor();
+    for (mode, intent, target) in [
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Object,
+            SelectionMode::Object,
+        ),
+        (
+            SelectionMode::Hierarchy,
+            SelectionModeIntent::Hierarchy,
+            SelectionMode::Hierarchy,
+        ),
+        (
+            SelectionMode::Edge,
+            SelectionModeIntent::Component,
+            SelectionMode::Edge,
+        ),
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Component,
+            SelectionMode::Face,
+        ),
+        (
+            SelectionMode::Face,
+            SelectionModeIntent::Toggle,
+            SelectionMode::Object,
+        ),
+        (
+            SelectionMode::Object,
+            SelectionModeIntent::Toggle,
+            SelectionMode::Face,
+        ),
+    ] {
+        editor.selection_mode = mode;
+        assert_eq!(editor.selection_mode_for(intent), target, "{mode:?}");
+    }
+}
+
+#[test]
+fn a_marquee_drag_over_the_selected_object_leaves_selection_and_history_untouched() {
     let (mut editor, context, rect) = select_tool_editor();
     let selected = editor.selected();
     assert!(selected.is_some());
@@ -2113,7 +2381,7 @@ fn a_marquee_drag_over_an_object_leaves_selection_and_history_untouched() {
         from + egui::vec2(60.0, 30.0),
         Modifiers::NONE,
     );
-    assert_eq!(editor.status, MARQUEE_STATUS);
+    assert_ne!(editor.status, MARQUEE_STATUS);
     assert_eq!(editor.selected(), selected);
     assert_eq!(editor.is_dirty(), dirty);
     assert_eq!(editor.history.undo_label(), undo);

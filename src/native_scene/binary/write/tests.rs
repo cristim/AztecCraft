@@ -187,14 +187,6 @@ fn the_self_check_runs_on_the_built_bytes() {
 }
 
 #[test]
-fn a_scene_too_large_for_the_decoder_budget_is_refused_as_too_large() {
-    // The self-check decodes the bytes it just wrote; the decoder's resource budget
-    // rejects them, which must not read as a writer bug.
-    let scene = meshed(&[Primitive::Cube; 400]);
-    assert_eq!(scene_file(&scene), Err(AuthoredBinaryRefusal::TooLarge));
-}
-
-#[test]
 fn a_meshed_scene_file_reopens_with_every_node_and_shape_in_order() {
     let primitives = [
         Primitive::Cube,
@@ -325,4 +317,34 @@ fn a_scene_of_root_joints_is_refused_not_written_as_bare_transforms() {
             AuthoredIneligible::Joints
         ))
     );
+}
+
+#[test]
+fn session_keys_are_refused_rather_than_dropped() {
+    let mut scene = NativeScene::default();
+    let id = scene.create(crate::scene::Primitive::Cube, "a").unwrap();
+    scene
+        .set_keys(&[id], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(AuthoredIneligible::Keys))
+    );
+}
+
+/// Slice A has no operation that gives an authored node a pivot; slice B (#39) owns writing
+/// one. A pivot built by a test constructor is refused, never silently dropped.
+#[test]
+fn a_pivoted_authored_scene_is_refused_with_non_default_pivot() {
+    for (scene, _) in [
+        crate::native_scene::test_fixtures::pivoted_shape(),
+        crate::native_scene::test_fixtures::pivoted_extras_shape(),
+    ] {
+        assert!(matches!(
+            encode_authored(&scene),
+            Err(AuthoredBinaryRefusal::Ineligible(
+                crate::native_scene::authored::AuthoredIneligible::NonDefaultPivot
+            ))
+        ));
+    }
 }

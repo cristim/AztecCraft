@@ -11,15 +11,15 @@
 
 use super::*;
 use crate::editor_operations::{
-    FileDecision, ManipulationSpace, ManipulationValue, MoveDistance, RemoteRequest, SelectRule,
-    ToolHandle, TransformInput,
+    FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance, RemoteRequest,
+    SelectRule, ToolHandle, TransformInput,
 };
 use azteccraft::history::Command;
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget,
-    UvProjectAxis, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, NativeScene, RotateAxis, ScaleHandle, SessionMaterialId,
+    TransformTarget, UvProjectAxis, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -79,6 +79,7 @@ enum State {
     Idle,
     Closing,
     Modal,
+    Playing,
     LocalMove,
     RemoteMove,
     NameDraft,
@@ -96,14 +97,24 @@ enum State {
     ReadOnlyAscii,
     BinaryDirty,
     SitedBinaryDirty,
+    /// A reopened authored Maya ASCII document with an unsaved edit (Unix only: Windows refuses
+    /// to adopt the file, so no such state exists there). File-writing cells only.
+    AuthoredAsciiDirty,
+    /// A clean opened Maya binary whose transform has rotate and scale pivots (issue #39).
+    /// Manipulation cells only: Move, Rotate and Scale begin there instead of refusing a pivot.
+    /// Its update and finish cells use the samples' fixed id, so they show only the stale-id
+    /// path; begin, update and commit on live ids are covered by `mcp_tests/official_client/
+    /// pivots.rs` and `pivot_persistence_tests.rs`.
+    Pivoted,
     NoInstall,
     NoInstallModal,
 }
 
-const STATES: [State; 22] = [
+const STATES: [State; 25] = [
     State::Idle,
     State::Closing,
     State::Modal,
+    State::Playing,
     State::LocalMove,
     State::RemoteMove,
     State::NameDraft,
@@ -121,6 +132,8 @@ const STATES: [State; 22] = [
     State::ReadOnlyAscii,
     State::BinaryDirty,
     State::SitedBinaryDirty,
+    State::AuthoredAsciiDirty,
+    State::Pivoted,
     State::NoInstall,
     State::NoInstallModal,
 ];
@@ -131,6 +144,7 @@ impl State {
             Self::Idle => "idle",
             Self::Closing => "closing",
             Self::Modal => "modal",
+            Self::Playing => "playing",
             Self::LocalMove => "local_move",
             Self::RemoteMove => "remote_move",
             Self::NameDraft => "name_draft",
@@ -148,6 +162,8 @@ impl State {
             Self::ReadOnlyAscii => "read_only_ascii",
             Self::BinaryDirty => "binary_dirty",
             Self::SitedBinaryDirty => "sited_binary_dirty",
+            Self::AuthoredAsciiDirty => "authored_ascii_dirty",
+            Self::Pivoted => "pivoted",
             Self::NoInstall => "no_install",
             Self::NoInstallModal => "no_install_modal",
         }
@@ -170,6 +186,7 @@ impl State {
 
     fn reachable(self, pipeline: Pipeline) -> bool {
         !(self.stale_over().is_some() && pipeline == Pipeline::Native)
+            && (self != Self::AuthoredAsciiDirty || cfg!(unix))
     }
 }
 
@@ -206,6 +223,10 @@ struct Sample {
     operation: Operation,
 }
 
+fn whole_viewport() -> azteccraft::viewport::NdcRect {
+    azteccraft::viewport::NdcRect::new(glam::Vec2::NEG_ONE, glam::Vec2::ONE).unwrap()
+}
+
 fn sample(label: &'static str, operation: Operation) -> Sample {
     Sample {
         label,
@@ -232,6 +253,8 @@ struct Targets {
     /// Second node and its shape when the scene has one; otherwise the first node's.
     other: (azteccraft::scene::NodeId, Vec<NativeId>, NativeId),
     move_id: ManipulationId,
+    /// The selection generation a remote Move of several objects must name.
+    selection_generation: u64,
     pending_id: Uuid,
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
@@ -315,6 +338,7 @@ fn targets(rig: &Rig) -> Targets {
             || ManipulationId::from_decimal("999").unwrap(),
             |active| active.id,
         ),
+        selection_generation: editor.selection.generation(),
         pending_id: editor
             .files
             .pending_inspection()
@@ -370,9 +394,88 @@ fn sited_binary_editor(directory: &std::path::Path) -> Editor {
     )
 }
 
+/// A cube saved as Maya ASCII by one editor and reopened (adopted) in another, then edited.
+#[cfg(unix)]
+fn authored_ascii_editor(directory: &std::path::Path) -> Editor {
+    let path = directory.join("reopened.ma");
+    let mut seed = Editor::default();
+    seed.create(Primitive::Cube);
+    seed.apply_operation(Operation::SaveSceneAs { path: path.clone() })
+        .unwrap();
+    dirty_opened_editor(path)
+}
+#[cfg(not(unix))]
+fn authored_ascii_editor(_: &std::path::Path) -> Editor {
+    unreachable!("Windows refuses to adopt an authored Maya ASCII document")
+}
+
+/// An opened, unedited binary scene with t, r, s, rp and sp leaves, so every manipulation can begin.
+fn pivoted_editor(directory: &std::path::Path) -> Editor {
+    use material_wire::{chunk, creation, group, mesh_payload, scene, triple};
+    let transform = [
+        creation(b"object", None),
+        triple(b"t", [1.0, 2.0, 3.0]),
+        triple(b"r", [10.0, 20.0, 30.0]),
+        triple(b"s", [2.0, 3.0, 4.0]),
+        triple(b"rp", [0.5, 0.25, -1.0]),
+        triple(b"sp", [-1.0, 2.0, 0.5]),
+    ]
+    .concat();
+    let bytes = scene(
+        &[
+            group(b"XFRM", &transform, 4),
+            group(
+                b"DMSH",
+                &[
+                    creation(b"shape", Some(b"object")),
+                    chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+    );
+    let path = directory.join("pivoted.mb");
+    std::fs::write(&path, bytes).unwrap();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    let node = editor.history.scene().nodes()[0].id();
+    let instance = editor.history.scene().transform_paths().unwrap()[0]
+        .path
+        .clone();
+    editor
+        .apply_operation(Operation::Select {
+            node: Some(node),
+            instance_path: Some(instance),
+        })
+        .unwrap();
+    editor
+}
+
+/// The cells `Pivoted` runs: the manipulation begin, update and finish samples.
+fn is_manipulation(label: &str) -> bool {
+    [
+        "begin_move",
+        "begin_rotate",
+        "begin_scale",
+        "update_move",
+        "update_manipulation",
+        "finish_move",
+    ]
+    .iter()
+    .any(|prefix| label.starts_with(prefix))
+}
+
 fn dirty_binary_editor(directory: &std::path::Path, bytes: Vec<u8>) -> Editor {
     let path = directory.join("original.mb");
     std::fs::write(&path, bytes).unwrap();
+    dirty_opened_editor(path)
+}
+
+fn dirty_opened_editor(path: std::path::PathBuf) -> Editor {
     let mut editor = Editor::default();
     editor
         .apply_operation(Operation::OpenScene { path })
@@ -437,6 +540,9 @@ fn build(state: State) -> Rig {
             assert!(editor.files.is_closing());
         }
         State::Modal => pending_confirmation(&mut editor, Operation::NewScene),
+        State::Playing => {
+            editor.play().unwrap();
+        }
         State::NoInstallModal => {
             editor = binary_editor(directory.path());
             pending_confirmation(&mut editor, Operation::NewScene);
@@ -459,6 +565,7 @@ fn build(state: State) -> Rig {
                     Operation::BeginMove {
                         target,
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                     &|| true,
                 )
@@ -512,6 +619,8 @@ fn build(state: State) -> Rig {
         }
         State::BinaryDirty => editor = binary_editor(directory.path()),
         State::SitedBinaryDirty => editor = sited_binary_editor(directory.path()),
+        State::AuthoredAsciiDirty => editor = authored_ascii_editor(directory.path()),
+        State::Pivoted => editor = pivoted_editor(directory.path()),
         State::NoInstall => {
             editor = binary_editor(directory.path());
             may_install = false;
@@ -539,6 +648,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::BeginMove {
             target: t.transform_target(),
             axis: WorldAxis::X,
+            expected_selection_generation: None,
         },
         Operation::UpdateMove {
             id: t.move_id,
@@ -579,12 +689,33 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             material: SessionMaterialId::from_index(1),
             color: [0.0, 1.0, 0.0],
         },
+        Operation::SetCurrentTime { time: 5.0 },
+        Operation::SetPlaybackRange {
+            start: 2.0,
+            end: 12.0,
+        },
+        Operation::Play,
+        Operation::Stop,
+        Operation::SetKeyframe {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+        Operation::DeleteKeys {
+            nodes: None,
+            time: None,
+            channels: ALL_CHANNELS,
+        },
+        Operation::Inspect { page: None },
+        Operation::InspectKeys {
+            node: None,
+            cursor: None,
+        },
         Operation::ProjectUvPlanar {
             shape: t.shape,
             axis: UvProjectAxis::Y,
         },
         Operation::DeleteUvs { shape: t.shape },
-        Operation::Inspect { page: None },
         Operation::InspectUvs {
             shape: t.shape,
             cursor: None,
@@ -604,6 +735,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             instance_path: Some(t.path.clone()),
         },
         Operation::SelectByRule(SelectRule::All),
+        Operation::SelectInRect {
+            rect: whole_viewport(),
+            mode: MarqueeMode::Replace,
+        },
         Operation::SetSelectionMode(SelectionMode::Face),
         Operation::DeselectAll,
         Operation::SelectFace {
@@ -773,8 +908,23 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::BeginMove {
                     target: t.transform_target(),
                     axis: WorldAxis::X,
+                    expected_selection_generation: None,
                 },
             ),
+            // Several objects selected: both pipelines move the whole selection, the remote one
+            // because it names the current generation. The guards match the single-object cells.
+            Sample {
+                pre: Pre::MultiSelection,
+                only: Some(&[State::Idle, State::StaleToken]),
+                ..sample(
+                    "begin_move(multi)",
+                    Operation::BeginMove {
+                        target: t.transform_target(),
+                        axis: WorldAxis::X,
+                        expected_selection_generation: Some(t.selection_generation),
+                    },
+                )
+            },
             Sample {
                 pre: Pre::FaceMode,
                 ..sample(
@@ -782,6 +932,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     Operation::BeginMove {
                         target: t.transform_target(),
                         axis: WorldAxis::X,
+                        expected_selection_generation: None,
                     },
                 )
             },
@@ -927,6 +1078,67 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::Inspect { .. } => {
             vec![sample("inspect", Operation::Inspect { page: None })]
         }
+        Operation::SetCurrentTime { .. } => vec![
+            sample(
+                "set_current_time(5)",
+                Operation::SetCurrentTime { time: 5.0 },
+            ),
+            sample(
+                "set_current_time(fractional)",
+                Operation::SetCurrentTime { time: 1.5 },
+            ),
+        ],
+        Operation::SetPlaybackRange { .. } => vec![
+            sample(
+                "set_playback_range(2,12)",
+                Operation::SetPlaybackRange {
+                    start: 2.0,
+                    end: 12.0,
+                },
+            ),
+            sample(
+                "set_playback_range(inverted)",
+                Operation::SetPlaybackRange {
+                    start: 12.0,
+                    end: 2.0,
+                },
+            ),
+        ],
+        Operation::Play => vec![sample("play", Operation::Play)],
+        Operation::Stop => vec![sample("stop", Operation::Stop)],
+        Operation::SetKeyframe { .. } => vec![
+            sample(
+                "set_keyframe(selection)",
+                Operation::SetKeyframe {
+                    nodes: None,
+                    time: None,
+                    channels: ALL_CHANNELS,
+                },
+            ),
+            sample(
+                "set_keyframe(node,frame_9)",
+                Operation::SetKeyframe {
+                    nodes: Some(vec![t.node]),
+                    time: Some(9.0),
+                    channels: ALL_CHANNELS,
+                },
+            ),
+        ],
+        Operation::DeleteKeys { .. } => vec![sample(
+            "delete_keys(selection)",
+            Operation::DeleteKeys {
+                nodes: None,
+                time: None,
+                channels: ALL_CHANNELS,
+            },
+        )],
+        Operation::InspectKeys { .. } => vec![sample(
+            "inspect_keys",
+            Operation::InspectKeys {
+                node: None,
+                cursor: None,
+            },
+        )],
         Operation::InspectUvs { .. } => vec![sample(
             "inspect_uvs",
             Operation::InspectUvs {
@@ -1116,6 +1328,33 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::SelectInRect { .. } => {
+            let marquee = |mode| Operation::SelectInRect {
+                rect: whole_viewport(),
+                mode,
+            };
+            vec![
+                sample("select_in_rect(replace)", marquee(MarqueeMode::Replace)),
+                sample("select_in_rect(add)", marquee(MarqueeMode::Add)),
+                sample("select_in_rect(remove)", marquee(MarqueeMode::Remove)),
+                sample("select_in_rect(toggle)", marquee(MarqueeMode::Toggle)),
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample(
+                        "select_in_rect(replace,face_mode)",
+                        marquee(MarqueeMode::Replace),
+                    )
+                },
+                Sample {
+                    pre: Pre::MultiSelection,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "select_in_rect(toggle,multi_selection)",
+                        marquee(MarqueeMode::Toggle),
+                    )
+                },
+            ]
+        }
         Operation::SetSelectionMode(_) => vec![sample(
             "set_selection_mode(face)",
             Operation::SetSelectionMode(SelectionMode::Face),
@@ -1276,6 +1515,25 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     "save_scene_as(wrong_extension)",
                     Operation::SaveSceneAs {
                         path: t.save_as.with_extension("txt"),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                ..sample(
+                    "save_scene_as(ascii)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.with_extension("ma"),
+                    },
+                )
+            },
+            Sample {
+                install_probe: true,
+                pre: Pre::AssignedMaterial,
+                ..sample(
+                    "save_scene_as(ascii_material_assigned)",
+                    Operation::SaveSceneAs {
+                        path: t.save_as.with_extension("ma"),
                     },
                 )
             },
@@ -1683,6 +1941,17 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                     .collect::<Vec<_>>()
             ),
         ),
+        (
+            "timeline",
+            format!(
+                "time={} range={}..{} playing={} keys={}",
+                editor.timeline.current,
+                editor.timeline.start,
+                editor.timeline.end,
+                editor.timeline.playing,
+                scene.session_key_count()
+            ),
+        ),
         ("modal", editor.files.is_modal().to_string()),
         ("closing", editor.files.is_closing().to_string()),
         (
@@ -1930,6 +2199,12 @@ fn matrix(file_writing: bool) -> (String, usize) {
     );
     let mut cells = 0;
     for state in STATES {
+        if file_writing && state == State::Pivoted {
+            continue;
+        }
+        if !file_writing && state == State::AuthoredAsciiDirty {
+            continue;
+        }
         for pipeline in [Pipeline::Native, Pipeline::Remote] {
             if !state.reachable(pipeline) {
                 continue;
@@ -1942,6 +2217,7 @@ fn matrix(file_writing: bool) -> (String, usize) {
                 .filter(|(_, sample)| {
                     sample.install_probe == file_writing
                         && sample.only.is_none_or(|only| only.contains(&state))
+                        && (state != State::Pivoted || is_manipulation(sample.label))
                 })
                 .map(|(index, _)| index)
                 .collect();

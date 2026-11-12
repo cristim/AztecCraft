@@ -556,10 +556,14 @@ impl Editor {
                 self.frame_selected(false);
             }
             ui.separator();
-            ui.add_enabled(false, egui::Button::new("Extrude"))
-                .on_disabled_hover_text(
-                    "Extrude construction history and manipulator workflow are unsupported",
-                );
+            let refusal = self.extrude_refusal();
+            let extrude = ui
+                .add_enabled(refusal.is_none(), egui::Button::new("Extrude"))
+                .on_hover_text("Open Extrude Options")
+                .on_disabled_hover_text(refusal.unwrap_or_default());
+            if extrude.clicked() {
+                self.open_extrude_options();
+            }
             unsupported(ui, "Bevel");
             unsupported(ui, "Materials");
         });

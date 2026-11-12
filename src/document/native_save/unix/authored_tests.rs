@@ -72,7 +72,7 @@ fn an_occupied_or_misnamed_destination_is_refused_untouched() {
         Error::DestinationExists
     );
     assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
-    let wrong = directory.path().join("new.ma");
+    let wrong = directory.path().join("new.txt");
     assert_eq!(
         saved_as(&authored(), &wrong, &NativeOrigin::Untitled).unwrap_err(),
         Error::InvalidDestination
@@ -165,4 +165,207 @@ fn an_authored_baseline_can_save_as_a_second_file() {
         std::fs::read(&second).unwrap()
     );
     assert!(next.active_save_available());
+}
+
+// #375: `prepare`'s Untitled branch refuses with `SourceChanged` when `authored_document_id` is
+// `None`. Two tests together show it cannot happen. This one: the id is `None` exactly when the
+// scene has a parsed source. And `a_scene_the_writer_refuses_is_reported_by_code_and_writes_nothing`:
+// the writer refuses such a scene with `SourcedScene` before the id is read. So the refusal only
+// guards that invariant.
+#[test]
+fn the_authored_document_id_is_present_exactly_when_the_scene_has_no_source() {
+    let directory = tempfile::tempdir().unwrap();
+    let (_, opened) = opened(directory.path());
+    assert!(opened.scene.authored_document_id().is_none());
+    assert!(authored().authored_document_id().is_some());
+    assert!(NativeScene::default().authored_document_id().is_some());
+}
+
+mod maya_ascii {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+
+fn ascii_only_origin(directory: &Path) -> NativeOrigin {
+    let path = directory.join("imported.ma");
+    std::fs::write(&path, maya_ascii::specimen()).unwrap();
+    load_native(&path).unwrap().origin
+}
+fn legacy_origin(directory: &Path) -> NativeOrigin {
+    let path = directory.join("old.aztec");
+    crate::document::save_new(&path, &crate::scene::Scene::default()).unwrap();
+    load_native(&path).unwrap().origin
+}
+
+/// What one Save As of the authored scene to `extension` does from `origin`: the kind of the
+/// resulting origin, or the refusal. Every origin crossed with every extension.
+/// (name, origin, scene, expected results for .ma, .mb and .txt)
+type Case = (
+    &'static str,
+    NativeOrigin,
+    NativeScene,
+    [Result<&'static str, Error>; 3],
+);
+
+fn save_as_kind(
+    origin: &NativeOrigin,
+    scene: &NativeScene,
+    directory: &Path,
+    extension: &str,
+) -> Result<&'static str, Error> {
+    let target = directory.join(format!("target.{extension}"));
+    let kind = saved_as(scene, &target, origin).map(|outcome| match outcome {
+        SaveOutcome::Saved { origin, .. } => origin.kind(),
+        other => panic!("expected Saved: {other:?}"),
+    });
+    assert_eq!(target.exists(), kind.is_ok(), "{extension}");
+    kind
+}
+
+#[test]
+fn save_as_picks_the_writer_by_extension_for_every_origin() {
+    let scratch = tempfile::tempdir().unwrap();
+    let scene = authored();
+    let (ascii_origin, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("a.ma"),
+        &NativeOrigin::Untitled,
+    ));
+    assert_eq!(ascii_origin.kind(), "maya_ascii");
+    let (binary_origin, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("b.mb"),
+        &NativeOrigin::Untitled,
+    ));
+    let opened_document = opened(scratch.path()).1;
+    let invalid = Err(Error::InvalidDestination);
+    let unsupported = Err(Error::Unsupported);
+    let sourced = Err(Error::AsciiWrite(AsciiWriteRefusal::SourcedScene));
+    let cases: Vec<Case> = vec![
+        (
+            "untitled",
+            NativeOrigin::Untitled,
+            scene.clone(),
+            [Ok("maya_ascii"), Ok("maya_binary"), invalid.clone()],
+        ),
+        (
+            "authored ascii",
+            ascii_origin,
+            scene.clone(),
+            [Ok("maya_ascii"), Ok("maya_binary"), invalid.clone()],
+        ),
+        (
+            "authored binary",
+            binary_origin,
+            scene.clone(),
+            [Ok("maya_ascii"), Ok("maya_binary"), invalid.clone()],
+        ),
+        (
+            "opened binary",
+            opened_document.origin,
+            opened_document.scene,
+            [sourced, Ok("maya_binary"), invalid],
+        ),
+        (
+            "opened ascii",
+            ascii_only_origin(scratch.path()),
+            scene.clone(),
+            [
+                unsupported.clone(),
+                unsupported.clone(),
+                unsupported.clone(),
+            ],
+        ),
+        (
+            "legacy",
+            legacy_origin(scratch.path()),
+            scene.clone(),
+            [unsupported.clone(), unsupported.clone(), unsupported],
+        ),
+    ];
+    for (name, origin, scene, expected) in cases {
+        for (extension, expected) in ["ma", "mb", "txt"].into_iter().zip(expected) {
+            let directory = tempfile::tempdir().unwrap();
+            assert_eq!(
+                save_as_kind(&origin, &scene, directory.path(), extension),
+                expected,
+                "{name} -> .{extension}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_scene_saved_as_ma_can_be_saved_as_mb_and_back_but_active_save_keeps_its_file() {
+    let directory = tempfile::tempdir().unwrap();
+    let scene = authored();
+    let ma = directory.path().join("one.ma");
+    let mb = directory.path().join("two.mb");
+    let (origin, _) = saved(saved_as(&scene, &ma, &NativeOrigin::Untitled));
+    let (origin, _) = saved(saved_as(&scene, &mb, &origin));
+    assert_eq!(&std::fs::read(&mb).unwrap()[..4], b"FOR8");
+    assert_eq!(origin.kind(), "maya_binary");
+    // The new origin's Active Save rewrites the .mb, not the .ma.
+    let ma_before = std::fs::read(&ma).unwrap();
+    saved(save_native(
+        &origin,
+        &scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&ma).unwrap(), ma_before);
+    let again = directory.path().join("three.ma");
+    saved(saved_as(&scene, &again, &origin));
+    assert!(
+        std::fs::read_to_string(&again)
+            .unwrap()
+            .starts_with("//Maya ASCII")
+    );
+}
+
+#[test]
+fn an_ascii_origin_cannot_active_save_over_a_binary_writer() {
+    let directory = tempfile::tempdir().unwrap();
+    let scene = authored();
+    let (origin, _) = saved(saved_as(
+        &scene,
+        &directory.path().join("one.ma"),
+        &NativeOrigin::Untitled,
+    ));
+    let transaction = prepare(&origin, &scene, SaveDestination::Active, &|| true);
+    assert_eq!(transaction.err(), Some(Error::Unsupported));
+}
+
+#[test]
+fn the_save_as_dialog_offers_the_formats_each_origin_can_write() {
+    let scratch = tempfile::tempdir().unwrap();
+    let scene = authored();
+    let (ascii_origin, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("a.ma"),
+        &NativeOrigin::Untitled,
+    ));
+    let (binary_authored, _) = saved(saved_as(
+        &scene,
+        &scratch.path().join("b.mb"),
+        &NativeOrigin::Untitled,
+    ));
+    let both: &[&str] = &["ma", "mb"];
+    assert_eq!(NativeOrigin::Untitled.save_as_extensions(), both);
+    assert_eq!(ascii_origin.save_as_extensions(), both);
+    assert_eq!(binary_authored.save_as_extensions(), both);
+    let opened_binary = opened(scratch.path()).1.origin;
+    assert_eq!(opened_binary.save_as_extensions(), &["mb"]);
+    assert!(
+        ascii_only_origin(scratch.path())
+            .save_as_extensions()
+            .is_empty()
+    );
+    assert!(
+        legacy_origin(scratch.path())
+            .save_as_extensions()
+            .is_empty()
+    );
 }

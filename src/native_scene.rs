@@ -10,6 +10,7 @@ mod move_translation;
 mod rotate_frame;
 mod scale_frame;
 mod session_joint;
+mod session_keys;
 mod session_material;
 mod session_uv;
 mod source;
@@ -20,15 +21,20 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
-pub use manipulator_frame::ManipulatorFrame;
+pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::ChannelBaseline;
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_joint::SessionJoints;
 pub use session_joint::{
     DEFAULT_JOINT_RADIUS, Joint, JointRequest, JointUnsupported, MAX_JOINT_RADIUS_CM,
+};
+use session_keys::SessionKeys;
+pub use session_keys::{
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
+    MAX_SESSION_KEYS, whole_frame,
 };
 use session_material::SessionMaterials;
 pub use session_material::{
@@ -566,6 +572,7 @@ pub struct NativeScene {
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
     session_joints: SessionJoints,
+    session_keys: SessionKeys,
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
@@ -602,14 +609,20 @@ pub struct InternalTransform {
 }
 
 impl InternalTransform {
-    /// T + RT in the parent's space: the Move and Rotate pivot, since both refuse a nonzero
-    /// rotate pivot (RP) and `T + RT + RP` is then the same point.
+    /// T + RT in the parent's space: the rotate pivot without RP. Not the Move or Rotate handle
+    /// position, which is `T + RT + RP`.
     pub(crate) fn origin_cm(self) -> DVec3 {
         let translate = DVec3::from_array(self.translation_cm);
         match self.extras {
             Some(extras) => translate + DVec3::from_array(extras.rotate_pivot_translate_cm),
             None => translate,
         }
+    }
+
+    /// T + RT + RP in the parent's space: the Move and Rotate handle position. The one place this
+    /// sum is written, so the manipulator frame and the Move drag axis cannot drift apart.
+    pub(crate) fn pivot_origin_cm(self) -> DVec3 {
+        self.origin_cm() + DVec3::from_array(self.rotate_pivot_cm)
     }
 
     /// R(ro) * RA as a linear map: the node's own axes before shear and scale.
@@ -677,6 +690,7 @@ impl PartialEq for NativeScene {
             && self.materials == other.materials
             && self.session_materials == other.session_materials
             && self.session_joints == other.session_joints
+            && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
     }
@@ -695,6 +709,7 @@ impl Default for NativeScene {
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
             session_joints: SessionJoints::default(),
+            session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
             next_id: 1,
@@ -704,16 +719,16 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
+    }
     #[cfg(any(unix, windows))]
     pub(crate) fn has_binary_source(&self, bytes: &std::sync::Arc<[u8]>) -> bool {
         self.source.as_ref().is_some_and(|source| {
             source.format == SourceFormat::Binary && std::sync::Arc::ptr_eq(&source.bytes, bytes)
         })
-    }
-    /// Save authority is available only for a scene authored without a parsed source.
-    #[cfg(unix)]
-    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
-        self.source.is_none().then_some(self.authored_document_id)
     }
     fn from_binary_candidate(candidate: Self) -> Result<Self, NativeError> {
         if candidate
@@ -1129,6 +1144,46 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam: gives `node` rotate and scale pivots, which no operation can yet (slice B of #39).
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_pivots_for_test(
+        &mut self,
+        node: NodeId,
+        rotate: [f64; 3],
+        scale: [f64; 3],
+    ) -> Result<(), NativeError> {
+        let index = self.nodes.iter().position(|n| n.id == node);
+        let index = index.ok_or(SceneError::MissingNode(node))?;
+        self.nodes[index].rotate_pivot = rotate.map(Scalar::new);
+        self.nodes[index].scale_pivot = scale.map(Scalar::new);
+        self.validate()
+    }
+
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
+    }
+
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
@@ -1252,6 +1307,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1629,6 +1688,40 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self.editable_node(*id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1648,11 +1741,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
@@ -1676,6 +1765,9 @@ impl NativeScene {
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_keys.is_empty() {
+            return Err(NativeError::UnsupportedView("session keys"));
+        }
         if !self.session_uvs.is_empty() {
             return Err(NativeError::UnsupportedView("session UVs"));
         }
@@ -1720,6 +1812,8 @@ impl NativeScene {
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
+        self.session_keys
+            .validate(&self.nodes, self.source.is_some())?;
         self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
@@ -2084,6 +2178,11 @@ pub enum NativeError {
     InvalidSessionMaterials,
     InvalidSessionJoints,
     UnsupportedJoint(JointUnsupported),
+    InvalidSessionKeys,
+    InvalidFrame,
+    InvalidPlaybackRange,
+    KeyLimit,
+    UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
@@ -2152,6 +2251,24 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionJoints => f.write_str("invalid session joint table references"),
             Self::UnsupportedJoint(reason) => write!(f, "Create joint unsupported: {reason}"),
+            Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFrame => write!(
+                f,
+                "a time must be a whole frame from {} through {}",
+                -session_keys::MAX_FRAME,
+                session_keys::MAX_FRAME
+            ),
+            Self::InvalidPlaybackRange => {
+                f.write_str("the playback start must not be after its end")
+            }
+            Self::KeyLimit => write!(
+                f,
+                "the scene holds the most keys allowed ({})",
+                session_keys::MAX_SESSION_KEYS
+            ),
+            Self::UnsupportedTimeUnit => {
+                f.write_str("only the film (24 fps) time unit is supported")
+            }
             Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
             Self::DegenerateUvProjection => f.write_str(
                 "the shape has no usable extent across this projection; pick another Project from axis",

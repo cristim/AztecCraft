@@ -224,3 +224,218 @@ fn replace_with_counts_unique_targets_against_the_cap() {
     selection.replace_with(repeated).unwrap();
     assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
 }
+
+mod generation {
+    use super::*;
+
+    fn bumps(selection: &mut ObjectSelection, change: impl FnOnce(&mut ObjectSelection)) -> u64 {
+        let before = selection.generation();
+        change(selection);
+        selection.generation().wrapping_sub(before)
+    }
+
+    #[test]
+    fn each_mutator_bumps_exactly_once_when_it_changes_the_members() {
+        let mut selection = selection_of(&[1, 2, 3]);
+        assert_eq!(bumps(&mut selection, |s| s.add(plain(4)).unwrap()), 1);
+        assert_eq!(bumps(&mut selection, |s| s.add(plain(1)).unwrap()), 1);
+        assert_eq!(bumps(&mut selection, |s| assert!(s.remove(&plain(2)))), 1);
+        assert_eq!(
+            bumps(&mut selection, |s| s.retain(|t| t.node != node(3))),
+            1
+        );
+        assert_eq!(bumps(&mut selection, |s| s.replace(plain(9))), 1);
+        assert_eq!(
+            bumps(&mut selection, |s| s
+                .replace_with(vec![plain(5), plain(6)])
+                .unwrap()),
+            1
+        );
+        assert_eq!(
+            bumps(&mut selection, |s| assert!(s.toggle(plain(7)).unwrap())),
+            1
+        );
+        assert_eq!(
+            bumps(&mut selection, |s| assert!(!s.toggle(plain(7)).unwrap())),
+            1
+        );
+        assert_eq!(bumps(&mut selection, ObjectSelection::clear), 1);
+    }
+
+    #[test]
+    fn toggle_swapping_a_non_lead_member_bumps_generation() {
+        let mut selection = selection_of(&[1, 2, 3]);
+        let before = selection.generation();
+        selection.toggle(plain(2)).unwrap();
+        selection.toggle(plain(4)).unwrap();
+        assert_ne!(selection.generation(), before);
+    }
+
+    #[test]
+    fn refused_and_no_op_edits_do_not_bump() {
+        let mut selection = selection_of(&[1]);
+        assert_eq!(bumps(&mut selection, |s| s.replace(plain(1))), 0);
+        assert_eq!(bumps(&mut selection, |s| s.add(plain(1)).unwrap()), 0);
+        assert_eq!(bumps(&mut selection, |s| assert!(!s.remove(&plain(8)))), 0);
+        assert_eq!(bumps(&mut selection, |s| s.retain(|_| true)), 0);
+        assert_eq!(
+            bumps(&mut selection, |s| s.replace_with(vec![plain(1)]).unwrap()),
+            0
+        );
+        let mut empty = ObjectSelection::default();
+        assert_eq!(bumps(&mut empty, ObjectSelection::clear), 0);
+        let mut full = full_selection();
+        let over = (0..)
+            .map(|i| plain(1_000_000 + i))
+            .take(1)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bumps(&mut full, |s| assert!(
+                s.replace_with((0..=MAX_TRANSFORM_PATHS as u64).map(plain).collect())
+                    .is_err()
+            )),
+            0
+        );
+        assert_eq!(
+            bumps(&mut full, |s| assert!(s.add(over[0].clone()).is_err())),
+            0
+        );
+    }
+
+    #[test]
+    fn equality_ignores_the_generation() {
+        let mut a = selection_of(&[1, 2]);
+        let b = selection_of(&[1, 2]);
+        a.add(plain(3)).unwrap();
+        a.remove(&plain(3));
+        assert_ne!(a.generation(), b.generation());
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn the_generation_wraps() {
+        let mut selection = selection_of(&[1]);
+        selection.generation = u64::MAX;
+        selection.clear();
+        assert_eq!(selection.generation(), 0);
+    }
+}
+
+fn plains(values: &[u64]) -> Vec<TransformTarget> {
+    values.iter().map(|value| plain(*value)).collect()
+}
+
+#[test]
+fn extend_absent_appends_only_absent_targets_in_order_and_leads_with_the_last() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    selection
+        .extend_absent(plains(&[5, 2, 4, 5, 1, 3]))
+        .unwrap();
+    assert_eq!(
+        nodes(&selection),
+        [node(1), node(2), node(5), node(4), node(3)]
+    );
+    assert_eq!(selection.lead(), Some(&plain(3)));
+    assert_ne!(selection.generation(), generation);
+}
+
+#[test]
+fn extend_absent_with_only_members_keeps_order_lead_and_generation() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    let generation = selection.generation();
+    selection.extend_absent(plains(&[1, 3])).unwrap();
+    selection.extend_absent(Vec::new()).unwrap();
+    assert_eq!(nodes(&selection), [node(1), node(2), node(3)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn extend_absent_over_the_cap_changes_nothing() {
+    let mut selection = full_selection();
+    selection.remove(&plain(0));
+    let before = selection.clone();
+    let generation = selection.generation();
+    let too_many = plains(&[10_000, 10_001]);
+    assert_eq!(selection.extend_absent(too_many), Err(SelectionFull));
+    assert_eq!(selection, before);
+    assert_eq!(selection.generation(), generation);
+    // One slot is free, and a repeated or already-present target needs none.
+    selection
+        .extend_absent(plains(&[10_000, 10_000, 1]))
+        .unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.lead(), Some(&plain(10_000)));
+}
+
+#[test]
+fn remove_all_removes_the_present_targets_and_promotes_the_previous_lead() {
+    let mut selection = selection_of(&[1, 2, 3, 4]);
+    let generation = selection.generation();
+    assert!(selection.remove_all(&plains(&[4, 2, 9])));
+    assert_eq!(nodes(&selection), [node(1), node(3)]);
+    assert_eq!(selection.lead(), Some(&plain(3)));
+    assert_ne!(selection.generation(), generation);
+}
+
+#[test]
+fn remove_all_of_absent_targets_changes_nothing() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    assert!(!selection.remove_all(&plains(&[7, 8])));
+    assert!(!selection.remove_all(&[]));
+    assert_eq!(nodes(&selection), [node(1), node(2)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn toggle_all_removes_members_and_appends_absent_targets_in_order() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    selection.toggle_all(&plains(&[2, 7, 1, 6, 7])).unwrap();
+    assert_eq!(nodes(&selection), [node(3), node(7), node(6)]);
+    assert_eq!(selection.lead(), Some(&plain(6)));
+}
+
+#[test]
+fn toggle_all_that_only_removes_promotes_the_previous_member() {
+    let mut selection = selection_of(&[1, 2, 3]);
+    selection.toggle_all(&plains(&[3])).unwrap();
+    assert_eq!(selection.lead(), Some(&plain(2)));
+    selection.toggle_all(&plains(&[2, 1])).unwrap();
+    assert!(selection.is_empty());
+}
+
+#[test]
+fn toggle_all_with_no_targets_keeps_the_generation() {
+    let mut selection = selection_of(&[1, 2]);
+    let generation = selection.generation();
+    selection.toggle_all(&[]).unwrap();
+    assert_eq!(nodes(&selection), [node(1), node(2)]);
+    assert_eq!(selection.generation(), generation);
+}
+
+#[test]
+fn toggle_all_over_the_cap_changes_nothing_but_removals_make_room() {
+    let mut selection = full_selection();
+    let before = selection.clone();
+    let generation = selection.generation();
+    assert_eq!(selection.toggle_all(&plains(&[10_000])), Err(SelectionFull));
+    assert_eq!(selection, before);
+    assert_eq!(selection.generation(), generation);
+    // Removing one member frees the slot the new target needs.
+    selection.toggle_all(&plains(&[0, 10_000])).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.lead(), Some(&plain(10_000)));
+    assert!(!selection.contains(&plain(0)));
+}
+
+#[test]
+fn toggle_all_swaps_a_full_selection_for_a_disjoint_full_set() {
+    let mut selection = full_selection();
+    let cap = MAX_TRANSFORM_PATHS as u64;
+    let swapped: Vec<_> = (0..2 * cap).map(plain).collect();
+    selection.toggle_all(&swapped).unwrap();
+    assert_eq!(selection.len(), MAX_TRANSFORM_PATHS);
+    assert_eq!(selection.members()[0], plain(cap));
+    assert_eq!(selection.lead(), Some(&plain(2 * cap - 1)));
+}

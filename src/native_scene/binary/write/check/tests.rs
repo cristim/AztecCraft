@@ -159,3 +159,39 @@ fn shape_create_identity_bytes_are_the_stored_uuids_in_guid_byte_order() {
     }
     assert_ne!(crea[0].bytes(&bytes)[..], crea[1].bytes(&bytes)[..]);
 }
+
+/// N default cubes built through the legacy scene, so a large fixture does not pay a full
+/// validation per create (known-issues, "Creating N objects").
+fn legacy_cubes(count: usize) -> NativeScene {
+    let mut legacy = crate::scene::Scene::default();
+    for index in 0..count {
+        legacy
+            .create(Primitive::Cube, &format!("cube{index}"))
+            .unwrap();
+    }
+    NativeScene::from_legacy(legacy).unwrap()
+}
+
+// #380: the appearance binder scanned every DAG edge per shape for the parent and each
+// ancestor, and every binding and shape per mesh record, against a fixed step budget, so a new
+// scene of about 335 default cubes refused its own self-check. 512 cubes is past both of the
+// old walls (about 335 from the DAG walks, under 1024 from the mesh-record scan).
+#[test]
+fn a_512_cube_scene_reads_back_through_the_self_check() {
+    let scene = legacy_cubes(512);
+    let bytes = scene_file(&scene).unwrap();
+    verify(&scene, &bytes).unwrap();
+}
+
+// The self-check decodes the bytes it just wrote, and a decoder resource refusal must not read
+// as a writer bug. Past the binder, the bound is the decoder's whole-file work admission
+// (`admit_work`, quadratic in transforms, DAG edges and leaves). This replaces a 400-cube test
+// that pinned the binder's old per-shape scans (#380) as the limit.
+#[test]
+fn a_scene_past_the_decoder_work_bound_refuses_as_too_large() {
+    let scene = legacy_cubes(2048);
+    assert!(matches!(
+        scene_file(&scene),
+        Err(AuthoredBinaryRefusal::TooLarge)
+    ));
+}

@@ -1,8 +1,8 @@
 use super::primitive_args::CreateArgs;
 use crate::{
     editor_operations::{
-        EdgeSelectionTarget, FaceSelectionTarget, Operation, RemoteRequest, SelectRule,
-        SelectionChange, SelectionMode as EditorMode, VertexSelectionTarget,
+        EdgeSelectionTarget, FaceSelectionTarget, MarqueeMode, Operation, RemoteRequest,
+        SelectRule, SelectionChange, SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
         args::{MutationArgs, decode, mutation, native_id, node_id, schema, scoped, token},
@@ -12,6 +12,7 @@ use crate::{
 use azteccraft::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
+    viewport::NdcRect,
 };
 use rmcp::{
     model::{ErrorData, JsonObject},
@@ -62,6 +63,36 @@ enum Rule {
 struct SelectByRuleArgs {
     scene_token: String,
     rule: Rule,
+}
+
+/// A rectangle in normalised device coordinates: x right, y up, both within -1 to 1. The corners
+/// may come in either order.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct NdcRectArgs {
+    #[schemars(inner(range(min = -1.0, max = 1.0)))]
+    min: [f32; 2],
+    #[schemars(inner(range(min = -1.0, max = 1.0)))]
+    max: [f32; 2],
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "MarqueeMode")]
+enum Marquee {
+    Replace,
+    Add,
+    Remove,
+    Toggle,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SelectInRectArgs {
+    scene_token: String,
+    rect: NdcRectArgs,
+    /// Defaults to replace.
+    mode: Option<Marquee>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -177,6 +208,22 @@ fn parse_select_by_rule(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::SelectByRule(rule),
+    ))
+}
+
+fn parse_select_in_rect(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SelectInRectArgs = decode(arguments)?;
+    let rect = NdcRect::new(args.rect.min.into(), args.rect.max.into())
+        .map_err(|error| ErrorData::invalid_params(error.to_string(), None))?;
+    let mode = match args.mode.unwrap_or(Marquee::Replace) {
+        Marquee::Replace => MarqueeMode::Replace,
+        Marquee::Add => MarqueeMode::Add,
+        Marquee::Remove => MarqueeMode::Remove,
+        Marquee::Toggle => MarqueeMode::Toggle,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SelectInRect { rect, mode },
     ))
 }
 
@@ -369,6 +416,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Select > All, Hierarchy or Inverse by rule. all selects every transform instance, nested ones included, with the last as the lead (only the roots in Hierarchy selection mode); hierarchy adds every descendant of the selected objects and keeps the lead (no change in Hierarchy selection mode); inverse selects the unselected instances (roots only in Hierarchy selection mode; an empty selection selects all). Object and Hierarchy modes only. Not idempotent because inverse flips; does not edit the scene",
         schema: schema::<SelectByRuleArgs>,
         parse: parse_select_by_rule,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "select_in_rect",
+        description: "Marquee-select objects by a rectangle in normalised device coordinates (x right, y up, each within -1 to 1; corners in either order), the same typed operation as a viewport drag. mode replace (default, Maya select -replace) sets the selection to the hits, add appends the absent hits, remove (select -deselect) drops the hit members, toggle flips each hit; the hits are in instance order and the last appended or last hit is the lead. Object and Hierarchy modes only (Hierarchy maps hits to their roots). Any overlap of a visible mesh selects it; objects hidden behind others inside the rectangle ARE selected, as in Maya's object marquee (camera-based selection is documented for components only; PROVISIONAL, #30). Hidden instances and curves are not selectable. A zero-area rectangle (min equals max) picks like a click: the nearest hit only. Uses the aspect of the last painted frame (1 before the first), so read the camera with inspect_scene first. A replace with no hit clears the selection; add, remove and toggle with no hit change nothing. Not idempotent because toggle flips; does not edit the scene",
+        schema: schema::<SelectInRectArgs>,
+        parse: parse_select_in_rect,
         idempotent: false,
         read_only: false,
     },

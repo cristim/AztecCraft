@@ -10,7 +10,7 @@ quoted text in the named file. Update an anchor when you rename or move the code
 
 Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_guarded"`), checks in this order:
 
-1. `Inspect` and `InspectUvs` return before any guard (`src/app/dispatch.rs "matches!(request.operation, Operation::Inspect)"`, `src/app/dispatch.rs "if let Operation::InspectUvs"`). With no token check, an `InspectUvs` cursor binds the document and revision itself.
+1. `Inspect`, `InspectKeys` and `InspectUvs` return before any guard (`src/app/dispatch.rs "matches!(request.operation, Operation::Inspect)"`, `src/app/dispatch.rs "if let Operation::InspectKeys"`, `src/app/dispatch.rs "if let Operation::InspectUvs"`). With no token check, an `InspectUvs` cursor binds the document and revision itself.
 2. Scene token mismatch is `StaleScene` (`src/app/dispatch.rs "request.expected_scene_token != Some(self.scene_token)"`).
 3. An active Move, Rotate or Scale is `BusyManipulation` unless it is Remote and the operation is
    `UpdateMove`, `UpdateManipulation` or `FinishMove` (`src/app/dispatch.rs "active.provenance != ManipulationProvenance::Remote"`). This is default-deny.
@@ -21,9 +21,10 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
 provenance Native and no token or draft checks. In order:
 
+0. `stops_playback` (`src/app/features/timeline.rs "fn stops_playback"`) stops playback before anything else, for native and remote callers alike, even when the operation is then refused. Reads, selection, the camera, tool settings and view settings keep playing; any new variant stops it by default. A remote request refused by its outer guards never gets here.
 1. A Delete or DeleteSelection in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
    handlers). Then `guard_move_dispatch`, with side effects (`src/app/dispatch.rs "self.guard_move_dispatch(&operation, provenance)?"`, `src/app/features/move_tool.rs "fn guard_move_dispatch"`). For
-   `SetActiveTool`, `Select`, `ModifySelection`, `SelectByRule`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
+   `SetActiveTool`, `Select`, `ModifySelection`, `SelectByRule`, `SelectInRect`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `NewScene`, `OpenScene`
    and `RequestClose` it cancels any Move (`cancel_move`, `src/app/features/move_tool.rs "fn cancel_move"`) and consumes the
    pointer sequence only on a real tool change that cancelled nothing
    (`src/app/features/move_tool.rs "self.consume_pointer_sequence()"`). Other operations during a Move are `BusyManipulation` except
@@ -37,16 +38,17 @@ provenance Native and no token or draft checks. In order:
    modal (`src/app/dispatch.rs "SaveDestination::As(path)"`, preceded by the modal check) and `SaveScene` likewise (`src/app/dispatch.rs "Operation::SaveScene => {"`). `NewScene`,
    `RequestClose` and `ResolveFileAction` decide internally (`src/app/dispatch.rs "Operation::NewScene => return self.new_document()"` and the two arms after it).
 5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
-   `ModifySelection`, `SelectByRule`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
+   `ModifySelection`, `SelectByRule`, `SelectInRect`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
    (the modal `matches!` after the file-operation match in `apply_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never
-   commits a draft (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
+   commits a draft. `SetCurrentTime`, `SetPlaybackRange`, `Play`, `SetKeyframe` and `DeleteKeys` are in the same list; `Stop` is not (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
    resolve path dispatches a selection operation. Create, Delete and Undo/Redo also move the selection as a side
    effect but stay allowed under a modal (see Observed behavior).
-6. Validation before the draft commit: `selection_path` (also for `ModifySelection`, which additionally needs Object or Hierarchy mode, as does `SelectByRule`, refused in Face, Vertex and Edge mode) and Select-clear-with-path
+6. Validation before the draft commit: `selection_path` (also for `ModifySelection`, which additionally needs Object or Hierarchy mode, as do `SelectByRule` and `SelectInRect`, refused in Face, Vertex and Edge mode) and Select-clear-with-path
    (`src/app/dispatch.rs "Clearing selection cannot include an instance path"`), Face mode and face-target resolution for `SelectFace` (`src/app/dispatch.rs "fn require_component_selection"`, `src/app/dispatch.rs "SelectionMode::Face,"`).
+   `SetKeyframe` and `DeleteKeys` run `check_key_request` here (time, channels, and the selection and mode when no nodes are named), so a refused key never commits a draft. `SetPlaybackRange` runs `check_playback_range` here for the same reason.
 7. `commit_pending` (`src/app/dispatch.rs "fn commit_pending"`) commits a valid human draft first, except for `UpdateMove`,
-   `UpdateManipulation` and `FinishMove` (`src/app/dispatch.rs "&& !self.commit_pending()"`). On failure the operation returns `InvalidInput(status)`
+   `UpdateManipulation`, `FinishMove`, `SetCurrentTime`, `Play` and `Stop` (`src/app/dispatch.rs "&& !self.commit_pending()"`). The two time operations refuse any draft as `BusyEditing` in their handlers, after validating the time; `Stop` ignores it. On failure the operation returns `InvalidInput(status)`
    and the status text and error flag change.
 8. The operation handler runs and `sync_fields` refreshes Channel Box drafts.
 
@@ -74,7 +76,15 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   (`read_only_ascii`, `binary_dirty`, `no_install`) report it instead of the read-only or ownership
   error. The Move, Rotate and
   Scale Face-mode refusal is in the shared target check
-  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells).
+  (`check_manipulation_target`, `src/app/features/manipulation_tool.rs "fn check_manipulation_target"`) and applies to both pipelines (`begin_move(face_mode)` cells). `begin_move(multi)` begins a Move of
+  several selected objects with the lead as target and the current selection generation, in the Idle and StaleToken states (the multi-selection setup itself needs an editable editor)
+  (`check_move_target`, `src/app/features/manipulation_tool.rs "fn check_move_target"`); the modal,
+  draft, closing, dirty and scene-token guards run before it exactly as for `begin_move`. The
+  observer does not record member counts, so the three cells read the same as the `begin_move`
+  cells; a regression to the single-object refusal changes them (they would print
+  `MultipleSelection`).
+- The selection-agnostic guards (modal, closing, draft, focus, busy and scene token) run before
+  `check_move_target`, so the 37 `begin_move` cells also cover a multi begin.
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
   `apply_operation`, not `native_operation`, so a pick takes the shared guards like any other native operation.
 - The `read_only_ascii` fixture is a curve-only scene with no mesh. `set_material_diffuse`,
@@ -139,8 +149,21 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - Select > Deselect All and Alt+D share `deselect_all` (`src/app/features/selection.rs`), the one
   native caller of `Operation::DeselectAll`, so the entry-point allowlist names it instead of the
   menu bar; MCP reaches the same operation as `deselect_all`.
-- Human-draft commits (`commit_pending`) are the only history mutation besides operations; the
-  entry-point test names them.
+- Human-draft commits (`commit_pending`) are the only history mutation besides operations and
+  evaluated time writes; the entry-point test names them.
+- The native timeline hotkeys and row share `run_timeline_action` (`src/app/features/timeline.rs "fn run_timeline_action"`), the one native caller of the key and time operations, except `timeline_controls`, which dispatches `SetPlaybackRange`. A step-key request with no adjacent key dispatches nothing and only sets the status.
+- `History::apply_evaluated` writes keyed channels with no undo entry and has two callers: dispatch
+  after Undo and Redo, and `write_time` (`src/app/features/timeline.rs "fn write_time"`), which serves
+  `SetCurrentTime`, `Play` and the playback tick. The tick is not an `Operation`, so it passes no
+  pipeline: `playback_blocker` stops playback on closing, a modal, a manipulation or native drag, a
+  focused field or a draft before any write, and no tick commits a draft. The tick runs in `render`
+  after `shortcuts`; Esc stops playback before its other meanings
+  (`src/app/features/timeline.rs "fn escape_stops_playback"`). A hidden window stops playback, because
+  no tick runs there.
+- Native `SetCurrentTime` and `Play` succeed with a focused field that holds no draft, like other
+  native operations; `Play` then stops on the next tick. The remote pipeline refuses both as
+  `BusyEditing`. `SetCurrentTime` on a sourced scene moves the time and writes nothing, because
+  sourced curves are not evaluated. The matrix state `playing` records which cells stop playback.
 
 ## Safety net
 

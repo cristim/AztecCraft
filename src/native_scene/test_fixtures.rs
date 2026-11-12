@@ -147,6 +147,125 @@ pub(crate) fn pivoted_shape() -> (NativeScene, NodeId) {
     (scene, id)
 }
 
+/// `pivoted_shape` plus rotatePivotTranslate, scalePivotTranslate and shear. Only test
+/// constructors can build it: a `.mb` carrying these keys fails to import until #105.
+pub(crate) fn pivoted_extras_shape() -> (NativeScene, NodeId) {
+    let (mut scene, id) = pivoted_shape();
+    give_pivot_extras(&mut scene, id);
+    (scene, id)
+}
+
+pub(crate) fn give_pivot_extras(scene: &mut NativeScene, node: NodeId) {
+    set_extras(
+        scene,
+        node,
+        TransformExtras {
+            rotate_pivot_translate: Some([0.5, -1.5, 2.0]),
+            scale_pivot_translate: Some([-2.0, 0.75, 1.0]),
+            shear: Some([0.1, -0.2, 0.3]),
+            ..TransformExtras::default()
+        },
+    );
+    scene.validate().unwrap();
+}
+
+/// Makes `node` refuse every edit (`UnsupportedEdit`), whatever its pivots are.
+pub(crate) fn restrict_edits(scene: &mut NativeScene, node: NodeId) {
+    scene
+        .nodes
+        .iter_mut()
+        .find(|entry| entry.id == node)
+        .unwrap()
+        .restrictions
+        .push("driver".into());
+}
+
+/// Pivoted transforms for the tool tests: rp and sp alone, plus rpt and spt (and shear when
+/// `shear`), and the same node under a parent that is a rotation times a uniform scale. Scale
+/// is positive so every space can begin. Test constructors only: a `.mb` with rpt, spt or
+/// shear does not import until #105.
+pub(crate) fn pivoted_family(
+    rotation: [f64; 3],
+    parent_rotation: [f64; 3],
+    shear: bool,
+) -> Vec<(&'static str, NativeScene, NodeId)> {
+    let local = NativeTransform {
+        translation: [3.0, -2.0, 5.0],
+        rotation,
+        scale: [2.0, 0.5, 1.5],
+    };
+    let extras = |scene: &mut NativeScene, node| {
+        set_extras(
+            scene,
+            node,
+            TransformExtras {
+                rotate_pivot_translate: Some([0.5, -1.5, 2.0]),
+                scale_pivot_translate: Some([-2.0, 0.75, 1.0]),
+                shear: shear.then_some([0.1, -0.2, 0.3]),
+                ..TransformExtras::default()
+            },
+        );
+        scene.validate().unwrap();
+    };
+    let pivot = |scene: &mut NativeScene, node: NodeId| {
+        let entry = scene.nodes.iter_mut().find(|n| n.id == node).unwrap();
+        entry.rotate_pivot = [1.0, 0.25, -2.0].map(Scalar::new);
+        entry.scale_pivot = [-0.5, 1.0, 0.0].map(Scalar::new);
+    };
+    let (mut plain, plain_node) = cube();
+    plain.set_transform(plain_node, local).unwrap();
+    pivot(&mut plain, plain_node);
+    let (mut with_extras, extras_node) = cube();
+    with_extras.set_transform(extras_node, local).unwrap();
+    pivot(&mut with_extras, extras_node);
+    extras(&mut with_extras, extras_node);
+    let (mut parented, root, child, _) = grouped_shape();
+    parented
+        .set_transform(
+            root,
+            NativeTransform {
+                translation: [7.0, -11.0, 13.0],
+                rotation: parent_rotation,
+                scale: [2.0, 2.0, 2.0],
+            },
+        )
+        .unwrap();
+    parented.set_transform(child, local).unwrap();
+    pivot(&mut parented, child);
+    extras(&mut parented, child);
+    parented.validate().unwrap();
+    vec![
+        ("rp and sp", plain, plain_node),
+        ("rp, sp, rpt and spt", with_extras, extras_node),
+        ("parented with extras", parented, child),
+    ]
+}
+
+/// World image of a node-local point: the parents' map times the node's own matrix.
+pub(crate) fn world_image(scene: &NativeScene, selected: &TransformTarget, point: DVec3) -> DVec3 {
+    let node = scene.internal_transform(selected.node).unwrap();
+    let parent = scene.ancestor_world(selected).unwrap().unwrap();
+    (parent * node.matrix().unwrap()).transform_point3(point)
+}
+
+/// The node-local point the rotation stage leaves fixed: the preimage of RP under the scale
+/// stage, found by inverting the matrix of a copy with zero T, R and RT. Independent of
+/// `ManipulatorFrame`.
+pub(crate) fn rotate_fixed_point(scene: &NativeScene, node: NodeId) -> DVec3 {
+    let mut bare = scene.clone();
+    let entry = bare.nodes.iter_mut().find(|n| n.id == node).unwrap();
+    for channel in &mut entry.channels[..6] {
+        *channel = Scalar::new(0.0);
+    }
+    entry.extras.rotate_pivot_translate = None;
+    let internal = bare.internal_transform(node).unwrap();
+    internal
+        .matrix()
+        .unwrap()
+        .inverse()
+        .transform_point3(DVec3::from_array(internal.rotate_pivot_cm))
+}
+
 pub(crate) fn triangle_double_shape() -> (NativeScene, NodeId) {
     let (mut scene, id) = cube();
     scene.shapes[0].mesh = NativeMesh::triangle_double_fixture();
@@ -272,6 +391,91 @@ pub(crate) fn cube_and_empty_transform() -> (NativeScene, NodeId, NodeId) {
     scene.dag.retain(|edge| edge.child != discarded);
     scene.validate().unwrap();
     (scene, cube, empty)
+}
+
+/// Roots x1 and x2 both parent transform `a` (instanced), and `b` is a child of `a`. Returns
+/// (scene, x1, x2, a, b); `b` is reachable as x1/a/b and x2/a/b and moves with `a`.
+pub(crate) fn instanced_chain() -> (NativeScene, NodeId, NodeId, NodeId, NodeId) {
+    let mut scene = NativeScene::default();
+    let [x1, x2, a, b] =
+        ["x1", "x2", "a", "b"].map(|name| scene.create(Primitive::Cube, name).unwrap());
+    let native = |scene: &NativeScene, id| scene.node(id).unwrap().transform_id;
+    let (x1_native, x2_native) = (native(&scene, x1), native(&scene, x2));
+    let (a_native, b_native) = (native(&scene, a), native(&scene, b));
+    scene.dag.retain(|edge| {
+        !(edge.parent.is_none() && (edge.child == a_native || edge.child == b_native))
+    });
+    for (parent, child) in [
+        (x1_native, a_native),
+        (x2_native, a_native),
+        (a_native, b_native),
+    ] {
+        scene.dag.push(DagEdge {
+            parent: Some(parent),
+            child,
+        });
+    }
+    scene.validate().unwrap();
+    (scene, x1, x2, a, b)
+}
+
+/// `count` shapeless root transforms named `root0`..; built without per-node validation so a
+/// 4096-member selection is cheap to set up.
+pub(crate) fn many_roots(count: u64) -> NativeScene {
+    let (mut scene, _) = cube();
+    let template = scene.nodes[0].clone();
+    scene.nodes.clear();
+    scene.shapes.clear();
+    scene.dag.clear();
+    for index in 0..count {
+        let mut node = template.clone();
+        node.id = NodeId::from_decimal(&(index + 1).to_string()).unwrap();
+        node.transform_id = NativeId(index + 1);
+        node.name = format!("root{index}");
+        scene.dag.push(DagEdge {
+            parent: None,
+            child: node.transform_id,
+        });
+        scene.nodes.push(node);
+    }
+    scene.next_id = count + 1;
+    scene.next_native_id = count + 2;
+    scene.validate().unwrap();
+    scene
+}
+
+/// Two cubes in a binary source: the first has its translate leaf, the second has none and cannot
+/// gain one (a leaf binds all three components, so a node lacks all of them or none). Returns the
+/// scene, the complete node and the leafless node.
+pub(crate) fn binary_cube_and_cube_without_leaf() -> (NativeScene, NodeId, NodeId) {
+    use source::{SourceLeaf, Storage};
+    let mut scene = NativeScene::default();
+    let full = scene.create(Primitive::Cube, "full").unwrap();
+    let bare = scene.create(Primitive::Cube, "bare").unwrap();
+    let owner = scene.node(full).unwrap().transform_id;
+    scene.source = Some(SourceRetention {
+        sites: Vec::new(),
+        bytes: vec![0u8; 24].into(),
+        format: SourceFormat::Binary,
+        records: std::iter::once(0..24).collect(),
+        leaves: vec![SourceLeaf {
+            payload: 0..24,
+            numeric: 0..24,
+            owner,
+            field: TransformField::Translation,
+            storage: Storage::Centimeters,
+        }],
+        appearance: None,
+        has_removals: false,
+    });
+    let index = scene.nodes.iter().position(|n| n.id == full).unwrap();
+    for component in 0..3 {
+        scene.nodes[index].channels[component].origin =
+            Some(ScalarOrigin::Binary { leaf: 0, component });
+        scene.nodes[index].channels[component].replaced = false;
+    }
+    scene.validate().unwrap();
+    (scene, full, bare)
 }
 
 /// Marks a transform's effect as unproved, so deleting it or an ancestor is refused.

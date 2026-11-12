@@ -108,7 +108,11 @@ async fn sdk_frame_selected_with_nothing_selected_frames_all_in_object_mode() {
         let (mut editor, client, server) = start(&context).await;
         parent_with_far_child(&mut editor);
         editor.native_operation(Operation::DeselectAll);
-        frame(&mut editor, &context, vec![]);
+        // egui 0.37 sizes the panels over a few frames; the viewport aspect must be settled
+        // before the expected camera is computed from it.
+        for _ in 0..4 {
+            frame(&mut editor, &context, vec![]);
+        }
         let view = ViewScene::from_native(editor.history.scene(), 256 * 1024 * 1024).unwrap();
         let mut want = editor.camera.clone();
         want.frame_view(&view, None, editor.aspect).unwrap();

@@ -47,6 +47,7 @@ pub(crate) enum AuthoredIneligible {
     SourcedScene,
     Curves,
     Joints,
+    Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -66,6 +67,7 @@ pub(crate) enum AuthoredIneligible {
     EdgeSmoothing,
     FaceHoles,
     UnsupportedMeshChannels,
+    SessionUvs,
 }
 
 pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>, &str)> {
@@ -76,8 +78,9 @@ pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>
         .chain(scene.shapes.iter().map(|s| (None, s.name())))
 }
 
-/// The first checks: a retained source, curve content or session joints cannot be written as
-/// authored. Without this a scene of root joints would pass as bare transforms.
+/// The first checks: a retained source, curve content, session joints or session keys cannot be
+/// written as authored. Without the joint check a scene of root joints would pass as bare
+/// transforms.
 pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredIneligible> {
     if scene.source.is_some() {
         return Err(AuthoredIneligible::SourcedScene);
@@ -88,8 +91,11 @@ pub(super) fn check_content_kind(scene: &NativeScene) -> Result<(), AuthoredInel
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
     }
+    if !scene.session_keys.is_empty() {
+        return Err(AuthoredIneligible::Keys);
+    }
     if !scene.session_uvs.is_empty() {
-        return Err(AuthoredIneligible::UnsupportedMeshChannels);
+        return Err(AuthoredIneligible::SessionUvs);
     }
     Ok(())
 }

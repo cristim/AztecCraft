@@ -122,7 +122,7 @@ impl FileState {
         match self.origin {
             NativeOrigin::Untitled => DocumentOrigin::Untitled,
             NativeOrigin::Binary(_) => DocumentOrigin::MayaBinary,
-            NativeOrigin::Ascii(_) => DocumentOrigin::MayaAscii,
+            NativeOrigin::Ascii(_) | NativeOrigin::AuthoredAscii(_) => DocumentOrigin::MayaAscii,
             NativeOrigin::Legacy(_) => DocumentOrigin::LegacyAztec,
         }
     }
@@ -220,7 +220,7 @@ impl Editor {
                     scene_token,
                     written,
                     receipt,
-                    cause,
+                    cause: cause.clone(),
                 });
                 self.status = format!("Save installed but requires reconciliation: {cause}");
                 self.error = true;
@@ -323,11 +323,19 @@ impl Editor {
         if self.files.is_modal() || !self.files.save_as_available() {
             return;
         }
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("Save Maya binary scene to a new file")
-            .add_filter("Maya binary scene", &["mb"])
-            .save_file()
-        {
+        let extensions = self.files.origin.save_as_extensions();
+        let Some(first) = extensions.first() else {
+            return;
+        };
+        let mut dialog = rfd::FileDialog::new().set_title("Save scene to a new file");
+        for extension in extensions {
+            dialog = match *extension {
+                "ma" => dialog.add_filter("Maya ASCII scene", &["ma"]),
+                _ => dialog.add_filter("Maya binary scene", &["mb"]),
+            };
+        }
+        dialog = dialog.set_file_name(format!("untitled.{first}"));
+        if let Some(path) = dialog.save_file() {
             self.native_operation(Operation::SaveSceneAs { path });
         }
     }
@@ -396,6 +404,7 @@ impl Editor {
         self.files.path = path;
         self.files.uncertain = None;
         self.history = History::new(scene);
+        self.timeline = Default::default();
         self.active_tool = crate::editor_operations::ActiveTool::Select;
         self.native_move = None;
         self.move_viewport = None;
@@ -651,7 +660,7 @@ impl Editor {
             .input(|i| i.key_pressed(Key::Escape))
             .then_some(FileDecision::Cancel);
         let (heading, question) = save_changes_prompt(self.files.path.as_deref());
-        egui::Modal::new(egui::Id::new("unsaved_scene")).show(ctx, |ui| {
+        egui::Modal::new(egui::Id::unique("unsaved_scene")).show(ctx, |ui| {
             ui.heading(heading);
             ui.label(question);
             if let Some(uncertain) = &self.files.uncertain {

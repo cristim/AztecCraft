@@ -168,6 +168,20 @@ fn joints_are_refused_by_kind_so_no_writer_can_emit_plain_transforms() {
 }
 
 #[test]
+fn session_keys_refuse_every_authored_writer() {
+    let mut scene = NativeScene::default();
+    let id = scene.create(Primitive::Cube, "a").unwrap();
+    scene
+        .set_keys(&[id], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    assert_eq!(check(&scene), Err(AuthoredIneligible::Keys));
+    assert_eq!(
+        ascii::emit_geometry_prefix(&scene).map(|_| ()),
+        Err(ascii::AsciiWriteRefusal::Keys)
+    );
+}
+
+#[test]
 fn every_default_scene_name_is_reserved_for_any_authored_file() {
     const DEFAULT_NAMES: [&str; 25] = [
         "persp",

@@ -1,13 +1,27 @@
 use super::*;
 
-/// Where the Rotate and Scale handles sit and where the node's own axes point in the world.
+/// The transform tool whose handle is placed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManipulatorTool {
+    Move,
+    Rotate,
+    Scale,
+}
+
+/// Where the Move, Rotate and Scale handles sit and where the node's own axes point in the world.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ManipulatorFrame {
-    /// Move and Rotate pivot: the parents' map of T + RT (Move and Rotate refuse a rotate pivot).
+    /// The parents' map of T + RT, rotate pivot left out. Not a handle position (use
+    /// `handle_origin`); frame-selected keeps it because framing deliberately ignores the rotate
+    /// pivot (known-issues: frame selected, Maya's choice undocumented).
     pub origin_cm: DVec3,
-    /// Where the node's scale leaves the world fixed: the world image of its scale pivot, which
-    /// Scale requires to be zero. Differs from `origin_cm` with scalePivotTranslate, or a rotate
-    /// pivot under a rotation.
+    /// The rotate pivot in the world, RP included: the parents' map of T + RT + RP, the fixed
+    /// point of the rotation stage. The Move and Rotate handles sit here. PROVISIONAL: the docs
+    /// do not place the handles relative to the pivot.
+    pub pivot_cm: DVec3,
+    /// Where the node's scale leaves the world fixed: the full matrix applied to its scale pivot.
+    /// The Scale handle sits here. Differs from `pivot_cm` with scalePivot, scalePivotTranslate
+    /// or a rotate pivot under a rotation.
     pub scale_origin_cm: DVec3,
     /// The node's X, Y and Z as seen from the world: the parents' linear map times the node's
     /// rotation (rotate order and rotate axis included), with a joint's inverse parent scale
@@ -15,6 +29,16 @@ pub struct ManipulatorFrame {
     /// enter it. Not normalized, and mirrored or skewed when a parent has negative or uneven
     /// scale; the handles refuse such frames.
     pub object_axes: [DVec3; 3],
+}
+
+impl ManipulatorFrame {
+    /// Where `tool`'s handle is drawn and its drag axes start.
+    pub fn handle_origin(&self, tool: ManipulatorTool) -> DVec3 {
+        match tool {
+            ManipulatorTool::Move | ManipulatorTool::Rotate => self.pivot_cm,
+            ManipulatorTool::Scale => self.scale_origin_cm,
+        }
+    }
 }
 
 impl NativeScene {
@@ -32,6 +56,7 @@ impl NativeScene {
         let refused = NativeError::UnsupportedMove(WorldMoveUnsupported::ParentTransform);
         let parent_world = self.ancestor_world(target)?.ok_or(refused.clone())?;
         let origin_cm = parent_world.transform_point3(transform.origin_cm());
+        let pivot_cm = parent_world.transform_point3(transform.pivot_origin_cm());
         let scale_origin_cm = transform
             .matrix()
             .map(|local| {
@@ -43,11 +68,15 @@ impl NativeScene {
             .map(|rotation| transform.compensated_parent(DMat3::from_mat4(parent_world)) * rotation)
             .ok_or(refused.clone())?;
         let object_axes = [axes.x_axis, axes.y_axis, axes.z_axis];
-        if !origin_cm.is_finite() || object_axes.iter().any(|axis| !axis.is_finite()) {
+        if !origin_cm.is_finite()
+            || !pivot_cm.is_finite()
+            || object_axes.iter().any(|axis| !axis.is_finite())
+        {
             return Err(refused);
         }
         Ok(ManipulatorFrame {
             origin_cm,
+            pivot_cm,
             scale_origin_cm,
             object_axes,
         })

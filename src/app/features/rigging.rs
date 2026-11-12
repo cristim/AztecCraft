@@ -53,11 +53,11 @@ pub(in crate::app) fn joint_field_ids() -> impl Iterator<Item = egui::Id> {
 }
 
 fn joint_field_id(index: usize) -> egui::Id {
-    egui::Id::new(("joint_option", index))
+    egui::Id::unique(("joint_option", index))
 }
 
 fn window_id() -> egui::Id {
-    egui::Id::new("joint_options_window")
+    egui::Id::unique("joint_options_window")
 }
 
 struct Dialog {

@@ -253,15 +253,6 @@ fn refusals_leave_the_scene_untouched() {
     let selected = target(&scene, node);
     let before = scene.clone();
 
-    let mut pivot = scene.clone();
-    pivot.nodes[0].rotate_pivot[1] = Scalar::new(0.25);
-    assert!(matches!(
-        pivot.begin_rotation(&selected, RotateAxis::X, RotateSpace::Object),
-        Err(NativeError::UnsupportedRotate(
-            RotateUnsupported::SelectedPivot
-        ))
-    ));
-
     for effect in [
         "rotateOrder yzx",
         "rotateAxis 1 0 0",
@@ -471,5 +462,123 @@ fn radian_scene_single_channel_rotate_stores_baseline_plus_requested_exactly() {
         // Degrees alone (the old path) cannot reproduce it.
         let old = frame.rotation(axis, degrees).unwrap();
         assert_ne!(old[index].to_bits(), (baseline[index] + angle).to_bits());
+    }
+}
+
+use glam::DVec3;
+
+fn assert_near(actual: DVec3, expected: DVec3, context: &str) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{context}: {actual} != {expected}"
+    );
+}
+
+/// rp and sp, then also rpt and spt, then under a parent: the fixed point of the rotation stage
+/// is the image of RP through the full matrix, so rpt and the parent chain must not move it.
+/// Shear is included: it sits in the scale stage, ahead of the rotation. (A `.mb` carrying rpt,
+/// spt or shear does not import until #105, so these are constructor fixtures only.)
+#[test]
+fn a_turn_leaves_the_world_image_of_the_rotate_pivot_fixed_in_both_spaces() {
+    for (name, scene, node) in
+        test_fixtures::pivoted_family([20.0, 35.0, -15.0], [30.0, -20.0, 50.0], true)
+    {
+        let selected = target(&scene, node);
+        let fixed = test_fixtures::rotate_fixed_point(&scene, node);
+        let image = test_fixtures::world_image(&scene, &selected, fixed);
+        let probe = DVec3::new(1.5, -2.0, 4.0);
+        let probe_before = test_fixtures::world_image(&scene, &selected, probe);
+        let handle = scene.manipulator_frame(&selected).unwrap().pivot_cm;
+        assert_near(handle, image, name);
+        for space in [RotateSpace::Object, RotateSpace::World] {
+            for axis in [RotateAxis::X, RotateAxis::Y, RotateAxis::Z] {
+                for degrees in [25.0, -140.0] {
+                    let (frame, _) = scene.begin_rotation(&selected, axis, space).unwrap();
+                    let turned = frame.rotation(axis, degrees).unwrap();
+                    let mut moved = scene.clone();
+                    let mut channels = [None; 9];
+                    for component in 0..3 {
+                        channels[3 + component] = Some(turned[component]);
+                    }
+                    moved.edit_node(node, None, channels).unwrap();
+                    let context = format!("{name} {space:?} {axis:?} {degrees}");
+                    assert_near(
+                        test_fixtures::world_image(&moved, &selected, fixed),
+                        image,
+                        &context,
+                    );
+                    assert!(
+                        (test_fixtures::world_image(&moved, &selected, probe) - probe_before)
+                            .length()
+                            > 1e-3,
+                        "{context}: the turn did nothing"
+                    );
+                    let index = scene.nodes.iter().position(|n| n.id == node).unwrap();
+                    let (was, now) = (&scene.nodes[index], &moved.nodes[index]);
+                    for channel in [0, 1, 2, 6, 7, 8] {
+                        assert_eq!(
+                            was.channels[channel].value.to_bits(),
+                            now.channels[channel].value.to_bits(),
+                            "{context}"
+                        );
+                    }
+                    assert_eq!(was.rotate_pivot, now.rotate_pivot, "{context}");
+                    assert_eq!(was.scale_pivot, now.scale_pivot, "{context}");
+                    assert_eq!(was.extras, now.extras, "{context}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_radian_scene_with_a_rotate_pivot_still_stores_baseline_plus_declared_exactly() {
+    let (mut scene, node) = test_fixtures::pivoted_family([0.0; 3], [0.0; 3], true)
+        .into_iter()
+        .nth(1)
+        .map(|(_, scene, node)| (scene, node))
+        .unwrap();
+    scene.units.angular = AngularUnit::Radian;
+    scene
+        .set_transform(
+            node,
+            NativeTransform {
+                translation: [3.0, -2.0, 5.0],
+                rotation: [0.25, 0.5, -0.125],
+                scale: [2.0, 0.5, 1.5],
+            },
+        )
+        .unwrap();
+    let (frame, _) = scene
+        .begin_rotation(&target(&scene, node), RotateAxis::X, RotateSpace::Object)
+        .unwrap();
+    let out = frame
+        .rotation_declared(RotateAxis::X, 90.0, Some(0.125))
+        .unwrap();
+    assert_eq!(bits(out), bits([0.25 + 0.125, 0.5, -0.125]));
+}
+
+#[test]
+fn huge_and_signed_zero_rotate_pivots_change_no_refusal_outcome() {
+    for value in [1e6, -0.0] {
+        let (mut scene, node) = rotated([10.0, 20.0, 30.0]);
+        scene.nodes[0].rotate_pivot = [value; 3].map(Scalar::new);
+        scene.validate().unwrap();
+        assert!(
+            scene
+                .begin_rotation(&target(&scene, node), RotateAxis::Y, RotateSpace::Object)
+                .is_ok()
+        );
+        // Gimbal lock is a property of the rotation alone.
+        let (mut gimbal, node) = rotated([0.0; 3]);
+        gimbal.nodes[0].rotate_pivot = [value; 3].map(Scalar::new);
+        let (frame, _) = gimbal
+            .begin_rotation(&target(&gimbal, node), RotateAxis::Y, RotateSpace::Object)
+            .unwrap();
+        assert!(matches!(
+            frame.rotation(RotateAxis::Y, 90.0),
+            Err(NativeError::UnsupportedRotate(RotateUnsupported::Gimbal))
+        ));
+        assert!(frame.rotation(RotateAxis::Y, 89.0).is_ok());
     }
 }

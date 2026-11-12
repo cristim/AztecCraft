@@ -25,7 +25,6 @@ pub enum ScaleHandle {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScaleUnsupported {
-    SelectedPivot,
     Shear,
     ParentTransform,
     NotAxisAligned,
@@ -36,7 +35,6 @@ pub enum ScaleUnsupported {
 impl fmt::Display for ScaleUnsupported {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::SelectedPivot => "the selected scale pivot must be zero",
             Self::Shear => "world scale needs zero shear on the selected node",
             Self::ParentTransform => {
                 "world scale needs parents that are a rotation times a uniform positive scale"
@@ -127,15 +125,8 @@ impl NativeScene {
         let selected = self.resolve_transform_path(target.node, &target.path)?;
         self.editable(target.node)?;
         let transform = self.internal_transform(target.node)?;
-        if transform
-            .scale_pivot_cm
-            .into_iter()
-            .any(|value| value != 0.0)
-        {
-            return Err(NativeError::UnsupportedScale(
-                ScaleUnsupported::SelectedPivot,
-            ));
-        }
+        // The scale pivot is the fixed point of the scale stage, so it never enters the channel
+        // maths: only the handle origin needs it (`ManipulatorFrame::handle_origin`).
         // SH^-1 * D * SH is not diagonal for a non-uniform D, so one scale channel cannot express a
         // world-axis scale of a sheared node. Refused before any source or leaf check.
         if space == ScaleSpace::World

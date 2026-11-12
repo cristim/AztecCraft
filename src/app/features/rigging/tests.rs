@@ -521,7 +521,7 @@ fn escape_keeps_the_relative_order_of_the_two_windows_under_a_third_window_in_fr
     let (mut editor, ctx) = setup();
     open_both(&mut editor, &ctx, false);
     // A third window raised above both becomes the topmost window layer.
-    let third = egui::Id::new("third_window");
+    let third = egui::Id::unique("third_window");
     let frame = |editor: &mut Editor, events: Vec<Event>| {
         let input = egui::RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, SIZE)),

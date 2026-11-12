@@ -28,6 +28,7 @@ impl Editor {
                     .scene()
                     .manipulator_frame(&target)
                     .map_err(OperationError::Scene)?;
+                // T + RT on purpose: framing ignores the rotate pivot (see `ManipulatorFrame::origin_cm`).
                 origins.push(frame.origin_cm.as_vec3());
             }
             return self

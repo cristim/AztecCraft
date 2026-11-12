@@ -1,6 +1,6 @@
 use super::features::{
-    extrude, file, history, inspect, manipulation, material, node_edit, rigging, selection,
-    status_line, uv, view,
+    animation, extrude, file, history, inspect, manipulation, material, node_edit, rigging,
+    selection, status_line, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -25,6 +25,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     node_edit::TOOLS,
     extrude::TOOLS,
     rigging::TOOLS,
+    animation::TOOLS,
     uv::TOOLS,
     material::TOOLS,
     history::TOOLS,
@@ -211,6 +212,8 @@ Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour 
                 rotate_order: "xyz",
                 rotate_axis_degrees: [0.0; 3],
                 shear: [0.0; 3],
+                rotate_pivot: [0.0; 3],
+                scale_pivot: [0.0; 3],
                 rotate_pivot_translate: [0.0; 3],
                 scale_pivot_translate: [0.0; 3],
                 non_default: vec!["shear"],

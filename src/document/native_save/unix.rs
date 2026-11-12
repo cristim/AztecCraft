@@ -1,7 +1,11 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
     document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
-    native_scene::{NativeScene, binary},
+    native_scene::{
+        NativeScene,
+        ascii::write::{AsciiWriteRefusal, emit_geometry_prefix},
+        binary,
+    },
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
 use rustix::fs::{self, AtFlags, Mode, OFlags};
@@ -69,7 +73,7 @@ impl Destination {
         destination.binding()?;
         Ok(destination)
     }
-    fn path(&self) -> PathBuf {
+    pub(in crate::document) fn path(&self) -> PathBuf {
         self.canonical_parent.join(&self.leaf)
     }
     fn binding(&self) -> io::Result<()> {
@@ -228,9 +232,9 @@ impl Transaction<'_> {
     fn fail(&self, error: Error) -> io::Error {
         let mut state = self.state.borrow_mut();
         if state.installed.is_some() {
-            state.post_error = Some(error);
+            state.post_error = Some(error.clone());
         } else {
-            state.failure = Some(error);
+            state.failure = Some(error.clone());
         }
         io::Error::from(match error {
             Error::Cancelled => io::ErrorKind::Interrupted,
@@ -323,7 +327,7 @@ impl Transaction<'_> {
         };
         let state = self.state.borrow();
         let Some(file) = state.installed.as_ref() else {
-            return Err(state.failure.unwrap_or_else(|| {
+            return Err(state.failure.clone().unwrap_or_else(|| {
                 result
                     .err()
                     .map(io_error)
@@ -338,6 +342,7 @@ impl Transaction<'_> {
         };
         let cause = state
             .post_error
+            .clone()
             .or_else(|| result.err().map(io_error))
             .or_else(|| (!state.synced).then_some(Error::Io(io::ErrorKind::Other)));
         drop(state);
@@ -357,7 +362,12 @@ impl AtomicFs for Transaction<'_> {
     }
     fn create_new(&self, path: &Path, permissions: NewFilePermissions) -> io::Result<File> {
         let leaf = self.destination.stage_leaf(path).map_err(|_| {
-            let error = self.state.borrow().failure.unwrap_or(Error::Unsupported);
+            let error = self
+                .state
+                .borrow()
+                .failure
+                .clone()
+                .unwrap_or(Error::Unsupported);
             self.fail(error)
         })?;
         if let Some(baseline) = self.baseline {
@@ -444,6 +454,7 @@ pub(super) struct Receipt {
 impl Receipt {
     fn verified(&self) -> Result<(NativeOrigin, PathBuf), Error> {
         self.destination.verify(&self.file, &self.bytes)?;
+        let path = self.destination.path();
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
             retention: self.retention.clone(),
@@ -452,7 +463,12 @@ impl Receipt {
             file: self.file.clone(),
             destination: Some(self.destination.clone()),
         };
-        Ok((NativeOrigin::Binary(baseline), self.destination.path()))
+        let origin = if has_extension(&path, "ma") {
+            NativeOrigin::AuthoredAscii(baseline)
+        } else {
+            NativeOrigin::Binary(baseline)
+        };
+        Ok((origin, path))
     }
     pub(super) fn reconcile(&self) -> Result<(NativeOrigin, PathBuf), Error> {
         self.destination.verify(&self.file, &self.bytes)?;
@@ -477,59 +493,70 @@ fn prepare<'a>(
     destination: SaveDestination<'_>,
     may_install: &'a dyn Fn() -> bool,
 ) -> Result<Transaction<'a>, Error> {
-    let source = match origin {
-        NativeOrigin::Binary(source) => source,
+    // `None` marks a new scene, whose retention is known only after its bytes are encoded.
+    let (destination, baseline, retention) = match origin {
+        // A new scene has no file yet, so only Save As applies.
         NativeOrigin::Untitled => {
             let SaveDestination::As(path) = destination else {
                 return Err(Error::NoDestination);
             };
-            let destination = mb_destination(path)?;
-            destination.absent()?;
-            return Ok(Transaction {
-                destination,
-                baseline: None,
-                bytes: encode_authored(scene)?.into(),
-                retention: Retention::Authored {
-                    document_id: scene.authored_document_id().ok_or(Error::SourceChanged)?,
-                },
-                may_install,
-                state: RefCell::new(State::default()),
-            });
+            (mb_destination(path)?, None, None)
+        }
+        // Active Save of an ASCII document is routed to `prepare_authored`; only Save As to a fresh
+        // .mb reaches here, and the tie below binds it to this document.
+        NativeOrigin::AuthoredAscii(_) if matches!(destination, SaveDestination::Active) => {
+            return Err(Error::Unsupported);
+        }
+        NativeOrigin::Binary(source) | NativeOrigin::AuthoredAscii(source) => {
+            let tied = match &source.retention {
+                Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
+                Retention::Authored { document_id } => {
+                    scene.authored_document_id() == Some(*document_id)
+                }
+            };
+            if !tied {
+                return Err(Error::SourceChanged);
+            }
+            let (destination, baseline) = match destination {
+                SaveDestination::Active => (
+                    source
+                        .destination
+                        .clone()
+                        .filter(|_| matches!(source.link, LinkStatus::Direct))
+                        .ok_or(Error::Unsupported)?,
+                    Some(source),
+                ),
+                SaveDestination::As(path) => (mb_destination(path)?, None),
+            };
+            (destination, baseline, Some(source.retention.clone()))
         }
         _ => return Err(Error::Unsupported),
-    };
-    let tied = match &source.retention {
-        Retention::Source { parse_bytes } => scene.has_binary_source(parse_bytes),
-        Retention::Authored { document_id } => scene.authored_document_id() == Some(*document_id),
-    };
-    if !tied {
-        return Err(Error::SourceChanged);
-    }
-    let (destination, baseline) = match destination {
-        SaveDestination::Active => (
-            source
-                .destination
-                .clone()
-                .filter(|_| matches!(source.link, LinkStatus::Direct))
-                .ok_or(Error::Unsupported)?,
-            Some(source),
-        ),
-        SaveDestination::As(path) => (mb_destination(path)?, None),
     };
     if let Some(baseline) = baseline {
         destination.verify(&baseline.file, &baseline.bytes)?;
     } else {
         destination.absent()?;
     }
-    let bytes: Arc<[u8]> = match source.retention {
-        Retention::Source { .. } => binary::encode(scene).map_err(Error::Encode)?.into(),
-        Retention::Authored { .. } => encode_authored(scene)?.into(),
+    let (bytes, retention): (Arc<[u8]>, _) = match retention {
+        Some(retention @ Retention::Source { .. }) => (
+            binary::encode(scene).map_err(Error::Encode)?.into(),
+            retention,
+        ),
+        Some(retention @ Retention::Authored { .. }) => (encode_authored(scene)?.into(), retention),
+        // The writer refuses a scene with a parsed source first (`SourcedScene`), so for a new
+        // scene `authored_document_id` is always present here. The refusal guards that
+        // invariant: `authored_document_id` is `None` only when the scene has a parsed source.
+        None => {
+            let bytes = encode_authored(scene)?.into();
+            let document_id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+            (bytes, Retention::Authored { document_id })
+        }
     };
     Ok(Transaction {
         destination,
         baseline,
         bytes,
-        retention: source.retention.clone(),
+        retention,
         may_install,
         state: RefCell::new(State::default()),
     })
@@ -545,8 +572,91 @@ pub(super) fn save_native(
     destination: SaveDestination<'_>,
     may_install: &dyn Fn() -> bool,
 ) -> Result<SaveOutcome, Error> {
-    let transaction = prepare(origin, scene, destination, may_install)?;
+    let transaction = if writes_ascii(origin, &destination) {
+        prepare_authored(origin, scene, destination, may_install)?
+    } else {
+        prepare(origin, scene, destination, may_install)?
+    };
     transaction.run(&transaction, RenameRetry::platform())
+}
+
+fn has_extension(path: &Path, wanted: &str) -> bool {
+    path.extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(wanted))
+}
+
+/// The one place the destination extension picks the authored writer: `.ma` is Maya ASCII,
+/// anything else goes to the Maya Binary path, which refuses what is not `.mb`. Active Save
+/// keeps the format of the document's own file.
+fn writes_ascii(origin: &NativeOrigin, destination: &SaveDestination<'_>) -> bool {
+    match destination {
+        SaveDestination::As(path) => has_extension(path, "ma"),
+        SaveDestination::Active => matches!(origin, NativeOrigin::AuthoredAscii(_)),
+    }
+}
+
+fn prepare_authored<'a>(
+    origin: &'a NativeOrigin,
+    scene: &NativeScene,
+    destination: SaveDestination<'_>,
+    may_install: &'a dyn Fn() -> bool,
+) -> Result<Transaction<'a>, Error> {
+    // Bind every save to this document: the origin's identity must match the scene.
+    match origin {
+        NativeOrigin::Untitled => {}
+        NativeOrigin::AuthoredAscii(source) | NativeOrigin::Binary(source) => {
+            match &source.retention {
+                Retention::Authored { document_id }
+                    if scene.authored_document_id() == Some(*document_id) => {}
+                Retention::Authored { .. } => return Err(Error::SourceChanged),
+                Retention::Source { .. } => {
+                    return Err(Error::AsciiWrite(AsciiWriteRefusal::SourcedScene));
+                }
+            }
+        }
+        _ => return Err(Error::Unsupported),
+    }
+    let bytes: Arc<[u8]> = emit_geometry_prefix(scene)
+        .map_err(Error::AsciiWrite)?
+        .into();
+    let document_id = scene.authored_document_id().ok_or(Error::SourceChanged)?;
+    // Active Save reuses the destination pinned at Open or the last Save, with its parent
+    // directory identity, exactly as the Maya Binary path does; Save As captures a fresh one.
+    let (destination, baseline) = match destination {
+        SaveDestination::Active => {
+            let NativeOrigin::AuthoredAscii(source) = origin else {
+                return Err(Error::Unsupported);
+            };
+            let pinned = source
+                .destination
+                .clone()
+                .filter(|_| matches!(source.link, LinkStatus::Direct))
+                .ok_or(Error::Unsupported)?;
+            (pinned, Some(source))
+        }
+        SaveDestination::As(path) => {
+            if !has_extension(path, "ma") {
+                return Err(Error::InvalidDestination);
+            }
+            (
+                Arc::new(Destination::capture(path).map_err(io_error)?),
+                None,
+            )
+        }
+    };
+    if let Some(baseline) = baseline {
+        destination.verify(&baseline.file, &baseline.bytes)?;
+    } else {
+        destination.absent()?;
+    }
+    Ok(Transaction {
+        destination,
+        baseline,
+        bytes,
+        retention: Retention::Authored { document_id },
+        may_install,
+        state: RefCell::new(State::default()),
+    })
 }
 
 #[cfg(test)]

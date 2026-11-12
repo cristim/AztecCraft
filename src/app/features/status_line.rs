@@ -259,7 +259,7 @@ impl Editor {
             });
         let enabled = combo.response.enabled();
         combo.response.widget_info(|| {
-            egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, enabled, MENU_SET_LABEL)
+            egui::WidgetInfo::labeled(egui::Role::ComboBox, enabled, MENU_SET_LABEL)
         });
         if let Some(set) = choice {
             self.native_operation(Operation::SetMenuSet { set });
@@ -283,11 +283,7 @@ fn selection_mode_menu(ui: &mut egui::Ui) {
         .response;
     let enabled = combo.enabled();
     combo.widget_info(|| {
-        egui::WidgetInfo::labeled(
-            egui::WidgetType::ComboBox,
-            enabled,
-            SELECTION_MODE_MENU_LABEL,
-        )
+        egui::WidgetInfo::labeled(egui::Role::ComboBox, enabled, SELECTION_MODE_MENU_LABEL)
     });
     combo.on_disabled_hover_text(SELECTION_MODE_MENU_HOVER);
 }

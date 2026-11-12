@@ -276,6 +276,7 @@ fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_onc
                     unit: MouseWheelUnit::Point,
                     delta: egui::vec2(0.0, 20.0),
                     phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Unknown,
                     modifiers,
                 },
             ],
@@ -1016,7 +1017,7 @@ fn plain_drag_release_raises_marquee_but_a_quick_click_does_not() {
     let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 40.0);
     assert_eq!(
         input.unsupported_selection(),
-        Some(SelectionRefusal::Marquee)
+        Some(SelectionRefusal::ComponentMarquee)
     );
     assert!(!orbited && input.click_ndc().is_none());
     let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);
@@ -1087,7 +1088,7 @@ fn marquee_follows_the_release_event_modifiers_not_the_frame_modifiers() {
     );
     assert_eq!(
         input.unsupported_selection(),
-        Some(SelectionRefusal::Marquee)
+        Some(SelectionRefusal::ComponentMarquee)
     );
 }
 
@@ -1096,4 +1097,312 @@ fn alt_pressed_mid_drag_orbits_without_marquee() {
     let (input, orbited) = drag_release(Modifiers::NONE, Modifiers::ALT, Modifiers::NONE, 40.0);
     assert!(orbited);
     assert_eq!(input.unsupported_selection(), None);
+}
+
+const START: Pos2 = egui::pos2(64.0, 48.0);
+
+/// Press at `START`, move through `waypoints`, release at the last one with `release`; returns
+/// the input of the last frame before the release and of the release frame.
+fn marquee_drag(
+    context: &egui::Context,
+    clip: Rect,
+    press: Pos2,
+    waypoints: &[Pos2],
+    release: Modifiers,
+) -> (ViewportInput, ViewportInput) {
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let frame = |time, modifiers, events| {
+        capture_frame(context, &camera, raw(time, modifiers, events), clip).0
+    };
+    frame(0.0, none, vec![Event::PointerMoved(press)]);
+    frame(0.1, none, vec![primary(press, true, none)]);
+    let mut last = frame(0.15, none, vec![]);
+    for (index, point) in waypoints.iter().enumerate() {
+        last = frame(
+            0.2 + index as f64 * 0.01,
+            none,
+            vec![Event::PointerMoved(*point)],
+        );
+    }
+    let end = *waypoints.last().unwrap_or(&press);
+    let released = frame(0.5, release, vec![primary(end, false, release)]);
+    (last, released)
+}
+
+fn ndc(input: &ViewportInput) -> ([f32; 2], [f32; 2]) {
+    let (rect, _) = input.marquee().expect("a marquee");
+    (rect.min().to_array(), rect.max().to_array())
+}
+
+#[test]
+fn a_drag_release_yields_the_ndc_rect_and_the_release_modifiers() {
+    for modifiers in [
+        Modifiers::NONE,
+        Modifiers::SHIFT,
+        Modifiers::CTRL | Modifiers::SHIFT,
+    ] {
+        let context = egui::Context::default();
+        let end = START + egui::vec2(32.0, 24.0);
+        let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], modifiers);
+        // The 128 x 96 viewport: x 64 -> 0, 96 -> 0.5; y 48 -> 0, 72 -> -0.5 (y points down).
+        assert_eq!(ndc(&input), ([0.0, -0.5], [0.5, 0.0]));
+        assert_eq!(input.marquee().unwrap().1, modifiers);
+        assert!(input.click_ndc().is_none());
+    }
+}
+
+#[test]
+fn a_quick_click_is_not_a_marquee() {
+    let context = egui::Context::default();
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[], Modifiers::NONE);
+    assert!(input.marquee().is_none() && input.click_ndc().is_some());
+}
+
+#[test]
+fn alt_orbit_and_alt_on_release_raise_no_marquee() {
+    let (input, _) = drag_release(Modifiers::ALT, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(input.marquee().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::ALT, 40.0);
+    assert!(input.marquee().is_none());
+    let (input, _) = drag_release(Modifiers::NONE, Modifiers::ALT, Modifiers::NONE, 40.0);
+    assert!(input.marquee().is_none());
+}
+
+#[test]
+fn a_release_outside_the_viewport_clamps_the_end_to_its_edge() {
+    let context = egui::Context::default();
+    let end = egui::pos2(140.0, 120.0);
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+    // The viewport is the 128 x 96 screen, so START is NDC (0, 0) and the end clamps to (1, -1).
+    assert_eq!(ndc(&input), ([0.0, -1.0], [1.0, 0.0]));
+}
+
+#[test]
+fn a_press_outside_the_viewport_never_arms_a_marquee() {
+    let context = egui::Context::default();
+    let outside = egui::pos2(-20.0, 48.0);
+    let (_, input) = marquee_drag(
+        &context,
+        Rect::EVERYTHING,
+        outside,
+        &[START],
+        Modifiers::NONE,
+    );
+    assert!(input.marquee().is_none());
+}
+
+#[test]
+fn returning_to_the_start_is_a_zero_area_rect_at_that_point() {
+    let context = egui::Context::default();
+    let away = START + egui::vec2(40.0, 0.0);
+    let (_, input) = marquee_drag(
+        &context,
+        Rect::EVERYTHING,
+        START,
+        &[away, START],
+        Modifiers::NONE,
+    );
+    assert_eq!(ndc(&input), ([0.0, 0.0], [0.0, 0.0]));
+}
+
+#[test]
+fn the_ndc_rect_does_not_depend_on_the_pixel_density() {
+    let end = START + egui::vec2(32.0, 24.0);
+    for ppp in [1.0, 1.5, 2.0] {
+        let context = egui::Context::default();
+        context.set_pixels_per_point(ppp);
+        let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+        assert_eq!(ndc(&input), ([0.0, -0.5], [0.5, 0.0]), "ppp {ppp}");
+    }
+}
+
+#[test]
+fn the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport() {
+    let context = egui::Context::default();
+    let end = egui::pos2(140.0, 120.0);
+    let (during, after) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], Modifiers::NONE);
+    assert_eq!(
+        during.marquee_preview(),
+        Some(Rect::from_min_max(START, egui::pos2(128.0, 96.0)))
+    );
+    assert!(after.marquee_preview().is_none());
+    let (input, _) = drag_release(Modifiers::ALT, Modifiers::ALT, Modifiers::ALT, 40.0);
+    assert!(input.marquee_preview().is_none());
+}
+
+fn escape() -> Event {
+    Event::Key {
+        key: egui::Key::Escape,
+        physical_key: Some(egui::Key::Escape),
+        pressed: true,
+        repeat: false,
+        modifiers: Modifiers::NONE,
+    }
+}
+
+/// PROVISIONAL (the Maya docs are silent): Esc during a marquee drag cancels it.
+#[test]
+fn escape_mid_drag_cancels_the_marquee_and_removes_the_band() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.1, vec![primary(START, true, none)]);
+    assert!(
+        frame(0.2, vec![Event::PointerMoved(end)])
+            .marquee_preview()
+            .is_some()
+    );
+    assert!(frame(0.25, vec![escape()]).marquee_preview().is_none());
+    assert!(
+        frame(0.3, vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))])
+            .marquee_preview()
+            .is_none()
+    );
+    let released = frame(0.4, vec![primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    // The next drag is unaffected.
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        Rect::EVERYTHING,
+        START,
+        &[end],
+        none,
+    );
+    assert!(next.marquee().is_some());
+}
+
+/// Losing window focus mid-drag cancels like Esc: winit still delivers the release.
+#[test]
+fn losing_focus_mid_drag_cancels_the_marquee_through_the_release() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, focused, events| {
+        let mut input = raw(time, none, events);
+        input.focused = focused;
+        capture_frame(&context, &camera, input, Rect::EVERYTHING).0
+    };
+    frame(0.0, true, vec![Event::PointerMoved(START)]);
+    frame(0.1, true, vec![primary(START, true, none)]);
+    frame(0.2, true, vec![Event::PointerMoved(end)]);
+    assert!(frame(0.25, false, vec![]).marquee_preview().is_none());
+    let released = frame(0.4, false, vec![primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        Rect::EVERYTHING,
+        START,
+        &[end],
+        none,
+    );
+    assert!(next.marquee().is_some());
+}
+
+/// Coalesced release, press, release in one frame is as ambiguous for a marquee as for a click.
+#[test]
+fn an_ambiguous_same_frame_release_raises_no_marquee() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.1, vec![primary(START, true, none)]);
+    frame(0.2, vec![Event::PointerMoved(end)]);
+    let released = frame(
+        0.3,
+        vec![
+            primary(end, false, none),
+            primary(START, true, none),
+            Event::PointerMoved(end),
+            primary(end, false, none),
+        ],
+    );
+    assert!(released.marquee().is_none());
+}
+
+#[test]
+fn escape_on_the_release_frame_cancels_and_escape_outside_a_drag_does_not() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let none = Modifiers::NONE;
+    let end = START + egui::vec2(32.0, 24.0);
+    let frame = |time, events| {
+        capture_frame(&context, &camera, raw(time, none, events), Rect::EVERYTHING).0
+    };
+    frame(0.0, vec![Event::PointerMoved(START)]);
+    frame(0.05, vec![escape()]);
+    frame(0.1, vec![primary(START, true, none)]);
+    frame(0.2, vec![Event::PointerMoved(end)]);
+    let released = frame(0.3, vec![escape(), primary(end, false, none)]);
+    assert!(released.marquee().is_none());
+    let context = egui::Context::default();
+    frame_idle_escape(&context);
+    let (_, input) = marquee_drag(&context, Rect::EVERYTHING, START, &[end], none);
+    assert!(
+        input.marquee().is_some(),
+        "an earlier Esc must not poison the next drag"
+    );
+}
+
+fn frame_idle_escape(context: &egui::Context) {
+    capture_frame(
+        context,
+        &camera(),
+        raw(0.0, Modifiers::NONE, vec![escape()]),
+        Rect::EVERYTHING,
+    );
+}
+
+/// A press begun with Alt is a camera tumble even when Alt is released before the drag crosses
+/// egui's threshold: no Orbit is emitted, yet the release must not replace the selection.
+#[test]
+fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early() {
+    let context = egui::Context::default();
+    let camera = camera();
+    let end = START + egui::vec2(40.0, 0.0);
+    let clip = Rect::EVERYTHING;
+    let frame = |time, modifiers, events| {
+        capture_frame(&context, &camera, raw(time, modifiers, events), clip).0
+    };
+    frame(0.0, Modifiers::ALT, vec![Event::PointerMoved(START)]);
+    frame(
+        0.1,
+        Modifiers::ALT,
+        vec![primary(START, true, Modifiers::ALT)],
+    );
+    frame(0.2, Modifiers::NONE, vec![Event::PointerMoved(end)]);
+    let mid = frame(
+        0.25,
+        Modifiers::NONE,
+        vec![Event::PointerMoved(end + egui::vec2(4.0, 0.0))],
+    );
+    assert!(mid.marquee_preview().is_none());
+    let released = frame(
+        0.3,
+        Modifiers::NONE,
+        vec![primary(end, false, Modifiers::NONE)],
+    );
+    assert!(released.marquee().is_none());
+    assert_eq!(released.unsupported_selection(), None);
+    // The next plain drag is unaffected.
+    let (_, next) = marquee_drag(
+        &egui::Context::default(),
+        clip,
+        START,
+        &[end],
+        Modifiers::NONE,
+    );
+    assert!(next.marquee().is_some());
 }

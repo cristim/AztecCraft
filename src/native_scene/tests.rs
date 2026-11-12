@@ -346,7 +346,7 @@ fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
     );
 }
 
-fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
+pub(super) fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
         has_removals: false,
         sites: Vec::new(),
@@ -1554,6 +1554,47 @@ fn remove_many_validates_once_where_single_removes_validate_per_node() {
     assert!(scene.nodes.is_empty() && scene.shapes.is_empty() && scene.dag.is_empty());
 }
 
+/// Baseline: N single edits validate N times; edit_nodes validates once.
+#[test]
+fn edit_nodes_validates_once_where_single_edits_validate_per_node() {
+    let (mut scene, ids) = three_roots();
+    let mut singly = scene.clone();
+    let edit = |id: NodeId| {
+        let mut channels = [None; 9];
+        channels[0] = Some(1.5);
+        (id, channels)
+    };
+    assert_eq!(
+        validations_during(|| ids
+            .iter()
+            .for_each(|id| singly.edit_node(*id, None, edit(*id).1).unwrap())),
+        3
+    );
+    let edits = ids.map(edit);
+    assert_eq!(validations_during(|| scene.edit_nodes(&edits).unwrap()), 1);
+    assert_eq!(scene, singly);
+}
+
+#[test]
+fn edit_nodes_refuses_a_repeated_id_and_non_finite_values() {
+    let (mut scene, [a, b, _]) = three_roots();
+    let before = scene.clone();
+    let mut channels = [None; 9];
+    channels[1] = Some(2.0);
+    assert_eq!(
+        scene.edit_nodes(&[(a, channels), (b, channels), (a, channels)]),
+        Err(SceneError::InvalidIds.into())
+    );
+    channels[2] = Some(f64::NAN);
+    assert_eq!(
+        scene.edit_nodes(&[(a, channels)]),
+        Err(NativeError::NonFinite)
+    );
+    assert_eq!(scene, before);
+    scene.edit_nodes(&[]).unwrap();
+    assert_eq!(scene, before);
+}
+
 #[test]
 fn remove_many_removes_a_shared_shape_only_with_its_last_parent() {
     let (scene, first, second, shape) = shared_shape();
@@ -1956,4 +1997,21 @@ fn siblings_are_deleted_together_and_the_parent_survives() {
         assert_eq!(both.nodes.len(), 4 - ids.len());
         assert!(both.node(root).is_ok());
     }
+}
+
+#[test]
+fn edit_nodes_refuses_a_member_with_unproved_effects_and_leaves_it_unchanged() {
+    // Earlier members may stay edited (callers use a candidate clone); the refused one must not.
+    let (mut scene, _) = cube();
+    let first = scene.create(Primitive::Cube, "first").unwrap();
+    let bad = scene.create(Primitive::Cube, "bad").unwrap();
+    test_fixtures::restrict_transform(&mut scene, bad);
+    let before = scene.node(bad).unwrap().clone();
+    let moved = [Some(1.0), None, None, None, None, None, None, None, None];
+
+    assert_eq!(
+        scene.edit_nodes(&[(first, moved), (bad, moved)]),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(scene.node(bad).unwrap(), &before);
 }

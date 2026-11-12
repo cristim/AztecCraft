@@ -1378,3 +1378,64 @@ fn declaration_size_checks_exact_cap_and_overflow_without_an_output_buffer() {
         );
     }
 }
+
+#[test]
+fn assigned_session_materials_are_refused_before_ascii_output() {
+    use crate::native_scene::MaterialChoice;
+    let mut scene = scene(&["box"]);
+    prefix(&scene).unwrap();
+    let shape = scene.shapes()[0].id();
+    let material = scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
+    scene
+        .assign_session_material(shape, MaterialChoice::Existing(material))
+        .unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+}
+
+#[test]
+fn a_created_unassigned_session_material_is_refused_by_the_ascii_writer() {
+    let mut scene = scene(&["box"]);
+    scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+}
+
+// `encode_authored` exists only where the binary save path does.
+#[cfg(unix)]
+#[test]
+fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
+    use crate::native_scene::binary::{AuthoredRefusalCode, encode_authored};
+    let mut scene = scene(&["box"]);
+    scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+    assert_eq!(
+        AuthoredRefusalCode::from(&encode_authored(&scene).unwrap_err()),
+        AuthoredRefusalCode::SessionMaterials
+    );
+}
+
+#[test]
+fn session_uvs_are_refused_before_ascii_output() {
+    use crate::native_scene::UvProjectAxis;
+    let mut scene = scene(&["box"]);
+    prefix(&scene).unwrap();
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
+    scene.delete_uvs(shape).unwrap();
+    prefix(&scene).unwrap();
+}
+
+#[test]
+fn public_decode_stays_closed_to_writer_output_while_the_gate_reads_it_back() {
+    // `decode` keeps refusing the writer's mesh output at `createNode mesh`; only the gated
+    // `decode_document` admits it, as an authored projection.
+    let bytes = prefix(&scene(&["cube"])).unwrap();
+    let text = std::str::from_utf8(&bytes).unwrap();
+    let error = super::super::decode(Arc::from(bytes.clone())).unwrap_err();
+    assert_eq!(error.kind(), crate::maya_ascii::ErrorKind::Unsupported);
+    assert_eq!(error.offset(), text.find("createNode mesh"));
+    assert!(matches!(
+        super::super::decode_document(Arc::from(bytes), true),
+        Ok(super::super::AsciiDecoded::Authored(_))
+    ));
+}

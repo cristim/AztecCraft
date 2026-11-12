@@ -1,3 +1,4 @@
+pub(super) mod animation;
 pub(super) mod extrude;
 pub(super) mod file;
 pub(super) mod history;

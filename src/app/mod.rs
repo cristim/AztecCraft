@@ -1,6 +1,6 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, MenuSet, Operation, OperationError, OperationReply, SelectRule,
-    SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
+    ActiveTool, AttributeEditorTab, MarqueeMode, MenuSet, Operation, OperationError,
+    OperationReply, SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
@@ -101,6 +101,8 @@ pub struct Editor {
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
     joint_options: features::rigging::JointOptionsUi,
+    extrude_options: features::extrude_options::ExtrudeOptionsUi,
+    timeline: features::timeline::Timeline,
     uv: features::uv::UvUi,
     native_input_pending: bool,
     status: String,
@@ -108,6 +110,9 @@ pub struct Editor {
     /// status line shows it; the inspection withholds it. Matching on the text keeps it from going
     /// stale when a later message replaces the status.
     status_withholds_path: Option<String>,
+    /// A refusal raised after an operation already changed state (a pose re-evaluation after
+    /// Undo). The success feedback that follows must not overwrite it; the next operation clears it.
+    refusal_after_change: Option<(&'static str, OperationError)>,
     error: bool,
     aspect: f32,
     files: files::FileState,
@@ -154,10 +159,13 @@ impl Default for Editor {
             material_draft: None,
             primitive_options: Default::default(),
             joint_options: Default::default(),
+            extrude_options: Default::default(),
+            timeline: Default::default(),
             uv: Default::default(),
             native_input_pending: false,
             status: "Ready | Create a cube, plane, sphere, cylinder or cone to start".into(),
             status_withholds_path: None,
+            refusal_after_change: None,
             error: false,
             aspect: 1.0,
             files: files::FileState::default(),
@@ -170,7 +178,12 @@ impl Default for Editor {
 impl Editor {
     /// The single place an `OperationError` becomes status text.
     fn set_error_status(&mut self, error: &OperationError) {
-        self.status = error.to_string();
+        self.set_error_text(error.to_string(), error);
+    }
+    /// `set_error_status` with the text already built, so a prefixed message is withheld by the
+    /// same rule as the bare one.
+    fn set_error_text(&mut self, text: String, error: &OperationError) {
+        self.status = text;
         self.status_withholds_path =
             matches!(error, OperationError::File(_)).then(|| self.status.clone());
     }
@@ -259,12 +272,13 @@ impl eframe::App for Editor {
             egui::Event::PointerMoved(_) | egui::Event::MouseMoved(_) => pointer_held,
             egui::Event::Key { pressed, .. } => *pressed,
             egui::Event::Copy
-            | egui::Event::Screenshot { .. }
             | egui::Event::ModifiersChanged(_)
             | egui::Event::WindowFocused(_)
             | egui::Event::PointerGone => false,
             egui::Event::Cut
             | egui::Event::Paste(_)
+            | egui::Event::PasteImage(_)
+            | egui::Event::MiddleClickPaste { .. }
             | egui::Event::Text(_)
             | egui::Event::PointerButton { .. }
             | egui::Event::Zoom(_)
@@ -291,6 +305,8 @@ impl eframe::App for Editor {
             self.handle_close(ctx);
             #[cfg(feature = "mcp")]
             self.process_mcp(ctx);
+            // No tick runs while hidden, so `playing` must not claim otherwise.
+            self.stop_playback();
         }
     }
 
@@ -331,6 +347,50 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
     .chain(features::rigging::joint_field_ids())
+    .chain([features::extrude_options::thickness_field_id()])
+    .chain(features::timeline::field_ids())
+}
+
+/// egui 0.37 surrenders a focused field on a press elsewhere when the field reads its style,
+/// before it applies that pass's typed text; hold the surrender until the pass ends.
+fn defer_focus_surrender(ctx: &egui::Context) -> Option<(egui::Id, egui::SurrenderFocusOn)> {
+    let focused = ctx
+        .memory(|memory| memory.focused())
+        .filter(|id| text_field_ids().any(|field| field == *id))?;
+    let (typed, pressed) = ctx.input(|input| {
+        let typed = input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Text(_)
+                    | egui::Event::Paste(_)
+                    | egui::Event::Cut
+                    | egui::Event::Key { pressed: true, .. }
+            )
+        });
+        (typed, input.pointer.any_pressed())
+    });
+    if !(typed && pressed) {
+        return None;
+    }
+    let previous = ctx.options_mut(|options| {
+        std::mem::replace(
+            &mut options.input_options.surrender_focus_on,
+            egui::SurrenderFocusOn::Never,
+        )
+    });
+    Some((focused, previous))
+}
+
+fn finish_deferred_focus_surrender(
+    ctx: &egui::Context,
+    deferred: Option<(egui::Id, egui::SurrenderFocusOn)>,
+) {
+    let Some((id, previous)) = deferred else {
+        return;
+    };
+    ctx.options_mut(|options| options.input_options.surrender_focus_on = previous);
+    // Reading the response runs egui's own click-elsewhere surrender, now after the typed text.
+    let _ = ctx.read_response(id);
 }
 
 fn text_edit_focused(ctx: &egui::Context) -> bool {
@@ -342,15 +402,15 @@ fn text_edit_focused(ctx: &egui::Context) -> bool {
 }
 
 fn name_edit_id() -> egui::Id {
-    egui::Id::new("node_name")
+    egui::Id::unique("node_name")
 }
 
 fn channel_edit_id(index: usize) -> egui::Id {
-    egui::Id::new(("channel", index))
+    egui::Id::unique(("channel", index))
 }
 
 fn material_edit_id() -> egui::Id {
-    egui::Id::new("material_diffuse")
+    egui::Id::unique("material_diffuse")
 }
 
 #[cfg(test)]
@@ -378,3 +438,6 @@ mod gpu_viewport_tests;
 
 #[cfg(test)]
 mod rotated_scale_tests;
+
+#[cfg(all(test, any(unix, windows)))]
+mod pivot_persistence_tests;
