@@ -16,7 +16,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("begin_manipulation", "`move` / `rotate` / `scale` inside `undoInfo -openChunk`", "no Maya single-call equivalent of a remote-owned preview (PROVISIONAL)"),
     ("update_manipulation", "`move` / `rotate` / `scale -absolute`", "absolute value only; no one-call relative transform"),
     ("finish_manipulation", "`undoInfo -closeChunk` (commit); `undo` (cancel)", "cancel restores the begin state exactly (PROVISIONAL)"),
-    ("create_primitive", "`polyCube`, `polyPlane`, `polySphere`, `polyCylinder`, `polyCone`", "Maya returns transform and history node names and creates UVs and history by default"),
+    ("create_primitive", "`polyCube`, `polyPlane`, `polySphere`, `polyCylinder`, `polyCone`, `polyTorus`", "Maya returns transform and history node names and creates UVs and history by default"),
     ("select_node", "`select -replace`", "no `-addFirst`; no components in the same call"),
     ("modify_selection", "`select -add` / `-deselect` / `-toggle`", "operates on one instance per call"),
     ("select_by_rule", "`select -all` / `-hierarchy`; inverse via `ls` plus `select`", "inverse has no single Maya flag (PROVISIONAL)"),

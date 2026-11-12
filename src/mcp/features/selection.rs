@@ -389,7 +389,7 @@ fn select_edge_schema() -> JsonObject {
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "create_primitive",
-        description: "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+        description: "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
         schema: schema::<CreateArgs>,
         parse: parse_create_primitive,
         idempotent: false,
