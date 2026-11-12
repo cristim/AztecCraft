@@ -1265,8 +1265,8 @@ first. Whether Maya draws descendants of a selected group that way is unconfirme
 
 Slice 1 of #166 gives an ordered selection with a lead (Shift, Ctrl and Shift+Ctrl viewport clicks
 in Object and Hierarchy modes, Shift and Ctrl Outliner clicks, MCP `modify_selection`). It acts on
-several objects for Move only (native drag, and MCP `begin_manipulation` with `expected_selection_generation`, #325 slice B);
-Rotate, Scale and Channel Box edits still refuse with `multiple_selection` until #325 slices C and D (the by-id MCP tools `delete_node`,
+several objects for Move and Scale (native drag, and MCP `begin_manipulation` with `expected_selection_generation`, #325 slices B and C1);
+Rotate and Channel Box edits still refuse with `multiple_selection` until #325 slices C2 and D (the by-id MCP tools `delete_node`,
 `rename_node`, `set_transform` and `edit_node` still act on the node they name), and the marquee
 selects objects only (#30, see "Object marquee is a provisional subset"). The native Delete (menu, Channel Box and key) acts on all selected objects, all or nothing, and Frame Selected frames their union (Select All, Hierarchy and Inverse exist as native UI rows and MCP `select_by_rule`). These choices are PROVISIONAL because the Maya pages are ambiguous: a viewport
 Shift click toggles the clicked instance (the page says "the last selection"); a Ctrl click on
@@ -1360,6 +1360,36 @@ it shows the actual values; the scene is reconciled by inspection. Pinned for th
 `NativeScene::edit_nodes` and `check_effects` scan every member against every node at commit, which is
 O(members x nodes). It runs once per drag, and is recorded next to the begin cost of a 4096-member Move
 (about 0.7 s in a debug build).
+
+## Scale of several selected objects: PROVISIONAL choices (#325 slice C1)
+
+Researched on 2026-11-12 in the Maya 2027 help: [Scale objects and components](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09D0E733-74DF-44E2-937A-C857001E45B2.htm)
+(R, centre box uniform, axis and plane handles, "common pivot point, which is the last object added
+to the selection") and [Scale Tool settings](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-487B6A23-E135-45E2-94F1-B0D59D6B6F33.htm)
+(Scale Center Default scales each selected object about its own pivot; Manip scales all about the
+manipulator; Object axis orientation scales each object by the same amount in its own frame). The
+two pages disagree on the pivot; the settings page names the default, so that is what is pinned:
+
+- S1: every uncovered selected object scales by the same factor about its own pivot. The scale pivot
+  is the fixed point of the scale stage, so only scale channels change (`every_member_scales_about_its_own_value_in_one_labelled_undo_entry`).
+- S2: the manipulator is drawn and hit-tested at the lead (last selected) object, as for Move
+  (`a_y_scale_handle_drag_scales_every_selected_object_in_one_undo_step`).
+- S3: a selected descendant of a selected object follows it and gets no scale of its own, as P20
+  (`a_selected_child_follows_its_selected_parent_and_gets_no_scale_of_its_own`,
+  `a_covered_lead_reports_its_own_channels`). The docs are silent on this.
+- S4: one node selected through two instances, or an uncovered member reachable under a selected
+  ancestor through another instance, is refused whole and named; the same target twice is `InvalidIds`
+  (`the_same_target_twice_is_invalid_ids_and_two_instances_are_refused`,
+  `an_uncovered_member_under_a_selected_ancestor_on_another_path_is_refused`).
+- S5: any member refusal (read-only format, restricted edit, binary scale leaf, shear, non-uniform
+  parent, unaligned world axis) refuses the whole begin, names the member, and writes nothing
+  (`begin_with_a_restricted_member_names_it_and_changes_nothing`); inspection availability covers
+  every member (`scale_availability_checks_every_member_and_names_the_refusing_one`).
+- S6: one undo entry labelled Scale for the set; cancel restores every member.
+- S7: a remote begin with several objects selected needs `expected_selection_generation`; stale is
+  `stale_selection`, a non-lead target `multiple_selection` (`sdk_scale_refuses_a_stale_generation_a_missing_one_and_a_non_lead_target`).
+- S8: not done: Scale Center Manip, plane handles (still disabled), and component-mode centre scaling.
+  Rotate still refuses several objects (slice C2).
 
 ## Move of several selected objects: PROVISIONAL choices (#325 slice B)
 

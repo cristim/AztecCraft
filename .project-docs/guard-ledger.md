@@ -85,6 +85,7 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   observer does not record member counts, so the three cells read the same as the `begin_move`
   cells; a regression to the single-object refusal changes them (they would print
   `MultipleSelection`).
+  `begin_scale(multi)` is the same for a Scale (`check_selection_target`, the rule `check_move_target` calls), in the Idle and StaleToken states.
 - The selection-agnostic guards (modal, closing, draft, focus, busy and scene token) run before
   `check_move_target`, so the 37 `begin_move` cells also cover a multi begin.
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
