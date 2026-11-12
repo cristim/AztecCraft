@@ -207,8 +207,10 @@ modes F frames the selected parents only and Ctrl+F includes their descendants. 
 valid-draft commitment and remote draft-refusal rules remain in force.
 
 Shift/Ctrl component selection, component marquee (object marquee: see Marquee selection), multiple faces, other component masks, preselection
-hover and marking menus are unsupported. Ambiguous coalesced primary-release
-frames refuse selection with a single-click retry message; they do not guess an
+hover and marking menus are unsupported. A same-frame run of primary releases whose last
+is a plain click selects with that click's own position and modifiers (earlier ones are
+superseded, #31); any other coalesced primary-release
+frame refuses selection with a single-click retry message; it does not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
 remains on its established route. Delete refuses the whole object under any
 component mode (Face, Vertex or Edge), natively and over MCP, with the same
@@ -218,11 +220,10 @@ Native Extrude of one picked face is available from the shelf button; the manipu
 Focused actual framebuffer proofs can be selected with `cargo test --locked
 --bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,
 protocol and framebuffer tests establish their exercised callers, not an OS
-window journey or Maya parity. The attempted genuine combined menu
-activation/key/viewport-click sequence was blocked by pinned egui's popup
-routing. The retained proofs cover menu+F8 and F11+F8+viewport click separately, plus blocked-popup
-nonmutation. Full coalesced-event support and platform/reference comparison
-remain follow-up work.
+window journey or Maya parity. The combined menu activation (real clicks), F8, F11 and
+coalesced viewport click journey is one native-event test across frames; Enter on a focused menu
+item plus a viewport click inside a single frame stays intercepted by pinned egui's popup
+routing (blocked-popup nonmutation test). Platform/reference comparison remains follow-up work.
 
 ## Vertex and Edge selection
 

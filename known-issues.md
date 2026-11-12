@@ -265,14 +265,16 @@ Other component masks, multiple-face gestures, component marquee (the object mar
 with ModifiedClick and leaves the selection unchanged. Maya supports modified clicks to add
 to or toggle the component selection; AztecCraft selects one vertex, edge or face only. Native Extrude of the single selected face is live (issue #44, slice 1): the shelf Extrude button opens an Extrude Options window with Thickness only (default 0, applied as the normal displacement, PROVISIONAL). The other option rows, including Taper 1 and Twist 0 (polyExtrudeFacet node defaults, PROVISIONAL), are disabled. There is no manipulator, no multi-face region and no all-face extrusion; a Thickness of 0 gives a coplanar cap with zero-height walls, and its disclosure in the status line is a later step. PROVISIONAL, with no Maya source: the shelf Extrude button opens the Options window instead of extruding at once, and the disabled Divisions 1, Offset 0, Smoothing angle 30 and Curve Selected rows show display defaults, not documented ones.
 
-Ambiguous coalesced primary releases are refused with an actionable single-click
-retry rather than guessed coordinates/modifiers. This limitation was reproduced
-with an actual Shift click followed by an unmodified drag release in one frame.
-Single-release event-time modifiers and pure Alt navigation are preserved. The
-attempted combined menu activation/key/viewport-click sequence is blocked by the
-pinned popup routing; separate menu+F8 and F11+F8+viewport-click tests do not prove
-that combined journey. Native window, other-platform input and Maya comparison
-remain separate verification requirements. See [selection policy](.project-docs/development.md#face-center-selection).
+When one frame carries several primary releases (egui keeps one click/drag state per frame, so
+the frame cannot say which release owns it), a last release that is a plain click acts alone with
+its own position and modifiers; earlier releases of that frame are superseded (#31). Any other
+coalesced frame (last release a drag or modified click, e.g. a Shift click followed by an
+unmodified drag) is still refused with a single-click retry rather than guessed coordinates or
+modifiers. Single-release event-time modifiers and pure Alt navigation are preserved. The combined
+menu activation, key and viewport click journey is covered by a native test across frames; pressing
+Enter on a menu item and clicking the viewport inside one frame stays intercepted by the popup.
+Real window, other-platform input and Maya comparison remain separate verification requirements.
+See [selection policy](.project-docs/development.md#face-center-selection).
 
 ## Vertex and Edge picking and drawing constants are provisional
 

@@ -4793,6 +4793,55 @@ fn face_native_menu_explicit_face_beats_toggle_and_modal_replacement_drops_inten
 }
 
 #[test]
+fn face_native_menu_key_and_coalesced_click_journey_selects_the_last_plain_click() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.camera =
+        Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let before = editor.history.scene().clone();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let center = face_viewport_rect(&output).center();
+    let select = face_text_position(&output, "Select");
+    let output = face_pointer_click(&mut editor, &ctx, select, egui::Modifiers::NONE, vec![]);
+    let components = face_text_position(&output, "Components");
+    let output = face_pointer_click(&mut editor, &ctx, components, egui::Modifiers::NONE, vec![]);
+    let face = face_text_position(&output, "Face   F11");
+    face_pointer_click(&mut editor, &ctx, face, egui::Modifiers::NONE, vec![]);
+    assert_eq!(editor.selection_mode, SelectionMode::Face);
+    assert!(
+        !egui::Popup::is_any_open(&ctx),
+        "the menu closed on activation"
+    );
+    frame(&mut editor, &ctx, vec![key(Key::F8)]);
+    assert_eq!(editor.selection_mode, SelectionMode::Object);
+    frame(&mut editor, &ctx, vec![key(Key::F11)]);
+    assert_eq!(editor.selection_mode, SelectionMode::Face);
+    frame(&mut editor, &ctx, vec![egui::Event::PointerMoved(center)]);
+    let button = |pressed, modifiers| egui::Event::PointerButton {
+        pos: center,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers,
+    };
+    frame(
+        &mut editor,
+        &ctx,
+        vec![
+            egui::Event::ModifiersChanged(egui::Modifiers::SHIFT),
+            button(true, egui::Modifiers::SHIFT),
+            button(false, egui::Modifiers::SHIFT),
+            egui::Event::ModifiersChanged(egui::Modifiers::NONE),
+            button(true, egui::Modifiers::NONE),
+            button(false, egui::Modifiers::NONE),
+        ],
+    );
+    assert!(!editor.error, "{}", editor.status);
+    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
 fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);

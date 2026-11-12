@@ -230,6 +230,127 @@ fn face_click_does_not_borrow_a_later_drag_release_modifiers() {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Gesture {
+    Click(Modifiers, f32),
+    Drag(Modifiers, f32),
+}
+
+fn gesture_events(gestures: &[Gesture], y: f32) -> Vec<Event> {
+    let mut events = Vec::new();
+    for gesture in gestures {
+        let (modifiers, x, end) = match *gesture {
+            Gesture::Click(modifiers, x) => (modifiers, x, x),
+            Gesture::Drag(modifiers, x) => (modifiers, x, x + 36.0),
+        };
+        events.push(Event::ModifiersChanged(modifiers));
+        events.push(Event::PointerMoved(egui::pos2(x, y)));
+        for (pressed, at) in [(true, x), (false, end)] {
+            if pressed || end != x {
+                events.push(Event::PointerMoved(egui::pos2(at, y)));
+            }
+            events.push(Event::PointerButton {
+                pos: egui::pos2(at, y),
+                button: PointerButton::Primary,
+                pressed,
+                modifiers,
+            });
+        }
+    }
+    events
+}
+
+#[test]
+fn coalesced_primary_releases_decide_per_event_with_exact_modifiers() {
+    use Gesture::{Click, Drag};
+    let (none, shift) = (Modifiers::NONE, Modifiers::SHIFT);
+    type Case = (
+        &'static str,
+        Vec<Gesture>,
+        Option<f32>,
+        Option<SelectionRefusal>,
+    );
+    let cases: [Case; 8] = [
+        (
+            "shift then plain click",
+            vec![Click(shift, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain then plain click",
+            vec![Click(none, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "plain drag then plain click",
+            vec![Drag(none, 20.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+        (
+            "shift click then drag",
+            vec![Click(shift, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain click then drag",
+            vec![Click(none, 40.0), Drag(none, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "plain then shift click",
+            vec![Click(none, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "shift then shift click",
+            vec![Click(shift, 40.0), Click(shift, 60.0)],
+            None,
+            Some(SelectionRefusal::AmbiguousPrimaryInput),
+        ),
+        (
+            "ctrl click then plain click",
+            vec![Click(Modifiers::CTRL, 40.0), Click(none, 60.0)],
+            Some(60.0),
+            None,
+        ),
+    ];
+    for (name, gestures, click_x, refusal) in cases {
+        let context = egui::Context::default();
+        let camera = camera();
+        let start = egui::pos2(gestures_first_x(&gestures), 48.0);
+        capture_frame(
+            &context,
+            &camera,
+            raw(0.0, Modifiers::NONE, vec![Event::PointerMoved(start)]),
+            Rect::EVERYTHING,
+        );
+        let (input, _) = capture_frame(
+            &context,
+            &camera,
+            raw(0.1, Modifiers::NONE, gesture_events(&gestures, 48.0)),
+            Rect::EVERYTHING,
+        );
+        assert_eq!(input.unsupported_selection(), refusal, "{name}");
+        assert_eq!(
+            input.click_points.map(|point| point.x),
+            click_x,
+            "{name}: the click is the last release at its own position"
+        );
+    }
+}
+
+fn gestures_first_x(gestures: &[Gesture]) -> f32 {
+    match gestures[0] {
+        Gesture::Click(_, x) | Gesture::Drag(_, x) => x,
+    }
+}
+
 #[test]
 fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once() {
     let context = egui::Context::default();
