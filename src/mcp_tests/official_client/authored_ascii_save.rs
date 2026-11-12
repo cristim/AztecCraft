@@ -538,3 +538,92 @@ async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
         round_trip(label, edit, expect).await;
     }
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn authored_uncertain_save_is_visible_and_reconciled_through_the_sdk() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let parent = directory.path().join("document");
+    let moved = directory.path().join("moved");
+    std::fs::create_dir(&parent).unwrap();
+    let path = parent.join("new.ma");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_primitive",
+        json!({"primitive":"cube"}),
+    )
+    .await;
+    let relocated = std::cell::Cell::new(false);
+    let guard = || {
+        if !relocated.get()
+            && std::fs::read_dir(&parent).unwrap().any(|entry| {
+                entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(".craft_tmp")
+            })
+        {
+            std::fs::rename(&parent, &moved).unwrap();
+            relocated.set(true);
+        }
+        true
+    };
+    assert!(matches!(
+        editor
+            .apply_operation_guarded(
+                azteccraft::history::ManipulationProvenance::Native,
+                Operation::SaveSceneAs { path: path.clone() },
+                &guard
+            )
+            .unwrap(),
+        OperationReply::SaveUncertain { dirty: true, .. }
+    ));
+    assert!(relocated.get());
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["inspection"]["save_reconciliation_required"],
+        true
+    );
+    assert_eq!(inspected["inspection"]["dirty"], true);
+    let failed = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(failed["error"]["code"], "source_changed");
+    assert!(editor.is_dirty() && editor.inspect(false).unwrap().save_reconciliation_required);
+    std::fs::rename(&moved, &parent).unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let reconciled = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(reconciled["dirty"], false);
+    assert!(!editor.is_dirty());
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["inspection"]["save_reconciliation_required"],
+        false
+    );
+    assert_eq!(inspected["inspection"]["has_file"], true);
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
