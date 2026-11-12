@@ -225,14 +225,6 @@ fn refusals_leave_the_scene_untouched() {
     let selected = target(&scene, node);
     let before = scene.clone();
 
-    let mut pivot = scene.clone();
-    pivot.nodes[0].scale_pivot[2] = Scalar::new(0.25);
-    assert!(matches!(
-        pivot.begin_scale_frame(&selected, ScaleHandle::X, ScaleSpace::Object),
-        Err(NativeError::UnsupportedScale(
-            ScaleUnsupported::SelectedPivot
-        ))
-    ));
     // A rotate pivot does not affect the scale channels.
     let mut rotate_pivot = scene.clone();
     rotate_pivot.nodes[0].rotate_pivot[2] = Scalar::new(0.25);
@@ -371,5 +363,97 @@ fn source_free_scene_with_default_leaves_is_not_refused() {
         scene
             .begin_scale_frame(&target(&scene, node), handle, ScaleSpace::Object)
             .unwrap();
+    }
+}
+
+use glam::DVec3;
+
+fn assert_near(actual: DVec3, expected: DVec3, context: &str) {
+    assert!(
+        (actual - expected).abs().max_element() <= 1e-9 * (1.0 + expected.abs().max_element()),
+        "{context}: {actual} != {expected}"
+    );
+}
+
+/// The world image of SP is the fixed point of the scale stage through the full matrix (rpt,
+/// spt, shear and the parents included). Shear is left out of World space, which refuses it.
+/// A `.mb` carrying rpt, spt or shear does not import until #105: constructor fixtures only.
+#[test]
+fn a_scale_leaves_the_world_image_of_the_scale_pivot_fixed_in_both_spaces() {
+    let cases = [
+        (
+            ScaleSpace::Object,
+            true,
+            [20.0, 35.0, -15.0],
+            [30.0, -20.0, 50.0],
+        ),
+        // World axes align with local axes only for axis-aligned rotations.
+        (ScaleSpace::World, false, [90.0, 0.0, 0.0], [0.0, 0.0, 90.0]),
+    ];
+    for (space, shear, rotation, parent_rotation) in cases {
+        for (name, scene, node) in test_fixtures::pivoted_family(rotation, parent_rotation, shear) {
+            let selected = target(&scene, node);
+            let sp = DVec3::from_array(scene.internal_transform(node).unwrap().scale_pivot_cm);
+            let image = test_fixtures::world_image(&scene, &selected, sp);
+            let probe = DVec3::new(1.5, -2.0, 4.0);
+            let probe_before = test_fixtures::world_image(&scene, &selected, probe);
+            let handle = scene.manipulator_frame(&selected).unwrap().scale_origin_cm;
+            assert_near(handle, image, name);
+            for handle_kind in [
+                ScaleHandle::X,
+                ScaleHandle::Y,
+                ScaleHandle::Z,
+                ScaleHandle::Uniform,
+            ] {
+                let (frame, _) = scene
+                    .begin_scale_frame(&selected, handle_kind, space)
+                    .unwrap();
+                let scaled = frame.scale(handle_kind, 1.75).unwrap();
+                let mut moved = scene.clone();
+                let mut channels = [None; 9];
+                for component in 0..3 {
+                    channels[6 + component] = Some(scaled[component]);
+                }
+                moved.edit_node(node, None, channels).unwrap();
+                let context = format!("{name} {space:?} {handle_kind:?}");
+                assert_near(
+                    test_fixtures::world_image(&moved, &selected, sp),
+                    image,
+                    &context,
+                );
+                assert!(
+                    (test_fixtures::world_image(&moved, &selected, probe) - probe_before).length()
+                        > 1e-3,
+                    "{context}: the scale did nothing"
+                );
+                let index = scene.nodes.iter().position(|n| n.id == node).unwrap();
+                let (was, now) = (&scene.nodes[index], &moved.nodes[index]);
+                for channel in 0..6 {
+                    assert_eq!(
+                        was.channels[channel].value.to_bits(),
+                        now.channels[channel].value.to_bits(),
+                        "{context}"
+                    );
+                }
+                assert_eq!(was.rotate_pivot, now.rotate_pivot, "{context}");
+                assert_eq!(was.scale_pivot, now.scale_pivot, "{context}");
+                assert_eq!(was.extras, now.extras, "{context}");
+            }
+        }
+    }
+}
+
+#[test]
+fn huge_and_signed_zero_scale_pivots_are_accepted() {
+    for value in [1e6, -0.0] {
+        let (mut scene, node) = scaled([2.0, 1.0, 1.0]);
+        scene.nodes[0].scale_pivot = [value; 3].map(Scalar::new);
+        scene.validate().unwrap();
+        let selected = target(&scene, node);
+        assert!(
+            scene
+                .begin_scale_frame(&selected, ScaleHandle::X, ScaleSpace::Object)
+                .is_ok()
+        );
     }
 }

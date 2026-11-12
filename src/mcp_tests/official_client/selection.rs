@@ -243,6 +243,26 @@ pub(super) fn linked_grouped_scene_bytes() -> std::sync::Arc<[u8]> {
     grouped_scene_bytes_with(&group(b"DPLM", &chunk(b"STR ", b"note\0see child\0", 8), 4))
 }
 
+/// Root cubes `keep` and `linked`; a selection record names `linked`, so deleting it is refused.
+pub(super) fn keep_and_linked_roots_scene_bytes() -> std::sync::Arc<[u8]> {
+    use binary_fixture::{chunk, creation, group, mesh_payload, scene};
+    let mut bytes = Vec::new();
+    for name in [&b"keep"[..], &b"linked"[..]] {
+        bytes.extend(group(b"XFRM", &creation(name, None), 4));
+        bytes.extend(group(
+            b"DMSH",
+            &[
+                creation(&[name, b"Shape"].concat(), Some(name)),
+                chunk(b"MESH", &mesh_payload(&[0, 1, 0x6000_0002]), 8),
+            ]
+            .concat(),
+            4,
+        ));
+    }
+    bytes.extend(group(b"DPLM", &chunk(b"STR ", b"note\0see linked\0", 8), 4));
+    scene(&bytes)
+}
+
 pub(super) fn grouped_scene_bytes_with(extra: &[u8]) -> std::sync::Arc<[u8]> {
     use binary_fixture::{chunk, creation, group, mesh_payload, scene, triple};
     scene(

@@ -9,6 +9,7 @@ mod mesh;
 mod move_translation;
 mod rotate_frame;
 mod scale_frame;
+mod session_keys;
 mod session_material;
 mod session_uv;
 mod source;
@@ -19,12 +20,17 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
-pub use manipulator_frame::ManipulatorFrame;
+pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
-pub(crate) use move_translation::ChannelBaseline;
+pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{ChannelLeaf, WorldAxis, WorldMoveFrame, WorldMoveUnsupported};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
+use session_keys::SessionKeys;
+pub use session_keys::{
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
+    MAX_SESSION_KEYS, whole_frame,
+};
 use session_material::SessionMaterials;
 pub use session_material::{
     Lambert, MAX_SESSION_MATERIALS, MaterialChoice, SessionMaterialId, ShadingGroup,
@@ -537,6 +543,17 @@ pub struct TransformTarget {
     pub path: Vec<NativeId>,
 }
 
+/// Private save authority for one authored document, preserved by scene/history clones.
+/// It is metadata, excluded from scene equality, Debug and file serialization.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AuthoredDocumentId(Uuid);
+
+impl AuthoredDocumentId {
+    fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
 #[derive(Clone)]
 pub struct NativeScene {
     nodes: Vec<NativeTransformNode>,
@@ -545,8 +562,11 @@ pub struct NativeScene {
     dag: Vec<DagEdge>,
     units: Units,
     source: Option<SourceRetention>,
+    #[cfg_attr(not(unix), expect(dead_code, reason = "authored saving is Unix-only"))]
+    authored_document_id: AuthoredDocumentId,
     materials: Vec<appearance::MaterialDiffuse>,
     session_materials: SessionMaterials,
+    session_keys: SessionKeys,
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
@@ -579,14 +599,20 @@ pub struct InternalTransform {
 }
 
 impl InternalTransform {
-    /// T + RT in the parent's space: the Move and Rotate pivot, since both refuse a nonzero
-    /// rotate pivot (RP) and `T + RT + RP` is then the same point.
+    /// T + RT in the parent's space: the rotate pivot without RP. Not the Move or Rotate handle
+    /// position, which is `T + RT + RP`.
     pub(crate) fn origin_cm(self) -> DVec3 {
         let translate = DVec3::from_array(self.translation_cm);
         match self.extras {
             Some(extras) => translate + DVec3::from_array(extras.rotate_pivot_translate_cm),
             None => translate,
         }
+    }
+
+    /// T + RT + RP in the parent's space: the Move and Rotate handle position. The one place this
+    /// sum is written, so the manipulator frame and the Move drag axis cannot drift apart.
+    pub(crate) fn pivot_origin_cm(self) -> DVec3 {
+        self.origin_cm() + DVec3::from_array(self.rotate_pivot_cm)
     }
 
     /// R(ro) * RA as a linear map: the node's own axes before shear and scale.
@@ -627,6 +653,7 @@ impl InternalTransform {
     }
 }
 
+// Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
         self.nodes == other.nodes
@@ -637,6 +664,7 @@ impl PartialEq for NativeScene {
             && self.source == other.source
             && self.materials == other.materials
             && self.session_materials == other.session_materials
+            && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
     }
@@ -651,8 +679,10 @@ impl Default for NativeScene {
             dag: Vec::new(),
             units: Units::default(),
             source: None,
+            authored_document_id: AuthoredDocumentId::new(),
             materials: Vec::new(),
             session_materials: SessionMaterials::default(),
+            session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
             next_id: 1,
@@ -662,6 +692,11 @@ impl Default for NativeScene {
 }
 
 impl NativeScene {
+    /// Save authority is available only for a scene authored without a parsed source.
+    #[cfg(unix)]
+    pub(crate) fn authored_document_id(&self) -> Option<AuthoredDocumentId> {
+        self.source.is_none().then_some(self.authored_document_id)
+    }
     #[cfg(any(unix, windows))]
     pub(crate) fn has_binary_source(&self, bytes: &std::sync::Arc<[u8]>) -> bool {
         self.source.as_ref().is_some_and(|source| {
@@ -1039,6 +1074,46 @@ impl NativeScene {
         *self = snapshot;
     }
 
+    /// Test seam: gives `node` rotate and scale pivots, which no operation can yet (slice B of #39).
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_pivots_for_test(
+        &mut self,
+        node: NodeId,
+        rotate: [f64; 3],
+        scale: [f64; 3],
+    ) -> Result<(), NativeError> {
+        let index = self.nodes.iter().position(|n| n.id == node);
+        let index = index.ok_or(SceneError::MissingNode(node))?;
+        self.nodes[index].rotate_pivot = rotate.map(Scalar::new);
+        self.nodes[index].scale_pivot = scale.map(Scalar::new);
+        self.validate()
+    }
+
+    /// Test seam for protocol tests, which cannot reach `test_fixtures`: gives `child` exactly the
+    /// listed `parents` (several make it instanced), replacing its current parents.
+    #[cfg(feature = "mcp-test-client")]
+    #[doc(hidden)]
+    pub fn set_parents_for_test(
+        &mut self,
+        child: NodeId,
+        parents: &[NodeId],
+    ) -> Result<(), NativeError> {
+        let child = self.node(child)?.transform_id;
+        let parents = parents
+            .iter()
+            .map(|id| self.node(*id).map(|node| node.transform_id))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.dag.retain(|edge| edge.child != child);
+        for parent in parents {
+            self.dag.push(DagEdge {
+                parent: Some(parent),
+                child,
+            });
+        }
+        self.validate()
+    }
+
     pub fn create(&mut self, primitive: Primitive, name: &str) -> Result<NodeId, NativeError> {
         self.create_with_options(primitive, &PrimitiveOptions::default_for(primitive), name)
     }
@@ -1162,6 +1237,10 @@ impl NativeScene {
     fn editable(&self, id: NodeId) -> Result<usize, NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
+        self.editable_node(id)
+    }
+    /// The per-node half of `editable`, for a caller that checked the scene once for a set.
+    fn editable_node(&self, id: NodeId) -> Result<usize, NativeError> {
         let index = self
             .nodes
             .iter()
@@ -1328,7 +1407,9 @@ impl NativeScene {
     }
     /// Removes every listed node with its whole subtree after one preflight and one validation; a
     /// repeated id, or an id inside another listed node's subtree, is removed once. The whole
-    /// set is checked before anything changes, so a refusal leaves the scene as it was.
+    /// set is checked before anything changes, so a refusal leaves the scene as it was. When
+    /// several distinct nodes are listed, a refusal that exactly one of them explains (see
+    /// `name_refusing_member`) names that node.
     pub fn remove_many(&mut self, ids: &[NodeId]) -> Result<(), NativeError> {
         self.authoring_preflight()?;
         self.validate()?;
@@ -1337,8 +1418,73 @@ impl NativeScene {
         if unique.is_empty() {
             return Ok(());
         }
-        let gone = self.removal_subtree(&unique)?;
-        self.remove_set(gone)
+        let result = self
+            .removal_subtree(&unique)
+            .and_then(|gone| self.remove_set(gone));
+        match result {
+            Err(reason) if unique.len() > 1 => Err(self.name_refusing_member(&unique, reason)),
+            other => other,
+        }
+    }
+    /// `combined` tagged with the name of the one member that explains it: alone it fails with
+    /// exactly `combined`, and the set without it is accepted. When no member, or more than one,
+    /// qualifies, `combined` comes back unchanged. Refusal path only. Candidates are tried one at a
+    /// time in a single reused id buffer against one decode of the source, and the search stops at
+    /// the second qualifier, so memory stays O(N) and the checks number N plus one per member
+    /// that fails alone with `combined`.
+    fn name_refusing_member(&self, ids: &[NodeId], combined: NativeError) -> NativeError {
+        // A pending insertion on a node outside the set blocks every subset too, so no member can
+        // explain it.
+        if combined
+            == NativeError::UnsupportedDelete(DeleteUnsupported::Source(
+                binary::RemovalRefusal::PendingInsertion,
+            ))
+        {
+            return combined;
+        }
+        #[cfg(test)]
+        attribution_probe::buffer();
+        let mut candidate: Vec<NodeId> = Vec::with_capacity(ids.len());
+        let found = self.with_source_removal_checker(|source_check| {
+            let verdict = |set: &[NodeId]| {
+                #[cfg(test)]
+                attribution_probe::checked(1);
+                let gone = self.removal_subtree(set)?;
+                if self.source.is_some() {
+                    source_check(&gone)?;
+                }
+                Ok(())
+            };
+            let mut explaining = None;
+            for (at, id) in ids.iter().enumerate() {
+                candidate.clear();
+                candidate.push(*id);
+                if verdict(&candidate) != Err(combined.clone()) {
+                    continue;
+                }
+                candidate.clear();
+                candidate.extend(
+                    ids.iter()
+                        .enumerate()
+                        .filter(|(i, _)| *i != at)
+                        .map(|(_, id)| *id),
+                );
+                if verdict(&candidate).is_err() {
+                    continue;
+                }
+                if explaining.replace(at).is_some() {
+                    return None;
+                }
+            }
+            explaining
+        });
+        match found.map(|at| self.node(ids[at])) {
+            Some(Ok(node)) => NativeError::DeleteMemberRefused {
+                node: refusal_name(node.name()),
+                reason: Box::new(combined),
+            },
+            _ => combined,
+        }
     }
     fn remove_validated(&mut self, id: NodeId) -> Result<(), NativeError> {
         let gone = self.removal_subtree(&[id])?;
@@ -1472,6 +1618,40 @@ impl NativeScene {
             }
             self.validate_new_name(Some(id), name)?;
         }
+        let replacement = self.replacement_channels(index, channels)?;
+        self.nodes[index].channels = replacement;
+        if let Some(name) = name {
+            self.set_transform_name(index, name);
+        }
+        Ok(())
+    }
+    /// Applies several channel edits as one batch after a single preflight and validation, like
+    /// `remove_many`. A repeated id is refused. The first refusal is returned unchanged and earlier
+    /// edits stay applied, so callers run it on a candidate clone, as `History::execute` does.
+    pub fn edit_nodes(&mut self, edits: &[(NodeId, [Option<f64>; 9])]) -> Result<(), NativeError> {
+        if edits
+            .iter()
+            .any(|(_, channels)| channels.iter().flatten().any(|value| !value.is_finite()))
+        {
+            return Err(NativeError::NonFinite);
+        }
+        let mut seen = std::collections::HashSet::new();
+        if !edits.iter().all(|(id, _)| seen.insert(*id)) {
+            return Err(SceneError::InvalidIds.into());
+        }
+        self.authoring_preflight()?;
+        self.validate()?;
+        for (id, channels) in edits {
+            let index = self.editable_node(*id)?;
+            self.nodes[index].channels = self.replacement_channels(index, *channels)?;
+        }
+        Ok(())
+    }
+    fn replacement_channels(
+        &self,
+        index: usize,
+        channels: [Option<f64>; 9],
+    ) -> Result<[Scalar; 9], NativeError> {
         let node = &self.nodes[index];
         let mut replacement = node.channels.clone();
         for (slot, value) in channels.into_iter().enumerate() {
@@ -1491,11 +1671,7 @@ impl NativeScene {
                 )?;
             }
         }
-        self.nodes[index].channels = replacement;
-        if let Some(name) = name {
-            self.set_transform_name(index, name);
-        }
-        Ok(())
+        Ok(replacement)
     }
     pub fn extrude_face(
         &mut self,
@@ -1519,6 +1695,9 @@ impl NativeScene {
         Ok(())
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
+        if !self.session_keys.is_empty() {
+            return Err(NativeError::UnsupportedView("session keys"));
+        }
         if !self.session_uvs.is_empty() {
             return Err(NativeError::UnsupportedView("session UVs"));
         }
@@ -1560,6 +1739,8 @@ impl NativeScene {
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
+        self.session_keys
+            .validate(&self.nodes, self.source.is_some())?;
         self.session_uvs
             .validate(&self.shapes, self.source.is_some())?;
         #[cfg(test)]
@@ -1864,6 +2045,21 @@ impl fmt::Display for DeleteUnsupported {
     }
 }
 
+const MAX_REFUSAL_NAME_BYTES: usize = 256;
+
+/// A node name for one line of refusal text. Opened names are unbounded, so it drops control
+/// characters and stops at `MAX_REFUSAL_NAME_BYTES`, on a character boundary.
+fn refusal_name(name: &str) -> String {
+    let mut bounded = String::new();
+    for character in name.chars().filter(|character| !character.is_control()) {
+        if bounded.len() + character.len_utf8() > MAX_REFUSAL_NAME_BYTES {
+            break;
+        }
+        bounded.push(character);
+    }
+    bounded
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NativeError {
     Legacy(SceneError),
@@ -1881,6 +2077,11 @@ pub enum NativeError {
     NameCollision,
     UnsupportedEdit,
     UnsupportedDelete(DeleteUnsupported),
+    /// One node of a delete of several refused; `reason` is that node's own refusal.
+    DeleteMemberRefused {
+        node: String,
+        reason: Box<NativeError>,
+    },
     /// A value the opened Maya Binary lacks cannot be edited once a node has been deleted.
     InsertionAfterDelete,
     ReadOnlyFormat,
@@ -1888,6 +2089,11 @@ pub enum NativeError {
     SessionColorOutOfRange,
     InitialSessionMaterialLocked,
     InvalidSessionMaterials,
+    InvalidSessionKeys,
+    InvalidFrame,
+    InvalidPlaybackRange,
+    KeyLimit,
+    UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
     UnsupportedUvTopology,
@@ -1937,6 +2143,7 @@ impl fmt::Display for NativeError {
                 f.write_str("native ownership or edit effects are unsupported")
             }
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
+            Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
                 "This value is missing from the opened file and cannot be edited after a delete; undo the delete first",
             ),
@@ -1952,6 +2159,24 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionMaterials => {
                 f.write_str("invalid session material table references")
+            }
+            Self::InvalidSessionKeys => f.write_str("invalid session key table"),
+            Self::InvalidFrame => write!(
+                f,
+                "a time must be a whole frame from {} through {}",
+                -session_keys::MAX_FRAME,
+                session_keys::MAX_FRAME
+            ),
+            Self::InvalidPlaybackRange => {
+                f.write_str("the playback start must not be after its end")
+            }
+            Self::KeyLimit => write!(
+                f,
+                "the scene holds the most keys allowed ({})",
+                session_keys::MAX_SESSION_KEYS
+            ),
+            Self::UnsupportedTimeUnit => {
+                f.write_str("only the film (24 fps) time unit is supported")
             }
             Self::InvalidSessionUvs => f.write_str("invalid session UV table"),
             Self::DegenerateUvProjection => f.write_str(
@@ -1977,6 +2202,37 @@ impl fmt::Display for NativeError {
     }
 }
 impl std::error::Error for NativeError {}
+
+/// Counters for `name_refusing_member`, so tests pin its cost without timing (#336).
+#[cfg(test)]
+pub(crate) mod attribution_probe {
+    use std::cell::Cell;
+    std::thread_local! {
+        static DECODES: Cell<usize> = const { Cell::new(0) };
+        static CHECKS: Cell<usize> = const { Cell::new(0) };
+        static BUFFERS: Cell<usize> = const { Cell::new(0) };
+    }
+    pub(crate) fn reset() {
+        for cell in [&DECODES, &CHECKS, &BUFFERS] {
+            cell.with(|c| c.set(0));
+        }
+    }
+    pub(crate) fn decoded() {
+        DECODES.with(|c| c.set(c.get() + 1));
+    }
+    pub(crate) fn checked(count: usize) {
+        CHECKS.with(|c| c.set(c.get() + count));
+    }
+    /// One candidate id buffer allocated.
+    pub(crate) fn buffer() {
+        BUFFERS.with(|c| c.set(c.get() + 1));
+    }
+    /// `(source decodes, candidate checks, candidate id buffers allocated)`.
+    pub(crate) fn counts() -> (usize, usize, usize) {
+        let get = |cell: &'static std::thread::LocalKey<Cell<usize>>| cell.with(Cell::get);
+        (get(&DECODES), get(&CHECKS), get(&BUFFERS))
+    }
+}
 
 #[cfg(test)]
 mod tests;

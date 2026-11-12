@@ -229,20 +229,23 @@ fn with_material(assign: bool) -> NativeScene {
 }
 
 #[test]
-fn a_shape_assigned_a_non_initial_shading_group_is_refused() {
+fn a_shape_assigned_a_created_material_is_refused() {
     assert_eq!(
         encode_authored(&with_material(true)),
-        Err(AuthoredBinaryRefusal::MaterialAssigned)
+        Err(AuthoredBinaryRefusal::SessionMaterials)
     );
 }
 
 #[test]
-fn a_created_but_unassigned_material_does_not_refuse() {
-    encode_authored(&with_material(false)).unwrap();
+fn a_created_but_unassigned_material_is_refused() {
+    assert_eq!(
+        encode_authored(&with_material(false)),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
 }
 
 #[test]
-fn reassigning_back_to_the_initial_group_does_not_refuse() {
+fn reassigning_back_to_the_initial_group_still_refuses_while_the_material_exists() {
     use crate::native_scene::MaterialChoice;
     let mut scene = with_material(true);
     let shape = scene.shapes()[0].id();
@@ -253,5 +256,68 @@ fn reassigning_back_to_the_initial_group_does_not_refuse() {
     scene
         .assign_session_material(shape, MaterialChoice::Existing(default))
         .unwrap();
-    encode_authored(&scene).unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
+}
+
+#[test]
+fn deleting_the_assigned_shape_leaves_the_material_and_still_refuses() {
+    let mut scene = with_material(true);
+    let transform = scene.nodes()[0].id();
+    scene.remove(transform).unwrap();
+    assert!(scene.shapes().is_empty());
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::SessionMaterials)
+    );
+}
+
+#[test]
+fn a_diffuse_table_without_a_source_is_refused_as_an_invalid_scene() {
+    let mut scene = meshed(&[Primitive::Cube]);
+    scene
+        .materials
+        .push(crate::native_scene::appearance::MaterialDiffuse {
+            binding: 0,
+            value: 0.5,
+            replaced: true,
+        });
+    assert!(matches!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::InvalidScene(_)
+        ))
+    ));
+}
+
+#[test]
+fn session_keys_are_refused_rather_than_dropped() {
+    let mut scene = NativeScene::default();
+    let id = scene.create(crate::scene::Primitive::Cube, "a").unwrap();
+    scene
+        .set_keys(&[id], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    assert_eq!(
+        encode_authored(&scene),
+        Err(AuthoredBinaryRefusal::Ineligible(AuthoredIneligible::Keys))
+    );
+}
+
+/// Slice A has no operation that gives an authored node a pivot; slice B (#39) owns writing
+/// one. A pivot built by a test constructor is refused, never silently dropped.
+#[test]
+fn a_pivoted_authored_scene_is_refused_with_non_default_pivot() {
+    for (scene, _) in [
+        crate::native_scene::test_fixtures::pivoted_shape(),
+        crate::native_scene::test_fixtures::pivoted_extras_shape(),
+    ] {
+        assert!(matches!(
+            encode_authored(&scene),
+            Err(AuthoredBinaryRefusal::Ineligible(
+                crate::native_scene::authored::AuthoredIneligible::NonDefaultPivot
+            ))
+        ));
+    }
 }

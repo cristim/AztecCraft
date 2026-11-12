@@ -4,7 +4,11 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
-use azteccraft::{history::ManipulationError, native_scene::NativeError, scene::SceneError};
+use azteccraft::{
+    history::ManipulationError,
+    native_scene::{NativeError, WorldMoveUnsupported},
+    scene::SceneError,
+};
 use rmcp::{
     RoleServer, ServerHandler,
     model::{
@@ -34,6 +38,26 @@ impl EditorServer {
     }
 }
 
+/// The code of a manipulation error; a refused member of a multi-object Move has the code of its
+/// cause, so the same refusal reads the same for one object and for several.
+fn manipulation_code(error: &ManipulationError) -> &'static str {
+    match error {
+        ManipulationError::StaleScene => "stale_scene",
+        ManipulationError::StaleManipulation => "stale_manipulation",
+        ManipulationError::WrongOwner => "manipulation_owner",
+        ManipulationError::Busy => "busy_manipulation",
+        ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => "absent_channel_leaf",
+        ManipulationError::Member { source, .. } => match source.as_ref() {
+            NativeError::AbsentChannelLeaf { .. } => "absent_channel_leaf",
+            NativeError::UnsupportedMove(WorldMoveUnsupported::AlternatePathAncestor) => {
+                "alternate_path_ancestor"
+            }
+            _ => "manipulation_error",
+        },
+        _ => "manipulation_error",
+    }
+}
+
 fn tool_error(code: &str, message: impl ToString) -> CallToolResult {
     CallToolResult::structured_error(
         json!({ "error": { "code": code, "message": message.to_string() } }),
@@ -57,18 +81,14 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
             let code = match &error {
                 OperationError::BusyEditing => "busy_editing",
                 OperationError::BusyManipulation => "busy_manipulation",
-                OperationError::Move(error) => match error {
-                    ManipulationError::StaleScene => "stale_scene",
-                    ManipulationError::StaleManipulation => "stale_manipulation",
-                    ManipulationError::WrongOwner => "manipulation_owner",
-                    ManipulationError::Busy => "busy_manipulation",
-                    ManipulationError::Native(NativeError::AbsentChannelLeaf { .. }) => {
-                        "absent_channel_leaf"
-                    }
-                    _ => "manipulation_error",
-                },
+                OperationError::Move(error) => manipulation_code(error),
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
+                OperationError::Keys(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -83,6 +103,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 },
                 OperationError::NoSelection => "no_selection",
                 OperationError::MultipleSelection => "multiple_selection",
+                OperationError::StaleSelection { .. } => "stale_selection",
                 OperationError::NothingToFrame => "nothing_to_frame",
                 OperationError::InvalidInput(_) => "invalid_input",
                 OperationError::Scene(NativeError::AbsentChannelLeaf { .. }) => {
@@ -92,6 +113,17 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
+                OperationError::Scene(NativeError::InvalidPlaybackRange) => {
+                    "invalid_playback_range"
+                }
+                OperationError::Scene(NativeError::KeyLimit) => "key_limit",
+                OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
+                OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
+                    if matches!(**reason, NativeError::UnsupportedDelete(_)) =>
+                {
+                    "unsupported_delete"
+                }
                 OperationError::Scene(NativeError::DegenerateUvProjection) => {
                     "degenerate_uv_projection"
                 }
@@ -107,6 +139,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::View(_) => "view_error",
                 OperationError::NativeSave(error) => match error {
                     azteccraft::document::NativeSaveError::Unsupported => "save_unsupported",
+                    azteccraft::document::NativeSaveError::NoDestination => "save_needs_path",
                     azteccraft::document::NativeSaveError::InvalidDestination => {
                         "invalid_destination"
                     }
@@ -117,6 +150,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     azteccraft::document::NativeSaveError::Cancelled => "save_cancelled",
                     azteccraft::document::NativeSaveError::Io(_) => "save_io",
                     azteccraft::document::NativeSaveError::Encode(_) => "save_encode",
+                    #[cfg(unix)]
+                    azteccraft::document::NativeSaveError::AsciiWrite(_) => "save_ascii_write",
+                    azteccraft::document::NativeSaveError::Unwritable(_) => "save_unwritable",
                 },
                 OperationError::ObjExport(error) => match error {
                     crate::editor_operations::ObjExportError::DestinationExists => {
@@ -246,6 +282,27 @@ mod tests {
     use azteccraft::native_scene::{RotateAxis, ScaleHandle};
     use rmcp::model::{ErrorCode, JsonObject};
     use uuid::Uuid;
+
+    #[test]
+    fn a_refused_member_keeps_the_code_of_its_cause() {
+        let member = |source| ManipulationError::Member {
+            name: "b".into(),
+            source: Box::new(source),
+        };
+        let code = |source| {
+            let result = tool_reply(Err(OperationError::Move(member(source))));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        assert_eq!(
+            code(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::AlternatePathAncestor
+            )),
+            "alternate_path_ancestor"
+        );
+    }
 
     #[test]
     fn file_errors_withhold_private_paths_and_keep_the_code() {
@@ -636,7 +693,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_uvs"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -664,6 +721,9 @@ mod tests {
                     json!({"scene_token":token,"change":"toggle","node_id":"1"})
                 }
                 "select_by_rule" => json!({"scene_token":token,"rule":"all"}),
+                "select_in_rect" => {
+                    json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1]}})
+                }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})
@@ -683,6 +743,10 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "set_current_time" => json!({"scene_token":token,"time":1}),
+                "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
+                "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
+                "inspect_keys" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
@@ -798,6 +862,11 @@ mod tests {
                     | "set_selection_mode"
                     | "select_face"
                     | "set_session_material_color"
+                    | "set_current_time"
+                    | "delete_keys"
+                    | "set_playback_range"
+                    | "play_timeline"
+                    | "stop_timeline"
                     | "project_uv_planar"
                     | "delete_uvs"
                     | "select_vertex"

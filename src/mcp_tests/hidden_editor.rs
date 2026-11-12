@@ -140,6 +140,7 @@ fn remote_numeric_move_survives_successive_actual_hidden_editor_callbacks() {
             operation: Operation::BeginMove {
                 target,
                 axis: WorldAxis::X,
+                expected_selection_generation: None,
             },
         })
         .unwrap();

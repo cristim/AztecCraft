@@ -1,6 +1,6 @@
 use super::{NativeSaveError as Error, SaveDestination, SaveOutcome, SaveReceipt};
 use crate::{
-    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, SourceBaseline},
+    document::{LinkStatus, MAX_DOCUMENT_BYTES, NativeOrigin, Retention, SourceBaseline},
     native_scene::{NativeScene, binary},
 };
 use craft_atomic::{AtomicFs, NewFilePermissions, RenameRetry, WriteOptions};
@@ -326,9 +326,9 @@ impl Transaction<'_> {
     fn fail(&self, error: Error) -> io::Error {
         let mut state = self.state.borrow_mut();
         if state.installed.is_some() {
-            state.post_error = Some(error);
+            state.post_error = Some(error.clone());
         } else {
-            state.failure = Some(error);
+            state.failure = Some(error.clone());
         }
         if error == Error::Io(io::ErrorKind::ResourceBusy) {
             // Keep the raw code so the engine's rename retry still treats it as transient.
@@ -417,7 +417,7 @@ impl Transaction<'_> {
         };
         let state = self.state.borrow();
         let Some(file) = state.installed.as_ref() else {
-            return Err(state.failure.unwrap_or_else(|| {
+            return Err(state.failure.clone().unwrap_or_else(|| {
                 result
                     .err()
                     .map(io_error)
@@ -432,6 +432,7 @@ impl Transaction<'_> {
         };
         let cause = state
             .post_error
+            .clone()
             .or_else(|| result.err().map(io_error))
             .or_else(|| (!state.synced).then_some(Error::Io(io::ErrorKind::Other)));
         drop(state);
@@ -451,7 +452,12 @@ impl AtomicFs for Transaction<'_> {
     }
     fn create_new(&self, path: &Path, _: NewFilePermissions) -> io::Result<File> {
         let leaf = self.destination.stage_leaf(path).map_err(|_| {
-            let error = self.state.borrow().failure.unwrap_or(Error::Unsupported);
+            let error = self
+                .state
+                .borrow()
+                .failure
+                .clone()
+                .unwrap_or(Error::Unsupported);
             self.fail(error)
         })?;
         if let Some(baseline) = self.baseline {
@@ -539,7 +545,9 @@ impl Receipt {
         self.destination.verify(&self.file, &self.bytes)?;
         let baseline = SourceBaseline {
             bytes: self.bytes.clone(),
-            parse_bytes: self.parse_bytes.clone(),
+            retention: Retention::Source {
+                parse_bytes: self.parse_bytes.clone(),
+            },
             metadata: self.file.metadata().map_err(io_error)?,
             link: LinkStatus::Direct,
             file: self.file.clone(),
@@ -563,7 +571,10 @@ fn prepare<'a>(
     let NativeOrigin::Binary(source) = origin else {
         return Err(Error::Unsupported);
     };
-    if !scene.has_binary_source(&source.parse_bytes) {
+    let Retention::Source { parse_bytes } = &source.retention else {
+        return Err(Error::SourceChanged);
+    };
+    if !scene.has_binary_source(parse_bytes) {
         return Err(Error::SourceChanged);
     }
     let (destination, baseline) = match destination {
@@ -603,7 +614,7 @@ fn prepare<'a>(
         destination,
         baseline,
         bytes,
-        parse_bytes: source.parse_bytes.clone(),
+        parse_bytes: parse_bytes.clone(),
         may_install,
         state: RefCell::new(State::default()),
     })

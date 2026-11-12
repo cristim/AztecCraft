@@ -156,7 +156,7 @@
     "remembered_vertex": null,
     "retained_source_bytes": 0,
     "retained_source_records": 0,
-    "save_as_available": false,
+    "save_as_available": true,
     "save_available": false,
     "save_reconciliation_required": false,
     "scene_token": "<uuid>",
@@ -173,6 +173,7 @@
       }
     ],
     "selection_count": 1,
+    "selection_generation": 2,
     "selection_mode": "object",
     "session_materials": [
       {
@@ -247,6 +248,15 @@
     },
     "status_message": "Scene edited",
     "text_focused": false,
+    "timeline": {
+      "current_time": 1,
+      "frames_per_second": 24.0,
+      "key_count": 0,
+      "loop": "continuous",
+      "playback_end": 48,
+      "playback_start": 1,
+      "playing": false
+    },
     "undo_label": "Create",
     "units": {
       "angular": "deg",

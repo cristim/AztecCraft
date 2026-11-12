@@ -138,8 +138,8 @@ topology. A mesh with only one face, such as the legacy Scene plane or a
 its Maya default behavior needs a pinned fixture. Undefined normals, invalid
 indices/distances and coordinate overflow
 leave the scene/history unchanged. World/region extrusion, divisions, taper,
-offset, UVs/normals, construction-history nodes and native Extrude controls remain
-pending. Tests establish this subset's geometry, not Maya parity.
+offset, UVs/normals, construction-history nodes, the Extrude manipulator and multi-face Extrude remain
+pending (the shelf button and Options window extrude one picked face by Thickness). Tests establish this subset's geometry, not Maya parity.
 
 `examples/extruded-cube.aztec` was generated through cube creation and two
 History extrusion commands: front face 1 by +0.5, then its right side face 7 by
@@ -147,6 +147,26 @@ History extrusion commands: front face 1 by +0.5, then its right side face 7 by
 verify undo/redo, save/reload, reflected OBJ cap/side geometry and picking outside
 the original cube. File → Open provides a native inspection path; it does not
 add native face-editing controls or prove Maya equivalence.
+
+## Marquee selection
+
+Dragging with the primary button in the viewport (Select, Move, Rotate and Scale tools, wherever a
+click would select) draws a rubber band and, on release, dispatches `Operation::SelectInRect`. The
+operation is shared with MCP [`select_in_rect`](mcp.md#tools-and-state): an NDC rectangle (x right,
+y up, within -1 to 1) and a mode (Replace, Add, Remove, Toggle). Object and Hierarchy modes only;
+Face, Vertex and Edge modes refuse (`invalid_input`) and a native drag shows "Marquee selection in
+Face/Vertex/Edge mode is not implemented yet (#30)". An instance is hit when any visible-mesh
+triangle, clipped to the camera depth range, touches the rectangle (policy rows 34 to 38). Hidden
+instances and curves cannot be marquee-selected, as they cannot be clicked. The aspect is the last
+painted one.
+
+PROVISIONAL, pinned by `marquee_selects_an_occluded_object_in_every_shading_mode`: objects occluded by another object inside the
+rectangle are selected in every shading mode. Maya documents camera-based selection (on in Shaded,
+off in Wireframe and X-Ray) for components only ([Select objects or components][maya-select-obj], Modeling
+Toolkit selection options), so this is believed to match Maya's object marquee and is not a gap for
+objects; the occlusion filter belongs to the component marquee slice.
+Hardware Ctrl-drag on macOS arrives as a secondary-button drag and never reaches this path;
+Command-drag is the native route (same as the click, #166).
 
 ## Face Center selection
 
@@ -186,14 +206,14 @@ clipped; no face returns an error instead of framing the object. In Object and H
 modes F frames the selected parents only and Ctrl+F includes their descendants. Existing native
 valid-draft commitment and remote draft-refusal rules remain in force.
 
-Shift/Ctrl component selection, marquee, multiple faces, other component masks, preselection
+Shift/Ctrl component selection, component marquee (object marquee: see Marquee selection), multiple faces, other component masks, preselection
 hover and marking menus are unsupported. Ambiguous coalesced primary-release
 frames refuse selection with a single-click retry message; they do not guess an
 event owner or commit a draft solely for that refusal. Alt camera navigation
 remains on its established route. Delete refuses the whole object under any
 component mode (Face, Vertex or Edge), natively and over MCP, with the same
 shared guard; return to Object or Hierarchy selection to delete the object.
-Native Extrude stays disabled pending real history/manipulator behavior.
+Native Extrude of one picked face is available from the shelf button; the manipulator workflow is still missing.
 
 Focused actual framebuffer proofs can be selected with `cargo test --locked
 --bin azteccraft headless_gpu_face_ -- --ignored --test-threads=1`. CPU event,
@@ -350,12 +370,18 @@ Sources:
 | 31 | Move centre exclusion | 10 px around the origin is not an axis pick | `src/move_handles.rs` `CENTER_EXCLUSION` | provisional | Not documented. | `front_axes_share_exact_physical_drawing_and_hit_geometry` |
 | 32 | Selection cap | 4096 selected objects | `src/selection.rs` via `MAX_TRANSFORM_PATHS` | provisional | Not documented; reuses the transform-path cap. | `selection_cap_is_the_transform_path_cap`, `add_past_the_cap_is_an_error_and_does_not_mutate` |
 | 33 | Selection colours | member tint (107, 137, 157) and edge (242, 163, 70); lead tint (117, 167, 117) and edge (140, 240, 140) while more than one object is selected; a lone selection uses the member colours | `src/viewport_renderer.rs` `SELECTION_TINT_RGB`, `SELECTED_EDGE_RGB_OBJECT`, `LEAD_TINT_RGB`, `LEAD_EDGE_RGB` | provisional | Maya's "Select objects or components" page says the last selected object is drawn in a different colour; it gives no colour values, and what a lone selection looks like is not stated. Ours are original values. | `selection_colours_are_pinned`, `members_are_tinted_the_lead_differs_and_unselected_is_untouched`, `single_selection_pixels_are_unchanged` |
+| 34 | Marquee modifiers | plain drag Replace, Shift Toggle, Ctrl or Command Remove, Shift+Ctrl or Shift+Command Add; read from the primary release event | `src/app/features/marquee.rs` `marquee_mode` | provisional | The Marquee page is silent on Shift; both documented neighbours toggle (Shift-click, and Drag-style Shift over selected items). Ctrl removes and Shift+Ctrl adds are documented for either style. | `marquee_mode_maps_the_modifiers`, `marquee_drags_replace_add_remove_and_toggle_by_modifier_without_history_entries` |
+| 35 | Marquee hit rule and depth | any overlap of a visible mesh triangle with the closed rectangle selects its instance; no backface culling and no occlusion filter (objects only); a zero-area rectangle picks like a click (nearest hit) | `src/viewport/rect_pick.rs` `Camera::pick_rect`, `src/app/features/marquee.rs` | provisional | The Selection styles page does not say whether partly covered objects are selected. Maya's camera-based selection (on in Shaded, off in Wireframe and X-Ray) is documented for components, so objects behind others are selected on purpose; the component slice will add it. | `backfacing_and_mirrored_surfaces_are_selected_without_culling`, `marquee_selects_an_occluded_object_in_every_shading_mode`, `a_point_marquee_selects_only_the_nearest_object_like_a_click` |
+| 36 | Marquee result order and lead | hits in instance order; Replace sets the members to the hits and the last hit leads; Add and Toggle append absent hits and the last appended leads; a Replace with the same members and order is `unchanged` | `src/app/features/marquee.rs` `select_in_rect`, `src/selection.rs` | provisional | Docs are silent on order and key object for a marquee. | `marquee_lead_is_the_last_hit_in_instance_order`, `replace_with_identical_members_keeps_generation`, `move_after_marquee_uses_the_last_hit_as_pivot` |
+| 37 | Marquee drag capture | the end clamps to the viewport (a release over another panel still selects); a drag back to its start is a point rectangle; Alt or any Orbit during the drag means no marquee; Esc during the drag cancels it | `src/viewport_ui.rs` `capture` | provisional | Docs are silent on all four. egui, not us, decides click versus drag. | `a_release_outside_the_viewport_clamps_the_end_to_its_edge`, `returning_to_the_start_is_a_zero_area_rect_at_that_point`, `escape_mid_drag_cancels_the_marquee_and_removes_the_band` |
+| 38 | Marquee rubber band | 1 px outline (170, 205, 255) and fill (120, 170, 255) at alpha 28, inside the viewport, Object and Hierarchy modes only | `src/app/panels.rs` | provisional | Our own values; Maya's marquee colours are not documented. | `the_preview_band_exists_only_while_dragging_and_stays_inside_the_viewport` pins the rectangle, not the colours |
 
-Tally: 33 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 38 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
 
+[maya-select-obj]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5C5F2B9B-BE16-4C49-B72B-70EA7CB4C688.htm
 [maya-manip]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8740471F-BD72-4BDC-87B4-4DE870AD51E5.htm
 [maya-resize]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-09DEFD6A-E8F9-4606-9D81-1CD45E01B59A.htm
 [maya-undo]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-DD494155-AC94-4C48-8A36-58267FECBB0A.htm
@@ -527,6 +553,11 @@ suite remains part of the explicit `headless_gpu` command above. Native clicks,
 window resize, file retention and the eventual Face integration need their own
 exact-build evidence; a passing adapter test does not supply it.
 
+The MCP test harness fails a protocol call that takes longer than 2 seconds.
+Set `AZTECCRAFT_MCP_TEST_DEADLINE_MS` (whole milliseconds, 1 to 600000) to
+lengthen it on slow machines; CI sets 15000. An invalid value panics at test
+setup naming the variable. Keep the local default so a real hang fails fast.
+
 An empty mesh is unpickable; framing it returns an error and preserves the camera.
 Unused vertices are retained by native documents and OBJ export. Structural
 validation preserves degenerate geometry; those states don't establish drawable
@@ -668,7 +699,7 @@ release; renderer submission uses the same captured physical aspect.
 
 Only object translation is implemented. Plane/center handles, components,
 rotation/scale manipulation, snapping and alternate orientations remain
-unsupported. Missing source translation leaves, selected pivots, driven data and
+unsupported. Missing source translation leaves, driven data and
 unstable or unrepresentable transforms refuse editing. Pixel sizes, ray thresholds
 and last-valid release behavior are provisional application policies (rows 14 to 16
 and 22 to 23 of the [policy constants table](#application-policy-constants)).

@@ -9,9 +9,9 @@ use crate::{
         container::{Chunk, Container},
         semantic::{Data, WireFacts},
     },
-    native_scene::{NativeScene, appearance::*},
+    native_scene::{NativeId, NativeScene, appearance::*},
 };
-use std::{mem::size_of, ops::Range, sync::Arc};
+use std::{collections::HashMap, mem::size_of, ops::Range, sync::Arc};
 
 #[cfg(test)]
 mod tests;
@@ -366,8 +366,7 @@ fn check_owner_child(
 
 fn preflight(
     graph: &Graph<'_>,
-    bindings: &[Binding],
-    scene: &NativeScene,
+    faces_of: &FaceCounts,
     meter: &mut Meter<'_>,
 ) -> Result<(), BinaryError> {
     for (owner, record) in graph.facts.records.iter().enumerate() {
@@ -381,24 +380,8 @@ fn preflight(
             continue;
         }
         let faces = if owner_form == Some(*b"DMSH") {
-            meter.step(
-                bindings
-                    .len()
-                    .checked_add(scene.shapes().len())
-                    .ok_or_else(resource)?,
-            )?;
-            let binding = bindings
-                .iter()
-                .find(|binding| binding.record == owner)
-                .ok_or_else(resource)?;
-            Some(
-                scene
-                    .shape(binding.id)
-                    .map_err(|error| super::canonical(error, None))?
-                    .mesh()
-                    .faces()
-                    .len(),
-            )
+            meter.step(1)?;
+            Some(faces_of.by_record(owner)?)
         } else {
             None
         };
@@ -1068,12 +1051,118 @@ fn material(
     })
 }
 
+/// Each mesh record's face count, built once per `bind` so `preflight` and `shape_binding` look
+/// it up instead of scanning the bindings and the scene's shapes for every mesh (#380).
+struct FaceCounts(HashMap<usize, usize>);
+
+impl FaceCounts {
+    fn new(
+        bindings: &[Binding],
+        scene: &NativeScene,
+        meter: &mut Meter<'_>,
+    ) -> Result<Self, BinaryError> {
+        let shapes = scene.shapes();
+        meter.step(
+            bindings
+                .len()
+                .checked_add(shapes.len())
+                .ok_or_else(resource)?,
+        )?;
+        let mut by_id = HashMap::new();
+        by_id.try_reserve(shapes.len()).map_err(|_| resource())?;
+        for shape in shapes {
+            by_id
+                .entry(shape.id())
+                .or_insert(shape.mesh().faces().len());
+        }
+        let mut map = HashMap::new();
+        map.try_reserve(bindings.len()).map_err(|_| resource())?;
+        for binding in bindings {
+            if let Some(faces) = by_id.get(&binding.id) {
+                map.entry(binding.record).or_insert(*faces);
+            }
+        }
+        Ok(Self(map))
+    }
+
+    /// The face count of the shape bound to `record`, or the resource error the old scan returned
+    /// for a record with no binding. Every mesh binding has its shape by the time `bind` runs
+    /// (`binding::construct` pushes it first), so a binding without one cannot reach here.
+    fn by_record(&self, record: usize) -> Result<usize, BinaryError> {
+        self.0.get(&record).copied().ok_or_else(resource)
+    }
+}
+
+/// Each DAG child's parent, built once per `bind` so the per-shape instance and ancestor walks
+/// are lookups rather than a scan of every edge for every shape (#380). A child with more than
+/// one incoming edge is recorded as ambiguous, which is what the scans refused.
+struct Parents {
+    map: HashMap<NativeId, Option<Option<NativeId>>>,
+    /// The ancestor walk's iteration bound: one more step than there are transforms.
+    depth_bound: usize,
+}
+
+impl Parents {
+    fn new(scene: &NativeScene, meter: &mut Meter<'_>) -> Result<Self, BinaryError> {
+        let edges = scene.dag_edges();
+        meter.step(edges.len())?;
+        let mut map = HashMap::new();
+        map.try_reserve(edges.len()).map_err(|_| resource())?;
+        for edge in edges {
+            map.entry(edge.child())
+                .and_modify(|parent: &mut Option<Option<NativeId>>| *parent = None)
+                .or_insert(Some(edge.parent()));
+        }
+        Ok(Self {
+            map,
+            depth_bound: scene.nodes().len(),
+        })
+    }
+
+    /// The one parent of `shape`, after checking that it and every ancestor up to the root has
+    /// exactly one incoming edge, so the shape has a single instance path. A shape with no
+    /// parent, any ancestor reached more than once, or a walk longer than the transform count
+    /// is `AmbiguousInstance`.
+    fn single_path_parent(
+        &self,
+        shape: NativeId,
+        meter: &mut Meter<'_>,
+    ) -> BindingResult<NativeId> {
+        meter.step(1)?;
+        let parent = self
+            .of(shape)?
+            .flatten()
+            .ok_or(AppearanceIssue::AmbiguousInstance)?;
+        let mut ancestor = Some(parent);
+        for _ in 0..=self.depth_bound {
+            let Some(id) = ancestor else { break };
+            meter.step(1)?;
+            ancestor = self.of(id)?.flatten();
+        }
+        if ancestor.is_some() {
+            return Err(AppearanceIssue::AmbiguousInstance.into());
+        }
+        Ok(parent)
+    }
+
+    /// The parent of `child` (`Some(None)` for a root), `None` when it has no edge, or
+    /// `AmbiguousInstance` when it has several.
+    fn of(&self, child: NativeId) -> BindingResult<Option<Option<NativeId>>> {
+        match self.map.get(&child) {
+            None => Ok(None),
+            Some(Some(parent)) => Ok(Some(*parent)),
+            Some(None) => Err(AppearanceIssue::AmbiguousInstance.into()),
+        }
+    }
+}
+
 fn shape_binding(
     container: &Container,
     facts: &WireFacts<'_>,
     graph: &Graph<'_>,
     binding: &Binding,
-    scene: &NativeScene,
+    parents: &Parents,
+    faces_of: &FaceCounts,
     meter: &mut Meter<'_>,
 ) -> BindingResult<(SourceSurfaceBinding, SourceMaterial)> {
     let record_index = binding.mesh.ok_or(AppearanceIssue::UnsupportedGraph)?;
@@ -1082,35 +1171,9 @@ fn shape_binding(
         return Err(AppearanceIssue::UnsupportedGraph.into());
     };
     let mesh_chunk = container.chunk(record.chunk).unwrap();
-    let mut parent = None;
-    meter.step(scene.dag_edges().len())?;
-    for edge in scene.dag_edges() {
-        if edge.child() == binding.id && parent.replace(edge.parent()).is_some() {
-            return Err(AppearanceIssue::AmbiguousInstance.into());
-        }
-    }
-    let parent = parent.flatten().ok_or(AppearanceIssue::AmbiguousInstance)?;
-    let mut ancestor = Some(parent);
-    for _ in 0..=scene.nodes().len() {
-        let Some(id) = ancestor else { break };
-        let mut next = None;
-        meter.step(scene.dag_edges().len())?;
-        for edge in scene.dag_edges() {
-            if edge.child() == id && next.replace(edge.parent()).is_some() {
-                return Err(AppearanceIssue::AmbiguousInstance.into());
-            }
-        }
-        ancestor = next.flatten();
-    }
-    if ancestor.is_some() {
-        return Err(AppearanceIssue::AmbiguousInstance.into());
-    }
-    let faces = scene
-        .shape(binding.id)
-        .map_err(|error| super::canonical(error, None))?
-        .mesh()
-        .faces()
-        .len();
+    let parent = parents.single_path_parent(binding.id, meter)?;
+    meter.step(1)?;
+    let faces = faces_of.by_record(binding.record)?;
     let mut component_record = None;
     let mut face_range = None;
     for chunk in children(container, binding.group) {
@@ -1377,18 +1440,15 @@ pub(super) fn bind(
             .ok_or_else(resource)?,
     )?;
     let graph = Graph::new(facts, owners, &mut meter)?;
-    preflight(&graph, bindings, scene, &mut meter)?;
+    let faces_of = FaceCounts::new(bindings, scene, &mut meter)?;
+    preflight(&graph, &faces_of, &mut meter)?;
     let mut shapes = meter.vector(scene.shapes().len())?;
     let mut materials = meter.vector::<SourceMaterial>(scene.shapes().len())?;
-    meter.step(
-        scene
-            .shapes()
-            .len()
-            .checked_mul(scene.dag_edges().len())
-            .ok_or_else(resource)?,
-    )?;
+    let parents = Parents::new(scene, &mut meter)?;
     for binding in bindings.iter().filter(|binding| binding.mesh.is_some()) {
-        let outcome = match shape_binding(container, facts, &graph, binding, scene, &mut meter) {
+        let outcome = match shape_binding(
+            container, facts, &graph, binding, &parents, &faces_of, &mut meter,
+        ) {
             Ok((mut surface, material)) => {
                 meter.step(materials.len())?;
                 let material_index =

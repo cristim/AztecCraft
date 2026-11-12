@@ -3,8 +3,10 @@
 //! taken from a single public Maya 2025 file so that no two Maya releases are mixed. Source: `tests/fixtures/gt-tools/UPSTREAM.md`; each value is
 //! pinned to that file's bytes by `profile/tests.rs`. Autodesk documents none of them.
 //!
-//! The aux word is a per-chunk-kind property in that file, never a file-wide constant, so
-//! each kind has its own name and a value is never reused for another kind.
+//! Aux values vary by chunk kind and by node context in that file (a `DMSH` group has aux 0 on
+//! the plain shape and a different value on the skinned intermediate shape). Each value here is
+//! taken from the plain user node, each kind has its own name, and a value is never reused for
+//! another kind.
 
 /// `VERS` payload: the exact string the Maya 2025 file stores.
 pub(super) const VERS: &[u8] = b"2025ff03";

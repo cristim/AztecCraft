@@ -154,7 +154,7 @@ pub(in crate::app) fn kind_name(kind: ManipulationKindState) -> &'static str {
 }
 
 pub(in crate::app) fn manipulation_value_id() -> egui::Id {
-    egui::Id::new("manipulation_value")
+    egui::Id::unique("manipulation_value")
 }
 
 pub(in crate::app) fn tool_name(tool: ActiveTool) -> &'static str {
@@ -319,6 +319,43 @@ impl Editor {
             )));
         }
         Ok(())
+    }
+
+    /// A Move acts on the whole selection with `target` as its lead. A remote caller with several
+    /// objects selected must name the selection generation it inspected; a stale one is refused.
+    pub(in crate::app) fn check_move_target(
+        &self,
+        target: &TransformTarget,
+        provenance: ManipulationProvenance,
+        expected_generation: Option<u64>,
+    ) -> Result<(), OperationError> {
+        self.check_generation(expected_generation)?;
+        if self.selection.len() <= 1 {
+            return self.check_manipulation_target("Move", target);
+        }
+        if let Some(refusal) = mode_refusal("Move", self.selection_mode) {
+            return Err(OperationError::InvalidInput(refusal));
+        }
+        if self.selection.lead() != Some(target) {
+            return Err(OperationError::MultipleSelection);
+        }
+        if expected_generation.is_none() && provenance == ManipulationProvenance::Remote {
+            return Err(OperationError::MultipleSelection);
+        }
+        Ok(())
+    }
+
+    /// A caller that names the selection generation it inspected gets a refusal if it moved on.
+    fn check_generation(&self, expected: Option<u64>) -> Result<(), OperationError> {
+        match expected {
+            Some(expected) if expected != self.selection.generation() => {
+                Err(OperationError::StaleSelection {
+                    expected,
+                    current: self.selection.generation(),
+                })
+            }
+            _ => Ok(()),
+        }
     }
 
     pub(in crate::app) fn begin_editor_rotate(
@@ -513,12 +550,15 @@ impl Editor {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
         };
-        let origin = if tool == ActiveTool::Scale {
-            frame.scale_origin_cm
-        } else {
-            frame.origin_cm
+        let kind = match tool {
+            ActiveTool::Scale => azteccraft::native_scene::ManipulatorTool::Scale,
+            ActiveTool::Rotate => azteccraft::native_scene::ManipulatorTool::Rotate,
+            ActiveTool::Move | ActiveTool::Select => {
+                azteccraft::native_scene::ManipulatorTool::Move
+            }
         };
-        let handle = HandleFrame::new(origin, axes).map_err(FrameFailure::Handle)?;
+        let handle =
+            HandleFrame::new(frame.handle_origin(kind), axes).map_err(FrameFailure::Handle)?;
         Ok((target, handle))
     }
 

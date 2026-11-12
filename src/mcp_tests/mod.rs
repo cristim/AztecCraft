@@ -2,6 +2,8 @@ use super::*;
 use crate::mcp;
 
 mod bridge;
+#[cfg(feature = "mcp-test-client")]
+mod deadline;
 mod file_actions;
 mod hidden_editor;
 
@@ -89,6 +91,7 @@ fn create_request(editor: &Editor) -> RemoteRequest {
 
 #[cfg(feature = "mcp-test-client")]
 mod official_client {
+    use super::deadline::protocol_call_deadline;
     use super::*;
     use rmcp::{
         ServiceExt,
@@ -112,8 +115,11 @@ mod official_client {
         ));
     }
 
+    mod animation;
     mod ascii;
     mod attribute_editor;
+    #[cfg(unix)]
+    mod authored_ascii_save;
     mod camera;
     mod cylinder_cone;
     mod delete_selected;
@@ -127,12 +133,16 @@ mod official_client {
     mod inspect_paging;
     mod manipulation_mcp_tests;
     mod manipulator_size;
+    mod marquee;
     mod material;
+    mod multi_move;
     mod node_edit;
     mod obj_export;
+    mod pivots;
 
     mod pointer_hit;
     mod primitive_options;
+    mod save_new_scene;
     mod select_by_rule;
     mod selection;
     mod session;
@@ -160,7 +170,7 @@ mod official_client {
             CallToolRequestParams::new(name).with_arguments(arguments.as_object().unwrap().clone()),
         );
         tokio::pin!(calling);
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        let deadline = tokio::time::Instant::now() + protocol_call_deadline();
         loop {
             tokio::select! {
                 result = &mut calling => {

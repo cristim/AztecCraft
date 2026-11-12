@@ -14,7 +14,7 @@ Precedence: [inventory-seed.md](inventory-seed.md) and [parity.md](parity.md) ow
 - Priority: P1 is frequent and blocking in a modeler's daily loop. P2 is regular use. P3 is occasional or outside the modeling loop.
 - Visible-unsupported rows confirmed in a native macOS screenshot on 2026-10-16 of a build whose application code is identical to ef86b64: Tool Box Move/Rotate/Scale (and a Snap placeholder removed since), shelf Extrude/Bevel/Materials, five Time Slider buttons. The screenshot shows the menu-bar labels only, with no menu open, so menu contents were checked from source. Rows tagged source-verified are not shown in that screenshot.
 - On this SHA, Move, Rotate and Scale in the Tool Box are disabled. PR #77 (Move) is not included. The Tool Box rows in section 4 were updated for the icon-only Tool Box change and are cited at that branch.
-- MCP is ahead of the native UI; the shelf Extrude is deliberately disabled (known-issues.md). Enabling it is a backlog item.
+- The shelf Extrude opens the Extrude Options window when a face is picked in Face mode and is otherwise disabled with the reason (`src/app/features/extrude_options/tests.rs "the_shelf_button_is_disabled_without_a_face_and_opens_the_window_with_one"`); Ctrl+E and the Edit Mesh menu are still missing (#44).
 - Names of tools come from `src/mcp/tools.rs`.
 
 
@@ -92,7 +92,7 @@ One fixed shelf row exists under the menu bar. Tab order and the Poly Modeling t
 | Poly Modeling tab: primitive creation icons (cube) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "UiIcon::PolyCube"`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: primitive creation icons (plane) | [shelf] UNCONFIRMED contents | Supported | `src/app/menus.rs "button(ui, \"Plane\""`; current main also disables these for read-only curve scenes (after ef86b64) | `create_primitive` | P1 | S7 Shelf (#65) |
 | Other primitive icons (sphere, cylinder and others) | [shelf] UNCONFIRMED contents | Visible-unsupported | no shelf icon; Create > Polygon Primitives > Sphere, Cylinder and Cone exist (provisional, #43), and the other ten primitives are disabled rows in that submenu | none | P2 | S7 Shelf (#65) |
-| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Visible-unsupported | MCP ahead of native UI; native control deliberately disabled (known-issues.md, `src/app/menus.rs "egui::Button::new(\"Extrude\")"`) | `extrude_face` | P1 | S7 Shelf (#65) |
+| Poly Modeling tab: Extrude icon | [shelf] UNCONFIRMED contents | Partial | Enabled in Face mode with a picked face, where it opens the Extrude Options window (Thickness only, PROVISIONAL); disabled with the blocker text otherwise (`src/app/menus.rs "Open Extrude Options"`, `src/app/features/extrude_options/tests.rs`) | `extrude_face` | P1 | S7 Shelf (#65) |
 | Poly Modeling tab: Bevel icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Bevel"` (disabled) | none | P2 | S7 Shelf (#65) |
 | Materials icon | [shelf] UNCONFIRMED contents | Visible-unsupported | `src/app/menus.rs "Materials"` (disabled) | none | P3 | S7 Shelf (#65) |
 | Undo and redo buttons: AztecCraft-native shelf buttons; not documented on the Maya Status Line (Maya has Edit > Undo and Redo) | [menus] | Supported | `src/app/menus.rs "UiIcon::Undo"`, `src/app/menus.rs "UiIcon::Redo"` | `undo`, `redo` | P1 | S7 Shelf (#65) |
@@ -106,10 +106,10 @@ The Tool Box rows below reflect the icon-only Tool Box change (feat/70-wire-ui-i
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| Select tool (Q; Q-click Selection Mask marking menu) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Select)" (icon-only button, hover "Select tool (Q)" at src/app/panels.rs; Q-click marking menu unsupported) | `set_active_tool`, `select_node` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
+| Select tool (Q; Q-click Selection Mask marking menu) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Select)" (icon-only button, hover "Select tool (Q)" at src/app/panels.rs; Q-click marking menu unsupported; the viewport marquee drag selects objects in Object and Hierarchy modes, PROVISIONAL, SCN-100 and SCN-101, no component marquee, SCN-102) | `set_active_tool`, `select_node`, `select_in_rect` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Lasso tool | [toolbox] | Visible-unsupported | src/app/panels.rs "\"Lasso\", UiIcon::Lasso" (disabled, hover "not implemented yet") | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Paint Selection tool | [toolbox] | Visible-unsupported | src/app/panels.rs "UiIcon::PaintSelect" (disabled, hover "not implemented yet") | none | P3 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
-| Move tool (W) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Move)" (icon-only button, hover "Move tool (W)" at src/app/panels.rs); Axis Orientation selector fixed at World (Maya 2026 Move Tool default) with the other seven documented orientations listed disabled (`src/app/features/manipulation_tool.rs "MOVE_ORIENTATIONS"`) | `set_active_tool`, `begin_manipulation` (`kind` `move`), `update_manipulation` (`distance`), `finish_manipulation` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
+| Move tool (W) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Move)" (icon-only button, hover "Move tool (W)" at src/app/panels.rs); Axis Orientation selector fixed at World (Maya 2026 Move Tool default) with the other seven documented orientations listed disabled (`src/app/features/manipulation_tool.rs "MOVE_ORIENTATIONS"`) | `set_active_tool`, `begin_manipulation` (`kind` `move`), `update_manipulation` (`distance`), `finish_manipulation` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36); with several objects selected a native drag moves all of them (MCP: `begin_manipulation` with `expected_selection_generation`, #325) |
 | Rotate tool (E) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Rotate)" (icon-only button, hover "Rotate tool (E)"); per-tool Object/World selector (default Object, documented in the Maya 2026 Rotate Tool settings page) and numeric row in src/app/features/manipulation_tool.rs | `set_active_tool`, `begin_manipulation` (`kind` `rotate`), `update_manipulation` (`angle`), `finish_manipulation` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Scale tool (R) | [toolbox] | Supported | src/app/panels.rs "Some(ActiveTool::Scale)" (icon-only button, hover "Scale tool (R)"); per-tool Object/World selector (default World, documented in the Maya 2026 Scale Tool settings page) and numeric row in src/app/features/manipulation_tool.rs | `set_active_tool`, `begin_manipulation` (`kind` `scale`), `update_manipulation` (`factor`), `finish_manipulation` | P1 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
 | Last Used tool (Y) | [toolbox] | Visible-unsupported | src/app/panels.rs "UiIcon::LastUsed" (disabled, hover "not implemented yet"; dynamic last-used behaviour unsupported) | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
@@ -173,7 +173,7 @@ A first-slice Attribute Editor exists (#60): a right dock panel that replaces th
 | --- | --- | --- | --- | --- | --- | --- |
 | Attribute Editor panel (Ctrl+A toggles with Channel Box) | [attr] | Partial | `Editor::attribute_editor` draws one dock panel; Ctrl+A is wired with an explicit Ctrl modifier (macOS Cmd-vs-Ctrl unverified) | `set_sidebar_panel_visibility` | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Node tabs across the top | [attr] | Partial | tabs for the selected transform, its direct mesh shapes and their supported materials; connected-node tabs absent | `select_attribute_editor_tab` | P1 | S4 Attribute Editor and Channel Box (#60) |
-| Attribute list | [attr] | Partial | Transform tab: name, Translate/Rotate/Scale and a read-only Visibility row (shared Channel Box drafts); Material tab: Diffuse. A read-only Transform Attributes block lists Shear, Rotate Order and Rotate Axis in Maya's 2026 order, with the two pivot translations under a separate Pivots heading. The 2026 transform node page lists no keyable flag for them, so no Channel Box rows are added (an inference; Autodesk does not state what the Channel Box shows). Other attributes, sections, editing of those values, the rotate and scale pivots and limits are absent | `edit_node`, `set_transform`, `set_material_diffuse`, `inspect_scene` (`nodes[].transform_attributes`, read-only) | P1 | S4 Attribute Editor and Channel Box (#60) |
+| Attribute list | [attr] | Partial | Transform tab: name, Translate/Rotate/Scale and a read-only Visibility row (shared Channel Box drafts); Material tab: Diffuse. A read-only Transform Attributes block lists Shear, Rotate Order and Rotate Axis in Maya's 2026 order, with the two pivot translations under a separate Pivots heading. The 2026 transform node page lists no keyable flag for them, so no Channel Box rows are added (an inference; Autodesk does not state what the Channel Box shows). The rotate and scale pivots are shown read-only in the same Pivots section (#39 slice A). Other attributes, sections, editing of those values, pivot editing and limits are absent | `edit_node`, `set_transform`, `set_material_diffuse`, `inspect_scene` (`nodes[].transform_attributes`, read-only) | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Pin Tab icon | [attr] | Visible-unsupported | drawn disabled with "Pin Tab: not implemented yet" | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Default dock position (not stated for 2026) | [attr] UNCONFIRMED; [rearrange-2016] FALLBACK 2016 | Missing | absent | none | P3 | S4 Attribute Editor and Channel Box (#60) |
 | Tool Settings panel (default position UNCONFIRMED for 2026) | [rearrange-2016] FALLBACK 2016; UNCONFIRMED | Missing | absent | none | P2 | S2 Transform tools (PR #77 (Move), #34, #35, #36) |
@@ -202,29 +202,29 @@ The Outliner is a fixed left panel at `src/app/panels.rs "self.outliner(ui)"` dr
 
 ## 9. Time Slider, Range Slider and playback
 
-The bottom panel (`src/app/panels.rs "timeline_status"`) shows disabled labels and a status message. Animation is not implemented.
+The bottom panel (`src/app/panels.rs "timeline_status"`) holds the timeline row and a status message; the row is `timeline_controls` (`src/app/features/timeline.rs "fn timeline_controls"`). Set Key sits on this row because the Key menu is out of scope for #361; in Maya it lives in the Key menu of the Animation menu set, per the [Set keys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-7DE56A30-EEB4-4FDE-B4C4-6E53F4755822.htm) page. Native visual check on 2026-10-31: a debug `mcp` build on Linux under KDE Wayland, at the default window size, driven through `--mcp-stdio`. It showed the row, key ticks at frames 1, 24 and 48, the cube following linear values at frames 12 and 20, playback, and a deleted key leaving the ruler. A later run the same day, in a private `kwin_wayland --virtual` session with fake input at 1600 by 1000, drove real input: Time Slider click and drag, S, Alt+comma, Alt+period, comma, period, Alt+V, Esc, the transport buttons, the Time field and Esc abandoning it, and S typed into the field adding no key, each confirmed through `inspect_scene`. An 800 wide session showed the row wrapping with all controls visible. Delete Key was clicked only on a frame with no key. Screenshots are not distributed. The row order is from the [Playback Controls 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-277ADCBF-6277-4B32-81E0-AEB6D081153F.htm) page; its look is not compared with Maya.
 
 | Maya 2026 element | Source | AztecCraft status | Evidence | MCP | Priority | Proposed slice |
 | --- | --- | --- | --- | --- | --- | --- |
-| Time Slider (ruler, key ticks, waveform, cache stripes) | [timeslider] | Visible-unsupported | `src/app/panels.rs "Time slider"`, `src/app/panels.rs "Animation not implemented"` (source-verified) | none | P2 | S11 Timeline (#62) |
-| Current time field | [timeslider] | Missing | absent | none | P2 | S11 Timeline (#62) |
+| Time Slider (ruler, key ticks, waveform, cache stripes) | [timeslider], [Use the animation controls 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-D3F23141-7B14-4DF3-91AB-25340F0BB2B7.htm) | Partial | `src/app/features/timeline.rs "fn time_slider"`: ruler, red key ticks of the selected objects, current time marker, click and drag scrub over the playback range. Waveform, cache stripes, key selection and moving, middle-drag and K scrubbing are absent | `set_current_time`, `inspect_keys` | P2 | S11 Timeline (#62) |
+| Current time field | [timeslider] | Partial | `src/app/features/timeline.rs "Time"`; whole frames only, acts on leaving the field | `set_current_time`, `timeline.current_time` | P2 | S11 Timeline (#62) |
 | Time Slider bookmarks | [timeslider] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Go To Start | [playback] | Visible-unsupported | `src/app/panels.rs "Time slider"` (disabled labels in the loop below it) | none | P2 | S11 Timeline (#62) |
-| Step buttons '<' '>' (frame or key unspecified) | [playback] | Visible-unsupported | `src/app/panels.rs "Time slider"` (disabled labels in the loop below it; '<' and '>') | none | P2 | S11 Timeline (#62) |
-| Step Back Frame (Alt/Opt+,) | [playback] | Missing | no separate control | none | P2 | S11 Timeline (#62) |
-| Step Back Key (,) | [playback] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Play Backwards | [playback] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Play Forwards (Alt/Opt+V); Stop (Esc) | [playback] | Visible-unsupported | `src/app/panels.rs "Time slider"` (disabled labels in the loop below it) | none | P2 | S11 Timeline (#62) |
-| Step Forward Key (.) | [playback] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Step Forward Frame (Alt/Opt+.) | [playback] | Missing | no separate control | none | P2 | S11 Timeline (#62) |
-| Go To End | [playback] | Visible-unsupported | `src/app/panels.rs "Time slider"` (disabled labels in the loop below it) | none | P2 | S11 Timeline (#62) |
+| Set Key (S), Delete Key controls | [Set keys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Animation/files/GUID-7DE56A30-EEB4-4FDE-B4C4-6E53F4755822.htm) | Partial | S hotkey (no repeat) and row buttons; the Key menu, F4 and Set Key Options are absent | `set_keyframe`, `delete_keys` | P2 | S11 Timeline (#62) |
+| Go To Start | [playback] | Supported | `src/app/features/timeline.rs "Go To Start"` | `set_current_time` | P2 | S11 Timeline (#62) |
+| Step Back Frame (Alt/Opt+,) | [playback], [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm) | Supported | control and hotkey, `src/app/features/timeline.rs "fn timeline_chord"`; it does not wrap (PROVISIONAL) | `set_current_time` | P2 | S11 Timeline (#62) |
+| Step Back Key (,) | [playback], [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm) | Partial | control and hotkey over the selected objects' keys; it does not wrap (PROVISIONAL) | `set_current_time`, `inspect_keys` | P3 | S11 Timeline (#62) |
+| Play Backwards | [playback] | Visible-unsupported | `src/app/features/timeline.rs "Play Backwards: not implemented yet"` | none | P3 | S11 Timeline (#62) |
+| Play Forwards (Alt/Opt+V); Stop (Esc) | [playback], [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm) | Partial | `src/app/features/timeline.rs "fn tick_playback"`; 24 fps, continuous loop, frame skipping (PROVISIONAL); Alt+V also stops, per the hotkeys page | `play_timeline`, `stop_timeline`, `timeline.playing` | P2 | S11 Timeline (#62) |
+| Step Forward Key (.) | [playback], [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm) | Partial | control and hotkey over the selected objects' keys; it does not wrap (PROVISIONAL) | `set_current_time`, `inspect_keys` | P3 | S11 Timeline (#62) |
+| Step Forward Frame (Alt/Opt+.) | [playback], [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm) | Supported | control and hotkey; it does not wrap (PROVISIONAL) | `set_current_time` | P2 | S11 Timeline (#62) |
+| Go To End | [playback] | Supported | `src/app/features/timeline.rs "Go To End"` | `set_current_time` | P2 | S11 Timeline (#62) |
 | Range Slider: Animation Start and End | [range] | Missing | absent | none | P2 | S11 Timeline (#62) |
-| Range Slider: Playback Start, End and range bar | [range] | Missing | absent | none | P2 | S11 Timeline (#62) |
+| Range Slider: Playback Start, End and range bar | [range] | Partial | Start and End fields only, `src/app/features/timeline.rs "Start"`; no range bar, drag or double-click, and no Range Slider as such | `set_playback_range`, `timeline` | P2 | S11 Timeline (#62) |
 | Range Slider: Bookmark icon | [range] | Missing | absent | none | P3 | S11 Timeline (#62) |
 | Range Slider: Character Set menu | [range] | Missing | absent | none | P3 | S11 Timeline (#62) |
 | Range Slider: Animation Layer menu | [range] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Playback option: Framerate | [playopts] | Missing | absent | none | P3 | S11 Timeline (#62) |
-| Playback option: Loop | [playopts] | Missing | absent | none | P3 | S11 Timeline (#62) |
+| Playback option: Framerate | [playopts] | Missing | no option; playback is always 24 fps (PROVISIONAL) | none | P3 | S11 Timeline (#62) |
+| Playback option: Loop | [playopts] | Missing | no option; playback always loops continuously (PROVISIONAL) | none | P3 | S11 Timeline (#62) |
 | Playback option: Cached Playback | [playopts] | Missing | absent | none | P3 | S11 Timeline (#62) |
 | Playback option: Context View / Cut Slider | [playopts] | Missing | absent | none | P3 | S11 Timeline (#62) |
 | Playback option: Volume | [playopts] | Missing | absent | none | P3 | S11 Timeline (#62) |
@@ -254,7 +254,7 @@ No Modeling Toolkit panel exists. Default dock is UNCONFIRMED for 2026.
 | Section: Selection options | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Selection constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Transform constraints | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
-| Section: Commands and tools | [toolkit] | Missing | absent; Extrude is disabled at `src/app/menus.rs "egui::Button::new(\"Extrude\")"` | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
+| Section: Commands and tools | [toolkit] | Missing | absent; the shelf Extrude button exists (`src/app/menus.rs "Open Extrude Options"`) but there is no Modeling Toolkit panel | `extrude_face` | P2 | S13 Modeling Toolkit (#64) |
 | Section: Transform tool settings | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Custom shelf | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
 | Section: Hotkeys | [toolkit] | Missing | absent | none | P3 | S13 Modeling Toolkit (#64) |
@@ -292,6 +292,7 @@ Editor::shortcuts (`src/app/shortcuts.rs "fn shortcuts"`) handles Cmd/Ctrl+Z, Cm
 | Tap Space single/multi-pane; Ctrl+Space full-screen | [hotkeys-2025] FALLBACK 2025 | Missing | no key handler | none | P3 | S8 Panels and quick layouts (#48 / #69) |
 | Ctrl+A Attribute Editor / Channel Box | [attr] | Partial | `shortcuts` dispatches the next dock panel for an explicit Ctrl+A; skipped while text, a popup or a dialog has the keyboard | `set_sidebar_panel_visibility` | P1 | S4 Attribute Editor and Channel Box (#60) |
 | Space-hold hotbox; Alt+M hotbox style | [hotkeys-2025] FALLBACK 2025 | Missing | no hotbox | none | P3 | S5 Hotkeys (#32) |
+| S Set Key; Alt+V Play or Stop; Esc Stop; Alt+, and Alt+. step a frame; comma and period step a key | [Animation hotkeys 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-KeyboardShortcuts/files/GUID-0639ADA0-EBE5-4703-A874-92C80E4A0516.htm), [Playback Controls 2027](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-277ADCBF-6277-4B32-81E0-AEB6D081153F.htm) | Partial | `src/app/features/timeline.rs "fn timeline_chord"`; Option on macOS relies on the physical-key fallback, PROVISIONAL. Shift+E, R and W, Alt+I, Shift+S and Alt+Shift+V are unbound | `set_keyframe`, `play_timeline`, `stop_timeline`, `set_current_time` | P2 | S11 Timeline (#62) |
 | Undo (Ctrl/Cmd Z), Redo (Ctrl/Cmd Y, plus Shift+Z extra), New (Ctrl/Cmd N), Open (Ctrl/Cmd O), Save (Ctrl/Cmd S), Save As (Ctrl/Cmd Shift S) per [hotkeys-2026], [hotkeys-2027], Cmd on macOS PROVISIONAL; Delete key UNCONFIRMED | UNCONFIRMED | Supported | `src/app/shortcuts.rs "let (undo, redo, frame, frame_all)"`, `src/app/menus.rs "fn chord_entry"`, `src/app/panels.rs "Key::Delete"` | `undo`, `redo`, `save_scene`, `save_scene_as`, `delete_node` | P1 | S5 Hotkeys (#32) |
 
 ## Prioritized backlog
@@ -308,7 +309,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 4. **S4 Attribute Editor and Channel Box** (#60): Attribute Editor panel with node tabs and attribute list, Ctrl+A, and the Visibility channel in the Channel Box.
 5. **S5 Hotkeys** (#32): one key map module for Q, W, E, R, A and the existing bindings, with MCP parity for each action.
 6. **S6 Menu content** (#66): Modify menu content and a Display menu. Edit already has Undo, Redo and Delete.
-7. **S7 Shelf** (#65): a native Extrude control wired to the existing `extrude_face` operation, so UI and MCP match.
+7. **S7 Shelf** (#65): the native Extrude control is wired to the existing `extrude_face` operation for one picked face (issue #44 slice 1); the manipulator remains.
 8. **S8 Panels and quick layouts** (#48 / #69): View and Shading panel menus and the Shading group of the Panel Toolbar (Wireframe, Smooth Shade All).
 
 ### P2
@@ -322,7 +323,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 7. S8 Panels and quick layouts (#48 / #69): Lighting, Show and Panels menus, Isolate Select, X-Ray, four-pane layout, Frame All (A).
 8. S9 Layer Editor (#61): Display Layers.
 9. S10 Outliner (#68): search, Display and Show menus, Groups, Hidden objects.
-10. S11 Timeline (#62): Time Slider, current time, Go To Start/End, Play, Step Frame, Range Slider.
+10. S11 Timeline (#62): first slice in #361; Range Slider and the remaining Time Slider gestures are open.
 11. S12 Command and Help Line (#63): Command Line input with MEL/Python toggle, tool hints.
 12. S13 Modeling Toolkit (#64): panel, Selection modes, Commands and tools.
 
@@ -341,7 +342,7 @@ Slice map: S1 #59, S2 PR #77 (Move) and #34, #35, #36, S3 #29, S4 #60, S5 #32, S
 6. S8 Panels and quick layouts (#48 / #69): Renderer and Stereo menus, Lighting, effects and Color Management groups, remaining Camera Settings, Outliner button and Windows > UI Elements.
 7. S9 Layer Editor (#61): Animation Layers.
 8. S10 Outliner (#68): Render Setup filter, Materials, Sets, Assets, References, Scene Assembly.
-9. S11 Timeline (#62): step by key, play backwards, bookmarks, Character Set and Animation Layer menus, playback options.
+9. S11 Timeline (#62): play backwards, bookmarks, Character Set and Animation Layer menus, playback options.
 10. S12 Command and Help Line (#63): result box, Script Editor button.
 11. S13 Modeling Toolkit (#64): remaining sections.
 12. S8 Panels and quick layouts (#48 / #69): Heads-up display.

@@ -14,14 +14,14 @@ The current prototype has a native desktop window for cube/plane/sphere/cylinder
 | Transform math | Native f64 channels and pivots in declared units, with checked conversion to the derived viewport | [Native model](src/native_scene.rs) and view tests |
 | Invalid edits | Reject non-finite or unsupported edits atomically; finite native values outside viewport representation remain authoring data | Native model and history tests |
 | History | Undo/redo create, remove, rename, transform and single-face extrusion commands, with failed/no-op edits preserving history | [History workflow tests](tests/history_workflows.rs) |
-| Native scene files | Bounded Maya binary decoding with retained source bytes; legacy JSON reads retained; provisional Unix and Windows existing-record binary writing | [Document adapter](src/document.rs) and [binary codec](src/native_scene/binary.rs); document-layer repeat-save checks are separate from pending native Save QA |
+| Native scene files | Bounded Maya binary decoding with retained source bytes; legacy JSON reads retained; provisional Unix and Windows existing-record binary writing; on Unix only, Save As of a new scene writes Maya Binary (Maya acceptance unverified) | [Document adapter](src/document.rs) and [binary codec](src/native_scene/binary.rs); document-layer repeat-save checks are separate from pending native Save QA |
 | Camera math | Orbit/pan/dolly, perspective projection, rays, nearest-geometry picking and framing | [Viewport workflow tests](tests/viewport_workflows.rs) |
 | Desktop shell and viewport | Create/select cube, plane, sphere, cylinder or cone, edit name/transform channels, undo/redo, delete and frame selected, with depth-tested opaque geometry | [Native shell](src/app/mod.rs) and [viewport UI](src/viewport_ui.rs) |
 | Face selection | F11/Face menu and F8 Object/Face toggle (from Hierarchy it goes to Face); F9/F10, the Select > Components menu and the Status Line Vertex, Edge and Face buttons also enter Vertex and Edge modes, visible center markers, exact-face feedback and face framing | Shared typed operations and [Center selection policy](.project-docs/development.md#face-center-selection); native/Maya comparison remains separate |
 | File actions in the window | New/Open and provisional eligible Save/Save As, unsaved-change Save/Don't Save/Cancel worded after Maya 2025.1's prompt (PROVISIONAL), source-change guards and uncertain-write reconciliation | [File integration tests](src/file_ui.rs); current integration and native Save verification pending |
 | OBJ export | File > Export All / Export Selection and MCP `export_obj` write world-space polygon geometry of the native scene to a new `.obj` file | [OBJ workflow tests](tests/obj_workflows.rs), [native export tests](tests/obj_native_export.rs); export option boxes and OBJ import unsupported |
 | MCP | Optional stdio server controls the tools listed in the [generated catalogue](.project-docs/mcp-tools.md), including Move, Rotate and Scale, Save/Save As, checked material Diffuse data, viewport Grid visibility, Face, Vertex and Edge selection, in its newly launched native editor window | [Tool contract and limits](.project-docs/mcp.md); isolated application/SDK checks and bounded macOS material/Grid/Face QA remain separately scoped, with current-parent verification pending |
-| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
+| Modeling | Core API extrudes one quad along its object-space normal, including signed/zero distances; native Extrude is limited to one picked face by Thickness (shelf button and Options window); manipulator and all-face extrusion pending | [Extrusion workflow tests](tests/extrusion_workflows.rs) |
 | UVs, animation and rigging | Full workflows pending | [Implementation plan](.project-docs/plan.md) |
 | Materials | Candidate Common Material Attributes/Diffuse control and MCP editing of an existing checked Phong scalar; shared users use one History value | Core, real-widget, SDK protocol reopen and bounded macOS edit/Undo/Save/reopen checks pass; committed cold and combined-parent publication checks pending. Material rendering, assignment, textures and color processing remain unavailable |
 | Simulation and rendering | Pending | Reference scenes and output comparisons required |
@@ -36,8 +36,7 @@ Unsupported transform tools remain disabled, and Select remains a mode indicator
 scene generated through two real extrusion commands. Open it with File → Open to
 inspect the resulting L-shaped quad mesh. Tests reconstruct it, exercise
 undo/redo, save/reload, reflected OBJ export and camera picking. It is not a Maya
-reference scene; native Extrude remains unsupported until a real history and
-manipulator workflow is implemented.
+reference scene; native Extrude covers one picked face by Thickness; the manipulator workflow is not implemented.
 
 ## Build and test
 

@@ -104,6 +104,11 @@ enum BeginManipulationArgs {
         #[schemars(length(min = 1, max = 256))]
         instance_path: Vec<String>,
         axis: AxisInput,
+        /// The `selection_generation` that `inspect_scene` reported. A Move acts on the whole
+        /// current selection with this node as its lead; with several objects selected the value
+        /// is required, and a value that no longer matches the selection is refused.
+        #[serde(default)]
+        expected_selection_generation: Option<u64>,
     },
     Rotate {
         scene_token: String,
@@ -252,11 +257,13 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             node_id,
             instance_path,
             axis,
+            expected_selection_generation,
         } => (
             scene_token,
             Operation::BeginMove {
                 target: target(&node_id, instance_path)?,
                 axis: world_axis(axis),
+                expected_selection_generation,
             },
         ),
         BeginManipulationArgs::Rotate {
@@ -424,7 +431,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools",
+        description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,

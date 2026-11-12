@@ -2,7 +2,7 @@ use super::{add, mul, resource};
 use crate::maya_ascii::{AsciiError, MAX_BYTES, Work};
 use crate::native_scene::{
     DirectedEdge, NativeError, NativeMesh, NativeMeshShape, NativeScene, NativeTransformNode,
-    Points,
+    Points, SessionMaterials,
     admission::{self, Budget},
     authored::{self, AuthoredIneligible, names},
 };
@@ -28,10 +28,12 @@ const FACE_ROW_BYTES: usize = "\tf \n".len() + "2147483647".len() + 1;
 const FACE_TOKEN_BYTES: usize = " -2147483648".len();
 const ARRAY_END: &[u8] = b";\n";
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum AsciiWriteRefusal {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
+    SessionMaterials,
+    Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
     NonAuthoredHierarchy,
@@ -51,6 +53,7 @@ pub(crate) enum AsciiWriteRefusal {
     EdgeSmoothing,
     FaceHoles,
     UnsupportedMeshChannels,
+    SessionUvs,
     IndexOutOfRange,
     ResourceLimit,
     TooLarge,
@@ -60,6 +63,10 @@ impl fmt::Display for AsciiWriteRefusal {
         f.write_str(match self {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
+            Self::SessionMaterials => {
+                "the scene has session materials, which authored ASCII cannot carry"
+            }
+            Self::Keys => "session keys are not saved",
             Self::InvalidScene(error) => return error.fmt(f),
             Self::UnsupportedUnits => "only centimeter, degree and film units are supported",
             Self::NonAuthoredHierarchy => "only flat transform-over-mesh ownership is supported",
@@ -79,6 +86,7 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::EdgeSmoothing => "mesh edges require known hard smoothing",
             Self::FaceHoles => "mesh face holes are unsupported",
             Self::UnsupportedMeshChannels => "additional mesh channels are unsupported",
+            Self::SessionUvs => "session UVs are not saved; use Delete UVs or Undo to save",
             Self::IndexOutOfRange => "mesh array count or endpoint exceeds signed 32-bit range",
             Self::ResourceLimit => "authored prefix resource policy exceeded",
             Self::TooLarge => "authored prefix exceeds the 16 MiB byte limit",
@@ -178,6 +186,33 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     authored::check_content_kind(scene)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
+    // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
+    let NativeScene {
+        // Covered by `check_content_kind` and `check_scene` above.
+        nodes: _,
+        shapes: _,
+        curves: _,
+        dag: _,
+        units: _,
+        source: _,
+        // Fresh per scene; the file stores no document identity.
+        authored_document_id: _,
+        next_id: _,
+        next_native_id: _,
+        // Diffuse edits bound into retained source bytes: set only with a source, which
+        // `check_content_kind` refuses.
+        materials: _,
+        // Ids of deleted source nodes: only in a sourced scene, which is refused above.
+        removed: _,
+        // Created, assigned or reassigned materials: the file has only the default pair.
+        session_materials,
+        // `check_content_kind` refuses session UVs and keys.
+        session_uvs: _,
+        session_keys: _,
+    } = scene;
+    if *session_materials != SessionMaterials::default() {
+        return Err(AsciiWriteRefusal::SessionMaterials);
+    }
     Ok(())
 }
 
@@ -187,6 +222,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
         match ineligible {
             I::SourcedScene => Self::SourcedScene,
             I::Curves => Self::Curves,
+            I::Keys => Self::Keys,
             I::InvalidScene(error) => Self::InvalidScene(error),
             I::UnsupportedUnits => Self::UnsupportedUnits,
             I::NonAuthoredHierarchy => Self::NonAuthoredHierarchy,
@@ -206,6 +242,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
             I::EdgeSmoothing => Self::EdgeSmoothing,
             I::FaceHoles => Self::FaceHoles,
             I::UnsupportedMeshChannels => Self::UnsupportedMeshChannels,
+            I::SessionUvs => Self::SessionUvs,
         }
     }
 }
@@ -398,7 +435,6 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
     Ok(())
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "no Editor caller yet"))]
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
     check(scene)?;
     let length = prefix_bytes(scene)?;

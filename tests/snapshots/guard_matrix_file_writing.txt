@@ -11,11 +11,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## idle / remote
@@ -26,11 +32,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## closing / native
@@ -41,11 +53,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## closing / remote
@@ -56,11 +74,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## modal / native
@@ -71,12 +95,18 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  resolve_file_action(save) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
 
 ## modal / remote
   baseline:
@@ -86,12 +116,60 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
-  resolve_file_action(save) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  resolve_file_action(save) => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+
+## playing / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+
+## playing / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
 
 ## local_move / native
   baseline:
@@ -101,11 +179,17 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## local_move / remote
@@ -116,11 +200,17 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / native
@@ -131,11 +221,17 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / remote
@@ -146,11 +242,17 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(wrong_extension) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(save) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## name_draft / native
@@ -161,11 +263,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   save_scene_as => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(occupied) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(material_assigned) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(wrong_extension) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(ascii) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  save_scene_as(ascii_material_assigned) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## name_draft / remote
@@ -176,11 +284,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## material_draft / native
@@ -192,11 +306,17 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## material_draft / remote
@@ -208,11 +328,17 @@
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
     name_field="object" channel_fields=1,2,3,0,0,0,1,1,1 channel_intents=000000000 session_materials=[]
-    modal=false closing=false pending_action=- dirty=true can_undo=false can_redo=false
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## channel_draft / native
@@ -223,11 +349,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  save_scene_as(ascii) => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## channel_draft / remote
@@ -238,11 +370,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## text_focus / native
@@ -253,11 +391,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## text_focus / remote
@@ -268,11 +412,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## native_input_pending / native
@@ -283,11 +433,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
-  save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
-  save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
+  save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## native_input_pending / remote
@@ -298,11 +454,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## stale_token / remote
@@ -313,11 +475,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+local_move / remote
@@ -328,11 +496,17 @@
     status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+remote_move / remote
@@ -343,11 +517,17 @@
     status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+closing / remote
@@ -358,11 +538,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
+    pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+modal / remote
@@ -373,11 +559,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=true closing=false pending_action=New dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+name_draft / remote
@@ -388,11 +580,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
     material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+native_input_pending / remote
@@ -403,11 +601,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=true can_undo=true
-    can_redo=true tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=true
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(wrong_extension) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  save_scene_as(ascii_material_assigned) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(save) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## read_only_ascii / native
@@ -418,11 +622,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(ascii) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## read_only_ascii / remote
@@ -433,11 +643,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] modal=false closing=false pending_action=- dirty=false can_undo=false
-    can_redo=false tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=false can_undo=false can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(ascii) => Err(NativeSave: this native scene or platform cannot be written) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: this native scene or platform cannot be written) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## binary_dirty / native
@@ -448,12 +664,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## binary_dirty / remote
@@ -464,12 +685,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## sited_binary_dirty / native
@@ -480,12 +706,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## sited_binary_dirty / remote
@@ -496,12 +727,59 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
+## authored_ascii_dirty / native
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=1,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
+
+## authored_ascii_dirty / remote
+  baseline:
+    nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
+    vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
+    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
+    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
+    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
+    material_draft=- name_field="pCube1" channel_fields=1,0,0,0,0,0,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
+    tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
+    manipulator_size=1
+  save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install / native
@@ -512,12 +790,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install / remote
@@ -528,12 +811,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=false closing=false pending_action=- dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
+  save_scene_as(material_assigned) => Err(NativeSave: save cancelled before installation) | no state change
+  save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
+  save_scene_as(ascii) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
+  save_scene_as(ascii_material_assigned) => Err(NativeSave: retained Maya sources cannot use the authored prefix) | no state change
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install_modal / native
@@ -544,12 +832,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
 ## no_install_modal / remote
@@ -560,12 +853,17 @@
     status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
     pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
     material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] modal=true closing=false pending_action=New dirty=true
-    can_undo=true can_redo=false
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(wrong_extension) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  save_scene_as(ascii_material_assigned) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(save) => Err(NativeSave: save cancelled before installation) | no state change
 
-cells: 111
+cells: 328

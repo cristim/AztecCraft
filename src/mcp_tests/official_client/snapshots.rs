@@ -24,10 +24,79 @@ async fn inspection_snapshot(
         .await
         .structured_content
         .unwrap();
-    let normalized = crate::app::snapshots::normalize_json(&inspected, roots);
+    assert_inspection_snapshot(name, &inspected, roots);
+}
+
+/// Compares an `inspect_scene` reply with its committed snapshot, keyed on the reply's own
+/// `document_origin` and never on the file name, so a new Untitled fixture cannot be missed.
+fn assert_inspection_snapshot(name: &str, reply: &Value, roots: &[&std::path::Path]) {
+    let normalized = crate::app::snapshots::normalize_json(reply, roots);
     let mut text = serde_json::to_string_pretty(&normalized).unwrap();
     text.push('\n');
-    crate::app::snapshots::assert_snapshot(name, &text);
+    let untitled = normalized["inspection"]["document_origin"] == json!("untitled");
+    if untitled && !cfg!(unix) {
+        // Untitled fixtures are Unix baselines (the authored-scene writer is Unix only). Compare
+        // the real reply with the baseline, forcing only `save_as_available`.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/snapshots")
+            .join(name);
+        let expected = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(
+            normalized,
+            untitled_platform_expectation(expected, false),
+            "{name} differs"
+        );
+    } else {
+        crate::app::snapshots::assert_snapshot(name, &text);
+    }
+}
+
+fn untitled_platform_expectation(mut expected: Value, unix: bool) -> Value {
+    let inspection = expected
+        .get_mut("inspection")
+        .and_then(Value::as_object_mut)
+        .unwrap();
+    assert_eq!(inspection.get("document_origin"), Some(&json!("untitled")));
+    let available = inspection.get_mut("save_as_available").unwrap();
+    assert_eq!(*available, json!(true), "shared fixture must remain Unix");
+    *available = json!(unix);
+    expected
+}
+
+#[test]
+fn untitled_snapshots_preserve_platform_availability_and_all_other_fields() {
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/snapshots");
+    let mut untitled = 0;
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        let name = path.file_name().unwrap().to_str().unwrap().to_owned();
+        if !(name.starts_with("inspection_") && name.ends_with(".json")) {
+            continue;
+        }
+        let baseline: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        if baseline["inspection"]["document_origin"] != json!("untitled") {
+            continue;
+        }
+        untitled += 1;
+        assert_eq!(
+            baseline["inspection"]["save_as_available"],
+            json!(true),
+            "{name}: an Untitled fixture is a Unix baseline"
+        );
+        assert_eq!(
+            untitled_platform_expectation(baseline.clone(), true),
+            baseline
+        );
+        let windows = untitled_platform_expectation(baseline.clone(), false);
+        let mut expected_windows = baseline.clone();
+        expected_windows["inspection"]["save_as_available"] = json!(false);
+        assert_eq!(windows, expected_windows);
+        assert_ne!(windows, baseline, "opposite-platform replies must fail");
+        let mut wrong_other_field = windows.clone();
+        wrong_other_field["inspection"]["save_available"] = json!(true);
+        assert_ne!(windows, wrong_other_field, "other fields must stay checked");
+    }
+    assert!(untitled >= 4, "expected the known Untitled fixtures");
 }
 
 #[tokio::test]
@@ -77,6 +146,7 @@ async fn sdk_inspection_matches_committed_snapshots() {
                 path: editor.selected_path().to_vec(),
             },
             axis: azteccraft::native_scene::WorldAxis::X,
+            expected_selection_generation: None,
         })
         .unwrap();
     let OperationReply::ManipulationStarted {
@@ -167,10 +237,7 @@ async fn sdk_last_page_inspection_matches_committed_snapshot() {
     .await
     .structured_content
     .unwrap();
-    let normalized = crate::app::snapshots::normalize_json(&last, &[]);
-    let mut text = serde_json::to_string_pretty(&normalized).unwrap();
-    text.push('\n');
-    crate::app::snapshots::assert_snapshot("inspection_paged_last_page.json", &text);
+    assert_inspection_snapshot("inspection_paged_last_page.json", &last, &[]);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

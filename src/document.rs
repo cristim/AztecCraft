@@ -1,4 +1,4 @@
-use crate::native_scene::{NativeError, NativeScene, ascii, binary};
+use crate::native_scene::{AuthoredDocumentId, NativeError, NativeScene, ascii, binary};
 use crate::scene::{Scene, SceneError};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,10 +21,34 @@ pub enum LinkStatus {
     Symlink,
 }
 
+/// What ties a baseline to the scene in memory: the parsed source bytes the scene still
+/// retains, or the private identity of the document authored and written from scratch.
+#[derive(Clone)]
+enum Retention {
+    Source {
+        parse_bytes: Arc<[u8]>,
+    },
+    #[cfg_attr(
+        not(unix),
+        expect(dead_code, reason = "only the Unix save path creates it")
+    )]
+    Authored {
+        document_id: AuthoredDocumentId,
+    },
+}
+impl Retention {
+    fn len(&self) -> Option<usize> {
+        match self {
+            Self::Source { parse_bytes } => Some(parse_bytes.len()),
+            Self::Authored { .. } => None,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SourceBaseline {
     bytes: Arc<[u8]>,
-    parse_bytes: Arc<[u8]>,
+    retention: Retention,
     metadata: Metadata,
     link: LinkStatus,
     #[cfg(any(unix, windows))]
@@ -36,7 +60,7 @@ impl fmt::Debug for SourceBaseline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SourceBaseline")
             .field("bytes", &self.bytes.len())
-            .field("parse_bytes", &self.parse_bytes.len())
+            .field("parse_bytes", &self.retention.len())
             .field("file_length", &self.metadata.len())
             .field("link", &self.link)
             .finish()
@@ -48,32 +72,65 @@ pub enum NativeOrigin {
     Untitled,
     Binary(SourceBaseline),
     Ascii(SourceBaseline),
+    AuthoredAscii(SourceBaseline),
     Legacy(SourceBaseline),
 }
 impl NativeOrigin {
     pub fn active_save_available(&self) -> bool {
         #[cfg(any(unix, windows))]
         {
-            matches!(self, Self::Binary(source) if matches!(source.link, LinkStatus::Direct) && source.destination.is_some())
+            match self {
+                Self::Binary(source)
+                    if matches!(source.link, LinkStatus::Direct)
+                        && source.destination.is_some() =>
+                {
+                    true
+                }
+                #[cfg(unix)]
+                Self::AuthoredAscii(source)
+                    if matches!(source.link, LinkStatus::Direct)
+                        && source.destination.is_some() =>
+                {
+                    true
+                }
+                _ => false,
+            }
         }
         #[cfg(not(any(unix, windows)))]
         false
     }
     pub fn save_as_available(&self) -> bool {
-        cfg!(any(unix, windows)) && matches!(self, Self::Binary(_))
+        (cfg!(any(unix, windows)) && matches!(self, Self::Binary(_)))
+            || (cfg!(unix) && matches!(self, Self::AuthoredAscii(_) | Self::Untitled))
+    }
+    /// The extensions Save As can write from this origin, in dialog order. A Binary origin whose
+    /// scene was authored here (not parsed from the file) can also be written as Maya ASCII.
+    pub fn save_as_extensions(&self) -> &'static [&'static str] {
+        if !self.save_as_available() {
+            return &[];
+        }
+        match self {
+            Self::Untitled | Self::AuthoredAscii(_) => &["ma", "mb"],
+            Self::Binary(source) if matches!(source.retention, Retention::Authored { .. }) => {
+                &["ma", "mb"]
+            }
+            _ => &["mb"],
+        }
     }
     pub fn kind(&self) -> &'static str {
         match self {
             Self::Untitled => "untitled",
             Self::Binary(_) => "maya_binary",
-            Self::Ascii(_) => "maya_ascii",
+            Self::Ascii(_) | Self::AuthoredAscii(_) => "maya_ascii",
             Self::Legacy(_) => "legacy_aztec",
         }
     }
     pub fn source_bytes(&self) -> Option<&Arc<[u8]>> {
         match self {
             Self::Untitled => None,
-            Self::Binary(s) | Self::Ascii(s) | Self::Legacy(s) => Some(&s.bytes),
+            Self::Binary(s) | Self::Ascii(s) | Self::AuthoredAscii(s) | Self::Legacy(s) => {
+                Some(&s.bytes)
+            }
         }
     }
 }
@@ -85,6 +142,7 @@ pub fn verify_native_origin(path: &Path, origin: &NativeOrigin) -> Result<(), Na
         let source = match origin {
             NativeOrigin::Binary(source)
             | NativeOrigin::Ascii(source)
+            | NativeOrigin::AuthoredAscii(source)
             | NativeOrigin::Legacy(source) => source,
             NativeOrigin::Untitled => return Err(NativeSaveError::SourceChanged),
         };
@@ -106,6 +164,7 @@ pub fn verify_native_origin(path: &Path, origin: &NativeOrigin) -> Result<(), Na
         let source = match origin {
             NativeOrigin::Binary(source)
             | NativeOrigin::Ascii(source)
+            | NativeOrigin::AuthoredAscii(source)
             | NativeOrigin::Legacy(source) => source,
             NativeOrigin::Untitled => return Err(NativeSaveError::SourceChanged),
         };
@@ -152,6 +211,8 @@ pub enum NativeLoadError {
     Native(NativeError),
     Binary(binary::BinaryError),
     Ascii(ascii::AsciiError),
+    /// A Maya ASCII mesh scene that passes the read-back gate but cannot be opened here.
+    AsciiAdoption(ascii::AsciiDocumentError),
 }
 impl fmt::Display for NativeLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -165,6 +226,7 @@ impl fmt::Display for NativeLoadError {
             Self::Native(error) => error.fmt(f),
             Self::Binary(error) => error.fmt(f),
             Self::Ascii(error) => error.fmt(f),
+            Self::AsciiAdoption(error) => error.fmt(f),
         }
     }
 }
@@ -206,6 +268,15 @@ fn read_bytes(path: &Path) -> io::Result<(Vec<u8>, Metadata, LinkStatus, std::fs
 }
 
 pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
+    load_native_with(path, cfg!(unix))
+}
+
+/// `adoption_supported` is the platform decision for Maya ASCII mesh scenes, a parameter so
+/// both outcomes are testable on any host.
+fn load_native_with(
+    path: &Path,
+    adoption_supported: bool,
+) -> Result<NativeDocument, NativeLoadError> {
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
@@ -221,10 +292,35 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
         return Err(NativeLoadError::TooLarge);
     }
     let bytes: Arc<[u8]> = bytes.into();
+    #[cfg(unix)]
+    let mut adopted = None;
     let scene = if binary_format {
         binary::decode(bytes.clone()).map_err(NativeLoadError::Binary)?
     } else if ascii_format {
-        ascii::decode(bytes.clone()).map_err(NativeLoadError::Ascii)?
+        match ascii::decode_document(bytes.clone(), adoption_supported) {
+            Ok(ascii::AsciiDecoded::Retained(scene)) => scene,
+            // The proved projection is the edited scene itself: no second conversion, and
+            // its document id binds the baseline below.
+            Ok(ascii::AsciiDecoded::Authored(projection)) => {
+                #[cfg(unix)]
+                {
+                    let scene = projection.into_scene();
+                    adopted = scene.authored_document_id();
+                    scene
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = projection;
+                    return Err(NativeLoadError::AsciiAdoption(
+                        ascii::AsciiDocumentError::AdoptionUnsupported,
+                    ));
+                }
+            }
+            Err(ascii::AsciiDocumentError::Ascii(error)) => {
+                return Err(NativeLoadError::Ascii(error));
+            }
+            Err(error) => return Err(NativeLoadError::AsciiAdoption(error)),
+        }
     } else {
         NativeScene::from_legacy(decode_legacy(&bytes).map_err(|_| NativeLoadError::Legacy)?)
             .map_err(NativeLoadError::Native)?
@@ -249,8 +345,19 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
     };
     #[cfg(not(any(unix, windows)))]
     drop(file);
-    let source = SourceBaseline {
+    #[cfg(unix)]
+    let retention = match adopted {
+        Some(document_id) => Retention::Authored { document_id },
+        None => Retention::Source {
+            parse_bytes: bytes.clone(),
+        },
+    };
+    #[cfg(not(unix))]
+    let retention = Retention::Source {
         parse_bytes: bytes.clone(),
+    };
+    let source = SourceBaseline {
+        retention,
         bytes,
         metadata,
         link,
@@ -264,6 +371,13 @@ pub fn load_native(path: &Path) -> Result<NativeDocument, NativeLoadError> {
         origin: if binary_format {
             NativeOrigin::Binary(source)
         } else if ascii_format {
+            #[cfg(unix)]
+            if adopted.is_some() {
+                NativeOrigin::AuthoredAscii(source)
+            } else {
+                NativeOrigin::Ascii(source)
+            }
+            #[cfg(not(unix))]
             NativeOrigin::Ascii(source)
         } else {
             NativeOrigin::Legacy(source)
@@ -428,6 +542,95 @@ mod native_open_tests {
         assert_eq!(view.curve_instances().len(), 1);
         assert!(view.curve_instances()[0].segments().len() > 1);
         assert_eq!(std::fs::read(path).unwrap(), source);
+    }
+
+    fn authored_ma_bytes() -> Vec<u8> {
+        let mut scene = NativeScene::default();
+        scene.create(crate::scene::Primitive::Cube, "box").unwrap();
+        ascii::write::emit_geometry_prefix(&scene).unwrap()
+    }
+
+    // Adoption (and `authored_document_id`) is Unix-only.
+    #[cfg(unix)]
+    #[test]
+    fn a_gated_authored_ma_opens_with_its_mesh_visible_and_pickable() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("authored.ma");
+        let source = authored_ma_bytes();
+        std::fs::write(&path, &source).unwrap();
+        let document = load_native_with(&path, true).unwrap();
+        assert_eq!(document.origin.kind(), "maya_ascii");
+        assert!(matches!(document.origin, NativeOrigin::AuthoredAscii(_)));
+        assert!(document.origin.active_save_available());
+        assert!(document.origin.save_as_available());
+        assert!(document.scene.authoring_read_only_reason().is_none());
+        assert!(document.scene.authored_document_id().is_some());
+        assert_eq!(document.scene.shapes().len(), 1);
+        assert_eq!(document.scene.nodes()[0].name(), "box");
+        let view = ViewScene::from_native(&document.scene, 256 * 1024 * 1024).unwrap();
+        assert_eq!(view.instances().len(), 1);
+        let camera = crate::viewport::Camera::default();
+        let hit = camera.pick_view(&view, glam::Vec2::ZERO, 1.0).unwrap();
+        assert!(hit.is_some(), "the reopened cube is pickable");
+        assert_eq!(std::fs::read(path).unwrap(), source);
+    }
+
+    #[test]
+    fn an_empty_authored_ma_reopens_as_an_authored_document_where_adoption_is_supported() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("empty.ma");
+        let bytes = ascii::write::emit_geometry_prefix(&NativeScene::default()).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        #[cfg(unix)]
+        assert!(matches!(
+            load_native_with(&path, true).unwrap().origin,
+            NativeOrigin::AuthoredAscii(_)
+        ));
+        // Mesh-free files never need adoption, so a platform without it still opens them.
+        let document = load_native_with(&path, false).unwrap();
+        assert!(matches!(document.origin, NativeOrigin::Ascii(_)));
+        assert!(document.scene.nodes().is_empty());
+    }
+
+    #[test]
+    fn a_mesh_ma_that_fails_the_gate_is_refused_not_opened() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("edited.ma");
+        let mut source = authored_ma_bytes();
+        source.extend_from_slice(b"// hand edit\n");
+        std::fs::write(&path, &source).unwrap();
+        assert!(matches!(
+            load_native_with(&path, true),
+            Err(NativeLoadError::Ascii(_))
+        ));
+    }
+
+    #[test]
+    fn the_curve_specimen_still_opens_read_only_with_its_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("curve.ma");
+        std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+        let document = load_native_with(&path, true).unwrap();
+        assert!(document.scene.authoring_read_only_reason().is_some());
+        assert!(document.scene.retained_source_bytes() > 0);
+    }
+
+    #[test]
+    fn a_gated_mesh_ma_is_refused_where_adoption_is_unsupported() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("authored.ma");
+        std::fs::write(&path, authored_ma_bytes()).unwrap();
+        let Err(error) = load_native_with(&path, false) else {
+            panic!("adoption must be refused");
+        };
+        assert!(matches!(
+            error,
+            NativeLoadError::AsciiAdoption(ascii::AsciiDocumentError::AdoptionUnsupported)
+        ));
+        assert_eq!(
+            error.to_string(),
+            "Maya ASCII scenes with meshes can be opened only on macOS and Linux"
+        );
     }
 
     #[test]

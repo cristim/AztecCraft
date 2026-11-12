@@ -12,7 +12,7 @@
 //! 2. `remote_operation_guarded(` is called only from `remote_operation` (a test wrapper) and the
 //!    MCP bridge, and nothing under `src/mcp*` reaches the editor any other way.
 //! 3. Every call site of the history mutators (`.execute(`, `.undo()`, `.redo()`,
-//!    `.begin_move(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
+//!    `.begin_move(`, `.begin_move_many(`, `.update_move(`, `.finish_move(`, `.cancel_active_move(`, `History::new(`)
 //!    and every `self.history =` assignment sits in an allowlisted function.
 //!
 //! Sources are found by walking `src/`, not by a fixed list, so `app.rs -> app/mod.rs` and files
@@ -207,7 +207,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         "native wrapper",
         "apply_operation(",
         &[
-            "native_operation",
+            "native_operation_result",
             "viewport",
             "file_modal",
             "finish_native_sample",
@@ -216,6 +216,11 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "begin_native_manipulation",
             "run_numeric_manipulation",
         ],
+    );
+    expect(
+        "native result wrapper",
+        "native_operation_result(",
+        &["native_operation", "extrude_selected_face"],
     );
     expect(
         "native UI wrapper",
@@ -231,6 +236,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "frame_selected",
             "deselect_all",
             "native_select_by_rule",
+            "run_timeline_action",
+            "timeline_controls",
             "history_step",
             "manipulation_options",
             "outliner",
@@ -279,9 +286,17 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
         ".execute(",
         &["apply_operation_guarded", "commit_pending"],
     );
+    // A time change writes evaluated channels with no undo entry. Dispatch re-evaluates after Undo
+    // and Redo, and write_time serves set_current_time, play and the playback tick.
+    expect(
+        "history evaluate",
+        ".apply_evaluated(",
+        &["apply_operation_guarded", "write_time"],
+    );
     expect("history undo", ".undo()", &["apply_operation_guarded"]);
     expect("history redo", ".redo()", &["apply_operation_guarded"]);
-    expect("move begin", ".begin_move(", &["begin_editor_move"]);
+    expect("single move begin", ".begin_move(", &[]);
+    expect("move begin", ".begin_move_many(", &["begin_editor_move"]);
     expect("rotate begin", ".begin_rotate(", &["begin_editor_rotate"]);
     expect("scale begin", ".begin_scale(", &["begin_editor_scale"]);
     expect("move update", ".update_move(", &["update_editor_move"]);
