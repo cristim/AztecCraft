@@ -187,10 +187,20 @@ fn error_display_omits_paths_and_payload() {
     let error = store
         .write_with(&FaultFs::always(Op::CreateNew), "secret-stem", b"PAYLOAD")
         .unwrap_err();
-    let shown = format!("{error} {error:?}");
-    assert!(!format!("{error}").contains("recovery/"), "{shown}");
-    assert!(!format!("{error}").contains(store.dir().to_str().unwrap()));
-    assert!(!format!("{error}").contains("PAYLOAD"));
+    let mut chain = format!("{error} {error:?} {error:#?}");
+    let mut source = std::error::Error::source(&error);
+    while let Some(inner) = source {
+        chain.push_str(&format!(" {inner} {inner:?}"));
+        source = inner.source();
+    }
+    for secret in [
+        store.dir().to_str().unwrap(),
+        "recovery/",
+        "secret-stem",
+        "PAYLOAD",
+    ] {
+        assert!(!chain.contains(secret), "leaked {secret}: {chain}");
+    }
 }
 
 #[test]

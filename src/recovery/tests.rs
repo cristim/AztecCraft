@@ -206,3 +206,37 @@ fn a_reused_pid_never_prunes_the_earlier_processs_files() {
 mod session;
 
 mod failures;
+
+#[test]
+fn retention_prunes_only_files_this_instance_wrote_even_with_the_same_pid() {
+    let (_tmp, a) = store(2);
+    let b = RecoveryStore::new(a.dir(), 2, 4242).unwrap();
+    a.write("untitled", b"a1").unwrap();
+    let theirs = b.write("untitled", b"b1").unwrap().entry;
+    for n in 0..3u8 {
+        a.write("untitled", &[n]).unwrap();
+    }
+    assert_eq!(b.read(&theirs).unwrap(), b"b1");
+    let mine = a.list().unwrap().len();
+    assert_eq!(mine, 3, "two of a's files plus b's");
+}
+
+#[test]
+fn stems_differing_only_in_case_share_one_sequence() {
+    let (_tmp, store) = store(10);
+    store.write("Scene", b"1").unwrap();
+    assert_eq!(store.next_sequence("scene").unwrap(), 2);
+    let out = store.write("scene", b"2").unwrap();
+    assert_eq!(out.entry.sequence, 2);
+}
+
+#[test]
+fn remove_through_the_writing_store_frees_its_bookkeeping() {
+    let (_tmp, a) = store(1);
+    let first = a.write("a", b"1").unwrap().entry;
+    a.remove(&first).unwrap();
+    let b = RecoveryStore::new(a.dir(), 1, 4242).unwrap();
+    let theirs = b.write("a", b"b").unwrap().entry;
+    a.write("a", b"2").unwrap();
+    assert_eq!(b.read(&theirs).unwrap(), b"b");
+}
