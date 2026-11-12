@@ -257,13 +257,23 @@ impl WorldMoveFrame {
 }
 
 impl NativeScene {
+    #[cfg(test)]
     pub(crate) fn begin_move_translation(
         &self,
         target: &TransformTarget,
         axis: WorldAxis,
     ) -> Result<(WorldMoveFrame, ChannelBaseline), NativeError> {
+        self.begin_move_translation_in(target, MoveSpace::World, axis)
+    }
+
+    pub(crate) fn begin_move_translation_in(
+        &self,
+        target: &TransformTarget,
+        space: MoveSpace,
+        axis: WorldAxis,
+    ) -> Result<(WorldMoveFrame, ChannelBaseline), NativeError> {
         let frame = self.world_move_frame(target)?;
-        frame.require_leaves(axis)?;
+        frame.require_leaves_in(space, axis)?;
         let node = self.node(target.node)?;
         Ok((
             frame,
@@ -542,9 +552,19 @@ impl NativeScene {
 
     /// Frames and translation baselines for every target, after one scene-level check (a single
     /// validation for the whole set). Fails whole, naming the offending target's index.
+    #[cfg(test)]
     pub(crate) fn world_move_frames(
         &self,
         targets: &[&TransformTarget],
+        axis: Option<WorldAxis>,
+    ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
+        self.world_move_frames_in(targets, MoveSpace::World, axis)
+    }
+
+    pub(crate) fn world_move_frames_in(
+        &self,
+        targets: &[&TransformTarget],
+        space: MoveSpace,
         axis: Option<WorldAxis>,
     ) -> Result<Vec<(WorldMoveFrame, ChannelBaseline)>, MoveBeginError> {
         self.move_scene_check().map_err(MoveBeginError::Scene)?;
@@ -556,7 +576,7 @@ impl NativeScene {
             let member = |source| MoveBeginError::Member { index, source };
             let frame = self.member_move_frame(target).map_err(member)?;
             if let Some(axis) = axis {
-                frame.require_leaves(axis).map_err(member)?;
+                frame.require_leaves_in(space, axis).map_err(member)?;
             }
             let node = self.node(target.node).map_err(member)?;
             movers.push((

@@ -13,7 +13,7 @@ use azteccraft::{
     },
     manipulator_handles::{RotateDrag, ScaleDrag},
     move_handles::{AxisDrag, HandleError, ViewportCapture, WorldHandles},
-    native_scene::{TransformTarget, WorldAxis},
+    native_scene::{MoveSpace, TransformTarget, WorldAxis},
 };
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::{
@@ -277,10 +277,20 @@ impl Editor {
         expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
         self.check_move_target(target, provenance, expected_selection_generation)?;
+        let space = self.manipulation.move_space();
+        // PROVISIONAL until the handles and the drag follow the orientation: a native drag still
+        // measures along world axes, so it would move the object along the wrong line.
+        if provenance == ManipulationProvenance::Native && space != MoveSpace::World {
+            return Err(OperationError::InvalidInput(
+                "unsupported: Move handles are not yet aligned to the Object or Parent orientation"
+                    .to_owned(),
+            ));
+        }
         let id = self
             .history
-            .begin_move_many(
+            .begin_move_many_in(
                 self.selection.members(),
+                space,
                 axis,
                 self.scene_token,
                 provenance,

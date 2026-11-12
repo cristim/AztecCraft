@@ -4,8 +4,8 @@ use azteccraft::{
     history::{ManipulationError, ManipulationFinish, ManipulationId},
     move_handles::ManipulatorSize,
     native_scene::{
-        EdgeTarget, FaceTarget, NativeError, NativeId, RotateAxis, RotateSpace, ScaleHandle,
-        ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
+        EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
+        ScaleHandle, ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
@@ -323,6 +323,12 @@ pub enum Operation {
     SetToolSpace {
         tool: ActiveTool,
         space: ManipulationSpace,
+    },
+    /// Sets the Axis Orientation of the Move tool settings (World by default). `BeginMove` reads
+    /// it, so a Move started later moves each object along that orientation's axes.
+    #[cfg_attr(not(test), allow(dead_code))]
+    SetMoveSpace {
+        space: MoveSpace,
     },
     /// Sets the persistent Rotate axis or Scale handle that numeric entry uses.
     SetToolHandle(ToolHandle),
