@@ -567,7 +567,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder or cone in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -791,6 +791,49 @@
             }
           },
           "type": "object"
+        },
+        "TorusOptions": {
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "default": "y",
+              "enum": [
+                "x",
+                "y",
+                "z"
+              ],
+              "type": "string"
+            },
+            "radius": {
+              "default": 1.0,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "section_radius": {
+              "default": 0.5,
+              "format": "double",
+              "maximum": 1000000.0,
+              "minimum": 1e-6,
+              "type": "number"
+            },
+            "subdivisions_axis": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            },
+            "subdivisions_height": {
+              "default": 20,
+              "format": "uint32",
+              "maximum": 128,
+              "minimum": 3,
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -913,6 +956,32 @@
             },
             "primitive": {
               "const": "cone",
+              "type": "string"
+            },
+            "scene_token": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "primitive",
+            "scene_token"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "options": {
+              "$ref": "#/$defs/TorusOptions"
+            },
+            "primitive": {
+              "const": "torus",
               "type": "string"
             },
             "scene_token": {
