@@ -1909,7 +1909,7 @@
   },
   {
     "name": "play_timeline",
-    "description": "Start playback at 24 fps, looping continuously over the playback range, skipping frames rather than slowing down (rate and loop PROVISIONAL). A time outside the range starts at the range start. It advances only while the native window renders. It stops on a manipulation, a focused text field, a draft, a file modal or close. A request that passes the scene token and busy checks stops it before it runs, even when a later check refuses the request; a request refused by those checks, such as a stale scene_token, leaves it playing. The exceptions are requests that only select (objects, by rule or components, or the selection mode), set the active tool, its space or handle or the manipulator size, frame the view, orbit, pan, dolly or set the camera pose, set the grid, the shading mode, a sidebar panel or the Attribute Editor tab, or read with inspect_scene, inspect_keys or inspect_uvs, and play_timeline, which leaves playback running (a repeated call is unchanged), and stop_timeline, which stops it itself. Read `timeline.playing`. Each frame that moves a keyed channel changes the revision, so paged cursors go stale during playback",
+    "description": "Start playback at 24 fps, looping continuously over the playback range, skipping frames rather than slowing down (rate and loop PROVISIONAL). A time outside the range starts at the range start. It advances only while the native window renders. It stops on a manipulation, a focused text field, a draft, a file modal or close. A request that passes the scene token and busy checks stops it before it runs, even when a later check refuses the request; a request refused by those checks, such as a stale scene_token, leaves it playing. The exceptions are requests that only select (objects, by rule or components, or the selection mode), set the active tool, its space or handle or the manipulator size, frame the view, orbit, pan, dolly or set the camera pose, set the grid, the shading mode, a sidebar panel or the Attribute Editor tab, read with inspect_scene, inspect_keys, inspect_uvs or get_recovery_status, or write a recovery file with autosave_now, and play_timeline, which leaves playback running (a repeated call is unchanged), and stop_timeline, which stops it itself. Read `timeline.playing`. Each frame that moves a keyed channel changes the revision, so paged cursors go stale during playback",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3030,6 +3030,44 @@
     },
     "annotations": {
       "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "autosave_now",
+    "description": "Write one crash-recovery file of the committed scene, when the host started the editor with --recovery-dir (otherwise recovery_disabled). The file lives in the recovery folder, never at the scene's own path: it is a separate, inert, private file that never replaces the scene file, is not an undo step, does not dirty the scene, does not change the scene token and does not commit a human draft (a draft, modal, close or an active manipulation is refused as busy). It encodes the scene as Save would, so a scene Save cannot write (for example with session materials or UVs) returns recovery_unsupported and writes nothing. Retention keeps a PROVISIONAL 10 files per scene name for this session; older ones are removed. Replies with the new sequence number, byte size and prune counts, never a path or name. Opt-in and off by default; there is no automatic timer yet. Maya's autoSave interval, destination and limitBackups options are not modelled (PROVISIONAL)",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "MutationArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "get_recovery_status",
+    "description": "Report whether recovery files are enabled for this session (the host passes --recovery-dir; off by default), the retention limit and how many recovery files the folder holds. It needs no scene token and passes no busy guard, like inspect_scene. It never reports the folder path or any file or scene name",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
       "idempotentHint": false,
       "openWorldHint": false
     }
