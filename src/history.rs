@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, MaterialChoice, NativeError, NativeId, NativeScene,
-        NativeTransform, SessionMaterialId, UvProjectAxis,
+        ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, NativeError, NativeId,
+        NativeScene, NativeTransform, SessionMaterialId, TransformTarget, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -65,6 +65,7 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    CreateJoint(JointRequest),
     /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
     SetKeys {
         nodes: Vec<NodeId>,
@@ -92,7 +93,10 @@ impl Command {
     /// The name an Undo or Redo entry shows for this command.
     fn label(&self) -> String {
         match self {
-            Self::Create { .. } | Self::CreateDefaultNamed { .. } => "Create".to_string(),
+            // PROVISIONAL for a joint: Maya's docs name no undo entries.
+            Self::Create { .. } | Self::CreateDefaultNamed { .. } | Self::CreateJoint(_) => {
+                "Create".to_string()
+            }
             Self::Remove(_) | Self::RemoveMany(_) => "Delete".to_string(),
             Self::Rename { .. } => "Rename".to_string(),
             // execute_labeled names it from the stored before/after values.
@@ -140,9 +144,11 @@ struct Entry {
     pose_frame: i32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EditOutcome {
     Created(NodeId),
+    /// A joint with its full path, proved valid by the core before the edit committed.
+    CreatedJoint(TransformTarget),
     SessionMaterial(SessionMaterialId),
     Changed,
     Unchanged,
@@ -491,6 +497,9 @@ impl History {
             } => {
                 candidate.extrude_face(shape, face_index, distance)?;
                 EditOutcome::Changed
+            }
+            Command::CreateJoint(request) => {
+                EditOutcome::CreatedJoint(candidate.create_joint(&request)?)
             }
             Command::SetKeys {
                 nodes,

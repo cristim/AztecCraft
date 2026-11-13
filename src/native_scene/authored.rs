@@ -47,6 +47,7 @@ pub(super) const BUILTINS: [&str; 14] = [
 pub(crate) enum AuthoredIneligible {
     SourcedScene,
     Curves,
+    Joints,
     Keys,
     InvalidScene(NativeError),
     UnsupportedUnits,
@@ -86,8 +87,9 @@ pub(super) enum UvPolicy {
     Admit,
 }
 
-/// The first checks: a retained source, curve content or session keys cannot be written as
-/// authored, nor can session UVs under `UvPolicy::Refuse`.
+/// The first checks: a retained source, curve content, session joints or session keys cannot be
+/// written as authored, nor can session UVs under `UvPolicy::Refuse`. Without the joint check a
+/// scene of root joints would pass as bare transforms.
 pub(super) fn check_content_kind(
     scene: &NativeScene,
     uvs: UvPolicy,
@@ -97,6 +99,9 @@ pub(super) fn check_content_kind(
     }
     if !scene.curves.is_empty() {
         return Err(AuthoredIneligible::Curves);
+    }
+    if scene.has_joints() {
+        return Err(AuthoredIneligible::Joints);
     }
     if !scene.session_keys.is_empty() {
         return Err(AuthoredIneligible::Keys);

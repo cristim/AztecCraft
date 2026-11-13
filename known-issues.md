@@ -670,7 +670,7 @@ Channel Box is resynchronized to the scene.
 
 The strip shows:
 
-- a menu-set selector where only Modeling is active; Rigging, Animation, FX and Rendering are disabled;
+- a menu-set selector where Modeling and Rigging work; Animation, FX and Rendering are disabled;
 - New, Open and Save buttons, which share the File menu's handlers and enable state;
 - Hierarchy (Root sub-mask only), Object and Component selection modes. The Component button enters Face
   from Object and Hierarchy, keeps the current mode in Vertex, Edge and Face, and stays pressed in all three;
@@ -686,7 +686,7 @@ Groups without AztecCraft behavior are not drawn rather than shown as inert cont
 snaps, symmetry, construction history, render buttons, Hypershade and the input box. The right-end
 cluster therefore follows the last drawn group.
 
-- The F2 to F6 menu-set hotkeys are deferred.
+- F2 and F3 switch Modeling and Rigging; F4 to F6 stay unbound because their sets do not exist.
 - No Layer Editor exists, so the toggle shows or hides only the Channel Box; its hover and a Layers stub in the panel say so.
 - The toggle is disabled during an active manipulation, including a remote one with no native gesture, like other edits.
 - Save As has no strip button and stays in the File menu.
@@ -1037,7 +1037,27 @@ profile from it), or Maya rejects, repairs or rewrites these files (issue #5 ask
 Delete removes a node with all its descendants, root or not, natively and over MCP; only a
 descendant transform shared with a node outside the subtree is refused (`scene_error`). Maya's exact
 Delete semantics for hierarchies are PROVISIONAL: only the 2024 Delete help page was found, no
-2026 page exists, and none states what a parent delete does to its children.
+2026 page exists, and none states what a parent delete does to its children. A session joint is deleted with everything below it like any other
+node (#363).
+
+## Joints are session-only with PROVISIONAL display and defaults
+
+**Severity:** medium
+**Area:** rigging
+**Issue:** cristim/AztecCraft#363
+
+Joints exist only in authored, unsourced scenes and are never saved: both writers refuse a scene
+holding joints rather than writing them as plain transforms, so such a scene cannot be Saved until
+they are deleted. A joint's parent must be a joint, so a joint cannot sit under a mesh transform.
+Create Joints is a numeric window, not Maya's click-driven Joint Tool; there is no orientation,
+jointOrient, rotate axis, rotate order, IK, skinning or constraint.
+
+PROVISIONAL, because the cited 2027 pages do not settle them: the default name `joint<N>`; the
+display (circle radius 0.5 times the radius, 16 segments, one line per bone, existing object
+colours); default radius 1.0 at creation and the 1e6 cm upper limit on radius; an inverse of 1 for a zero or non-finite parent scale;
+Delete removing descendants; a child rotation of 0 under a rotated parent; the Rigging menu order;
+the undo label Create; the 8 pixel click tolerance on joint centres, with bones not pickable; the
+Radius row in the Channel Box. None of this has been compared with Maya.
 
 ## Naming the refusing member of a multi-object Delete costs N to 2N checks
 
@@ -1397,3 +1417,18 @@ translation of its own (`move_instanced_ancestor_covers_descendant_by_identity`;
 instanced selections is not documented, so this is a conservative choice.
 
 Cost: a multi-object begin enumerates every transform path of the scene once (`transform_paths()`, linear since #347 and bounded by the path limit, so an oversized scene is refused with `ResourceLimit` rather than scanned). Begin does not hold that list otherwise, so it is not reused; the scan is a few milliseconds at 4096 paths in a debug build and runs once per begin, not per update.
+
+## Joint creation: untyped name and parent errors, and edit_node positions (#363)
+
+- `create_joint` through MCP reports an invalid name and an unknown parent id as the generic
+  `scene_error`, as the other node tools do on `main`; only a joint-specific refusal (parent not a
+  joint, singular parent, radius, position range) is `unsupported_joint`. Typing those two is
+  deferred with the same gap in the other tools.
+- `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
+  one such joint would fail every view build. `edit_node` still accepts translations beyond f32
+  range on `main` (code outside the rigging slice), with the same effect on the view build; it is
+  not changed here.
+- Undo and redo do not restore the object selection: undoing a joint creation leaves nothing
+  selected and redo does not reselect the joints, and undoing a delete does not reselect the
+  deleted chain. Maya's selection undo behaviour is not documented for these operations
+  (PROVISIONAL); the redo tests pin the current behaviour.

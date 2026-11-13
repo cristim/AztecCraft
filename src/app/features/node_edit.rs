@@ -206,11 +206,14 @@ impl Editor {
     pub(in crate::app) fn transform_section(&mut self, ui: &mut egui::Ui, authoring: bool) -> bool {
         let reason = self.authoring_refusal();
         let mut apply = false;
-        let visibility = self
+        let node = self
             .selection_presentation()
             .0
-            .and_then(|id| self.history.scene().node(id).ok())
-            .and_then(|node| node.local_visibility());
+            .and_then(|id| self.history.scene().node(id).ok());
+        let visibility = node.and_then(|node| node.local_visibility());
+        let joint_radius = node
+            .and_then(|node| self.history.scene().joint(node.transform_id()))
+            .map(|joint| joint.radius());
         egui::Grid::new("transform_channels")
             .num_columns(2)
             .spacing([8.0, 5.0])
@@ -250,6 +253,13 @@ impl Editor {
                 ui.add_enabled(false, egui::Button::new(visibility_text(visibility)))
                     .on_disabled_hover_text("visibility edit not implemented");
                 ui.end_row();
+                // PROVISIONAL: the pages do not say Maya's Channel Box shows the radius.
+                if let Some(radius) = joint_radius {
+                    ui.label("Radius");
+                    ui.add_enabled(false, egui::Button::new(radius.to_string()))
+                        .on_disabled_hover_text("Radius edit not implemented");
+                    ui.end_row();
+                }
             });
         let angular = match &self.history.scene().units().angular {
             AngularUnit::Degree => "degrees",

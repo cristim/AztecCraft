@@ -247,6 +247,18 @@ pub(in crate::app) struct PrimitiveOptionsUi {
     typing: bool,
 }
 
+impl PrimitiveOptionsUi {
+    pub(in crate::app) fn is_open(&self) -> bool {
+        self.dialog.is_some()
+    }
+
+    /// The window's layer while it is open, for ordering it against other windows.
+    pub(in crate::app) fn open_window_layer(&self) -> Option<egui::LayerId> {
+        self.is_open()
+            .then(|| egui::LayerId::new(egui::Order::Middle, window_id()))
+    }
+}
+
 impl Default for PrimitiveOptionsUi {
     fn default() -> Self {
         Self {

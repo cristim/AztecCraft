@@ -1,6 +1,6 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, MarqueeMode, Operation, OperationError, OperationReply,
-    SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
+    ActiveTool, AttributeEditorTab, MarqueeMode, MenuSet, Operation, OperationError,
+    OperationReply, SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
@@ -76,6 +76,7 @@ pub struct Editor {
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     grid_visible: bool,
     shading: ShadingMode,
+    menu_set: MenuSet,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
     face_centres_hidden: bool,
     /// Last painted frame hid Wireframe vertex markers (occlusion check over budget).
@@ -101,6 +102,7 @@ pub struct Editor {
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
     primitive_options: features::primitive_options::PrimitiveOptionsUi,
+    joint_options: features::rigging::JointOptionsUi,
     extrude_options: features::extrude_options::ExtrudeOptionsUi,
     timeline: features::timeline::Timeline,
     uv: features::uv::UvUi,
@@ -136,6 +138,7 @@ impl Default for Editor {
             bookmarks: Default::default(),
             grid_visible: true,
             shading: ShadingMode::default(),
+            menu_set: MenuSet::default(),
             face_centres_hidden: false,
             vertex_markers_hidden: false,
             sidebar_dock: Some(SidebarPanel::ChannelBox),
@@ -158,6 +161,7 @@ impl Default for Editor {
             material_shape: None,
             material_draft: None,
             primitive_options: Default::default(),
+            joint_options: Default::default(),
             extrude_options: Default::default(),
             timeline: Default::default(),
             uv: Default::default(),
@@ -345,6 +349,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
     .into_iter()
     .chain((0..9).map(channel_edit_id))
     .chain(features::primitive_options::option_field_ids())
+    .chain(features::rigging::joint_field_ids())
     .chain([features::extrude_options::thickness_field_id()])
     .chain(features::timeline::field_ids())
 }

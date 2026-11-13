@@ -133,6 +133,8 @@ impl From<AuthoredIneligible> for MayaImportRefusal {
             A::NameCollision => Self::InvalidScene,
             A::Curves => Self::Curves,
             A::Keys => Self::Keys,
+            // An import builds a flat authored scene and never creates session joints.
+            A::Joints => Self::InvalidScene,
             A::SessionUvs => Self::SessionUvs,
             A::UnsupportedUnits => Self::UnsupportedUnits,
             A::NonAuthoredHierarchy => Self::NonFlatHierarchy,

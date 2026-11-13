@@ -1,6 +1,6 @@
 use super::features::{
-    animation, extrude, file, history, inspect, manipulation, material, node_edit, selection,
-    status_line, uv, view,
+    animation, extrude, file, history, inspect, manipulation, material, node_edit, rigging,
+    selection, status_line, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -24,6 +24,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     selection::TOOLS,
     node_edit::TOOLS,
     extrude::TOOLS,
+    rigging::TOOLS,
     animation::TOOLS,
     uv::TOOLS,
     material::TOOLS,
@@ -241,6 +242,7 @@ The Maya column names the equivalent Maya 2027 command (command reference pages,
                 ]),
                 non_default: vec!["shear", "inherits_transform", "offset_parent_matrix"],
             }),
+            joint: Some(crate::editor_operations::JointInspection { radius: 1.0 }),
             instance_paths: Vec::new(),
             shape_ids: Vec::new(),
         };

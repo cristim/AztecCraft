@@ -125,9 +125,10 @@ fn scale_handle_id(handle: ScaleHandle) -> &'static str {
 
 fn edit_reply(outcome: EditOutcome) -> OperationReply {
     match outcome {
-        EditOutcome::Changed | EditOutcome::Created(_) | EditOutcome::SessionMaterial(_) => {
-            OperationReply::Changed
-        }
+        EditOutcome::Changed
+        | EditOutcome::Created(_)
+        | EditOutcome::CreatedJoint(_)
+        | EditOutcome::SessionMaterial(_) => OperationReply::Changed,
         EditOutcome::Unchanged => OperationReply::Unchanged,
     }
 }

@@ -98,12 +98,13 @@ impl Editor {
         let mut delete_intent = keyboard_admitted && delete;
         self.move_consumed_frame = false;
         self.handle_close(ui.ctx());
+        self.note_front_options_window(ui.ctx());
         // Same gate as shortcuts(): Escape that closes a menu must not also cancel an edit. The
         // popup is still open here; egui closes it later in this pass, when the menus are shown.
         if !self.files.is_modal()
             && !egui::Popup::is_any_open(ui.ctx())
             && !self.escape_stops_playback(ui.ctx())
-            && !self.escape_closes_primitive_options(ui.ctx())
+            && !self.escape_closes_frontmost_options_window(ui.ctx())
             && !self.escape_closes_extrude_options(ui.ctx())
         {
             self.cancel_on_escape(ui.ctx());
@@ -341,6 +342,7 @@ impl Editor {
         let admitted = frame_admitted && !self.files.is_modal() && !self.files.is_closing();
         self.file_modal(ui.ctx());
         self.primitive_options_window(ui.ctx());
+        self.joint_options_window(ui.ctx());
         self.extrude_options_window(ui.ctx());
         self.uv_windows(ui.ctx());
         let sidebar_request = self.sidebar_panel_request.take();
@@ -501,16 +503,28 @@ impl Editor {
             {
                 match self.selection_mode {
                     SelectionMode::Object | SelectionMode::Hierarchy => {
-                        let hit = self
-                            .camera
-                            .pick_view(&view, ndc, self.aspect)
+                        let joint = input
+                            .pick_joint(&self.camera, &view)
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        let (node, instance_path) = match hit {
-                            Some(hit) => {
-                                let (node, path) = self.object_target_for_hit(hit)?;
+                        let (node, instance_path) = match joint {
+                            Some(joint) => {
+                                let (node, path) = self.object_target_for_prefix(
+                                    joint.transform(),
+                                    joint.path().to_vec(),
+                                )?;
                                 (Some(node), Some(path))
                             }
-                            None => (None, None),
+                            None => match self
+                                .camera
+                                .pick_view(&view, ndc, self.aspect)
+                                .map_err(|e| OperationError::View(e.to_string()))?
+                            {
+                                Some(hit) => {
+                                    let (node, path) = self.object_target_for_hit(hit)?;
+                                    (Some(node), Some(path))
+                                }
+                                None => (None, None),
+                            },
                         };
                         // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
                         // click on empty space leaves the selection alone.
