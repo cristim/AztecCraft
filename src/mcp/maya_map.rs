@@ -23,6 +23,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("select_in_rect", "`select -replace` with a marquee; no scripted equivalent", "Maya marquee selection is a UI drag, not a command (PROVISIONAL)"),
     ("deselect_all", "`select -clear`", "also returns to Object selection mode"),
     ("set_selection_mode", "`selectMode`, `selectType`", "exclusive component modes"),
+    ("modify_component_selection", "`select -replace|-add|-deselect|-toggle pCube1.f[n]`, `.vtx[n]`, `.e[n]`", "one object only (AztecCraft restriction; Maya selects across objects); no index ranges; set order and lead are PROVISIONAL"),
     ("select_face", "`select pCube1.f[n]`", "one component, no ranges"),
     ("select_vertex", "`select pCube1.vtx[n]`", "one component, no ranges"),
     ("select_edge", "`select pCube1.e[n]`", "one component, no ranges"),
