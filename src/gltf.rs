@@ -8,16 +8,13 @@
 //! assigned session material is refused rather than exported without them.
 //! Spec: <https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html>.
 
+use crate::export_write::{StagedWriteError, write_new_staged};
 use crate::native_scene::{NativeError, NativeScene};
 use crate::view_scene::ViewInstance;
-use craft_atomic::{AtomicFs, NewFilePermissions, RealFs, WriteOptions};
 use glam::DVec3;
 use serde_json::{Value, json};
 use std::{
-    cell::Cell,
-    fmt,
-    fs::File,
-    io,
+    fmt, io,
     path::{Path, PathBuf},
 };
 
@@ -107,65 +104,6 @@ impl std::error::Error for GltfError {
             Self::Native(source) => Some(source),
             _ => None,
         }
-    }
-}
-
-/// Asks `may_install` before the staged file is created or linked, like the OBJ exporter.
-struct GuardedFs<'a> {
-    may_install: &'a dyn Fn() -> bool,
-    refused: Cell<bool>,
-}
-
-impl GuardedFs<'_> {
-    fn permit(&self) -> io::Result<()> {
-        if (self.may_install)() {
-            return Ok(());
-        }
-        self.refused.set(true);
-        Err(io::Error::new(
-            io::ErrorKind::Interrupted,
-            "export cancelled before install",
-        ))
-    }
-}
-
-impl AtomicFs for GuardedFs<'_> {
-    fn create_new(&self, path: &Path, permissions: NewFilePermissions) -> io::Result<File> {
-        self.permit()?;
-        RealFs.create_new(path, permissions)
-    }
-    fn sync(&self, file: &File) -> io::Result<()> {
-        RealFs.sync(file)
-    }
-    fn rename(&self, from: &Path, to: &Path) -> io::Result<()> {
-        RealFs.rename(from, to)
-    }
-    fn hard_link(&self, from: &Path, to: &Path) -> io::Result<()> {
-        self.permit()?;
-        RealFs.hard_link(from, to)
-    }
-    fn remove(&self, path: &Path) -> io::Result<()> {
-        RealFs.remove(path)
-    }
-    fn sync_dir(&self, dir: &Path) -> io::Result<()> {
-        RealFs.sync_dir(dir)
-    }
-    fn set_permissions(&self, file: &File, perms: std::fs::Permissions) -> io::Result<()> {
-        RealFs.set_permissions(file, perms)
-    }
-}
-
-fn refuse_occupied(path: &Path) -> Result<(), GltfError> {
-    match std::fs::symlink_metadata(path) {
-        Ok(_) => Err(GltfError::Io {
-            path: path.into(),
-            source: io::Error::new(io::ErrorKind::AlreadyExists, "destination already exists"),
-        }),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(GltfError::Io {
-            path: path.into(),
-            source,
-        }),
     }
 }
 
@@ -387,23 +325,10 @@ pub fn export_native_new(
         return Err(GltfError::NothingToExport);
     }
     let contents = encode(&meshes, bytes, format)?;
-    refuse_occupied(path)?;
-    let fs = GuardedFs {
-        may_install,
-        refused: Cell::new(false),
-    };
-    WriteOptions::default()
-        .write_new_custom(&fs, path, &contents)
-        .map_err(|source| {
-            if fs.refused.get() {
-                GltfError::Cancelled
-            } else {
-                GltfError::Io {
-                    path: path.into(),
-                    source,
-                }
-            }
-        })?;
+    write_new_staged(path, &contents, may_install).map_err(|error| match error {
+        StagedWriteError::Cancelled => GltfError::Cancelled,
+        StagedWriteError::Io { path, source } => GltfError::Io { path, source },
+    })?;
     Ok(summary)
 }
 
