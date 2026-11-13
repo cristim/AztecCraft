@@ -737,6 +737,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             axis: UvProjectAxis::Y,
         },
         Operation::DeleteUvs { shape: t.shape },
+        Operation::InspectVertices {
+            shape: t.shape,
+            cursor: None,
+        },
         Operation::InspectUvs {
             shape: t.shape,
             cursor: None,
@@ -1188,6 +1192,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "inspect_keys",
             Operation::InspectKeys {
                 node: None,
+                cursor: None,
+            },
+        )],
+        Operation::InspectVertices { .. } => vec![sample(
+            "inspect_vertices",
+            Operation::InspectVertices {
+                shape: t.shape,
                 cursor: None,
             },
         )],

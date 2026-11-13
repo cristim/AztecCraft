@@ -105,6 +105,64 @@ impl Editor {
         });
         Ok(inspection)
     }
+    /// One page of a shape's vertex positions in declared scene units, so a client can read back
+    /// what `move_vertices` wrote. A read passes no token guard, so the cursor binds the document
+    /// and revision, as `inspect_uvs` does.
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn inspect_vertices(
+        &self,
+        shape: NativeId,
+        cursor: Option<&crate::editor_operations::PageCursor>,
+    ) -> Result<crate::editor_operations::VertexInspection, OperationError> {
+        use crate::editor_operations::{
+            CursorScope, MAX_VERTICES_PER_PAGE, PageCursor, VertexInspection,
+        };
+        let scene = self.history.scene();
+        let mesh = scene.shape(shape).map_err(OperationError::Scene)?.mesh();
+        let total = mesh.point_count();
+        let start = match cursor {
+            None => 0,
+            Some(cursor) => {
+                if cursor.scene_token != self.scene_token
+                    || cursor.revision != self.history.revision()
+                {
+                    return Err(OperationError::StaleScene);
+                }
+                if cursor.scope != CursorScope::Vertices(shape) {
+                    return Err(OperationError::InvalidInput(
+                        "cursor was issued for another tool or shape".into(),
+                    ));
+                }
+                if cursor.offset > total {
+                    return Err(OperationError::InvalidInput(
+                        "cursor offset is past the last vertex".into(),
+                    ));
+                }
+                cursor.offset
+            }
+        };
+        let end = total.min(start + MAX_VERTICES_PER_PAGE);
+        let positions = scene
+            .vertex_positions(shape, start..end)
+            .map_err(OperationError::Scene)?;
+        Ok(VertexInspection {
+            scene_token: self.scene_token.to_string(),
+            revision: self.history.revision(),
+            shape_id: shape.to_decimal(),
+            vertices_total: total,
+            vertex_offset: start,
+            positions,
+            next_cursor: (end < total).then(|| {
+                PageCursor {
+                    scene_token: self.scene_token,
+                    revision: self.history.revision(),
+                    offset: end,
+                    scope: CursorScope::Vertices(shape),
+                }
+                .to_string()
+            }),
+        })
+    }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn current_viewport_error(&self) -> Option<crate::viewport_renderer::ViewportError> {
         use crate::viewport_renderer::ViewportError;
