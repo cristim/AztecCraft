@@ -57,11 +57,33 @@ fn parse_inspect(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     })
 }
 
-pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[ToolSpec {
-    name: "inspect_scene",
-    description: "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
-    schema: schema::<InspectArgs>,
-    parse: parse_inspect,
-    idempotent: false,
-    read_only: true,
-}];
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct InspectLimitsArgs {}
+
+fn parse_inspect_limits(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    decode::<InspectLimitsArgs>(arguments)?;
+    Ok(RemoteRequest {
+        expected_scene_token: None,
+        operation: Operation::InspectLimits,
+    })
+}
+
+pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
+    ToolSpec {
+        name: "inspect_scene",
+        description: "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
+        schema: schema::<InspectArgs>,
+        parse: parse_inspect,
+        idempotent: false,
+        read_only: true,
+    },
+    ToolSpec {
+        name: "inspect_limits",
+        description: "Read the resource limits AztecCraft enforces when it opens, imports, creates, recovers or builds a view of a scene: input byte caps, parser statement, token and work caps, instance path and depth caps, primitive face and division caps, and the derived view and recovery byte budgets. Each row has `name`, `value`, `unit` (`bytes`, `count` or `work_steps`, which counts metered steps and is not time) and `enforced_by`, the owning constant. Static for the build and independent of the scene, so it needs no token and passes no guard. The values are PROVISIONAL application policy: Maya states no scene limits. Exceeding one makes the operation fail with a typed refusal and leaves the scene unchanged",
+        schema: schema::<InspectLimitsArgs>,
+        parse: parse_inspect_limits,
+        idempotent: false,
+        read_only: true,
+    },
+];

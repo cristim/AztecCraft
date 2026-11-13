@@ -9,6 +9,7 @@
 #[rustfmt::skip]
 pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("inspect_scene", "`ls`, `listRelatives`, `getAttr`, `xform -q`, `polyEvaluate`, `currentUnit -q`, `camera -q`", "one paged snapshot instead of per-command queries"),
+    ("inspect_limits", "no equivalent", "AztecCraft application resource limits; Maya states none"),
     ("set_active_tool", "`setToolTo`", "Select, Move, Rotate and Scale only"),
     ("set_tool_space", "`manipRotateContext` / `manipScaleContext -mode`", "Move and Scale: object, world, parent; Rotate: object, world; other orientations not covered (PROVISIONAL)"),
     ("set_tool_handle", "`-currentActiveHandle` on the manip contexts", "none known (PROVISIONAL)"),
