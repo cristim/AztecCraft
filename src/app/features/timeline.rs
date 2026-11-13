@@ -191,6 +191,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::SelectFace { .. }
         | Operation::SelectVertex { .. }
         | Operation::SelectEdge { .. }
+        | Operation::ModifyComponentSelection { .. }
         | Operation::FrameSelected { .. }
         | Operation::FrameAll { .. }
         | Operation::SetGridVisible { .. }

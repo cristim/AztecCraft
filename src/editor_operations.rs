@@ -77,6 +77,30 @@ pub enum MarqueeMode {
     Toggle,
 }
 
+/// The component type a component-set operation changes; each type keeps its own set.
+#[allow(dead_code)] // constructed by the MCP tool in the next commit
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ComponentKind {
+    Face,
+    Vertex,
+    Edge,
+}
+
+impl ComponentKind {
+    /// The selection mode in which this type is selected.
+    pub fn mode(self) -> SelectionMode {
+        match self {
+            Self::Face => SelectionMode::Face,
+            Self::Vertex => SelectionMode::Vertex,
+            Self::Edge => SelectionMode::Edge,
+        }
+    }
+}
+
+/// Most indices one component-selection request may carry: the OBJ import limit on faces or
+/// vertices, so a marquee over the largest admitted mesh still fits.
+pub const MAX_COMPONENT_INDICES: usize = 262_144;
+
 #[derive(Clone, Copy, Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct TransformInput {
@@ -532,6 +556,20 @@ pub enum Operation {
     },
     SelectEdge {
         target: Option<EdgeTarget>,
+    },
+    /// Changes the ordered face, vertex or edge selection of the one selected object (Maya
+    /// `select -replace`, `-add`, `-deselect`, `-toggle` on `.f[n]`, `.vtx[n]`, `.e[n]`): `mode`
+    /// combines `indices` with the set of `kind`; the last member is the lead. Needs the mode of
+    /// `kind` and `owner` to be the selected instance's shape; indices beyond the mesh refuse the
+    /// whole request. Replace with no indices empties the set. Indices are positions in the
+    /// current mesh, so a topology edit or Undo may make a stored index name another component
+    /// (as Maya's `f[n]`); members past the end are dropped.
+    #[allow(dead_code)] // constructed by the MCP tool in the next commit
+    ModifyComponentSelection {
+        kind: ComponentKind,
+        mode: MarqueeMode,
+        owner: azteccraft::selection::ComponentOwner,
+        indices: Vec<usize>,
     },
     NewScene,
     RequestClose,

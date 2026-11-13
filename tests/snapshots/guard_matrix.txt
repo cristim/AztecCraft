@@ -105,6 +105,11 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
+  modify_component_selection(other_object) => Err(InvalidInput: Component selection must name a shape of the selected object) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -273,6 +278,11 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
+  modify_component_selection(other_object) => Err(InvalidInput: Component selection must name a shape of the selected object) | no state change
   new_scene => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
@@ -433,6 +443,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -591,6 +605,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -749,6 +767,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -907,6 +929,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1065,6 +1091,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Open
@@ -1223,6 +1253,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene edited" -> "Resolve unsaved changes to continue"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; modal: false -> true; pending_action: - -> Open
@@ -1381,6 +1415,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true; active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   new_scene => Ok(pending_confirmation) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Open
@@ -1539,6 +1577,10 @@
   select_edge(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_edge(edge_mode_clear) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_edge(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(object_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   new_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   request_close => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(ascii_curve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1697,6 +1739,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true; active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
   new_scene => Ok(pending_confirmation) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; modal: false -> true; pending_action: - -> Open
@@ -1855,6 +1901,10 @@
   select_edge(edge_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_edge(edge_mode_clear) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_edge(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(object_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   new_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   request_close => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   open_scene(ascii_curve) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2013,6 +2063,10 @@
   select_edge(edge_mode) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select_edge(edge_mode_clear) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  modify_component_selection(face_mode_replace_empty) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   request_close => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   open_scene(ascii_curve) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2171,6 +2225,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2330,6 +2388,10 @@
   select_edge(edge_mode) => Ok(changed) | scene changed; edge_remembered: false -> true; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | scene changed; face_remembered: false -> true; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; modal: false -> true; pending_action: - -> New; can_undo: false -> true
   request_close => Ok(pending_confirmation) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_undo: false -> true
   open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_undo: false -> true
@@ -2489,6 +2551,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2647,6 +2713,10 @@
   select_edge(edge_mode) => Ok(changed) | scene changed; edge_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_edge(edge_mode_clear) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | scene changed; face_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> New; can_redo: true -> false
   request_close => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_redo: true -> false
   open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_redo: true -> false
@@ -2805,6 +2875,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2963,6 +3037,10 @@
   select_edge(edge_mode) => Ok(changed) | scene changed; edge_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_edge(edge_mode_clear) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | scene changed; face_remembered: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> New; can_redo: true -> false
   request_close => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Close; can_redo: true -> false
   open_scene(ascii_curve) => Ok(pending_confirmation) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; modal: false -> true; pending_action: - -> Open; can_redo: true -> false
@@ -3121,6 +3199,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3279,6 +3361,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -3437,6 +3523,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3595,6 +3685,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Ok(changed) | face_remembered: false -> true
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -3753,6 +3847,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3913,6 +4011,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4071,6 +4173,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4229,6 +4335,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4387,6 +4497,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4545,6 +4659,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4703,6 +4821,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4861,6 +4983,10 @@
   select_edge(edge_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(edge_mode_clear) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_edge(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(object_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_add) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   new_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   request_close => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   open_scene(ascii_curve) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5019,6 +5145,10 @@
   select_edge(edge_mode) => Err(Scene: native mesh shape 2 does not exist) | no state change
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: native mesh shape 2 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(Scene: native mesh shape 2 does not exist) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: native mesh shape 2 does not exist) | no state change
   new_scene => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: curve -> -; selected_path_len: 1 -> 0; camera changed; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   request_close => Ok(close_requested) | closing: false -> true
   open_scene(ascii_curve) => Ok(document_applied) | token replaced; selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -5177,6 +5307,10 @@
   select_edge(edge_mode) => Err(Scene: native mesh shape 2 does not exist) | no state change
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: native mesh shape 2 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(Scene: native mesh shape 2 does not exist) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: native mesh shape 2 does not exist) | no state change
   new_scene => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: curve -> -; selected_path_len: 1 -> 0; camera changed; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   request_close => Ok(close_requested) | closing: false -> true
   open_scene(ascii_curve) => Ok(document_applied) | token replaced; selected: curve -> -; selected_path_len: 1 -> 0; name_field: "curve" -> ""; channel_fields: 12,0,0,0,0,0,1,1,1 -> ,,,,,,,,
@@ -5336,6 +5470,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -5495,6 +5633,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
@@ -5654,6 +5796,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -5813,6 +5959,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
@@ -6068,6 +6218,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Open
@@ -6227,6 +6381,10 @@
   select_edge(edge_mode) => Ok(changed) | edge_remembered: false -> true
   select_edge(edge_mode_clear) => Ok(unchanged) | no state change
   select_edge(vertex_mode) => Err(InvalidInput: Edge selection requires Edge mode) | no state change
+  modify_component_selection(object_mode) => Err(InvalidInput: Face selection requires Face mode) | no state change
+  modify_component_selection(face_mode_add) => Err(Scene: mesh face 1 does not exist) | no state change
+  modify_component_selection(face_mode_replace_empty) => Ok(unchanged) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(Scene: mesh face 99999 does not exist) | no state change
   new_scene => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> New
   request_close => Ok(pending_confirmation) | modal: false -> true; pending_action: - -> Close
   open_scene(ascii_curve) => Ok(pending_confirmation) | status: "Scene ready" -> "Resolve unsaved changes to continue"; modal: false -> true; pending_action: - -> Open
@@ -6386,6 +6544,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6545,6 +6707,10 @@
   select_edge(edge_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(edge_mode_clear) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_edge(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(object_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_add) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_replace_empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  modify_component_selection(face_mode_missing_face) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   new_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   request_close => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   open_scene(ascii_curve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6609,4 +6775,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 6009
+cells: 6175
