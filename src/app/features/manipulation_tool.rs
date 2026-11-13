@@ -51,6 +51,9 @@ pub(in crate::app) struct ManipulationOptions {
     // The last remote value as given, in scene units: inspection echoes it bit-exactly instead of
     // converting the internal parameter back, which can differ in the last bit.
     pub(in crate::app) declared: Option<(ManipulationId, f64)>,
+    // Snap to grids was on when this Move began: the lead pivot and the unit world direction of
+    // the handle axis, read before the preview moved anything.
+    pub(in crate::app) snap: Option<(ManipulationId, DVec3, DVec3)>,
 }
 
 impl Default for ManipulationOptions {
@@ -67,6 +70,7 @@ impl Default for ManipulationOptions {
             quiet: false,
             refusal: None,
             declared: None,
+            snap: None,
         }
     }
 }

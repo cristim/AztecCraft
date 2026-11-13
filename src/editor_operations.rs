@@ -606,6 +606,12 @@ pub enum Operation {
     SetGridVisible {
         visible: bool,
     },
+    /// Status Line "Snap to grids" (`snapMode -grid`): a Move begun while on lands the lead's
+    /// pivot on a grid line. Session-only; refused during a manipulation.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetSnapToGrid {
+        enabled: bool,
+    },
     SetShadingMode(ShadingMode),
     SetMenuSet {
         set: MenuSet,
@@ -750,6 +756,8 @@ pub struct SceneInspection {
     pub viewport_backend: &'static str,
     pub viewport_error: Option<crate::viewport_renderer::ViewportError>,
     pub grid_visible: bool,
+    /// Snap to grids (`snapMode -grid`), off by default (PROVISIONAL: the docs state no default).
+    pub snap_to_grid: bool,
     pub shading: ShadingMode,
     pub menu_set: MenuSet,
     pub face_centres_hidden: bool,
@@ -1410,7 +1418,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
-    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"shading":"","menu_set":"","#,
+    r#""viewport_backend":"","viewport_error":null,"grid_visible":true,"snap_to_grid":true,"shading":"","menu_set":"","#,
     r#""face_centres_hidden":true,"vertex_markers_hidden":true,"#,
     r#""sidebar_panels":{"channel_box":true,"attribute_editor":true},"attribute_editor_tab":null,"#,
     r#""depth_complete":true,"clipping_complete":true,"appearance_incomplete":true,"#,

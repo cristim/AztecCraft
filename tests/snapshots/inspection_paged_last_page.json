@@ -228,6 +228,7 @@
       "attribute_editor": false,
       "channel_box": true
     },
+    "snap_to_grid": false,
     "source_appearance": {
       "checked_source_bindings": 0,
       "issues": {

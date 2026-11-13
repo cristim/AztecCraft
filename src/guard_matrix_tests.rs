@@ -831,6 +831,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::FrameAll { fit_factor: None },
         Operation::SetGridVisible { visible: false },
+        Operation::SetSnapToGrid { enabled: false },
         Operation::CreateCameraBookmark { name: "v".into() },
         Operation::RenameCameraBookmark {
             name: "v".into(),
@@ -1851,6 +1852,10 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },
+        )],
+        Operation::SetSnapToGrid { .. } => vec![sample(
+            "set_snap_to_grid(false)",
+            Operation::SetSnapToGrid { enabled: false },
         )],
         Operation::CreateCameraBookmark { .. } => vec![sample(
             "create_camera_bookmark(v)",

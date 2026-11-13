@@ -122,6 +122,7 @@ impl Editor {
             | Operation::OpenUndoChunk { .. }
             | Operation::CloseUndoChunk
             | Operation::SetGridVisible { .. }
+            | Operation::SetSnapToGrid { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetMenuSet { .. }
             | Operation::SetSidebarPanelVisible { .. }
@@ -395,6 +396,7 @@ impl Editor {
         if matches!(
             operation,
             Operation::SetGridVisible { .. }
+                | Operation::SetSnapToGrid { .. }
                 | Operation::SetShadingMode(_)
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
@@ -713,6 +715,15 @@ impl Editor {
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SetSnapToGrid { enabled } => {
+                let changed = self.snap_to_grid != enabled;
+                self.snap_to_grid = enabled;
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {

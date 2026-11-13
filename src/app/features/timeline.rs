@@ -194,6 +194,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::FrameSelected { .. }
         | Operation::FrameAll { .. }
         | Operation::SetGridVisible { .. }
+        | Operation::SetSnapToGrid { .. }
         | Operation::SetShadingMode(_)
         | Operation::SetSidebarPanelVisible { .. }
         | Operation::SelectAttributeEditorTab { .. }

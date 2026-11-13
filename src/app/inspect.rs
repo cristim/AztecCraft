@@ -441,6 +441,7 @@ impl Editor {
             },
             viewport_error,
             grid_visible: self.grid_visible,
+            snap_to_grid: self.snap_to_grid,
             shading: self.shading,
             menu_set: self.menu_set,
             face_centres_hidden: self.face_centres_hidden,

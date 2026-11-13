@@ -147,6 +147,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -307,6 +308,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -457,6 +459,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -607,6 +610,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -757,6 +761,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -907,6 +912,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1057,6 +1063,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -1207,6 +1214,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -1357,6 +1365,7 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_snap_to_grid(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1507,6 +1516,7 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_snap_to_grid(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1657,6 +1667,7 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_snap_to_grid(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1807,6 +1818,7 @@
   frame_selected(children) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   frame_all => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_grid_visible(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_snap_to_grid(false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_camera_bookmark(v) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1957,6 +1969,7 @@
   frame_selected(children) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   frame_all => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_grid_visible(false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_snap_to_grid(false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create_camera_bookmark(v) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   rename_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2107,6 +2120,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2258,6 +2272,7 @@
   frame_selected(children) => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   frame_all => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_snap_to_grid(false) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create_camera_bookmark(v) => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true; bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2409,6 +2424,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2559,6 +2575,7 @@
   frame_selected(children) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   frame_all => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_grid_visible(false) => Ok(changed) | scene changed; grid: true -> false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create_camera_bookmark(v) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false; bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2709,6 +2726,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2859,6 +2877,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -3009,6 +3028,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3159,6 +3179,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -3309,6 +3330,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3461,6 +3483,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3611,6 +3634,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3761,6 +3785,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3911,6 +3936,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4061,6 +4087,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4211,6 +4238,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4361,6 +4389,7 @@
   frame_selected(children) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   frame_all => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_grid_visible(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_snap_to_grid(false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_camera_bookmark(v) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4511,6 +4540,7 @@
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -4661,6 +4691,7 @@
   frame_selected(children) => Ok(unchanged) | no state change
   frame_all => Ok(unchanged) | no state change
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -4812,6 +4843,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -4963,6 +4995,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -5114,6 +5147,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -5265,6 +5299,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -5468,6 +5503,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -5619,6 +5655,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Ok(changed) | grid: true -> false
+  set_snap_to_grid(false) => Ok(unchanged) | no state change
   create_camera_bookmark(v) => Ok(changed) | bookmarks:  -> v
   rename_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
@@ -5770,6 +5807,7 @@
   frame_selected(children) => Ok(changed) | camera changed
   frame_all => Ok(changed) | camera changed
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5921,6 +5959,7 @@
   frame_selected(children) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   frame_all => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_grid_visible(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_snap_to_grid(false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_camera_bookmark(v) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5937,4 +5976,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5389
+cells: 5428

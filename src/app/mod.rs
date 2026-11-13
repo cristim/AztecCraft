@@ -75,6 +75,7 @@ pub struct Editor {
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     grid_visible: bool,
+    snap_to_grid: bool,
     shading: ShadingMode,
     menu_set: MenuSet,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
@@ -137,6 +138,7 @@ impl Default for Editor {
             camera: Camera::default(),
             bookmarks: Default::default(),
             grid_visible: true,
+            snap_to_grid: false,
             shading: ShadingMode::default(),
             menu_set: MenuSet::default(),
             face_centres_hidden: false,

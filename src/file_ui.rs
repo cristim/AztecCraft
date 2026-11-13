@@ -428,6 +428,7 @@ impl Editor {
         self.native_move = None;
         self.move_viewport = None;
         self.manipulation.declared = None;
+        self.manipulation.snap = None;
         self.clear_manipulation_hover();
         self.selection.clear();
         self.clear_remembered_components();
