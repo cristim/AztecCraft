@@ -236,6 +236,10 @@ impl RecoveryStore {
         })
     }
 
+    pub fn max_backups(&self) -> usize {
+        self.max_backups
+    }
+
     pub fn dir(&self) -> &Path {
         &self.dir
     }

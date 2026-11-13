@@ -74,6 +74,9 @@ pub struct Editor {
     camera: Camera,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
+    /// Off unless the host enables it; recovery files never replace the scene file.
+    #[cfg(any(test, feature = "mcp"))]
+    recovery: Option<azteccraft::recovery::RecoveryStore>,
     grid_visible: bool,
     shading: ShadingMode,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
@@ -134,6 +137,8 @@ impl Default for Editor {
             remembered_edge: None,
             camera: Camera::default(),
             bookmarks: Default::default(),
+            #[cfg(any(test, feature = "mcp"))]
+            recovery: None,
             grid_visible: true,
             shading: ShadingMode::default(),
             face_centres_hidden: false,
