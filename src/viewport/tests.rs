@@ -1377,3 +1377,107 @@ fn eye_relative_matrix_matches_full_view_projection_for_a_rotated_camera() {
         }
     }
 }
+
+fn sphere_axis_points(radius: f32) -> Vec<Vec3> {
+    frame_unit_sphere_points()
+        .into_iter()
+        .map(|point| point * radius)
+        .collect()
+}
+
+fn framed_with(
+    fov_y: f32,
+    aspect: f32,
+    fit: Option<f32>,
+    points: &[Vec3],
+) -> Result<Camera, InvalidCameraInput> {
+    let base = Camera::new(Vec3::ZERO, 0.6, 0.4, 8.0, fov_y, 0.1, 10_000.0)?;
+    let mut camera = match fit {
+        Some(fit) => base.fitted(fit)?,
+        None => base,
+    };
+    camera.frame_points(points, aspect)?;
+    Ok(camera.unfitted())
+}
+
+/// The largest NDC extent of the sphere's silhouette: the tangent points on the camera's
+/// horizontal and vertical axes, projected through the camera.
+fn projected_sphere_fill(camera: &Camera, aspect: f32, radius: f32) -> f32 {
+    let distance = camera.distance();
+    let tangent = (distance * distance - radius * radius).sqrt();
+    let angle = (radius / distance).asin();
+    let to_world = camera.view_matrix().inverse();
+    let mut fill = 0.0_f32;
+    for axis in [Vec3::X, Vec3::Y] {
+        let view_point = Vec3::new(0.0, 0.0, -tangent * angle.cos()) + axis * tangent * angle.sin();
+        let world = to_world.transform_point3(view_point + Vec3::new(0.0, 0.0, 0.0));
+        let ndc = camera.project(world, aspect).unwrap().unwrap();
+        fill = fill.max(ndc.x.abs()).max(ndc.y.abs());
+    }
+    fill
+}
+
+#[test]
+fn fit_factor_makes_the_projected_sphere_fill_that_fraction_of_the_limiting_axis() {
+    let radius = 2.0;
+    let points = sphere_axis_points(radius);
+    for fov_y in [
+        45.0_f32.to_radians(),
+        90.0_f32.to_radians(),
+        120.0_f32.to_radians(),
+    ] {
+        for aspect in [0.5_f32, 1.0, 1.6] {
+            for fit in [0.25_f32, 0.5, 0.9, 1.0] {
+                let camera = framed_with(fov_y, aspect, Some(fit), &points).unwrap();
+                let fill = projected_sphere_fill(&camera, aspect, radius);
+                assert!(
+                    (fill - fit).abs() <= 1e-4,
+                    "fov {fov_y} aspect {aspect} f {fit}: fill {fill}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn fit_factor_none_is_the_default_margin_and_unfitted_clears_the_factor() {
+    let points = frame_unit_sphere_points();
+    let default = framed_with(0.8, 1.6, None, &points).unwrap();
+    let full = framed_with(0.8, 1.6, Some(1.0), &points).unwrap();
+    assert!((default.distance() - 1.05 * full.distance()).abs() <= full.distance() * 1e-5);
+    let mut after = framed_with(0.8, 1.6, Some(0.5), &points).unwrap();
+    after.frame_points(&points, 1.6).unwrap();
+    assert_eq!(after.distance(), default.distance());
+    assert_eq!(after, default);
+}
+
+#[test]
+fn fit_factor_keeps_the_near_clip_floor() {
+    let tiny = framed_with(0.8, 1.0, Some(1.0), &[Vec3::ZERO]).unwrap();
+    assert_eq!(tiny.distance(), 0.2 * 1.05);
+}
+
+#[test]
+fn fit_factor_range_is_a_hundredth_to_one_and_a_rejection_changes_nothing() {
+    let camera = Camera::default();
+    for good in [MIN_FIT_FACTOR, 0.5, 1.0] {
+        assert!(camera.fitted(good).is_ok(), "{good}");
+    }
+    for bad in [
+        0.009_999_f32,
+        1e-10,
+        1e-30,
+        f32::MIN_POSITIVE / 2.0,
+        f32::NAN,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        0.0,
+        -0.0,
+        -0.5,
+        1.000_000_1,
+        1.5,
+    ] {
+        assert!(camera.fitted(bad).is_err(), "{bad}");
+    }
+    assert_eq!(camera, Camera::default());
+}
