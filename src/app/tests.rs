@@ -1,4 +1,5 @@
 use super::*;
+use azteccraft::native_scene::{EdgeTarget, VertexTarget};
 
 mod material_wire {
     include!(concat!(
@@ -668,7 +669,7 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     editor.channels[0] = "2".into();
     editor.native_operation(frame_with_children());
     assert!(!editor.error);
-    assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&cap));
     assert_eq!(
         editor
             .history
@@ -680,9 +681,9 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
         2.0
     );
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&cap));
     remote(&mut editor, Operation::Redo).unwrap();
-    assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&cap));
     remote(
         &mut editor,
         Operation::ExtrudeFace {
@@ -691,7 +692,7 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
         },
     )
     .unwrap();
-    assert_eq!(editor.remembered_face.as_ref(), Some(&cap));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&cap));
     let side = FaceTarget {
         face_index: 6,
         ..cap
@@ -704,10 +705,10 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     )
     .unwrap();
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert!(editor.history.can_redo());
     remote(&mut editor, Operation::Redo).unwrap();
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     remote(
         &mut editor,
         Operation::SelectFace {
@@ -720,7 +721,7 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
         Err(OperationError::InvalidInput(_))
     ));
     assert_eq!(editor.selection_presentation().0, Some(id));
-    assert_eq!(editor.remembered_face.as_ref(), Some(&side));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&side));
     remote(
         &mut editor,
         Operation::SetSelectionMode(SelectionMode::Object),
@@ -729,11 +730,11 @@ fn face_lifecycle_revalidates_numeric_edits_topology_history_and_object_deletion
     remote(&mut editor, Operation::Delete(id)).unwrap();
     assert_eq!(editor.selection_presentation().0, None);
     assert!(editor.selection_presentation().1.is_empty());
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     remote(&mut editor, Operation::Undo).unwrap();
     assert!(editor.history.scene().node(id).is_ok());
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
 }
 
 #[test]
@@ -792,7 +793,7 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
     .unwrap();
     remote(&mut editor, frame_with_children()).unwrap();
     assert_eq!(editor.camera, expected);
-    assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&target));
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.scene_token, token);
     remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
@@ -813,7 +814,7 @@ fn face_frame_uses_selected_corners_even_when_center_is_not_pickable() {
     editor.native_operation(frame_with_children());
     assert!(editor.error);
     assert_eq!(editor.camera, camera);
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(
         editor
             .history
@@ -865,7 +866,7 @@ fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
         SelectionMode::Face,
     ] {
         remote(&mut editor, Operation::SetSelectionMode(mode)).unwrap();
-        assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+        assert_eq!(editor.remembered_face().as_ref(), Some(&target));
         assert_eq!(editor.selection_presentation().0, Some(id));
         assert_eq!(
             editor.selection_presentation().1,
@@ -880,10 +881,10 @@ fn face_mode_preserves_the_remembered_target_without_editing_scene_or_redo() {
         },
     )
     .unwrap();
-    assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&target));
     remote(&mut editor, Operation::SelectFace { target: None }).unwrap();
     assert_eq!(editor.selection_presentation().0, Some(id));
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.history.scene(), &scene);
     assert!(editor.history.can_redo());
     assert_eq!(editor.scene_token, token);
@@ -925,7 +926,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         editor.selection_presentation().1,
         &target.path[..target.path.len() - 1]
     );
-    assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&target));
     remote(
         &mut editor,
         Operation::SelectFace {
@@ -934,7 +935,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
     )
     .unwrap();
     assert_eq!(editor.selection_presentation().0, Some(other));
-    assert_eq!(editor.remembered_face.as_ref(), Some(&second_shape));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&second_shape));
     assert_eq!(
         editor.selection_presentation().1,
         &second_shape.path[..second_shape.path.len() - 1]
@@ -944,7 +945,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.camera.clone(),
         editor.scene_token,
         editor.name.clone(),
@@ -968,7 +969,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.camera.clone(),
             editor.scene_token,
             editor.name.clone(),
@@ -986,7 +987,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         },
     )
     .unwrap();
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     remote(
         &mut editor,
         Operation::SelectFace {
@@ -1002,7 +1003,7 @@ fn explicit_face_selection_selects_its_owner_and_object_changes_clear_memory() {
         },
     )
     .unwrap();
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.selection_presentation().0, None);
 }
 
@@ -1020,7 +1021,7 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
             .is_err()
     );
     assert!(editor.has_draft());
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     editor.sync_fields();
     editor.create(Primitive::Plane);
     let other = selected_face(&editor, 0);
@@ -1041,7 +1042,7 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.name.clone(),
         editor.channels.clone(),
         editor.scene_token,
@@ -1088,7 +1089,7 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
                 editor.selection_presentation().0,
                 editor.selection_presentation().1.to_vec(),
                 editor.selection_mode,
-                editor.remembered_face.clone(),
+                editor.remembered_face(),
                 editor.name.clone(),
                 editor.channels.clone(),
                 editor.scene_token,
@@ -1106,7 +1107,7 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
         editor.selection_mode,
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.name.clone(),
         editor.channels.clone(),
         editor.scene_token,
@@ -1119,7 +1120,7 @@ fn invalid_face_targets_and_wrong_mode_preserve_the_selection_baseline() {
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.name.clone(),
             editor.channels.clone(),
             editor.scene_token,
@@ -1279,7 +1280,7 @@ fn face_mode_on_a_curves_only_ascii_scene_refuses_face_targets_and_preserves_sta
         )
         .is_err()
     );
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.history.scene(), &before);
     assert!(!editor.history.can_undo());
     let inspection = editor.inspect(false).unwrap();
@@ -2364,7 +2365,7 @@ fn deselect_all_clears_object_and_components_and_returns_to_object_mode() {
     assert!(changed(remote(&mut editor, Operation::DeselectAll)));
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     assert_eq!(editor.selection_presentation().0, None);
-    assert!(editor.remembered_face.is_none());
+    assert!(editor.remembered_face().is_none());
     assert!(!changed(remote(&mut editor, Operation::DeselectAll)));
     remote(
         &mut editor,
@@ -3682,14 +3683,14 @@ fn face_native_keys_coalesce_before_same_frame_click_and_preserve_authoring_stat
         vec![key(Key::F8), key(Key::F11), key(Key::F11)],
     );
     assert_eq!(editor.selection_mode, SelectionMode::Face);
-    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
-    let target = editor.remembered_face.clone();
+    assert_eq!(editor.remembered_face().as_ref().unwrap().face_index, 1);
+    let target = editor.remembered_face();
     frame(&mut editor, &ctx, vec![key(Key::F8)]);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
-    assert_eq!(editor.remembered_face, target);
+    assert_eq!(editor.remembered_face(), target);
     frame(&mut editor, &ctx, vec![key(Key::F11)]);
     assert_eq!(editor.selection_mode, SelectionMode::Face);
-    assert_eq!(editor.remembered_face, target);
+    assert_eq!(editor.remembered_face(), target);
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.scene_token, token);
     assert!(editor.is_dirty());
@@ -3717,7 +3718,7 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
         editor.history.scene().clone(),
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.camera.clone(),
         editor.scene_token,
     );
@@ -3735,7 +3736,7 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
                 editor.history.scene().clone(),
                 editor.selection_presentation().0,
                 editor.selection_presentation().1.to_vec(),
-                editor.remembered_face.clone(),
+                editor.remembered_face(),
                 editor.camera.clone(),
                 editor.scene_token
             ),
@@ -3752,7 +3753,7 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
     );
     assert!(editor.error && editor.status.contains("Face deletion is unsupported"));
     assert_eq!(editor.history.scene(), &baseline.0);
-    assert_eq!(editor.remembered_face, baseline.3);
+    assert_eq!(editor.remembered_face(), baseline.3);
     face_pointer_click(
         &mut editor,
         &ctx,
@@ -3760,7 +3761,7 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
         egui::Modifiers::NONE,
         vec![],
     );
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.selection_presentation().0, baseline.1);
     assert_eq!(editor.selection_presentation().1, baseline.2);
     assert!(matches!(
@@ -3814,7 +3815,7 @@ fn face_native_closing_editor_refuses_mode_intents_without_selection_changes() {
     frame(&mut editor, &ctx, vec![key(Key::F11)]);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     assert_eq!(editor.selection_presentation().0, None);
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.history.scene(), &before);
     assert_eq!(editor.scene_token, token);
 }
@@ -4566,7 +4567,7 @@ fn face_native_edit_menu_delete_keeps_face_mode_unsupported_and_object_mode_work
             editor.selection_mode,
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.camera.clone(),
             editor.scene_token,
         );
@@ -4578,7 +4579,7 @@ fn face_native_edit_menu_delete_keeps_face_mode_unsupported_and_object_mode_work
                     editor.selection_mode,
                     editor.selection_presentation().0,
                     editor.selection_presentation().1.to_vec(),
-                    editor.remembered_face.clone(),
+                    editor.remembered_face(),
                     editor.camera.clone(),
                     editor.scene_token
                 ),
@@ -4656,7 +4657,7 @@ fn face_native_modal_cancel_does_not_replay_blocked_mode_intent() {
             editor.selection_mode,
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.history.scene().clone(),
             editor.camera.clone(),
             editor.scene_token,
@@ -4688,7 +4689,7 @@ fn face_native_modal_cancel_does_not_replay_blocked_mode_intent() {
                 editor.selection_mode,
                 editor.selection_presentation().0,
                 editor.selection_presentation().1.to_vec(),
-                editor.remembered_face.clone(),
+                editor.remembered_face(),
                 editor.history.scene().clone(),
                 editor.camera.clone(),
                 editor.scene_token,
@@ -4720,7 +4721,7 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
     let output = frame(&mut editor, &ctx, vec![key(Key::F11)]);
     let point = face_viewport_rect(&output).center();
     face_pointer_click(&mut editor, &ctx, point, egui::Modifiers::NONE, vec![]);
-    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+    assert_eq!(editor.remembered_face().as_ref().unwrap().face_index, 1);
     editor.native_operation(Operation::Rename {
         id: editor.single_target().unwrap().0,
         name: "redo-payload".into(),
@@ -4733,7 +4734,7 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
         editor.selection_mode,
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.history.scene().clone(),
         editor.camera.clone(),
         editor.scene_token,
@@ -4787,7 +4788,7 @@ fn face_native_ambiguous_primary_frame_preserves_selection_scene_and_draft() {
             editor.selection_mode,
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.history.scene().clone(),
             editor.camera.clone(),
             editor.scene_token,
@@ -4897,7 +4898,7 @@ fn face_native_menu_key_and_coalesced_click_journey_selects_the_last_plain_click
         ],
     );
     assert!(!editor.error, "{}", editor.status);
-    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 1);
+    assert_eq!(editor.remembered_face().as_ref().unwrap().face_index, 1);
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -4937,7 +4938,7 @@ fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
         editor.selection_mode,
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.camera.clone(),
         editor.scene_token,
     );
@@ -4979,7 +4980,7 @@ fn face_native_popup_intercepts_combined_menu_activation_and_viewport_click() {
             editor.selection_mode,
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.camera.clone(),
             editor.scene_token
         ),
@@ -6418,7 +6419,7 @@ fn create_menu_polygon_sphere_item_creates_a_selectable_framed_movable_sphere() 
             target: Some(triangle.clone()),
         })
         .unwrap();
-    assert_eq!(editor.remembered_face.as_ref(), Some(&triangle));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&triangle));
     let camera = editor.camera.clone();
     editor.apply_operation(frame_with_children()).unwrap();
     assert_ne!(editor.camera, camera);
@@ -6700,9 +6701,9 @@ fn frame_selected_infers_empty_stored_path_and_preserves_authoring_state() {
                 editor.selection_mode,
                 editor.selection_presentation().0,
                 editor.selection_presentation().1.to_vec(),
-                editor.remembered_face.clone(),
-                editor.remembered_vertex.clone(),
-                editor.remembered_edge.clone(),
+                editor.remembered_face(),
+                editor.remembered_vertex(),
+                editor.remembered_edge(),
                 editor.scene_token,
             ),
             (
@@ -7129,12 +7130,12 @@ fn selecting_in_hierarchy_mode_clears_the_remembered_face() {
         target: Some(target.clone()),
     });
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Hierarchy));
-    assert_eq!(editor.remembered_face.as_ref(), Some(&target));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&target));
     editor.native_operation(Operation::Select {
         node: None,
         instance_path: None,
     });
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
 }
 
 fn button_disabled(output: &egui::FullOutput, label: &str) -> bool {
@@ -7221,7 +7222,7 @@ fn create_menu_cylinder_and_cone_items_create_selectable_framed_movable_solids()
                 target: Some(cap_face.clone()),
             })
             .unwrap();
-        assert_eq!(editor.remembered_face.as_ref(), Some(&cap_face));
+        assert_eq!(editor.remembered_face().as_ref(), Some(&cap_face));
         let camera = editor.camera.clone();
         editor.apply_operation(frame_with_children()).unwrap();
         assert_ne!(editor.camera, camera);
@@ -7484,9 +7485,9 @@ fn vertex_and_edge_picks_are_kept_per_type_and_cleared_by_selection_changes() {
         remote(&mut editor, op).unwrap();
     }
     set_mode(&mut editor, SelectionMode::Object);
-    assert_eq!(editor.remembered_vertex.as_ref(), Some(&vertex));
-    assert_eq!(editor.remembered_edge.as_ref(), Some(&edge));
-    assert_eq!(editor.remembered_face.as_ref(), Some(&face));
+    assert_eq!(editor.remembered_vertex().as_ref(), Some(&vertex));
+    assert_eq!(editor.remembered_edge().as_ref(), Some(&edge));
+    assert_eq!(editor.remembered_face().as_ref(), Some(&face));
     let id = editor.single_target().unwrap().0;
     // Re-selecting the same object is unchanged and keeps the picks; another object clears all.
     remote(
@@ -7497,13 +7498,13 @@ fn vertex_and_edge_picks_are_kept_per_type_and_cleared_by_selection_changes() {
         },
     )
     .unwrap();
-    assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
+    assert!(editor.remembered_vertex().is_some() && editor.remembered_edge().is_some());
     editor.create(Primitive::Plane);
     assert_eq!(
         (
-            &editor.remembered_vertex,
-            &editor.remembered_edge,
-            &editor.remembered_face
+            &editor.remembered_vertex(),
+            &editor.remembered_edge(),
+            &editor.remembered_face()
         ),
         (&None, &None, &None)
     );
@@ -7533,7 +7534,7 @@ fn vertex_and_edge_picks_are_kept_per_type_and_cleared_by_selection_changes() {
             editor.create(Primitive::Cone);
         }
         assert_eq!(
-            (&editor.remembered_vertex, &editor.remembered_edge),
+            (&editor.remembered_vertex(), &editor.remembered_edge()),
             (&None, &None)
         );
     }
@@ -7552,9 +7553,9 @@ fn invalid_vertex_and_edge_requests_preserve_the_baseline() {
             editor.selection_presentation().0,
             editor.selection_presentation().1.to_vec(),
             editor.selection_mode,
-            editor.remembered_vertex.clone(),
-            editor.remembered_edge.clone(),
-            editor.remembered_face.clone(),
+            editor.remembered_vertex(),
+            editor.remembered_edge(),
+            editor.remembered_face(),
             editor.scene_token,
             editor.history.can_undo(),
         )
@@ -7654,15 +7655,15 @@ fn undoing_the_creation_clears_vertex_and_edge_picks() {
     set_mode(&mut editor, SelectionMode::Vertex);
     pick_vertex(&mut editor, 2);
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_vertex, None);
+    assert_eq!(editor.remembered_vertex(), None);
     remote(&mut editor, Operation::Redo).unwrap();
-    assert_eq!(editor.remembered_vertex, None);
+    assert_eq!(editor.remembered_vertex(), None);
     editor.set_selection_for_test(Some(editor.history.scene().nodes()[0].id()), Vec::new());
     editor.sync_fields();
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, 2);
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_edge, None);
+    assert_eq!(editor.remembered_edge(), None);
 }
 
 #[test]
@@ -7685,20 +7686,20 @@ fn undoing_an_extrusion_clears_new_vertex_and_edge_picks_and_redo_does_not_resto
         if edge_mode {
             set_mode(&mut editor, SelectionMode::Edge);
             pick_edge(&mut editor, edges - 1);
-            assert!(editor.remembered_edge.is_some());
+            assert!(editor.remembered_edge().is_some());
         } else {
             set_mode(&mut editor, SelectionMode::Vertex);
             pick_vertex(&mut editor, points - 1);
-            assert!(editor.remembered_vertex.is_some());
+            assert!(editor.remembered_vertex().is_some());
         }
         remote(&mut editor, Operation::Undo).unwrap();
         assert_eq!(counts(&editor), (old_points, old_edges));
-        assert_eq!(editor.remembered_vertex, None);
-        assert_eq!(editor.remembered_edge, None);
+        assert_eq!(editor.remembered_vertex(), None);
+        assert_eq!(editor.remembered_edge(), None);
         remote(&mut editor, Operation::Redo).unwrap();
         assert_eq!(counts(&editor), (points, edges));
-        assert_eq!(editor.remembered_vertex, None);
-        assert_eq!(editor.remembered_edge, None);
+        assert_eq!(editor.remembered_vertex(), None);
+        assert_eq!(editor.remembered_edge(), None);
     }
 }
 
@@ -7720,7 +7721,7 @@ fn a_still_valid_vertex_pick_survives_undo_of_an_unrelated_edit() {
     editor.name = "renamed".into();
     editor.commit_pending();
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_vertex.as_ref(), Some(&vertex));
+    assert_eq!(editor.remembered_vertex().as_ref(), Some(&vertex));
 }
 
 #[test]
@@ -7729,7 +7730,7 @@ fn new_scene_keeps_the_mode_and_clears_vertex_and_edge_picks() {
     editor.create(Primitive::Cube);
     set_mode(&mut editor, SelectionMode::Vertex);
     pick_vertex(&mut editor, 1);
-    editor.remembered_edge = Some(selected_edge(&editor, 1));
+    editor.set_remembered_edge(Some(selected_edge(&editor, 1)));
     // The scene is dirty after Create, so New asks first; discard to replace it.
     editor.native_operation(Operation::NewScene);
     if let Some(pending) = editor.files.pending_inspection() {
@@ -7744,7 +7745,7 @@ fn new_scene_keeps_the_mode_and_clears_vertex_and_edge_picks() {
     }
     assert_eq!(editor.selection_mode, SelectionMode::Vertex);
     assert_eq!(
-        (&editor.remembered_vertex, &editor.remembered_edge),
+        (&editor.remembered_vertex(), &editor.remembered_edge()),
         (&None, &None)
     );
 }
@@ -7779,7 +7780,7 @@ fn selecting_another_object_clears_vertex_and_edge_picks() {
         )
         .unwrap();
         assert_eq!(
-            (&editor.remembered_vertex, &editor.remembered_edge),
+            (&editor.remembered_vertex(), &editor.remembered_edge()),
             (&None, &None)
         );
     }
@@ -7804,7 +7805,7 @@ fn native_vertex_and_edge_selection_leave_the_status_untouched() {
         editor.native_operation(operation);
         assert!(!editor.error);
         assert_eq!(editor.status, "marker");
-        assert!(editor.remembered_vertex.is_some() || editor.remembered_edge.is_some());
+        assert!(editor.remembered_vertex().is_some() || editor.remembered_edge().is_some());
     }
 }
 
@@ -7817,9 +7818,9 @@ fn selecting_a_vertex_on_another_node_replaces_it_and_clears_other_picks() {
     let vertex_on_first = selected_vertex(&editor, 1);
     editor.create(Primitive::Plane);
     // Install picks that still resolve on the first node, so only the owner check can clear them.
-    editor.remembered_edge = Some(edge_on_first);
-    editor.remembered_face = Some(face_on_first);
-    editor.remembered_vertex = Some(vertex_on_first);
+    editor.set_remembered_edge(Some(edge_on_first));
+    editor.set_remembered_face(Some(face_on_first));
+    editor.set_remembered_vertex(Some(vertex_on_first));
     set_mode(&mut editor, SelectionMode::Vertex);
     let on_second = selected_vertex(&editor, 2);
     remote(
@@ -7829,9 +7830,9 @@ fn selecting_a_vertex_on_another_node_replaces_it_and_clears_other_picks() {
         },
     )
     .unwrap();
-    assert_eq!(editor.remembered_vertex.as_ref(), Some(&on_second));
-    assert_eq!(editor.remembered_edge, None);
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_vertex().as_ref(), Some(&on_second));
+    assert_eq!(editor.remembered_edge(), None);
+    assert_eq!(editor.remembered_face(), None);
 }
 
 #[test]
@@ -7839,10 +7840,10 @@ fn inspection_charges_the_remembered_vertex_and_refuses_an_overlong_path() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     let mut vertex = selected_vertex(&editor, 0);
-    editor.remembered_vertex = Some(vertex.clone());
+    editor.set_remembered_vertex(Some(vertex.clone()));
     assert!(editor.inspect(false).unwrap().remembered_vertex.is_some());
     vertex.path = vec![vertex.shape; azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 2];
-    editor.remembered_vertex = Some(vertex);
+    editor.set_remembered_vertex(Some(vertex));
     assert!(matches!(
         editor.inspect(false),
         Err(OperationError::TooLarge)
@@ -7854,10 +7855,10 @@ fn inspection_charges_the_remembered_edge_and_refuses_an_overlong_path() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     let mut edge = selected_edge(&editor, 0);
-    editor.remembered_edge = Some(edge.clone());
+    editor.set_remembered_edge(Some(edge.clone()));
     assert!(editor.inspect(false).unwrap().remembered_edge.is_some());
     edge.path = vec![edge.shape; azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 2];
-    editor.remembered_edge = Some(edge);
+    editor.set_remembered_edge(Some(edge));
     assert!(matches!(
         editor.inspect(false),
         Err(OperationError::TooLarge)
@@ -7923,7 +7924,7 @@ fn overlong_vertex_and_edge_paths_are_rejected_without_mutation() {
         before
     );
     assert_eq!(
-        (&editor.remembered_vertex, &editor.remembered_edge),
+        (&editor.remembered_vertex(), &editor.remembered_edge()),
         (&None, &None)
     );
 }
@@ -7947,8 +7948,8 @@ fn undo_clears_only_the_stale_pick_and_keeps_valid_ones() {
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, edges - 1);
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_edge, None);
-    assert_eq!(editor.remembered_vertex.as_ref().unwrap().vertex_index, 0);
+    assert_eq!(editor.remembered_edge(), None);
+    assert_eq!(editor.remembered_vertex().as_ref().unwrap().vertex_index, 0);
 }
 
 #[test]
@@ -8022,9 +8023,9 @@ fn undo_making_only_the_face_pick_stale_keeps_vertex_and_edge_picks() {
     let side = selected_face(&editor, 6);
     remote(&mut editor, Operation::SelectFace { target: Some(side) }).unwrap();
     remote(&mut editor, Operation::Undo).unwrap();
-    assert_eq!(editor.remembered_face, None);
-    assert_eq!(editor.remembered_vertex.as_ref().unwrap().vertex_index, 0);
-    assert_eq!(editor.remembered_edge.as_ref().unwrap().edge_index, 0);
+    assert_eq!(editor.remembered_face(), None);
+    assert_eq!(editor.remembered_vertex().as_ref().unwrap().vertex_index, 0);
+    assert_eq!(editor.remembered_edge().as_ref().unwrap().edge_index, 0);
 }
 
 fn translated_cube_editor() -> Editor {
@@ -8102,8 +8103,8 @@ fn frame_selected_without_a_pick_or_with_a_stale_pick_keeps_the_camera() {
             Err(OperationError::NoSelection)
         ));
         // A remembered pick that no longer resolves is a typed scene error.
-        editor.remembered_vertex = Some(selected_vertex(&editor, 9999));
-        editor.remembered_edge = Some(selected_edge(&editor, 9999));
+        editor.set_remembered_vertex(Some(selected_vertex(&editor, 9999)));
+        editor.set_remembered_edge(Some(selected_edge(&editor, 9999)));
         assert!(matches!(
             remote(&mut editor, frame_with_children()),
             Err(OperationError::Scene(_))
@@ -8194,9 +8195,9 @@ fn click_baseline(editor: &Editor) -> impl PartialEq + std::fmt::Debug + use<> {
         editor.selection_mode,
         editor.selection_presentation().0,
         editor.selection_presentation().1.to_vec(),
-        editor.remembered_face.clone(),
-        editor.remembered_vertex.clone(),
-        editor.remembered_edge.clone(),
+        editor.remembered_face(),
+        editor.remembered_vertex(),
+        editor.remembered_edge(),
         editor.camera.clone(),
         editor.scene_token,
     )
@@ -8217,7 +8218,7 @@ fn f9_and_f10_switch_to_vertex_and_edge_modes_and_keep_each_remembered_pick() {
     pick_edge(&mut editor, 3);
     frame(&mut editor, &ctx, vec![key(Key::F9)]);
     assert_eq!(editor.selection_mode, SelectionMode::Vertex);
-    assert_eq!(editor.remembered_vertex.as_ref().unwrap().vertex_index, 2);
+    assert_eq!(editor.remembered_vertex().as_ref().unwrap().vertex_index, 2);
     frame(&mut editor, &ctx, vec![key(Key::F11)]);
     assert_eq!(editor.selection_mode, SelectionMode::Face);
     assert_eq!(editor.history.scene(), &before);
@@ -8304,12 +8305,12 @@ fn vertex_click_ignores_an_occluded_vertex_and_picks_a_visible_one() {
     }
     let baseline = click_baseline(&editor);
     face_pointer_click(&mut editor, &ctx, hidden, egui::Modifiers::NONE, vec![]);
-    assert_eq!(editor.remembered_vertex, None);
+    assert_eq!(editor.remembered_vertex(), None);
     assert_eq!(click_baseline(&editor), baseline);
     let visible = screen_point(&editor, rect, points[nearest]);
     face_pointer_click(&mut editor, &ctx, visible, egui::Modifiers::NONE, vec![]);
     assert_eq!(
-        editor.remembered_vertex.as_ref().unwrap().vertex_index,
+        editor.remembered_vertex().as_ref().unwrap().vertex_index,
         nearest
     );
 }
@@ -8352,7 +8353,7 @@ fn vertex_click_commits_a_valid_draft_before_picking_the_moved_geometry() {
     );
     assert!(!editor.has_draft());
     assert_eq!(
-        editor.remembered_vertex.as_ref().unwrap().vertex_index,
+        editor.remembered_vertex().as_ref().unwrap().vertex_index,
         index
     );
 }
@@ -8465,7 +8466,7 @@ fn vertex_and_edge_clicks_are_dropped_while_blocked_with_the_viewport_captured()
             let at = screen_point(&control, rect, points[front[0]]);
             face_pointer_click(&mut control, &ctx, at, egui::Modifiers::NONE, vec![]);
             assert!(
-                control.remembered_vertex.is_some() || control.remembered_edge.is_some(),
+                control.remembered_vertex().is_some() || control.remembered_edge().is_some(),
                 "{mode:?} control click did not pick"
             );
             let (mut editor, ctx, rect) = blocked_component_editor(Some(block), mode);
@@ -8535,7 +8536,7 @@ fn viewport_click_in_vertex_mode_replaces_then_clears_the_pick() {
     for &index in &front[..2] {
         let at = screen_point(&editor, rect, points[index]);
         face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
-        let target = editor.remembered_vertex.as_ref().unwrap();
+        let target = editor.remembered_vertex().unwrap();
         assert_eq!(target.vertex_index, index);
         assert_eq!(Some(target.transform), editor.selection_presentation().0);
     }
@@ -8546,7 +8547,7 @@ fn viewport_click_in_vertex_mode_replaces_then_clears_the_pick() {
         egui::Modifiers::NONE,
         vec![],
     );
-    assert_eq!(editor.remembered_vertex, None);
+    assert_eq!(editor.remembered_vertex(), None);
     assert!(editor.selection_presentation().0.is_some());
     assert_eq!(editor.history.scene(), &before);
 }
@@ -8577,7 +8578,7 @@ fn viewport_click_in_edge_mode_replaces_then_clears_the_pick() {
         let [a, b] = edges[index].endpoints();
         let at = screen_point(&editor, rect, (points[a] + points[b]) * 0.5);
         face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
-        assert_eq!(editor.remembered_edge.as_ref().unwrap().edge_index, index);
+        assert_eq!(editor.remembered_edge().as_ref().unwrap().edge_index, index);
     }
     face_pointer_click(
         &mut editor,
@@ -8586,7 +8587,7 @@ fn viewport_click_in_edge_mode_replaces_then_clears_the_pick() {
         egui::Modifiers::NONE,
         vec![],
     );
-    assert_eq!(editor.remembered_edge, None);
+    assert_eq!(editor.remembered_edge(), None);
     assert_eq!(editor.history.scene(), &before);
 }
 
@@ -8641,8 +8642,8 @@ fn a_mode_intent_in_the_click_frame_makes_the_click_use_the_new_mode() {
                 SelectionMode::Edge
             }
         );
-        assert_eq!(editor.remembered_vertex.is_some(), vertex);
-        assert_eq!(editor.remembered_edge.is_some(), !vertex);
+        assert_eq!(editor.remembered_vertex().is_some(), vertex);
+        assert_eq!(editor.remembered_edge().is_some(), !vertex);
     }
 }
 
@@ -8655,17 +8656,11 @@ fn f8_leaves_vertex_and_edge_for_object_and_enters_face_from_object_and_hierarch
         frame(&mut editor, &ctx, vec![]);
         set_mode(&mut editor, mode);
         pick_vertex_or_edge(&mut editor, mode);
-        let remembered = (
-            editor.remembered_vertex.clone(),
-            editor.remembered_edge.clone(),
-        );
+        let remembered = (editor.remembered_vertex(), editor.remembered_edge());
         frame(&mut editor, &ctx, vec![key(Key::F8)]);
         assert_eq!(editor.selection_mode, SelectionMode::Object, "{mode:?}");
         assert_eq!(
-            (
-                editor.remembered_vertex.clone(),
-                editor.remembered_edge.clone()
-            ),
+            (editor.remembered_vertex(), editor.remembered_edge()),
             remembered
         );
     }
@@ -8729,7 +8724,7 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, 0);
     editor.sync_fields();
-    assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
+    assert!(editor.remembered_vertex().is_some() && editor.remembered_edge().is_some());
     let context = egui::Context::default();
     context.enable_accesskit();
     let state = |editor: &Editor| {
@@ -8815,8 +8810,8 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
         assert_eq!(state(&editor), baseline, "{phase}: inspection");
     }
     editor.sync_fields();
-    assert_eq!(editor.remembered_vertex, None);
-    assert_eq!(editor.remembered_edge, None);
+    assert_eq!(editor.remembered_vertex(), None);
+    assert_eq!(editor.remembered_edge(), None);
 }
 
 #[test]
@@ -8857,9 +8852,9 @@ fn vertex_edge_and_mode_operations_refuse_modal_and_closing_without_changes() {
                     editor.selection_presentation().0,
                     editor.selection_presentation().1.to_vec(),
                     editor.selection_mode,
-                    editor.remembered_vertex.clone(),
-                    editor.remembered_edge.clone(),
-                    editor.remembered_face.clone(),
+                    editor.remembered_vertex(),
+                    editor.remembered_edge(),
+                    editor.remembered_face(),
                     editor.scene_token,
                 )
             };
@@ -8932,9 +8927,9 @@ fn native_selection_changes_refuse_modal_before_committing_drafts() {
                 editor.selection_presentation().0,
                 editor.selection_presentation().1.to_vec(),
                 editor.selection_mode,
-                editor.remembered_vertex.clone(),
-                editor.remembered_edge.clone(),
-                editor.remembered_face.clone(),
+                editor.remembered_vertex(),
+                editor.remembered_edge(),
+                editor.remembered_face(),
                 editor.scene_token,
                 editor.name.clone(),
             )
