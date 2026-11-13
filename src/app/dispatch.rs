@@ -29,7 +29,8 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
 const _: () =
     assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
 
-/// The pivot refusals that carry their own MCP code; every other failure stays `Scene`.
+/// The pivot refusals that carry their own MCP code (`NonFinite` is an overflow of the request's
+/// numbers); every other failure stays `Scene`.
 fn is_pivot_refusal(error: &azteccraft::native_scene::NativeError) -> bool {
     use azteccraft::native_scene::NativeError as E;
     matches!(
@@ -39,6 +40,7 @@ fn is_pivot_refusal(error: &azteccraft::native_scene::NativeError) -> bool {
             | E::InsertionAfterDelete
             | E::PivotNeedsTranslateCorrection
             | E::PivotOnKeyedNode
+            | E::NonFinite
     )
 }
 
