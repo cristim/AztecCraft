@@ -69,6 +69,20 @@ struct ImportArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ImportMayaArgs {
+    scene_token: String,
+    /// Existing .ma or .mb file whose meshes are added to the scene.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+    /// Namespace-style prefix: each imported name becomes `<prefix>_<name>`. A letter or
+    /// underscore, then letters, digits or underscores.
+    #[schemars(length(min = 1, max = 64))]
+    #[serde(default)]
+    prefix: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum FileDecisionInput {
     Cancel,
@@ -175,6 +189,26 @@ fn parse_export_usd(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     ))
 }
 
+fn parse_import_maya_scene(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ImportMayaArgs = decode(arguments)?;
+    check_path(&args.path)?;
+    if let Some(prefix) = &args.prefix
+        && (prefix.is_empty() || prefix.len() > azteccraft::native_scene::MAX_PREFIX_BYTES)
+    {
+        return Err(ErrorData::invalid_params(
+            "prefix must contain 1 to 64 UTF-8 bytes",
+            None,
+        ));
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ImportMaya {
+            path: args.path.into(),
+            prefix: args.prefix,
+        },
+    ))
+}
+
 fn parse_new_scene(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     mutation(arguments, Operation::NewScene)
 }
@@ -276,6 +310,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Export displayed polygon geometry as a new OpenUSD ASCII file (.usda only; Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space points in centimeters exactly as authored (f64 world position rounded once to f32, shortest round-trip text), the layer states metersPerUnit = 0.01 and upAxis = Y, one flat UsdGeomMesh per instance under /World with faceVertexCounts, faceVertexIndices (native polygon arity, mirrored instances reversed) and extent. No normals, UVs, materials, animation, instancing or hierarchy; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft slice of #438, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
         schema: schema::<ExportUsdArgs>,
         parse: parse_export_usd,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "import_maya_scene",
+        description: "Import the meshes of a Maya .ma or .mb file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per mesh transform as one undo step, selects them, and keeps the scene token. Optional prefix renames each node and shape to <prefix>_<name>; clashing names get the lowest free numeric suffix. Only files this editor can reproduce exactly are accepted: flat transform-over-mesh scenes in default units with hard edges and no materials, keys, curves, pivots or other records. Any other file is refused with error.code import_refused and a content-free error.reason (unrecognized_content for every non-empty .mb and for .ma files with extra records, materials, keys, curves, non_flat_hierarchy, unsupported_units, and so on). Unreadable, oversized or undecodable files report import_io, import_too_large or import_invalid; faces the viewport cannot display report import_invalid. Refused in a scene opened from .mb or .ma. .ma import works on macOS and Linux only; on Windows every .ma reports import_invalid. PROVISIONAL: Group, Preserve References, time range and the other namespace modes are not implemented. Replies with object, vertex and face counts and the new node_ids",
+        schema: schema::<ImportMayaArgs>,
+        parse: parse_import_maya_scene,
         idempotent: false,
         read_only: false,
     },

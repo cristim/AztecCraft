@@ -284,6 +284,8 @@ struct Targets {
     import: std::path::PathBuf,
     export_gltf: std::path::PathBuf,
     export_usd: std::path::PathBuf,
+    /// A `.ma` file no decoder accepts, so the cell reads the same on every platform.
+    import_ma: std::path::PathBuf,
 }
 
 impl Targets {
@@ -384,6 +386,7 @@ fn targets(rig: &Rig) -> Targets {
         import: rig.directory.path().join("import.obj"),
         export_gltf: rig.directory.path().join("export.glb"),
         export_usd: rig.directory.path().join("export.usda"),
+        import_ma: rig.directory.path().join("import.ma"),
     }
 }
 
@@ -583,6 +586,7 @@ fn build(state: State) -> Rig {
         "v 0 0 0\nv 1 0 0\nv 0 1 0\no imported\nf 1 2 3\n",
     )
     .unwrap();
+    std::fs::write(directory.path().join("import.ma"), "not a Maya scene\n").unwrap();
     let context = egui::Context::default();
     let mut editor = match state {
         State::MaterialDraft => material_editor(),
@@ -852,6 +856,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ExportUsd {
             path: t.export_usd.clone(),
             selection_only: false,
+        },
+        Operation::ImportMaya {
+            path: t.import_ma.clone(),
+            prefix: None,
         },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
@@ -1779,6 +1787,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 Operation::ExportUsd {
                     path: t.save_as.clone(),
                     selection_only: false,
+                },
+            ),
+        ],
+        Operation::ImportMaya { .. } => vec![
+            sample(
+                "import_maya_scene(undecodable)",
+                Operation::ImportMaya {
+                    path: t.import_ma.clone(),
+                    prefix: Some("ns".into()),
+                },
+            ),
+            sample(
+                "import_maya_scene(not_maya)",
+                Operation::ImportMaya {
+                    path: t.import.clone(),
+                    prefix: None,
+                },
+            ),
+            sample(
+                "import_maya_scene(missing)",
+                Operation::ImportMaya {
+                    path: t.import_ma.with_file_name("missing.ma"),
+                    prefix: None,
                 },
             ),
         ],
