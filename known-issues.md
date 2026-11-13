@@ -1397,3 +1397,15 @@ translation of its own (`move_instanced_ancestor_covers_descendant_by_identity`;
 instanced selections is not documented, so this is a conservative choice.
 
 Cost: a multi-object begin enumerates every transform path of the scene once (`transform_paths()`, linear since #347 and bounded by the path limit, so an oversized scene is refused with `ResourceLimit` rather than scanned). Begin does not hold that list otherwise, so it is not reused; the scan is a few milliseconds at 4096 paths in a debug build and runs once per begin, not per update.
+
+## glTF export: slice 1 limits (PROVISIONAL, #436)
+
+`export_gltf` (MCP only, no File menu entry until the native dialog can be checked in a visible
+window) writes positions and triangle indices. Not written: normals (native meshes carry none, and
+glTF clients compute flat normals), UVs, materials, animation, skins and cameras. A shape with
+session UVs or an assigned session material is refused with `export_unsupported`; the appearance of
+an opened Maya scene (for example a Phong diffuse binding) is not exported and not reported. Quads
+split along the interior diagonal; Maya's own split of non-planar quads is unverified. Maya has no
+native glTF export, so there is nothing to compare against (#23 source S1). `src/gltf.rs` repeats
+`GuardedFs` and the occupied-destination check from `src/obj.rs`, and `GltfExportError` mirrors
+`ObjExportError`: merge them (and settle on one MCP code for a session-UV refusal: `export_obj` returns `export_invalid`, `export_gltf` returns `export_unsupported`) once #403 (which edits the OBJ files) has landed.

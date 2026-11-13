@@ -2938,6 +2938,41 @@
     }
   },
   {
+    "name": "export_gltf",
+    "description": "Export displayed polygon geometry as a new glTF 2.0 file: .gltf with an embedded base64 buffer, or binary .glb, chosen by the path extension (Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space positions converted from centimeters to meters (f64 divided by 100, then rounded to f32), +Y up as authored, one node and one triangle mesh per instance (quads split along the interior diagonal, mirrored instances keep outward faces). No normals (glTF clients compute flat normals), UVs, materials, animation or skins; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft extension, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and triangle counts",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "New .gltf (embedded base64 buffer) or .glb destination; an existing file is never replaced.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "selection_only": {
+          "default": false,
+          "description": "Export only every selected object and its descendants (Export Selection); default false\nexports every displayed polygon instance (Export All).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token",
+        "path"
+      ],
+      "title": "ExportGltfArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "new_scene",
     "description": "Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id",
     "inputSchema": {
