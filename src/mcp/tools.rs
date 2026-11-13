@@ -96,6 +96,14 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::UnsupportedEdit => "unsupported_edit",
                     _ => "scene_error",
                 },
+                OperationError::Reparent(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    NativeError::InvalidReparent(_) => "invalid_reparent",
+                    NativeError::NameCollision => "name_collision",
+                    NativeError::ResourceLimit => "resource_limit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -750,6 +758,7 @@ mod tests {
                 }
                 "rename_node" => json!({"scene_token":token,"node_id":"1","name":"cube"}),
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
+                "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
                 "create_session_material" => {
                     json!({"scene_token":token,"color":[1.0,0.0,0.0]})

@@ -1508,6 +1508,67 @@
     }
   },
   {
+    "name": "parent_node",
+    "description": "Parent one object under another, or unparent it to the world with world=true, as one undo step (Maya's parent command). keep world (the default, Maya -absolute) rewrites the object's local translation, rotation and scale so its world transform is unchanged; keep local (Maya -relative) leaves them and the object moves in world space. The object becomes the new parent's last child; the same parent is unchanged. Refused with invalid_reparent for a cycle (under itself or a descendant), an instanced object, or keep world on a node with non-default pivots, extras or keys or when no translate, XYZ rotate and scale keeps the world transform (shear, negative or zero scale; use keep local); name_collision when the name already exists among the new siblings (Maya renames instead, PROVISIONAL difference); resource_limit when the result exceeds the transform depth or path limits; scene_error for an unknown node; read_only_format for Maya ASCII scenes and unsupported_edit for other opened files; stale_scene and busy_editing as for every edit. A rotation rewritten by keep world is in (-180, 180] degrees (PROVISIONAL). Selected objects stay selected and follow to their new instance paths (in Hierarchy selection mode that can leave a non-root member, PROVISIONAL). The Parent and Unparent undo labels are PROVISIONAL (the docs name none). Authored scenes with a hierarchy cannot be saved yet",
+    "inputSchema": {
+      "$defs": {
+        "KeepKind": {
+          "enum": [
+            "world",
+            "local"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "keep": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KeepKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "\"world\" (default, Maya `-absolute`) rewrites the local channels so the world transform is unchanged; \"local\" (Maya `-relative`) keeps them so the object moves in world space."
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "parent_id": {
+          "description": "The new parent. Give exactly one of `parent_id` and `world`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "world": {
+          "description": "True to unparent the object to the world (Maya `parent -world`). Give exactly one of `parent_id` and `world`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token",
+        "node_id"
+      ],
+      "title": "ParentArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_transform",
     "description": "Set f64 translation in declared scene units, rotation in XYZ degrees, and scale",
     "inputSchema": {

@@ -27,6 +27,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("select_vertex", "`select pCube1.vtx[n]`", "one component, no ranges"),
     ("select_edge", "`select pCube1.e[n]`", "one component, no ranges"),
     ("rename_node", "`rename`", "refuses a name conflict instead of making a unique name; no `:` namespaces; shape names always follow"),
+    ("parent_node", "`parent`, `parent -world`", "one object per call with an explicit parent; refuses a name clash instead of renaming; no instancing (`-add`), no joints; keep world is `-absolute`, keep local `-relative`"),
     ("set_transform", "`xform -translation -rotation -scale`, `setAttr`", "rotation in degrees regardless of `currentUnit -angle`"),
     ("edit_node", "`xform`, `setAttr`, `rename`", "one undo entry; rotation in degrees regardless of `currentUnit -angle`"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),

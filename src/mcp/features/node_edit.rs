@@ -5,6 +5,7 @@ use crate::{
         registry::ToolSpec,
     },
 };
+use azteccraft::native_scene::ReparentKeep;
 use rmcp::{
     model::{ErrorData, JsonObject},
     schemars::{self, JsonSchema},
@@ -41,6 +42,52 @@ struct EditNodeArgs {
     rotation_degrees: [Option<f64>; 3],
     #[serde(default)]
     scale: [Option<f64>; 3],
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ParentArgs {
+    scene_token: String,
+    node_id: String,
+    /// The new parent. Give exactly one of `parent_id` and `world`.
+    parent_id: Option<String>,
+    /// True to unparent the object to the world (Maya `parent -world`). Give exactly one of `parent_id` and `world`.
+    world: Option<bool>,
+    /// "world" (default, Maya `-absolute`) rewrites the local channels so the world transform is unchanged; "local" (Maya `-relative`) keeps them so the object moves in world space.
+    keep: Option<KeepKind>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum KeepKind {
+    World,
+    Local,
+}
+
+fn parse_parent_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ParentArgs = decode(arguments)?;
+    let parent = match (args.parent_id, args.world) {
+        (Some(id), None | Some(false)) => Some(node_id(&id)?),
+        (None, Some(true)) => None,
+        _ => {
+            return Err(ErrorData::invalid_params(
+                "give exactly one of parent_id and world=true",
+                None,
+            ));
+        }
+    };
+    let keep = match args.keep.unwrap_or(KeepKind::World) {
+        KeepKind::World => ReparentKeep::World,
+        KeepKind::Local => ReparentKeep::Local,
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::Reparent {
+            id: node_id(&args.node_id)?,
+            parent,
+            keep,
+        },
+    ))
 }
 
 fn parse_rename_node(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -102,6 +149,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Rename an existing object",
         schema: schema::<RenameArgs>,
         parse: parse_rename_node,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "parent_node",
+        description: "Parent one object under another, or unparent it to the world with world=true, as one undo step (Maya's parent command). keep world (the default, Maya -absolute) rewrites the object's local translation, rotation and scale so its world transform is unchanged; keep local (Maya -relative) leaves them and the object moves in world space. The object becomes the new parent's last child; the same parent is unchanged. Refused with invalid_reparent for a cycle (under itself or a descendant), an instanced object, or keep world on a node with non-default pivots, extras or keys or when no translate, XYZ rotate and scale keeps the world transform (shear, negative or zero scale; use keep local); name_collision when the name already exists among the new siblings (Maya renames instead, PROVISIONAL difference); resource_limit when the result exceeds the transform depth or path limits; scene_error for an unknown node; read_only_format for Maya ASCII scenes and unsupported_edit for other opened files; stale_scene and busy_editing as for every edit. A rotation rewritten by keep world is in (-180, 180] degrees (PROVISIONAL). Selected objects stay selected and follow to their new instance paths (in Hierarchy selection mode that can leave a non-root member, PROVISIONAL). The Parent and Unparent undo labels are PROVISIONAL (the docs name none). Authored scenes with a hierarchy cannot be saved yet",
+        schema: schema::<ParentArgs>,
+        parse: parse_parent_node,
         idempotent: false,
         read_only: false,
     },
