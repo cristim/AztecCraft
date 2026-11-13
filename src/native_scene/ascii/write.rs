@@ -506,6 +506,8 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
     Ok(())
 }
 
+/// Save (unix-only) and tests call this; the reopen gate uses the UV entry point on every platform.
+#[cfg(any(unix, test))]
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
     emit(scene, UvPolicy::Refuse)
 }
