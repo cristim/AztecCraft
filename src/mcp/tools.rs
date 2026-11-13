@@ -114,6 +114,11 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     BookmarkError::NotFound => "bookmark_not_found",
                     BookmarkError::LimitReached => "bookmark_limit",
                 },
+                OperationError::Recovery(failure) => match failure {
+                    crate::editor_operations::RecoveryFailure::Disabled => "recovery_disabled",
+                    crate::editor_operations::RecoveryFailure::Encode(_) => "recovery_unsupported",
+                    crate::editor_operations::RecoveryFailure::Store(_) => "recovery_store",
+                },
                 OperationError::NoSelection => "no_selection",
                 OperationError::MultipleSelection => "multiple_selection",
                 OperationError::StaleSelection { .. } => "stale_selection",
@@ -710,7 +715,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs" | "get_recovery_status"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -766,7 +771,7 @@ mod tests {
                 "set_current_time" => json!({"scene_token":token,"time":1}),
                 "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
-                "inspect_keys" => json!({}),
+                "inspect_keys" | "get_recovery_status" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
