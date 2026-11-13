@@ -217,7 +217,7 @@ fn face_rows_refuse_bad_counts_tokens_and_unsupported_keywords() {
         (faces(&fc("f 3 0 1 1.5")), M),
         // hole, UV and colour keywords, and a row that does not start with f
         (faces(&fc("f 3 0 1 2 h 3 0 1 2")), U),
-        (faces(&fc("f 3 0 1 2 mu 0 3 0 1 2")), U),
+        (faces(&fc("f 3 0 1 2 mu 1 3 0 1 2")), U),
         (faces(&fc("f 3 0 1 2 mc 0 3 0 1 2")), U),
         (faces(&fc("mf 3 0 1 2")), U),
         // no type, a different type, a wrong count or range, a duplicate, faces before edges

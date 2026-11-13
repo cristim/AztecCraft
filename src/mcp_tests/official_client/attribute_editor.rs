@@ -530,3 +530,89 @@ async fn sdk_inspection_reports_transform_extras_with_units_and_non_default_name
         server.await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn sdk_inspection_reports_inherits_transform_and_offset_parent_matrix() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.history = azteccraft::history::History::new(extras_scene(
+        "-l centimeter -a degree",
+        "setAttr \".it\" no; \
+         setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 2 3 4 1;",
+    ));
+    let inspection = inspect(&mut editor, &context, &client).await;
+    let first = &inspection["nodes"][0]["transform_attributes"];
+    assert_eq!(first["inherits_transform"], json!(false), "{first}");
+    assert_eq!(
+        first["offset_parent_matrix"],
+        json!([
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 2.0, 3.0, 4.0, 1.0
+        ])
+    );
+    assert_eq!(
+        first["non_default"],
+        json!(["inherits_transform", "offset_parent_matrix"])
+    );
+    assert!(inspection["nodes"][1].get("transform_attributes").is_none());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+
+    // Stating the defaults reports nothing, and an identity offset is omitted.
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.history = azteccraft::history::History::new(extras_scene(
+        "-l centimeter -a degree",
+        "setAttr \".it\" yes; \
+         setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1;",
+    ));
+    let inspection = inspect(&mut editor, &context, &client).await;
+    assert!(inspection["nodes"][0].get("transform_attributes").is_none());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_inspection_reports_each_it_and_opm_presence_rule_alone() {
+    let opm = "setAttr \".opm\" -type \"matrix\" 1 0 0 0 0 1 0 0 0 0 1 0 1 0 0 1;";
+    for (units, attributes, inherits, offset, names) in [
+        (
+            "-l centimeter -a degree",
+            "setAttr \".it\" no;",
+            false,
+            None,
+            vec!["inherits_transform"],
+        ),
+        (
+            "-l centimeter -a degree",
+            opm,
+            true,
+            Some(1.0),
+            vec!["offset_parent_matrix"],
+        ),
+        // The translation row passes through in the declared linear unit.
+        (
+            "-l meter -a degree",
+            opm,
+            true,
+            Some(1.0),
+            vec!["offset_parent_matrix"],
+        ),
+    ] {
+        let context = egui::Context::default();
+        let (mut editor, client, server) = start(&context).await;
+        editor.history = azteccraft::history::History::new(extras_scene(units, attributes));
+        let inspection = inspect(&mut editor, &context, &client).await;
+        let first = &inspection["nodes"][0]["transform_attributes"];
+        assert_eq!(first["inherits_transform"], json!(inherits), "{first}");
+        assert_eq!(first["non_default"], json!(names), "{first}");
+        match offset {
+            Some(x) => assert_eq!(first["offset_parent_matrix"][12], json!(x), "{units}"),
+            None => assert!(first.get("offset_parent_matrix").is_none(), "{first}"),
+        }
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}

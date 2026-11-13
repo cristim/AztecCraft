@@ -214,6 +214,14 @@
       "playing": false
     },
     "undo_label": null,
+    "undo_state": {
+      "enabled": true,
+      "infinite": false,
+      "open_chunk": null,
+      "queue_size": 50,
+      "redo_length": 0,
+      "undo_length": 0
+    },
     "units": {
       "angular": "deg",
       "linear": "cm",

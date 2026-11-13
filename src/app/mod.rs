@@ -11,7 +11,7 @@ use crate::editor_operations::{
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{LinearUnit, NativeTransform};
 use azteccraft::{
-    history::{Command, EditOutcome, History, ManipulationProvenance},
+    history::{Command, EditOutcome, History, ManipulationProvenance, UndoQueue},
     native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
     scene::{NodeId, Primitive},
     selection::ObjectSelection,
@@ -72,6 +72,8 @@ pub struct Editor {
     remembered_vertex: Option<VertexTarget>,
     remembered_edge: Option<EdgeTarget>,
     camera: Camera,
+    /// Session-only; cleared when a document replaces the scene (New, Open).
+    bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     grid_visible: bool,
     shading: ShadingMode,
     /// Last painted frame hid Wireframe face centres (occlusion check over budget).
@@ -131,6 +133,7 @@ impl Default for Editor {
             remembered_vertex: None,
             remembered_edge: None,
             camera: Camera::default(),
+            bookmarks: Default::default(),
             grid_visible: true,
             shading: ShadingMode::default(),
             face_centres_hidden: false,

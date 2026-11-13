@@ -502,16 +502,14 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
     Ok(())
 }
 
+/// Save (unix-only) and tests call this; the reopen gate uses the UV entry point on every platform.
+#[cfg(any(unix, test))]
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
     emit(scene, UvPolicy::Refuse)
 }
 
 /// Like `emit_geometry_prefix`, but carries each shape's session UVs. Save keeps using the refusing
-/// entry point until the reader and the reopen gate accept the UV block.
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "the reopen gate is its first non-test caller")
-)]
+/// entry point until task 4 of #156 turns UV saving on; the reopen gate is the caller of this one.
 pub(crate) fn emit_geometry_prefix_with_uvs(
     scene: &NativeScene,
 ) -> Result<Vec<u8>, AsciiWriteRefusal> {

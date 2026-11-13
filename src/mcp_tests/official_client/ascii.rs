@@ -515,3 +515,92 @@ async fn ascii_sdk_declared_units_open_inspect_and_curves_in_other_linear_units_
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn ascii_sdk_degree_one_and_two_curves_open_inspect_and_frame() {
+    let directory = tempfile::tempdir().unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    for (degree, cc, cvs, knots) in [
+        (1, "1 3 0 no 3 4 0 1 2 3 4 0 0 0 1 2 0 3 -1 1 4 0 2", 4, 4),
+        (2, "2 2 0 no 3 5 0 0 1 2 2 4 0 0 0 1 2 0 3 -1 1 4 0 2", 4, 5),
+    ] {
+        let path = directory.path().join(format!("degree{degree}.ma"));
+        std::fs::write(
+            &path,
+            format!(
+                "//Maya ASCII 2016 scene\nrequires maya \"2016\";\n\
+                 currentUnit -l centimeter -a degree -t film;\n\
+                 createNode transform -n \"c1\";\ncreateNode nurbsCurve -n \"cShape1\" -p \"c1\";\n\
+                 setAttr \".cc\" -type \"nurbsCurve\" {cc};\n"
+            ),
+        )
+        .unwrap();
+        let token = editor.scene_token.to_string();
+        let opened = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "open_scene",
+            json!({"scene_token":token,"path":path.to_str().unwrap()}),
+        )
+        .await;
+        assert_eq!(
+            opened.structured_content.unwrap()["outcome"],
+            "document_applied"
+        );
+        let token = editor.scene_token.to_string();
+        let inspected = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_scene",
+            json!({}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let curve = &inspected["inspection"]["curves"][0];
+        assert_eq!(curve["degree"], degree);
+        assert_eq!(curve["control_vertices"], cvs);
+        assert_eq!(curve["knots"], knots);
+        assert_eq!(curve["draw_available"], true);
+        assert_eq!(curve["read_only"], true);
+        let id = inspected["inspection"]["nodes"][0]["id"].as_str().unwrap();
+        let path_value = inspected["inspection"]["nodes"][0]["instance_paths"][0].clone();
+        call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "select_node",
+            json!({"scene_token":token,"node_id":id,"instance_path":path_value}),
+        )
+        .await;
+        let framed = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "frame_selected",
+            json!({"scene_token":token}),
+        )
+        .await;
+        assert_eq!(framed.is_error, Some(false));
+        let before = editor.history.scene().clone();
+        let refused = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "rename_node",
+            json!({"scene_token":token,"node_id":id,"name":"nope"}),
+        )
+        .await;
+        assert_eq!(
+            refused.structured_content.unwrap()["error"]["code"],
+            "scene_error"
+        );
+        assert_eq!(editor.history.scene(), &before);
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

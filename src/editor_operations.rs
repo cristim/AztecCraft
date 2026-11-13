@@ -1,7 +1,8 @@
 #[cfg(any(test, feature = "mcp"))]
 use azteccraft::native_scene::{NativeTransform, TransformAttributes};
 use azteccraft::{
-    history::{ManipulationError, ManipulationFinish, ManipulationId},
+    camera_bookmarks::BookmarkError,
+    history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
@@ -439,6 +440,28 @@ pub enum Operation {
         shape: NativeId,
         cursor: Option<PageCursor>,
     },
+    /// A read, like `Inspect`: it passes no guard.
+    #[cfg(any(test, feature = "mcp"))]
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    ListCameraBookmarks,
+    /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying.
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    CreateCameraBookmark {
+        name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    RenameCameraBookmark {
+        name: String,
+        new_name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    DeleteCameraBookmark {
+        name: String,
+    },
+    #[allow(dead_code)] // constructed by the MCP tools in the next commit
+    ApplyCameraBookmark {
+        name: String,
+    },
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -526,6 +549,23 @@ pub enum Operation {
     DeleteSelection,
     Undo,
     Redo,
+    /// `undoInfo -infinity` / `-length`: the Preferences > Undo queue. Session-only.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetUndoQueue(UndoQueue),
+    /// `undoInfo -state` (`flush`) / `-stateWithoutFlush`: Preferences > Undo on or off.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetUndoEnabled {
+        enabled: bool,
+        flush: bool,
+    },
+    /// `undoInfo -openChunk -chunkName`: groups the following edits into one undo step.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    OpenUndoChunk {
+        name: String,
+    },
+    /// `undoInfo -closeChunk`.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    CloseUndoChunk,
     /// F frames the selected objects without their descendants, Ctrl+F (`with_children`) with
     /// them. Component modes frame the component and ignore the flag.
     FrameSelected {
@@ -576,6 +616,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Uvs {
         inspection: Box<UvInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    CameraBookmarks {
+        bookmarks: Vec<CameraBookmarkInspection>,
     },
     Created {
         node_id: String,
@@ -691,6 +735,7 @@ pub struct SceneInspection {
     pub can_redo: bool,
     pub undo_label: Option<String>,
     pub redo_label: Option<String>,
+    pub undo_state: UndoStateInspection,
     pub dirty: bool,
     pub has_draft: bool,
     pub native_input_pending: bool,
@@ -1039,6 +1084,30 @@ pub struct CameraInspection {
     pub far_clip: f32,
 }
 
+/// A bookmarked pose in the units `CameraInspection` reports, so a listed pose compares directly.
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct CameraBookmarkInspection {
+    pub name: String,
+    pub target: [f32; 3],
+    pub distance: f32,
+    pub yaw_degrees: f64,
+    pub pitch_degrees: f64,
+}
+
+/// `undoInfo -q` state: the Undo preferences, queue lengths and any open chunk.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct UndoStateInspection {
+    pub enabled: bool,
+    pub infinite: bool,
+    /// The Finite queue size; null when the queue is Infinite.
+    pub queue_size: Option<usize>,
+    pub undo_length: usize,
+    pub redo_length: usize,
+    pub open_chunk: Option<String>,
+}
+
 #[derive(Debug)]
 pub enum OperationError {
     BusyEditing,
@@ -1078,6 +1147,7 @@ pub enum OperationError {
     Camera(InvalidCameraInput),
     /// A refused absolute pose; names the field.
     CameraPose(InvalidCameraPose),
+    CameraBookmark(BookmarkError),
     /// An update parameter that does not belong to the active manipulation's kind.
     KindMismatch {
         parameter: &'static str,
@@ -1154,6 +1224,7 @@ impl fmt::Display for OperationError {
             }
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
+            Self::CameraBookmark(error) => error.fmt(f),
             Self::KindMismatch { parameter, active } => write!(
                 f,
                 "{} {parameter} does not apply to the active {active} manipulation",
@@ -1268,7 +1339,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
-    r#""undo_label":"","redo_label":"","dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0},"#,

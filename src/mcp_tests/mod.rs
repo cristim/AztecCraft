@@ -157,6 +157,7 @@ mod official_client {
     mod subtree_delete;
     mod tool_handle;
     mod tool_space;
+    mod undo_chunks;
     mod uv;
     mod vertex_edge;
 

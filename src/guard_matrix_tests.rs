@@ -14,7 +14,7 @@ use crate::editor_operations::{
     FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance, RemoteRequest,
     SelectRule, ToolHandle, TransformInput,
 };
-use azteccraft::history::Command;
+use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
@@ -795,11 +795,28 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteSelection,
         Operation::Undo,
         Operation::Redo,
+        Operation::SetUndoQueue(UndoQueue::Infinite),
+        Operation::SetUndoEnabled {
+            enabled: false,
+            flush: true,
+        },
+        Operation::OpenUndoChunk {
+            name: "chunk".into(),
+        },
+        Operation::CloseUndoChunk,
         Operation::FrameSelected {
             with_children: false,
         },
         Operation::FrameAll,
         Operation::SetGridVisible { visible: false },
+        Operation::CreateCameraBookmark { name: "v".into() },
+        Operation::RenameCameraBookmark {
+            name: "v".into(),
+            new_name: "w".into(),
+        },
+        Operation::DeleteCameraBookmark { name: "v".into() },
+        Operation::ApplyCameraBookmark { name: "v".into() },
+        Operation::ListCameraBookmarks,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
             panel: crate::editor_operations::SidebarPanel::ChannelBox,
@@ -1681,6 +1698,39 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         ],
         Operation::Undo => vec![sample("undo", Operation::Undo)],
         Operation::Redo => vec![sample("redo", Operation::Redo)],
+        Operation::SetUndoQueue(_) => vec![
+            sample(
+                "set_undo_queue(infinite)",
+                Operation::SetUndoQueue(UndoQueue::Infinite),
+            ),
+            sample(
+                "set_undo_queue(finite 3)",
+                Operation::SetUndoQueue(UndoQueue::Finite(3)),
+            ),
+        ],
+        Operation::SetUndoEnabled { .. } => vec![
+            sample(
+                "set_undo_enabled(off)",
+                Operation::SetUndoEnabled {
+                    enabled: false,
+                    flush: true,
+                },
+            ),
+            sample(
+                "set_undo_enabled(on)",
+                Operation::SetUndoEnabled {
+                    enabled: true,
+                    flush: false,
+                },
+            ),
+        ],
+        Operation::OpenUndoChunk { .. } => vec![sample(
+            "open_undo_chunk",
+            Operation::OpenUndoChunk {
+                name: "chunk".into(),
+            },
+        )],
+        Operation::CloseUndoChunk => vec![sample("close_undo_chunk", Operation::CloseUndoChunk)],
         Operation::FrameSelected { .. } => vec![
             sample(
                 "frame_selected(parents)",
@@ -1699,6 +1749,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },
+        )],
+        Operation::CreateCameraBookmark { .. } => vec![sample(
+            "create_camera_bookmark(v)",
+            Operation::CreateCameraBookmark { name: "v".into() },
+        )],
+        Operation::RenameCameraBookmark { .. } => vec![sample(
+            "rename_camera_bookmark(missing)",
+            Operation::RenameCameraBookmark {
+                name: "v".into(),
+                new_name: "w".into(),
+            },
+        )],
+        Operation::DeleteCameraBookmark { .. } => vec![sample(
+            "delete_camera_bookmark(missing)",
+            Operation::DeleteCameraBookmark { name: "v".into() },
+        )],
+        Operation::ApplyCameraBookmark { .. } => vec![sample(
+            "apply_camera_bookmark(missing)",
+            Operation::ApplyCameraBookmark { name: "v".into() },
+        )],
+        Operation::ListCameraBookmarks => vec![sample(
+            "list_camera_bookmarks",
+            Operation::ListCameraBookmarks,
         )],
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
@@ -1928,6 +2001,16 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         (
             "manipulator_size",
             editor.manipulation.manipulator_size().get().to_string(),
+        ),
+        (
+            "bookmarks",
+            editor
+                .bookmarks
+                .list()
+                .iter()
+                .map(|b| b.name.as_str())
+                .collect::<Vec<_>>()
+                .join(","),
         ),
     ];
     Observed {

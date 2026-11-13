@@ -88,8 +88,8 @@ impl Editor {
             Operation::SetActiveTool(ActiveTool::Rotate | ActiveTool::Scale)
         );
         let step_label = match *operation {
-            Operation::Undo => self.history.undo_label(),
-            Operation::Redo => self.history.redo_label(),
+            Operation::Undo => self.history.undo_label_after_chunk(),
+            Operation::Redo => self.history.redo_label_after_chunk(),
             _ => None,
         };
         let status = match *operation {
@@ -109,6 +109,10 @@ impl Editor {
             | Operation::SetMoveSpace { .. }
             | Operation::SetToolHandle(_)
             | Operation::SetManipulatorSize(_)
+            | Operation::SetUndoQueue(_)
+            | Operation::SetUndoEnabled { .. }
+            | Operation::OpenUndoChunk { .. }
+            | Operation::CloseUndoChunk
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
             | Operation::SetSidebarPanelVisible { .. }
@@ -122,7 +126,13 @@ impl Editor {
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
-            | Operation::SetCameraPose { .. } => None,
+            | Operation::SetCameraPose { .. }
+            | Operation::CreateCameraBookmark { .. }
+            | Operation::RenameCameraBookmark { .. }
+            | Operation::DeleteCameraBookmark { .. }
+            | Operation::ApplyCameraBookmark { .. } => None,
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ListCameraBookmarks => None,
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
             | Operation::BeginRotate { .. }
@@ -254,6 +264,9 @@ impl Editor {
                 inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
             });
         }
+        if matches!(request.operation, Operation::ListCameraBookmarks) {
+            return Ok(self.list_camera_bookmarks());
+        }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
             return Ok(OperationReply::Uvs {
                 inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
@@ -360,6 +373,9 @@ impl Editor {
                 | Operation::SetShadingMode(_)
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
+                | Operation::CreateCameraBookmark { .. }
+                | Operation::RenameCameraBookmark { .. }
+                | Operation::DeleteCameraBookmark { .. }
         ) && self.files.is_modal()
         {
             return Err(OperationError::BusyEditing);
@@ -436,6 +452,10 @@ impl Editor {
                     | Operation::DeleteUvs { .. }
                     | Operation::Undo
                     | Operation::Redo
+                    | Operation::SetUndoQueue(_)
+                    | Operation::SetUndoEnabled { .. }
+                    | Operation::OpenUndoChunk { .. }
+                    | Operation::CloseUndoChunk
             )
         {
             return Err(OperationError::BusyEditing);
@@ -630,6 +650,20 @@ impl Editor {
             } => self.delete_keys_command(nodes, time, channels)?,
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
+            Operation::CreateCameraBookmark { name } => {
+                return self.create_camera_bookmark(&name);
+            }
+            Operation::RenameCameraBookmark { name, new_name } => {
+                return self.rename_camera_bookmark(&name, &new_name);
+            }
+            Operation::DeleteCameraBookmark { name } => {
+                return self.delete_camera_bookmark(&name);
+            }
+            Operation::ApplyCameraBookmark { name } => {
+                return self.apply_camera_bookmark(&name);
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ListCameraBookmarks => return Ok(self.list_camera_bookmarks()),
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -897,6 +931,48 @@ impl Editor {
                 } else {
                     OperationReply::Unchanged
                 });
+            }
+            Operation::SetUndoQueue(queue) => {
+                let changed = self.history.undo_queue() != queue
+                    || matches!(queue, UndoQueue::Finite(size) if self.history.undo_len() > size);
+                self.history
+                    .set_undo_queue(queue)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SetUndoEnabled { enabled, flush } => {
+                let changed = self.history.undo_enabled() != enabled
+                    || (flush && (self.history.can_undo() || self.history.can_redo()));
+                self.history
+                    .set_undo_enabled(enabled, flush)
+                    .map_err(OperationError::from_history)?;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::OpenUndoChunk { name } => {
+                self.history
+                    .open_chunk(&name)
+                    .map_err(OperationError::from_history)?;
+                return Ok(OperationReply::Changed);
+            }
+            Operation::CloseUndoChunk => {
+                return Ok(
+                    match self
+                        .history
+                        .close_chunk()
+                        .map_err(OperationError::from_history)?
+                    {
+                        EditOutcome::Unchanged => OperationReply::Unchanged,
+                        _ => OperationReply::Changed,
+                    },
+                );
             }
             Operation::Undo | Operation::Redo => {
                 let changed = if matches!(operation, Operation::Redo) {

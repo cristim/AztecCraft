@@ -1,7 +1,7 @@
 //! The read-back gate for authored Maya ASCII (#321). A scene that contains meshes is accepted
 //! only when it is byte-identical to what the authored writer emits for the scene it decodes
 //! to, so the reader never claims more of the Maya ASCII grammar than the writer produces.
-use super::{AsciiError, ErrorKind, decode_inner, write::emit_geometry_prefix};
+use super::{AsciiError, ErrorKind, decode_with_uvs, write::emit_geometry_prefix_with_uvs};
 use crate::native_scene::NativeScene;
 use std::{fmt, sync::Arc};
 
@@ -63,7 +63,8 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let sourced = decode_inner(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    let (sourced, uvs) =
+        decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
     // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
     // can never be proved; skip the clone for it.
     if sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
@@ -71,10 +72,18 @@ pub fn decode_document(
     }
     let mut candidate = sourced.clone();
     candidate.source = None;
+    // A sourced scene cannot hold UVs, so they join the candidate only now. The comparison below
+    // re-emits them, which is what admits a UV block: anything the writer would not emit refuses.
+    for (shape, set) in sourced.shapes.iter().zip(uvs) {
+        if let Some(set) = set {
+            candidate.attach_authored_uv_set(shape.id(), set);
+        }
+    }
     // An empty scene the writer emits (a document whose last object was deleted) is an
     // authored document too: it must reopen the way it was saved.
     let proved = candidate.validate().is_ok()
-        && emit_geometry_prefix(&candidate).is_ok_and(|emitted| emitted.as_slice() == &*source);
+        && emit_geometry_prefix_with_uvs(&candidate)
+            .is_ok_and(|emitted| emitted.as_slice() == &*source);
     if !proved {
         return if sourced.shapes.is_empty() {
             Ok(AsciiDecoded::Retained(sourced))
@@ -94,3 +103,5 @@ pub fn decode_document(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod uv_tests;

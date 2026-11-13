@@ -1,7 +1,7 @@
 use super::{
     AngularUnit, DagEdge, GeometryViewFacts, LinearUnit, NativeCurveShape, NativeError, NativeId,
     NativeMesh, NativeMeshShape, NativeScene, NativeTransform, NativeTransformNode, Scalar,
-    TransformExtras, Units,
+    TransformExtras, Units, UvSet,
     admission::Budget,
     authored::BUILTINS,
     curve::CurveSource,
@@ -455,6 +455,7 @@ impl Builder<'_, '_> {
                     id,
                     uuid: None,
                     name: self.budget.string(name).map_err(|_| resource())?,
+                    degree: 3,
                     control_vertices: Vec::new(),
                     knots: Vec::new(),
                     source: CurveSource {
@@ -743,7 +744,7 @@ impl Builder<'_, '_> {
                         let form = c.count()?;
                         let rational = c.boolean()?;
                         let dimension = c.count()?;
-                        if degree != 3 || form != 0 || rational || dimension != 3 {
+                        if !(1..=3).contains(&degree) || form != 0 || rational || dimension != 3 {
                             return Err(error(ErrorKind::Unsupported, c.offset));
                         }
                         let knot_count = c.count()?;
@@ -758,9 +759,9 @@ impl Builder<'_, '_> {
                             knots.push(c.number()?);
                         }
                         let cv_count = c.count()?;
-                        if cv_count < 4
-                            || cv_count.checked_sub(3) != Some(spans)
-                            || cv_count.checked_add(2) != Some(knot_count)
+                        if cv_count <= degree
+                            || cv_count.checked_sub(degree) != Some(spans)
+                            || cv_count.checked_add(degree - 1) != Some(knot_count)
                             || mul(cv_count, 3)? != c.tokens.len().saturating_sub(c.position)
                         {
                             return Err(error(ErrorKind::Malformed, c.offset));
@@ -774,6 +775,8 @@ impl Builder<'_, '_> {
                         }
                         c.done()?;
                         self.mark(owner, 1, c)?;
+                        self.scene.curves[index].degree = u32::try_from(degree)
+                            .map_err(|_| error(ErrorKind::Malformed, c.offset))?;
                         self.scene.curves[index].knots = knots;
                         self.scene.curves[index].control_vertices = cvs;
                         self.scene.curves[index].source.statement = retained;
@@ -1147,6 +1150,15 @@ pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, 
 }
 
 fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiError> {
+    decode_with_uvs(source, meshes).map(|(scene, _)| scene)
+}
+
+/// The sourced scene plus each shape's UV set (parallel to its shapes). A sourced scene cannot
+/// hold UVs, so the caller attaches them to the source-free candidate.
+fn decode_with_uvs(
+    source: Arc<[u8]>,
+    meshes: bool,
+) -> Result<(NativeScene, Vec<Option<UvSet>>), AsciiError> {
     let lex::Records {
         source,
         statements,
@@ -1248,9 +1260,9 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     if builder.scene.units.linear != LinearUnit::Centimeter && !builder.scene.curves.is_empty() {
         return Err(error(ErrorKind::Unsupported, 0));
     }
-    builder.finish_meshes()?;
+    let uvs = builder.finish_meshes()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
-    NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
+    let scene = NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
         NativeError::ResourceLimit => resource(),
         NativeError::UnsupportedView(_) => AsciiError {
             kind: ErrorKind::Unsupported,
@@ -1260,9 +1272,12 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
             kind: ErrorKind::Malformed,
             offset: None,
         },
-    })
+    })?;
+    Ok((scene, uvs))
 }
 
+#[cfg(test)]
+mod degree_tests;
 mod document;
 mod mesh;
 #[cfg(test)]

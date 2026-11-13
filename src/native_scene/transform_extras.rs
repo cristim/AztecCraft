@@ -218,6 +218,13 @@ pub struct TransformAttributes {
     pub scale_pivot: [f64; 3],
     pub rotate_pivot_translate: [f64; 3],
     pub scale_pivot_translate: [f64; 3],
+    /// Maya's `inheritsTransform`; false drops the parent's world matrix. PROVISIONAL together
+    /// with `offset_parent_matrix`: the combination is unconfirmed against a Maya reference scene.
+    pub inherits_transform: bool,
+    /// `offsetParentMatrix` as stored (row-vector, translation in elements 12 to 14, declared
+    /// linear unit); absent when it is the identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset_parent_matrix: Option<[f64; 16]>,
     pub non_default: Vec<&'static str>,
 }
 
@@ -231,6 +238,8 @@ impl Default for TransformAttributes {
             scale_pivot: [0.0; 3],
             rotate_pivot_translate: [0.0; 3],
             scale_pivot_translate: [0.0; 3],
+            inherits_transform: true,
+            offset_parent_matrix: None,
             non_default: Vec::new(),
         }
     }
@@ -259,6 +268,10 @@ impl super::NativeScene {
             scale_pivot: node.scale_pivot(),
             rotate_pivot_translate: triple(declared.rotate_pivot_translate),
             scale_pivot_translate: triple(declared.scale_pivot_translate),
+            inherits_transform: declared.inherits_transform.unwrap_or(true),
+            offset_parent_matrix: declared
+                .offset_parent_matrix
+                .filter(|matrix| *matrix != IDENTITY_ROWS),
             non_default: Vec::new(),
         };
         let nonzero = |v: [f64; 3]| v.iter().any(|c| *c != 0.0);
@@ -275,6 +288,11 @@ impl super::NativeScene {
             (
                 "scale_pivot_translate",
                 nonzero(attributes.scale_pivot_translate),
+            ),
+            ("inherits_transform", !attributes.inherits_transform),
+            (
+                "offset_parent_matrix",
+                attributes.offset_parent_matrix.is_some(),
             ),
         ]
         .into_iter()
