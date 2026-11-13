@@ -1,5 +1,5 @@
 use super::*;
-use crate::editor_operations::MAX_MOVED_VERTICES;
+use crate::editor_operations::{ComponentKind, MAX_COMPONENT_INDICES, MAX_MOVED_VERTICES};
 use azteccraft::history::{ManipulationFinish, ManipulationKindState};
 use azteccraft::native_scene::NativeTransformNode;
 
@@ -73,6 +73,51 @@ impl Editor {
         }
         Ok(())
     }
+    /// Validates a component-set request before any mutation: the kind's mode is active, the
+    /// owner is the one selected object's shape (this never switches the object selection),
+    /// the request is bounded, and every index exists in the owner's mesh.
+    fn check_component_request(
+        &self,
+        kind: ComponentKind,
+        owner: &azteccraft::selection::ComponentOwner,
+        indices: &[usize],
+    ) -> Result<(), OperationError> {
+        self.require_component_selection(kind.mode(), Some(owner.path.len()))?;
+        if indices.len() > MAX_COMPONENT_INDICES {
+            return Err(OperationError::InvalidInput(format!(
+                "A component selection request holds at most {MAX_COMPONENT_INDICES} indices"
+            )));
+        }
+        let (selected, selected_path) = self.single_target()?;
+        if owner.transform != selected
+            || owner
+                .path
+                .split_last()
+                .is_none_or(|(_, parent)| parent != selected_path)
+        {
+            return Err(OperationError::InvalidInput(
+                "Component selection must name a shape of the selected object".into(),
+            ));
+        }
+        let counts = self
+            .history
+            .scene()
+            .component_counts(owner.transform, owner.shape, &owner.path)
+            .map_err(OperationError::Scene)?;
+        let (limit, missing): (usize, fn(usize) -> azteccraft::scene::SceneError) = match kind {
+            ComponentKind::Face => (counts.faces, azteccraft::scene::SceneError::MissingFace),
+            ComponentKind::Vertex => (
+                counts.vertices,
+                azteccraft::scene::SceneError::MissingVertex,
+            ),
+            ComponentKind::Edge => (counts.edges, azteccraft::scene::SceneError::MissingEdge),
+        };
+        match indices.iter().find(|index| **index >= limit) {
+            Some(bad) => Err(OperationError::Scene(missing(*bad).into())),
+            None => Ok(()),
+        }
+    }
+
     /// Selects the instance that owns a validated component target (path ends with the shape).
     fn select_component_owner(
         &mut self,
@@ -127,6 +172,7 @@ impl Editor {
             | Operation::SelectFace { .. }
             | Operation::SelectVertex { .. }
             | Operation::SelectEdge { .. }
+            | Operation::ModifyComponentSelection { .. }
             | Operation::SetSelectionMode(_)
             | Operation::FrameSelected { .. }
             | Operation::FrameAll { .. }
@@ -555,6 +601,7 @@ impl Editor {
                     | Operation::SelectFace { .. }
                     | Operation::SelectVertex { .. }
                     | Operation::SelectEdge { .. }
+                    | Operation::ModifyComponentSelection { .. }
                     | Operation::SetCurrentTime { .. }
                     | Operation::SetPlaybackRange { .. }
                     | Operation::Play
@@ -670,6 +717,12 @@ impl Editor {
                         .map_err(OperationError::Scene)?;
                 }
             }
+            Operation::ModifyComponentSelection {
+                kind,
+                owner,
+                indices,
+                ..
+            } => self.check_component_request(*kind, owner, indices)?,
             Operation::SetKeyframe {
                 nodes,
                 time,
@@ -1091,6 +1144,25 @@ impl Editor {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
                 let changed = self.set_remembered_edge(target);
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::ModifyComponentSelection {
+                kind,
+                mode,
+                owner,
+                indices,
+            } => {
+                let set = self.component_set_mut(kind);
+                let changed = match mode {
+                    MarqueeMode::Replace => set.replace_with(&owner, indices),
+                    MarqueeMode::Add => set.extend_absent(&owner, indices),
+                    MarqueeMode::Remove => set.remove_all(&owner, indices),
+                    MarqueeMode::Toggle => set.toggle_all(&owner, indices),
+                };
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {

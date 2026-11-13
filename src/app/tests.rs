@@ -12106,14 +12106,14 @@ fn sync_fields_clears_a_pick_when_another_node_becomes_selected() {
     set_mode(&mut editor, SelectionMode::Edge);
     pick_edge(&mut editor, 0);
     editor.sync_fields();
-    assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
+    assert!(editor.remembered_vertex().is_some() && editor.remembered_edge().is_some());
     // Another node, with a resolving path, is selected. The owner-path clause for one node at
     // two instance paths needs a second instance and is not covered here.
     editor.set_selection_for_test(Some(paths[1].node), paths[1].path.clone());
     editor.sync_fields();
     assert_eq!(editor.selection_presentation().1, paths[1].path.as_slice());
-    assert_eq!(editor.remembered_vertex, None);
-    assert_eq!(editor.remembered_edge, None);
+    assert_eq!(editor.remembered_vertex(), None);
+    assert_eq!(editor.remembered_edge(), None);
 }
 
 #[test]

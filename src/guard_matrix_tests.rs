@@ -11,8 +11,8 @@
 
 use super::*;
 use crate::editor_operations::{
-    FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance, RemoteRequest,
-    SelectRule, ToolHandle, TransformInput,
+    ComponentKind, FileDecision, ManipulationSpace, ManipulationValue, MarqueeMode, MoveDistance,
+    RemoteRequest, SelectRule, ToolHandle, TransformInput,
 };
 use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
@@ -292,6 +292,24 @@ impl Targets {
         TransformTarget {
             node: self.node,
             path: self.path.clone(),
+        }
+    }
+
+    fn owner(&self) -> azteccraft::selection::ComponentOwner {
+        let face = self.face();
+        azteccraft::selection::ComponentOwner {
+            transform: face.transform,
+            shape: face.shape,
+            path: face.path,
+        }
+    }
+
+    fn other_owner(&self) -> azteccraft::selection::ComponentOwner {
+        let face = self.other_face();
+        azteccraft::selection::ComponentOwner {
+            transform: face.transform,
+            shape: face.shape,
+            path: face.path,
         }
     }
 
@@ -829,6 +847,12 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::SelectEdge {
             target: Some(t.edge()),
+        },
+        Operation::ModifyComponentSelection {
+            kind: ComponentKind::Face,
+            mode: MarqueeMode::Add,
+            owner: t.owner(),
+            indices: vec![0, 1],
         },
         Operation::NewScene,
         Operation::RequestClose,
@@ -1615,6 +1639,49 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 )
             },
         ],
+        Operation::ModifyComponentSelection { .. } => {
+            let modify = |mode, owner, indices: &[usize]| Operation::ModifyComponentSelection {
+                kind: ComponentKind::Face,
+                mode,
+                owner,
+                indices: indices.to_vec(),
+            };
+            vec![
+                sample(
+                    "modify_component_selection(object_mode)",
+                    modify(MarqueeMode::Add, t.owner(), &[0, 1]),
+                ),
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample(
+                        "modify_component_selection(face_mode_add)",
+                        modify(MarqueeMode::Add, t.owner(), &[0, 1]),
+                    )
+                },
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample(
+                        "modify_component_selection(face_mode_replace_empty)",
+                        modify(MarqueeMode::Replace, t.owner(), &[]),
+                    )
+                },
+                Sample {
+                    pre: Pre::FaceMode,
+                    ..sample(
+                        "modify_component_selection(face_mode_missing_face)",
+                        modify(MarqueeMode::Add, t.owner(), &[0, 99_999]),
+                    )
+                },
+                Sample {
+                    pre: Pre::SecondNodeFaceMode,
+                    only: Some(&[State::Idle]),
+                    ..sample(
+                        "modify_component_selection(other_object)",
+                        modify(MarqueeMode::Add, t.other_owner(), &[0]),
+                    )
+                },
+            ]
+        }
         Operation::NewScene => vec![sample("new_scene", Operation::NewScene)],
         Operation::RequestClose => vec![sample("request_close", Operation::RequestClose)],
         Operation::OpenScene { .. } => vec![
