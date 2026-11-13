@@ -114,7 +114,14 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     KeysRefusal::UnsupportedEdit => "unsupported_edit",
                 },
                 OperationError::Pivot(error) => pivot_code(error),
-                OperationError::Reparent(_) => "scene_error",
+                OperationError::Reparent(error) => match error {
+                    NativeError::ReadOnlyFormat => "read_only_format",
+                    NativeError::UnsupportedEdit => "unsupported_edit",
+                    NativeError::InvalidReparent(_) => "invalid_reparent",
+                    NativeError::NameCollision => "name_collision",
+                    NativeError::ResourceLimit => "resource_limit",
+                    _ => "scene_error",
+                },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {
@@ -843,6 +850,7 @@ mod tests {
                 "edit_node" => json!({"scene_token":token,"node_id":"1"}),
                 "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
+                "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
                 "create_session_material" => {
                     json!({"scene_token":token,"color":[1.0,0.0,0.0]})
