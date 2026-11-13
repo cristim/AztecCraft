@@ -562,6 +562,14 @@ pub struct EdgeTarget {
     pub edge_index: usize,
 }
 
+/// The sizes that bound the component indices of one shape instance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ComponentCounts {
+    pub faces: usize,
+    pub vertices: usize,
+    pub edges: usize,
+}
+
 pub const MAX_TRANSFORM_PATHS: usize = 4096;
 pub const MAX_TRANSFORM_DEPTH: usize = 256;
 pub const MAX_PATH_IDENTITIES: usize = 65536;
@@ -1142,6 +1150,20 @@ impl NativeScene {
             return Err(SceneError::MissingEdge(target.edge_index).into());
         }
         Ok(shape)
+    }
+    /// How many faces, vertices and edges the shape instance has, resolving it once.
+    pub fn component_counts(
+        &self,
+        transform: NodeId,
+        shape_id: NativeId,
+        path: &[NativeId],
+    ) -> Result<ComponentCounts, NativeError> {
+        let shape = self.resolve_shape_instance(transform, shape_id, path)?;
+        Ok(ComponentCounts {
+            faces: shape.mesh.faces().len(),
+            vertices: shape.mesh.point_count(),
+            edges: shape.mesh.edges().len(),
+        })
     }
     fn instance_shape(&self, path: &[NativeId]) -> Result<&NativeMeshShape, NativeError> {
         let id = self.instance_geometry_id(path)?;
