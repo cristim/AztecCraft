@@ -2,7 +2,10 @@ use crate::app::*;
 
 impl Editor {
     pub(in crate::app) fn frame_selected(&mut self, with_children: bool) {
-        self.native_operation(Operation::FrameSelected { with_children });
+        self.native_operation(Operation::FrameSelected {
+            with_children,
+            fit_factor: None,
+        });
     }
 
     /// Frames the selected objects. With `Exclude`, a selection none of whose members owns visible
@@ -81,7 +84,39 @@ impl Editor {
         })
     }
 
+    /// Starts a viewFit Fit Factor framing: with a factor, swaps in a fitted copy of the camera and
+    /// returns the original; an out of range factor is refused before any change.
+    pub(in crate::app) fn begin_fit(
+        &mut self,
+        fit_factor: Option<f32>,
+    ) -> Result<Option<Camera>, OperationError> {
+        let Some(fit_factor) = fit_factor else {
+            return Ok(None);
+        };
+        let fitted = self.camera.fitted(fit_factor).map_err(|_| {
+            OperationError::InvalidInput("fit_factor must be a number from 0.01 to 1".into())
+        })?;
+        Ok(Some(std::mem::replace(&mut self.camera, fitted)))
+    }
+
+    /// Ends `begin_fit`: a successful framing keeps its pose with the default margin again; a
+    /// failed one restores the original camera.
+    pub(in crate::app) fn end_fit<T>(
+        &mut self,
+        original: Option<Camera>,
+        result: Result<T, OperationError>,
+    ) -> Result<T, OperationError> {
+        if let Some(original) = original {
+            self.camera = if result.is_ok() {
+                self.camera.clone().unfitted()
+            } else {
+                original
+            };
+        }
+        result
+    }
+
     pub(in crate::app) fn frame_all(&mut self) {
-        self.native_operation(Operation::FrameAll);
+        self.native_operation(Operation::FrameAll { fit_factor: None });
     }
 }

@@ -69,6 +69,7 @@ async fn sdk_frame_selected_defaults_to_the_parent_only_and_with_children_matche
     let mut native = editor.camera.clone();
     editor.native_operation(Operation::FrameSelected {
         with_children: true,
+        fit_factor: None,
     });
     native = std::mem::replace(&mut editor.camera, native);
     let args = json!({"scene_token": editor.scene_token.to_string(), "with_children": true});

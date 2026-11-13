@@ -594,8 +594,12 @@ pub enum Operation {
     /// them. Component modes frame the component and ignore the flag.
     FrameSelected {
         with_children: bool,
+        /// viewFit `-fitFactor`: fraction of the view the framed objects fill, 0 < f <= 1.
+        fit_factor: Option<f32>,
     },
-    FrameAll,
+    FrameAll {
+        fit_factor: Option<f32>,
+    },
     SetGridVisible {
         visible: bool,
     },
