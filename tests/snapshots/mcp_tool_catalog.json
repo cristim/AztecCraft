@@ -3711,6 +3711,46 @@
     }
   },
   {
+    "name": "import_maya_scene",
+    "description": "Import the meshes of a Maya .ma or .mb file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per mesh transform as one undo step, selects them, and keeps the scene token. Optional prefix renames each node and shape to <prefix>_<name>; clashing names get the lowest free numeric suffix. Only files this editor can reproduce exactly are accepted: flat transform-over-mesh scenes in default units with hard edges and no materials, keys, curves, pivots or other records. Any other file is refused with error.code import_refused and a content-free error.reason (unrecognized_content for every non-empty .mb and for .ma files with extra records, materials, keys, curves, non_flat_hierarchy, unsupported_units, and so on). Unreadable, oversized or undecodable files report import_io, import_too_large or import_invalid; faces the viewport cannot display report import_invalid. Refused in a scene opened from .mb or .ma. .ma import works on macOS and Linux only; on Windows every .ma reports import_invalid. PROVISIONAL: Group, Preserve References, time range and the other namespace modes are not implemented. Replies with object, vertex and face counts and the new node_ids",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "Existing .ma or .mb file whose meshes are added to the scene.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "prefix": {
+          "default": null,
+          "description": "Namespace-style prefix: each imported name becomes `<prefix>_<name>`. A letter or\nunderscore, then letters, digits or underscores.",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "path"
+      ],
+      "title": "ImportMayaArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "new_scene",
     "description": "Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id",
     "inputSchema": {

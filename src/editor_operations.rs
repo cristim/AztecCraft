@@ -617,6 +617,13 @@ pub enum Operation {
         path: PathBuf,
         selection_only: bool,
     },
+    /// File > Import of a Maya `.ma` or `.mb` file: adds its meshes to the scene as one undo
+    /// step, each name prefixed with `prefix` when given.
+    #[cfg(any(test, feature = "mcp"))]
+    ImportMaya {
+        path: PathBuf,
+        prefix: Option<String>,
+    },
     ResolveFileAction {
         pending_id: uuid::Uuid,
         decision: FileDecision,
@@ -873,6 +880,9 @@ pub enum OperationReply {
         faces: usize,
         ignored_records: usize,
         node_ids: Vec<String>,
+        /// Selects the status wording only; Maya import drops no records.
+        #[serde(skip)]
+        from_maya: bool,
     },
     #[cfg(any(test, feature = "mcp"))]
     UsdExported {
@@ -1498,6 +1508,9 @@ pub enum OperationError {
     /// USD export refusal or failure; its text never carries the path.
     #[cfg(any(test, feature = "mcp"))]
     UsdExport(ExportError),
+    /// A Maya import source that could not be read or decoded; carries no path or content.
+    #[cfg(any(test, feature = "mcp"))]
+    MayaImportFile(MayaImportFileError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1511,6 +1524,27 @@ pub enum OperationError {
         parameter: &'static str,
         active: &'static str,
     },
+}
+
+/// Why a Maya import source could not be loaded. Fieldless: the underlying decoder errors can
+/// name paths or file content, so only the class survives.
+#[cfg(any(test, feature = "mcp"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MayaImportFileError {
+    Io,
+    TooLarge,
+    Invalid,
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for MayaImportFileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Io => "could not read the Maya file",
+            Self::TooLarge => "the Maya file is too large",
+            Self::Invalid => "the Maya file is not a scene this editor can read",
+        })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1614,6 +1648,8 @@ impl fmt::Display for OperationError {
             Self::ObjImport(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
             Self::GltfExport(error) | Self::UsdExport(error) => error.fmt(f),
+            #[cfg(any(test, feature = "mcp"))]
+            Self::MayaImportFile(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }

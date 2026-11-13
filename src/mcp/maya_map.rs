@@ -84,6 +84,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; normals, UVs and materials dropped (PROVISIONAL: OBJ import options)"),
     ("export_gltf", "none (Maya has no native glTF export; an AztecCraft extension, see #436)", "meters, +Y up, no normals/UVs/materials, never overwrites (PROVISIONAL)"),
     ("export_usd", "none (Maya ships USD through the separate maya-usd plug-in; an AztecCraft slice of #438)", "centimeters with metersPerUnit 0.01, +Y up, mesh points and topology only, never overwrites (PROVISIONAL)"),
+    ("import_maya_scene", "`file -import -type \"mayaAscii\"` / `\"mayaBinary\"` with `-namespace`", "meshes only, one undo step, new roots selected; only files an authored save reproduces exactly (PROVISIONAL: Group, Preserve References and time range not implemented)"),
     ("new_scene", "`file -new`", "dirty confirmation via `resolve_file_action`; Maya uses `-force`"),
     ("resolve_file_action", "no equivalent", "Maya prompts in a dialog or takes `-force`"),
     ("request_close", "`quit`", "dirty confirmation required"),

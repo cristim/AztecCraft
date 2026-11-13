@@ -126,6 +126,9 @@
   export_usd(all) => Ok(usd_exported) | no state change
   export_usd(selection) => Ok(usd_exported) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -311,6 +314,9 @@
   export_usd(all) => Ok(usd_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to USD"
   export_usd(selection) => Ok(usd_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to USD"
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -487,6 +493,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -661,6 +670,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -835,6 +847,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Scene ready"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false; can_redo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1009,6 +1024,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; status: "Scene edited" -> "Scene ready"; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false; can_redo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1183,6 +1201,9 @@
   export_usd(all) => Ok(usd_exported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_usd(selection) => Ok(usd_exported) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1357,6 +1378,9 @@
   export_usd(all) => Ok(usd_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to USD"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_usd(selection) => Ok(usd_exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to USD"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1531,6 +1555,9 @@
   export_usd(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(not_usda) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(undecodable) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(not_maya) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1705,6 +1732,9 @@
   export_usd(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(not_usda) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(undecodable) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(not_maya) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1879,6 +1909,9 @@
   export_usd(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(not_usda) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(undecodable) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(not_maya) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2053,6 +2086,9 @@
   export_usd(all) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   export_usd(not_usda) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(undecodable) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(not_maya) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  import_maya_scene(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(cancel) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   resolve_file_action(discard) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   rename => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2227,6 +2263,9 @@
   export_usd(all) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   export_usd(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2401,6 +2440,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2576,6 +2618,9 @@
   export_usd(all) => Ok(usd_exported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   export_usd(selection) => Ok(usd_exported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2751,6 +2796,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2925,6 +2973,9 @@
   export_usd(all) => Ok(usd_exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   export_usd(selection) => Ok(usd_exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -3099,6 +3150,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3273,6 +3327,9 @@
   export_usd(all) => Ok(usd_exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   export_usd(selection) => Ok(usd_exported) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -3447,6 +3504,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3621,6 +3681,9 @@
   export_usd(all) => Ok(usd_exported) | no state change
   export_usd(selection) => Ok(usd_exported) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -3795,6 +3858,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3969,6 +4035,9 @@
   export_usd(all) => Ok(usd_exported) | no state change
   export_usd(selection) => Ok(usd_exported) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Ok(changed) | scene changed; selected: pCube1 -> renamed; name_field: "pCube1" -> "renamed"; can_redo: true -> false
@@ -4143,6 +4212,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(discard) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4319,6 +4391,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4493,6 +4568,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4667,6 +4745,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4841,6 +4922,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5015,6 +5099,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5189,6 +5276,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5363,6 +5453,9 @@
   export_usd(all) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   export_usd(not_usda) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(undecodable) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(not_maya) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  import_maya_scene(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(cancel) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   resolve_file_action(discard) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   rename => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5537,6 +5630,9 @@
   export_usd(all) => Err(UsdExport: Nothing to export: no displayed polygon geometry) | no state change
   export_usd(selection) => Err(UsdExport: Nothing to export: no displayed polygon geometry) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -5711,6 +5807,9 @@
   export_usd(all) => Err(UsdExport: Nothing to export: no displayed polygon geometry) | no state change
   export_usd(selection) => Err(UsdExport: Nothing to export: no displayed polygon geometry) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -5886,6 +5985,9 @@
   export_usd(all) => Ok(usd_exported) | no state change
   export_usd(selection) => Ok(usd_exported) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6061,6 +6163,9 @@
   export_usd(all) => Ok(usd_exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to USD"
   export_usd(selection) => Ok(usd_exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to USD"
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6236,6 +6341,9 @@
   export_usd(all) => Ok(usd_exported) | no state change
   export_usd(selection) => Ok(usd_exported) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6411,6 +6519,9 @@
   export_usd(all) => Ok(usd_exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to USD"
   export_usd(selection) => Ok(usd_exported) | status: "Scene ready" -> "Exported 1 object(s), 3 vertices and 1 faces to USD"
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6682,6 +6793,9 @@
   export_usd(all) => Err(UsdExport: Export cancelled before the file was installed) | no state change
   export_usd(selection) => Err(UsdExport: Export cancelled before the file was installed) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6857,6 +6971,9 @@
   export_usd(all) => Err(UsdExport: Export cancelled before the file was installed) | no state change
   export_usd(selection) => Err(UsdExport: Export cancelled before the file was installed) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(MayaImportFile: the Maya file is not a scene this editor can read) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(MayaImportFile: could not read the Maya file) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   rename => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7032,6 +7149,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(InvalidInput: Export path must end in .usda) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(InvalidInput: Import path must end in .ma or .mb) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; camera changed; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7207,6 +7327,9 @@
   export_usd(all) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   export_usd(not_usda) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(undecodable) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(not_maya) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  import_maya_scene(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   resolve_file_action(cancel) => Ok(cancelled) | modal: true -> false; pending_action: New -> -
   resolve_file_action(discard) => Ok(document_applied) | scene changed; token replaced; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; camera changed; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,; modal: true -> false; pending_action: New -> -; dirty: true -> false; can_undo: true -> false
   rename => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7267,4 +7390,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 6667
+cells: 6790
