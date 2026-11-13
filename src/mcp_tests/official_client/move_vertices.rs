@@ -1,4 +1,5 @@
 use super::*;
+use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 
 struct Ids {
     node: String,
@@ -230,4 +231,157 @@ async fn move_vertices_saved_to_binary_and_ascii_reopens_with_the_moved_points()
         drop(editor);
         server.await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn a_zero_delta_move_is_unchanged_and_adds_no_undo_step() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    let before = editor.history.scene().clone();
+    let undo_len = editor.history.undo_len();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        args(&token, &ids, json!([0, 1]), json!([0.0, -0.0, 0.0])),
+    )
+    .await;
+    assert_eq!(result.structured_content.unwrap()["outcome"], "unchanged");
+    assert_eq!(editor.history.scene(), &before);
+    assert_eq!(editor.history.undo_len(), undo_len);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn inspect_vertices_pages_with_a_revision_bound_cursor() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.native_operation(Operation::Create {
+        primitive: Primitive::Plane,
+        options: Some(PrimitiveOptions::Plane {
+            width: 1.0,
+            height: 1.0,
+            sub_width: 40,
+            sub_height: 40,
+            axis: Axis::Y,
+        }),
+        name: None,
+    });
+    let ids = ids(&editor);
+    let total = editor.history.scene().shapes()[0].mesh().point_count();
+    assert!(total > 1024);
+    let first = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let first = &first["inspection"];
+    assert_eq!(first["vertices_total"], total);
+    assert_eq!(first["vertex_offset"], 0);
+    assert_eq!(first["positions"].as_array().unwrap().len(), 1024);
+    assert_eq!(first["positions"][5], json!(point(&editor, 5)));
+    let cursor = first["next_cursor"].as_str().unwrap().to_string();
+    let second = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape,"cursor":cursor}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let second = &second["inspection"];
+    assert_eq!(second["vertex_offset"], 1024);
+    assert_eq!(second["positions"].as_array().unwrap().len(), total - 1024);
+    assert_eq!(second["positions"][0], json!(point(&editor, 1024)));
+    assert!(second["next_cursor"].is_null());
+    // The scene changes: the cursor goes stale and nothing is read.
+    let moved = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        args(&token, &ids, json!([0]), json!([1, 0, 0])),
+    )
+    .await;
+    assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape,"cursor":cursor}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(stale["error"]["code"], "stale_scene");
+    let wrong_shape = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":"999999","cursor":cursor}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert!(wrong_shape.get("error").is_some());
+    let fresh = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        fresh["inspection"]["positions"][0],
+        json!(point(&editor, 0))
+    );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn move_vertices_on_a_transformed_node_moves_along_the_mesh_axes() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    let set = call(&mut editor, &context, client.peer(), "set_transform", json!({"scene_token":token,"node_id":ids.node,"translation":[4.0,-2.0,1.0],"rotation_degrees":[30.0,45.0,60.0],"scale":[2.0,3.0,0.5]})).await;
+    assert_eq!(set.structured_content.unwrap()["outcome"], "changed");
+    let before = point(&editor, 2);
+    let moved = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        args(&token, &ids, json!([2]), json!([1.0, 0.0, 0.0])),
+    )
+    .await;
+    assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
+    let after = point(&editor, 2);
+    assert_eq!(after[0], f64::from((before[0] + 1.0) as f32));
+    assert_eq!(&after[1..], &before[1..]);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
 }
