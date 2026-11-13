@@ -9,6 +9,8 @@ pub(super) mod gltf_export;
 mod history;
 pub(in crate::app) mod manipulation_tool;
 mod material;
+#[cfg(any(test, feature = "mcp"))]
+pub(super) mod maya_import;
 pub(in crate::app) mod move_tool;
 mod node_edit;
 pub(super) mod obj_export;
