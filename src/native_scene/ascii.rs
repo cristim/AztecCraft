@@ -1096,6 +1096,7 @@ impl Builder<'_, '_> {
                 self.scene.units = units;
                 self.units = true;
             }
+            "file" => self.file_reference(c)?,
             "createNode" => self.create(c)?,
             "rename" => self.rename(c)?,
             "select" => self.select(c)?,
@@ -1280,6 +1281,9 @@ fn decode_with_uvs(
 mod degree_tests;
 mod document;
 mod mesh;
+mod reference;
+#[cfg(test)]
+mod reference_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

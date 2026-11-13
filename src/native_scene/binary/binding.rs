@@ -460,6 +460,7 @@ pub(super) fn construct(
         session_keys: Default::default(),
         session_uvs: Default::default(),
         removed: Vec::new(),
+        references: Vec::new(),
         next_id: 1,
         next_native_id: 1,
     };

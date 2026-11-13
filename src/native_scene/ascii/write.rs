@@ -229,6 +229,9 @@ fn check(scene: &NativeScene, uvs: UvPolicy) -> Result<(), AsciiWriteRefusal> {
         materials: _,
         // Ids of deleted source nodes: only in a sourced scene, which is refused above.
         removed: _,
+        // Inert `file -r` declarations (#440): parsed only with a source, which is refused above;
+        // the writer never emits them, so a decode candidate carrying any differs from its source.
+        references: _,
         // Created, assigned or reassigned materials: the file has only the default pair.
         session_materials,
         // Refused by `check_content_kind` under `UvPolicy::Refuse`, emitted per shape otherwise; keys are

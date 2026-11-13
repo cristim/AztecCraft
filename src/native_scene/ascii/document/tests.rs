@@ -258,3 +258,16 @@ fn a_refusal_unrelated_to_meshes_stands_without_reaching_the_gate() {
         AsciiDocumentError::Ascii(_)
     ));
 }
+
+#[test]
+fn a_file_reference_record_in_writer_output_is_never_adopted_as_authored() {
+    let mut bytes = bytes_of(&cube());
+    let at = bytes.windows(8).position(|w| w == b"requires").unwrap();
+    bytes.splice(at..at, b"file -r \"a.ma\";\n".iter().copied());
+    // Without the record the same bytes are authored, so only the record can refuse.
+    assert!(matches!(
+        decode(&bytes_of(&cube()), true),
+        Ok(AsciiDecoded::Authored(_))
+    ));
+    assert!(decode(&bytes, true).is_err());
+}
