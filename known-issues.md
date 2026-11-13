@@ -1568,6 +1568,18 @@ glTF clients compute flat normals), UVs, materials, animation, skins and cameras
 session UVs or an assigned session material is refused with `export_unsupported`; the appearance of
 an opened Maya scene (for example a Phong diffuse binding) is not exported and not reported. Quads
 split along the interior diagonal; Maya's own split of non-planar quads is unverified. Maya has no
-native glTF export, so there is nothing to compare against (#23 source S1). `src/gltf.rs` repeats
-`GuardedFs` and the occupied-destination check from `src/obj.rs`, and `GltfExportError` mirrors
-`ObjExportError`: merge them (and settle on one MCP code for a session-UV refusal: `export_obj` returns `export_invalid`, `export_gltf` returns `export_unsupported`) once #403 (which edits the OBJ files) has landed.
+native glTF export, so there is nothing to compare against (#23 source S1). `src/obj.rs` still repeats
+`GuardedFs` and the occupied-destination check that `src/gltf.rs` and `src/usd.rs` now share through
+`src/export_write.rs`, and `ObjExportError` mirrors the shared `ExportError`: merge them (and settle on one MCP code for a session-UV refusal: `export_obj` returns `export_invalid`, `export_gltf` returns `export_unsupported`) once #403 (which edits the OBJ files) has landed.
+
+## USD export: slice 1 limits (PROVISIONAL, #438)
+
+`export_usd` (MCP only, no File menu entry until the native dialog can be checked in a visible
+window) writes `.usda` `UsdGeomMesh` points, face counts, face indices and extent in centimetres
+(`metersPerUnit = 0.01`, `upAxis = "Y"`). Not written: normals, UVs, materials, animation,
+instancing and hierarchy (flat, world-space); a shape with session UVs or an assigned session
+material is refused with `export_unsupported`. No USD import, `.usdc` or `.usdz`. Acceptance by
+Maya's USD plug-in or a USD runtime is unverified: the tests read the text back with an independent
+minimal reader built from the public usda syntax, not with OpenUSD. Non-planar polygons are written
+as authored. `src/usd.rs` shares the staged write with `src/gltf.rs` through `src/export_write.rs`;
+`src/obj.rs` still carries its own copy (merge once #403 has landed).

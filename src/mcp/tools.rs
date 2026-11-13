@@ -897,6 +897,7 @@ mod tests {
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
                 "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "export_gltf" => json!({"scene_token":token,"path":"scene.glb"}),
+                "export_usd" => json!({"scene_token":token,"path":"scene.usda"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1575,6 +1576,7 @@ mod tests {
                 "export_obj",
                 "import_obj",
                 "export_gltf",
+                "export_usd",
             ] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }

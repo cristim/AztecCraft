@@ -3517,6 +3517,41 @@
     }
   },
   {
+    "name": "export_usd",
+    "description": "Export displayed polygon geometry as a new OpenUSD ASCII file (.usda only; Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space points in centimeters exactly as authored (f64 world position rounded once to f32, shortest round-trip text), the layer states metersPerUnit = 0.01 and upAxis = Y, one flat UsdGeomMesh per instance under /World with faceVertexCounts, faceVertexIndices (native polygon arity, mirrored instances reversed) and extent. No normals, UVs, materials, animation, instancing or hierarchy; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft slice of #438, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "description": "New .usda (OpenUSD ASCII) destination; an existing file is never replaced.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "selection_only": {
+          "default": false,
+          "description": "Export only every selected object and its descendants (Export Selection); default false\nexports every displayed polygon instance (Export All).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token",
+        "path"
+      ],
+      "title": "ExportUsdArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "new_scene",
     "description": "Request a new empty document; dirty documents require explicit confirmation using the returned pending_action_id",
     "inputSchema": {
