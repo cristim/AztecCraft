@@ -445,8 +445,14 @@ ASCII Open uses a bounded inert command decoder, never a MEL evaluator. The
 admitted class is clamped open nonrational three-dimensional curves of degree 1, 2 or
 3 (#17 added degrees 1 and 2: cv+degree-1 knots, cv-degree spans, `degree` echoed by
 MCP; each span is drawn as an exact cubic Hermite, so no degree-specific viewport
-path; degree 0, 4 and above, closed/periodic forms and rational curves refuse
-Unsupported) with
+path; degree 0 and 4 and above and rational curves refuse Unsupported). #17 also
+admits form 1 (closed: clamped as open, first CV equal to last, per the documented "no
+gap between first and last CVs") and form 2 (periodic, only the documented shape: degree
+3, at least 3 spans, uniform knots, the last 3 CVs equal to the first 3; `form` echoed
+by MCP; the knot count cv+degree-1 is inferred from the documented 7-CV example, not
+quoted). Other closed/periodic shapes refuse Unsupported. Rational curves stay refused:
+the public docs say only "(and w if rational)" and do not state whether xyz are
+pre-multiplied by w; a Maya-written rational specimen with known geometry is needed. All admitted curves have
 finite f64 CVs/knots, strict positive interior spans (repeated interior knots,
 i.e. C0 curves, are refused as Unsupported), supported parent transforms and the
 explicit startup/metadata envelope. The retained legacy 2016 reference
