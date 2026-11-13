@@ -160,7 +160,9 @@ impl Editor {
             | Operation::DeleteCameraBookmark { .. }
             | Operation::ApplyCameraBookmark { .. } => None,
             #[cfg(any(test, feature = "mcp"))]
-            Operation::ListCameraBookmarks | Operation::RecoveryStatus => None,
+            Operation::ListCameraBookmarks
+            | Operation::RecoveryStatus
+            | Operation::InspectLimits => None,
             #[cfg(any(test, feature = "mcp"))]
             Operation::AutosaveNow => None,
             // Native drags report their own live preview, which a remote preview does not drive.
@@ -324,6 +326,12 @@ impl Editor {
         }
         if matches!(request.operation, Operation::RecoveryStatus) {
             return self.recovery_status();
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if matches!(request.operation, Operation::InspectLimits) {
+            return Ok(OperationReply::SceneLimits {
+                limits: azteccraft::scene_limits::scene_limits(),
+            });
         }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
             return Ok(OperationReply::Uvs {
@@ -776,6 +784,12 @@ impl Editor {
             Operation::ListCameraBookmarks => return Ok(self.list_camera_bookmarks()),
             #[cfg(any(test, feature = "mcp"))]
             Operation::RecoveryStatus => return self.recovery_status(),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectLimits => {
+                return Ok(OperationReply::SceneLimits {
+                    limits: azteccraft::scene_limits::scene_limits(),
+                });
+            }
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
