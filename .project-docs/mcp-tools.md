@@ -2,7 +2,7 @@
 
 Generated from the tool registry in `src/mcp/registry.rs`; do not edit by hand. Regenerate with `UPDATE_DOCS=1 cargo test --features mcp registry::tests::tool_doc`. Argument schemas are served by `tools/list`; see [mcp.md](mcp.md) for behaviour and limits. The Maya column names the equivalent Maya 2027 command (command reference pages, summarised); PROVISIONAL marks an unconfirmed mapping and "no equivalent" a truthful gap.
 
-65 tools.
+66 tools.
 
 | Tool | Access | Idempotent | Maya equivalent | Difference from Maya | Description |
 |---|---|---|---|---|---|

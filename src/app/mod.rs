@@ -74,6 +74,9 @@ pub struct Editor {
     camera: Camera,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
+    /// Off unless the host enables it; recovery files never replace the scene file.
+    #[cfg(any(test, feature = "mcp"))]
+    recovery: Option<azteccraft::recovery::RecoveryStore>,
     grid_visible: bool,
     snap_to_grid: bool,
     shading: ShadingMode,
@@ -137,6 +140,8 @@ impl Default for Editor {
             remembered_edge: None,
             camera: Camera::default(),
             bookmarks: Default::default(),
+            #[cfg(any(test, feature = "mcp"))]
+            recovery: None,
             grid_visible: true,
             snap_to_grid: false,
             shading: ShadingMode::default(),

@@ -212,6 +212,8 @@ enum Pre {
     AssignedMaterial,
     /// Puts a file at the Save As destination before the operation runs.
     OccupiedDestination,
+    /// Enables recovery files in `<directory>/recovery`, off in every other cell.
+    RecoveryEnabled,
 }
 
 struct Sample {
@@ -846,6 +848,8 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteCameraBookmark { name: "v".into() },
         Operation::ApplyCameraBookmark { name: "v".into() },
         Operation::ListCameraBookmarks,
+        Operation::AutosaveNow,
+        Operation::RecoveryStatus,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetMenuSet {
             set: crate::editor_operations::MenuSet::Rigging,
@@ -1905,6 +1909,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "apply_camera_bookmark(missing)",
             Operation::ApplyCameraBookmark { name: "v".into() },
         )],
+        Operation::AutosaveNow => vec![
+            Sample {
+                install_probe: true,
+                pre: Pre::RecoveryEnabled,
+                ..sample("autosave_now(enabled)", Operation::AutosaveNow)
+            },
+            Sample {
+                install_probe: true,
+                ..sample("autosave_now(disabled)", Operation::AutosaveNow)
+            },
+        ],
+        Operation::RecoveryStatus => vec![
+            sample("recovery_status", Operation::RecoveryStatus),
+            Sample {
+                pre: Pre::RecoveryEnabled,
+                ..sample("recovery_status(enabled)", Operation::RecoveryStatus)
+            },
+        ],
         Operation::ListCameraBookmarks => vec![sample(
             "list_camera_bookmarks",
             Operation::ListCameraBookmarks,
@@ -2155,6 +2177,12 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
                 .collect::<Vec<_>>()
                 .join(","),
         ),
+        (
+            "recovery_files",
+            std::fs::read_dir(roots[0].join("recovery"))
+                .map_or(0, Iterator::count)
+                .to_string(),
+        ),
     ];
     Observed {
         scene: scene.clone(),
@@ -2240,6 +2268,10 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
         Pre::OccupiedDestination => {
             std::fs::write(rig.directory.path().join("saved.mb"), b"occupant").unwrap();
         }
+        Pre::RecoveryEnabled => rig
+            .editor
+            .enable_recovery(rig.directory.path().join("recovery"))
+            .unwrap(),
         Pre::VertexMode => rig.editor.selection_mode = SelectionMode::Vertex,
         Pre::EdgeMode => rig.editor.selection_mode = SelectionMode::Edge,
         Pre::AttributeEditorDock => {
