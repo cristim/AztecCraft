@@ -35,6 +35,19 @@ struct ExportGltfArgs {
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+struct ExportUsdArgs {
+    scene_token: String,
+    /// New .usda (OpenUSD ASCII) destination; an existing file is never replaced.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+    /// Export only every selected object and its descendants (Export Selection); default false
+    /// exports every displayed polygon instance (Export All).
+    #[serde(default)]
+    selection_only: bool,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ExportArgs {
     scene_token: String,
     /// New .obj destination; an existing file is never replaced.
@@ -119,6 +132,23 @@ fn parse_export_gltf(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::ExportGltf {
+            path: args.path.into(),
+            selection_only: args.selection_only,
+        },
+    ))
+}
+
+fn parse_export_usd(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ExportUsdArgs = decode(arguments)?;
+    if args.path.is_empty() || args.path.len() > 4096 || args.path.contains('\0') {
+        return Err(ErrorData::invalid_params(
+            "path must contain 1 to 4096 UTF-8 bytes and no NUL",
+            None,
+        ));
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ExportUsd {
             path: args.path.into(),
             selection_only: args.selection_only,
         },
@@ -210,6 +240,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Export displayed polygon geometry as a new glTF 2.0 file: .gltf with an embedded base64 buffer, or binary .glb, chosen by the path extension (Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space positions converted from centimeters to meters (f64 divided by 100, then rounded to f32), +Y up as authored, one node and one triangle mesh per instance (quads split along the interior diagonal, mirrored instances keep outward faces). No normals (glTF clients compute flat normals), UVs, materials, animation or skins; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft extension, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and triangle counts",
         schema: schema::<ExportGltfArgs>,
         parse: parse_export_gltf,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "export_usd",
+        description: "Export displayed polygon geometry as a new OpenUSD ASCII file (.usda only; Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space points in centimeters exactly as authored (f64 world position rounded once to f32, shortest round-trip text), the layer states metersPerUnit = 0.01 and upAxis = Y, one flat UsdGeomMesh per instance under /World with faceVertexCounts, faceVertexIndices (native polygon arity, mirrored instances reversed) and extent. No normals, UVs, materials, animation, instancing or hierarchy; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft slice of #438, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+        schema: schema::<ExportUsdArgs>,
+        parse: parse_export_usd,
         idempotent: false,
         read_only: false,
     },

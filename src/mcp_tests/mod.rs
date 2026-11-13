@@ -159,6 +159,7 @@ mod official_client {
     mod tool_handle;
     mod tool_space;
     mod undo_chunks;
+    mod usd_export;
     mod uv;
     mod vertex_edge;
 
