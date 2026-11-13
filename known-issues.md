@@ -527,7 +527,7 @@ covered MCP-driven mode switches on one macOS debug build only
 **Severity:** high
 **Area:** native documents and viewport
 
-The supported legacy 2016 static ASCII curve class (open, nonrational, degree 1 to 3) now has inert native Open,
+The supported legacy 2016 static ASCII curve class (nonrational, degree 1 to 3; closed and degree-3 uniform periodic forms admitted, rational refused) now has inert native Open,
 canonical f64 curve state, evaluated GPU line geometry, conservative framing and
 bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
 admit general Maya ASCII, arbitrary units (only mm/cm/m/in/ft, deg/rad, film/ntsc; curves need centimeter and meshes need centimeter/degree/film) or history/drivers, rigs, imported
