@@ -42,6 +42,14 @@ parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5)
 - **Not natively verified.** The File menu entry is covered by a headless frame test and the
   operation by Editor protocol tests; the file panel was not exercised in a native window.
 
+## File references: declarations are read-only data (#440)
+
+**Severity:** medium
+**Area:** pipeline
+**Issue:** #440, epic #58
+
+`file -r` records in Maya ASCII are parsed into an inert table shown by `inspect_scene` `references`. Nothing is loaded, resolved, unloaded or saved, and there is no Reference Editor or Create Reference. A real Maya scene with references still refuses: Maya writes a reference node, `dataReferenceEdits`, a `-rdi` record without `-r` and `-op` options whose `.ma` encoding the public pages do not define (evidence needed: a pinned-install sample, #5). `.mb` reference records are not read. No parity is claimed.
+
 ## Animation is a first, session-only slice (#361)
 
 **Severity:** medium

@@ -797,6 +797,9 @@ pub struct SceneInspection {
     /// and later entries are lamberts. Ids are valid only at the current history position.
     pub session_materials: Vec<SessionMaterialInspection>,
     pub curves: Vec<CurveInspection>,
+    /// Inert `file -r` declarations of a parsed Maya ASCII source, in file order and on every
+    /// page. Unresolved and never loaded; only a relative path is echoed (#440).
+    pub references: Vec<azteccraft::native_scene::ReferenceDeclaration>,
     pub retained_source_bytes: usize,
     pub retained_source_records: usize,
     pub read_only_reason: Option<String>,
@@ -1503,6 +1506,11 @@ const MIN_CURVE: &str = concat!(
     r#""domain":[0.0,0.0],"read_only":true,"draw_available":true}"#
 );
 #[cfg(any(test, feature = "mcp"))]
+const MIN_REFERENCE: &str = concat!(
+    r#"{"path_kind":"relative","path":null,"namespace":null,"reference_node":null,"#,
+    r#""renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null}"#
+);
+#[cfg(any(test, feature = "mcp"))]
 const MIN_SESSION_MATERIAL: &str =
     r#"{"id":"0","name":"","shading_group":"","color":[0.0,0.0,0.0],"editable":true}"#;
 /// One path element in an `instance_path` array: `"1",`. A non-empty array of L elements costs
@@ -1531,7 +1539,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""manipulation":{"active_tool":"","move_space":"","rotate_space":"","scale_space":"","rotate_axis":"","#,
     r#""scale_handle":"","manipulator_size":0.0,"units":{"distance":"","angle":"","factor":""},"#,
     r#""kinds":[],"active":null,"refusal":null,"viewport":null},"#,
-    r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"#,
+    r#""nodes":[],"shapes":[],"session_materials":[],"curves":[],"references":[],"#,
     r#""retained_source_bytes":0,"retained_source_records":0,"read_only_reason":"","#,
     r#""units":{"linear":"","angular":"","time":""},"save_available":true,"save_as_available":true,"#,
     r#""save_reconciliation_required":true,"document_origin":"","has_file":true,"closing":true,"#,
@@ -1611,9 +1619,36 @@ pub fn inspection_page_lower_bound(
             .len()
             .saturating_mul(MIN_SESSION_MATERIAL.len())
     };
-    [page_nodes, shapes, curves, materials]
+    let references = scene.references().iter().fold(0usize, |sum, r| {
+        sum.saturating_add(reference_lower_bound(r))
+    });
+    [page_nodes, shapes, curves, materials, references]
         .into_iter()
         .fold(MIN_FIXED.len(), usize::saturating_add)
+}
+
+/// Never above the serialized size: a present string costs len + 2 against the 4 of `null`, a
+/// present depth at least 1 against 4.
+#[cfg(any(test, feature = "mcp"))]
+fn reference_lower_bound(r: &azteccraft::native_scene::ReferenceDeclaration) -> usize {
+    let fields = [
+        &r.path,
+        &r.namespace,
+        &r.reference_node,
+        &r.renaming_prefix,
+        &r.file_type,
+    ];
+    let present = fields.iter().filter(|f| f.is_some()).count();
+    let text: usize = fields
+        .iter()
+        .filter_map(|f| f.as_ref())
+        .map(String::len)
+        .sum();
+    MIN_REFERENCE
+        .len()
+        .saturating_add(text)
+        .saturating_sub(2 * present)
+        .saturating_sub(if r.depth_info.is_some() { 3 } else { 0 })
 }
 
 /// Refuses before any clone when even the guaranteed minimum exceeds the reply ceiling.
@@ -1768,6 +1803,33 @@ mod tests {
             serde_json::to_string(&material).unwrap(),
             MIN_SESSION_MATERIAL
         );
+    }
+
+    #[test]
+    fn reference_minimum_is_the_smallest_dto_and_the_bound_never_exceeds_real_size() {
+        use azteccraft::native_scene::{ReferenceDeclaration, ReferencePathKind};
+        let bare = ReferenceDeclaration {
+            path_kind: ReferencePathKind::Relative,
+            path: None,
+            namespace: None,
+            reference_node: None,
+            renaming_prefix: None,
+            file_type: None,
+            deferred: None,
+            depth_info: None,
+        };
+        assert_eq!(serde_json::to_string(&bare).unwrap(), MIN_REFERENCE);
+        assert_eq!(reference_lower_bound(&bare), MIN_REFERENCE.len());
+        let full = ReferenceDeclaration {
+            path: Some("a.ma".into()),
+            namespace: Some("n".into()),
+            reference_node: Some(String::new()),
+            deferred: Some(false),
+            depth_info: Some(2),
+            ..bare
+        };
+        let real = serde_json::to_string(&full).unwrap().len();
+        assert!(reference_lower_bound(&full) <= real);
     }
 
     #[test]
