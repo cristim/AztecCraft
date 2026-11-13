@@ -369,3 +369,78 @@ fn the_save_as_dialog_offers_the_formats_each_origin_can_write() {
             .is_empty()
     );
 }
+
+fn with_uvs() -> (NativeScene, crate::native_scene::NativeId) {
+    let mut scene = authored();
+    let shape = scene.shapes()[0].id();
+    scene
+        .project_uv_planar(shape, crate::native_scene::UvProjectAxis::Z)
+        .unwrap();
+    (scene, shape)
+}
+
+#[test]
+fn a_scene_with_uvs_saves_as_ma_reopens_with_the_same_uvs_and_active_saves() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uv.ma");
+    let (scene, shape) = with_uvs();
+    let (origin, _) = saved(saved_as(&scene, &path, &NativeOrigin::Untitled));
+    let bytes = std::fs::read(&path).unwrap();
+    assert!(
+        String::from_utf8(bytes.clone())
+            .unwrap()
+            .contains(" mu 0 4 ")
+    );
+    let reopened = load_native(&path).unwrap();
+    let reopened_shape = reopened.scene.shapes()[0].id();
+    assert_eq!(
+        reopened.scene.uv_set(reopened_shape),
+        scene.uv_set(shape),
+        "UVs must round-trip f32-exactly"
+    );
+    assert!(matches!(reopened.origin, NativeOrigin::AuthoredAscii(_)));
+    // Active Save of the reopened document rewrites the same bytes; each Save replaces the file,
+    // so the original origin's baseline is checked first and the file is opened again for the next.
+    saved(save_native(
+        &origin,
+        &scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    let again = load_native(&path).unwrap();
+    saved(save_native(
+        &again.origin,
+        &again.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+}
+
+#[test]
+fn a_scene_with_uvs_still_refuses_mb_and_material_ma_saves_with_the_unchanged_codes() {
+    let directory = tempfile::tempdir().unwrap();
+    let (scene, shape) = with_uvs();
+    let mb = directory.path().join("uv.mb");
+    assert_eq!(
+        saved_as(&scene, &mb, &NativeOrigin::Untitled).unwrap_err(),
+        Error::Unwritable(AuthoredRefusalCode::SessionUvs)
+    );
+    assert!(!mb.exists());
+    let mut material = scene.clone();
+    material
+        .assign_session_material(
+            shape,
+            crate::native_scene::MaterialChoice::New {
+                color: [1.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
+    let ma = directory.path().join("material.ma");
+    assert_eq!(
+        saved_as(&material, &ma, &NativeOrigin::Untitled).unwrap_err(),
+        Error::AsciiWrite(AsciiWriteRefusal::SessionMaterials)
+    );
+    assert!(!ma.exists());
+}

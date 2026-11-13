@@ -1,7 +1,7 @@
 //! The read-back gate for authored Maya ASCII (#321). A scene that contains meshes is accepted
 //! only when it is byte-identical to what the authored writer emits for the scene it decodes
 //! to, so the reader never claims more of the Maya ASCII grammar than the writer produces.
-use super::{AsciiError, ErrorKind, decode_with_uvs, write::emit_geometry_prefix_with_uvs};
+use super::{AsciiError, ErrorKind, decode_with_uvs, write::emit_geometry_prefix};
 use crate::native_scene::NativeScene;
 use std::{fmt, sync::Arc};
 
@@ -82,8 +82,7 @@ pub fn decode_document(
     // An empty scene the writer emits (a document whose last object was deleted) is an
     // authored document too: it must reopen the way it was saved.
     let proved = candidate.validate().is_ok()
-        && emit_geometry_prefix_with_uvs(&candidate)
-            .is_ok_and(|emitted| emitted.as_slice() == &*source);
+        && emit_geometry_prefix(&candidate).is_ok_and(|emitted| emitted.as_slice() == &*source);
     if !proved {
         return if sourced.shapes.is_empty() {
             Ok(AsciiDecoded::Retained(sourced))

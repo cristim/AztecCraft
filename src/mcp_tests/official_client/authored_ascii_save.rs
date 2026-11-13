@@ -521,7 +521,7 @@ async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
                     json!({"shape_id":i["nodes"][0]["shape_ids"][0],"axis":"z"}),
                 )]
             },
-            Refuses("save_ascii_write"),
+            Saves,
         ),
         (
             "material diffuse",
