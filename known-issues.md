@@ -1590,3 +1590,6 @@ Maya's USD plug-in or a USD runtime is unverified: the tests read the text back 
 minimal reader built from the public usda syntax, not with OpenUSD. Non-planar polygons are written
 as authored. `src/usd.rs` shares the staged write with `src/gltf.rs` through `src/export_write.rs`;
 `src/obj.rs` still carries its own copy (merge once #403 has landed).
+## Component sets are limited to the one selected object
+
+`modify_component_selection` and the per-type component sets belong to a single shape instance of the one selected object, and a request naming another object is refused. This is an AztecCraft restriction, not Maya behaviour: Maya selects components across objects (`select -add pCube1.f[1] pCube2.f[3]`). Set order and "lead is the last member" are PROVISIONAL because the Maya documentation states neither. Indices are Maya-style `f[n]` positions, so an edit or Undo that renumbers faces can make a stored index name another face; members past the end are dropped. Vertex and edge selections draw every member in the one selected colour (only faces give the lead its own colour). The native Shift, Ctrl and marquee gestures for components are still missing (#30).
