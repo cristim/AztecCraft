@@ -188,6 +188,8 @@ impl Editor {
             | Operation::SaveSceneAs { .. }
             | Operation::ExportObj { .. }
             | Operation::ResolveFileAction { .. } => None,
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ExportGltf { .. } => None,
             _ => Some("Scene edited"),
         };
         StatusFeedback {
@@ -228,6 +230,17 @@ impl Editor {
                 self.status = format!(
                     "Imported {objects} object(s), {vertices} vertices and {faces} faces \
                      (normals, UVs and materials are not imported)"
+                );
+                self.error = false;
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Ok(OperationReply::GltfExported {
+                objects,
+                vertices,
+                triangles,
+            }) => {
+                self.status = format!(
+                    "Exported {objects} object(s), {vertices} vertices and {triangles} triangles to glTF"
                 );
                 self.error = false;
             }
@@ -446,6 +459,10 @@ impl Editor {
             if self.files.is_modal() {
                 return Err(OperationError::BusyEditing);
             }
+        }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Operation::ExportGltf { path, .. } = &operation {
+            super::features::gltf_export::validate_export_path(path)?;
         }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
@@ -1259,6 +1276,11 @@ impl Editor {
                 path,
                 selection_only,
             } => return self.export_obj(&path, selection_only, may_install),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ExportGltf {
+                path,
+                selection_only,
+            } => return self.export_gltf(&path, selection_only, may_install),
 
             Operation::SetCameraPose {
                 target,

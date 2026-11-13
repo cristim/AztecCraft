@@ -216,6 +216,17 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         | E::NoFaces => "import_invalid",
                     }
                 }
+                OperationError::GltfExport(error) => {
+                    use crate::editor_operations::GltfExportError as G;
+                    match error {
+                        G::DestinationExists => "destination_exists",
+                        G::NothingToExport => "nothing_to_export",
+                        G::Cancelled => "export_cancelled",
+                        G::Io(_) => "export_io",
+                        G::Unsupported(_) => "export_unsupported",
+                        G::Invalid(_) => "export_invalid",
+                    }
+                }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
