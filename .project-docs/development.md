@@ -324,7 +324,7 @@ Units: pixel values are physical pixels of the snapped viewport capture (the poi
 multiplied by the pixel ratio before comparing), not UI points.
 
 Excluded: other resource budgets that admit or refuse work and have no Maya counterpart
-(the view byte budget `view_scene::VIEW_BUDGET_BYTES`, the segment, depth and work
+(the view byte budget `view_scene::VIEW_BUDGET`, the segment, depth and work
 limits in `src/view_scene/curves.rs`, the 16 MiB document input limit). Preferences
 the app does not implement are not constants: Select dead space (docs: "By default, Select dead space is set to 4 pixels."), Preselect size, the Handle size and Line size
 preferences, and Tumble scale (docs: "The default value is 1.").
@@ -436,7 +436,7 @@ steps and refuses nothing) stay with their owners. Not in the table: the rendere
 | `admission_accounted_bytes` | 128 MiB | bytes | `native_scene::admission::MAX_BYTES` | `NativeError::ResourceLimit` |
 | `instance_paths`, `instance_depth`, `instance_path_identities` | 4096, 256, 65,536 | count | `native_scene::MAX_*` | `NativeError::ResourceLimit` |
 | `primitive_faces`, `primitive_divisions` | 20,000 and 128 | count | `primitive_options` | `PrimitiveOptionsError` |
-| `view_bytes` | 256 MiB | bytes | `view_scene::VIEW_BUDGET_BYTES` | `ViewError::ResourceLimit` |
+| `view_bytes` | 256 MiB | bytes | `view_scene::VIEW_BUDGET` | `ViewError::ResourceLimit` |
 | `recovery_payload_bytes` | 512 MiB | bytes | `recovery::MAX_RECOVERY_BYTES` | `RecoveryError::TooLarge` |
 
 Boundary tests live with each owner (the binary admission work meter has no boundary test and the ASCII one is charged to its cap directly, and the view budget is exercised with a small byte budget); a generated flat scene proves the

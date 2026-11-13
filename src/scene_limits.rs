@@ -22,7 +22,7 @@ use crate::{
     },
     primitive_options::{MAX_DIVISIONS, MAX_FACES},
     recovery::MAX_RECOVERY_BYTES,
-    view_scene::VIEW_BUDGET_BYTES,
+    view_scene::VIEW_BUDGET,
 };
 
 /// What a limit counts.
@@ -151,12 +151,7 @@ static LIMITS: [SceneLimit; 17] = [
         Count,
         "primitive_options::MAX_DIVISIONS",
     ),
-    limit(
-        "view_bytes",
-        VIEW_BUDGET_BYTES,
-        Bytes,
-        "view_scene::VIEW_BUDGET_BYTES",
-    ),
+    limit("view_bytes", VIEW_BUDGET, Bytes, "view_scene::VIEW_BUDGET"),
     limit(
         "recovery_payload_bytes",
         MAX_RECOVERY_BYTES,
@@ -282,12 +277,7 @@ mod tests {
                 Count,
                 "primitive_options::MAX_DIVISIONS",
             ),
-            (
-                "view_bytes",
-                256 * MIB,
-                Bytes,
-                "view_scene::VIEW_BUDGET_BYTES",
-            ),
+            ("view_bytes", 256 * MIB, Bytes, "view_scene::VIEW_BUDGET"),
             (
                 "recovery_payload_bytes",
                 512 * MIB,
