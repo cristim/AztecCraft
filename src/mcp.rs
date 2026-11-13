@@ -180,7 +180,8 @@ impl UiBridge {
                     | OperationReply::Cancelled { .. }
                     | OperationReply::CloseRequested { .. }
                     | OperationReply::Exported { .. }
-                    | OperationReply::Imported { .. })
+                    | OperationReply::Imported { .. }
+                    | OperationReply::GltfExported { .. })
                     | Ok(OperationReply::Saved { .. }
                         | OperationReply::SaveUncertain { .. }
                         | OperationReply::SaveReconciled { .. })
