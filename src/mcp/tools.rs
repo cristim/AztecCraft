@@ -221,7 +221,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                         | E::NoFaces => "import_invalid",
                     }
                 }
-                OperationError::GltfExport(error) => {
+                OperationError::GltfExport(error) | OperationError::UsdExport(error) => {
                     use crate::editor_operations::ExportError as G;
                     match error {
                         G::DestinationExists => "destination_exists",
