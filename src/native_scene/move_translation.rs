@@ -41,6 +41,14 @@ pub enum MoveSpace {
     Object,
     /// The parents' map alone; the world for a root node.
     Parent,
+    /// The node's rotation R(rotate order) without the Rotate Axis, inside the parents' map: Maya's
+    /// Along Rotation Axis, which differs from Object only when the Rotate Axis is non-zero (Maya
+    /// 2027 Move Tool page, GUID-9BCE8B23-6DA6-4C7F-B897-7E25D6E8A865). PROVISIONAL derivation
+    /// pending the #5 reference check: the node matrix is RA * R in row form, so Object (R * RA
+    /// here) includes RA and this RA-free frame is the only one that can differ. Under a
+    /// non-uniform or negative parent scale the normalised axes can be skewed or left-handed (as
+    /// for Object; PROVISIONAL).
+    AlongRotationAxis,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -164,6 +172,7 @@ impl WorldMoveFrame {
             MoveSpace::World => return Ok(unit),
             MoveSpace::Parent => self.parent_linear * unit,
             MoveSpace::Object => self.parent_linear * (self.object_rotation * unit),
+            MoveSpace::AlongRotationAxis => self.parent_linear * (self.object_rotation * unit),
         };
         let length = along.length();
         let direction = along / length;
