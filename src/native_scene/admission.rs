@@ -1,7 +1,7 @@
 use super::NativeError;
 use std::mem::size_of;
 
-const MAX_BYTES: usize = 128 * 1024 * 1024;
+pub(crate) const MAX_BYTES: usize = 128 * 1024 * 1024;
 
 pub(crate) fn validation_bytes(
     transforms: usize,
