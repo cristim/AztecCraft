@@ -321,7 +321,7 @@ Units: pixel values are physical pixels of the snapped viewport capture (the poi
 multiplied by the pixel ratio before comparing), not UI points.
 
 Excluded: other resource budgets that admit or refuse work and have no Maya counterpart
-(`VIEW_BUDGET` in `src/app/features/manipulation_tool.rs`, the segment, depth and work
+(the view byte budget `view_scene::VIEW_BUDGET_BYTES`, the segment, depth and work
 limits in `src/view_scene/curves.rs`, the 16 MiB document input limit). Preferences
 the app does not implement are not constants: Select dead space (docs: "By default, Select dead space is set to 4 pixels."), Preselect size, the Handle size and Line size
 preferences, and Tumble scale (docs: "The default value is 1.").
@@ -392,6 +392,37 @@ Changing any value requires updating its pinning test and this row in the same c
 [maya-cam]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-35B872B1-840E-4DEE-B80F-F2715B1E8BF0.htm
 [maya-tumble]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-A3305185-DFBD-42BF-8A70-59208C2C9887.htm
 [maya-grid]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/grid.html
+
+## Scene resource budgets
+
+One table of the limits that admit or refuse scene work lives in `src/scene_limits.rs`
+(`scene_limits()`), reads the enforcing constants and is served by the MCP tool `inspect_limits`.
+A test pins every value to the table below, so changing a cap means updating this table. Maya
+states no scene limits: every value is PROVISIONAL application policy (#441, part of #58), and
+`work_steps` counts metered steps, not time. A refusal is the owner's typed error and leaves the
+scene unchanged. The table lists the top-level caps that refuse work;
+narrower caps inside one decoder or the curve view (curve segments, the 32 MiB semantic metadata
+and appearance caps), page sizes and the undo queue (`history::UNDO_LIMIT`, which drops the oldest
+steps and refuses nothing) stay with their owners. Not in the table: the renderer's 256 MiB GPU upload working budget
+(`viewport_renderer.rs`) and the MCP reply and frame sizes (see [mcp.md](mcp.md)).
+
+| Name | Value | Unit | Enforced by | Refusal |
+| --- | --- | --- | --- | --- |
+| `json_document_bytes` | 16 MiB | bytes | `document::MAX_DOCUMENT_BYTES` | document error |
+| `maya_ascii_bytes` | 16 MiB | bytes | `maya_ascii::MAX_BYTES` | ASCII resource limit |
+| `maya_ascii_statements`, `maya_ascii_tokens` | 1,000,000 each | count | `maya_ascii::lex` | ASCII resource limit |
+| `maya_ascii_work` | 50,000,000 | work steps | `maya_ascii::MAX_WORK` | ASCII resource limit |
+| `maya_binary_bytes` | 16 MiB | bytes | `maya_binary::container::MAX_BYTES` | binary resource limit |
+| `maya_binary_chunks`, `maya_binary_depth` | 100,000 and 64 | count | `maya_binary::container` | binary resource limit |
+| `maya_binary_admission_work` | 50,000,000 | work steps | `native_scene::binary::admission` | binary resource limit |
+| `admission_accounted_bytes` | 128 MiB | bytes | `native_scene::admission::MAX_BYTES` | `NativeError::ResourceLimit` |
+| `instance_paths`, `instance_depth`, `instance_path_identities` | 4096, 256, 65,536 | count | `native_scene::MAX_*` | `NativeError::ResourceLimit` |
+| `primitive_faces`, `primitive_divisions` | 20,000 and 128 | count | `primitive_options` | `PrimitiveOptionsError` |
+| `view_bytes` | 256 MiB | bytes | `view_scene::VIEW_BUDGET_BYTES` | `ViewError::ResourceLimit` |
+| `recovery_payload_bytes` | 512 MiB | bytes | `recovery::MAX_RECOVERY_BYTES` | `RecoveryError::TooLarge` |
+
+Boundary tests live with each owner (the binary admission work meter has no boundary test and the ASCII one is charged to its cap directly, and the view budget is exercised with a small byte budget); a generated flat scene proves the
+instance cap from the table (`scene_limits::tests`). Counts and bytes are asserted, never wall time.
 
 ## Native documents
 
