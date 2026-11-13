@@ -37,6 +37,7 @@
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> native
+  begin_scale(multi) => Ok(manipulation_started) | active_move: none -> native
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -196,6 +197,7 @@
   begin_rotate(face_mode) => Err(InvalidInput: Rotate is unavailable in Face selection; switch to Object selection) | no state change
   begin_scale(object) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(world) => Ok(manipulation_started) | active_move: none -> remote
+  begin_scale(multi) => Ok(manipulation_started) | active_move: none -> remote
   begin_scale(face_mode) => Err(InvalidInput: Scale is unavailable in Face selection; switch to Object selection) | no state change
   update_manipulation(degrees) => Err(Move: manipulation identifier is absent or stale) | no state change
   update_manipulation(factor) => Err(Move: manipulation identifier is absent or stale) | no state change
@@ -3357,6 +3359,7 @@
   begin_rotate(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(object) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  begin_scale(multi) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   begin_scale(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(degrees) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   update_manipulation(factor) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5934,4 +5937,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5386
+cells: 5389
