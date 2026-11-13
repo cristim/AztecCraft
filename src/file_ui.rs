@@ -1988,7 +1988,7 @@ mod tests {
         let selection = (
             editor.selected(),
             editor.selected_path().to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
         );
         editor.open_path(&bad);
         assert!(editor.error);
@@ -1996,7 +1996,7 @@ mod tests {
             (
                 editor.selected(),
                 editor.selected_path().to_vec(),
-                editor.remembered_face.clone()
+                editor.remembered_face()
             ),
             selection
         );
@@ -2014,7 +2014,7 @@ mod tests {
                 (
                     editor.selected(),
                     editor.selected_path().to_vec(),
-                    editor.remembered_face.clone()
+                    editor.remembered_face()
                 ),
                 selection
             );
@@ -2037,11 +2037,11 @@ mod tests {
         assert_eq!(editor.selection_mode, SelectionMode::Face);
         assert_eq!(editor.selected(), None);
         assert!(editor.selected_path().is_empty());
-        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.remembered_face(), None);
         assert_ne!(editor.scene_token, token);
         editor.open_path(&path);
         assert!(!editor.error);
-        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.remembered_face(), None);
         let reopened = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
         let instance = &reopened.instances()[0];
         let target = FaceTarget {
@@ -2059,7 +2059,7 @@ mod tests {
         assert_eq!(editor.selection_mode, SelectionMode::Face);
         assert_eq!(editor.selected(), None);
         assert!(editor.selected_path().is_empty());
-        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.remembered_face(), None);
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
 
         let view = ViewScene::from_native(editor.history.scene(), 1024 * 1024).unwrap();
@@ -2080,7 +2080,7 @@ mod tests {
         let legacy_selection = (
             editor.selected(),
             editor.selected_path().to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
         );
         editor.name = "committed_before_cancel".into();
         for candidate in [None, Some(&path)] {
@@ -2105,7 +2105,7 @@ mod tests {
                 (
                     editor.selected(),
                     editor.selected_path().to_vec(),
-                    editor.remembered_face.clone()
+                    editor.remembered_face()
                 ),
                 legacy_selection
             );

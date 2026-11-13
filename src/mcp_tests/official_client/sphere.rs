@@ -76,7 +76,10 @@ async fn sphere_creation_inspection_selection_and_guards_use_the_shared_editor()
     .await;
     assert_eq!(selected.is_error, Some(false));
     assert_eq!(
-        editor.remembered_face.as_ref().map(|face| face.face_index),
+        editor
+            .remembered_face()
+            .as_ref()
+            .map(|face| face.face_index),
         Some(0)
     );
     let before = editor.history.scene().clone();

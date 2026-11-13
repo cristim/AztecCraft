@@ -315,7 +315,7 @@ fn component_modes_refuse_without_any_state_change() {
     let before = (
         editor.selection.clone(),
         editor.selection.generation(),
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
         editor.selection_mode,
         editor.status.clone(),
     );
@@ -335,7 +335,7 @@ fn component_modes_refuse_without_any_state_change() {
         (
             editor.selection.clone(),
             editor.selection.generation(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
             editor.selection_mode,
             editor.status.clone(),
         )
@@ -361,16 +361,19 @@ fn a_changing_marquee_clears_remembered_components_and_a_no_op_keeps_them() {
     editor
         .apply_operation(Operation::SelectFace { target: Some(face) })
         .unwrap();
-    assert!(editor.remembered_face.is_some());
+    assert!(editor.remembered_face().is_some());
     editor
         .apply_operation(Operation::SetSelectionMode(SelectionMode::Object))
         .unwrap();
-    assert!(editor.remembered_face.is_some(), "mode switch keeps picks");
+    assert!(
+        editor.remembered_face().is_some(),
+        "mode switch keeps picks"
+    );
     let empty = [[0.9, 0.9], [1.0, 1.0]];
     assert!(!changed(marquee(&mut editor, empty, MarqueeMode::Toggle)));
-    assert!(editor.remembered_face.is_some());
+    assert!(editor.remembered_face().is_some());
     assert!(changed(marquee(&mut editor, WHOLE, MarqueeMode::Replace)));
-    assert!(editor.remembered_face.is_none());
+    assert!(editor.remembered_face().is_none());
 }
 
 /// `sync_fields` already drops a pick whose owner is not the lead, so only a change that keeps
@@ -382,17 +385,17 @@ fn a_marquee_that_keeps_the_lead_still_clears_remembered_components() {
     select_only(&mut editor, &all[0]);
     let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
     let instance = &view.instances()[0];
-    editor.remembered_face = Some(FaceTarget {
+    editor.set_remembered_face(Some(FaceTarget {
         transform: instance.transform(),
         shape: instance.shape(),
         path: instance.path().to_vec(),
         face_index: 0,
-    });
+    }));
     editor.set_selection_members_for_test(vec![all[1].clone(), all[0].clone()]);
     let bounds = around(&editor, 1);
     assert!(changed(marquee(&mut editor, bounds, MarqueeMode::Toggle)));
     assert_eq!(editor.selection.members(), [all[0].clone()]);
-    assert!(editor.remembered_face.is_none());
+    assert!(editor.remembered_face().is_none());
 }
 
 #[test]

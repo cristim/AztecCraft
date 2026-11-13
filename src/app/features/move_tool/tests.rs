@@ -1356,7 +1356,7 @@ fn face_mode_refuses_move_handles_native_and_numeric_and_keeps_face_click_workin
     );
     assert!(inspected.viewport.is_none());
     tap(&mut editor, &context, rect.center(), vec![]);
-    assert!(editor.remembered_face.is_some(), "{}", editor.status);
+    assert!(editor.remembered_face().is_some(), "{}", editor.status);
 }
 
 #[test]
@@ -1400,9 +1400,9 @@ fn a_consumed_frame_does_not_select_a_face_from_the_same_click() {
     let (mut editor, context, rect) = setup(1.0);
     editor.native_operation(Operation::SetSelectionMode(SelectionMode::Face));
     tap(&mut editor, &context, rect.center(), vec![key(Key::Escape)]);
-    assert!(editor.remembered_face.is_none());
+    assert!(editor.remembered_face().is_none());
     tap(&mut editor, &context, rect.center(), vec![]);
-    assert!(editor.remembered_face.is_some(), "{}", editor.status);
+    assert!(editor.remembered_face().is_some(), "{}", editor.status);
 }
 
 #[test]

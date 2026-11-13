@@ -86,11 +86,11 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
         assert_ne!(result.is_error, Some(true));
     }
     assert_eq!(editor.selected().unwrap().to_decimal(), ids[1]);
-    assert_eq!(editor.remembered_face.as_ref().unwrap().face_index, 0);
+    assert_eq!(editor.remembered_face().as_ref().unwrap().face_index, 0);
     let selection = (
         editor.selected(),
         editor.selected_path().to_vec(),
-        editor.remembered_face.clone(),
+        editor.remembered_face(),
     );
     for mode in ["face", "object", "face"] {
         call(
@@ -140,7 +140,7 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
             (
                 editor.selected(),
                 editor.selected_path().to_vec(),
-                editor.remembered_face.clone()
+                editor.remembered_face()
             ),
             selection
         );
@@ -170,7 +170,7 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
     )
     .await;
     assert_ne!(cleared.is_error, Some(true));
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.selected(), selection.0);
     assert_eq!(editor.selected_path(), selection.1);
     call(
@@ -220,7 +220,7 @@ async fn sdk_face_mode_target_inspection_and_clear_share_authoritative_editor_st
         plane["instance_paths"][0]
     );
     assert!(state["inspection"]["remembered_face"].is_null());
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     assert_eq!(editor.selection_mode, SelectionMode::Object);
     assert_eq!(editor.history.scene(), &scene);
     assert_eq!(editor.camera, camera);
@@ -409,7 +409,7 @@ async fn sdk_hierarchy_mode_is_idempotent_refuses_faces_and_keeps_select_node_ex
             (editor.selected(), editor.selected_path().to_vec()),
             selection
         );
-        assert_eq!(editor.remembered_face, None);
+        assert_eq!(editor.remembered_face(), None);
         assert_eq!(editor.history.scene(), &scene);
         assert_eq!(editor.scene_token.to_string(), token);
     }

@@ -18,8 +18,9 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, PivotReset, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget, WorldAxis,
+    ALL_CHANNELS, EdgeTarget, MaterialChoice, MoveSpace, NativeScene, PivotReset, RotateAxis,
+    ScaleHandle, SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget, VertexTarget,
+    WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -2128,15 +2129,15 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
         ("selection_mode", format!("{:?}", editor.selection_mode)),
         (
             "face_remembered",
-            editor.remembered_face.is_some().to_string(),
+            editor.remembered_face().is_some().to_string(),
         ),
         (
             "vertex_remembered",
-            editor.remembered_vertex.is_some().to_string(),
+            editor.remembered_vertex().is_some().to_string(),
         ),
         (
             "edge_remembered",
-            editor.remembered_edge.is_some().to_string(),
+            editor.remembered_edge().is_some().to_string(),
         ),
         ("active_tool", format!("{:?}", editor.active_tool)),
         ("grid", editor.grid_visible.to_string()),
