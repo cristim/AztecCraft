@@ -7,6 +7,8 @@ use uuid::Uuid;
 #[serde(rename_all = "snake_case")]
 pub enum CurveForm {
     Open,
+    Closed,
+    Periodic,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,6 +23,7 @@ pub struct NativeCurveShape {
     pub(super) uuid: Option<Uuid>,
     pub(super) name: String,
     pub(super) degree: u32,
+    pub(super) form: CurveForm,
     pub(super) control_vertices: Vec<[f64; 3]>,
     pub(super) knots: Vec<f64>,
     pub(super) source: CurveSource,
@@ -33,6 +36,7 @@ impl PartialEq for NativeCurveShape {
             && self.uuid == other.uuid
             && self.name == other.name
             && self.degree == other.degree
+            && self.form == other.form
             && self.source == other.source
             && self.view == other.view
             && self.control_vertices.len() == other.control_vertices.len()
@@ -79,7 +83,7 @@ impl NativeCurveShape {
         self.degree
     }
     pub fn form(&self) -> CurveForm {
-        CurveForm::Open
+        self.form
     }
     pub fn control_vertices(&self) -> &[[f64; 3]] {
         &self.control_vertices
@@ -103,6 +107,9 @@ impl NativeCurveShape {
         ])
     }
 
+    // Maya stores cv+degree-1 knots, omitting the two outer textbook knots. De Boor never
+    // reads them (first low index is 1, last high index is len), so the end values returned
+    // here are only placeholders and need no form-specific extrapolation.
     fn full_knot(&self, index: usize) -> Result<f64, NativeError> {
         let value = if index == 0 {
             self.knots.first()
@@ -269,17 +276,43 @@ impl NativeCurveShape {
             return Err(NativeError::NonFinite);
         }
         let [start, end] = self.domain()?;
+        if self.form != CurveForm::Periodic {
+            self.validate_clamped(degree, start, end)?;
+        }
+        match self.form {
+            CurveForm::Open => {}
+            CurveForm::Closed => {
+                // Documented: a closed curve has no gap between its first and last CVs.
+                if self.control_vertices.first() != self.control_vertices.last() {
+                    return Err(NativeError::UnsupportedView("closed curve with a CV gap"));
+                }
+            }
+            CurveForm::Periodic => self.validate_periodic(degree, count, start, end)?,
+        }
+        self.view.visible()?;
+        Ok(())
+    }
+
+    fn validate_clamped(&self, degree: usize, start: f64, end: f64) -> Result<(), NativeError> {
         if start >= end
             || !(end - start).is_finite()
-            || self.knots[..degree].iter().any(|v| *v != start)
-            || self.knots[self.knots.len() - degree..]
-                .iter()
-                .any(|v| *v != end)
             || self.knots[degree - 1..=self.knots.len() - degree]
                 .windows(2)
                 .any(|pair| pair[0] > pair[1] || !(pair[1] - pair[0]).is_finite())
         {
             return Err(NativeError::InvalidCurve);
+        }
+        if self.knots[..degree].iter().any(|v| *v != start)
+            || self.knots[self.knots.len() - degree..]
+                .iter()
+                .any(|v| *v != end)
+        {
+            // An unclamped closed curve is a documented form we do not admit, not a malformed one.
+            return Err(if self.form == CurveForm::Closed {
+                NativeError::UnsupportedView("closed curve with unclamped knots")
+            } else {
+                NativeError::InvalidCurve
+            });
         }
         if self.knots[degree - 1..=self.knots.len() - degree]
             .windows(2)
@@ -289,7 +322,40 @@ impl NativeCurveShape {
                 "interior knot multiplicity (C0 or kinked curve)",
             ));
         }
-        self.view.visible()?;
+        Ok(())
+    }
+
+    // Admitted: the one documented periodic shape (degree 3, uniform knots, the last `degree`
+    // CVs overlapping the first). Other periodic shapes are refused, not guessed.
+    fn validate_periodic(
+        &self,
+        degree: usize,
+        count: usize,
+        start: f64,
+        end: f64,
+    ) -> Result<(), NativeError> {
+        if start >= end
+            || !(end - start).is_finite()
+            || self.knots.windows(2).any(|pair| pair[0] > pair[1])
+        {
+            return Err(NativeError::InvalidCurve);
+        }
+        if degree != 3 || count < 6 {
+            return Err(NativeError::UnsupportedView("periodic curve shape"));
+        }
+        let step = self.knots[1] - self.knots[0];
+        if self
+            .knots
+            .windows(2)
+            .any(|pair| ((pair[1] - pair[0]) - step).abs() > 1e-9 * step)
+        {
+            return Err(NativeError::UnsupportedView("nonuniform periodic knots"));
+        }
+        if self.control_vertices[..degree] != self.control_vertices[count - degree..] {
+            return Err(NativeError::UnsupportedView(
+                "periodic curve whose last CVs do not overlap its first",
+            ));
+        }
         Ok(())
     }
 }
@@ -308,5 +374,7 @@ fn finite_point(value: DVec3) -> Result<DVec3, NativeError> {
         .ok_or(NativeError::UnsupportedView("nonfinite cubic evaluation"))
 }
 
+#[cfg(test)]
+mod periodic_tests;
 #[cfg(test)]
 mod tests;
