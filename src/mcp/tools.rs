@@ -179,7 +179,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     crate::editor_operations::ObjExportError::Io(_) => "export_io",
                     crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
-                OperationError::GltfExport(error) => {
+                OperationError::GltfExport(error) | OperationError::UsdExport(error) => {
                     use crate::editor_operations::ExportError as G;
                     match error {
                         G::DestinationExists => "destination_exists",

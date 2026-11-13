@@ -515,6 +515,12 @@ pub enum Operation {
         selection_only: bool,
     },
     #[cfg(any(test, feature = "mcp"))]
+    /// Export All or Export Selection as a new USD ASCII (`.usda`) file; never edits the scene.
+    ExportUsd {
+        path: PathBuf,
+        selection_only: bool,
+    },
+    #[cfg(any(test, feature = "mcp"))]
     /// File > Export All or Export Selection as a new glTF 2.0 file (`.gltf` or `.glb`, chosen by
     /// the extension); never edits the scene.
     ExportGltf {
@@ -672,6 +678,12 @@ pub enum OperationReply {
         pending_action_status: PendingActionStatus,
     },
     Exported {
+        objects: usize,
+        vertices: usize,
+        faces: usize,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    UsdExported {
         objects: usize,
         vertices: usize,
         faces: usize,
@@ -1158,6 +1170,9 @@ pub enum OperationError {
     /// glTF export refusal or failure; its text never carries the path.
     #[cfg(any(test, feature = "mcp"))]
     GltfExport(ExportError),
+    /// USD export refusal or failure; its text never carries the path.
+    #[cfg(any(test, feature = "mcp"))]
+    UsdExport(ExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1267,7 +1282,7 @@ impl fmt::Display for OperationError {
             Self::NativeSave(error) => error.fmt(f),
             Self::ObjExport(error) => error.fmt(f),
             #[cfg(any(test, feature = "mcp"))]
-            Self::GltfExport(error) => error.fmt(f),
+            Self::GltfExport(error) | Self::UsdExport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }
