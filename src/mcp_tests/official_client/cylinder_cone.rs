@@ -108,7 +108,10 @@ async fn cylinder_and_cone_creation_naming_inspection_cap_selection_and_guards_s
         assert_eq!(readback["inspection"]["selection_mode"], "face");
         assert_eq!(readback["inspection"]["remembered_face"], target);
         assert_eq!(
-            editor.remembered_face.as_ref().map(|face| face.face_index),
+            editor
+                .remembered_face()
+                .as_ref()
+                .map(|face| face.face_index),
             Some(cap)
         );
 
