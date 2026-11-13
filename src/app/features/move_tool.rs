@@ -7,6 +7,7 @@ use crate::app::Editor;
 use crate::editor_operations::{
     ActiveTool, ManipulationValue, MoveDistance, Operation, OperationError, OperationReply,
 };
+use azteccraft::snap::{GRID_LINE_SPACING_CM, snap_distance_to_grid};
 use azteccraft::{
     history::{
         EditOutcome, ManipulationError, ManipulationFinish, ManipulationId, ManipulationProvenance,
@@ -20,7 +21,7 @@ use azteccraft::{
     manipulator_handles::{DisabledKind, Pick},
     native_scene::{RotateAxis, ScaleHandle},
 };
-use glam::Vec2;
+use glam::{DVec3, Vec2};
 use uuid::Uuid;
 
 /// The pointer drag behind a native manipulation; each kind turns a pointer position into the
@@ -237,6 +238,7 @@ impl Editor {
         self.native_move = None;
         self.manipulation.refusal = None;
         self.manipulation.declared = None;
+        self.manipulation.snap = None;
         if cancelled {
             self.move_consumed_frame = true;
             self.move_suppress_primary = true;
@@ -313,6 +315,19 @@ impl Editor {
         })
     }
 
+    /// The lead pivot and the unit world direction of `axis` in the Move Axis Orientation, read
+    /// before the preview moves anything; a Move with Snap to grids on snaps against them.
+    fn grid_snap_frame(&self, axis: WorldAxis) -> Result<(DVec3, DVec3), OperationError> {
+        let lead = self.selected_move_lead()?;
+        let origin = self.move_handle_origin(&lead)?;
+        let index = match axis {
+            WorldAxis::X => 0,
+            WorldAxis::Y => 1,
+            WorldAxis::Z => 2,
+        };
+        Ok((origin, self.move_handle_directions(&lead)?[index]))
+    }
+
     pub(in crate::app) fn begin_editor_move(
         &mut self,
         target: &TransformTarget,
@@ -322,6 +337,15 @@ impl Editor {
     ) -> Result<OperationReply, OperationError> {
         self.check_move_target(target, provenance, expected_selection_generation)?;
         let space = self.manipulation.move_space();
+        let snap = if self.snap_to_grid {
+            let (origin, direction) = self.grid_snap_frame(axis)?;
+            // Refuse an axis off the world grid now rather than at every update.
+            snap_distance_to_grid(origin, direction, 0.0, GRID_LINE_SPACING_CM)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+            Some((origin, direction))
+        } else {
+            None
+        };
         let id = self
             .history
             .begin_move_many_in(
@@ -334,6 +358,7 @@ impl Editor {
             )
             .map_err(begin_error)?;
         self.manipulation.refusal = None;
+        self.manipulation.snap = snap.map(|(origin, direction)| (id, origin, direction));
         self.sync_fields();
         Ok(OperationReply::ManipulationStarted {
             manipulation_id: id.to_decimal(),
@@ -388,6 +413,16 @@ impl Editor {
                 "Move distance cannot be represented in the declared linear unit".into(),
             ));
         }
+        let (distance_cm, declared) = match self.manipulation.snap {
+            Some((snap_id, origin, direction)) if snap_id == id => {
+                let snapped =
+                    snap_distance_to_grid(origin, direction, distance_cm, GRID_LINE_SPACING_CM)
+                        .map_err(|error| OperationError::InvalidInput(error.to_string()))?;
+                // The inspection reads the snapped distance, not the one asked for.
+                (snapped, None)
+            }
+            _ => (distance_cm, declared),
+        };
         let updated = self
             .history
             .update_move(self.scene_token, id, provenance, distance_cm);
@@ -410,6 +445,7 @@ impl Editor {
         self.native_move = None;
         self.manipulation.refusal = None;
         self.manipulation.declared = None;
+        self.manipulation.snap = None;
         self.sync_fields();
         Ok(edit_reply(outcome))
     }
@@ -1207,6 +1243,8 @@ impl Editor {
 
 #[cfg(test)]
 mod multi_tests;
+#[cfg(test)]
+mod snap_tests;
 #[cfg(test)]
 #[path = "move_tool/tests.rs"]
 pub(in crate::app) mod tests;
