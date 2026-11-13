@@ -23,4 +23,6 @@ pub(in crate::app) mod rigging;
 mod selection;
 mod status_line;
 pub(in crate::app) mod timeline;
+#[cfg(any(test, feature = "mcp"))]
+pub(super) mod usd_export;
 pub(in crate::app) mod uv;

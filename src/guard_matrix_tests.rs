@@ -283,6 +283,7 @@ struct Targets {
     /// A valid OBJ file, written by `build`; the missing sibling does not exist.
     import: std::path::PathBuf,
     export_gltf: std::path::PathBuf,
+    export_usd: std::path::PathBuf,
 }
 
 impl Targets {
@@ -382,6 +383,7 @@ fn targets(rig: &Rig) -> Targets {
         export: rig.directory.path().join("export.obj"),
         import: rig.directory.path().join("import.obj"),
         export_gltf: rig.directory.path().join("export.glb"),
+        export_usd: rig.directory.path().join("export.usda"),
     }
 }
 
@@ -845,6 +847,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::ExportGltf {
             path: t.export_gltf.clone(),
+            selection_only: false,
+        },
+        Operation::ExportUsd {
+            path: t.export_usd.clone(),
             selection_only: false,
         },
         Operation::ResolveFileAction {
@@ -1743,6 +1749,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "export_gltf(not_gltf)",
                 Operation::ExportGltf {
+                    path: t.save_as.clone(),
+                    selection_only: false,
+                },
+            ),
+        ],
+        Operation::ExportUsd { .. } => vec![
+            sample(
+                "export_usd(all)",
+                Operation::ExportUsd {
+                    path: t.export_usd.clone(),
+                    selection_only: false,
+                },
+            ),
+            sample(
+                "export_usd(selection)",
+                Operation::ExportUsd {
+                    path: t.export_usd.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_usd(not_usda)",
+                Operation::ExportUsd {
                     path: t.save_as.clone(),
                     selection_only: false,
                 },
