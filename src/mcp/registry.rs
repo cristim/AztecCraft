@@ -1,6 +1,6 @@
 use super::features::{
     animation, extrude, file, history, inspect, manipulation, material, move_vertices, node_edit,
-    pivots, rigging, selection, status_line, uv, view,
+    pivots, recovery, rigging, selection, status_line, uv, view,
 };
 use crate::editor_operations::{MAX_NAME_BYTES, RemoteRequest};
 use rmcp::model::{ErrorData, JsonObject, Tool, ToolAnnotations};
@@ -34,6 +34,7 @@ const FEATURES: &[&[ToolSpec]] = &[
     view::TOOLS,
     status_line::TOOLS,
     file::TOOLS,
+    recovery::TOOLS,
 ];
 
 pub(super) fn specs() -> impl Iterator<Item = &'static ToolSpec> {
