@@ -122,7 +122,7 @@ impl Editor {
         )
     }
 
-    #[allow(dead_code)] // read by the inspection in a later commit
+    #[cfg(any(test, feature = "mcp"))]
     pub(super) fn component_set(&self, kind: ComponentKind) -> &ComponentSet {
         match kind {
             ComponentKind::Face => &self.picks.faces,
