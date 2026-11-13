@@ -23,6 +23,35 @@ impl Editor {
         let scene = self.history.scene();
         self.selection
             .retain(|member| scene.node(member.node).is_ok());
+        // A reparent, or an Undo or Redo of one, moves instance paths: a member whose path no
+        // longer resolves follows to its node's one real path, and is dropped when it has none
+        // or several. Hierarchy mode keeps the member at that path rather than switching object.
+        let moved = |member: &TransformTarget| {
+            scene
+                .resolve_transform_path(member.node, &member.path)
+                .is_err()
+        };
+        if self.selection.members().iter().any(moved) {
+            let paths = scene.transform_paths().unwrap_or_default();
+            let members = self
+                .selection
+                .members()
+                .iter()
+                .filter_map(|member| {
+                    if !moved(member) {
+                        return Some(member.clone());
+                    }
+                    let mut own = paths.iter().filter(|target| target.node == member.node);
+                    match (own.next(), own.next()) {
+                        (Some(target), None) => Some(target.clone()),
+                        _ => None,
+                    }
+                })
+                .collect();
+            if self.selection.replace_with(members).is_err() {
+                self.selection.clear();
+            }
+        }
         let Some(node) = self
             .selection_presentation()
             .0

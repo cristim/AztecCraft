@@ -1,5 +1,5 @@
 #[cfg(any(test, feature = "mcp"))]
-use azteccraft::native_scene::{NativeTransform, TransformAttributes};
+use azteccraft::native_scene::{NativeTransform, ReparentKeep, TransformAttributes};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
@@ -535,6 +535,15 @@ pub enum Operation {
         translation: [Option<f64>; 3],
         rotation_degrees: [Option<f64>; 3],
         scale: [Option<f64>; 3],
+    },
+    /// Maya `parent`: moves one object under `parent`, or to the world when `None`, keeping its
+    /// world transform or its local channels. Only MCP `parent_node` and tests build it until the
+    /// Outliner and Edit menu are wired (#42).
+    #[cfg(any(test, feature = "mcp"))]
+    Reparent {
+        id: NodeId,
+        parent: Option<NodeId>,
+        keep: ReparentKeep,
     },
     ExtrudeFace {
         target: FaceTarget,
@@ -1123,6 +1132,9 @@ pub enum OperationError {
     /// A key command refused because the scene is read-only (Maya ASCII) or the edit is unsupported
     /// (an opened .mb, or a node with edit restrictions); the MCP layer reports a typed code.
     Keys(NativeError),
+    /// A parent or unparent the core refused; the MCP layer reports a typed code.
+    #[cfg(any(test, feature = "mcp"))]
+    Reparent(NativeError),
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
     MultipleSelection,
@@ -1204,6 +1216,8 @@ impl fmt::Display for OperationError {
             #[cfg(any(test, feature = "mcp"))]
             Self::SessionMaterial(error) => error.fmt(f),
             Self::Keys(error) => error.fmt(f),
+            #[cfg(any(test, feature = "mcp"))]
+            Self::Reparent(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
             Self::StaleSelection { expected, current } => write!(

@@ -467,6 +467,7 @@ impl Editor {
                 Operation::Rename { .. }
                     | Operation::SetTransform { .. }
                     | Operation::EditNode { .. }
+                    | Operation::Reparent { .. }
                     | Operation::SetMaterialDiffuse { .. }
                     | Operation::CreateSessionMaterial { .. }
                     | Operation::AssignSessionMaterial { .. }
@@ -717,6 +718,8 @@ impl Editor {
             },
             #[cfg(any(test, feature = "mcp"))]
             Operation::Rename { id, name } => Command::Rename { id, name },
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::Reparent { id, parent, keep } => Command::Reparent { id, parent, keep },
             #[cfg(any(test, feature = "mcp"))]
             Operation::EditNode {
                 id,
@@ -1145,6 +1148,8 @@ impl Editor {
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
         );
+        #[cfg(any(test, feature = "mcp"))]
+        let reparent_command = matches!(command, Command::Reparent { .. });
         let key_command = matches!(
             command,
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
@@ -1158,6 +1163,11 @@ impl Editor {
                 )
             {
                 return OperationError::Keys(error);
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            if reparent_command && error != azteccraft::native_scene::NativeError::BusyManipulation
+            {
+                return OperationError::Reparent(error);
             }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command
