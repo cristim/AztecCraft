@@ -63,9 +63,9 @@ fn every_component_type_pick_survives_switches_between_types_and_through_object_
         .unwrap();
     let all = |editor: &Editor| {
         (
-            editor.remembered_face.clone(),
-            editor.remembered_vertex.clone(),
-            editor.remembered_edge.clone(),
+            editor.remembered_face(),
+            editor.remembered_vertex(),
+            editor.remembered_edge(),
         )
     };
     let expected = (Some(face), Some(vertex), Some(edge));

@@ -31,8 +31,8 @@ const EDGE: Kind = Kind {
 impl Kind {
     fn remembered_index(self, editor: &Editor) -> Option<usize> {
         match self.mode {
-            SelectionMode::Vertex => editor.remembered_vertex.as_ref().map(|t| t.vertex_index),
-            SelectionMode::Edge => editor.remembered_edge.as_ref().map(|t| t.edge_index),
+            SelectionMode::Vertex => editor.remembered_vertex().as_ref().map(|t| t.vertex_index),
+            SelectionMode::Edge => editor.remembered_edge().as_ref().map(|t| t.edge_index),
             other => unreachable!("{other:?} is not a component kind under test"),
         }
     }
@@ -92,9 +92,9 @@ fn baseline(editor: &Editor) -> Baseline {
     (
         editor.selected(),
         editor.selected_path().to_vec(),
-        editor.remembered_face.clone(),
-        editor.remembered_vertex.clone(),
-        editor.remembered_edge.clone(),
+        editor.remembered_face(),
+        editor.remembered_vertex(),
+        editor.remembered_edge(),
         editor.selection_mode,
     )
 }
@@ -169,7 +169,7 @@ async fn mode_select_inspect_unchanged_clear_and_frame(kind: Kind) {
     let selected = call(&mut editor, &context, peer, tool, args.clone()).await;
     assert_eq!(selected.structured_content.unwrap()["outcome"], "changed");
     assert_eq!(kind.remembered_index(&editor), Some(7));
-    assert_eq!(editor.remembered_face, None);
+    assert_eq!(editor.remembered_face(), None);
     let repeat = call(&mut editor, &context, peer, tool, args).await;
     assert_eq!(repeat.structured_content.unwrap()["outcome"], "unchanged");
     let scene = editor.history.scene().clone();

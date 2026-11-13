@@ -206,15 +206,15 @@ impl Editor {
         [
             target(
                 MIN_FACE_TARGET,
-                self.remembered_face.as_ref().map(|t| t.path.len()),
+                self.remembered_face().as_ref().map(|t| t.path.len()),
             ),
             target(
                 MIN_VERTEX_TARGET,
-                self.remembered_vertex.as_ref().map(|t| t.path.len()),
+                self.remembered_vertex().as_ref().map(|t| t.path.len()),
             ),
             target(
                 MIN_EDGE_TARGET,
-                self.remembered_edge.as_ref().map(|t| t.path.len()),
+                self.remembered_edge().as_ref().map(|t| t.path.len()),
             ),
         ]
         .into_iter()
@@ -317,9 +317,9 @@ impl Editor {
         let listed = |id| page.is_none() || held.contains(&id);
         // The schema bounds a target's path to MAX_TRANSFORM_DEPTH + 1 elements.
         let too_long = [
-            self.remembered_face.as_ref().map(|t| t.path.len()),
-            self.remembered_vertex.as_ref().map(|t| t.path.len()),
-            self.remembered_edge.as_ref().map(|t| t.path.len()),
+            self.remembered_face().as_ref().map(|t| t.path.len()),
+            self.remembered_vertex().as_ref().map(|t| t.path.len()),
+            self.remembered_edge().as_ref().map(|t| t.path.len()),
         ]
         .into_iter()
         .flatten()
@@ -549,7 +549,7 @@ impl Editor {
             selection_generation: self.selection.generation(),
             selection_mode: self.selection_mode,
             remembered_face: self
-                .remembered_face
+                .remembered_face()
                 .as_ref()
                 .map(|target| FaceSelectionTarget {
                     node_id: target.transform.to_decimal(),
@@ -557,7 +557,7 @@ impl Editor {
                     instance_path: target.path.iter().map(|id| id.to_decimal()).collect(),
                     face_index: target.face_index,
                 }),
-            remembered_vertex: self.remembered_vertex.as_ref().map(|target| {
+            remembered_vertex: self.remembered_vertex().as_ref().map(|target| {
                 VertexSelectionTarget {
                     node_id: target.transform.to_decimal(),
                     shape_id: target.shape.to_decimal(),
@@ -566,7 +566,7 @@ impl Editor {
                 }
             }),
             remembered_edge: self
-                .remembered_edge
+                .remembered_edge()
                 .as_ref()
                 .map(|target| EdgeSelectionTarget {
                     node_id: target.transform.to_decimal(),
@@ -662,24 +662,24 @@ mod tests {
         editor.create(azteccraft::scene::Primitive::Cube);
         let id = editor.selected().unwrap();
         let shape = editor.selected_path()[0];
-        editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
+        editor.set_remembered_face(Some(azteccraft::native_scene::FaceTarget {
             transform: id,
             shape,
             path: vec![shape; 2],
             face_index: 0,
-        });
-        editor.remembered_vertex = Some(azteccraft::native_scene::VertexTarget {
+        }));
+        editor.set_remembered_vertex(Some(azteccraft::native_scene::VertexTarget {
             transform: id,
             shape,
             path: vec![shape; 3],
             vertex_index: 0,
-        });
-        editor.remembered_edge = Some(azteccraft::native_scene::EdgeTarget {
+        }));
+        editor.set_remembered_edge(Some(azteccraft::native_scene::EdgeTarget {
             transform: id,
             shape,
             path: vec![shape; 4],
             edge_index: 0,
-        });
+        }));
         let node_elements: usize = editor
             .history
             .scene()
@@ -976,24 +976,24 @@ mod lower_bound_tests {
         let shape = editor.selected_path()[0];
         editor.set_selection_members_for_test(paths);
         let path = vec![shape; 2];
-        editor.remembered_face = Some(azteccraft::native_scene::FaceTarget {
+        editor.set_remembered_face(Some(azteccraft::native_scene::FaceTarget {
             transform,
             shape,
             path: path.clone(),
             face_index: 123_456,
-        });
-        editor.remembered_vertex = Some(azteccraft::native_scene::VertexTarget {
+        }));
+        editor.set_remembered_vertex(Some(azteccraft::native_scene::VertexTarget {
             transform,
             shape,
             path: path.clone(),
             vertex_index: 7,
-        });
-        editor.remembered_edge = Some(azteccraft::native_scene::EdgeTarget {
+        }));
+        editor.set_remembered_edge(Some(azteccraft::native_scene::EdgeTarget {
             transform,
             shape,
             path,
             edge_index: 0,
-        });
+        }));
         assert_lower_bound(&editor);
     }
 }

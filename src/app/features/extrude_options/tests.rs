@@ -28,7 +28,7 @@ fn pick_face_zero(mut editor: Editor) -> (Editor, FaceTarget) {
     editor.native_operation(Operation::SelectFace {
         target: Some(target.clone()),
     });
-    assert_eq!(editor.remembered_face, Some(target.clone()));
+    assert_eq!(editor.remembered_face(), Some(target.clone()));
     (editor, target)
 }
 
@@ -62,7 +62,7 @@ fn extruding_the_picked_face_moves_the_cap_by_the_thickness_in_one_undo_step() {
         "face 0 faces -Z; the cap moves 0.5 out"
     );
     assert_eq!(editor.history.undo_label().as_deref(), Some("Extrude"));
-    assert_eq!(editor.remembered_face, Some(target));
+    assert_eq!(editor.remembered_face(), Some(target));
     let extruded = editor.history.scene().clone();
     editor.history_step(false);
     assert_eq!(editor.history.scene(), &baseline);
@@ -112,10 +112,10 @@ fn the_two_blockers_return_their_variants_and_change_nothing() {
 fn a_stale_face_and_an_all_face_extrusion_are_refused_with_the_baseline_kept() {
     let (mut editor, target) = face_editor(Primitive::Cube);
     let baseline = editor.history.scene().clone();
-    editor.remembered_face = Some(FaceTarget {
+    editor.set_remembered_face(Some(FaceTarget {
         face_index: 99,
         ..target
-    });
+    }));
     assert!(matches!(
         editor.extrude_selected_face(1.0),
         Err(ExtrudeFailure::Refused(OperationError::Scene(_)))
@@ -368,7 +368,7 @@ fn the_shelf_button_is_disabled_with_the_read_only_reason_on_an_ascii_scene() {
             .is_some()
     );
     editor.selection_mode = SelectionMode::Face;
-    editor.remembered_face = Some(target);
+    editor.set_remembered_face(Some(target));
     assert_eq!(
         editor.extrude_blocker(),
         None,

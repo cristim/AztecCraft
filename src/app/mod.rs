@@ -24,6 +24,7 @@ use eframe::egui::{self, Color32, Key, RichText};
 use glam::Vec3;
 use uuid::Uuid;
 
+mod component_picks;
 mod dispatch;
 mod features;
 #[path = "../file_ui.rs"]

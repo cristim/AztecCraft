@@ -573,6 +573,11 @@ impl Editor {
                     }
                 }
             }
+            let (vertex_pick, edge_pick, face_pick) = (
+                self.remembered_vertex(),
+                self.remembered_edge(),
+                self.remembered_face(),
+            );
             let painted = input.paint(
                 self.renderer.as_ref(),
                 &self.camera,
@@ -592,15 +597,15 @@ impl Editor {
                     }
                     SelectionMode::Vertex => crate::viewport_renderer::SelectionFeedback::Vertex {
                         active: self.single_target().ok(),
-                        selected: self.remembered_vertex.as_ref(),
+                        selected: vertex_pick.as_ref(),
                     },
                     SelectionMode::Edge => crate::viewport_renderer::SelectionFeedback::Edge {
                         active: self.single_target().ok(),
-                        selected: self.remembered_edge.as_ref(),
+                        selected: edge_pick.as_ref(),
                     },
                     SelectionMode::Face => crate::viewport_renderer::SelectionFeedback::Face {
                         active: self.single_target().ok(),
-                        selected: self.remembered_face.as_ref(),
+                        selected: face_pick.as_ref(),
                     },
                 },
                 self.grid_visible,

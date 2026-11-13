@@ -1065,11 +1065,11 @@ impl Editor {
                 });
             }
             Operation::SelectFace { target } => {
-                let changed = self.remembered_face != target;
+                let changed = self.remembered_face() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.remembered_face = target;
+                self.set_remembered_face(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1077,11 +1077,11 @@ impl Editor {
                 });
             }
             Operation::SelectVertex { target } => {
-                let changed = self.remembered_vertex != target;
+                let changed = self.remembered_vertex() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.remembered_vertex = target;
+                self.set_remembered_vertex(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1089,11 +1089,11 @@ impl Editor {
                 });
             }
             Operation::SelectEdge { target } => {
-                let changed = self.remembered_edge != target;
+                let changed = self.remembered_edge() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.remembered_edge = target;
+                self.set_remembered_edge(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1107,9 +1107,9 @@ impl Editor {
                 let changed = selected.is_some()
                     || !current_path.is_empty()
                     || self.selection_mode != SelectionMode::Object
-                    || self.remembered_face.is_some()
-                    || self.remembered_vertex.is_some()
-                    || self.remembered_edge.is_some();
+                    || self.remembered_face().is_some()
+                    || self.remembered_vertex().is_some()
+                    || self.remembered_edge().is_some();
                 self.clear_remembered_components();
                 self.selection_mode = SelectionMode::Object;
                 self.selection.clear();
@@ -1259,15 +1259,15 @@ impl Editor {
                         let scene = self.history.scene();
                         match self.selection_mode {
                             SelectionMode::Face => self
-                                .remembered_face
+                                .remembered_face()
                                 .as_ref()
                                 .map(|target| scene.resolve_face_target(target)),
                             SelectionMode::Vertex => self
-                                .remembered_vertex
+                                .remembered_vertex()
                                 .as_ref()
                                 .map(|target| scene.resolve_vertex_target(target)),
                             _ => self
-                                .remembered_edge
+                                .remembered_edge()
                                 .as_ref()
                                 .map(|target| scene.resolve_edge_target(target)),
                         }
@@ -1296,15 +1296,15 @@ impl Editor {
                     let before = self.camera.clone();
                     match self.selection_mode {
                         SelectionMode::Face => self
-                            .remembered_face
+                            .remembered_face()
                             .as_ref()
                             .map(|target| self.camera.frame_face(&view, target, self.aspect)),
                         SelectionMode::Vertex => self
-                            .remembered_vertex
+                            .remembered_vertex()
                             .as_ref()
                             .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
                         _ => self
-                            .remembered_edge
+                            .remembered_edge()
                             .as_ref()
                             .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
                     }
