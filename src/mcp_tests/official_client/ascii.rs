@@ -517,15 +517,49 @@ async fn ascii_sdk_declared_units_open_inspect_and_curves_in_other_linear_units_
 }
 
 #[tokio::test]
-async fn ascii_sdk_degree_one_and_two_curves_open_inspect_and_frame() {
+async fn ascii_sdk_degree_form_curves_open_inspect_and_frame() {
     let directory = tempfile::tempdir().unwrap();
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
-    for (degree, cc, cvs, knots) in [
-        (1, "1 3 0 no 3 4 0 1 2 3 4 0 0 0 1 2 0 3 -1 1 4 0 2", 4, 4),
-        (2, "2 2 0 no 3 5 0 0 1 2 2 4 0 0 0 1 2 0 3 -1 1 4 0 2", 4, 5),
+    for (name, degree, form, cc, cvs, knots, domain) in [
+        (
+            "degree1",
+            1,
+            "open",
+            "1 3 0 no 3 4 0 1 2 3 4 0 0 0 1 2 0 3 -1 1 4 0 2",
+            4,
+            4,
+            [0.0, 3.0],
+        ),
+        (
+            "degree2",
+            2,
+            "open",
+            "2 2 0 no 3 5 0 0 1 2 2 4 0 0 0 1 2 0 3 -1 1 4 0 2",
+            4,
+            5,
+            [0.0, 2.0],
+        ),
+        (
+            "periodic",
+            3,
+            "periodic",
+            "3 4 2 no 3 9 0 1 2 3 4 5 6 7 8 7 0 0 0 4 0 1 4 4 2 0 4 3 0 0 0 4 0 1 4 4 2",
+            7,
+            9,
+            [2.0, 6.0],
+        ),
+        (
+            "closed",
+            3,
+            "closed",
+            "3 2 1 no 3 7 0 0 0 1 2 2 2 5 0 0 0 2 0 0 2 2 0 0 2 0 0 0 0",
+            5,
+            7,
+            [0.0, 2.0],
+        ),
     ] {
-        let path = directory.path().join(format!("degree{degree}.ma"));
+        let path = directory.path().join(format!("{name}.ma"));
         std::fs::write(
             &path,
             format!(
@@ -562,6 +596,8 @@ async fn ascii_sdk_degree_one_and_two_curves_open_inspect_and_frame() {
         .unwrap();
         let curve = &inspected["inspection"]["curves"][0];
         assert_eq!(curve["degree"], degree);
+        assert_eq!(curve["form"], form);
+        assert_eq!(curve["domain"], json!(domain));
         assert_eq!(curve["control_vertices"], cvs);
         assert_eq!(curve["knots"], knots);
         assert_eq!(curve["draw_available"], true);

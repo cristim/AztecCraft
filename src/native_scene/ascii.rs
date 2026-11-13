@@ -1285,6 +1285,8 @@ fn decode_with_uvs(
 #[cfg(test)]
 mod degree_tests;
 mod document;
+#[cfg(test)]
+mod form_tests;
 mod mesh;
 #[cfg(test)]
 mod tests;
