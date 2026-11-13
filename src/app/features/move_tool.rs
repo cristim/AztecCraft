@@ -656,6 +656,7 @@ impl Editor {
                         match space {
                             ScaleSpace::Object => "object",
                             ScaleSpace::World => "world",
+                            ScaleSpace::Parent => "parent",
                         },
                         None,
                         Some(scale_handle_id(handle)),
