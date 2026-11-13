@@ -843,6 +843,9 @@ mod tests {
                     json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1]}})
                 }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
+                "modify_component_selection" => json!({
+                    "scene_token":token,"kind":"face","owner":{"node_id":"1","shape_id":"2","instance_path":["1","2"]},"indices":[0]
+                }),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})
                 }
@@ -1151,6 +1154,52 @@ mod tests {
         let mut boundary = valid;
         boundary["target"]["instance_path"] = json!(vec!["1"; 257]);
         assert!(parse_request("select_face", boundary.as_object().unwrap().clone()).is_ok());
+    }
+
+    #[test]
+    fn modify_component_selection_bounds_its_indices_before_building_the_operation() {
+        let token = Uuid::new_v4().to_string();
+        let mut arguments = json!({
+            "scene_token": token, "kind": "face",
+            "owner": {"node_id":"1","shape_id":"2","instance_path":["1","2"]},
+            "indices": vec![0; crate::editor_operations::MAX_MCP_COMPONENT_INDICES],
+        });
+        let at_limit = parse_request(
+            "modify_component_selection",
+            arguments.as_object().unwrap().clone(),
+        );
+        assert!(at_limit.is_ok());
+        arguments["indices"] = json!(vec![
+            0;
+            crate::editor_operations::MAX_MCP_COMPONENT_INDICES + 1
+        ]);
+        let over = parse_request(
+            "modify_component_selection",
+            arguments.as_object().unwrap().clone(),
+        );
+        let error = over.err().expect("8193 indices are refused");
+        assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS);
+    }
+
+    #[test]
+    fn a_largest_modify_component_selection_request_fits_the_ingress_line() {
+        // Worst case: every index has 8 digits (the binary writer admits 1 << 24 edges), the ids
+        // are 20-digit u64s, and the path is the schema's 257 ids. Node and shape ids are numeric
+        // strings, so those are the longest names the schema allows.
+        let indices = vec![16_777_215; crate::editor_operations::MAX_MCP_COMPONENT_INDICES];
+        let envelope = json!({
+            "jsonrpc": "2.0", "id": 4_294_967_295_u64, "method": "tools/call",
+            "params": {"name": "modify_component_selection", "arguments": {
+                "scene_token": Uuid::new_v4().to_string(), "kind": "vertex", "mode": "toggle",
+                "owner": {"node_id": "18446744073709551615", "shape_id": "18446744073709551615",
+                          "instance_path": vec!["18446744073709551615"; 257]},
+                "indices": indices,
+            }},
+        });
+        let line = serde_json::to_vec(&envelope).unwrap().len();
+        assert!(line < crate::mcp::transport::MAX_INGRESS_BYTES, "{line}");
+        let headroom = crate::mcp::transport::MAX_INGRESS_BYTES - line;
+        assert!(headroom > 2048, "only {headroom} bytes of headroom");
     }
 
     type PickedComponent = Option<(
