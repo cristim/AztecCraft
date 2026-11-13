@@ -514,6 +514,13 @@ pub enum Operation {
         path: PathBuf,
         selection_only: bool,
     },
+    #[cfg(any(test, feature = "mcp"))]
+    /// File > Export All or Export Selection as a new glTF 2.0 file (`.gltf` or `.glb`, chosen by
+    /// the extension); never edits the scene.
+    ExportGltf {
+        path: PathBuf,
+        selection_only: bool,
+    },
     ResolveFileAction {
         pending_id: uuid::Uuid,
         decision: FileDecision,
@@ -668,6 +675,12 @@ pub enum OperationReply {
         objects: usize,
         vertices: usize,
         faces: usize,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    GltfExported {
+        objects: usize,
+        vertices: usize,
+        triangles: usize,
     },
 }
 
@@ -1142,6 +1155,9 @@ pub enum OperationError {
     NativeSave(azteccraft::document::NativeSaveError),
     /// OBJ export refusal or failure; its text never carries the path.
     ObjExport(ObjExportError),
+    /// glTF export refusal or failure; its text never carries the path.
+    #[cfg(any(test, feature = "mcp"))]
+    GltfExport(GltfExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1182,6 +1198,39 @@ impl fmt::Display for ObjExportError {
     }
 }
 
+#[cfg(any(test, feature = "mcp"))]
+/// Mirrors [`ObjExportError`] for glTF, plus the reasons glTF refuses content it cannot write yet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GltfExportError {
+    DestinationExists,
+    NothingToExport,
+    Cancelled,
+    Io(std::io::ErrorKind),
+    /// Content glTF export does not write yet (session UVs, an assigned session material).
+    Unsupported(String),
+    /// Path-free reason the scene cannot be exported (too large, non-finite or invalid scene).
+    Invalid(String),
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for GltfExportError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::DestinationExists => {
+                f.write_str("Export destination already exists; choose a new file name")
+            }
+            Self::NothingToExport => {
+                f.write_str("Nothing to export: no displayed polygon geometry")
+            }
+            Self::Cancelled => f.write_str("glTF export cancelled before the file was installed"),
+            Self::Io(kind) => write!(f, "glTF export failed: {kind}"),
+            Self::Unsupported(reason) | Self::Invalid(reason) => {
+                write!(f, "Cannot export glTF: {reason}")
+            }
+        }
+    }
+}
+
 impl OperationError {
     pub(crate) fn from_history(error: NativeError) -> Self {
         match error {
@@ -1216,6 +1265,8 @@ impl fmt::Display for OperationError {
             Self::View(error) | Self::File(error) => f.write_str(error),
             Self::NativeSave(error) => error.fmt(f),
             Self::ObjExport(error) => error.fmt(f),
+            #[cfg(any(test, feature = "mcp"))]
+            Self::GltfExport(error) => error.fmt(f),
             Self::AmbiguousSelection => {
                 f.write_str("object has multiple instances; supply an instance_path")
             }

@@ -179,7 +179,8 @@ impl UiBridge {
                     | OperationReply::PendingConfirmation { .. }
                     | OperationReply::Cancelled { .. }
                     | OperationReply::CloseRequested { .. }
-                    | OperationReply::Exported { .. })
+                    | OperationReply::Exported { .. }
+                    | OperationReply::GltfExported { .. })
                     | Ok(OperationReply::Saved { .. }
                         | OperationReply::SaveUncertain { .. }
                         | OperationReply::SaveReconciled { .. })
