@@ -1,7 +1,7 @@
 use crate::{
     editor_operations::{Operation, RemoteRequest, ShadingMode},
     mcp::{
-        args::{MutationArgs, decode, mutation, schema, scoped, token},
+        args::{decode, schema, scoped, token},
         registry::ToolSpec,
     },
 };
@@ -19,6 +19,20 @@ struct FrameSelectedArgs {
     /// Also frame the selected objects' descendants (Maya Ctrl+F). Default false (Maya F).
     #[serde(default)]
     with_children: bool,
+    /// Maya viewFit -fitFactor: the fraction of the view (limiting axis) the framed objects fill,
+    /// from 0.01 to 1 (PROVISIONAL range). Omit for the default framing margin.
+    #[serde(default)]
+    fit_factor: Option<f32>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct FrameAllArgs {
+    scene_token: String,
+    /// Maya viewFit -fitFactor: the fraction of the view (limiting axis) the framed objects fill,
+    /// from 0.01 to 1 (PROVISIONAL range). Omit for the default framing margin.
+    #[serde(default)]
+    fit_factor: Option<f32>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -72,13 +86,19 @@ fn parse_frame_selected(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
         token(&args.scene_token)?,
         Operation::FrameSelected {
             with_children: args.with_children,
-            fit_factor: None,
+            fit_factor: args.fit_factor,
         },
     ))
 }
 
 fn parse_frame_all(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    mutation(arguments, Operation::FrameAll { fit_factor: None })
+    let args: FrameAllArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::FrameAll {
+            fit_factor: args.fit_factor,
+        },
+    ))
 }
 
 fn parse_set_grid_visibility(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -182,7 +202,7 @@ fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "frame_selected",
-        description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
+        description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection. Optional fit_factor (Maya viewFit -fitFactor) is the fraction of the view (limiting axis) the framed geometry fills, from 0.01 to 1 (the default margin is about 0.95); a value outside that range returns invalid_input and keeps the camera",
         schema: schema::<FrameSelectedArgs>,
         parse: parse_frame_selected,
         idempotent: false,
@@ -190,8 +210,8 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "frame_all",
-        description: "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
-        schema: schema::<MutationArgs>,
+        description: "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Optional fit_factor (Maya viewFit -fitFactor): the fraction of the view (limiting axis) the framed objects fill, from 0.01 to 1; omit for the default margin (about 0.95); a value outside that range returns invalid_input and keeps the camera. Session-only; does not edit the scene or the selection",
+        schema: schema::<FrameAllArgs>,
         parse: parse_frame_all,
         idempotent: false,
         read_only: false,

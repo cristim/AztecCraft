@@ -2472,11 +2472,20 @@
   },
   {
     "name": "frame_selected",
-    "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
+    "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection. Optional fit_factor (Maya viewFit -fitFactor) is the fraction of the view (limiting axis) the framed geometry fills, from 0.01 to 1 (the default margin is about 0.95); a value outside that range returns invalid_input and keeps the camera",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "fit_factor": {
+          "default": null,
+          "description": "Maya viewFit -fitFactor: the fraction of the view (limiting axis) the framed objects fill,\nfrom 0.01 to 1 (PROVISIONAL range). Omit for the default framing margin.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "scene_token": {
           "type": "string"
         },
@@ -2500,11 +2509,20 @@
   },
   {
     "name": "frame_all",
-    "description": "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
+    "description": "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Optional fit_factor (Maya viewFit -fitFactor): the fraction of the view (limiting axis) the framed objects fill, from 0.01 to 1; omit for the default margin (about 0.95); a value outside that range returns invalid_input and keeps the camera. Session-only; does not edit the scene or the selection",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
       "properties": {
+        "fit_factor": {
+          "default": null,
+          "description": "Maya viewFit -fitFactor: the fraction of the view (limiting axis) the framed objects fill,\nfrom 0.01 to 1 (PROVISIONAL range). Omit for the default framing margin.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "scene_token": {
           "type": "string"
         }
@@ -2512,7 +2530,7 @@
       "required": [
         "scene_token"
       ],
-      "title": "MutationArgs",
+      "title": "FrameAllArgs",
       "type": "object"
     },
     "annotations": {

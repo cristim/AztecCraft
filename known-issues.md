@@ -411,6 +411,11 @@ follows the same rules and takes `with_children` for Ctrl+F. F and Ctrl+F with
 nothing selected in Object or Hierarchy mode frame everything (the View page documents this for
 F only; Ctrl+F is PROVISIONAL).
 
+The MCP `fit_factor` argument (viewFit `-fitFactor`, #392, policy row 40) is the only Fit Factor
+control: the Frame page documents no menu or preference for it, so no native UI exists. Its range
+(0.01 to 1), the sphere fit and the unchanged default margin are PROVISIONAL; `-animate`, `-center`,
+`-noChildren` and `-fitClipPlanes` are unsupported.
+
 ## Open filter, unsaved-changes prompt and read-only marking follow Maya 2025.1 (PROVISIONAL); Recent Files is missing (#189)
 
 **Severity:** low

@@ -127,3 +127,59 @@ async fn sdk_frame_selected_with_nothing_selected_frames_all_in_object_mode() {
         server.await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn sdk_frame_selected_fit_factor_matches_the_native_operation_and_refuses_bad_values() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    parent_with_far_child(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let start_camera = editor.camera.clone();
+    let token = editor.scene_token.to_string();
+    let mut native = editor.camera.clone();
+    editor.native_operation(Operation::FrameSelected {
+        with_children: true,
+        fit_factor: Some(0.5),
+    });
+    native = std::mem::replace(&mut editor.camera, native);
+    let default = expected(&editor, FrameChildren::Include);
+    let args = json!({"scene_token": token, "with_children": true, "fit_factor": 0.5});
+    let reply = call(&mut editor, &context, client.peer(), "frame_selected", args).await;
+    assert_eq!(reply.structured_content.unwrap()["outcome"], "changed");
+    assert_eq!(editor.camera, native);
+    assert!(editor.camera.distance() > default.distance());
+    editor.camera = start_camera.clone();
+    for bad in [
+        json!(0),
+        json!(-1),
+        json!(1.5),
+        json!(0.009),
+        json!(1e-10),
+        json!(1e-30),
+    ] {
+        let args = json!({"scene_token": token, "fit_factor": bad});
+        let refused = call(&mut editor, &context, client.peer(), "frame_selected", args).await;
+        assert_eq!(
+            refused.structured_content.unwrap()["error"]["code"],
+            "invalid_input",
+            "{bad}"
+        );
+        assert_eq!(editor.camera, start_camera, "{bad}");
+    }
+    let args = json!({"scene_token": token, "fit_factor": "half"});
+    let rejected =
+        call_response(&mut editor, &context, client.peer(), "frame_selected", args).await;
+    assert!(rejected.is_err());
+    editor.name = "typing".into();
+    editor.native_input_pending = true;
+    let args = json!({"scene_token": token, "fit_factor": 0.5});
+    let busy = call(&mut editor, &context, client.peer(), "frame_selected", args).await;
+    assert_eq!(
+        busy.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert_eq!(editor.camera, start_camera);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
