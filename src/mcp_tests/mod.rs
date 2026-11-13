@@ -131,6 +131,7 @@ mod official_client {
     mod grid;
     mod inspect_budget;
     mod inspect_paging;
+    mod limits;
     mod manipulation_mcp_tests;
     mod manipulator_size;
     mod marquee;

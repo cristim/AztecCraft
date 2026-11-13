@@ -207,6 +207,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::ApplyCameraBookmark { .. } => false,
         #[cfg(any(test, feature = "mcp"))]
         Operation::ListCameraBookmarks
+        | Operation::InspectLimits
         | Operation::Inspect { .. }
         | Operation::InspectKeys { .. }
         | Operation::InspectUvs { .. } => false,

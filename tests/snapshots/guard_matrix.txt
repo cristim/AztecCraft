@@ -144,6 +144,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -295,6 +296,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -438,6 +440,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_limits => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -581,6 +584,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -724,6 +728,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -867,6 +872,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1010,6 +1016,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -1153,6 +1160,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -1296,6 +1304,7 @@
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_limits => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1439,6 +1448,7 @@
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1582,6 +1592,7 @@
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_limits => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1725,6 +1736,7 @@
   delete_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1868,6 +1880,7 @@
   delete_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   apply_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   list_camera_bookmarks => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  inspect_limits => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_shading_mode(wireframe) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(channel_box,false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2011,6 +2024,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2155,6 +2169,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  inspect_limits => Ok(scene_limits) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2299,6 +2314,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2442,6 +2458,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_limits => Ok(scene_limits) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2585,6 +2602,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2728,6 +2746,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -2871,6 +2890,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3014,6 +3034,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -3157,6 +3178,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3301,6 +3323,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3444,6 +3467,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3587,6 +3611,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3730,6 +3755,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3873,6 +3899,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4016,6 +4043,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4159,6 +4187,7 @@
   delete_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4302,6 +4331,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -4445,6 +4475,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -4588,6 +4619,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -4731,6 +4763,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -4874,6 +4907,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5017,6 +5051,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5212,6 +5247,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5355,6 +5391,7 @@
   delete_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5498,6 +5535,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5641,6 +5679,7 @@
   delete_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
+  inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5651,4 +5690,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5111
+cells: 5150

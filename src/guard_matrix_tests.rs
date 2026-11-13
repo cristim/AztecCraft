@@ -817,6 +817,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::DeleteCameraBookmark { name: "v".into() },
         Operation::ApplyCameraBookmark { name: "v".into() },
         Operation::ListCameraBookmarks,
+        Operation::InspectLimits,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
             panel: crate::editor_operations::SidebarPanel::ChannelBox,
@@ -1773,6 +1774,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "list_camera_bookmarks",
             Operation::ListCameraBookmarks,
         )],
+        Operation::InspectLimits => vec![sample("inspect_limits", Operation::InspectLimits)],
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),

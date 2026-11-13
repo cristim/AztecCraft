@@ -34,6 +34,21 @@
     }
   },
   {
+    "name": "inspect_limits",
+    "description": "Read the resource limits AztecCraft enforces when it opens, imports, creates, recovers or builds a view of a scene: input byte caps, parser statement, token and work caps, instance path and depth caps, primitive face and division caps, and the derived view and recovery byte budgets. Each row has `name`, `value`, `unit` (`bytes`, `count` or `work_steps`, which counts metered steps and is not time) and `enforced_by`, the owning constant. Static for the build and independent of the scene, so it needs no token and passes no guard. The values are PROVISIONAL application policy: Maya states no scene limits. Exceeding one makes the operation fail with a typed refusal and leaves the scene unchanged",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "title": "InspectLimitsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_active_tool",
     "description": "Select the native Select, Move, Rotate or Scale tool; unsupported tools are not exposed",
     "inputSchema": {

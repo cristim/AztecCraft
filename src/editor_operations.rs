@@ -444,6 +444,9 @@ pub enum Operation {
     #[cfg(any(test, feature = "mcp"))]
     #[allow(dead_code)] // constructed by the MCP tools in the next commit
     ListCameraBookmarks,
+    /// A read of the static scene resource limits: it passes no guard and touches no state.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectLimits,
     /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying.
     #[allow(dead_code)] // constructed by the MCP tools in the next commit
     CreateCameraBookmark {
@@ -620,6 +623,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     CameraBookmarks {
         bookmarks: Vec<CameraBookmarkInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    SceneLimits {
+        limits: &'static [azteccraft::scene_limits::SceneLimit],
     },
     Created {
         node_id: String,
