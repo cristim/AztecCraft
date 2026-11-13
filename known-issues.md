@@ -1,5 +1,19 @@
 # Known limitations
 
+## Huge coordinates save but cannot be reopened (pre-existing)
+
+**Severity:** low
+**Area:** persistence, viewport
+**Issue:** #41 (found while reviewing the vertex move slice; not caused by it)
+
+A scene whose geometry or transform reaches about 1e20 (a vertex moved there with `move_vertices`, or
+`set_transform` with scale 1e25) saves without error, but reopening the file fails with
+`camera_error`, because the view and camera cannot represent the extent. The save side checks only that
+values are finite, not that the viewport can display them, and the failure appears at Open. Affects
+`set_transform` and every other way to reach such values, not only `move_vertices`. Not fixed in the
+vertex move slice; a fix needs either a coordinate bound at edit time or an Open that survives an
+unframeable scene.
+
 ## OBJ import is a first slice (#22)
 
 **Severity:** medium
