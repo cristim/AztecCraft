@@ -4,7 +4,8 @@ use super::{
     transport::{Control, Shared, check_serialized_size},
 };
 use crate::editor_operations::{
-    KeysRefusal, MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply,
+    KeysRefusal, MAX_REPLY_BYTES, MAX_RESULT_BYTES, MayaImportFileError, OperationError,
+    OperationReply,
 };
 use azteccraft::{
     camera_bookmarks::BookmarkError,
@@ -179,6 +180,12 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
                     "uvs_block_topology_edit"
                 }
+                OperationError::Scene(NativeError::MayaImport(_)) => "import_refused",
+                OperationError::MayaImportFile(error) => match error {
+                    MayaImportFileError::Io => "import_io",
+                    MayaImportFileError::TooLarge => "import_too_large",
+                    MayaImportFileError::Invalid => "import_invalid",
+                },
                 OperationError::Scene(NativeError::ImportUndisplayable(_)) => "import_invalid",
                 OperationError::Scene(NativeError::ImportResourceLimit) => "import_limit",
                 OperationError::Scene(_) => "scene_error",
@@ -248,6 +255,9 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::NativeSave(azteccraft::document::NativeSaveError::Unwritable(
                     refusal,
                 )) => tool_error_with_reason(code, refusal.as_str(), error),
+                OperationError::Scene(NativeError::MayaImport(refusal)) => {
+                    tool_error_with_reason(code, refusal.code(), error)
+                }
                 // File text comes from DocumentError/ObjError Display, which embeds the path; the
                 // typed variant is the only reliable signal, so withhold it.
                 OperationError::File(_) => {
@@ -911,6 +921,7 @@ mod tests {
                 "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "export_gltf" => json!({"scene_token":token,"path":"scene.glb"}),
                 "export_usd" => json!({"scene_token":token,"path":"scene.usda"}),
+                "import_maya_scene" => json!({"scene_token":token,"path":"scene.ma"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1705,6 +1716,7 @@ mod tests {
                 "import_obj",
                 "export_gltf",
                 "export_usd",
+                "import_maya_scene",
             ] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
