@@ -1,18 +1,50 @@
 # AztecCraft
 
-AztecCraft is a Rust desktop 3D authoring project with the objective of reproducing Autodesk Maya 2026's interface and behavior, including modeling, animation, rigging, simulation, rendering, scripting and existing plug-in compatibility.
+AztecCraft is a native desktop 3D editor written in Rust, aiming at the interface and workflows of Autodesk Maya. It's an early prototype: it can create and edit simple polygon scenes, open Maya binary scenes and save some edits back, and it can be driven by an AI client over MCP. Most of Maya is still missing, and nothing here has been compared against Maya closely enough to claim parity. AztecCraft is an independent project and isn't affiliated with or endorsed by Autodesk.
 
-The current prototype has a native desktop window for cube/plane/sphere/cylinder/cone creation, selection, numeric transforms, undo/redo and perspective navigation. Open stages Maya binary scenes or legacy JSON documents into the authoritative native model. This candidate adds Unix and Windows Maya binary Save/Save As for supported existing-record edits through the ordinary vendored writer; current application checks and native Save QA remain pending. Overall Maya coverage is unmeasured.
+[Download](#download) · [What works today](#what-works-today) · [Build from source](#build-and-test) · [MCP automation](#mcp-automation) · [Roadmap](#roadmap-and-publication) · [Project documentation](.project-docs/INDEX.md)
 
-[Quick start](#quick-start) · [Current capabilities](#current-capabilities) · [Build and test](#build-and-test) · [Roadmap](#roadmap-and-publication) · [Project documentation](.project-docs/INDEX.md)
+## Download
 
-## Quick start
+Tagged releases aren't published yet. Every commit gets unsigned development builds for six targets, built by the [Rust checks workflow](https://github.com/cristim/AztecCraft/actions/workflows/check.yml?query=branch%3Amain). Open the latest green run on `main` and look under Artifacts at the bottom of the run page. GitHub only lets signed-in users download artifacts, and they expire after 7 days, so an old commit may have none left (build from source then).
 
-1. Get a build: [download the CI artifact for your OS](#ci-builds), or [build from source](#build-and-test).
-2. Unpack it and get past the unsigned-build prompt for your OS (steps under [CI builds](#ci-builds)).
-3. Launch it. Use File, Open Scene to load `examples/extruded-cube.aztec` from a checkout, or create a cube from the shelf, select it and edit its channels. Undo is Ctrl/Cmd-Z; redo is Ctrl/Cmd-Y or Ctrl/Cmd-Shift-Z.
+Artifacts are named `azteccraft-<platform>-<arch>-<commit>`, where the arch is `X64` or `ARM64` (and the literal `x86_64` for the Intel macOS build). An artifact is a zip holding the archive below and a `manifest.json` with SHA-256 hashes of the archive and the binary. A build is uploaded only after the other checks in that job pass, so a red run may have no artifact for that platform.
 
-This is an early prototype. It does not reproduce Maya's feature set or behavior; the [capability table](#current-capabilities) lists what exists and what is pending.
+| OS | Archive inside the artifact | Unpack and run |
+| --- | --- | --- |
+| macOS (Apple silicon) | `azteccraft-<version>-macos-aarch64.zip` | Unzip, then open `AztecCraft.app` |
+| macOS (Intel) | `azteccraft-<version>-macos-x86_64.zip` | Same. Cross-compiled in CI and never launched there |
+| Windows (x86_64) | `azteccraft-<version>-windows-x86_64.zip` | Unzip, then run `azteccraft\azteccraft.exe` |
+| Windows (arm64) | `azteccraft-<version>-windows-aarch64.zip` | Same as x86_64. Built natively on a Windows arm64 runner |
+| Linux (x86_64) | `azteccraft-<version>-linux-x86_64.tar.gz` | `tar xzf` the archive, then run `azteccraft/azteccraft` |
+| Linux (arm64) | `azteccraft-<version>-linux-aarch64.tar.gz` | Same as x86_64. Built natively on a Linux arm64 runner |
+
+`<version>` is the `Cargo.toml` package version (currently 0.1.0). Each archive is portable, with no installer, and holds the executable plus a `licenses/` directory. The app has no settings persistence and only writes files you save or export.
+
+The builds are unsigned, so the first launch needs one extra step:
+
+- macOS: try to open the app once, then choose System Settings, Privacy & Security, Open Anyway (shown for about an hour, [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac)), or run `xattr -dr com.apple.quarantine AztecCraft.app`. Right-click, Open no longer works on macOS 15 and later.
+- Windows: in SmartScreen choose More info, then Run anyway.
+- Linux: run `chmod +x azteccraft/azteccraft` if the executable bit was lost. You need a graphical session (X11 or Wayland), the xkbcommon library and a graphics driver that wgpu supports.
+
+The minimum supported OS versions aren't established. CI builds on macOS 15, Windows Server 2025, Windows 11 arm64 and Ubuntu 24.04 (x86_64 and arm64), and the packaged-binary check only runs the usage exit, not a window, so graphical launch of the packages is unverified on every OS (Windows and Linux are tracked in [#8](https://github.com/cristim/AztecCraft/issues/8)). Details are in [CI build downloads](.project-docs/development.md#download-ci-builds). These builds omit MCP.
+
+Once it runs, use File, Open Scene to load `examples/extruded-cube.aztec` from a checkout, or create a cube from the shelf, select it and edit its channels. Undo is Ctrl/Cmd-Z, redo is Ctrl/Cmd-Y or Ctrl/Cmd-Shift-Z.
+
+## What works today
+
+- Create cube, plane, sphere, cylinder and cone (and a torus through MCP), select them, edit name and transform channels numerically, delete, and frame the selection.
+- Orbit, pan and dolly a perspective viewport with depth-tested geometry.
+- Move, Rotate and Scale manipulators, with a choice of axis orientation (object, world or, for Move, parent).
+- Undo and redo for create, remove, rename, transform and extrude.
+- Face, Vertex and Edge selection modes, and extruding a single picked face.
+- Open Maya binary scenes and legacy JSON scenes, and a provisional Save and Save As (Maya acceptance of the saved files is unverified).
+- Import and export Wavefront OBJ.
+- Session-only joints and keyframes (linear interpolation, not saved to files), and a planar UV projection for authored shapes (also not saved).
+- Edit a material's Diffuse value on checked scenes, without any material rendering.
+- The same operations through an opt-in MCP server.
+
+Everything else in Maya's feature set, including full UV, animation and rigging workflows, simulation, rendering, scripting and plug-ins, is pending, and unsupported controls are disabled in the UI. The [capability table](#current-capabilities) has the detail and the evidence for each row.
 
 ## Current capabilities
 
@@ -68,26 +100,9 @@ If the build fails with an error that a package requires a newer rustc, or with 
 
 The `desktop` feature is enabled by default and uses eframe/egui with wgpu. The core suites can run without a display using `--no-default-features`. [Development instructions](.project-docs/development.md) describe system prerequisites, controls, scene conventions and optional local hooks.
 
-For MCP, build with `cargo build --release --locked --features mcp` and configure the client to launch that binary with `--mcp-stdio`. It opens a new native editor window and requires a graphical session. Default build packages omit MCP. Run `cargo test --locked --features mcp-test-client` for the official SDK client suite. See [MCP setup, tools and shutdown behavior](.project-docs/mcp.md).
+### MCP automation
 
-### CI builds
-
-There is no release yet: publishing one needs the owner's authorization. Every push builds development packages in CI, and they are the only prebuilt binaries. Open Actions, the "Rust checks" run for a commit, then its Artifacts section. Artifacts are named `azteccraft-<platform>-<arch>-<commit>`, where the arch is `X64` or `ARM64` for the main jobs (for example `azteccraft-macos-ARM64-<commit>`) and the literal `x86_64` for the Intel macOS job, and expire after 7 days. GitHub wraps each artifact in a zip, so unzip it once to get the archive and `manifest.json` (SHA-256 of the archive and binary). Details and caveats in [CI build downloads](.project-docs/development.md#download-ci-builds).
-
-| OS | Archive inside the artifact | Unpack and run |
-| --- | --- | --- |
-| macOS (Apple silicon) | `azteccraft-<version>-macos-aarch64.zip` | Unzip, then open `AztecCraft.app` |
-| macOS (Intel) | `azteccraft-<version>-macos-x86_64.zip` | Same. Cross-compiled in CI and never launched there |
-| Windows (x86_64) | `azteccraft-<version>-windows-x86_64.zip` | Unzip, then run `azteccraft\azteccraft.exe` |
-| Linux (x86_64) | `azteccraft-<version>-linux-x86_64.tar.gz` | `tar xzf` the archive, then run `azteccraft/azteccraft` |
-
-`<version>` is the `Cargo.toml` package version (currently 0.1.0). Each archive is portable: there is no installer, and it runs from wherever you unpack it. It holds the executable and a `licenses/` directory (under `Contents/Resources/licenses` inside the app bundle on macOS). The application has no settings or configuration persistence (eframe's persistence feature is not enabled); it only writes files you save or export. The builds are not notarized, so the first launch needs one extra step:
-
-- macOS: try to open the app once, then choose System Settings, Privacy & Security, Open Anyway (shown for about an hour; [Apple's instructions](https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac)), or run `xattr -dr com.apple.quarantine AztecCraft.app`. Right-click, Open no longer works on macOS 15 and later.
-- Windows: in SmartScreen choose More info, then Run anyway.
-- Linux: run `chmod +x azteccraft/azteccraft` if the executable bit was lost. A graphical session and a graphics driver that wgpu supports are required (CI renders with software Vulkan).
-
-The minimum supported OS versions are not established. CI builds on macOS 15, Windows Server 2025 and Ubuntu 24.04, and the packaged-binary smoke check only runs the usage exit (no window). Graphical launch of the packages on each OS is unverified (Windows and Linux are tracked in [#8](https://github.com/cristim/AztecCraft/issues/8)). Default-feature builds omit MCP.
+MCP is opt-in. Build with `cargo build --release --locked --features mcp` and configure the client to launch that binary with `--mcp-stdio`. It opens a new native editor window and requires a graphical session. Default build packages omit MCP. Run `cargo test --locked --features mcp-test-client` for the official SDK client suite. See [MCP setup, tools and shutdown behavior](.project-docs/mcp.md).
 
 ## Architecture and platforms
 
