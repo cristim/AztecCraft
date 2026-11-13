@@ -402,6 +402,7 @@ impl Editor {
             scene_token: self.scene_token.to_string(),
             manipulation: self.inspect_manipulation()?,
             nodes,
+            references: self.history.scene().references().to_vec(),
             retained_source_bytes: self.history.scene().retained_source_bytes(),
             retained_source_records: self.history.scene().retained_source_records(),
             read_only_reason: self

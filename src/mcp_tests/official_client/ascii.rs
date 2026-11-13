@@ -640,3 +640,60 @@ async fn ascii_sdk_degree_form_curves_open_inspect_and_frame() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn ascii_sdk_inspect_reports_inert_reference_declarations_without_private_paths() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("refs.ma");
+    let mut scene = ascii_fixture::specimen();
+    scene.extend_from_slice(
+        b"\nfile -r -ns \"cube\" -dr 1 -rfn \"cubeRN\" \"assets/cube.ma\";\nfile -r \"/Users/someone/private/shot.ma\";\nfile -r \"../outside.ma\";\n",
+    );
+    std::fs::write(&path, scene).unwrap();
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    let opened = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "open_scene",
+        json!({"scene_token":token,"path":path.to_str().unwrap()}),
+    )
+    .await;
+    assert_eq!(
+        opened.structured_content.unwrap()["outcome"],
+        "document_applied"
+    );
+    let baseline = editor.history.scene().clone();
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let references = &inspected["inspection"]["references"];
+    assert_eq!(
+        *references,
+        json!([
+            {"path_kind":"relative","path":"assets/cube.ma","namespace":"cube",
+             "reference_node":"cubeRN","renaming_prefix":null,"file_type":null,
+             "deferred":true,"depth_info":null},
+            {"path_kind":"absolute","path":null,"namespace":null,"reference_node":null,
+             "renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null},
+            {"path_kind":"escaping","path":null,"namespace":null,"reference_node":null,
+             "renaming_prefix":null,"file_type":null,"deferred":null,"depth_info":null}
+        ])
+    );
+    let text = serde_json::to_string(&inspected).unwrap();
+    assert!(!text.contains("someone") && !text.contains("outside.ma"));
+    assert_eq!(editor.history.scene(), &baseline);
+    assert!(!editor.is_dirty());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
