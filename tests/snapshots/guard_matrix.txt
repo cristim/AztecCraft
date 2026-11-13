@@ -5284,8 +5284,8 @@
   export_obj(all) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(selection) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
-  export_gltf(all) => Err(GltfExport: glTF export cancelled before the file was installed) | no state change
-  export_gltf(selection) => Err(GltfExport: glTF export cancelled before the file was installed) | no state change
+  export_gltf(all) => Err(GltfExport: Export cancelled before the file was installed) | no state change
+  export_gltf(selection) => Err(GltfExport: Export cancelled before the file was installed) | no state change
   export_gltf(not_gltf) => Err(InvalidInput: Export path must end in .gltf or .glb) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
@@ -5430,8 +5430,8 @@
   export_obj(all) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(selection) => Err(ObjExport: OBJ export cancelled before the file was installed) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
-  export_gltf(all) => Err(GltfExport: glTF export cancelled before the file was installed) | no state change
-  export_gltf(selection) => Err(GltfExport: glTF export cancelled before the file was installed) | no state change
+  export_gltf(all) => Err(GltfExport: Export cancelled before the file was installed) | no state change
+  export_gltf(selection) => Err(GltfExport: Export cancelled before the file was installed) | no state change
   export_gltf(not_gltf) => Err(InvalidInput: Export path must end in .gltf or .glb) | no state change
   resolve_file_action(cancel) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
   resolve_file_action(discard) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
