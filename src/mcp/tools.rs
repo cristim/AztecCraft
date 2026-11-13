@@ -878,6 +878,7 @@ mod tests {
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
                 "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
+                "export_gltf" => json!({"scene_token":token,"path":"scene.glb"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1548,7 +1549,13 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as", "export_obj", "import_obj"] {
+            for tool in [
+                "open_scene",
+                "save_scene_as",
+                "export_obj",
+                "import_obj",
+                "export_gltf",
+            ] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }
