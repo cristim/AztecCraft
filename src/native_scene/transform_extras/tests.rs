@@ -126,6 +126,7 @@ fn internal(c: &Case) -> InternalTransform {
             inherits_transform: true,
             offset_parent: DMat4::IDENTITY,
         }),
+        inverse_parent_scale: None,
     }
 }
 
@@ -447,6 +448,7 @@ fn out_of_range_rotate_order_has_no_matrix() {
         rotate_pivot_cm: [0.0; 3],
         scale_pivot_cm: [0.0; 3],
         extras: Some(extras),
+        inverse_parent_scale: None,
     };
     assert!(t.matrix().is_none());
 }
@@ -560,6 +562,7 @@ fn trs(translate: [f64; 3], extras: TransformExtras) -> InternalTransform {
         rotate_pivot_cm: [0.0; 3],
         scale_pivot_cm: [0.0; 3],
         extras: extras.internal(&Units::default()).unwrap(),
+        inverse_parent_scale: None,
     }
 }
 

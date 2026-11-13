@@ -127,6 +127,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     SceneError::InvalidPrimitiveOptions(_),
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
+                OperationError::Scene(NativeError::UnsupportedJoint(_)) => "unsupported_joint",
                 OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
                 OperationError::Scene(NativeError::InvalidPlaybackRange) => {
                     "invalid_playback_range"
@@ -782,6 +783,7 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "set_menu_set" => json!({"scene_token":token,"set":"rigging"}),
                 "set_current_time" => json!({"scene_token":token,"time":1}),
                 "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
@@ -890,6 +892,7 @@ mod tests {
                 tool.name.as_ref(),
                 "set_grid_visibility"
                     | "set_shading_mode"
+                    | "set_menu_set"
                     | "set_sidebar_panel_visibility"
                     | "select_attribute_editor_tab"
                     | "set_active_tool"

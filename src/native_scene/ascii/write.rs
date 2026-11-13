@@ -41,6 +41,7 @@ const UV_STATEMENT_BYTES: usize = UVSN_STATEMENT.len() + CUVS_STATEMENT.len();
 pub enum AsciiWriteRefusal {
     SourcedScene,
     Curves,
+    Joints,
     SessionMaterials,
     Keys,
     InvalidScene(NativeError),
@@ -72,6 +73,7 @@ impl fmt::Display for AsciiWriteRefusal {
         f.write_str(match self {
             Self::SourcedScene => "retained Maya sources cannot use the authored prefix",
             Self::Curves => "curve declarations are unsupported",
+            Self::Joints => "joints are session-only and cannot be saved yet",
             Self::SessionMaterials => {
                 "the scene has session materials, which authored ASCII cannot carry"
             }
@@ -231,8 +233,9 @@ fn check(scene: &NativeScene, uvs: UvPolicy) -> Result<(), AsciiWriteRefusal> {
         removed: _,
         // Created, assigned or reassigned materials: the file has only the default pair.
         session_materials,
-        // Refused by `check_content_kind` under `UvPolicy::Refuse`, emitted per shape otherwise; keys are
-        // always refused.
+        // Refused by `check_content_kind` under `UvPolicy::Refuse`, emitted per shape otherwise; keys
+        // and joints are always refused.
+        session_joints: _,
         session_uvs: _,
         session_keys: _,
     } = scene;
@@ -248,6 +251,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
         match ineligible {
             I::SourcedScene => Self::SourcedScene,
             I::Curves => Self::Curves,
+            I::Joints => Self::Joints,
             I::Keys => Self::Keys,
             I::InvalidScene(error) => Self::InvalidScene(error),
             I::UnsupportedUnits => Self::UnsupportedUnits,

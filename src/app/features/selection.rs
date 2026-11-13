@@ -15,6 +15,15 @@ impl Editor {
     ) -> Result<(NodeId, Vec<NativeId>), OperationError> {
         let mut prefix = hit.path;
         prefix.pop();
+        self.object_target_for_prefix(hit.transform, prefix)
+    }
+
+    /// The same mapping for a target whose path already ends at its transform (a joint).
+    pub(in crate::app) fn object_target_for_prefix(
+        &self,
+        transform: NodeId,
+        mut prefix: Vec<NativeId>,
+    ) -> Result<(NodeId, Vec<NativeId>), OperationError> {
         if self.selection_mode == SelectionMode::Hierarchy {
             prefix.truncate(1);
             let root = self
@@ -24,7 +33,7 @@ impl Editor {
                 .map_err(OperationError::Scene)?;
             Ok((root, prefix))
         } else {
-            Ok((hit.transform, prefix))
+            Ok((transform, prefix))
         }
     }
 
@@ -215,7 +224,13 @@ impl Editor {
                 };
                 ui.horizontal(|ui| {
                     ui.add_space((target.path.len() - 1) as f32 * 12.0);
-                    let label = format!("◇  {}", node.name());
+                    let scene = self.history.scene();
+                    let glyph = if scene.joint(node.transform_id()).is_some() {
+                        features::rigging::JOINT_ROW_GLYPH
+                    } else {
+                        "◇"
+                    };
+                    let label = format!("{glyph}  {}", node.name());
                     // With several selected, the lead row is bold (PROVISIONAL; the page gives
                     // no Outliner colour for the key object).
                     let text = if self.selection.len() > 1 && self.selection.lead() == Some(&target)

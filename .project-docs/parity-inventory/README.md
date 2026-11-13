@@ -1,6 +1,6 @@
 # Maya parity inventory (framework)
 
-Status: framework plus the expanded families listed in the family files (Interchange, Polygon modeling and Scene management have rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
+Status: framework plus the expanded families listed in the family files (Interchange, Polygon modeling, Scene management and part of Rigging have rows); every other family is empty. No figure is computed. Tracking issue: cristim/AztecCraft#6 (every slice says "Refs #6"; only the freeze slice closes it).
 
 This inventory replaces the provisional [workflow seed](../inventory-seed.md) as the candidate denominator once all 14 family files are expanded and frozen. It never says AztecCraft matches Maya. Exact parity needs comparison against the pinned reference and remains an open acceptance requirement (see [parity.md](../parity.md)).
 
@@ -123,7 +123,7 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 5 | Curves and surfaces | [05-curves-and-surfaces.md](05-curves-and-surfaces.md) | CRV | #47 |
 | 6 | UV editing | [06-uv-editing.md](06-uv-editing.md) | UVE | #53 |
 | 7 | Animation | [07-animation.md](07-animation.md) | ANM | #52, #62 |
-| 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54 |
+| 8 | Rigging | [08-rigging.md](08-rigging.md) | RIG | #54, #363 |
 | 9 | Materials and lighting | [09-materials-and-lighting.md](09-materials-and-lighting.md) | MAT | #51 |
 | 10 | Rendering | [10-rendering.md](10-rendering.md) | RND | #55 |
 | 11 | Interchange | [11-interchange.md](11-interchange.md) | INT | #9, #14, #17, #18, #21, #22, #23, #58, #156, #189, #272, #300 |

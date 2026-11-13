@@ -7,12 +7,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -121,11 +121,15 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
+  delete_selection(joint_chain) => Ok(changed) | scene changed; nodes: 3 -> 1; selected: joint1 -> -; selected_path_len: 1 -> 0; name_field: "joint1" -> ""; channel_fields: 1,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -148,6 +152,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -161,12 +166,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -275,11 +280,15 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene edited" -> "No change"
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
+  delete_selection(joint_chain) => Ok(changed) | scene changed; nodes: 3 -> 1; selected: joint1 -> -; selected_path_len: 1 -> 0; name_field: "joint1" -> ""; channel_fields: 1,0,0,0,0,0,1,1,1 -> ,,,,,,,,
   delete_selection(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete_selection(edge_mode) => Err(InvalidInput: Edge deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -302,6 +311,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -315,12 +325,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -422,6 +432,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -448,6 +461,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -461,12 +475,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -568,6 +582,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -594,6 +611,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -607,12 +625,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
-    pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -714,6 +732,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -740,6 +761,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -753,12 +775,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
-    pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -860,6 +882,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -886,6 +911,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -899,12 +925,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1006,6 +1032,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   edit_node(empty) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1032,6 +1061,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -1045,12 +1075,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=true keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -1152,6 +1182,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   edit_node(empty) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -1178,6 +1211,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -1191,12 +1225,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1298,6 +1332,9 @@
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(mesh_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -1324,6 +1361,7 @@
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1337,12 +1375,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1444,6 +1482,9 @@
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(mesh_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1470,6 +1511,7 @@
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1483,12 +1525,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1590,6 +1632,9 @@
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(mesh_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -1616,6 +1661,7 @@
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1629,12 +1675,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1736,6 +1782,9 @@
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(mesh_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create_joint(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete(vertex_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1762,6 +1811,7 @@
   apply_camera_bookmark(missing) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select_attribute_editor_tab(shape) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1775,12 +1825,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
-    material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
+    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1882,6 +1932,9 @@
   edit_node(empty_unknown_node) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   edit_node(empty) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   extrude_face => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create_joint(root) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create_joint(mesh_parent) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -1908,6 +1961,7 @@
   apply_camera_bookmark(missing) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   list_camera_bookmarks => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_shading_mode(wireframe) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_menu_set(rigging) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(channel_box,false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select_attribute_editor_tab(shape) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -1921,12 +1975,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
-    material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
+    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2028,6 +2082,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2054,6 +2111,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2067,7 +2125,7 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
     status="Ready | Create a cube, plane, sphere, cylinder or cone to start" status_is_error=false
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
@@ -2175,6 +2233,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   edit_node(empty) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(Scene: Deleting this node is not supported yet: A shape of this node carries per-face material links) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -2201,6 +2262,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2214,7 +2276,7 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
     status="Ready | Create a cube, plane, sphere, cylinder or cone to start" status_is_error=false
     active_move=none native_move_drag=false pointer_consumed_frame=false pointer_suppress_primary=false
     has_draft=true has_channel_draft=false name_intent=false material_draft=text=0.5 intent=false
@@ -2322,6 +2384,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2348,6 +2413,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2361,12 +2427,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | scene changed; active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2468,6 +2534,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   edit_node(empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   extrude_face => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "joint1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> ""; channel_fields: 5,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -2494,6 +2563,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   list_camera_bookmarks => Ok(camera_bookmarks) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select_attribute_editor_tab(shape) => Ok(changed) | scene changed; attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2))); has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -2507,12 +2577,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=5,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2614,6 +2684,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2640,6 +2713,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2653,12 +2727,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2760,6 +2834,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -2786,6 +2863,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -2799,12 +2877,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2906,6 +2984,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2932,6 +3013,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2945,12 +3027,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -3052,6 +3134,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
+  create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
+  create_joint(mesh_parent) => Err(Scene: Create joint unsupported: the parent must be a joint; parenting a joint under other objects is not supported yet) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: pCube1 -> -; selected_path_len: 1 -> 0; name_field: "pCube1" -> ""; channel_fields: 0,0,0,0,0,0,1,1,1 -> ,,,,,,,,; dirty: true -> false; can_redo: true -> false
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -3078,6 +3163,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -3091,12 +3177,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3198,6 +3284,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3224,6 +3313,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3237,12 +3327,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3345,6 +3435,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3371,6 +3464,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3384,12 +3478,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=native native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=native native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3491,6 +3585,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3517,6 +3614,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3530,12 +3628,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Move grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=remote native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=remote native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3637,6 +3735,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3663,6 +3764,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3676,12 +3778,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=true pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3783,6 +3885,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3809,6 +3914,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3822,12 +3928,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
-    pending_action=New dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3929,6 +4035,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3955,6 +4064,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -3968,12 +4078,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=true has_channel_draft=true name_intent=false
-    material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=true has_channel_draft=true
+    name_intent=false material_draft=- name_field="draft name" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4075,6 +4185,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4101,6 +4214,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4114,12 +4228,12 @@
   baseline:
     nodes=1 selected=pCube1 selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene edited"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=true can_undo=true can_redo=true
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene edited" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="pCube1" channel_fields=0,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4221,6 +4335,9 @@
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(mesh_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create_joint(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete(vertex_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4247,6 +4364,7 @@
   apply_camera_bookmark(missing) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select_attribute_editor_tab(shape) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4260,12 +4378,12 @@
   baseline:
     nodes=1 selected=curve selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=false can_undo=false can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4367,6 +4485,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Err(Scene: native mesh shape 2 does not exist) | no state change
+  create_joint(root) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create_joint(mesh_parent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -4393,6 +4514,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Err(InvalidInput: Attribute Editor tab does not resolve for the selected node) | no state change
@@ -4406,12 +4528,12 @@
   baseline:
     nodes=1 selected=curve selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1 channel_intents=000000000
-    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
-    pending_action=- dirty=false can_undo=false can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="curve" channel_fields=12,0,0,0,0,0,1,1,1
+    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
+    modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -4513,6 +4635,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
   extrude_face => Err(Scene: native mesh shape 2 does not exist) | no state change
+  create_joint(root) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create_joint(mesh_parent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -4539,6 +4664,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Err(InvalidInput: Attribute Editor tab does not resolve for the selected node) | no state change
@@ -4552,12 +4678,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4659,6 +4786,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -4685,6 +4815,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -4698,12 +4829,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -4805,6 +4937,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; status: "Scene ready" -> "Scene edited"; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -4831,6 +4966,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -4844,12 +4980,13 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=1,0,0,0,0,14.32394487827058,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -4951,6 +5088,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 2 -> 1; selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -4977,6 +5117,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
@@ -4990,12 +5131,13 @@
   baseline:
     nodes=2 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=1,0,0,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=1,0,0,0,0,14.32394487827058,1,1,1 channel_intents=000000000 session_materials=[]
+    timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
+    dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -5097,6 +5239,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 2 -> 1; selected: object -> -; selected_path_len: 1 -> 0; status: "Scene ready" -> "Scene edited"; name_field: "object" -> ""; channel_fields: 1,0,0,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -5123,6 +5268,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(3)))
@@ -5136,10 +5282,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object"
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
     channel_fields=1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
@@ -5162,10 +5308,10 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object"
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
     channel_fields=1,2,3,572.9577951308232,1145.9155902616465,1718.8733853924696,2,3,4
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=false can_undo=false can_redo=false
@@ -5188,12 +5334,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -5295,6 +5442,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -5321,6 +5471,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -5334,12 +5485,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
+    pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Ok(changed) | active_tool: Select -> Move
@@ -5441,6 +5593,9 @@
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(mesh_parent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Ok(changed) | scene changed; nodes: 1 -> 0; selected: object -> -; selected_path_len: 1 -> 0; status: "Scene ready" -> "Scene edited"; name_field: "object" -> ""; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> ,,,,,,,,
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -5467,6 +5622,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
   select_attribute_editor_tab(shape) => Ok(changed) | attribute_editor: panel=true tab=None -> panel=true tab=Some(Shape(NativeId(2)))
@@ -5480,12 +5636,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -5587,6 +5744,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(InvalidInput: Joints are created in Object or Hierarchy selection mode) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(InvalidInput: Face deletion is unsupported; switch to Object or Hierarchy selection) | no state change
   delete(vertex_mode) => Err(InvalidInput: Vertex deletion is unsupported; switch to Object or Hierarchy selection) | no state change
@@ -5613,6 +5773,7 @@
   apply_camera_bookmark(missing) => Err(CameraBookmark: No bookmark has that name) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5626,12 +5787,13 @@
   baseline:
     nodes=1 selected=object selected_path_len=1 selection_mode=Object face_remembered=false
     vertex_remembered=false edge_remembered=false active_tool=Select grid=true shading=SmoothShadeAll
-    sidebar_panels=channel_box=true attribute_editor=panel=false tab=None status="Scene ready"
-    status_is_error=false active_move=none native_move_drag=false pointer_consumed_frame=false
-    pointer_suppress_primary=false has_draft=false has_channel_draft=false name_intent=false
-    material_draft=- name_field="object" channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1
-    channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
-    modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
+    menu_set=Modeling sidebar_panels=channel_box=true attribute_editor=panel=false tab=None
+    status="Scene ready" status_is_error=false active_move=none native_move_drag=false
+    pointer_consumed_frame=false pointer_suppress_primary=false has_draft=false has_channel_draft=false
+    name_intent=false material_draft=- name_field="object"
+    channel_fields=16777218.125,-2,3,0,0,14.32394487827058,1,1,1 channel_intents=000000000
+    session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
+    pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
     manipulator_size=1 bookmarks=
   set_active_tool(move) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5733,6 +5895,9 @@
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(mesh_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create_joint(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete(vertex_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5759,6 +5924,7 @@
   apply_camera_bookmark(missing) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   list_camera_bookmarks => Ok(camera_bookmarks) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select_attribute_editor_tab(shape) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -5768,4 +5934,4 @@
   dolly => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 5228
+cells: 5386

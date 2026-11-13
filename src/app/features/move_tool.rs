@@ -128,6 +128,7 @@ fn edit_reply(outcome: EditOutcome) -> OperationReply {
         EditOutcome::Changed
         | EditOutcome::Created(_)
         | EditOutcome::Imported(_)
+        | EditOutcome::CreatedJoint(_)
         | EditOutcome::SessionMaterial(_) => OperationReply::Changed,
         EditOutcome::Unchanged => OperationReply::Unchanged,
     }

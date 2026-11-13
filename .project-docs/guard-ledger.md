@@ -31,7 +31,7 @@ provenance Native and no token or draft checks. In order:
    `UpdateMove`/`FinishMove`.
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn apply_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `SetGridVisible`, `SetShadingMode`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `SetGridVisible`, `SetShadingMode`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -114,6 +114,17 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - `SetShadingMode` follows Grid: session-only, idempotent (`Unchanged` when the mode already matches),
   never dirty, never a scene-token change; guards are those of `SetGridVisible`. Handler is in
   `src/app/dispatch.rs`; matrix cell is `set_shading_mode(wireframe)`.
+- `SetMenuSet` follows Grid: session-only, idempotent, never dirty, never a scene-token change, and
+  New and Open keep it. Handler is in `src/app/dispatch.rs`; matrix cell is
+  `set_menu_set(rigging)`.
+- `CreateJoint` in a component selection mode is `InvalidInput`
+  (`src/app/dispatch.rs "JOINT_COMPONENT_REASON"`), checked before `guard_move_dispatch`, so that
+  refusal outranks the Move guards. The pipelines differ in order. Native checks the mode refusal
+  first. Remote runs its shared gates first (stale token, then `BusyManipulation` for any active
+  manipulation, then `BusyEditing`), so `create_joint(face_mode)` during a Move is
+  `BusyManipulation` and the mode refusal appears only once those pass. Native Create in the
+  window is disabled for the same reason. Matrix cells are `create_joint(root)`,
+  `create_joint(mesh_parent)` and `create_joint(face_mode)`.
 - Camera bookmarks (`CreateCameraBookmark`, `RenameCameraBookmark`, `DeleteCameraBookmark`, `ApplyCameraBookmark`, `ListCameraBookmarks`; handlers in
   `src/app/features/camera_bookmarks.rs`) are session-only: never dirty, no scene-token change, not undoable (PROVISIONAL, the Maya page is silent), kept across
   Undo/Redo and cleared by `replace_scene` (an applied New or Open; a pending or cancelled one keeps them). Create, rename and delete follow Grid

@@ -10,6 +10,10 @@ struct StatusFeedback {
     fixed: bool,
 }
 
+/// Why Create Joints is unavailable in a component mode, natively and over MCP.
+pub(super) const JOINT_COMPONENT_REASON: &str =
+    "Joints are created in Object or Hierarchy selection mode";
+
 /// Radians for a rotation request in degrees. A request equal to the stored angle in degrees keeps
 /// the stored radians, because `to_degrees` then `to_radians` can land 1 ulp away.
 #[cfg(any(test, feature = "mcp"))]
@@ -119,6 +123,7 @@ impl Editor {
             | Operation::CloseUndoChunk
             | Operation::SetGridVisible { .. }
             | Operation::SetShadingMode(_)
+            | Operation::SetMenuSet { .. }
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. }
             | Operation::SetCurrentTime { .. }
@@ -379,6 +384,10 @@ impl Editor {
                 "{noun} deletion is unsupported; switch to Object or Hierarchy selection"
             )));
         }
+        if self.selection_mode.is_component() && matches!(operation, Operation::CreateJoint { .. })
+        {
+            return Err(OperationError::InvalidInput(JOINT_COMPONENT_REASON.into()));
+        }
         self.guard_move_dispatch(&operation, provenance)?;
         if self.files.is_closing() {
             return Err(OperationError::BusyEditing);
@@ -387,6 +396,7 @@ impl Editor {
             operation,
             Operation::SetGridVisible { .. }
                 | Operation::SetShadingMode(_)
+                | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
                 | Operation::CreateCameraBookmark { .. }
@@ -472,6 +482,7 @@ impl Editor {
                     | Operation::ExtrudeFace { .. }
                     | Operation::ProjectUvPlanar { .. }
                     | Operation::DeleteUvs { .. }
+                    | Operation::CreateJoint { .. }
                     | Operation::Undo
                     | Operation::Redo
                     | Operation::SetUndoQueue(_)
@@ -710,6 +721,15 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
+            Operation::SetMenuSet { set } => {
+                let changed = self.menu_set != set;
+                self.menu_set = set;
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
             Operation::SetSidebarPanelVisible { panel, visible } => {
                 let before = self.sidebar_dock;
                 if visible {
@@ -835,6 +855,19 @@ impl Editor {
                     distance,
                 }
             }
+            Operation::CreateJoint {
+                parent,
+                position,
+                relative,
+                radius,
+                name,
+            } => Command::CreateJoint(azteccraft::native_scene::JointRequest {
+                parent,
+                position,
+                relative,
+                radius,
+                name,
+            }),
             Operation::Delete(id) => Command::Remove(id),
             Operation::DeleteSelection => {
                 if self.selection.is_empty() {
@@ -1195,6 +1228,10 @@ impl Editor {
         match &outcome {
             EditOutcome::Created(id) => self.after_nodes_created(&[*id])?,
             EditOutcome::Imported(ids) => self.after_nodes_created(ids)?,
+            EditOutcome::CreatedJoint(target) => {
+                self.clear_remembered_components();
+                self.selection.replace(target.clone());
+            }
             _ => {}
         }
         self.sync_fields();
@@ -1208,6 +1245,9 @@ impl Editor {
                 faces: import_totals.faces,
                 ignored_records: import_totals.ignored_records,
                 node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
+            },
+            EditOutcome::CreatedJoint(target) => OperationReply::Created {
+                node_id: target.node.to_decimal(),
             },
             #[cfg(any(test, feature = "mcp"))]
             EditOutcome::SessionMaterial(material) => OperationReply::SessionMaterial {

@@ -293,6 +293,33 @@ fn a_diffuse_table_without_a_source_is_refused_as_an_invalid_scene() {
 }
 
 #[test]
+fn a_scene_of_root_joints_is_refused_not_written_as_bare_transforms() {
+    let request = crate::native_scene::JointRequest {
+        parent: None,
+        position: [1.0, 2.0, 3.0],
+        relative: false,
+        radius: 1.0,
+        name: None,
+    };
+    let mut roots = NativeScene::default();
+    roots.create_joint(&request).unwrap();
+    assert_eq!(
+        encode_authored(&roots),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::Joints
+        ))
+    );
+    let mut mixed = meshed(&[Primitive::Cube]);
+    mixed.create_joint(&request).unwrap();
+    assert_eq!(
+        encode_authored(&mixed),
+        Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::Joints
+        ))
+    );
+}
+
+#[test]
 fn session_keys_are_refused_rather_than_dropped() {
     let mut scene = NativeScene::default();
     let id = scene.create(crate::scene::Primitive::Cube, "a").unwrap();

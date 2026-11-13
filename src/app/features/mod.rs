@@ -13,6 +13,7 @@ pub(super) mod obj_import;
 pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) mod marquee;
 pub(in crate::app) mod primitive_options;
+pub(in crate::app) mod rigging;
 mod selection;
 mod status_line;
 pub(in crate::app) mod timeline;

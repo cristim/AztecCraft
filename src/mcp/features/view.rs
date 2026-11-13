@@ -181,7 +181,7 @@ fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "frame_selected",
-        description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
+        description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry (meshes, curves and joints) without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection",
         schema: schema::<FrameSelectedArgs>,
         parse: parse_frame_selected,
         idempotent: false,
@@ -189,7 +189,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "frame_all",
-        description: "Frame every mesh and curve in the scene using the live camera; an empty scene returns nothing_to_frame. Session-only; does not edit the scene or the selection",
+        description: "Frame every mesh, curve and joint in the scene using the live camera; a scene with none of these returns nothing_to_frame. Session-only; does not edit the scene or the selection",
         schema: schema::<MutationArgs>,
         parse: parse_frame_all,
         idempotent: false,
