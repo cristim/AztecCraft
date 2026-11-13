@@ -10,6 +10,7 @@ mod maya_import;
 mod mesh;
 mod move_translation;
 mod pivot_edit;
+mod references;
 mod rotate_frame;
 mod scale_frame;
 mod session_joint;
@@ -31,6 +32,10 @@ pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
+};
+pub use references::{
+    MAX_REFERENCE_PATH_BYTES, MAX_REFERENCE_TEXT_BYTES, MAX_REFERENCES, ReferenceDeclaration,
+    ReferencePathKind,
 };
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
@@ -583,6 +588,8 @@ pub struct NativeScene {
     session_uvs: SessionUvs,
     /// Bindings dropped from a sourced scene, ascending; their records stay in the source bytes.
     removed: Vec<NativeId>,
+    /// Inert `file -r` declarations from a parsed ASCII source (#440); never loaded or saved.
+    references: Vec<ReferenceDeclaration>,
     next_id: u64,
     next_native_id: u64,
 }
@@ -762,6 +769,7 @@ impl Default for NativeScene {
             session_keys: SessionKeys::default(),
             session_uvs: SessionUvs::default(),
             removed: Vec::new(),
+            references: Vec::new(),
             next_id: 1,
             next_native_id: 1,
         }
@@ -1397,6 +1405,10 @@ impl NativeScene {
             .as_ref()
             .is_some_and(|source| source.format == SourceFormat::Ascii)
             .then_some(NativeError::ReadOnlyFormat)
+    }
+    /// Declared references, read-only and unresolved.
+    pub fn references(&self) -> &[ReferenceDeclaration] {
+        &self.references
     }
     pub fn retained_source_bytes(&self) -> usize {
         self.source.as_ref().map_or(0, |source| source.bytes.len())

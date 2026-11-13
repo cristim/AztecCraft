@@ -130,6 +130,9 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         // Ids of deleted source nodes: recorded only in a sourced scene, which
         // `check_content_kind` refuses.
         removed: _,
+        // Inert `file -r` declarations (#440): parsed only with a source, which is refused above;
+        // the writer never emits them, so a decode candidate carrying any differs from its source.
+        references: _,
         // Created, assigned or reassigned materials: the file has only the default pair, so
         // any difference from the default would be lost on reopen.
         session_materials,
