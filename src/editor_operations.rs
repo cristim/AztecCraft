@@ -6,7 +6,7 @@ use azteccraft::{
     move_handles::ManipulatorSize,
     native_scene::{
         EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
-        ScaleHandle, ScaleSpace, TransformTarget, VertexTarget, WorldAxis,
+        ScaleHandle, ScaleSpace, TransformTarget, VertexSetTarget, VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
@@ -553,6 +553,13 @@ pub enum Operation {
     ExtrudeFace {
         target: FaceTarget,
         distance: f64,
+    },
+    /// MCP `move_vertices`: translates vertices of one polygon mesh by `delta` in declared scene
+    /// units along the mesh's own axes (Move tool Object axis orientation), as one undo step.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    MoveVertices {
+        target: VertexSetTarget,
+        delta: [f64; 3],
     },
     /// Skeleton > Create Joints and MCP `create_joint`. The caller passes `parent` explicitly: the
     /// window resolves it from the selection and MCP names it, and `None` starts a new hierarchy.

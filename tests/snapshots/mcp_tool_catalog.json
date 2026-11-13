@@ -1700,6 +1700,68 @@
     }
   },
   {
+    "name": "move_vertices",
+    "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (the Move tool's Object axis orientation). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points. World-axis moves are unsupported",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "delta": {
+          "description": "Offset along the mesh's own X, Y and Z axes in declared scene units.",
+          "items": {
+            "format": "double",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "instance_path": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 257,
+          "minItems": 2,
+          "type": "array"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "shape_id": {
+          "type": "string"
+        },
+        "vertex_indices": {
+          "items": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 65536,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "scene_token",
+        "node_id",
+        "shape_id",
+        "instance_path",
+        "vertex_indices",
+        "delta"
+      ],
+      "title": "MoveVerticesArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "create_joint",
     "description": "Create a session-only joint, the same operation as Skeleton > Create Joints: a bare transform that stays selected, with rotation 0 and scale 1. `parent_id` must name a joint and is the only way to attach it; the selection is not read. A world `position` under a parent is solved through the parent's world matrix and refused when that matrix is singular; `relative` stores the position as given. A joint under a joint keeps segment scale compensation on. A scene holding joints cannot be saved, and joints are not written to any file. Refused on an opened scene, in a component selection mode, for a parent that is not a joint, a radius of 0 or less or above 1000000, an invalid or colliding name and past the hierarchy depth limit. `inspect_scene` reports `joint.radius` on each joint; `delete_node` removes a joint with everything below it, as one undo step",
     "inputSchema": {
