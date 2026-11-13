@@ -6,7 +6,7 @@
 #![allow(clippy::excessive_precision)]
 
 use azteccraft::{
-    native_scene::NativeScene,
+    native_scene::{Channel, MaterialChoice, NativeScene, UvProjectAxis},
     scene::Primitive,
     usd::{UsdError, UsdSummary, export_native_new},
     view_scene::{ViewInstance, ViewScene},
@@ -288,4 +288,168 @@ fn independent_reader_recovers_layer_metadata_counts_and_winding() {
     assert_eq!(f.len(), 6);
     assert!(f.iter().flatten().all(|i| *i < 8));
     assert_outward(mesh);
+}
+
+#[test]
+fn mirrored_instance_reverses_each_face_and_stays_outward() {
+    // Unmirrored control: ScaleX = 2 keeps the native order.
+    let mut scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    let id = scene.nodes()[0].id();
+    scene.set_channel(id, Channel::ScaleX, 2.0).unwrap();
+    let (_, path) = export(&scene, "control.usda");
+    let control = read(&fs::read_to_string(path).unwrap());
+    let mesh = &control.root.children[0];
+    assert_eq!(faces(mesh)[0], vec![0, 3, 2, 1]);
+    assert_outward(mesh);
+
+    // ScaleX = -2 and ScaleY = 3: determinant -6 < 0, so every face is reversed.
+    scene.set_channel(id, Channel::ScaleX, -2.0).unwrap();
+    scene.set_channel(id, Channel::ScaleY, 3.0).unwrap();
+    let (_, path) = export(&scene, "mirror.usda");
+    let layer = read(&fs::read_to_string(path).unwrap());
+    let mesh = &layer.root.children[0];
+    let pts = points(&mesh.attrs["points"]);
+    assert!(pts.iter().all(|p| p[0].abs() == 1.0 && p[1].abs() == 1.5));
+    assert_eq!(
+        ints(&mesh.attrs["faceVertexIndices"]),
+        [
+            1, 2, 3, 0, 7, 6, 5, 4, 3, 7, 4, 0, 5, 6, 2, 1, 4, 5, 1, 0, 2, 6, 7, 3
+        ]
+    );
+    assert_outward(mesh);
+
+    // Two negative scales: determinant +, so no reversal.
+    scene.set_channel(id, Channel::ScaleX, -1.0).unwrap();
+    scene.set_channel(id, Channel::ScaleY, -1.0).unwrap();
+    let (_, path) = export(&scene, "double.usda");
+    let layer = read(&fs::read_to_string(path).unwrap());
+    assert_eq!(faces(&layer.root.children[0])[0], vec![0, 3, 2, 1]);
+    assert_outward(&layer.root.children[0]);
+}
+
+#[test]
+fn points_are_f32_exact_in_shortest_round_trip_text() {
+    let mut scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    let id = scene.nodes()[0].id();
+    scene.set_channel(id, Channel::TranslateX, 0.1).unwrap();
+    scene
+        .set_channel(id, Channel::TranslateY, 1234.5678)
+        .unwrap();
+    scene
+        .set_channel(id, Channel::TranslateZ, 16_000_000.0)
+        .unwrap();
+    let (_, path) = export(&scene, "precise.usda");
+    let text = fs::read_to_string(&path).unwrap();
+    // x = 0.1 -+ 0.5 -> -0.4 and 0.6; the shortest text that reads back as the same f32.
+    assert!(text.contains("(-0.4, "), "{text}");
+    assert!(text.contains("(0.6, "), "{text}");
+    let layer = read(&text);
+    let pts = points(&layer.root.children[0].attrs["points"]);
+    let expected_y = [1_234.067_8_f32, 1_235.067_8_f32];
+    let expected_z = [16_000_000.0_f32];
+    for p in &pts {
+        assert!(p[0] == -0.4f32 || p[0] == 0.6f32);
+        assert!(
+            expected_y.iter().any(|y| y.to_bits() == p[1].to_bits()),
+            "{p:?}"
+        );
+        assert!(
+            expected_z.iter().any(|z| z.to_bits() == p[2].to_bits()),
+            "{p:?}"
+        );
+    }
+    let extent = points(&layer.root.children[0].attrs["extent"]);
+    assert_eq!(extent[0][0], -0.4f32);
+    assert_eq!(extent[1][0], 0.6f32);
+}
+
+#[test]
+fn two_meshes_keep_local_indices_and_names() {
+    let scene = scene_with(&[(Primitive::Cube, "first"), (Primitive::Plane, "second")]);
+    let (summary, path) = export(&scene, "two.usda");
+    // Plane: 11x11 vertices, 10x10 quads.
+    assert_eq!(
+        summary.unwrap(),
+        UsdSummary {
+            objects: 2,
+            vertices: 8 + 121,
+            faces: 6 + 100
+        }
+    );
+    let layer = read(&fs::read_to_string(path).unwrap());
+    let names: Vec<_> = layer
+        .root
+        .children
+        .iter()
+        .map(|m| m.name.as_str())
+        .collect();
+    assert_eq!(names, ["first", "second"]);
+    let plane = &layer.root.children[1];
+    assert_eq!(points(&plane.attrs["points"]).len(), 121);
+    assert_eq!(
+        ints(&plane.attrs["faceVertexIndices"]).iter().max(),
+        Some(&120)
+    );
+    assert!(
+        ints(&plane.attrs["faceVertexCounts"])
+            .iter()
+            .all(|c| *c == 4)
+    );
+}
+
+#[test]
+fn refusals_write_nothing_and_name_the_reason() {
+    let scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    let view = ViewScene::from_native(&scene, BUDGET).unwrap();
+    let all: Vec<&ViewInstance> = view.instances().iter().collect();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("a.usda");
+    for bad in ["a.obj", "a.usd", "a.USD", "a.usdc", "a.usdz", "a"] {
+        assert!(matches!(
+            export_native_new(&directory.path().join(bad), &scene, &all, &|| true),
+            Err(UsdError::UnknownExtension)
+        ));
+    }
+    assert!(matches!(
+        export_native_new(&path, &scene, &[], &|| true),
+        Err(UsdError::NothingToExport)
+    ));
+    assert!(matches!(
+        export_native_new(&path, &scene, &all, &|| false),
+        Err(UsdError::Cancelled)
+    ));
+    assert!(!path.exists());
+    fs::write(&path, b"keep").unwrap();
+    match export_native_new(&path, &scene, &all, &|| true) {
+        Err(UsdError::Io { source, .. }) => {
+            assert_eq!(source.kind(), std::io::ErrorKind::AlreadyExists)
+        }
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(fs::read(&path).unwrap(), b"keep");
+}
+
+#[test]
+fn session_material_and_uvs_are_refused_not_dropped() {
+    let mut scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    assert!(export(&scene, "plain.usda").0.is_ok());
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+    let (result, path) = export(&scene, "uv.usda");
+    assert!(matches!(result, Err(UsdError::SessionUvs)));
+    assert!(!path.exists());
+
+    let mut scene = scene_with(&[(Primitive::Cube, "pCube1")]);
+    let shape = scene.shapes()[0].id();
+    scene
+        .assign_session_material(
+            shape,
+            MaterialChoice::New {
+                color: [1.0, 0.0, 0.0],
+            },
+        )
+        .unwrap();
+    let (result, path) = export(&scene, "red.usda");
+    assert!(matches!(result, Err(UsdError::SessionMaterial)));
+    assert!(!path.exists());
 }
