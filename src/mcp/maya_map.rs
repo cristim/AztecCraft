@@ -74,6 +74,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("save_scene_as", "`file -rename`, then `file -save -type`", "never overwrites; an authored .ma carries session UVs, an .mb refuses them"),
     ("export_obj", "`file -exportAll` / `-exportSelected -type \"OBJexport\"`", "faces only, centimeters, never overwrites (PROVISIONAL: OBJexport options)"),
     ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; normals, UVs and materials dropped (PROVISIONAL: OBJ import options)"),
+    ("export_gltf", "none (Maya has no native glTF export; an AztecCraft extension, see #436)", "meters, +Y up, no normals/UVs/materials, never overwrites (PROVISIONAL)"),
     ("new_scene", "`file -new`", "dirty confirmation via `resolve_file_action`; Maya uses `-force`"),
     ("resolve_file_action", "no equivalent", "Maya prompts in a dialog or takes `-force`"),
     ("request_close", "`quit`", "dirty confirmation required"),

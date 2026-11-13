@@ -1549,3 +1549,15 @@ Gaps: `edit_node` and `set_transform` report the same `ReadOnlyFormat`, `Unsuppo
 ## Save with a typed pivot draft commits the draft, then refuses (until T9/T10, #39)
 
 Save, Save As and Resolve(save) first commit a pending Attribute Editor pivot draft, as for any draft. Until the writers support nondefault pivots (T9 `.ma`, T10 `.mb`) the save then fails with "nondefault pivots are unsupported" or "a transform has a non-zero pivot". The scene keeps the committed pivot and its undo entry and stays unsaved. Pinned by the `pivot_draft` cells of `tests/snapshots/guard_matrix_file_writing.txt`; T9/T10 flip them.
+
+## glTF export: slice 1 limits (PROVISIONAL, #436)
+
+`export_gltf` (MCP only, no File menu entry until the native dialog can be checked in a visible
+window) writes positions and triangle indices. Not written: normals (native meshes carry none, and
+glTF clients compute flat normals), UVs, materials, animation, skins and cameras. A shape with
+session UVs or an assigned session material is refused with `export_unsupported`; the appearance of
+an opened Maya scene (for example a Phong diffuse binding) is not exported and not reported. Quads
+split along the interior diagonal; Maya's own split of non-planar quads is unverified. Maya has no
+native glTF export, so there is nothing to compare against (#23 source S1). `src/gltf.rs` repeats
+`GuardedFs` and the occupied-destination check from `src/obj.rs`, and `GltfExportError` mirrors
+`ObjExportError`: merge them (and settle on one MCP code for a session-UV refusal: `export_obj` returns `export_invalid`, `export_gltf` returns `export_unsupported`) once #403 (which edits the OBJ files) has landed.
