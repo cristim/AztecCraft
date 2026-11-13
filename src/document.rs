@@ -10,7 +10,9 @@ use std::{
 };
 
 mod native_save;
+mod recovery_encode;
 pub use native_save::{NativeSaveError, SaveDestination, SaveOutcome, SaveReceipt, save_native};
+pub use recovery_encode::{RecoveryEncodeError, encode_recovery};
 
 pub const DOCUMENT_VERSION: u32 = 1;
 pub const MAX_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
