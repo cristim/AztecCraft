@@ -147,6 +147,7 @@ mod official_client {
 
     mod pointer_hit;
     mod primitive_options;
+    mod recovery;
     mod rigging;
     mod save_new_scene;
     mod select_by_rule;
