@@ -2,6 +2,9 @@ use crate::native_scene::{MAX_TRANSFORM_PATHS, TransformTarget};
 use std::collections::HashSet;
 use std::fmt;
 
+mod components;
+pub use components::{ComponentOwner, ComponentSet};
+
 /// The selection already holds `MAX_TRANSFORM_PATHS` objects, so another one is refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SelectionFull;
