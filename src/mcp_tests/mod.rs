@@ -121,6 +121,7 @@ mod official_client {
     #[cfg(unix)]
     mod authored_ascii_save;
     mod camera;
+    mod component_set;
     mod cylinder_cone;
     mod delete_selected;
     mod deselect_all;
