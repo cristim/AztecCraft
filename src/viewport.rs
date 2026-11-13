@@ -43,7 +43,14 @@ pub struct Camera {
     lens: Lens,
     near: f32,
     far: f32,
+    /// viewFit Fit Factor for the next framing; `None` is the default 1.05 margin. Only `fitted`
+    /// sets it and `unfitted` clears it.
+    fit_factor: Option<f32>,
 }
+
+const DEFAULT_FRAME_MARGIN: f32 = 1.05;
+/// Smallest accepted Fit Factor (distance about 100 radii). PROVISIONAL: the docs state no range.
+pub const MIN_FIT_FACTOR: f32 = 0.01;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ray {
@@ -108,6 +115,7 @@ impl Default for Camera {
             lens: Lens::Film,
             near: 0.1,
             far: 10_000.0,
+            fit_factor: None,
         };
         camera.validate().expect("default camera is valid");
         camera
@@ -159,9 +167,31 @@ impl Camera {
             lens: Lens::VerticalFov(fov_y),
             near,
             far,
+            fit_factor: None,
         };
         camera.validate()?;
         Ok(camera)
+    }
+
+    /// A copy that frames with viewFit's Fit Factor: the framed bounding sphere fills
+    /// `fit_factor` of the limiting view axis (0.01 <= f <= 1; PROVISIONAL, the docs state no
+    /// range). Call `unfitted` on the result of framing; the margin is not a camera setting.
+    pub fn fitted(&self, fit_factor: f32) -> Result<Self, InvalidCameraInput> {
+        if !(MIN_FIT_FACTOR..=1.0).contains(&fit_factor) {
+            return Err(InvalidCameraInput);
+        }
+        Ok(Self {
+            fit_factor: Some(fit_factor),
+            ..self.clone()
+        })
+    }
+
+    /// The camera with the default framing margin again (after `fitted` framing).
+    pub fn unfitted(self) -> Self {
+        Self {
+            fit_factor: None,
+            ..self
+        }
     }
 
     fn validate(&self) -> Result<(), InvalidCameraInput> {
@@ -538,10 +568,13 @@ impl Camera {
             .min((self.lens.tan_half_y(aspect) * aspect).atan());
         let mut next = self.clone();
         next.target = target;
-        next.distance = (radius / half_angle.sin())
-            .max(self.near + radius)
-            .max(self.near * 2.0)
-            * 1.05;
+        let floor = (self.near + radius).max(self.near * 2.0) * DEFAULT_FRAME_MARGIN;
+        let limit = match self.fit_factor {
+            None => radius / half_angle.sin() * DEFAULT_FRAME_MARGIN,
+            // The sphere's screen fill is tan(asin(r/d)) / tan(half_angle); solve it for d.
+            Some(fit) => radius * (1.0 + 1.0 / (fit * half_angle.tan()).powi(2)).sqrt(),
+        };
+        next.distance = limit.max(floor);
         next.far = self.far.max(next.distance + radius + self.near);
         next.validate()?;
         *self = next;
