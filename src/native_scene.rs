@@ -11,6 +11,7 @@ mod mesh;
 mod move_translation;
 mod pivot_edit;
 mod references;
+mod reparent;
 mod rotate_frame;
 mod scale_frame;
 mod session_joint;
@@ -38,6 +39,7 @@ pub use references::{
     MAX_REFERENCE_PATH_BYTES, MAX_REFERENCE_TEXT_BYTES, MAX_REFERENCES, ReferenceDeclaration,
     ReferencePathKind,
 };
+pub use reparent::{ReparentKeep, ReparentRefusal};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_joint::SessionJoints;
@@ -2299,6 +2301,8 @@ pub enum NativeError {
     InvalidName,
     NameCollision,
     UnsupportedEdit,
+    /// A parent or unparent the scene refuses; see `ReparentRefusal`.
+    InvalidReparent(ReparentRefusal),
     UnsupportedDelete(DeleteUnsupported),
     /// One node of a delete of several refused; `reason` is that node's own refusal.
     DeleteMemberRefused {
@@ -2383,6 +2387,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedEdit => {
                 f.write_str("native ownership or edit effects are unsupported")
             }
+            Self::InvalidReparent(reason) => reason.fmt(f),
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(

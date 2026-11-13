@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, NativeError, NativeId,
-        NativeScene, NativeTransform, ObjImportPlan, PivotReset, SessionMaterialId,
+        NativeScene, NativeTransform, ObjImportPlan, PivotReset, ReparentKeep, SessionMaterialId,
         TransformTarget, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
@@ -38,6 +38,12 @@ pub enum Command {
     SetTransform {
         id: NodeId,
         transform: NativeTransform,
+    },
+    /// Maya `parent`: moves `id` under `parent`, or to the world when `None`.
+    Reparent {
+        id: NodeId,
+        parent: Option<NodeId>,
+        keep: ReparentKeep,
     },
     EditNode {
         id: NodeId,
@@ -124,6 +130,11 @@ impl Command {
             }
             Self::Remove(_) | Self::RemoveMany(_) => "Delete".to_string(),
             Self::Rename { .. } => "Rename".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::Reparent {
+                parent: Some(_), ..
+            } => "Parent".to_string(),
+            Self::Reparent { parent: None, .. } => "Unparent".to_string(),
             // execute_labeled names it from the stored before/after values.
             Self::SetTransform { .. } => "Transform".to_string(),
             Self::EditNode { .. } | Self::EditNodes(_) => "Edit".to_string(),
@@ -534,6 +545,10 @@ impl History {
             }
             Command::SetTransform { id, transform, .. } => {
                 candidate.set_transform(id, transform)?;
+                EditOutcome::Changed
+            }
+            Command::Reparent { id, parent, keep } => {
+                candidate.reparent(id, parent, keep)?;
                 EditOutcome::Changed
             }
             Command::EditNode { id, name, channels } => {
