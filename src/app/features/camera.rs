@@ -91,9 +91,7 @@ impl Editor {
             return Ok(None);
         };
         let fitted = self.camera.fitted(fit_factor).map_err(|_| {
-            OperationError::InvalidInput(
-                "fit_factor must be a number greater than 0 and at most 1".into(),
-            )
+            OperationError::InvalidInput("fit_factor must be a number from 0.01 to 1".into())
         })?;
         Ok(Some(std::mem::replace(&mut self.camera, fitted)))
     }
