@@ -20,8 +20,11 @@ impl Editor {
     /// to one target (Hierarchy mode); the selection mutators collapse the repeats.
     fn pick_object_targets(&self, rect: NdcRect) -> Result<Vec<TransformTarget>, OperationError> {
         // Same literal as the click and frame paths; the #22 VIEW_BUDGET lift replaces them all.
-        let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-            .map_err(|error| OperationError::View(error.to_string()))?;
+        let view = ViewScene::from_native(
+            self.history.scene(),
+            azteccraft::view_scene::VIEW_BUDGET_BYTES,
+        )
+        .map_err(|error| OperationError::View(error.to_string()))?;
         let view_error =
             |error: azteccraft::view_scene::ViewError| OperationError::View(error.to_string());
         // A zero-area rectangle (a stationary long press, P11) is a click: the nearest hit only,

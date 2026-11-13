@@ -28,8 +28,6 @@ pub(in crate::app) enum ToolPick {
     Scale(Pick<ScaleHandle>),
 }
 
-const VIEW_BUDGET: usize = 256 * 1024 * 1024;
-
 /// Rotate and Scale tool settings. Maya keeps the axis orientation per tool and defaults it to
 /// Object for Rotate and World for Scale (2026 tool settings pages).
 pub(in crate::app) struct ManipulationOptions {
@@ -403,7 +401,7 @@ impl Editor {
                 space.rotate(),
                 self.scene_token,
                 provenance,
-                VIEW_BUDGET,
+                azteccraft::view_scene::VIEW_BUDGET_BYTES,
             )
             .map_err(begin_error)?;
         self.manipulation.refusal = None;
@@ -429,7 +427,7 @@ impl Editor {
                 space.scale(),
                 self.scene_token,
                 provenance,
-                VIEW_BUDGET,
+                azteccraft::view_scene::VIEW_BUDGET_BYTES,
             )
             .map_err(begin_error)?;
         self.manipulation.refusal = None;

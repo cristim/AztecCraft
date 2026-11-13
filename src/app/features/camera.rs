@@ -13,8 +13,11 @@ impl Editor {
         children: FrameChildren,
     ) -> Result<(), OperationError> {
         let paths = self.selected_member_paths()?;
-        let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-            .map_err(|error| OperationError::View(error.to_string()))?;
+        let view = ViewScene::from_native(
+            self.history.scene(),
+            azteccraft::view_scene::VIEW_BUDGET_BYTES,
+        )
+        .map_err(|error| OperationError::View(error.to_string()))?;
         let prefixes: Vec<&[NativeId]> = paths.iter().map(Vec::as_slice).collect();
         if children == FrameChildren::Exclude && !view.has_direct_geometry(&prefixes) {
             let mut origins = Vec::with_capacity(paths.len());
@@ -62,8 +65,11 @@ impl Editor {
     }
 
     pub(in crate::app) fn frame_everything(&mut self) -> Result<OperationReply, OperationError> {
-        let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-            .map_err(|error| OperationError::View(error.to_string()))?;
+        let view = ViewScene::from_native(
+            self.history.scene(),
+            azteccraft::view_scene::VIEW_BUDGET_BYTES,
+        )
+        .map_err(|error| OperationError::View(error.to_string()))?;
         if view.instances().is_empty() && view.curve_instances().is_empty() {
             return Err(OperationError::NothingToFrame);
         }

@@ -1048,8 +1048,11 @@ impl Editor {
                         OperationReply::Changed
                     });
                 }
-                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::View(error.to_string()))?;
+                let view = ViewScene::from_native(
+                    self.history.scene(),
+                    azteccraft::view_scene::VIEW_BUDGET_BYTES,
+                )
+                .map_err(|error| OperationError::View(error.to_string()))?;
                 let before = self.camera.clone();
                 match self.selection_mode {
                     SelectionMode::Face => self

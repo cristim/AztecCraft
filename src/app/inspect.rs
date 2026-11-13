@@ -330,8 +330,12 @@ impl Editor {
             .collect::<Result<Vec<_>, OperationError>>()?;
         let viewport_error = self.current_viewport_error();
         let has_curves = scene.curves().iter().any(|curve| listed(curve.id()));
-        let prepared_view =
-            has_curves.then(|| ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024));
+        let prepared_view = has_curves.then(|| {
+            ViewScene::from_native(
+                self.history.scene(),
+                azteccraft::view_scene::VIEW_BUDGET_BYTES,
+            )
+        });
         let gpu_healthy = self.renderer.is_some()
             && viewport_error != Some(crate::viewport_renderer::ViewportError::BackendFailed);
         let (selected, selected_path) = self.selection_presentation();

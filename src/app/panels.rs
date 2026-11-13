@@ -486,7 +486,10 @@ impl Editor {
                 }
                 None => {}
             }
-            let view = match ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024) {
+            let view = match ViewScene::from_native(
+                self.history.scene(),
+                azteccraft::view_scene::VIEW_BUDGET_BYTES,
+            ) {
                 Ok(view) => view,
                 Err(e) => {
                     self.viewport_error = Some(view_error_category(&e));

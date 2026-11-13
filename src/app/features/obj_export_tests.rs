@@ -100,7 +100,11 @@ fn export_selection_of_a_parent_includes_its_nested_descendant_in_world_space() 
             faces: 1,
         }
     ));
-    let view = ViewScene::from_native(editor.history.scene(), VIEW_BUDGET).unwrap();
+    let view = ViewScene::from_native(
+        editor.history.scene(),
+        azteccraft::view_scene::VIEW_BUDGET_BYTES,
+    )
+    .unwrap();
     assert_eq!(view.instances()[0].world_matrix().w_axis.x, 2.0);
     let base = vertices(&path);
     assert_eq!(base.len(), 3);

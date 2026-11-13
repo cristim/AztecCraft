@@ -774,7 +774,7 @@ impl Editor {
 }
 
 fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, OperationError> {
-    let view = ViewScene::from_native(scene, 256 * 1024 * 1024)
+    let view = ViewScene::from_native(scene, azteccraft::view_scene::VIEW_BUDGET_BYTES)
         .map_err(|error| OperationError::View(error.to_string()))?;
     let mut camera = Camera::default();
     if view

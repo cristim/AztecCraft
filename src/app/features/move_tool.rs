@@ -328,7 +328,7 @@ impl Editor {
                 axis,
                 self.scene_token,
                 provenance,
-                256 * 1024 * 1024,
+                azteccraft::view_scene::VIEW_BUDGET_BYTES,
             )
             .map_err(begin_error)?;
         self.manipulation.refusal = None;

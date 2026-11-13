@@ -6,8 +6,6 @@ use azteccraft::obj::{self, ObjError};
 use azteccraft::view_scene::{ViewInstance, ViewScene};
 use std::path::{Path, PathBuf};
 
-const VIEW_BUDGET: usize = 256 * 1024 * 1024;
-
 /// Path checks shared by the pre-draft guard and the handler, so an invalid path never commits
 /// a native draft.
 pub(in crate::app) fn validate_export_path(path: &Path) -> Result<(), OperationError> {
@@ -47,7 +45,7 @@ impl Editor {
             .then(|| self.selected_member_paths())
             .transpose()?;
         let scene = self.history.scene();
-        let view = ViewScene::from_native(scene, VIEW_BUDGET)
+        let view = ViewScene::from_native(scene, azteccraft::view_scene::VIEW_BUDGET_BYTES)
             .map_err(|error| OperationError::View(error.to_string()))?;
         let instances: Vec<&ViewInstance> = view
             .instances()
