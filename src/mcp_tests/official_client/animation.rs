@@ -536,39 +536,30 @@ async fn animation_sdk_refuses_more_node_ids_than_the_cap() {
 #[tokio::test]
 async fn animation_sdk_a_full_key_table_answers_key_limit_and_changes_nothing() {
     use azteccraft::history::History;
-    use azteccraft::native_scene::NativeScene;
+    use azteccraft::native_scene::{ALL_CHANNELS, NativeScene};
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     let mut scene = NativeScene::default();
-    let ids: Vec<String> = (0..1000)
-        .map(|n| {
-            scene
-                .create(Primitive::Cube, &format!("cube{n}"))
-                .unwrap()
-                .to_decimal()
-        })
+    let nodes: Vec<_> = (0..100)
+        .map(|n| scene.create(Primitive::Cube, &format!("cube{n}")).unwrap())
         .collect();
-    editor.history = History::new(scene);
-    // 1000 nodes keep 9000 keys per frame, so seven frames fit under the 65536 bound.
-    for frame in 0..7 {
-        let keyed = tool(
-            &mut editor,
-            &context,
-            &client,
-            "set_keyframe",
-            json!({"node_ids": ids, "time": frame}),
-        )
-        .await;
-        assert_ne!(keyed.is_error, Some(true), "frame {frame}");
+    let ids: Vec<String> = nodes.iter().map(|id| id.to_decimal()).collect();
+    // 100 nodes keep 900 keys per frame, so 72 frames (64800 keys) fit under the 65536 bound and
+    // a 73rd does not. Fill the table through the core call and keep the scene small: a protocol
+    // call over 1000 nodes took ~1 s in a test build and overran the per-call deadline under
+    // load. The refusal below still goes through the protocol.
+    for frame in 0..72 {
+        scene.set_keys(&nodes, frame, ALL_CHANNELS, 1).unwrap();
     }
-    assert_eq!(editor.history.scene().session_key_count(), 63_000);
+    assert_eq!(scene.session_key_count(), 64_800);
+    editor.history = History::new(scene);
     let before = editor.history.scene().clone();
     let full = tool(
         &mut editor,
         &context,
         &client,
         "set_keyframe",
-        json!({"node_ids": ids, "time": 7}),
+        json!({"node_ids": ids, "time": 72}),
     )
     .await;
     assert_eq!(full.is_error, Some(true));
