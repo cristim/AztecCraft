@@ -1,4 +1,26 @@
 use super::*;
+#[cfg(any(test, feature = "mcp"))]
+use crate::editor_operations::ComponentKind;
+
+/// A set's owner once and its first `MAX_LISTED_COMPONENTS` members; `None` while it is empty.
+#[cfg(any(test, feature = "mcp"))]
+fn component_set_inspection(
+    set: &azteccraft::selection::ComponentSet,
+) -> Option<crate::editor_operations::ComponentSetInspection> {
+    let owner = set.owner()?;
+    let listed = set
+        .len()
+        .min(crate::editor_operations::MAX_LISTED_COMPONENTS);
+    Some(crate::editor_operations::ComponentSetInspection {
+        node_id: owner.transform.to_decimal(),
+        shape_id: owner.shape.to_decimal(),
+        instance_path: owner.path.iter().map(|id| id.to_decimal()).collect(),
+        count: set.len(),
+        lead: set.lead()?,
+        indices: set.indices()[..listed].to_vec(),
+        truncated: listed < set.len(),
+    })
+}
 
 impl Editor {
     #[cfg(any(test, feature = "mcp"))]
@@ -180,8 +202,8 @@ impl Editor {
     #[cfg(any(test, feature = "mcp"))]
     fn path_lower_bound(&self, node_paths: &[azteccraft::native_scene::TransformTarget]) -> usize {
         use crate::editor_operations::{
-            MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL, MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER,
-            MIN_VERTEX_TARGET,
+            MAX_LISTED_COMPONENTS, MIN_COMPONENT_SET, MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL,
+            MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER, MIN_VERTEX_TARGET,
         };
         let elements = |len: usize| len.saturating_mul(MIN_PATH_ELEMENT);
         // Members and targets are counted with an empty `[]`; L elements add 4L - 1 (no last comma).
@@ -203,7 +225,19 @@ impl Editor {
                 .saturating_add(MIN_SELECTION_MEMBER.len())
                 .saturating_add(added(path_len));
         }
+        let set = |kind| {
+            let set = self.component_set(kind);
+            set.owner().map_or(0, |owner| {
+                let listed = set.len().min(MAX_LISTED_COMPONENTS);
+                (MIN_COMPONENT_SET.len() - MIN_NULL)
+                    .saturating_add(added(owner.path.len()))
+                    .saturating_add(listed.saturating_mul(2).saturating_sub(1))
+            })
+        };
         [
+            set(ComponentKind::Face),
+            set(ComponentKind::Vertex),
+            set(ComponentKind::Edge),
             target(
                 MIN_FACE_TARGET,
                 self.remembered_face().as_ref().map(|t| t.path.len()),
@@ -574,6 +608,11 @@ impl Editor {
                     instance_path: target.path.iter().map(|id| id.to_decimal()).collect(),
                     edge_index: target.edge_index,
                 }),
+            component_selection: crate::editor_operations::ComponentSelectionInspection {
+                face: component_set_inspection(self.component_set(ComponentKind::Face)),
+                vertex: component_set_inspection(self.component_set(ComponentKind::Vertex)),
+                edge: component_set_inspection(self.component_set(ComponentKind::Edge)),
+            },
             face_selection_policy: FaceSelectionPolicy::VisibleCentersOnly,
             can_undo: self.history.can_undo(),
             undo_label: self.history.undo_label(),
@@ -652,8 +691,8 @@ pub(in crate::app) fn angular_unit_name(unit: &AngularUnit) -> &str {
 #[cfg(test)]
 mod tests {
     use crate::editor_operations::{
-        MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL, MIN_PATH_ELEMENT, MIN_SELECTION_MEMBER,
-        MIN_VERTEX_TARGET, OperationError, inspection_lower_bound,
+        MIN_COMPONENT_SET, MIN_EDGE_TARGET, MIN_FACE_TARGET, MIN_NULL, MIN_PATH_ELEMENT,
+        MIN_SELECTION_MEMBER, MIN_VERTEX_TARGET, OperationError, inspection_lower_bound,
     };
 
     #[test]
@@ -696,13 +735,19 @@ mod tests {
             .sum();
         let remembered =
             |fixed: &str, len: usize| fixed.len() - MIN_NULL + len * MIN_PATH_ELEMENT - 1;
+        // Each set lists one index: 2 bytes less the last comma.
+        let component_set =
+            |len: usize| MIN_COMPONENT_SET.len() - MIN_NULL + len * MIN_PATH_ELEMENT - 1 + 1;
         let total = inspection_lower_bound(editor.history.scene())
             + (node_elements + selection_elements) * MIN_PATH_ELEMENT
             - editor.selection.len()
             + editor.selection.len() * MIN_SELECTION_MEMBER.len()
             + remembered(MIN_FACE_TARGET, 2)
             + remembered(MIN_VERTEX_TARGET, 3)
-            + remembered(MIN_EDGE_TARGET, 4);
+            + remembered(MIN_EDGE_TARGET, 4)
+            + component_set(2)
+            + component_set(3)
+            + component_set(4);
         assert!(editor.inspect_within(false, total, None).is_ok());
         assert!(matches!(
             editor.inspect_within(false, total - 1, None),
