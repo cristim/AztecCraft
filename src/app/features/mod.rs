@@ -1,6 +1,8 @@
 pub(in crate::app) mod attribute_editor;
 mod camera;
 mod camera_bookmarks;
+#[cfg(any(test, feature = "mcp"))]
+mod export_common;
 pub(in crate::app) mod extrude_options;
 #[cfg(any(test, feature = "mcp"))]
 pub(super) mod gltf_export;

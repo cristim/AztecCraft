@@ -1390,7 +1390,7 @@ pub enum OperationError {
     ObjImport(azteccraft::obj::import::ObjImportError),
     /// glTF export refusal or failure; its text never carries the path.
     #[cfg(any(test, feature = "mcp"))]
-    GltfExport(GltfExportError),
+    GltfExport(ExportError),
     AmbiguousSelection,
     StalePendingAction,
     Camera(InvalidCameraInput),
@@ -1434,21 +1434,22 @@ impl fmt::Display for ObjExportError {
 }
 
 #[cfg(any(test, feature = "mcp"))]
-/// Mirrors [`ObjExportError`] for glTF, plus the reasons glTF refuses content it cannot write yet.
+/// Mirrors [`ObjExportError`] for the glTF and USD exporters, plus the reasons they refuse content
+/// they cannot write yet.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum GltfExportError {
+pub enum ExportError {
     DestinationExists,
     NothingToExport,
     Cancelled,
     Io(std::io::ErrorKind),
-    /// Content glTF export does not write yet (session UVs, an assigned session material).
+    /// Content the exporter does not write yet (session UVs, an assigned session material).
     Unsupported(String),
     /// Path-free reason the scene cannot be exported (too large, non-finite or invalid scene).
     Invalid(String),
 }
 
 #[cfg(any(test, feature = "mcp"))]
-impl fmt::Display for GltfExportError {
+impl fmt::Display for ExportError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DestinationExists => {
@@ -1457,10 +1458,10 @@ impl fmt::Display for GltfExportError {
             Self::NothingToExport => {
                 f.write_str("Nothing to export: no displayed polygon geometry")
             }
-            Self::Cancelled => f.write_str("glTF export cancelled before the file was installed"),
-            Self::Io(kind) => write!(f, "glTF export failed: {kind}"),
+            Self::Cancelled => f.write_str("Export cancelled before the file was installed"),
+            Self::Io(kind) => write!(f, "Export failed: {kind}"),
             Self::Unsupported(reason) | Self::Invalid(reason) => {
-                write!(f, "Cannot export glTF: {reason}")
+                write!(f, "Cannot export: {reason}")
             }
         }
     }
