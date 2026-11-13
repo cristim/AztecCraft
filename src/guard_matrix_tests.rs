@@ -915,6 +915,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ListCameraBookmarks,
         Operation::AutosaveNow,
         Operation::RecoveryStatus,
+        Operation::InspectLimits,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetMenuSet {
             set: crate::editor_operations::MenuSet::Rigging,
@@ -2045,6 +2046,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "list_camera_bookmarks",
             Operation::ListCameraBookmarks,
         )],
+        Operation::InspectLimits => vec![sample("inspect_limits", Operation::InspectLimits)],
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),

@@ -476,6 +476,9 @@ pub enum Operation {
     /// A read, like `Inspect`: it passes no guard.
     #[cfg(any(test, feature = "mcp"))]
     ListCameraBookmarks,
+    /// A read of the static scene resource limits: it passes no guard and touches no state.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectLimits,
     /// Session-only camera bookmarks (Maya View > Bookmarks), never undoable or dirtying. The four
     /// mutating variants are unconstructed without MCP until the View menu lands.
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
@@ -755,6 +758,10 @@ pub enum OperationReply {
         max_backups: Option<usize>,
         /// Recovery files of every session in the folder; names and paths are never reported.
         files: usize,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    SceneLimits {
+        limits: &'static [azteccraft::scene_limits::SceneLimit],
     },
     Created {
         node_id: String,

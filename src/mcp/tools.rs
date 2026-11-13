@@ -800,6 +800,7 @@ mod tests {
                         | "inspect_vertices"
                         | "get_recovery_status"
                         | "list_camera_bookmarks"
+                        | "inspect_limits"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -861,7 +862,7 @@ mod tests {
                 "set_current_time" => json!({"scene_token":token,"time":1}),
                 "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
-                "inspect_keys" | "get_recovery_status" => json!({}),
+                "inspect_keys" | "get_recovery_status" | "inspect_limits" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
