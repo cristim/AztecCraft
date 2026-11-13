@@ -619,29 +619,29 @@ fn a_non_finite_or_overflowing_pivot_is_the_typed_pivot_refusal() {
     }
 }
 
-/// Issue #430: the native modal list in dispatch omits every edit (Delete, EditNode, Create),
-/// so a native pivot operation runs under a confirmation dialog; the menus are disabled while
-/// one is open. This pins the current outcome, not a wish: fixing #430 changes it for all edits.
+/// Issue #430: a native pivot operation is refused with `BusyEditing` under a confirmation
+/// dialog, like every other native scene edit, and leaves the scene untouched.
 #[test]
-fn a_native_pivot_operation_still_runs_under_a_modal_dialog() {
+fn a_native_pivot_operation_is_refused_under_a_modal_dialog() {
     let (mut editor, ids) = cubes(1);
     let id = ids[0].node;
-    editor.apply_operation(set(id, false)).unwrap();
+    editor.apply_operation(set(id, true)).unwrap();
     editor.new_document().unwrap();
     assert!(editor.files.is_modal());
+    let before = baseline(&editor);
     assert!(matches!(
         editor.apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
             expected_selection_generation: None
         }),
-        Ok(OperationReply::Changed)
+        Err(OperationError::BusyEditing)
     ));
-    assert_eq!(pivots(&editor, id), ([0.0; 3], [0.0; 3]));
     assert!(matches!(
-        editor.apply_operation(set(id, true)),
-        Ok(OperationReply::Changed)
+        editor.apply_operation(set(id, false)),
+        Err(OperationError::BusyEditing)
     ));
     assert_eq!(pivots(&editor, id), (RP, SP));
+    assert_eq!(baseline(&editor), before);
 }
 
 fn reset_with(generation: Option<u64>) -> Operation {

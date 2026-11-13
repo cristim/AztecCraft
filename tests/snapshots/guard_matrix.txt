@@ -789,10 +789,10 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
-  set_pivots(preserve) => Ok(changed) | scene changed; can_redo: true -> false
-  set_pivots(raw) => Ok(changed) | scene changed; can_redo: true -> false
-  reset_pivots(center) => Ok(unchanged) | no state change
-  reset_pivots(zero) => Ok(unchanged) | no state change
+  set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
 
@@ -6320,10 +6320,10 @@
   orbit => Ok(changed) | camera changed
   pan => Ok(changed) | camera changed
   dolly => Ok(changed) | camera changed
-  set_pivots(preserve) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
-  set_pivots(raw) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
-  reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
-  reset_pivots(zero) => Ok(unchanged) | no state change
+  set_pivots(preserve) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_pivots(raw) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
 
