@@ -215,7 +215,7 @@ impl Editor {
             Ok(attributes) => attributes,
             Err(error) => {
                 ui.separator();
-                ui.label(RichText::new("Transform Attributes (read-only)").strong());
+                ui.label(RichText::new("Transform Attributes").strong());
                 ui.weak(format!("Unavailable: {error}"));
                 return false;
             }
@@ -223,7 +223,7 @@ impl Editor {
         let unit = linear_unit_name(&scene.units().linear).to_owned();
         let refusals = self.pivot_refusals();
         ui.separator();
-        ui.label(RichText::new("Transform Attributes (read-only)").strong());
+        ui.label(RichText::new("Transform Attributes").strong());
         let triple = |v: [f64; 3]| format!("{} {} {}", v[0], v[1], v[2]);
         egui::Grid::new("transform_attributes")
             .num_columns(2)

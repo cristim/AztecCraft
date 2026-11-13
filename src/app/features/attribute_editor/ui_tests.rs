@@ -807,7 +807,7 @@ fn transform_attributes_render_read_only_for_a_node_with_extras() {
             .unwrap_or_else(|| panic!("{wanted}: {texts:?}"))
     };
     let order = [
-        "Transform Attributes (read-only)",
+        "Transform Attributes",
         "Shear",
         "0.5 0 0",
         "Rotate Order",
