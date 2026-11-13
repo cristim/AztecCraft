@@ -222,7 +222,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     }
                 }
                 OperationError::GltfExport(error) => {
-                    use crate::editor_operations::GltfExportError as G;
+                    use crate::editor_operations::ExportError as G;
                     match error {
                         G::DestinationExists => "destination_exists",
                         G::NothingToExport => "nothing_to_export",
