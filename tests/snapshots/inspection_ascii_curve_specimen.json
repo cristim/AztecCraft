@@ -24,6 +24,11 @@
     "can_undo": false,
     "clipping_complete": false,
     "closing": false,
+    "component_selection": {
+      "edge": null,
+      "face": null,
+      "vertex": null
+    },
     "curves": [
       {
         "control_vertices": 4,

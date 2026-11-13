@@ -330,3 +330,85 @@ fn undo_drops_only_the_members_that_no_longer_exist() {
     assert_eq!(members(&editor, ComponentKind::Face), [0, 2]);
     assert_eq!(editor.remembered_face().unwrap().face_index, 2);
 }
+
+#[test]
+fn inspection_lists_each_set_with_its_owner_once_and_the_lead() {
+    let mut editor = cube();
+    assert!(
+        editor
+            .inspect(false)
+            .unwrap()
+            .component_selection
+            .face
+            .is_none()
+    );
+    mode(&mut editor, SelectionMode::Face);
+    modify(
+        &mut editor,
+        ComponentKind::Face,
+        MarqueeMode::Add,
+        &[4, 1, 3],
+    )
+    .unwrap();
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(&mut editor, ComponentKind::Vertex, MarqueeMode::Add, &[6]).unwrap();
+    let inspected = editor.inspect(false).unwrap();
+    let face = inspected.component_selection.face.as_ref().unwrap();
+    assert_eq!(face.indices, [4, 1, 3]);
+    assert_eq!((face.count, face.lead, face.truncated), (3, 3, false));
+    let owner = owner_of(&editor);
+    assert_eq!(face.node_id, owner.transform.to_decimal());
+    assert_eq!(face.shape_id, owner.shape.to_decimal());
+    assert_eq!(face.instance_path.len(), owner.path.len());
+    assert_eq!(inspected.component_selection.vertex.unwrap().indices, [6]);
+    assert!(inspected.component_selection.edge.is_none());
+    // The lead stays readable through the single-pick field.
+    assert_eq!(inspected.remembered_face.unwrap().face_index, 3);
+}
+
+#[test]
+fn a_huge_set_inspects_inside_the_result_limit_and_says_it_is_truncated() {
+    use crate::editor_operations::{MAX_LISTED_COMPONENTS, MAX_RESULT_BYTES};
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::Create {
+            primitive: Primitive::Plane,
+            options: Some(azteccraft::primitive_options::PrimitiveOptions::Plane {
+                width: 1.0,
+                height: 1.0,
+                sub_width: 80,
+                sub_height: 80,
+                axis: azteccraft::primitive_options::Axis::Y,
+            }),
+            name: None,
+        })
+        .unwrap();
+    mode(&mut editor, SelectionMode::Face);
+    let all: Vec<usize> = (0..6400).collect();
+    modify(&mut editor, ComponentKind::Face, MarqueeMode::Replace, &all).unwrap();
+    mode(&mut editor, SelectionMode::Vertex);
+    let vertices: Vec<usize> = (0..6561).collect();
+    modify(
+        &mut editor,
+        ComponentKind::Vertex,
+        MarqueeMode::Replace,
+        &vertices,
+    )
+    .unwrap();
+    mode(&mut editor, SelectionMode::Edge);
+    let edges: Vec<usize> = (0..12_960).collect();
+    modify(
+        &mut editor,
+        ComponentKind::Edge,
+        MarqueeMode::Replace,
+        &edges,
+    )
+    .unwrap();
+    let inspected = editor.inspect(false).unwrap();
+    let face = inspected.component_selection.face.as_ref().unwrap();
+    assert_eq!(face.count, 6400);
+    assert_eq!(face.lead, 6399);
+    assert_eq!(face.indices.len(), MAX_LISTED_COMPONENTS);
+    assert!(face.truncated);
+    assert!(serde_json::to_string(&inspected).unwrap().len() < MAX_RESULT_BYTES);
+}

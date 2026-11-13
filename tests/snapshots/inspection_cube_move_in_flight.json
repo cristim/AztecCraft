@@ -24,6 +24,24 @@
     "can_undo": true,
     "clipping_complete": false,
     "closing": false,
+    "component_selection": {
+      "edge": null,
+      "face": {
+        "count": 1,
+        "indices": [
+          0
+        ],
+        "instance_path": [
+          "1",
+          "2"
+        ],
+        "lead": 0,
+        "node_id": "1",
+        "shape_id": "2",
+        "truncated": false
+      },
+      "vertex": null
+    },
     "curves": [],
     "depth_complete": false,
     "dirty": true,

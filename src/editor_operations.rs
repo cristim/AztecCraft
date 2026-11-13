@@ -882,6 +882,8 @@ pub struct SceneInspection {
     pub remembered_face: Option<FaceSelectionTarget>,
     pub remembered_vertex: Option<VertexSelectionTarget>,
     pub remembered_edge: Option<EdgeSelectionTarget>,
+    /// The ordered face, vertex and edge sets; `remembered_*` above is each set's lead.
+    pub component_selection: ComponentSelectionInspection,
     pub face_selection_policy: FaceSelectionPolicy,
     pub can_undo: bool,
     pub can_redo: bool,
@@ -979,6 +981,33 @@ pub struct EdgeSelectionTarget {
     #[cfg_attr(feature = "mcp", schemars(length(min = 2, max = 257)))]
     pub instance_path: Vec<String>,
     pub edge_index: usize,
+}
+
+/// Most members of one component set an inspection lists. The reply stays inside the result limit
+/// whatever the set holds; `count` and `lead` are exact, `truncated` says the list is a prefix.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_LISTED_COMPONENTS: usize = 4096;
+
+/// One component set: its owner once, then plain indices in selection order (the last is the
+/// lead, also given as `lead`).
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ComponentSetInspection {
+    pub node_id: String,
+    pub shape_id: String,
+    pub instance_path: Vec<String>,
+    pub count: usize,
+    pub lead: usize,
+    pub indices: Vec<usize>,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct ComponentSelectionInspection {
+    pub face: Option<ComponentSetInspection>,
+    pub vertex: Option<ComponentSetInspection>,
+    pub edge: Option<ComponentSetInspection>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1534,6 +1563,13 @@ pub(crate) const MIN_VERTEX_TARGET: &str =
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_EDGE_TARGET: &str =
     r#"{"node_id":"1","shape_id":"1","instance_path":[],"edge_index":0}"#;
+/// A present component set with no path elements and no listed index; each listed index adds at
+/// least 2 bytes (a digit and a comma, less the last comma).
+#[cfg(any(test, feature = "mcp"))]
+pub(crate) const MIN_COMPONENT_SET: &str = concat!(
+    r#"{"node_id":"1","shape_id":"1","instance_path":[],"count":0,"lead":0,"indices":[],"#,
+    r#""truncated":true}"#
+);
 /// Everything in `SceneInspection` except the four lists; nested fixed objects at their minimum.
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_FIXED: &str = concat!(
@@ -1554,7 +1590,8 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#","#,
     r#""pending_action":null,"selected_node":"","selected_instance_path":[],"selection":[],"#,
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
-    r#""remembered_edge":null,"face_selection_policy":"","can_undo":true,"can_redo":true,"#,
+    r#""remembered_edge":null,"component_selection":{"face":null,"vertex":null,"edge":null},"#,
+    r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
@@ -1811,6 +1848,16 @@ mod tests {
             edge_index: 0,
         };
         assert_eq!(serde_json::to_string(&edge).unwrap(), MIN_EDGE_TARGET);
+        let set = ComponentSetInspection {
+            node_id: "1".into(),
+            shape_id: "1".into(),
+            instance_path: Vec::new(),
+            count: 0,
+            lead: 0,
+            indices: Vec::new(),
+            truncated: true,
+        };
+        assert_eq!(serde_json::to_string(&set).unwrap(), MIN_COMPONENT_SET);
         let path = SelectionMemberInspection {
             node: "1".into(),
             instance_path: vec!["1".into(); 5],
