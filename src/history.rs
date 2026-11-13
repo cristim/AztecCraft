@@ -1,7 +1,7 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, NativeError, NativeId,
-        NativeScene, NativeTransform, ObjImportPlan, SessionMaterialId, TransformTarget,
+        ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, MayaImportPlan, NativeError,
+        NativeId, NativeScene, NativeTransform, ObjImportPlan, SessionMaterialId, TransformTarget,
         UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
@@ -92,6 +92,8 @@ pub enum Command {
     /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
     /// admission, so an import can never make the viewport refuse the scene.
     ImportObjects(Box<ObjImportPlan>),
+    /// Adds the meshes of a parsed Maya scene as one undo step, with the same view admission.
+    ImportMaya(Box<MayaImportPlan>),
 }
 
 impl Command {
@@ -119,7 +121,7 @@ impl Command {
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
-            Self::ImportObjects(_) => "Import".to_string(),
+            Self::ImportObjects(_) | Self::ImportMaya(_) => "Import".to_string(),
         }
     }
 }
@@ -565,6 +567,11 @@ impl History {
             }
             Command::ImportObjects(plan) => {
                 let ids = candidate.import_polygon_objects(&plan)?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
+                EditOutcome::Imported(ids)
+            }
+            Command::ImportMaya(plan) => {
+                let ids = candidate.import_maya_objects(&plan)?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Imported(ids)
             }

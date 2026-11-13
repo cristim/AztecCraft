@@ -69,6 +69,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("save_scene_as", "`file -rename`, then `file -save -type`", "never overwrites"),
     ("export_obj", "`file -exportAll` / `-exportSelected -type \"OBJexport\"`", "faces only, centimeters, never overwrites (PROVISIONAL: OBJexport options)"),
     ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; normals, UVs and materials dropped (PROVISIONAL: OBJ import options)"),
+    ("import_maya_scene", "`file -import -type \"mayaAscii\"` / `\"mayaBinary\"` with `-namespace`", "meshes only, one undo step, new roots selected; only files an authored save reproduces exactly (PROVISIONAL: Group, Preserve References and time range not implemented)"),
     ("new_scene", "`file -new`", "dirty confirmation via `resolve_file_action`; Maya uses `-force`"),
     ("resolve_file_action", "no equivalent", "Maya prompts in a dialog or takes `-force`"),
     ("request_close", "`quit`", "dirty confirmation required"),

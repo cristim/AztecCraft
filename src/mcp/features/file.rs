@@ -43,6 +43,20 @@ struct ImportArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ImportMayaArgs {
+    scene_token: String,
+    /// Existing .ma or .mb file whose meshes are added to the scene.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+    /// Namespace-style prefix: each imported name becomes `<prefix>_<name>`. A letter or
+    /// underscore, then letters, digits or underscores.
+    #[schemars(length(min = 1, max = 64))]
+    #[serde(default)]
+    prefix: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 enum FileDecisionInput {
     Cancel,
@@ -111,6 +125,26 @@ fn parse_import_obj(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
         token(&args.scene_token)?,
         Operation::ImportObj {
             path: args.path.into(),
+        },
+    ))
+}
+
+fn parse_import_maya_scene(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ImportMayaArgs = decode(arguments)?;
+    check_path(&args.path)?;
+    if let Some(prefix) = &args.prefix
+        && (prefix.is_empty() || prefix.len() > azteccraft::native_scene::MAX_PREFIX_BYTES)
+    {
+        return Err(ErrorData::invalid_params(
+            "prefix must contain 1 to 64 UTF-8 bytes",
+            None,
+        ));
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ImportMaya {
+            path: args.path.into(),
+            prefix: args.prefix,
         },
     ))
 }
@@ -200,6 +234,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
         schema: schema::<ImportArgs>,
         parse: parse_import_obj,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "import_maya_scene",
+        description: "Import the meshes of a Maya .ma or .mb file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per mesh transform as one undo step, selects them, and keeps the scene token. Optional prefix renames each node and shape to <prefix>_<name>; clashing names get the lowest free numeric suffix. Only files this editor can reproduce exactly are accepted: flat transform-over-mesh scenes in default units with hard edges and no materials, keys, curves, pivots or other records. Any other file is refused with error.code import_refused and a content-free error.reason (unrecognized_content for every non-empty .mb and for .ma files with extra records, materials, keys, curves, non_flat_hierarchy, unsupported_units, and so on). Unreadable, oversized or undecodable files report import_io, import_too_large or import_invalid; faces the viewport cannot display report import_invalid. Refused in a scene opened from .mb or .ma. .ma import works on macOS and Linux only; on Windows every .ma reports import_invalid. PROVISIONAL: Group, Preserve References, time range and the other namespace modes are not implemented. Replies with object, vertex and face counts and the new node_ids",
+        schema: schema::<ImportMayaArgs>,
+        parse: parse_import_maya_scene,
         idempotent: false,
         read_only: false,
     },

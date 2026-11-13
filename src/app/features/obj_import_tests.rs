@@ -29,6 +29,7 @@ fn an_import_adds_the_objects_selects_them_with_the_last_as_lead_and_is_one_undo
         faces,
         ignored_records,
         node_ids,
+        ..
     } = reply
     else {
         panic!("{reply:?}");

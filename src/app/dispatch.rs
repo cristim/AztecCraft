@@ -204,11 +204,16 @@ impl Editor {
                 objects,
                 vertices,
                 faces,
+                from_maya,
                 ..
             }) => {
+                let dropped = if *from_maya {
+                    ""
+                } else {
+                    " (normals, UVs and materials are not imported)"
+                };
                 self.status = format!(
-                    "Imported {objects} object(s), {vertices} vertices and {faces} faces \
-                     (normals, UVs and materials are not imported)"
+                    "Imported {objects} object(s), {vertices} vertices and {faces} faces{dropped}"
                 );
                 self.error = false;
             }
@@ -415,6 +420,13 @@ impl Editor {
                 return Err(OperationError::BusyEditing);
             }
         }
+        #[cfg(any(test, feature = "mcp"))]
+        if let Operation::ImportMaya { path, .. } = &operation {
+            super::features::maya_import::validate_maya_import_path(path)?;
+            if self.files.is_modal() {
+                return Err(OperationError::BusyEditing);
+            }
+        }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
                 super::files::validate_scene_path(path)?;
@@ -611,7 +623,16 @@ impl Editor {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
         let mut import_totals = features::obj_import::ImportTotals::default();
+        #[cfg_attr(not(any(test, feature = "mcp")), allow(unused_mut))]
+        let mut from_maya = false;
         let command = match operation {
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::ImportMaya { path, prefix } => {
+                let (command, totals) = self.plan_maya_file_import(&path, prefix)?;
+                import_totals = totals;
+                from_maya = true;
+                command
+            }
             Operation::ImportObj { path } => {
                 let (command, totals) = self.plan_obj_import(&path)?;
                 import_totals = totals;
@@ -1256,6 +1277,7 @@ impl Editor {
                 faces: import_totals.faces,
                 ignored_records: import_totals.ignored_records,
                 node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
+                from_maya,
             },
             EditOutcome::CreatedJoint(target) => OperationReply::Created {
                 node_id: target.node.to_decimal(),
