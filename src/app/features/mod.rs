@@ -2,6 +2,8 @@ pub(in crate::app) mod attribute_editor;
 mod camera;
 mod camera_bookmarks;
 pub(in crate::app) mod extrude_options;
+#[cfg(any(test, feature = "mcp"))]
+pub(super) mod gltf_export;
 mod history;
 pub(in crate::app) mod manipulation_tool;
 mod material;

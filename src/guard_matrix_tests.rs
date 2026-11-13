@@ -261,6 +261,7 @@ struct Targets {
     export: std::path::PathBuf,
     /// A valid OBJ file, written by `build`; the missing sibling does not exist.
     import: std::path::PathBuf,
+    export_gltf: std::path::PathBuf,
 }
 
 impl Targets {
@@ -349,6 +350,7 @@ fn targets(rig: &Rig) -> Targets {
         save_as: rig.directory.path().join("saved.mb"),
         export: rig.directory.path().join("export.obj"),
         import: rig.directory.path().join("import.obj"),
+        export_gltf: rig.directory.path().join("export.glb"),
     }
 }
 
@@ -777,6 +779,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::ImportObj {
             path: t.import.clone(),
+        },
+        Operation::ExportGltf {
+            path: t.export_gltf.clone(),
+            selection_only: false,
         },
         Operation::ResolveFileAction {
             pending_id: t.pending_id,
@@ -1634,6 +1640,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "import_obj(missing)",
                 Operation::ImportObj {
                     path: t.export.with_file_name("missing.obj"),
+                },
+            ),
+        ],
+        Operation::ExportGltf { .. } => vec![
+            sample(
+                "export_gltf(all)",
+                Operation::ExportGltf {
+                    path: t.export_gltf.clone(),
+                    selection_only: false,
+                },
+            ),
+            sample(
+                "export_gltf(selection)",
+                Operation::ExportGltf {
+                    path: t.export_gltf.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_gltf(not_gltf)",
+                Operation::ExportGltf {
+                    path: t.save_as.clone(),
+                    selection_only: false,
                 },
             ),
         ],
