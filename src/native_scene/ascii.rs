@@ -1102,6 +1102,7 @@ impl Builder<'_, '_> {
                 self.scene.units = units;
                 self.units = true;
             }
+            "file" => self.file_reference(c)?,
             "createNode" => self.create(c)?,
             "rename" => self.rename(c)?,
             "select" => self.select(c)?,
@@ -1288,6 +1289,9 @@ mod document;
 #[cfg(test)]
 mod form_tests;
 mod mesh;
+mod reference;
+#[cfg(test)]
+mod reference_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
