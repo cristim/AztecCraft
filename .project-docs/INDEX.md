@@ -10,6 +10,8 @@
 - [Build checks and packaging](builds.md): prepared CI, coverage/security checks, local hooks, packaging boundaries and Craft workflow references.
 - [Authored Maya Binary writer](binary-authored-writer.md): what a fresh `.mb` may contain, where each choice comes from, what is invented and the edge bit31 correlation (issue #156).
 - [Binary default leaf insertion](binary-leaf-insertion.md): PROVISIONAL grammar for inserting an absent translate leaf into an opened `.mb`, its sources and what stays unproven (issue #19).
+- [Authored Maya ASCII UV storage](uv-ascii-format.md): the `.ma` UV layout, what the docs state and what stays PROVISIONAL (issue #156).
+- [Authored Maya ASCII shading](shading-ascii-format.md): the default .iog links, session lambert/shadingEngine statements, reopen rule and what stays PROVISIONAL (issue #156).
 
 - [MayaSceneKit cross-check](mayascenekit-crosscheck.md): ignored test that records MayaSceneKit refusing the writer's empty-UV meshes, and how to build and run it locally (issue #156).
 - [Native verification](native-verification.md): recorded macOS packaged-debug editing/file workflow, evidence method and remaining platform/reference checks.
