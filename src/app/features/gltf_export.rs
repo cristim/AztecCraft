@@ -9,7 +9,7 @@ use std::path::Path;
 
 /// Path checks shared by the pre-draft guard and the handler.
 pub(in crate::app) fn validate_export_path(path: &Path) -> Result<(), OperationError> {
-    validate_path_text(path)?;
+    validate_path_text(path, "Export")?;
     if GltfFormat::from_path(path).is_none() {
         return Err(OperationError::InvalidInput(
             "Export path must end in .gltf or .glb".into(),

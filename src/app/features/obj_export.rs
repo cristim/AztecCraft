@@ -1,5 +1,6 @@
 //! File > Export All / Export Selection as Wavefront OBJ, shared with MCP `export_obj`.
 
+use super::export_common::validate_path_text;
 use crate::app::Editor;
 use crate::editor_operations::{ObjExportError, Operation, OperationError, OperationReply};
 use azteccraft::obj::{self, ObjError};
@@ -14,14 +15,7 @@ pub(in crate::app) fn validate_export_path(path: &Path) -> Result<(), OperationE
 
 /// The `.obj` path rules of Export and Import; `noun` leads each message.
 pub(in crate::app) fn validate_obj_path(path: &Path, noun: &str) -> Result<(), OperationError> {
-    let text = path
-        .to_str()
-        .ok_or_else(|| OperationError::InvalidInput(format!("{noun} path must be UTF-8")))?;
-    if text.is_empty() || text.len() > 4096 || text.contains('\0') {
-        return Err(OperationError::InvalidInput(format!(
-            "{noun} path must contain 1 to 4096 bytes and no NUL"
-        )));
-    }
+    validate_path_text(path, noun)?;
     if !path
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("obj"))
