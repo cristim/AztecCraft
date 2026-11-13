@@ -1,6 +1,7 @@
-//! Session-only UVs of authored shapes, held as Maya's default `map1` set.
+//! UVs of authored shapes, held as Maya's default `map1` set.
 //!
-//! The table is not saved, so writers refuse a scene that holds any. One (u, v) belongs to each
+//! The authored Maya ASCII writer saves the table and the reopen gate reads it back; the binary writer
+//! does not, so it refuses a scene that holds any. One (u, v) belongs to each
 //! outer corner of each face, in face order, so faces never share a UV and there are no seams.
 //! Every stored value is exactly representable as f32: Maya stores `uvsp` as `float2`, so
 //! construction rounds to f32 and `validate` rejects anything else. See `.project-docs/uv-ascii-format.md`.

@@ -308,7 +308,7 @@ fn validate_rejects_non_finite_uvs() {
 }
 
 #[test]
-fn authored_writers_refuse_a_scene_with_session_uvs() {
+fn only_the_binary_writer_refuses_a_scene_with_session_uvs() {
     let (mut scene, shape) = scene_with(Primitive::Cube);
     assert_eq!(check_content_kind(&scene, UvPolicy::Refuse), Ok(()));
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
@@ -319,8 +319,17 @@ fn authored_writers_refuse_a_scene_with_session_uvs() {
     assert_eq!(check_content_kind(&scene, UvPolicy::Admit), Ok(()));
     assert_eq!(
         crate::native_scene::ascii::emit_geometry_prefix(&scene).map(|_| ()),
-        Err(crate::native_scene::ascii::AsciiWriteRefusal::SessionUvs)
+        Ok(())
     );
+    // The binary writer exists on Unix only.
+    #[cfg(unix)]
+    {
+        let binary = crate::native_scene::binary::encode_authored(&scene).unwrap_err();
+        assert_eq!(
+            crate::native_scene::binary::AuthoredRefusalCode::from(&binary),
+            crate::native_scene::binary::AuthoredRefusalCode::SessionUvs
+        );
+    }
 }
 
 #[test]

@@ -3,10 +3,7 @@
 use super::tests::{authored, decode, refused, replace};
 use super::*;
 use crate::{
-    native_scene::{
-        NativeMesh, UvProjectAxis, UvSet,
-        ascii::write::{AsciiWriteRefusal, emit_geometry_prefix, emit_geometry_prefix_with_uvs},
-    },
+    native_scene::{NativeMesh, UvProjectAxis, UvSet, ascii::write::emit_geometry_prefix},
     primitive_options::SINGLE_QUAD_PLANE,
     scene::Primitive,
 };
@@ -24,7 +21,7 @@ fn with_uvs(plane: bool) -> NativeScene {
 }
 
 fn emitted(scene: &NativeScene) -> Vec<u8> {
-    emit_geometry_prefix_with_uvs(scene).unwrap()
+    emit_geometry_prefix(scene).unwrap()
 }
 
 fn uv_sets(scene: &NativeScene) -> Vec<Option<UvSet>> {
@@ -98,10 +95,8 @@ fn a_uv_file_follows_the_adoption_decision_and_a_maya_file_with_other_nodes_stay
 }
 
 #[test]
-fn the_authored_uv_scene_still_refuses_the_public_prefix_and_keeps_its_uvs_valid() {
-    let projection = authored(&emitted(&with_uvs(true)));
-    assert_eq!(
-        emit_geometry_prefix(projection.scene()),
-        Err(AsciiWriteRefusal::SessionUvs)
-    );
+fn the_reopened_uv_scene_re_emits_its_own_bytes_through_the_public_prefix() {
+    let bytes = emitted(&with_uvs(true));
+    let projection = authored(&bytes);
+    assert_eq!(emit_geometry_prefix(projection.scene()), Ok(bytes));
 }

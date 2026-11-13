@@ -16,12 +16,6 @@ const PLANE_UV_TAIL: &[u8] = b"\tsetAttr -s 1 \".fc[0:0]\" -type \"polyFaces\"\n
 ;\n\
 \tsetAttr \".cuvs\" -type \"string\" \"map1\";\n";
 
-fn emit_uvs(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
-    let original = scene.clone();
-    let result = emit_geometry_prefix_with_uvs(scene);
-    assert_eq!(scene, &original);
-    result
-}
 fn plane_scene() -> NativeScene {
     let mut scene = scene(&["plane"]);
     scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
@@ -107,7 +101,7 @@ fn parse_uv_block(bytes: &[u8]) -> UvBlock {
 fn plane_with_uvs_emits_the_exact_provisional_block() {
     let mut scene = plane_scene();
     project(&mut scene);
-    let bytes = emit_uvs(&scene).unwrap();
+    let bytes = prefix(&scene).unwrap();
     assert!(
         bytes.ends_with(PLANE_UV_TAIL),
         "{}",
@@ -122,7 +116,7 @@ fn plane_with_uvs_emits_the_exact_provisional_block() {
 fn cube_values_ids_and_length_match_the_stored_set() {
     let mut scene = scene(&["cube"]);
     project(&mut scene);
-    let bytes = emit_uvs(&scene).unwrap();
+    let bytes = prefix(&scene).unwrap();
     assert_eq!(prefix_bytes(&scene).unwrap(), bytes.len());
     let text = std::str::from_utf8(&bytes).unwrap();
     let start = text.find("\tsetAttr -s 6 \".fc").unwrap();
@@ -142,17 +136,16 @@ fn cube_values_ids_and_length_match_the_stored_set() {
 fn shapes_without_uvs_keep_todays_bytes() {
     let mut scene = scene(&["a", "b"]);
     let plain = prefix(&scene).unwrap();
-    assert_eq!(emit_uvs(&scene).unwrap(), plain);
+    assert_eq!(prefix(&scene).unwrap(), plain);
     let shape = scene.shapes()[1].id();
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
-    let mixed = emit_uvs(&scene).unwrap();
+    let mixed = prefix(&scene).unwrap();
     let text = std::str::from_utf8(&mixed).unwrap();
     assert_eq!(text.matches(".uvst[0].uvsn").count(), 1);
     assert_eq!(text.matches(" mu 0 4 ").count(), 6);
     let first = std::str::from_utf8(&plain).unwrap();
     let boundary = first.find("createNode transform -n \"b\"").unwrap();
     assert_eq!(&text[..boundary], &first[..boundary]);
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
 }
 
 mod limits;

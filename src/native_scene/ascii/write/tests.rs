@@ -1416,15 +1416,16 @@ fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
 mod uv_block;
 
 #[test]
-fn session_uvs_are_refused_before_ascii_output() {
+fn session_uvs_are_written_and_deleting_them_restores_the_uv_free_bytes() {
     use crate::native_scene::UvProjectAxis;
     let mut scene = scene(&["box"]);
-    prefix(&scene).unwrap();
+    let plain = prefix(&scene).unwrap();
     let shape = scene.shapes()[0].id();
     scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
+    let with = prefix(&scene).unwrap();
+    assert!(String::from_utf8(with).unwrap().contains(".uvsp"));
     scene.delete_uvs(shape).unwrap();
-    prefix(&scene).unwrap();
+    assert_eq!(prefix(&scene).unwrap(), plain);
 }
 
 #[test]

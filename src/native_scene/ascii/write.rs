@@ -209,8 +209,8 @@ fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
     Ok(())
 }
 
-fn check(scene: &NativeScene, uvs: UvPolicy) -> Result<(), AsciiWriteRefusal> {
-    authored::check_content_kind(scene, uvs)?;
+fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
+    authored::check_content_kind(scene, UvPolicy::Admit)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
@@ -233,8 +233,7 @@ fn check(scene: &NativeScene, uvs: UvPolicy) -> Result<(), AsciiWriteRefusal> {
         removed: _,
         // Created, assigned or reassigned materials: the file has only the default pair.
         session_materials,
-        // Refused by `check_content_kind` under `UvPolicy::Refuse`, emitted per shape otherwise; keys
-        // and joints are always refused.
+        // Emitted per shape (`UvPolicy::Admit`); keys and joints are refused by `check_content_kind`.
         session_joints: _,
         session_uvs: _,
         session_keys: _,
@@ -272,6 +271,7 @@ impl From<AuthoredIneligible> for AsciiWriteRefusal {
             I::EdgeSmoothing => Self::EdgeSmoothing,
             I::FaceHoles => Self::FaceHoles,
             I::UnsupportedMeshChannels => Self::UnsupportedMeshChannels,
+            // The ASCII writer admits UVs, so `check_content_kind` never yields this here.
             I::SessionUvs => Self::SessionUvs,
         }
     }
@@ -506,22 +506,10 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
     Ok(())
 }
 
-/// Save (unix-only) and tests call this; the reopen gate uses the UV entry point on every platform.
-#[cfg(any(unix, test))]
+/// The one ASCII writer: Save (unix-only), the reopen gate (every platform) and tests call it. Each
+/// shape's session UVs are carried (#156); only the binary writer still refuses them.
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
-    emit(scene, UvPolicy::Refuse)
-}
-
-/// Like `emit_geometry_prefix`, but carries each shape's session UVs. Save keeps using the refusing
-/// entry point until task 4 of #156 turns UV saving on; the reopen gate is the caller of this one.
-pub(crate) fn emit_geometry_prefix_with_uvs(
-    scene: &NativeScene,
-) -> Result<Vec<u8>, AsciiWriteRefusal> {
-    emit(scene, UvPolicy::Admit)
-}
-
-fn emit(scene: &NativeScene, uvs: UvPolicy) -> Result<Vec<u8>, AsciiWriteRefusal> {
-    check(scene, uvs)?;
+    check(scene)?;
     let length = prefix_bytes(scene)?;
     let mut out = Budget::new(0)
         .and_then(|mut b| b.vector::<u8>(length))

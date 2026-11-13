@@ -6,7 +6,7 @@ use super::*;
 fn oracle_rejects_variants_of_the_uv_block() {
     let mut scene = plane_scene();
     project(&mut scene);
-    let bytes = emit_uvs(&scene).unwrap();
+    let bytes = prefix(&scene).unwrap();
     let tail = bytes[bytes.len() - PLANE_UV_TAIL.len() - 1..].to_vec();
     parse_uv_block(&tail);
     let text = String::from_utf8(tail).unwrap();
@@ -119,8 +119,7 @@ fn uv_work_is_charged_before_emission() {
         let name = format!("{}{index}", "a".repeat(1190));
         scene.create(Primitive::Cube, &name).unwrap();
     }
-    emit_uvs(&scene).unwrap();
+    prefix(&scene).unwrap();
     project(&mut scene);
-    assert_eq!(emit_uvs(&scene), Err(AsciiWriteRefusal::ResourceLimit));
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionUvs));
+    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::ResourceLimit));
 }

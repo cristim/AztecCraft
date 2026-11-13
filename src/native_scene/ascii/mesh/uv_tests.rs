@@ -1,6 +1,6 @@
 //! The reader's UV block (PROVISIONAL layout, `.project-docs/uv-ascii-format.md`): what the
 //! writer emits parses into a per-shape side table, and every hand edit of it is refused.
-use super::super::{ErrorKind, decode_with_uvs, write::emit_geometry_prefix_with_uvs};
+use super::super::{ErrorKind, decode_with_uvs, write::emit_geometry_prefix};
 use crate::{
     native_scene::{NativeMesh, NativeScene, UvProjectAxis, UvSet},
     primitive_options::SINGLE_QUAD_PLANE,
@@ -20,7 +20,7 @@ fn scene_with_uvs(plane: bool) -> NativeScene {
 }
 
 fn plane_text() -> String {
-    String::from_utf8(emit_geometry_prefix_with_uvs(&scene_with_uvs(true)).unwrap()).unwrap()
+    String::from_utf8(emit_geometry_prefix(&scene_with_uvs(true)).unwrap()).unwrap()
 }
 
 fn read(text: &str) -> Result<Vec<Option<UvSet>>, super::super::AsciiError> {
@@ -39,7 +39,7 @@ fn refused(text: &str, kind: ErrorKind) {
 fn the_writers_uv_block_reads_back_into_the_side_table() {
     for plane in [true, false] {
         let scene = scene_with_uvs(plane);
-        let bytes = emit_geometry_prefix_with_uvs(&scene).unwrap();
+        let bytes = emit_geometry_prefix(&scene).unwrap();
         let (decoded, uvs) = decode_with_uvs(Arc::from(bytes), true).unwrap();
         assert!(decoded.has_source(), "the sourced scene holds no UVs");
         assert!(decoded.uv_set(decoded.shapes()[0].id()).is_none());
@@ -52,7 +52,7 @@ fn the_writers_uv_block_reads_back_into_the_side_table() {
 fn faces_without_mu_give_no_uv_set() {
     let mut scene = scene_with_uvs(false);
     scene.delete_uvs(scene.shapes()[0].id()).unwrap();
-    let bytes = emit_geometry_prefix_with_uvs(&scene).unwrap();
+    let bytes = emit_geometry_prefix(&scene).unwrap();
     assert_eq!(decode_with_uvs(Arc::from(bytes), true).unwrap().1, [None]);
 }
 
@@ -81,8 +81,7 @@ fn a_mu_block_that_is_not_the_single_running_set_is_refused() {
 
 #[test]
 fn mu_on_only_some_faces_is_refused() {
-    let text =
-        String::from_utf8(emit_geometry_prefix_with_uvs(&scene_with_uvs(false)).unwrap()).unwrap();
+    let text = String::from_utf8(emit_geometry_prefix(&scene_with_uvs(false)).unwrap()).unwrap();
     let first = text.find(" mu 0 4 0 1 2 3").unwrap();
     let mut edited = text.clone();
     edited.replace_range(first..first + " mu 0 4 0 1 2 3".len(), "");
@@ -179,7 +178,7 @@ fn uv_statements_need_faces_with_mu_first() {
 
 #[test]
 fn the_uv_reader_never_panics_on_a_truncated_block() {
-    let bytes = emit_geometry_prefix_with_uvs(&scene_with_uvs(false)).unwrap();
+    let bytes = emit_geometry_prefix(&scene_with_uvs(false)).unwrap();
     for end in (0..bytes.len()).step_by(7) {
         let _ = decode_with_uvs(Arc::from(bytes[..end].to_vec()), true);
     }
@@ -189,7 +188,7 @@ fn the_uv_reader_never_panics_on_a_truncated_block() {
 fn a_set_name_without_mu_rows_is_refused_not_ignored() {
     let mut scene = scene_with_uvs(true);
     scene.delete_uvs(scene.shapes()[0].id()).unwrap();
-    let plain = String::from_utf8(emit_geometry_prefix_with_uvs(&scene).unwrap()).unwrap();
+    let plain = String::from_utf8(emit_geometry_prefix(&scene).unwrap()).unwrap();
     for statement in [
         "\tsetAttr \".uvst[0].uvsn\" -type \"string\" \"map1\";\n",
         "\tsetAttr \".cuvs\" -type \"string\" \"map1\";\n",
