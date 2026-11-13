@@ -4,7 +4,7 @@ use super::{
     TransformExtras, Units, UvSet,
     admission::Budget,
     authored::BUILTINS,
-    curve::CurveSource,
+    curve::{CurveForm, CurveSource},
     source::{SourceFormat, SourceRetention},
 };
 pub use crate::maya_ascii::{AsciiError, ErrorKind};
@@ -456,6 +456,7 @@ impl Builder<'_, '_> {
                     uuid: None,
                     name: self.budget.string(name).map_err(|_| resource())?,
                     degree: 3,
+                    form: CurveForm::Open,
                     control_vertices: Vec::new(),
                     knots: Vec::new(),
                     source: CurveSource {
@@ -744,7 +745,7 @@ impl Builder<'_, '_> {
                         let form = c.count()?;
                         let rational = c.boolean()?;
                         let dimension = c.count()?;
-                        if !(1..=3).contains(&degree) || form != 0 || rational || dimension != 3 {
+                        if !(1..=3).contains(&degree) || form > 2 || rational || dimension != 3 {
                             return Err(error(ErrorKind::Unsupported, c.offset));
                         }
                         let knot_count = c.count()?;
@@ -775,6 +776,11 @@ impl Builder<'_, '_> {
                         }
                         c.done()?;
                         self.mark(owner, 1, c)?;
+                        self.scene.curves[index].form = match form {
+                            0 => CurveForm::Open,
+                            1 => CurveForm::Closed,
+                            _ => CurveForm::Periodic,
+                        };
                         self.scene.curves[index].degree = u32::try_from(degree)
                             .map_err(|_| error(ErrorKind::Malformed, c.offset))?;
                         self.scene.curves[index].knots = knots;

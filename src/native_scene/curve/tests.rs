@@ -3,7 +3,7 @@ use crate::{native_scene::*, scene::Primitive};
 use glam::DVec3;
 use std::sync::Arc;
 
-fn candidate() -> (NativeScene, crate::scene::NodeId) {
+pub(super) fn candidate() -> (NativeScene, crate::scene::NodeId) {
     let (mut scene, node) = crate::native_scene::test_fixtures::cube();
     let id = scene.shapes[0].id;
     scene.shapes.clear();
@@ -23,6 +23,7 @@ fn candidate() -> (NativeScene, crate::scene::NodeId) {
         uuid: Some(Uuid::nil()),
         name: "curveShape".into(),
         degree: 3,
+        form: CurveForm::Open,
         control_vertices: vec![
             [0.0, -0.0, 0.0],
             [1.0, 2.0, 0.0],
