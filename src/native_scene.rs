@@ -8,6 +8,7 @@ mod manipulator_frame;
 mod maya_import;
 mod mesh;
 mod move_translation;
+mod reparent;
 mod rotate_frame;
 mod scale_frame;
 mod session_keys;
@@ -28,6 +29,7 @@ pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError}
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
 };
+pub use reparent::{ReparentKeep, ReparentRefusal};
 pub use rotate_frame::{RotateAxis, RotateFrame, RotateSpace, RotateUnsupported};
 pub use scale_frame::{ScaleFrame, ScaleHandle, ScaleSpace, ScaleUnsupported};
 use session_keys::SessionKeys;
@@ -2118,6 +2120,8 @@ pub enum NativeError {
     InvalidName,
     NameCollision,
     UnsupportedEdit,
+    /// A parent or unparent the scene refuses; see `ReparentRefusal`.
+    InvalidReparent(ReparentRefusal),
     UnsupportedDelete(DeleteUnsupported),
     /// One node of a delete of several refused; `reason` is that node's own refusal.
     DeleteMemberRefused {
@@ -2188,6 +2192,7 @@ impl fmt::Display for NativeError {
             Self::UnsupportedEdit => {
                 f.write_str("native ownership or edit effects are unsupported")
             }
+            Self::InvalidReparent(reason) => reason.fmt(f),
             Self::UnsupportedDelete(reason) => write!(f, "{reason}"),
             Self::DeleteMemberRefused { node, reason } => write!(f, "{node}: {reason}"),
             Self::InsertionAfterDelete => f.write_str(
