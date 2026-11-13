@@ -242,6 +242,66 @@ impl NativeMesh {
     pub fn point_count(&self) -> usize {
         self.points.len()
     }
+    /// Moves the listed points by `delta_cm` (centimetres) in the mesh's own space. Every index must
+    /// exist and appear once, every result must be finite in the stored precision, and a mesh with
+    /// per-point offsets is refused. The mesh is unchanged on error.
+    pub(super) fn translate_points(
+        &mut self,
+        indices: &[usize],
+        delta_cm: [f64; 3],
+    ) -> Result<(), NativeError> {
+        if indices.is_empty() {
+            return Err(NativeError::InvalidTopology);
+        }
+        if delta_cm.iter().any(|v| !v.is_finite()) {
+            return Err(NativeError::NonFinite);
+        }
+        if self.has_point_offsets() {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        let mut seen = std::collections::HashSet::new();
+        seen.try_reserve(indices.len())
+            .map_err(|_| NativeError::ResourceLimit)?;
+        if indices
+            .iter()
+            .any(|i| *i >= self.points.len() || !seen.insert(*i))
+        {
+            return Err(NativeError::InvalidTopology);
+        }
+        match &mut self.points {
+            Points::Float3(points) => {
+                let moved: Vec<[f32; 3]> = indices
+                    .iter()
+                    .map(|i| {
+                        let p = points[*i];
+                        [0, 1, 2].map(|k| (f64::from(p[k]) + delta_cm[k]) as f32)
+                    })
+                    .collect();
+                if moved.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                for (i, p) in indices.iter().zip(moved) {
+                    points[*i] = p;
+                }
+            }
+            Points::Double3(points) => {
+                let moved: Vec<[f64; 3]> = indices
+                    .iter()
+                    .map(|i| {
+                        let p = points[*i];
+                        [0, 1, 2].map(|k| p[k] + delta_cm[k])
+                    })
+                    .collect();
+                if moved.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                for (i, p) in indices.iter().zip(moved) {
+                    points[*i] = p;
+                }
+            }
+        }
+        Ok(())
+    }
     pub fn effective_point_cm(&self, index: usize) -> Result<[f64; 3], NativeError> {
         let mut point = self.points.get(index).ok_or(NativeError::InvalidTopology)?;
         if let Ok(offset) = self
