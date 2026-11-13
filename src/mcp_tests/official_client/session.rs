@@ -117,7 +117,7 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
             editor.selection_mode,
             editor.selected(),
             editor.selected_path().to_vec(),
-            editor.remembered_face.clone(),
+            editor.remembered_face(),
         );
         let args = if tool == "set_grid_visibility" {
             json!({"scene_token":editor.scene_token.to_string(),"visible":false})
@@ -166,7 +166,7 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
                 editor.selection_mode,
                 editor.selected(),
                 editor.selected_path().to_vec(),
-                editor.remembered_face.clone()
+                editor.remembered_face()
             ),
             selection
         );
@@ -196,7 +196,7 @@ async fn legacy_sdk_cancellation_and_eof_skip_hidden_queued_edits() {
                 editor.selection_mode,
                 editor.selected(),
                 editor.selected_path().to_vec(),
-                editor.remembered_face.clone()
+                editor.remembered_face()
             ),
             selection
         );

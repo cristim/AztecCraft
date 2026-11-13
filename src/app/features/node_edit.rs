@@ -37,17 +37,17 @@ impl Editor {
             return;
         };
         let scene = self.history.scene();
-        let stale_face = self.remembered_face.as_ref().is_some_and(|target| {
+        let stale_face = self.remembered_face().as_ref().is_some_and(|target| {
             self.stale_component(target.transform, &target.path, || {
                 scene.resolve_face_target(target).is_ok()
             })
         });
-        let stale_vertex = self.remembered_vertex.as_ref().is_some_and(|target| {
+        let stale_vertex = self.remembered_vertex().as_ref().is_some_and(|target| {
             self.stale_component(target.transform, &target.path, || {
                 scene.resolve_vertex_target(target).is_ok()
             })
         });
-        let stale_edge = self.remembered_edge.as_ref().is_some_and(|target| {
+        let stale_edge = self.remembered_edge().as_ref().is_some_and(|target| {
             self.stale_component(target.transform, &target.path, || {
                 scene.resolve_edge_target(target).is_ok()
             })
@@ -58,13 +58,13 @@ impl Editor {
         self.pivot_drafts = pivot_values(node).map(|value| value.to_string());
         let transform = node.transform_id();
         if stale_face {
-            self.remembered_face = None;
+            self.set_remembered_face(None);
         }
         if stale_vertex {
-            self.remembered_vertex = None;
+            self.set_remembered_vertex(None);
         }
         if stale_edge {
-            self.remembered_edge = None;
+            self.set_remembered_edge(None);
         }
         if !self
             .material_shape

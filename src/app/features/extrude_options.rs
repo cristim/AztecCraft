@@ -73,7 +73,7 @@ impl Editor {
     pub(in crate::app) fn extrude_blocker(&self) -> Option<ExtrudeBlocker> {
         if self.selection_mode != SelectionMode::Face {
             Some(ExtrudeBlocker::NotFaceMode)
-        } else if self.remembered_face.is_none() {
+        } else if self.remembered_face().is_none() {
             Some(ExtrudeBlocker::NoFaceSelected)
         } else {
             None
@@ -90,7 +90,7 @@ impl Editor {
         if let Some(blocker) = self.extrude_blocker() {
             return Some(blocker.to_string());
         }
-        let face = self.remembered_face.as_ref()?;
+        let face = self.remembered_face()?;
         scene
             .uv_set(face.shape)
             .map(|_| NativeError::UvsBlockTopologyEdit.to_string())
@@ -108,8 +108,7 @@ impl Editor {
             return Err(ExtrudeFailure::Blocked(blocker));
         }
         let target = self
-            .remembered_face
-            .clone()
+            .remembered_face()
             .ok_or(ExtrudeFailure::Blocked(ExtrudeBlocker::NoFaceSelected))?;
         self.native_operation_result(Operation::ExtrudeFace {
             target,
