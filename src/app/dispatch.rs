@@ -515,6 +515,8 @@ impl Editor {
                     | Operation::SetUndoEnabled { .. }
                     | Operation::OpenUndoChunk { .. }
                     | Operation::CloseUndoChunk
+                    | Operation::SetPivots { .. }
+                    | Operation::ResetPivots { .. }
             )
         {
             return Err(OperationError::BusyEditing);

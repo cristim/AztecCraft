@@ -97,10 +97,10 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `apply_operation_guarded` (`src/app/dispatch.rs "Pivot reset on {noun} selection is unsupported"`), ahead of
   `guard_move_dispatch`, so it shows in every native state (closing, move, modal, draft) as the `reset_pivots(face_mode)`
   cells; remote cells still report the outer state guard first. `SetPivots` names its node and has no such check.
-- The two pivot operations are not in the modal list of step 5 and not in `guard_move_dispatch`'s cancelling list: during a
-  Move they are `BusyManipulation`, while native ones run under a file modal (`set_pivots(preserve)` is `Ok(changed)` in
-  `modal/native`; issue #430), and remote ones are refused by the outer modal guard. `ResetPivots` with an empty selection
-  is `NoSelection`, whose message reads "Select an object or face before framing" (issue #431); the matrix has no such cell
+- The two pivot operations are in the native modal list of step 5 (`BusyEditing` under a file modal, issue #430, like every
+  other native edit) but not in `guard_move_dispatch`'s cancelling list: during a Move they are `BusyManipulation`, and
+  remote ones are refused by the outer modal guard. `ResetPivots` with an empty selection
+  is `NoSelection`, whose message reads "Select an object or face first"; the matrix has no such cell
   because every state selects a node.
 - The pivot samples run in the main matrix in every state, and also in `pivoted` (a rotated, scaled opened binary: the
   preserving `set_pivots` and Center Pivot are refused with `PivotNeedsTranslateCorrection`, the raw
