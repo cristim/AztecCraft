@@ -1,4 +1,5 @@
 mod admission;
+pub(crate) use admission::MAX_WORK as MAX_ADMISSION_WORK;
 mod appearance;
 mod binding;
 mod encode;
