@@ -175,6 +175,10 @@ impl InternalExtras {
         DMat4::from_rotation_z(az) * DMat4::from_rotation_y(ay) * DMat4::from_rotation_x(ax)
     }
 
+    pub(crate) fn shear_matrix(&self) -> DMat4 {
+        shear_matrix(self.shear)
+    }
+
     /// T * RT * RP * R(ro) * RA * RP^-1 * ST * SP * SH * S * SP^-1 (column form).
     pub(crate) fn matrix(
         &self,

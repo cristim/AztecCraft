@@ -3,7 +3,9 @@ use super::{
     registry::{catalog, parse_request},
     transport::{Control, Shared, check_serialized_size},
 };
-use crate::editor_operations::{MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply};
+use crate::editor_operations::{
+    KeysRefusal, MAX_REPLY_BYTES, MAX_RESULT_BYTES, OperationError, OperationReply,
+};
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::ManipulationError,
@@ -92,9 +94,8 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::StaleScene => "stale_scene",
                 OperationError::TooLarge => "too_large",
                 OperationError::Keys(error) => match error {
-                    NativeError::ReadOnlyFormat => "read_only_format",
-                    NativeError::UnsupportedEdit => "unsupported_edit",
-                    _ => "scene_error",
+                    KeysRefusal::ReadOnlyFormat => "read_only_format",
+                    KeysRefusal::UnsupportedEdit => "unsupported_edit",
                 },
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
