@@ -22,6 +22,19 @@ struct OpenArgs {
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+struct ExportGltfArgs {
+    scene_token: String,
+    /// New .gltf (embedded base64 buffer) or .glb destination; an existing file is never replaced.
+    #[schemars(length(min = 1, max = 4096))]
+    path: String,
+    /// Export only every selected object and its descendants (Export Selection); default false
+    /// exports every displayed polygon instance (Export All).
+    #[serde(default)]
+    selection_only: bool,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct ExportArgs {
     scene_token: String,
     /// New .obj destination; an existing file is never replaced.
@@ -115,6 +128,23 @@ fn parse_import_obj(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     ))
 }
 
+fn parse_export_gltf(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ExportGltfArgs = decode(arguments)?;
+    if args.path.is_empty() || args.path.len() > 4096 || args.path.contains('\0') {
+        return Err(ErrorData::invalid_params(
+            "path must contain 1 to 4096 UTF-8 bytes and no NUL",
+            None,
+        ));
+    }
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ExportGltf {
+            path: args.path.into(),
+            selection_only: args.selection_only,
+        },
+    ))
+}
+
 fn parse_new_scene(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     mutation(arguments, Operation::NewScene)
 }
@@ -200,6 +230,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Import a Wavefront OBJ file into the current scene (File > Import), the same operation as the native menu. Adds one new root object per o/g group (faces before any group take the file name) as one undo step, selects them, and keeps the scene token. Meshes only: v and f records (triangles, quads, n-gons, negative indices); normals, UVs, materials, smoothing and .mtl are counted in ignored_records and dropped. Refuses free-form geometry, unknown records, overlapping groups, CR-only line endings and faces the viewport cannot display (concave or holed faces with 5 or more corners: triangulate and export again). Refused in a scene opened from .mb or .ma. PROVISIONAL: Maya's help is silent on units, naming, winding and limits. Replies with object, vertex and face counts and the new node_ids",
         schema: schema::<ImportArgs>,
         parse: parse_import_obj,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "export_gltf",
+        description: "Export displayed polygon geometry as a new glTF 2.0 file: .gltf with an embedded base64 buffer, or binary .glb, chosen by the path extension (Export All, or Export Selection with selection_only; MCP only, no File menu entry yet). World-space positions converted from centimeters to meters (f64 divided by 100, then rounded to f32), +Y up as authored, one node and one triangle mesh per instance (quads split along the interior diagonal, mirrored instances keep outward faces). No normals (glTF clients compute flat normals), UVs, materials, animation or skins; a shape with session UVs or an assigned session material is refused (export_unsupported). An AztecCraft extension, not a Maya feature. Never overwrites; the scene is not changed. Replies with object, vertex and triangle counts",
+        schema: schema::<ExportGltfArgs>,
+        parse: parse_export_gltf,
         idempotent: false,
         read_only: false,
     },
