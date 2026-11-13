@@ -135,6 +135,7 @@ mod official_client {
     mod manipulator_size;
     mod marquee;
     mod material;
+    mod move_vertices;
     mod multi_move;
     mod node_edit;
     mod obj_export;
