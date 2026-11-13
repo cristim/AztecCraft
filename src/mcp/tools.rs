@@ -50,6 +50,7 @@ fn pivot_code(error: &NativeError) -> &'static str {
         NativeError::InsertionAfterDelete => "insertion_after_delete",
         NativeError::PivotNeedsTranslateCorrection => "pivot_needs_translate_correction",
         NativeError::PivotOnKeyedNode => "pivot_on_keyed_node",
+        NativeError::NonFinite => "invalid_input",
         _ => "scene_error",
     }
 }
@@ -356,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn pivot_refusals_report_their_five_codes_and_the_rest_scene_error() {
+    fn pivot_refusals_report_their_codes_and_the_rest_scene_error() {
         let code = |error| {
             let result = tool_reply(Err(OperationError::Pivot(error)));
             serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
@@ -373,7 +374,8 @@ mod tests {
                 "pivot_needs_translate_correction",
             ),
             (NativeError::PivotOnKeyedNode, "pivot_on_keyed_node"),
-            (NativeError::NonFinite, "scene_error"),
+            (NativeError::NonFinite, "invalid_input"),
+            (NativeError::ResourceLimit, "scene_error"),
         ] {
             assert_eq!(code(error), expected);
         }

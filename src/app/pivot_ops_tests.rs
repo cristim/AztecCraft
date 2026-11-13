@@ -1,7 +1,7 @@
 //! Issue #39 slice B: `Operation::SetPivots` and `Operation::ResetPivots` through the shared
 //! dispatch path. Native and remote callers reach the same `Command`; the guards, the
 //! `commit_pending` policy and the selection rules are the other operations'.
-use super::tests::{deep_group_editor_with_leaf, remote};
+use super::tests::remote;
 use super::*;
 use azteccraft::native_scene::{ALL_CHANNELS, NativeError, PivotReset, TransformTarget, WorldAxis};
 
@@ -265,8 +265,8 @@ fn an_invalid_draft_refuses_the_native_pivot_operation_and_keeps_everything() {
     }
 }
 
-/// Like Delete and EditNode, a native edit is not in the modal list (the dialog covers the UI);
-/// closing refuses it before the draft commits, and a remote caller is refused in both states.
+/// Closing refuses a native pivot operation before the draft commits, and a remote caller is
+/// refused in both states. The native modal case is pinned apart below.
 #[test]
 fn modal_and_closing_refuse_a_pivot_operation_before_it_commits_the_draft() {
     for closing in [false, true] {
@@ -446,30 +446,71 @@ fn reset_pivots_applies_once_per_node_when_the_selection_repeats_it() {
 }
 
 /// Q4: every selected object is handled on its own, a selected ancestor and descendant alike.
-#[test]
-fn reset_pivots_handles_a_selected_ancestor_and_descendant_independently() {
-    let mut editor =
-        deep_group_editor_with_leaf([1.0, 2.0, 3.0], [0.0, 0.5, 0.0], [0.5, 0.25, -1.0]);
-    let all = editor.history.scene().transform_paths().unwrap();
-    let group = all[0].clone();
-    let child = all.last().unwrap().clone();
-    assert_ne!(group.node, child.node);
-    editor.set_selection_members_for_test(vec![group.clone(), child.clone()]);
+/// The child sits 10 units off its parent, so the parent's box centre (hierarchy) differs from
+/// the child's.
+#[cfg(feature = "mcp-test-client")]
+fn parent_and_child() -> (Editor, TransformTarget, TransformTarget) {
+    let mut scene = azteccraft::native_scene::NativeScene::default();
+    let parent = scene.create(Primitive::Cube, "parent").unwrap();
+    let child = scene.create(Primitive::Cube, "child").unwrap();
+    scene.set_parents_for_test(child, &[parent]).unwrap();
+    let mut channels = [None; 9];
+    channels[0] = Some(10.0);
+    scene.edit_node(child, None, channels).unwrap();
+    for (id, rotate, scale) in [(parent, RP, SP), (child, [4.0, 5.0, 6.0], [-1.0, 2.0, 3.0])] {
+        scene
+            .set_pivots(id, Some(rotate), Some(scale), false)
+            .unwrap();
+    }
+    let mut editor = Editor {
+        history: azteccraft::history::History::new(scene),
+        ..Editor::default()
+    };
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let find = |node| paths.iter().find(|p| p.node == node).unwrap().clone();
+    let (parent, child) = (find(parent), find(child));
+    editor.set_selection_members_for_test(vec![parent.clone(), child.clone()]);
     editor.sync_fields();
-    let group_before = editor.history.scene().node(group.node).unwrap().clone();
+    (editor, parent, child)
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn zero_pivot_handles_a_selected_ancestor_and_descendant_independently() {
+    let (mut editor, parent, child) = parent_and_child();
+    let before = editor.history.scene().clone();
     editor
         .apply_operation(Operation::ResetPivots {
             mode: PivotReset::Zero,
         })
         .unwrap();
-    assert_eq!(pivots(&editor, child.node).0, [0.0; 3]);
-    assert_eq!(
-        editor.history.scene().node(group.node).unwrap(),
-        &group_before
-    );
+    for target in [&parent, &child] {
+        assert_eq!(pivots(&editor, target.node), ([0.0; 3], [0.0; 3]));
+    }
     assert_eq!(editor.history.undo_label().as_deref(), Some("Pivot"));
     assert!(editor.history.undo());
-    assert_eq!(pivots(&editor, child.node).0, [0.5, 0.25, -1.0]);
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[cfg(feature = "mcp-test-client")]
+#[test]
+fn center_pivot_centres_each_selected_node_on_its_own_hierarchy_box() {
+    let (mut editor, parent, child) = parent_and_child();
+    editor
+        .apply_operation(Operation::ResetPivots {
+            mode: PivotReset::Center,
+        })
+        .unwrap();
+    let (parent_rp, parent_sp) = pivots(&editor, parent.node);
+    let (child_rp, child_sp) = pivots(&editor, child.node);
+    assert_eq!(parent_rp, parent_sp);
+    assert_eq!(child_rp, child_sp);
+    assert!(child_rp.iter().all(|c| c.abs() < 1e-9), "{child_rp:?}");
+    assert!(
+        (parent_rp[0] - 5.0).abs() < 1e-9 && parent_rp[1].abs() < 1e-9 && parent_rp[2].abs() < 1e-9,
+        "{parent_rp:?}"
+    );
+    assert_eq!(editor.history.undo_label().as_deref(), Some("Pivot"));
 }
 
 #[test]
@@ -523,19 +564,62 @@ fn a_read_only_ascii_scene_refuses_with_the_pivot_variant() {
     assert_eq!(editor.history.scene(), &before);
 }
 
-/// A refusal without its own MCP code stays the generic `Scene` error.
+/// NaN and an overflowing request are the typed `NonFinite` refusal, whichever way the number
+/// goes bad, and leave the scene alone.
 #[test]
-fn a_non_finite_pivot_is_the_generic_scene_error() {
+fn a_non_finite_or_overflowing_pivot_is_the_typed_pivot_refusal() {
     let (mut editor, ids) = cubes(1);
+    let id = ids[0].node;
+    editor
+        .apply_operation(Operation::EditNode {
+            id,
+            name: None,
+            translation: [None; 3],
+            rotation_degrees: [Some(30.0), Some(40.0), Some(50.0)],
+            scale: [Some(2.0), Some(3.0), Some(4.0)],
+        })
+        .unwrap();
     let before = baseline(&editor);
-    assert!(matches!(
-        editor.apply_operation(Operation::SetPivots {
-            id: ids[0].node,
-            rotate_pivot: Some([f64::NAN, 0.0, 0.0]),
-            scale_pivot: None,
+    for rotate in [
+        [f64::NAN, 0.0, 0.0],
+        [f64::INFINITY, 0.0, 0.0],
+        [f64::MAX; 3],
+        [-f64::MAX, f64::MAX, f64::MAX],
+    ] {
+        let result = editor.apply_operation(Operation::SetPivots {
+            id,
+            rotate_pivot: Some(rotate),
+            scale_pivot: Some(rotate),
             preserve: true,
+        });
+        assert!(
+            matches!(result, Err(OperationError::Pivot(NativeError::NonFinite))),
+            "{rotate:?}: {result:?}"
+        );
+        assert_eq!(baseline(&editor), before);
+    }
+}
+
+/// Issue #430: the native modal list in dispatch omits every edit (Delete, EditNode, Create),
+/// so a native pivot operation runs under a confirmation dialog; the menus are disabled while
+/// one is open. This pins the current outcome, not a wish: fixing #430 changes it for all edits.
+#[test]
+fn a_native_pivot_operation_still_runs_under_a_modal_dialog() {
+    let (mut editor, ids) = cubes(1);
+    let id = ids[0].node;
+    editor.apply_operation(set(id, false)).unwrap();
+    editor.new_document().unwrap();
+    assert!(editor.files.is_modal());
+    assert!(matches!(
+        editor.apply_operation(Operation::ResetPivots {
+            mode: PivotReset::Zero
         }),
-        Err(OperationError::Scene(NativeError::NonFinite))
+        Ok(OperationReply::Changed)
     ));
-    assert_eq!(baseline(&editor), before);
+    assert_eq!(pivots(&editor, id), ([0.0; 3], [0.0; 3]));
+    assert!(matches!(
+        editor.apply_operation(set(id, true)),
+        Ok(OperationReply::Changed)
+    ));
+    assert_eq!(pivots(&editor, id), (RP, SP));
 }
