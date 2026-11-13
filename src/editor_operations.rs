@@ -495,6 +495,13 @@ pub enum Operation {
     ApplyCameraBookmark {
         name: String,
     },
+    /// Write one recovery file of the committed scene when recovery is enabled by the host.
+    /// Not undoable, never dirties, never changes the scene token or the scene file.
+    #[cfg(any(test, feature = "mcp"))]
+    AutosaveNow,
+    /// A read like `ListCameraBookmarks`: it passes no guard.
+    #[cfg(any(test, feature = "mcp"))]
+    RecoveryStatus,
     Create {
         primitive: Primitive,
         options: Option<azteccraft::primitive_options::PrimitiveOptions>,
@@ -729,6 +736,21 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     CameraBookmarks {
         bookmarks: Vec<CameraBookmarkInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    /// One recovery file was written; `bytes` is its payload size.
+    Autosaved {
+        sequence: u32,
+        bytes: u64,
+        pruned: usize,
+        prune_failures: usize,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    RecoveryStatus {
+        enabled: bool,
+        max_backups: Option<usize>,
+        /// Recovery files of every session in the folder; names and paths are never reported.
+        files: usize,
     },
     Created {
         node_id: String,
@@ -1293,6 +1315,27 @@ pub struct UndoStateInspection {
     pub open_chunk: Option<String>,
 }
 
+#[cfg(any(test, feature = "mcp"))]
+/// Why an autosave wrote nothing. Display carries no path, scene name or payload.
+#[derive(Debug)]
+pub enum RecoveryFailure {
+    /// The host did not enable recovery (`--recovery-dir`).
+    Disabled,
+    Encode(azteccraft::document::RecoveryEncodeError),
+    Store(azteccraft::recovery::RecoveryError),
+}
+
+#[cfg(any(test, feature = "mcp"))]
+impl fmt::Display for RecoveryFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Disabled => f.write_str("recovery is not enabled for this session"),
+            Self::Encode(error) => error.fmt(f),
+            Self::Store(error) => error.fmt(f),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum OperationError {
     BusyEditing,
@@ -1340,6 +1383,8 @@ pub enum OperationError {
     /// A refused absolute pose; names the field.
     CameraPose(InvalidCameraPose),
     CameraBookmark(BookmarkError),
+    #[cfg(any(test, feature = "mcp"))]
+    Recovery(RecoveryFailure),
     /// An update parameter that does not belong to the active manipulation's kind.
     KindMismatch {
         parameter: &'static str,
@@ -1454,6 +1499,8 @@ impl fmt::Display for OperationError {
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
             Self::CameraBookmark(error) => error.fmt(f),
+#[cfg(any(test, feature = "mcp"))]
+            Self::Recovery(error) => error.fmt(f),
             Self::KindMismatch { parameter, active } => write!(
                 f,
                 "{} {parameter} does not apply to the active {active} manipulation",

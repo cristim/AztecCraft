@@ -118,6 +118,11 @@ impl FileAction {
     }
 }
 impl FileState {
+    /// The open document's file name without extension; recovery files are named after it.
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn scene_stem(&self) -> Option<&str> {
+        self.path.as_deref()?.file_stem()?.to_str()
+    }
     pub(super) fn save_available(&self) -> bool {
         self.uncertain.is_some() || self.origin.active_save_available()
     }

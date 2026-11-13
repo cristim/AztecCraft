@@ -160,7 +160,9 @@ impl Editor {
             | Operation::DeleteCameraBookmark { .. }
             | Operation::ApplyCameraBookmark { .. } => None,
             #[cfg(any(test, feature = "mcp"))]
-            Operation::ListCameraBookmarks => None,
+            Operation::ListCameraBookmarks | Operation::RecoveryStatus => None,
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::AutosaveNow => None,
             // Native drags report their own live preview, which a remote preview does not drive.
             Operation::BeginMove { .. }
             | Operation::BeginRotate { .. }
@@ -319,6 +321,9 @@ impl Editor {
         }
         if matches!(request.operation, Operation::ListCameraBookmarks) {
             return Ok(self.list_camera_bookmarks());
+        }
+        if matches!(request.operation, Operation::RecoveryStatus) {
+            return self.recovery_status();
         }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
             return Ok(OperationReply::Uvs {
@@ -482,6 +487,13 @@ impl Editor {
                 }
                 return self
                     .save_document(azteccraft::document::SaveDestination::Active, may_install);
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::AutosaveNow => {
+                if self.files.is_modal() {
+                    return Err(OperationError::BusyEditing);
+                }
+                return self.autosave_now();
             }
             Operation::NewScene => return self.new_document(),
             Operation::RequestClose => return self.close_document(),
@@ -762,6 +774,8 @@ impl Editor {
             }
             #[cfg(any(test, feature = "mcp"))]
             Operation::ListCameraBookmarks => return Ok(self.list_camera_bookmarks()),
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::RecoveryStatus => return self.recovery_status(),
             Operation::SetGridVisible { visible } => {
                 let changed = self.grid_visible != visible;
                 self.grid_visible = visible;
@@ -1341,6 +1355,12 @@ impl Editor {
                 return Ok(OperationReply::Vertices {
                     inspection: Box::new(self.inspect_vertices(shape, cursor.as_ref())?),
                 });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::AutosaveNow => {
+                return Err(OperationError::InvalidInput(
+                    "Autosave was not dispatched".into(),
+                ));
             }
             Operation::OpenScene { .. }
             | Operation::SaveScene
