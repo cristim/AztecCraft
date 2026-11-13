@@ -30,6 +30,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_transform", "`xform -translation -rotation -scale`, `setAttr`", "rotation in degrees regardless of `currentUnit -angle`"),
     ("edit_node", "`xform`, `setAttr`, `rename`", "one undo entry; rotation in degrees regardless of `currentUnit -angle`"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),
+    ("move_vertices", "`move -relative -objectSpace` on `vtx[n]` components", "translate only, Object axis orientation only (Maya defaults to World); no soft select, no Preserve UVs, authored scenes only"),
     ("create_joint", "`joint -position -relative -radius -name`", "session-only, not saved; joint chains only, no orientation, rotation 0 and scale 1 (PROVISIONAL)"),
     ("set_current_time", "`currentTime`", "whole frames only"),
     ("set_keyframe", "`setKeyframe`", "linear interpolation, no tangents (PROVISIONAL); transform channels only"),
