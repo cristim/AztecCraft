@@ -1304,6 +1304,104 @@
     }
   },
   {
+    "name": "modify_component_selection",
+    "description": "Replace, add to, remove from or toggle the face, vertex or edge selection of the one selected object by component index (Maya select -replace, -add, -deselect, -toggle on f[n], vtx[n], e[n]); the same typed operation a component click or drag would use. owner names the selected object's shape as select_face does (node_id, shape_id and the full instance_path ending with the shape); indices are positions in that mesh, so a topology edit or Undo can renumber them, and members past the end are dropped. mode replace (default) sets the set to the indices in order (an empty list empties it), add appends the absent ones, remove drops the members, toggle flips each distinct index; repeated indices keep their first position and the last member is the lead (PROVISIONAL: Maya documents neither order nor lead). Requires the mode of kind (set_selection_mode) and refuses an owner that is not the single selected object without changing the selection, and any index outside the mesh without changing anything. Each type keeps its own set across mode switches; select_face, select_vertex and select_edge still replace the whole set with one component. Read the sets with inspect_scene component_selection. Not idempotent because add, remove and toggle depend on the set; does not edit the scene",
+    "inputSchema": {
+      "$defs": {
+        "ComponentKind": {
+          "enum": [
+            "face",
+            "vertex",
+            "edge"
+          ],
+          "type": "string"
+        },
+        "ComponentOwnerArgs": {
+          "additionalProperties": false,
+          "description": "The shape instance whose components are selected: the selected object's shape, as\n`select_face` names it.",
+          "properties": {
+            "instance_path": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 257,
+              "minItems": 2,
+              "type": "array"
+            },
+            "node_id": {
+              "type": "string"
+            },
+            "shape_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "node_id",
+            "shape_id",
+            "instance_path"
+          ],
+          "type": "object"
+        },
+        "MarqueeMode": {
+          "enum": [
+            "replace",
+            "add",
+            "remove",
+            "toggle"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "indices": {
+          "description": "Component indices of the owner's mesh; repeats keep their first position.",
+          "items": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxItems": 262144,
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/ComponentKind"
+        },
+        "mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MarqueeMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Defaults to replace."
+        },
+        "owner": {
+          "$ref": "#/$defs/ComponentOwnerArgs"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "kind",
+        "owner",
+        "indices"
+      ],
+      "title": "ModifyComponentSelectionArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "select_face",
     "description": "Select a complete canonical face target in Face mode, or clear it with null; explicit targets need not be visible and select their owning instance",
     "inputSchema": {

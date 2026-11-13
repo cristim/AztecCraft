@@ -78,7 +78,8 @@ pub enum MarqueeMode {
 }
 
 /// The component type a component-set operation changes; each type keeps its own set.
-#[allow(dead_code)] // constructed by the MCP tool in the next commit
+// Built by the MCP tool; the native gestures follow in #30.
+#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentKind {
     Face,
@@ -564,7 +565,7 @@ pub enum Operation {
     /// whole request. Replace with no indices empties the set. Indices are positions in the
     /// current mesh, so a topology edit or Undo may make a stored index name another component
     /// (as Maya's `f[n]`); members past the end are dropped.
-    #[allow(dead_code)] // constructed by the MCP tool in the next commit
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     ModifyComponentSelection {
         kind: ComponentKind,
         mode: MarqueeMode,

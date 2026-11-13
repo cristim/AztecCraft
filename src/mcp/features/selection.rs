@@ -1,8 +1,9 @@
 use super::primitive_args::CreateArgs;
 use crate::{
     editor_operations::{
-        EdgeSelectionTarget, FaceSelectionTarget, MarqueeMode, Operation, RemoteRequest,
-        SelectRule, SelectionChange, SelectionMode as EditorMode, VertexSelectionTarget,
+        ComponentKind, EdgeSelectionTarget, FaceSelectionTarget, MAX_COMPONENT_INDICES,
+        MarqueeMode, Operation, RemoteRequest, SelectRule, SelectionChange,
+        SelectionMode as EditorMode, VertexSelectionTarget,
     },
     mcp::{
         args::{
@@ -14,6 +15,7 @@ use crate::{
 use azteccraft::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     scene::NodeId,
+    selection::ComponentOwner,
     viewport::NdcRect,
 };
 use rmcp::{
@@ -137,6 +139,39 @@ struct SelectEdgeArgs {
     target: Option<EdgeSelectionTarget>,
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "ComponentKind")]
+enum Component {
+    Face,
+    Vertex,
+    Edge,
+}
+
+/// The shape instance whose components are selected: the selected object's shape, as
+/// `select_face` names it.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ComponentOwnerArgs {
+    node_id: String,
+    shape_id: String,
+    #[schemars(length(min = 2, max = 257))]
+    instance_path: Vec<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ModifyComponentSelectionArgs {
+    scene_token: String,
+    kind: Component,
+    /// Defaults to replace.
+    mode: Option<Marquee>,
+    owner: ComponentOwnerArgs,
+    /// Component indices of the owner's mesh; repeats keep their first position.
+    #[schemars(length(max = 262144))]
+    indices: Vec<usize>,
+}
+
 fn parse_create_primitive(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let parsed = decode::<CreateArgs>(arguments)?.into_parsed()?;
     Ok(scoped(
@@ -230,6 +265,46 @@ fn parse_select_in_rect(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::SelectInRect { rect, mode },
+    ))
+}
+
+fn parse_modify_component_selection(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ModifyComponentSelectionArgs = decode(arguments)?;
+    if args.indices.len() > MAX_COMPONENT_INDICES {
+        return Err(ErrorData::invalid_params(
+            format!("indices exceeds {MAX_COMPONENT_INDICES} entries"),
+            None,
+        ));
+    }
+    let kind = match args.kind {
+        Component::Face => ComponentKind::Face,
+        Component::Vertex => ComponentKind::Vertex,
+        Component::Edge => ComponentKind::Edge,
+    };
+    let mode = match args.mode.unwrap_or(Marquee::Replace) {
+        Marquee::Replace => MarqueeMode::Replace,
+        Marquee::Add => MarqueeMode::Add,
+        Marquee::Remove => MarqueeMode::Remove,
+        Marquee::Toggle => MarqueeMode::Toggle,
+    };
+    let (transform, shape, path) = component_ids(
+        "Component",
+        &args.owner.node_id,
+        &args.owner.shape_id,
+        &args.owner.instance_path,
+    )?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::ModifyComponentSelection {
+            kind,
+            mode,
+            owner: ComponentOwner {
+                transform,
+                shape,
+                path,
+            },
+            indices: args.indices,
+        },
     ))
 }
 
@@ -447,6 +522,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         schema: schema::<SelectionModeArgs>,
         parse: parse_set_selection_mode,
         idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "modify_component_selection",
+        description: "Replace, add to, remove from or toggle the face, vertex or edge selection of the one selected object by component index (Maya select -replace, -add, -deselect, -toggle on f[n], vtx[n], e[n]); the same typed operation a component click or drag would use. owner names the selected object's shape as select_face does (node_id, shape_id and the full instance_path ending with the shape); indices are positions in that mesh, so a topology edit or Undo can renumber them, and members past the end are dropped. mode replace (default) sets the set to the indices in order (an empty list empties it), add appends the absent ones, remove drops the members, toggle flips each distinct index; repeated indices keep their first position and the last member is the lead (PROVISIONAL: Maya documents neither order nor lead). Requires the mode of kind (set_selection_mode) and refuses an owner that is not the single selected object without changing the selection, and any index outside the mesh without changing anything. Each type keeps its own set across mode switches; select_face, select_vertex and select_edge still replace the whole set with one component. Read the sets with inspect_scene component_selection. Not idempotent because add, remove and toggle depend on the set; does not edit the scene",
+        schema: schema::<ModifyComponentSelectionArgs>,
+        parse: parse_modify_component_selection,
+        idempotent: false,
         read_only: false,
     },
     ToolSpec {

@@ -813,6 +813,9 @@ mod tests {
                     json!({"scene_token":token,"rect":{"min":[-1,-1],"max":[1,1]}})
                 }
                 "set_selection_mode" => json!({"scene_token":token,"mode":"face"}),
+                "modify_component_selection" => json!({
+                    "scene_token":token,"kind":"face","owner":{"node_id":"1","shape_id":"2","instance_path":["1","2"]},"indices":[0]
+                }),
                 "select_face" | "select_vertex" | "select_edge" => {
                     json!({"scene_token":token,"target":null})
                 }
@@ -1109,6 +1112,27 @@ mod tests {
         let mut boundary = valid;
         boundary["target"]["instance_path"] = json!(vec!["1"; 257]);
         assert!(parse_request("select_face", boundary.as_object().unwrap().clone()).is_ok());
+    }
+
+    #[test]
+    fn modify_component_selection_bounds_its_indices_before_building_the_operation() {
+        let token = Uuid::new_v4().to_string();
+        let mut arguments = json!({
+            "scene_token": token, "kind": "face",
+            "owner": {"node_id":"1","shape_id":"2","instance_path":["1","2"]},
+            "indices": vec![0; crate::editor_operations::MAX_COMPONENT_INDICES],
+        });
+        let at_limit = parse_request(
+            "modify_component_selection",
+            arguments.as_object().unwrap().clone(),
+        );
+        assert!(at_limit.is_ok());
+        arguments["indices"] = json!(vec![0; crate::editor_operations::MAX_COMPONENT_INDICES + 1]);
+        let over = parse_request(
+            "modify_component_selection",
+            arguments.as_object().unwrap().clone(),
+        );
+        assert!(over.is_err());
     }
 
     type PickedComponent = Option<(
