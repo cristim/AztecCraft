@@ -1986,7 +1986,7 @@
   },
   {
     "name": "project_uv_planar",
-    "description": "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
+    "description": "Replace a shape's map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are saved to an authored Maya ASCII .ma and reopen from it (the .mb writer refuses them with save_unwritable reason session_uvs: Delete UVs or Undo to save a .mb). Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
     "inputSchema": {
       "$defs": {
         "ProjectFrom": {
@@ -2034,7 +2034,7 @@
   },
   {
     "name": "delete_uvs",
-    "description": "Remove a shape's session-only map1. A shape without UVs returns unchanged",
+    "description": "Remove a shape's map1. A shape without UVs returns unchanged",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2061,7 +2061,7 @@
   },
   {
     "name": "inspect_uvs",
-    "description": "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+    "description": "Read one shape's map1 (session-only until saved to an authored .ma, which reopens with it): one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2852,7 +2852,7 @@
   },
   {
     "name": "save_scene",
-    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven and meshes are saved without UVs",
+    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven; an authored .ma carries each shape's session map1 UVs (the .mb writer does not and refuses them: use Delete UVs or Undo to save a .mb), and the UV layout in the file is unchecked against Maya",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2875,7 +2875,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, with a stable error.reason such as session_materials or session_uvs, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, meshes are saved without UVs, and a saved mesh .ma reopens as an authored document",
+    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, with a stable error.reason such as session_materials or session_uvs, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save; session UVs are not a .ma refusal). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, an authored .ma carries each shape's session map1 UVs and reopens with them as an authored document (the UV layout in the file is unchecked against Maya), and a scene with UVs is refused as .mb with save_unwritable reason session_uvs",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
