@@ -14,20 +14,26 @@ pub(in crate::app) fn validate_export_path(path: &Path) -> Result<(), OperationE
 
 /// The `.obj` path rules of Export and Import; `noun` leads each message.
 pub(in crate::app) fn validate_obj_path(path: &Path, noun: &str) -> Result<(), OperationError> {
-    let text = path
-        .to_str()
-        .ok_or_else(|| OperationError::InvalidInput(format!("{noun} path must be UTF-8")))?;
-    if text.is_empty() || text.len() > 4096 || text.contains('\0') {
-        return Err(OperationError::InvalidInput(format!(
-            "{noun} path must contain 1 to 4096 bytes and no NUL"
-        )));
-    }
+    validate_path_text(path, noun)?;
     if !path
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("obj"))
     {
         return Err(OperationError::InvalidInput(format!(
             "{noun} path must end in .obj"
+        )));
+    }
+    Ok(())
+}
+
+/// The extension-independent path rules: UTF-8, 1 to 4096 bytes, no NUL.
+pub(in crate::app) fn validate_path_text(path: &Path, noun: &str) -> Result<(), OperationError> {
+    let text = path
+        .to_str()
+        .ok_or_else(|| OperationError::InvalidInput(format!("{noun} path must be UTF-8")))?;
+    if text.is_empty() || text.len() > 4096 || text.contains('\0') {
+        return Err(OperationError::InvalidInput(format!(
+            "{noun} path must contain 1 to 4096 bytes and no NUL"
         )));
     }
     Ok(())
