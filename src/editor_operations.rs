@@ -78,7 +78,8 @@ pub enum MarqueeMode {
 }
 
 /// The component type a component-set operation changes; each type keeps its own set.
-#[allow(dead_code)] // constructed by the MCP tool in the next commit
+// Built by the MCP tool; the native gestures follow in #30.
+#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ComponentKind {
     Face,
@@ -564,7 +565,7 @@ pub enum Operation {
     /// whole request. Replace with no indices empties the set. Indices are positions in the
     /// current mesh, so a topology edit or Undo may make a stored index name another component
     /// (as Maya's `f[n]`); members past the end are dropped.
-    #[allow(dead_code)] // constructed by the MCP tool in the next commit
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     ModifyComponentSelection {
         kind: ComponentKind,
         mode: MarqueeMode,
@@ -1211,6 +1212,12 @@ pub const MAX_VERTICES_PER_PAGE: usize = 1024;
 /// Most vertex indices one `MoveVertices` names. Bounded by the 64 KiB MCP ingress limit: a
 /// request of this many indices (up to about 6 bytes each) still fits with room for the envelope.
 pub const MAX_MOVED_VERTICES: usize = 8192;
+/// Most indices one MCP `modify_component_selection` request carries. Like `move_vertices`, it
+/// keeps the line under the transport's 64 KiB ingress cap: indices reach 16,777,215 (the binary
+/// writer's edge limit), so 6144 eight-digit indices with commas are 54 KiB; a longer line closes
+/// the session. The native operation keeps `MAX_COMPONENT_INDICES`.
+#[cfg(feature = "mcp")]
+pub const MAX_MCP_COMPONENT_INDICES: usize = 6144;
 
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]

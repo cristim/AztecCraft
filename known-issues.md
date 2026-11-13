@@ -1556,3 +1556,7 @@ Gaps: `edit_node` and `set_transform` report the same `ReadOnlyFormat`, `Unsuppo
 ## Save with a typed pivot draft commits the draft, then refuses (until T9/T10, #39)
 
 Save, Save As and Resolve(save) first commit a pending Attribute Editor pivot draft, as for any draft. Until the writers support nondefault pivots (T9 `.ma`, T10 `.mb`) the save then fails with "nondefault pivots are unsupported" or "a transform has a non-zero pivot". The scene keeps the committed pivot and its undo entry and stays unsaved. Pinned by the `pivot_draft` cells of `tests/snapshots/guard_matrix_file_writing.txt`; T9/T10 flip them.
+
+## Component sets are limited to the one selected object
+
+`modify_component_selection` and the per-type component sets belong to a single shape instance of the one selected object, and a request naming another object is refused. This is an AztecCraft restriction, not Maya behaviour: Maya selects components across objects (`select -add pCube1.f[1] pCube2.f[3]`). Set order and "lead is the last member" are PROVISIONAL because the Maya documentation states neither. Indices are Maya-style `f[n]` positions, so an edit or Undo that renumbers faces can make a stored index name another face; members past the end are dropped. Vertex and edge selections draw every member in the one selected colour (only faces give the lead its own colour). The native Shift, Ctrl and marquee gestures for components are still missing (#30).
