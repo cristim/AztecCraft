@@ -1,10 +1,12 @@
 use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, NativeError, NativeId,
-        NativeScene, NativeTransform, SessionMaterialId, TransformTarget, UvProjectAxis,
+        NativeScene, NativeTransform, ObjImportPlan, SessionMaterialId, TransformTarget,
+        UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
+    view_scene::{VIEW_BUDGET, ViewError, ViewScene},
 };
 mod move_transaction;
 use move_transaction::MoveTransaction;
@@ -87,6 +89,9 @@ pub enum Command {
     DeleteUvs {
         shape: NativeId,
     },
+    /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
+    /// admission, so an import can never make the viewport refuse the scene.
+    ImportObjects(Box<ObjImportPlan>),
 }
 
 impl Command {
@@ -113,7 +118,36 @@ impl Command {
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ImportObjects(_) => "Import".to_string(),
         }
+    }
+}
+
+/// Refusal texts for an import candidate the viewport cannot display. View admission knows no
+/// OBJ line number. Only the n-gon case carries the convexity and triangulate hint.
+const UNDISPLAYABLE_POLYGON: &str = "the viewport cannot display a face: faces with 5 or more corners must be convex and without holes; triangulate the model and export again";
+const UNDISPLAYABLE_GEOMETRY: &str =
+    "the viewport cannot display the imported geometry because it is invalid";
+const UNDISPLAYABLE_TRANSFORM: &str =
+    "the viewport cannot display a node transform or the scene units";
+const UNDISPLAYABLE_WORLD: &str =
+    "the viewport cannot represent the imported coordinates in world space";
+const UNDISPLAYABLE_VIEW: &str = "the viewport view could not be built for the imported scene";
+
+/// Maps a failed view admission of an import candidate: budget and allocation failures are
+/// resource limits, every shape failure is `ImportUndisplayable` with its own accurate text.
+fn view_refusal(error: ViewError) -> NativeError {
+    match error {
+        ViewError::Native(error) => error,
+        ViewError::ResourceLimit => NativeError::ImportResourceLimit,
+        ViewError::UnsupportedPolygon => NativeError::ImportUndisplayable(UNDISPLAYABLE_POLYGON),
+        ViewError::InvalidGeometry => NativeError::ImportUndisplayable(UNDISPLAYABLE_GEOMETRY),
+        ViewError::UnsupportedTransform => {
+            NativeError::ImportUndisplayable(UNDISPLAYABLE_TRANSFORM)
+        }
+        ViewError::NonFiniteWorld => NativeError::ImportUndisplayable(UNDISPLAYABLE_WORLD),
+        ViewError::Camera(_) => NativeError::ImportUndisplayable(UNDISPLAYABLE_VIEW),
     }
 }
 
@@ -147,6 +181,8 @@ struct Entry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EditOutcome {
     Created(NodeId),
+    /// The roots an import added, in file order.
+    Imported(Vec<NodeId>),
     /// A joint with its full path, proved valid by the core before the edit committed.
     CreatedJoint(TransformTarget),
     SessionMaterial(SessionMaterialId),
@@ -526,6 +562,11 @@ impl History {
             Command::DeleteUvs { shape } => {
                 candidate.delete_uvs(shape)?;
                 EditOutcome::Changed
+            }
+            Command::ImportObjects(plan) => {
+                let ids = candidate.import_polygon_objects(&plan)?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
+                EditOutcome::Imported(ids)
             }
         };
         if self.scene == candidate {
@@ -1034,3 +1075,6 @@ mod tests {
         assert_eq!(history.undo_label().as_deref(), Some("Rotate"));
     }
 }
+
+#[cfg(test)]
+mod import_tests;

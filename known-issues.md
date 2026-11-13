@@ -1,5 +1,47 @@
 # Known limitations
 
+## OBJ import is a first slice (#22)
+
+**Severity:** medium
+**Area:** interchange
+**Issue:** #22
+
+File > Import... and MCP `import_obj` add the meshes of an OBJ file to the scene as one undo step. No
+parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5).
+
+- **Meshes only.** `v` and `f` records, `o` and `g` groups (one new object per group, Multiple
+  Objects semantics). Normals, UVs, materials, smoothing groups and `.mtl` files are counted in
+  `ignored_records` and dropped. The Group and Single Object options and other import types do not
+  exist; the option box beside Import... is disabled.
+- **Opened Maya files refuse it.** A scene opened from `.mb` or `.ma` cannot take structural edits,
+  so Import returns the same refusal Create gives. It works in Untitled, authored and legacy
+  `.aztec` scenes.
+- **Strict whole-file refusal.** Free-form geometry, unknown records, overlapping groups (`g a b`),
+  bad or forward indices, faces with fewer than 3 corners or a repeated vertex, non-finite or huge
+  numbers, invalid UTF-8, CR-only line endings and a file without a face are refused with a line
+  number. Faces with 5 or more corners must also be convex and without holes, because the viewport
+  refuses to draw the scene otherwise; the error says "triangulate the model and export again". Some
+  real-world files will be refused until a repair mode exists.
+- **Names.** Only the first token of an `o` line is used (`o a b` takes `a`). Names are reduced to
+  letters, digits and `_`, prefixed with `_` when empty or digit-led, and numbered to avoid every
+  node and shape name and Maya's default scene names. The exporter's `%XX` escapes are not decoded.
+  Faces before any group take the file name.
+- **Geometry.** Positions are stored as single precision in world space; unreferenced vertices are
+  dropped; edges are shared and hard; point order follows the OBJ.
+- **Every imported object is a root.** OBJ has no hierarchy, so none is restored (PROVISIONAL; matches
+  Maya's Multiple Objects reading of groups).
+- **Selection after import** is the new roots, in file order with the last as lead. The undo entry
+  is named "Import". The scene token does not change.
+- **The import runs on the UI thread.** A file at the limits blocks the window while it is read,
+  checked for display and copied once for undo. There is no progress and no cancel.
+- **Limits** are PROVISIONAL and not derived from Maya: 32 MiB per file, 64 KiB per line, 262,144
+  vertices, 262,144 faces, 1,048,576 corners, 1024 corners per face, 1024 objects, 256-byte names,
+  coordinates up to 1e12 (rows 34 to 42 of the policy table in `.project-docs/development.md`).
+- **Cleanup.** The 256 MiB view budget now has one definition (`VIEW_BUDGET`); test-only copies in
+  `src/viewport_renderer/tests.rs` remain.
+- **Not natively verified.** The File menu entry is covered by a headless frame test and the
+  operation by Editor protocol tests; the file panel was not exercised in a native window.
+
 ## Animation is a first, session-only slice (#361)
 
 **Severity:** medium

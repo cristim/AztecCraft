@@ -3,29 +3,32 @@
 use crate::app::Editor;
 use crate::editor_operations::{ObjExportError, Operation, OperationError, OperationReply};
 use azteccraft::obj::{self, ObjError};
-use azteccraft::view_scene::{ViewInstance, ViewScene};
+use azteccraft::view_scene::{VIEW_BUDGET, ViewInstance, ViewScene};
 use std::path::{Path, PathBuf};
-
-const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 
 /// Path checks shared by the pre-draft guard and the handler, so an invalid path never commits
 /// a native draft.
 pub(in crate::app) fn validate_export_path(path: &Path) -> Result<(), OperationError> {
+    validate_obj_path(path, "Export")
+}
+
+/// The `.obj` path rules of Export and Import; `noun` leads each message.
+pub(in crate::app) fn validate_obj_path(path: &Path, noun: &str) -> Result<(), OperationError> {
     let text = path
         .to_str()
-        .ok_or_else(|| OperationError::InvalidInput("Export path must be UTF-8".into()))?;
+        .ok_or_else(|| OperationError::InvalidInput(format!("{noun} path must be UTF-8")))?;
     if text.is_empty() || text.len() > 4096 || text.contains('\0') {
-        return Err(OperationError::InvalidInput(
-            "Export path must contain 1 to 4096 bytes and no NUL".into(),
-        ));
+        return Err(OperationError::InvalidInput(format!(
+            "{noun} path must contain 1 to 4096 bytes and no NUL"
+        )));
     }
     if !path
         .extension()
         .is_some_and(|extension| extension.eq_ignore_ascii_case("obj"))
     {
-        return Err(OperationError::InvalidInput(
-            "Export path must end in .obj".into(),
-        ));
+        return Err(OperationError::InvalidInput(format!(
+            "{noun} path must end in .obj"
+        )));
     }
     Ok(())
 }

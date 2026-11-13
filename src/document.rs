@@ -232,7 +232,9 @@ impl fmt::Display for NativeLoadError {
 }
 impl std::error::Error for NativeLoadError {}
 
-fn read_bytes(path: &Path) -> io::Result<(Vec<u8>, Metadata, LinkStatus, std::fs::File)> {
+/// Opens `path` for reading and refuses anything but a regular file. On Unix the open is
+/// non-blocking so a FIFO cannot wait for a writer.
+pub(crate) fn open_regular_file(path: &Path) -> io::Result<(std::fs::File, Metadata)> {
     #[cfg(not(unix))]
     if !std::fs::metadata(path)?.is_file() {
         return Err(io::Error::new(
@@ -255,6 +257,11 @@ fn read_bytes(path: &Path) -> io::Result<(Vec<u8>, Metadata, LinkStatus, std::fs
             "document must be a regular file",
         ));
     }
+    Ok((file, metadata))
+}
+
+fn read_bytes(path: &Path) -> io::Result<(Vec<u8>, Metadata, LinkStatus, std::fs::File)> {
+    let (file, metadata) = open_regular_file(path)?;
     let link = if std::fs::symlink_metadata(path)?.file_type().is_symlink() {
         LinkStatus::Symlink
     } else {
@@ -674,6 +681,47 @@ mod native_open_tests {
             }
         }
         assert_eq!(std::fs::read(path).unwrap(), source);
+    }
+
+    #[test]
+    fn open_regular_file_accepts_files_and_symlinks_to_files_and_refuses_directories() {
+        let directory = tempfile::tempdir().unwrap();
+        let file = directory.path().join("a.txt");
+        std::fs::write(&file, b"abc").unwrap();
+        let (_, metadata) = open_regular_file(&file).unwrap();
+        assert_eq!(metadata.len(), 3);
+        #[cfg(unix)]
+        {
+            let link = directory.path().join("link.txt");
+            std::os::unix::fs::symlink(&file, &link).unwrap();
+            assert_eq!(open_regular_file(&link).unwrap().1.len(), 3);
+        }
+        let error = open_regular_file(directory.path()).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+        let missing = open_regular_file(&directory.path().join("none")).unwrap_err();
+        assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn open_regular_file_returns_for_a_fifo_without_a_writer() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("pipe");
+        assert!(
+            std::process::Command::new("mkfifo")
+                .arg(&path)
+                .status()
+                .unwrap()
+                .success()
+        );
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = sender.send(open_regular_file(&path).map(|_| ()));
+        });
+        let result = receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("opening a FIFO waited for a writer");
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::InvalidInput);
     }
 
     #[cfg(unix)]

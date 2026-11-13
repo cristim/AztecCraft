@@ -380,8 +380,17 @@ Sources:
 | 40 | Joint click tolerance | 8 px around a joint centre; the nearest pixel wins, then depth | `src/view_scene.rs` `JOINT_CLICK_PIXELS` | provisional | Not documented; bones are not pickable. | `src/viewport/tests.rs` `mod joints` |
 | 41 | Joint display | circle radius 0.5 times the joint radius, three circles of 16 segments, one line per bone, object colours | `src/view_scene.rs` `JOINT_DISPLAY_RADIUS_FACTOR`, `src/viewport_renderer.rs` `JOINT_CIRCLE_SEGMENTS` | provisional | The [joint node][maya-joint] and [jointDisplayScale][maya-joint-scale] pages give radius 1.0 and a display diameter of 1 at scale 1; the wire shape is a stand-in. | `src/view_scene/tests.rs` `mod joints`, `src/viewport_renderer/tests.rs` `mod joints` |
 | 42 | Joint radius limit | greater than 0, at most 1e6 cm, the primitive size limit | `src/native_scene/session_joint.rs` `MAX_JOINT_RADIUS_CM` | provisional | A safety bound; the pages state no range. | `a_radius_past_the_safety_bound_is_refused_before_mutation`, `the_extreme_radii_still_submit_and_frame` |
+| 43 | OBJ import file size | 32 MiB; a file over it is refused | `src/obj/import.rs` `MAX_FILE_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 44 | OBJ import line length | 64 KiB per logical line (continuations joined) | `src/obj/import.rs` `MAX_LINE_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 45 | OBJ import vertices | 262,144 `v` records | `src/obj/import.rs` `MAX_VERTICES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 46 | OBJ import faces | 262,144 `f` records | `src/obj/import.rs` `MAX_FACES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 47 | OBJ import corners | 1,048,576 face corners in total | `src/obj/import.rs` `MAX_CORNERS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 48 | OBJ import corners per face | 1024 | `src/obj/import.rs` `MAX_CORNERS_PER_FACE` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 49 | OBJ import objects | 1024 objects that own a face; a compile-time assertion in `src/app/dispatch.rs` keeps it at or below the 4096 selection cap | `src/obj/import.rs` `MAX_OBJECTS` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 50 | OBJ import name length | 256 bytes for an `o` or `g` name | `src/obj/import.rs` `MAX_NAME_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
+| 51 | OBJ import coordinate magnitude | 1e12; larger or non-finite values are refused | `src/obj/import.rs` `MAX_COORD` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 
-Tally: 42 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 51 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
 fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
@@ -543,7 +552,7 @@ UTF-8 percent encoding to avoid whitespace/directive injection. Export is staged
 to a new destination through `craft-atomic` and preserves occupied paths. It
 exports geometry only, without UVs, normals or materials. File > Export All and
 Export Selection and MCP `export_obj` use the native-scene writer `obj::export_native_new`.
-OBJ import isn't implemented.
+OBJ import is `obj::import` (see `plan.md` and `known-issues.md`).
 
 ## Camera core
 

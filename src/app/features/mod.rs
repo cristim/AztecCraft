@@ -8,6 +8,7 @@ mod material;
 pub(in crate::app) mod move_tool;
 mod node_edit;
 pub(super) mod obj_export;
+pub(super) mod obj_import;
 
 pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) mod marquee;

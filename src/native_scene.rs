@@ -4,6 +4,7 @@ pub mod ascii;
 mod authored;
 pub mod binary;
 mod curve;
+mod import;
 mod manipulator_frame;
 mod maya_import;
 mod mesh;
@@ -23,6 +24,7 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
+pub use import::ObjImportPlan;
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
 pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
@@ -2150,9 +2152,6 @@ impl<'a> ViewAdmissionIndex<'a> {
 /// the shape name is not derived from `old` and stays as it is. The rule is inferred from
 /// Maya 2025.1 `rename` observations (PROVISIONAL, #175).
 fn derived_shape_name(shape: &str, old: &str, new: &str) -> Option<String> {
-    fn split(name: &str) -> (&str, &str) {
-        name.split_at(name.trim_end_matches(|c: char| c.is_ascii_digit()).len())
-    }
     if shape.strip_suffix("Shape") == Some(old) {
         return Some(format!("{new}Shape"));
     }
@@ -2160,8 +2159,18 @@ fn derived_shape_name(shape: &str, old: &str, new: &str) -> Option<String> {
     if !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let (base, digits) = split(new);
-    Some(format!("{base}Shape{digits}"))
+    Some(shape_name_for(new))
+}
+
+fn split(name: &str) -> (&str, &str) {
+    name.split_at(name.trim_end_matches(|c: char| c.is_ascii_digit()).len())
+}
+
+/// The Maya-style shape name for a transform name: the number moves after `Shape`, so `pCube2`
+/// gets `pCubeShape2` and `box` gets `boxShape` (inferred from Maya 2025.1, PROVISIONAL, #175).
+fn shape_name_for(transform: &str) -> String {
+    let (base, digits) = split(transform);
+    format!("{base}Shape{digits}")
 }
 
 fn convert(values: [f64; 3], factor: f64) -> Result<Vec3, NativeError> {
@@ -2252,6 +2261,10 @@ pub enum NativeError {
     /// An undo preference or chunk call the current undo state refuses.
     UndoState(&'static str),
     UnsupportedView(&'static str),
+    /// An OBJ import would leave a scene the viewport cannot display; the text says why.
+    ImportUndisplayable(&'static str),
+    /// An OBJ import would leave a scene whose display exceeds the view budget.
+    ImportResourceLimit,
     /// An opened Maya Binary has no pivot translate to carry the compensation (#105).
     PivotNeedsTranslateCorrection,
     /// A keyed channel is rewritten on every frame change, so a pivot edit would be overwritten.
@@ -2350,6 +2363,10 @@ impl fmt::Display for NativeError {
             Self::UndoState(reason) => write!(f, "undo: {reason}"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
+            }
+            Self::ImportUndisplayable(reason) => f.write_str(reason),
+            Self::ImportResourceLimit => {
+                f.write_str("the imported scene is too large for the viewport to display")
             }
             Self::PivotNeedsTranslateCorrection => f.write_str(
                 "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet",

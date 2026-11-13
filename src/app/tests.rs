@@ -1815,6 +1815,57 @@ fn read_only_scene_is_marked_in_the_title_and_file_menu() {
 }
 
 #[test]
+fn the_file_menu_lists_import_before_export_and_run_import_dispatches_the_operation() {
+    let mut editor = Editor::default();
+    let ctx = egui::Context::default();
+    let output = frame(&mut editor, &ctx, vec![]);
+    let file = face_text_position(&output, "File");
+    let output = face_pointer_click(&mut editor, &ctx, file, egui::Modifiers::NONE, vec![]);
+    let import = face_text_position(&output, "Import...");
+    let export = face_text_position(&output, "Export All...");
+    let close = face_text_position(&output, "Close");
+    assert!(import.y < export.y && export.y < close.y);
+
+    // Import is gated like the other File actions: disabled once the window is closing.
+    let open_file_menu = |editor: &mut Editor| {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let output = frame(editor, &ctx, vec![]);
+        let file = face_text_position(&output, "File");
+        face_pointer_click(editor, &ctx, file, egui::Modifiers::NONE, vec![])
+    };
+    let mut idle = Editor::default();
+    assert!(!button_disabled(&open_file_menu(&mut idle), "Import..."));
+    let mut closing = Editor::default();
+    closing.create(Primitive::Cube);
+    assert!(matches!(
+        closing.apply_operation(Operation::RequestClose),
+        Ok(OperationReply::PendingConfirmation { .. })
+    ));
+    let pending = closing.files.pending_inspection().unwrap();
+    closing
+        .apply_operation(Operation::ResolveFileAction {
+            pending_id: pending.id.parse().unwrap(),
+            decision: crate::editor_operations::FileDecision::Discard,
+        })
+        .unwrap();
+    assert!(closing.files.is_closing());
+    assert!(button_disabled(&open_file_menu(&mut closing), "Import..."));
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("tri.obj");
+    std::fs::write(&path, "v 0 0 0\nv 1 0 0\nv 0 1 0\no t\nf 1 2 3\n").unwrap();
+    editor.run_import(path);
+    assert!(!editor.error, "{}", editor.status);
+    assert!(
+        editor.status.starts_with("Imported 1 object(s)"),
+        "{}",
+        editor.status
+    );
+    assert_eq!(editor.history.scene().nodes().len(), 1);
+}
+
+#[test]
 fn unsaved_prompt_for_an_untitled_scene_uses_mayas_wording_and_buttons() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);

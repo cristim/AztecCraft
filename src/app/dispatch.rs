@@ -25,6 +25,10 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
     }
 }
 
+/// The selection holds `MAX_TRANSFORM_PATHS` objects, so selecting every imported root cannot fail.
+const _: () =
+    assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
+
 impl Editor {
     /// Rejects component selection outside its mode, and unbounded target paths, before any mutation.
     fn require_component_selection(
@@ -193,6 +197,18 @@ impl Editor {
             }) => {
                 self.status = format!(
                     "Exported {objects} object(s), {vertices} vertices and {faces} faces to OBJ"
+                );
+                self.error = false;
+            }
+            Ok(OperationReply::Imported {
+                objects,
+                vertices,
+                faces,
+                ..
+            }) => {
+                self.status = format!(
+                    "Imported {objects} object(s), {vertices} vertices and {faces} faces \
+                     (normals, UVs and materials are not imported)"
                 );
                 self.error = false;
             }
@@ -393,6 +409,12 @@ impl Editor {
         if let Operation::ExportObj { path, .. } = &operation {
             super::features::obj_export::validate_export_path(path)?;
         }
+        if let Operation::ImportObj { path } = &operation {
+            super::features::obj_import::validate_import_path(path)?;
+            if self.files.is_modal() {
+                return Err(OperationError::BusyEditing);
+            }
+        }
         match &operation {
             Operation::OpenScene { path } | Operation::SaveSceneAs { path } => {
                 super::files::validate_scene_path(path)?;
@@ -588,7 +610,13 @@ impl Editor {
         {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
+        let mut import_totals = features::obj_import::ImportTotals::default();
         let command = match operation {
+            Operation::ImportObj { path } => {
+                let (command, totals) = self.plan_obj_import(&path)?;
+                import_totals = totals;
+                command
+            }
             Operation::SetActiveTool(tool) => return self.set_active_tool(tool),
             Operation::SetToolSpace { tool, space } => return self.set_tool_space(tool, space),
             Operation::SetMoveSpace { space } => return Ok(self.set_move_space(space)),
@@ -1197,28 +1225,26 @@ impl Editor {
             let _ = session_material_command;
             OperationError::from_history(error)
         })?;
-        let created = match &outcome {
-            EditOutcome::Created(id) => Some(TransformTarget {
-                node: *id,
-                path: vec![
-                    self.history
-                        .scene()
-                        .node(*id)
-                        .map_err(OperationError::Scene)?
-                        .transform_id(),
-                ],
-            }),
-            EditOutcome::CreatedJoint(target) => Some(target.clone()),
-            _ => None,
-        };
-        if let Some(target) = created {
-            self.clear_remembered_components();
-            self.selection.replace(target);
+        match &outcome {
+            EditOutcome::Created(id) => self.after_nodes_created(&[*id])?,
+            EditOutcome::Imported(ids) => self.after_nodes_created(ids)?,
+            EditOutcome::CreatedJoint(target) => {
+                self.clear_remembered_components();
+                self.selection.replace(target.clone());
+            }
+            _ => {}
         }
         self.sync_fields();
         Ok(match outcome {
             EditOutcome::Created(id) => OperationReply::Created {
                 node_id: id.to_decimal(),
+            },
+            EditOutcome::Imported(ids) => OperationReply::Imported {
+                objects: ids.len(),
+                vertices: import_totals.vertices,
+                faces: import_totals.faces,
+                ignored_records: import_totals.ignored_records,
+                node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
             },
             EditOutcome::CreatedJoint(target) => OperationReply::Created {
                 node_id: target.node.to_decimal(),
@@ -1232,6 +1258,33 @@ impl Editor {
             EditOutcome::Changed => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })
+    }
+    /// Makes new root nodes the object selection, in order with the last as lead, and forgets
+    /// remembered component selections. Shared by Create and OBJ import.
+    fn after_nodes_created(&mut self, ids: &[NodeId]) -> Result<(), OperationError> {
+        self.clear_remembered_components();
+        let mut targets = Vec::new();
+        for id in ids {
+            let transform = self
+                .history
+                .scene()
+                .node(*id)
+                .map_err(OperationError::Scene)?
+                .transform_id();
+            targets.push(TransformTarget {
+                node: *id,
+                path: vec![transform],
+            });
+        }
+        match <[TransformTarget; 1]>::try_from(targets) {
+            Ok([only]) => self.selection.replace(only),
+            // Cannot be full: an import adds at most MAX_OBJECTS roots (see the assertion below).
+            Err(targets) => self
+                .selection
+                .replace_with(targets)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
+        }
+        Ok(())
     }
     pub(super) fn has_draft(&self) -> bool {
         self.material_draft

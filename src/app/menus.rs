@@ -293,6 +293,30 @@ impl Editor {
                     }
                 }
                 let idle = !self.files.is_modal();
+                ui.horizontal(|ui| {
+                    let closing = self.files.is_closing();
+                    let enabled = idle && authoring && !closing;
+                    let mut item = ui
+                        .add_enabled(enabled, egui::Button::new("Import..."))
+                        .on_hover_text("Add the objects of an OBJ file to the scene");
+                    if !enabled {
+                        item = item.on_disabled_hover_text(match read_only_reason {
+                            _ if closing => unavailable_while_closing("Import..."),
+                            Some(reason) => reason.to_owned(),
+                            None => "Finish the open file dialog first".to_owned(),
+                        });
+                    }
+                    if item.clicked() {
+                        ui.close();
+                        self.import_dialog();
+                    }
+                    // Maya's option box; import options (Group, Single Object) are not implemented.
+                    ui.add_enabled(false, egui::Button::new("\u{2610}"))
+                        .on_disabled_hover_text(
+                            "Import options are not implemented: OBJ only, Multiple Objects, \
+                             no Group, normals, UVs or materials",
+                        );
+                });
                 for (label, selection_only) in
                     [("Export All...", false), ("Export Selection...", true)]
                 {

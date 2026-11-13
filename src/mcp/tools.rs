@@ -149,6 +149,8 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::UvsBlockTopologyEdit) => {
                     "uvs_block_topology_edit"
                 }
+                OperationError::Scene(NativeError::ImportUndisplayable(_)) => "import_invalid",
+                OperationError::Scene(NativeError::ImportResourceLimit) => "import_limit",
                 OperationError::Scene(_) => "scene_error",
                 OperationError::Camera(_) | OperationError::CameraPose(_) => "camera_error",
                 OperationError::File(_) => "file_error",
@@ -181,6 +183,22 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     crate::editor_operations::ObjExportError::Io(_) => "export_io",
                     crate::editor_operations::ObjExportError::Invalid(_) => "export_invalid",
                 },
+                OperationError::ObjImport(error) => {
+                    use azteccraft::obj::import::ObjImportError as E;
+                    match error {
+                        E::Io(_) | E::NotRegularFile => "import_io",
+                        E::TooLarge => "import_too_large",
+                        E::LimitExceeded(_) | E::LineTooLong { .. } => "import_limit",
+                        E::InvalidUtf8 { .. }
+                        | E::CrOnlyLineEndings { .. }
+                        | E::Syntax { .. }
+                        | E::IndexOutOfRange { .. }
+                        | E::DegenerateFace { .. }
+                        | E::CoordinateOutOfRange { .. }
+                        | E::Unsupported { .. }
+                        | E::NoFaces => "import_invalid",
+                    }
+                }
                 OperationError::KindMismatch { .. } => "manipulation_kind_mismatch",
                 OperationError::AmbiguousSelection => "ambiguous_selection",
                 OperationError::StalePendingAction => "stale_pending_action",
@@ -793,7 +811,7 @@ mod tests {
                     json!({"scene_token":token,"tab":{"kind":"transform","id":"1"}})
                 }
                 "open_scene" | "save_scene_as" => json!({"scene_token":token,"path":"scene.mb"}),
-                "export_obj" => json!({"scene_token":token,"path":"scene.obj"}),
+                "export_obj" | "import_obj" => json!({"scene_token":token,"path":"scene.obj"}),
                 "resolve_file_action" => {
                     json!({"scene_token":token,"pending_action_id":Uuid::new_v4().to_string(),"decision":"cancel"})
                 }
@@ -1422,7 +1440,7 @@ mod tests {
         let pending = Uuid::new_v4().to_string();
         for path in [String::new(), "x\0.mb".into(), "é".repeat(2049)] {
             let args = json!({"scene_token":token,"path":path});
-            for tool in ["open_scene", "save_scene_as", "export_obj"] {
+            for tool in ["open_scene", "save_scene_as", "export_obj", "import_obj"] {
                 assert!(parse_request(tool, args.as_object().unwrap().clone()).is_err());
             }
         }
@@ -1701,5 +1719,20 @@ mod tests {
             result.structured_content.as_ref().unwrap()["error"]["code"],
             "invalid_primitive_options"
         );
+    }
+
+    #[test]
+    fn import_refusals_from_history_have_import_codes() {
+        for (error, code) in [
+            (NativeError::ImportUndisplayable("no"), "import_invalid"),
+            (NativeError::ImportResourceLimit, "import_limit"),
+            (NativeError::ResourceLimit, "scene_error"),
+        ] {
+            let result = tool_reply(Err(OperationError::Scene(error)));
+            assert_eq!(
+                result.structured_content.as_ref().unwrap()["error"]["code"],
+                code
+            );
+        }
     }
 }

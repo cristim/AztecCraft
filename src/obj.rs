@@ -11,6 +11,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod import;
+
 /// The real file system, except that it asks `may_install` before it creates or links a file at
 /// the destination. A refusal is remembered so the caller can tell it from an I/O failure.
 struct GuardedFs<'a> {

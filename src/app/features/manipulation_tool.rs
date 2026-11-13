@@ -17,6 +17,7 @@ use azteccraft::{
     },
     move_handles::{HandleError, ManipulatorSize, ViewportCapture},
     native_scene::{MoveSpace, RotateAxis, ScaleHandle, TransformTarget},
+    view_scene::VIEW_BUDGET,
 };
 use eframe::egui;
 use glam::{DVec3, Vec2};
@@ -27,8 +28,6 @@ pub(in crate::app) enum ToolPick {
     Rotate(Pick<RotateAxis>),
     Scale(Pick<ScaleHandle>),
 }
-
-const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 
 /// Rotate and Scale tool settings. Maya keeps the axis orientation per tool and defaults it to
 /// Object for Rotate and World for Scale (2026 tool settings pages).
@@ -504,6 +503,7 @@ impl Editor {
         Ok(match outcome {
             EditOutcome::Changed
             | EditOutcome::Created(_)
+            | EditOutcome::Imported(_)
             | EditOutcome::CreatedJoint(_)
             | EditOutcome::SessionMaterial(_) => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
