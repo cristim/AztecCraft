@@ -2015,3 +2015,68 @@ fn edit_nodes_refuses_a_member_with_unproved_effects_and_leaves_it_unchanged() {
     );
     assert_eq!(scene.node(bad).unwrap(), &before);
 }
+
+#[test]
+fn move_vertices_converts_the_declared_unit_and_vertex_positions_convert_back() {
+    for (unit, factor) in [
+        (LinearUnit::Millimeter, 0.1),
+        (LinearUnit::Meter, 100.0),
+        (LinearUnit::Inch, 2.54),
+    ] {
+        let (mut scene, _) = cube();
+        scene.units.linear = unit;
+        let shape = scene.shapes[0].id;
+        let before = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
+        scene.move_vertices(shape, &[3], [2.0, 0.0, -1.0]).unwrap();
+        let after = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
+        for (k, delta) in [2.0, 0.0, -1.0].into_iter().enumerate() {
+            assert_eq!(after[k], f64::from((before[k] + delta * factor) as f32));
+        }
+        let reported = scene.vertex_positions(shape, 3..4).unwrap()[0];
+        for k in 0..3 {
+            assert!((reported[k] - after[k] / factor).abs() < 1e-12);
+        }
+    }
+}
+
+#[test]
+fn move_vertices_ignores_the_node_transform() {
+    let (mut scene, id) = cube();
+    scene
+        .set_transform(
+            id,
+            NativeTransform {
+                translation: [5.0, -3.0, 2.0],
+                rotation: [30.0, 45.0, 60.0],
+                scale: [2.0, 3.0, 0.5],
+            },
+        )
+        .unwrap();
+    let shape = scene.shapes[0].id;
+    let before = scene.shapes[0].mesh.effective_point_cm(0).unwrap();
+    scene.move_vertices(shape, &[0], [1.0, 0.0, 0.0]).unwrap();
+    let after = scene.shapes[0].mesh.effective_point_cm(0).unwrap();
+    assert_eq!(after[0], f64::from((before[0] + 1.0) as f32));
+    assert_eq!(after[1], before[1]);
+    assert_eq!(after[2], before[2]);
+}
+
+#[test]
+fn a_zero_delta_leaves_every_bit_alone_including_negative_zero() {
+    let mut mesh = NativeMesh::from_loops(
+        vec![[-0.0, 1.0, 2.0], [3.0, -0.0, 5.0], [6.0, 7.0, 8.0]],
+        vec![vec![0, 1, 2]],
+    );
+    let before = mesh.clone();
+    mesh.translate_points(&[0, 1], [0.0, -0.0, 0.0]).unwrap();
+    assert_eq!(mesh, before);
+    let Points::Float3(points) = mesh.points() else {
+        panic!()
+    };
+    assert!(points[0][0].is_sign_negative() && points[1][1].is_sign_negative());
+    // An invalid index still refuses even for a zero delta.
+    assert_eq!(
+        mesh.translate_points(&[9], [0.0; 3]),
+        Err(NativeError::InvalidTopology)
+    );
+}

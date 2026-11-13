@@ -81,6 +81,12 @@ pub enum Command {
         face_index: usize,
         distance: f64,
     },
+    /// Moves vertices of one shape by `delta` (scene units, mesh axes) as one undo step.
+    MoveVertices {
+        shape: NativeId,
+        vertices: Vec<usize>,
+        delta: [f64; 3],
+    },
     CreateJoint(JointRequest),
     /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
     SetKeys {
@@ -129,6 +135,7 @@ impl Command {
             | Self::SetSessionMaterialColor { .. } => "Material".to_string(),
 
             Self::ExtrudeFace { .. } => "Extrude".to_string(),
+            Self::MoveVertices { .. } => "Move".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::SetKeys { .. } => "Set Key".to_string(),
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
@@ -164,6 +171,15 @@ fn view_refusal(error: ViewError) -> NativeError {
         }
         ViewError::NonFiniteWorld => NativeError::ImportUndisplayable(UNDISPLAYABLE_WORLD),
         ViewError::Camera(_) => NativeError::ImportUndisplayable(UNDISPLAYABLE_VIEW),
+    }
+}
+
+/// Maps a failed view admission of moved vertices: the scene must stay displayable.
+fn moved_view_refusal(error: ViewError) -> NativeError {
+    match error {
+        ViewError::Native(error) => error,
+        ViewError::ResourceLimit => NativeError::ResourceLimit,
+        _ => NativeError::UnsupportedView("moved vertices leave the displayable range"),
     }
 }
 
@@ -561,6 +577,15 @@ impl History {
                 distance,
             } => {
                 candidate.extrude_face(shape, face_index, distance)?;
+                EditOutcome::Changed
+            }
+            Command::MoveVertices {
+                shape,
+                vertices,
+                delta,
+            } => {
+                candidate.move_vertices(shape, &vertices, delta)?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
                 EditOutcome::Changed
             }
             Command::CreateJoint(request) => {

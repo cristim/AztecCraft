@@ -538,6 +538,15 @@ pub struct VertexTarget {
     pub vertex_index: usize,
 }
 
+/// Several vertices of one shape instance, moved together.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VertexSetTarget {
+    pub transform: NodeId,
+    pub shape: NativeId,
+    pub path: Vec<NativeId>,
+    pub vertex_indices: Vec<usize>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EdgeTarget {
     pub transform: NodeId,
@@ -1097,6 +1106,20 @@ impl NativeScene {
         let shape = self.resolve_shape_instance(target.transform, target.shape, &target.path)?;
         if target.vertex_index >= shape.mesh.point_count() {
             return Err(SceneError::MissingVertex(target.vertex_index).into());
+        }
+        Ok(shape)
+    }
+    pub fn resolve_vertex_set(
+        &self,
+        target: &VertexSetTarget,
+    ) -> Result<&NativeMeshShape, NativeError> {
+        let shape = self.resolve_shape_instance(target.transform, target.shape, &target.path)?;
+        if let Some(bad) = target
+            .vertex_indices
+            .iter()
+            .find(|i| **i >= shape.mesh.point_count())
+        {
+            return Err(SceneError::MissingVertex(*bad).into());
         }
         Ok(shape)
     }
@@ -1818,6 +1841,45 @@ impl NativeScene {
         let mesh = self.shapes[index].mesh.extruded_face(face, distance)?;
         self.shapes[index].mesh = mesh;
         Ok(())
+    }
+    /// Moves vertices of one shape by `delta` in declared scene units, along the mesh's own axes.
+    /// Authored scenes only: a scene bound to a source file refuses, because its writer cannot
+    /// carry edited points. Shared-shape edits affect every instance.
+    pub fn move_vertices(
+        &mut self,
+        id: NativeId,
+        vertices: &[usize],
+        delta: [f64; 3],
+    ) -> Result<(), NativeError> {
+        self.structural_edit()?;
+        let index = self
+            .shapes
+            .iter()
+            .position(|shape| shape.id == id)
+            .ok_or(NativeError::MissingShape(id))?;
+        self.check_effects(id)?;
+        let factor = self.units.linear_factor()?;
+        let delta_cm = delta.map(|v| v * factor);
+        self.shapes[index].mesh.translate_points(vertices, delta_cm)
+    }
+    /// Positions of vertices `range` of one shape in declared scene units along the mesh's own
+    /// axes: the inverse of the conversion `move_vertices` applies to its delta.
+    pub fn vertex_positions(
+        &self,
+        id: NativeId,
+        range: std::ops::Range<usize>,
+    ) -> Result<Vec<[f64; 3]>, NativeError> {
+        let mesh = self.shape(id)?.mesh();
+        if range.end > mesh.point_count() {
+            return Err(SceneError::MissingVertex(range.end - 1).into());
+        }
+        let factor = self.units.linear_factor()?;
+        range
+            .map(|index| {
+                mesh.effective_point_cm(index)
+                    .map(|point| point.map(|value| value / factor))
+            })
+            .collect()
     }
     pub fn supported_view(&self) -> Result<Scene, NativeError> {
         if !self.session_keys.is_empty() {
