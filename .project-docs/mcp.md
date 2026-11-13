@@ -203,6 +203,20 @@ No CV/knot arrays or script text are returned. `document_origin` is `untitled`,
 `retained_source_records` report counts only, with records including retained
 trailing trivia. `read_only_reason` carries the core refusal message or null.
 
+`references` lists the inert `file -r` declarations of an opened Maya ASCII scene
+(#440), in file order and on every page (at most 32). Each entry has `path_kind`
+(`relative`, `absolute` or `escaping`), `path` (echoed only for a relative path of
+at most 256 bytes; any path with a root, `~`, `$`, `%`, `:` (scheme or drive), `//` or
+a `..` segment is never echoed because it can carry a user name; leading or trailing
+spaces and non-ASCII or control characters refuse the scene), and the declared `namespace` (`-ns`), `reference_node`
+(`-rfn`), `renaming_prefix` (`-rpr`), `file_type` (`-typ`), `deferred` (`-dr`) and
+`depth_info` (`-rdi`), each null when the flag is absent. Declarations are never
+loaded, resolved or stat-ed and the scene stays read-only. The `file` command page
+does not define the `.ma` encoding of `-op`, `-lrd`, `-lck`, `-iv`, the `-rdi`
+record without `-r`, or a reference node's edits, so those refuse the whole scene.
+`-rfn` and `-rdi` inside a `-r` record are PROVISIONAL (the page calls `-rfn`
+query-only). PROVISIONAL until the pinned reference install (#5).
+
 Curve `draw_available` means at least one currently visible instance successfully
 prepared as draw geometry in one bounded whole-view preparation. Hidden curves or
 whole-view preparation refusal report false while canonical inspection remains

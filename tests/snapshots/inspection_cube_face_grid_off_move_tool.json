@@ -123,6 +123,7 @@
     "pending_action": null,
     "read_only_reason": null,
     "redo_label": null,
+    "references": [],
     "remembered_edge": null,
     "remembered_face": {
       "face_index": 0,
