@@ -806,8 +806,9 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::CloseUndoChunk,
         Operation::FrameSelected {
             with_children: false,
+            fit_factor: None,
         },
-        Operation::FrameAll,
+        Operation::FrameAll { fit_factor: None },
         Operation::SetGridVisible { visible: false },
         Operation::CreateCameraBookmark { name: "v".into() },
         Operation::RenameCameraBookmark {
@@ -1736,16 +1737,21 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 "frame_selected(parents)",
                 Operation::FrameSelected {
                     with_children: false,
+                    fit_factor: None,
                 },
             ),
             sample(
                 "frame_selected(children)",
                 Operation::FrameSelected {
                     with_children: true,
+                    fit_factor: None,
                 },
             ),
         ],
-        Operation::FrameAll => vec![sample("frame_all", Operation::FrameAll)],
+        Operation::FrameAll { .. } => vec![sample(
+            "frame_all",
+            Operation::FrameAll { fit_factor: None },
+        )],
         Operation::SetGridVisible { .. } => vec![sample(
             "set_grid_visible(false)",
             Operation::SetGridVisible { visible: false },

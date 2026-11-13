@@ -61,7 +61,7 @@ fn apply_after_framing_restores_the_pose_and_keeps_the_clip_planes() {
     editor.create(Primitive::Cube);
     let saved = BookmarkPose::of(&editor.camera);
     create(&mut editor, "home").unwrap();
-    remote(&mut editor, Operation::FrameAll).unwrap();
+    remote(&mut editor, Operation::FrameAll { fit_factor: None }).unwrap();
     let far = editor.camera.far();
     apply(&mut editor, "home").unwrap();
     assert_eq!(BookmarkPose::of(&editor.camera), saved);

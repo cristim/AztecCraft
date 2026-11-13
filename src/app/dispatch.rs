@@ -103,7 +103,7 @@ impl Editor {
             | Operation::SelectEdge { .. }
             | Operation::SetSelectionMode(_)
             | Operation::FrameSelected { .. }
-            | Operation::FrameAll
+            | Operation::FrameAll { .. }
             | Operation::SetActiveTool(_)
             | Operation::SetToolSpace { .. }
             | Operation::SetMoveSpace { .. }
@@ -1007,71 +1007,78 @@ impl Editor {
                     OperationReply::Unchanged
                 });
             }
-            Operation::FrameSelected { with_children } => {
-                let component = matches!(
-                    self.selection_mode,
-                    SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge
-                );
-                if component {
-                    let scene = self.history.scene();
+            Operation::FrameSelected {
+                with_children,
+                fit_factor,
+            } => {
+                let original = self.begin_fit(fit_factor)?;
+                let result = (|| -> Result<OperationReply, OperationError> {
+                    let component = matches!(
+                        self.selection_mode,
+                        SelectionMode::Face | SelectionMode::Vertex | SelectionMode::Edge
+                    );
+                    if component {
+                        let scene = self.history.scene();
+                        match self.selection_mode {
+                            SelectionMode::Face => self
+                                .remembered_face
+                                .as_ref()
+                                .map(|target| scene.resolve_face_target(target)),
+                            SelectionMode::Vertex => self
+                                .remembered_vertex
+                                .as_ref()
+                                .map(|target| scene.resolve_vertex_target(target)),
+                            _ => self
+                                .remembered_edge
+                                .as_ref()
+                                .map(|target| scene.resolve_edge_target(target)),
+                        }
+                        .ok_or(OperationError::NoSelection)?
+                        .map_err(OperationError::Scene)?;
+                    }
+                    if !component && self.selection.is_empty() {
+                        // The 2027 View page: Frame Selection with nothing selected acts like Frame All.
+                        return self.frame_everything();
+                    }
+                    if !component {
+                        let before = self.camera.clone();
+                        self.frame_members(if with_children {
+                            FrameChildren::Include
+                        } else {
+                            FrameChildren::Exclude
+                        })?;
+                        return Ok(if self.camera == before {
+                            OperationReply::Unchanged
+                        } else {
+                            OperationReply::Changed
+                        });
+                    }
+                    let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
+                        .map_err(|error| OperationError::View(error.to_string()))?;
+                    let before = self.camera.clone();
                     match self.selection_mode {
                         SelectionMode::Face => self
                             .remembered_face
                             .as_ref()
-                            .map(|target| scene.resolve_face_target(target)),
+                            .map(|target| self.camera.frame_face(&view, target, self.aspect)),
                         SelectionMode::Vertex => self
                             .remembered_vertex
                             .as_ref()
-                            .map(|target| scene.resolve_vertex_target(target)),
+                            .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
                         _ => self
                             .remembered_edge
                             .as_ref()
-                            .map(|target| scene.resolve_edge_target(target)),
+                            .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
                     }
                     .ok_or(OperationError::NoSelection)?
-                    .map_err(OperationError::Scene)?;
-                }
-                if !component && self.selection.is_empty() {
-                    // The 2027 View page: Frame Selection with nothing selected acts like Frame All.
-                    return self.frame_everything();
-                }
-                if !component {
-                    let before = self.camera.clone();
-                    self.frame_members(if with_children {
-                        FrameChildren::Include
-                    } else {
-                        FrameChildren::Exclude
-                    })?;
-                    return Ok(if self.camera == before {
+                    .map_err(OperationError::Camera)?;
+                    Ok(if self.camera == before {
                         OperationReply::Unchanged
                     } else {
                         OperationReply::Changed
-                    });
-                }
-                let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
-                    .map_err(|error| OperationError::View(error.to_string()))?;
-                let before = self.camera.clone();
-                match self.selection_mode {
-                    SelectionMode::Face => self
-                        .remembered_face
-                        .as_ref()
-                        .map(|target| self.camera.frame_face(&view, target, self.aspect)),
-                    SelectionMode::Vertex => self
-                        .remembered_vertex
-                        .as_ref()
-                        .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
-                    _ => self
-                        .remembered_edge
-                        .as_ref()
-                        .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
-                }
-                .ok_or(OperationError::NoSelection)?
-                .map_err(OperationError::Camera)?;
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
-                } else {
-                    OperationReply::Changed
-                });
+                    })
+                })();
+                return self.end_fit(original, result);
             }
             Operation::ExportObj {
                 path,
@@ -1094,7 +1101,11 @@ impl Editor {
                     OperationReply::Changed
                 });
             }
-            Operation::FrameAll => return self.frame_everything(),
+            Operation::FrameAll { fit_factor } => {
+                let original = self.begin_fit(fit_factor)?;
+                let result = self.frame_everything();
+                return self.end_fit(original, result);
+            }
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
                 let before = self.camera.clone();
                 match operation {

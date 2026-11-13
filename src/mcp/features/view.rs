@@ -72,12 +72,13 @@ fn parse_frame_selected(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
         token(&args.scene_token)?,
         Operation::FrameSelected {
             with_children: args.with_children,
+            fit_factor: None,
         },
     ))
 }
 
 fn parse_frame_all(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
-    mutation(arguments, Operation::FrameAll)
+    mutation(arguments, Operation::FrameAll { fit_factor: None })
 }
 
 fn parse_set_grid_visibility(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {

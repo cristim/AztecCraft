@@ -1055,9 +1055,10 @@ fn playback_keeps_playing_through_selection_tool_camera_view_and_read_requests_o
         Operation::SetSelectionMode(SelectionMode::Vertex),
         Operation::SetGridVisible { visible: false },
         Operation::DeselectAll,
-        Operation::FrameAll,
+        Operation::FrameAll { fit_factor: None },
         Operation::FrameSelected {
             with_children: false,
+            fit_factor: None,
         },
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
         Operation::SetSidebarPanelVisible {
