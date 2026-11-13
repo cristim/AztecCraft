@@ -7,6 +7,7 @@
 - [Workflow inventory seed](inventory-seed.md): provisional candidate workflows, official sources, component boundaries and a measurement proposal.
 - [Parity inventory framework](parity-inventory/README.md): per-family workflow inventory skeleton, status vocabulary, evidence record and the PROPOSED documentation-conformance measurement rule (issue #6, in progress; Interchange, Polygon modeling and Scene management are expanded, the other families are not yet).
 - [Development](development.md): pinned Rust toolchain, local checks, bounded read-only ASCII curves, the bounded World-axis Move candidate and scoped native/SDK/GPU evidence.
+- [Dependency graph design](dependency-graph.md): DG model for ASCII history nodes, drivers and instancing (issue #17), inert-by-default admission, whitelisted evaluation, staged slices and Maya evidence needs. Design only, nothing implemented.
 - [Build checks and packaging](builds.md): prepared CI, coverage/security checks, local hooks, packaging boundaries and Craft workflow references.
 - [Authored Maya Binary writer](binary-authored-writer.md): what a fresh `.mb` may contain, where each choice comes from, what is invented and the edge bit31 correlation (issue #156).
 - [Binary default leaf insertion](binary-leaf-insertion.md): PROVISIONAL grammar for inserting an absent translate leaf into an opened `.mb`, its sources and what stays unproven (issue #19).
