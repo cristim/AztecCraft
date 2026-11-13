@@ -211,6 +211,11 @@ impl NativeScene {
         self.session_materials.materials.get(id.0)
     }
 
+    /// True when a session material was explicitly assigned to the shape (not the initial group).
+    pub fn has_assigned_session_material(&self, shape: &NativeMeshShape) -> bool {
+        self.source.is_none() && self.session_materials.assignments.contains_key(&shape.id)
+    }
+
     /// The id behind [`Self::session_material`]; valid only at the current history position.
     pub fn session_material_id(&self, shape: &NativeMeshShape) -> Option<SessionMaterialId> {
         if self.source.is_some() {
