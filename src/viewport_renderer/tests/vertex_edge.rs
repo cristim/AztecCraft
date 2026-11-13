@@ -5,7 +5,7 @@
 use super::*;
 use azteccraft::{
     native_scene::{EdgeTarget, VertexTarget},
-    viewport::{FACE_CENTER_DEPTH_TOLERANCE, VERTEX_MARKER_DEPTH_TOLERANCE},
+    viewport::FACE_CENTER_DEPTH_TOLERANCE,
 };
 
 const MARKER_PIXELS: f32 = 5.0;
@@ -453,12 +453,11 @@ fn selected_edge_is_cut_at_the_near_plane_and_dropped_behind_the_eye() {
 }
 
 #[test]
-fn depth_tolerances_are_pinned_and_the_marker_bias_reads_the_vertex_constant() {
+fn the_face_tolerance_is_pinned_and_drawn_markers_read_the_pick_bias() {
     assert_eq!(FACE_CENTER_DEPTH_TOLERANCE, 1e-4);
-    assert_eq!(VERTEX_MARKER_DEPTH_TOLERANCE, 6e-3);
     let camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 1.0, 1.0, 100.0).unwrap();
     let moved = camera.marker_biased(Vec3::ZERO);
-    assert!((moved.z - 5.0 * VERTEX_MARKER_DEPTH_TOLERANCE).abs() < 1e-6);
+    assert!((moved.z - 5.0 * camera.marker_bias(5.0)).abs() < 1e-5);
 }
 
 /// A cube of side 2 so its corners are well apart on screen.
@@ -627,6 +626,37 @@ fn headless_gpu_far_small_object_corner_markers_are_whole_at_128_px() {
 
 #[test]
 #[ignore = "requires a real headless GPU adapter"]
+fn headless_gpu_corner_markers_are_whole_across_distances_near_far_and_viewport_sizes() {
+    // No per-case tuning: the same derived bias must serve every row.
+    for (distance, near, far, size) in [
+        (8.0, 0.1, 1_000.0, 1024),
+        (8.0, 0.01, 10_000.0, 256),
+        (50.0, 0.01, 10_000.0, 512),
+        (120.0, 0.003, 10_000.0, 1024),
+        (500.0, 0.01, 10_000.0, 1024),
+        (500.0, 1.0, 2_000.0, 512),
+        (2000.0, 1.0, 10_000.0, 1024),
+    ] {
+        let camera = Camera::new(
+            Vec3::ZERO,
+            0.6,
+            0.4,
+            distance,
+            45_f32.to_radians(),
+            near,
+            far,
+        )
+        .unwrap();
+        assert_eq!(
+            corner_failures(&camera, size),
+            Vec::<String>::new(),
+            "d={distance} near={near} far={far} size={size}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a real headless GPU adapter"]
 fn headless_gpu_edge_mode_draws_all_edges_without_outlines_and_the_selected_strip_on_top() {
     let scene = big_cube();
     let camera = camera(0.01);
@@ -723,11 +753,8 @@ fn a_remembered_edge_on_a_non_active_instance_draws_no_strip() {
     assert!(submission.markers.is_empty());
 }
 
-#[test]
-fn wireframe_vertex_filter_uses_the_vertex_tolerance_not_the_face_one() {
-    // A unit cube whose front face sits `gap` behind the front face of a side-2 plate cube: 2.5e-3
-    // of the 4-unit distance, between the face tolerance (1e-4) and the vertex tolerance (6e-3).
-    let gap = 0.01;
+fn plate_cubes(gap: f64) -> Scene {
+    // A unit cube whose front face sits `gap` behind the front face of a side-2 plate cube.
     let mut native = cube();
     let plate = native.create(Primitive::Cube, "plate").unwrap();
     native
@@ -749,7 +776,14 @@ fn wireframe_vertex_filter_uses_the_vertex_tolerance_not_the_face_one() {
             },
         )
         .unwrap();
-    let scene = Scene::new(native);
+    Scene::new(native)
+}
+
+#[test]
+fn wireframe_vertex_filter_uses_the_vertex_tolerance_not_the_face_one() {
+    // A gap of 1.5e-4 of the 4-unit distance sits between the face tolerance (1e-4) and the
+    // vertex bias (about 2.2e-4).
+    let scene = plate_cubes(0.0006);
     let camera = camera(0.01);
     let wire = submit(
         &scene,
@@ -759,6 +793,26 @@ fn wireframe_vertex_filter_uses_the_vertex_tolerance_not_the_face_one() {
     );
     // Only the four front corners are within the slack; the back four sit a unit deeper.
     assert_eq!(wire.markers.len(), 4 * 6);
+}
+
+#[test]
+fn a_plate_0_05_in_front_hides_every_wireframe_marker_at_600_1024_and_1200_px() {
+    let scene = plate_cubes(0.05);
+    let camera = camera(0.01);
+    for size in [600, 1024, 1200] {
+        let wire = Submission::new(
+            &scene.view,
+            &camera,
+            [size; 2],
+            vertex_feedback(&scene, None),
+            true,
+            ShadingMode::Wireframe,
+            FORMAT,
+            u64::MAX,
+        )
+        .unwrap();
+        assert!(wire.markers.is_empty(), "{size}");
+    }
 }
 
 #[test]
@@ -781,7 +835,7 @@ fn the_selected_edge_strip_sits_toward_the_eye_of_the_edge_itself() {
             .project(camera.marker_biased(points[end]), 1.0)
             .unwrap()
             .unwrap();
-        assert!(biased.z < on_edge.z - 1e-6);
+        assert!(biased.z < on_edge.z);
         let nearest = quad
             .iter()
             .min_by(|p, q| {

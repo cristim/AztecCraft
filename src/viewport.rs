@@ -25,12 +25,21 @@ const MAX_FACE_CENTER_INTERSECTIONS: usize = 1_000_000;
 
 /// Relative view-depth slack for a face center against its own surface hit (f32 rounding).
 pub const FACE_CENTER_DEPTH_TOLERANCE: f32 = 1e-4;
-/// Relative view-depth slack for a vertex, or a point on an edge, against the surface it lies
-/// on. Vertex markers and the selected-edge strip are biased toward the eye by it and vertex and
-/// edge picks test occlusion with it, so what is drawn and what is picked agree. Kept apart from
-/// the face constant so loosening one never moves the other. A flat provisional policy value,
-/// see the policy constants table in `.project-docs/development.md`.
-pub const VERTEX_MARKER_DEPTH_TOLERANCE: f32 = 6e-3;
+/// Pixels of depth slope a surface hides behind: the shaded-surface pipeline pushes its depth
+/// back by this many pixels times its steepest depth slope (wgpu `slope_scale`), and the CPU
+/// occlusion test adds the same amount to the hit surface's linear depth. It lets a flat
+/// screen-aligned marker (half width `VERTEX_MARKER_PIXELS / 2`) stay whole on a steep face
+/// without a distance-wide bias that would show a vertex behind a thin plate. Provisional,
+/// chosen from Metal readbacks.
+pub const MARKER_SLOPE_PIXELS: f32 = 4.0;
+/// Depth32Float guard, in units in the last place of NDC depth near 1 (2^-24), for the rounding
+/// of the marker's and the surface's interpolated depth; software Vulkan rounds more coarsely
+/// than Metal, so this is kept generous.
+pub const MARKER_DEPTH_ULPS: f32 = 4.0;
+/// Upper bound on the marker bias fraction, so extreme near/far ratios cannot push a marker
+/// through the eye.
+pub const MARKER_BIAS_MAX: f32 = 0.25;
+const DEPTH32_ULP: f32 = 1.0 / 16_777_216.0;
 
 // Right-handed, Y-up; yaw zero looks from +Z. NDC uses X/Y [-1, 1], Y up, Z [0, 1].
 // UI pixels map to NDC as (2*x/width - 1, 1 - 2*y/height).
@@ -251,12 +260,22 @@ impl Camera {
                     self.yaw.cos() * self.pitch.cos(),
                 )
     }
-    /// `point` moved toward the eye by `VERTEX_MARKER_DEPTH_TOLERANCE`, so a marker on a surface is not hidden by
+    /// Relative view-depth slack for a vertex or edge point at linear view `depth`, shared by
+    /// drawing and picking: f32 rounding (`FACE_CENTER_DEPTH_TOLERANCE`) plus the Depth32Float
+    /// step at `depth` for this near and far (`d * (1/near - 1/far)` ulps of NDC depth,
+    /// relative). Surface slope is handled separately, per surface (`MARKER_SLOPE_PIXELS`).
+    pub fn marker_bias(&self, depth: f32) -> f32 {
+        let buffer = MARKER_DEPTH_ULPS * DEPTH32_ULP * depth * (1.0 / self.near - 1.0 / self.far);
+        (FACE_CENTER_DEPTH_TOLERANCE + buffer).min(MARKER_BIAS_MAX)
+    }
+
+    /// `point` moved toward the eye by `marker_bias`, so a marker on a surface is not hidden by
     /// the neighbouring pixels of that surface. Depth is linear in `p - eye`, unlike NDC depth,
     /// so the shift scales with distance.
     pub fn marker_biased(&self, point: Vec3) -> Vec3 {
         let eye = self.eye();
-        eye + (point - eye) * (1.0 - VERTEX_MARKER_DEPTH_TOLERANCE)
+        let depth = -self.view_matrix().transform_point3(point).z;
+        eye + (point - eye) * (1.0 - self.marker_bias(depth))
     }
 
     pub fn view_matrix(&self) -> Mat4 {
@@ -925,13 +944,8 @@ impl Camera {
         admit_pick_work(scene, candidates.len())?;
         let mut selected: Option<(f32, f32, &ViewInstance, usize)> = None;
         for candidate in candidates {
-            let Some(depth) = self.unoccluded_depth(
-                scene,
-                &frame,
-                candidate.point,
-                candidate.ndc,
-                VERTEX_MARKER_DEPTH_TOLERANCE,
-            )?
+            let Some(depth) =
+                self.unoccluded_marker_depth(scene, &frame, candidate.point, candidate.ndc)?
             else {
                 continue;
             };
@@ -992,6 +1006,20 @@ impl Camera {
         ndc: Vec3,
         tolerance: f32,
     ) -> Result<Option<f32>, ViewError> {
+        self.occlusion_depth(scene, frame, point, ndc, tolerance, 0.0)
+    }
+
+    /// `unoccluded_depth` where the blocking surface also hides `slope_pixels` pixels of its own
+    /// depth slope behind itself.
+    fn occlusion_depth(
+        &self,
+        scene: &ViewScene,
+        frame: &PickFrame,
+        point: Vec3,
+        ndc: Vec3,
+        tolerance: f32,
+        slope_pixels: f32,
+    ) -> Result<Option<f32>, ViewError> {
         let depth = -frame.view.transform_point3(point).z;
         let ray = self
             .ray(ndc.truncate(), frame.aspect)
@@ -999,24 +1027,83 @@ impl Camera {
         let mut closest = None;
         for occluder in scene.instances() {
             let triangles = occluder.faces().iter().flat_map(|surface| {
-                surface
-                    .triangles()
-                    .map(|triangle| ((), triangle.map(|index| occluder.world_vertices()[index])))
+                surface.triangles().map(|triangle| {
+                    let corners = triangle.map(|index| occluder.world_vertices()[index]);
+                    (corners, corners)
+                })
             });
             self.closest_triangle(ray, triangles, &mut closest);
         }
-        if let Some((distance, ())) = closest {
+        if let Some((distance, corners)) = closest {
             // Compare linear view depth: the point lies on its own surface, so f32
             // rounding between the ray hit and the point must not self-occlude.
             let hit_depth = -frame
                 .view
                 .transform_point3(ray.origin + distance * ray.direction)
                 .z;
-            if hit_depth < depth * (1.0 - tolerance) {
+            let slope = if slope_pixels > 0.0 {
+                slope_pixels * self.depth_slope_per_pixel(frame, corners, ndc, hit_depth)
+            } else {
+                0.0
+            };
+            if hit_depth + slope < depth * (1.0 - tolerance) {
                 return Ok(None);
             }
         }
         Ok(Some(depth))
+    }
+
+    /// `unoccluded_depth` with the screen-derived `marker_bias` as the slack, for vertex and edge
+    /// markers and picks.
+    pub fn unoccluded_marker_depth(
+        &self,
+        scene: &ViewScene,
+        frame: &PickFrame,
+        point: Vec3,
+        ndc: Vec3,
+    ) -> Result<Option<f32>, ViewError> {
+        let depth = -frame.view.transform_point3(point).z;
+        self.occlusion_depth(
+            scene,
+            frame,
+            point,
+            ndc,
+            self.marker_bias(depth),
+            MARKER_SLOPE_PIXELS,
+        )
+    }
+
+    /// Largest change of the triangle plane's linear view depth over one pixel step in x or y
+    /// from the pixel at `ndc` (infinite when the plane is edge-on to a neighbouring ray).
+    fn depth_slope_per_pixel(
+        &self,
+        frame: &PickFrame,
+        [a, b, c]: [Vec3; 3],
+        ndc: Vec3,
+        hit_depth: f32,
+    ) -> f32 {
+        let normal = (b - a).cross(c - a);
+        let step = Vec2::new(2.0 / frame.size.x, 2.0 / frame.size.y);
+        let toward_center = Vec2::new(-ndc.x.signum(), -ndc.y.signum());
+        let mut slope = 0.0_f32;
+        for offset in [Vec2::new(step.x, 0.0), Vec2::new(0.0, step.y)] {
+            let moved = ndc.truncate() + offset * toward_center;
+            let depth = self.ray(moved, frame.aspect).ok().and_then(|ray| {
+                let denominator = normal.dot(ray.direction);
+                if denominator == 0.0 {
+                    return None;
+                }
+                let distance = normal.dot(a - ray.origin) / denominator;
+                Some(
+                    -frame
+                        .view
+                        .transform_point3(ray.origin + distance * ray.direction)
+                        .z,
+                )
+            });
+            slope = slope.max(depth.map_or(f32::INFINITY, |depth| (depth - hit_depth).abs()));
+        }
+        slope
     }
 
     fn closest_triangle<T>(

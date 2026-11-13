@@ -155,7 +155,34 @@ fn near(a: f32, b: f32) -> Vec2 {
 #[test]
 fn depth_tolerances_are_pinned_independently() {
     assert_eq!(FACE_CENTER_DEPTH_TOLERANCE, 1e-4);
-    assert_eq!(VERTEX_MARKER_DEPTH_TOLERANCE, 6e-3);
+    assert_eq!(MARKER_SLOPE_PIXELS, 4.0);
+    assert_eq!(MARKER_DEPTH_ULPS, 4.0);
+    assert_eq!(MARKER_BIAS_MAX, 0.25);
+}
+
+fn bias_at(near: f32, far: f32, depth: f32) -> f32 {
+    Camera::new(Vec3::ZERO, 0.0, 0.0, 8.0, 45_f32.to_radians(), near, far)
+        .unwrap()
+        .marker_bias(depth)
+}
+
+#[test]
+fn marker_bias_is_rounding_plus_the_depth_buffer_step_and_is_capped() {
+    // Near depth the buffer step vanishes and only the rounding slack stays.
+    assert!((bias_at(0.1, 1000.0, 0.2) - FACE_CENTER_DEPTH_TOLERANCE).abs() < 1e-5);
+    // 4 ulps * 2^-24 * depth * (1/near - 1/far) at depth 500, near 0.01.
+    let expected = 4.0 / 16_777_216.0 * 500.0 * (100.0 - 1e-4) + FACE_CENTER_DEPTH_TOLERANCE;
+    assert!((bias_at(0.01, 10_000.0, 500.0) - expected).abs() < 1e-5);
+    assert!(bias_at(0.001, 10_000.0, 500.0) > bias_at(0.01, 10_000.0, 500.0));
+    assert!(bias_at(0.01, 10_000.0, 5000.0) > bias_at(0.01, 10_000.0, 500.0));
+    assert_eq!(bias_at(0.001, 10_000.0, 1e9), MARKER_BIAS_MAX);
+}
+
+#[test]
+fn marker_biased_moves_a_point_toward_the_eye_by_the_bias_fraction() {
+    let camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 5.0, 1.0, 1.0, 100.0).unwrap();
+    let moved = camera.marker_biased(Vec3::ZERO);
+    assert!((moved.z - 5.0 * camera.marker_bias(5.0)).abs() < 1e-5);
 }
 
 #[test]
@@ -208,8 +235,8 @@ fn vertex_pick_skips_an_occluded_vertex_and_uses_its_own_tolerance() {
         (-0.5, None),
         (0.5, Some(4)),
         (-0.0003, Some(4)),
-        (-0.0015, Some(4)),
-        (-0.02, Some(4)),
+        (-0.0008, Some(4)),
+        (-0.003, None),
         (-0.05, None),
     ] {
         let fixture = Fixture::new(quad(z), &[vec![0, 1, 2, 3]], &[]);
@@ -223,7 +250,7 @@ fn vertex_and_face_center_picks_read_their_own_depth_tolerance() {
     // 4 and centre are both occluded by the quad's surface.
     for (gap, vertex, face) in [
         (0.00025, Some(4), Some(1)),
-        (0.0015, Some(4), None),
+        (0.0008, Some(4), None),
         (0.05, None, None),
     ] {
         let points = vec![
@@ -262,7 +289,12 @@ fn vertex_and_face_center_picks_read_their_own_depth_tolerance() {
 
 /// Quad plate at z = 0 and a loose vertex `gap` behind it, seen from `distance`: the picked
 /// vertex index at the vertex's own pixel.
-fn pick_behind_plate(distance: f32, gap: f32) -> Result<Option<usize>, ViewError> {
+fn pick_behind_plate(
+    distance: f32,
+    gap: f32,
+    size: [u32; 2],
+    tilt_degrees: f32,
+) -> Result<Option<usize>, ViewError> {
     let camera = Camera::new(
         Vec3::ZERO,
         0.0,
@@ -274,25 +306,27 @@ fn pick_behind_plate(distance: f32, gap: f32) -> Result<Option<usize>, ViewError
     )
     .unwrap();
     let half = distance * 0.2;
+    let (sin, cos) = tilt_degrees.to_radians().sin_cos();
     let points = [
-        [-half, -half, 0.0],
-        [half, -half, 0.0],
-        [half, half, 0.0],
-        [-half, half, 0.0],
+        [-half * cos, -half, half * sin],
+        [half * cos, -half, -half * sin],
+        [half * cos, half, -half * sin],
+        [-half * cos, half, half * sin],
         [0.0, 0.0, -gap],
     ]
     .map(|point: [f32; 3]| point.map(f64::from))
     .to_vec();
     let fixture = Fixture::new(points, &[vec![0, 1, 2, 3]], &[]);
-    let ndc = camera.project(Vec3::new(0.0, 0.0, -gap), 800.0 / 600.0);
+    let extent = Vec2::new(size[0] as f32, size[1] as f32);
+    let ndc = camera.project(Vec3::new(0.0, 0.0, -gap), extent.x / extent.y);
     let ndc = ndc.unwrap().unwrap();
-    let pointer = Vec2::new(ndc.x + 1.0, 1.0 - ndc.y) * 0.5 * Vec2::new(800.0, 600.0);
+    let pointer = Vec2::new(ndc.x + 1.0, 1.0 - ndc.y) * 0.5 * extent;
     camera
         .pick_vertex(
             &fixture.view,
             Some((fixture.owner, &fixture.path)),
             pointer,
-            SIZE,
+            size,
             1.0,
         )
         .map(|target| target.map(|target| target.vertex_index))
@@ -300,13 +334,23 @@ fn pick_behind_plate(distance: f32, gap: f32) -> Result<Option<usize>, ViewError
 
 #[test]
 fn a_thin_plate_in_front_of_a_vertex_hides_it_near_and_far() {
-    // The slack is the flat tolerance * distance, so the gaps are set relative to it: half of it
-    // the vertex counts as visible, twice it is hidden.
+    // The slack is the screen-derived bias * distance, so the gaps are set relative to it: half
+    // of it the vertex counts as visible, twice it is hidden.
     for distance in [5.0_f32, 120.0, 500.0] {
-        let slack = VERTEX_MARKER_DEPTH_TOLERANCE * distance;
+        let camera = Camera::new(
+            Vec3::ZERO,
+            0.0,
+            0.0,
+            distance,
+            45_f32.to_radians(),
+            0.01,
+            10_000.0,
+        )
+        .unwrap();
+        let slack = camera.marker_bias(distance) * distance;
         for (gap, expected) in [(slack * 0.5, Some(4)), (slack * 2.0, None)] {
             assert_eq!(
-                pick_behind_plate(distance, gap),
+                pick_behind_plate(distance, gap, SIZE, 0.0),
                 Ok(expected),
                 "distance {distance} gap {gap}"
             );
@@ -315,11 +359,43 @@ fn a_thin_plate_in_front_of_a_vertex_hides_it_near_and_far() {
 }
 
 #[test]
-fn plate_thickness_at_the_default_distance_is_pinned_in_absolute_units() {
-    // Independent of the tolerance constant: at distance 8, 0.1 units hides the vertex and 0.02
-    // does not.
-    assert_eq!(pick_behind_plate(8.0, 0.1), Ok(None));
-    assert_eq!(pick_behind_plate(8.0, 0.02), Ok(Some(4)));
+fn a_thin_plate_hides_the_vertex_behind_it_at_every_viewport_height() {
+    // At distance 8 a plate 0.05 thick hides the vertex at 600, 1024 and 1200 px, and a plate
+    // 0.0005 thick, within the depth-buffer slack, does not.
+    for size in [[800, 600], [1365, 1024], [1600, 1200]] {
+        assert_eq!(
+            pick_behind_plate(8.0, 0.05, size, 0.0),
+            Ok(None),
+            "{size:?}"
+        );
+        assert_eq!(
+            pick_behind_plate(8.0, 0.0005, size, 0.0),
+            Ok(Some(4)),
+            "{size:?}"
+        );
+    }
+}
+
+#[test]
+fn a_steep_plate_hides_the_vertex_only_beyond_its_own_pixel_slope() {
+    // The plate is tilted 80 degrees from facing the eye, so its depth changes by about 0.04
+    // per pixel at 600 px; the slope allowance is 4 px, so a vertex 3.5 px of slope behind it
+    // still picks (a marker on a steep face must stay whole) and one 4.5 px behind is hidden.
+    // The flat plate hides at 0.05 (previous test).
+    for size in [[800, 600], [1365, 1024], [1600, 1200]] {
+        let slope_px =
+            8.0 * 2.0 * 22.5_f32.to_radians().tan() / size[1] as f32 * 80_f32.to_radians().tan();
+        assert_eq!(
+            pick_behind_plate(8.0, slope_px * 3.5, size, 80.0),
+            Ok(Some(4)),
+            "{size:?}"
+        );
+        assert_eq!(
+            pick_behind_plate(8.0, slope_px * 4.5, size, 80.0),
+            Ok(None),
+            "{size:?}"
+        );
+    }
 }
 
 #[test]

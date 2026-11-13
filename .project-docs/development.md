@@ -247,7 +247,7 @@ Where the code lives:
 | --- | --- |
 | Target resolvers | `resolve_vertex_target`, `resolve_edge_target` in `src/native_scene.rs` |
 | Display edges and vertex data | `ViewInstance::edges` (`view_edges`) in `src/view_scene.rs` |
-| Picking and occlusion | `Camera::pick_vertex`, `Camera::pick_edge`, `VERTEX_MARKER_DEPTH_TOLERANCE` in `src/viewport.rs`; pixel wrappers in `src/viewport_ui.rs` |
+| Picking and occlusion | `Camera::pick_vertex`, `Camera::pick_edge`, `Camera::marker_bias` in `src/viewport.rs`; pixel wrappers in `src/viewport_ui.rs` |
 | Markers and edge drawing | `vertex_markers`, `selected_edge`, `edge_quad` in `src/viewport_renderer.rs` |
 | Typed operations | `Operation::SelectVertex` / `SelectEdge` in `src/app/dispatch.rs` (modal and closing refusal in the guard above the handlers) |
 | Keys, click | F9 / F10 and the viewport click in `src/app/panels.rs`; Select > Components in `src/app/menus.rs` |
@@ -266,9 +266,9 @@ cargo test --locked --bin azteccraft --features mcp-test-client vertex_edge -- -
 ```
 
 The last command also runs the GPU readbacks in `src/viewport_renderer/tests/vertex_edge.rs`,
-which need an adapter and fail without one. They pin the 6e-3 outcome only; the 5e-3 and
-2e-2 bracket in known-issues came from manual readbacks. Passing adapter tests are not
-a native window journey.
+which need an adapter and fail without one. They check every visible corner marker whole and every hidden corner
+undrawn across several distances, near/far settings and viewport sizes on the adapter used
+(Metal here, software Vulkan in CI). Passing adapter tests are not a native window journey.
 
 Regenerating committed outputs: `UPDATE_SNAPSHOTS=1` rewrites `tests/snapshots/*` (guard
 matrix, tool catalog, inspection bytes; review the diff and confirm existing cells are
@@ -346,7 +346,7 @@ Sources:
 | 3 | Face center | mean of the ordered corners, summed in f64 | `src/view_scene.rs` `ViewFace::center` | provisional | The docs do not define the center. | `twenty_gon_center_marker_is_the_corner_average_and_clickable` |
 | 4 | Center-ray work cap | 1,000,000 eligible centers times occluder triangles; more is refused | `src/viewport.rs` `MAX_FACE_CENTER_INTERSECTIONS` | provisional | No Maya counterpart (a pick cost limit). | `face_center_work_budget_accepts_exactly_the_limit_and_rejects_one_more`, `center_work_boundary_is_enforced_on_the_actual_picker` |
 | 5 | Face-center depth tolerance | 1e-4 of linear view depth | `src/viewport.rs` `FACE_CENTER_DEPTH_TOLERANCE` | provisional | Numerical, no docs analogue. | `depth_tolerances_are_pinned_independently`, `center_depth_tolerance_admits_rounding_gaps_but_not_half_percent_occluders` |
-| 6 | Vertex and edge depth tolerance | 6e-3 of linear view depth | `src/viewport.rs` `VERTEX_MARKER_DEPTH_TOLERANCE` | provisional | Chosen from readbacks recorded in `known-issues.md`, not from docs. | `depth_tolerances_are_pinned_independently` |
+| 6 | Vertex and edge depth bias | Marker pushed toward the eye by `1e-4 + 4 Depth32Float ulps` (`4 * 2^-24 * depth * (1/near - 1/far)`) of linear view depth, capped at 0.25; each surface hides 4 pixels of its own depth slope behind itself (wgpu `slope_scale` on the surface pipeline, and the same amount added to the hit surface's linear depth in CPU occlusion) | `src/viewport.rs` `MARKER_SLOPE_PIXELS`, `MARKER_DEPTH_ULPS`, `MARKER_BIAS_MAX`, `Camera::marker_bias`; `src/viewport_renderer.rs` surface pipeline | provisional | Slope pixels 4 chosen from Metal readbacks (3 left a corner at 24/25 at 1024 px); software Vulkan not bracketed. A flat plate in front hides a vertex from about 0.003 units at distance 8 at any viewport height; a steep plate hides it beyond 4 px of its own slope. | `depth_tolerances_are_pinned_independently`, `marker_bias_is_rounding_plus_the_depth_buffer_step_and_is_capped`, `a_thin_plate_hides_the_vertex_behind_it_at_every_viewport_height`, `a_steep_plate_hides_the_vertex_only_beyond_its_own_pixel_slope` |
 | 7 | Vertex marker | 5 px square | `src/view_scene.rs` `VERTEX_MARKER_PIXELS` | provisional | Polygons: "Adjusts the size that vertices are drawn in the scene view. The default size is 3. The range is from 0.2 to 10." The unit is not stated, so no conflict is claimed. | `marker_sizes_are_pinned_to_their_provisional_pixel_values` |
 | 8 | Vertex click box | 10 px edge, 5 px each side | `src/view_scene.rs` `VERTEX_CLICK_PIXELS` | provisional | Same Click box size quote as row 2, no value. | `vertex_pick_uses_the_click_box_and_reaches_loose_vertices`, `vertex_and_edge_thresholds_include_their_exact_limit` |
 | 9 | Edge click distance | 6 px from the segment | `src/view_scene.rs` `EDGE_CLICK_PIXELS` | provisional | Same as row 8. | `edge_pick_uses_screen_distance_and_reaches_face_less_edges`, `vertex_and_edge_thresholds_include_their_exact_limit` |
