@@ -788,13 +788,7 @@ impl Submission {
                     }
                     if shading == ShadingMode::Wireframe
                         && camera
-                            .unoccluded_depth(
-                                scene,
-                                &frame,
-                                point,
-                                clip.truncate() / clip.w,
-                                azteccraft::viewport::VERTEX_MARKER_DEPTH_TOLERANCE,
-                            )
+                            .unoccluded_marker_depth(scene, &frame, point, clip.truncate() / clip.w)
                             .map_err(|_| RenderError::NonFiniteClip)?
                             .is_none()
                     {
@@ -954,7 +948,7 @@ impl GpuResources {
             label: Some("viewport flat geometry"),
             source: wgpu::ShaderSource::Wgsl(include_str!("viewport_shader.wgsl").into()),
         });
-        let pipeline = |topology, depth_write_enabled| {
+        let pipeline = |topology, depth_write_enabled, bias| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("viewport geometry"),
                 layout: None,
@@ -978,7 +972,7 @@ impl GpuResources {
                     depth_write_enabled: Some(depth_write_enabled),
                     depth_compare: Some(wgpu::CompareFunction::LessEqual),
                     stencil: Default::default(),
-                    bias: Default::default(),
+                    bias,
                 }),
                 multisample: Default::default(),
                 fragment: Some(wgpu::FragmentState {
@@ -996,9 +990,23 @@ impl GpuResources {
             })
         };
         Self {
-            surfaces: pipeline(wgpu::PrimitiveTopology::TriangleList, true),
-            lines: pipeline(wgpu::PrimitiveTopology::LineList, false),
-            markers: pipeline(wgpu::PrimitiveTopology::TriangleList, false),
+            // Surfaces hide their own steepest depth slope behind themselves so a flat marker on
+            // a steep face stays whole; the CPU occlusion test applies the same amount.
+            surfaces: pipeline(
+                wgpu::PrimitiveTopology::TriangleList,
+                true,
+                wgpu::DepthBiasState {
+                    constant: 0,
+                    slope_scale: azteccraft::viewport::MARKER_SLOPE_PIXELS,
+                    clamp: 0.0,
+                },
+            ),
+            lines: pipeline(wgpu::PrimitiveTopology::LineList, false, Default::default()),
+            markers: pipeline(
+                wgpu::PrimitiveTopology::TriangleList,
+                false,
+                Default::default(),
+            ),
             vertices: None,
         }
     }
