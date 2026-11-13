@@ -3,8 +3,8 @@
 
 use crate::app::{Editor, NOT_IMPLEMENTED_YET};
 use crate::editor_operations::{
-    ActiveTool, ManipulationSpace, ManipulationValue, Operation, OperationError, OperationReply,
-    SelectionMode, ToolHandle,
+    ActiveTool, ManipulationSpace, ManipulationValue, NO_ROTATE_PARENT, Operation, OperationError,
+    OperationReply, SelectionMode, ToolHandle,
 };
 use azteccraft::{
     history::{
@@ -114,6 +114,9 @@ impl Editor {
         tool: ActiveTool,
         space: ManipulationSpace,
     ) -> Result<OperationReply, OperationError> {
+        if tool == ActiveTool::Rotate && space == ManipulationSpace::Parent {
+            return Err(OperationError::InvalidInput(NO_ROTATE_PARENT.to_owned()));
+        }
         let slot = match tool {
             ActiveTool::Rotate => &mut self.manipulation.rotate_space,
             ActiveTool::Scale => &mut self.manipulation.scale_space,
@@ -190,10 +193,15 @@ pub(in crate::app) fn is_manipulation_tool(tool: ActiveTool) -> bool {
     )
 }
 
+// PROVISIONAL until the Scale handles and the native drag follow the Parent orientation: a native
+// drag would measure along other axes than a remote Scale begun with `space: parent` uses.
+pub(in crate::app) const SCALE_PARENT_HANDLES: &str = "Scale along Parent axes is available through MCP only; choose Object or World in the Scale tool settings";
+
 fn space_name(space: ManipulationSpace) -> &'static str {
     match space {
         ManipulationSpace::Object => "Object",
         ManipulationSpace::World => "World",
+        ManipulationSpace::Parent => "Parent",
     }
 }
 
@@ -311,6 +319,8 @@ fn handle_error(tool: ActiveTool, error: HandleError) -> OperationError {
 pub(in crate::app) enum FrameFailure {
     Operation(OperationError),
     Handle(HandleError),
+    /// A stored setting whose handles native does not draw yet; the fixed text names the way out.
+    Unsupported(&'static str),
 }
 
 impl FrameFailure {
@@ -320,6 +330,7 @@ impl FrameFailure {
         match self {
             Self::Handle(error) => Some(error.describe_for(tool_name(tool))),
             Self::Operation(OperationError::Scene(error)) => Some(error.to_string()),
+            Self::Unsupported(reason) => Some((*reason).to_owned()),
             Self::Operation(_) => None,
         }
     }
@@ -328,6 +339,7 @@ impl FrameFailure {
         match self {
             Self::Operation(error) => error,
             Self::Handle(error) => handle_error(tool, error),
+            Self::Unsupported(reason) => OperationError::InvalidInput(reason.to_owned()),
         }
     }
 }
@@ -409,12 +421,15 @@ impl Editor {
         provenance: ManipulationProvenance,
     ) -> Result<OperationReply, OperationError> {
         self.check_manipulation_target("Rotate", target)?;
+        let space = space
+            .rotate()
+            .ok_or_else(|| OperationError::InvalidInput(NO_ROTATE_PARENT.to_owned()))?;
         let id = self
             .history
             .begin_rotate(
                 target,
                 axis,
-                space.rotate(),
+                space,
                 self.scene_token,
                 provenance,
                 VIEW_BUDGET,
@@ -436,6 +451,11 @@ impl Editor {
         expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
         self.check_selection_target("Scale", target, provenance, expected_selection_generation)?;
+        if provenance == ManipulationProvenance::Native && space == ManipulationSpace::Parent {
+            return Err(OperationError::InvalidInput(
+                SCALE_PARENT_HANDLES.to_owned(),
+            ));
+        }
         let id = self
             .history
             .begin_scale_many(
@@ -555,6 +575,11 @@ impl Editor {
                 "Rotate tool ({space}): drag a ring to turn about that axis | Esc cancels | \
                  view ring and free rotate are unsupported"
             ),
+            ActiveTool::Scale
+                if self.manipulation.space(ActiveTool::Scale) == ManipulationSpace::Parent =>
+            {
+                format!("Scale tool (Parent): {SCALE_PARENT_HANDLES}")
+            }
             ActiveTool::Scale => format!(
                 "Scale tool ({space}): drag an axis box or the center box | Esc cancels | \
                  plane scale is unsupported"
@@ -599,6 +624,9 @@ impl Editor {
         let axes = match self.manipulation.space(tool) {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
+            ManipulationSpace::Parent => {
+                return Err(FrameFailure::Unsupported(SCALE_PARENT_HANDLES));
+            }
         };
         let kind = match tool {
             ActiveTool::Scale => azteccraft::native_scene::ManipulatorTool::Scale,
@@ -631,9 +659,12 @@ impl Editor {
         let space = self.manipulation.space(tool);
         let scene = self.history.scene();
         match handle {
-            DragHandle::Rotate(axis) => scene
-                .rotation_refusal(target, axis, space.rotate())
-                .map(|error| error.to_string()),
+            DragHandle::Rotate(axis) => match space.rotate() {
+                Some(space) => scene
+                    .rotation_refusal(target, axis, space)
+                    .map(|error| error.to_string()),
+                None => Some(NO_ROTATE_PARENT.to_owned()),
+            },
             DragHandle::Scale(handle) => scene
                 .scale_refusal(target, handle, space.scale())
                 .map(|error| error.to_string()),
@@ -755,8 +786,11 @@ impl Editor {
         released: bool,
     ) -> Result<bool, OperationError> {
         let tool = self.active_tool;
-        let Ok((target, frame)) = self.manipulation_frame(tool) else {
-            return Ok(false);
+        let (target, frame) = match self.manipulation_frame_or_reason(tool) {
+            Ok(found) => found,
+            // No handle exists to press, so the click is an ordinary selection click; hover names
+            // the reason.
+            Err(_) => return Ok(false),
         };
         let pixel = capture
             .pointer_pixel(position)

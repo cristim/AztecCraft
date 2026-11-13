@@ -10,7 +10,7 @@
 pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("inspect_scene", "`ls`, `listRelatives`, `getAttr`, `xform -q`, `polyEvaluate`, `currentUnit -q`, `camera -q`", "one paged snapshot instead of per-command queries"),
     ("set_active_tool", "`setToolTo`", "Select, Move, Rotate and Scale only"),
-    ("set_tool_space", "`manipRotateContext` / `manipScaleContext -mode`", "object and world only; Move not covered (PROVISIONAL)"),
+    ("set_tool_space", "`manipRotateContext` / `manipScaleContext -mode`", "Move and Scale: object, world, parent; Rotate: object, world; other orientations not covered (PROVISIONAL)"),
     ("set_tool_handle", "`-currentActiveHandle` on the manip contexts", "none known (PROVISIONAL)"),
     ("set_manipulator_size", "`manipOptions -scale`", "values rounded to three decimals (AztecCraft rule)"),
     ("begin_manipulation", "`move` / `rotate` / `scale` inside `undoInfo -openChunk`", "no Maya single-call equivalent of a remote-owned preview (PROVISIONAL)"),

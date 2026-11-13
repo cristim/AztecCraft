@@ -184,20 +184,27 @@ pub enum ActiveTool {
     Scale,
 }
 
-/// The space a Rotate or Scale handle works in. Gimbal, Parent, Normal, Custom and Component
-/// are unsupported and have no variant.
+/// The space a Rotate or Scale handle works in. `Parent` is a Scale orientation only (Maya's Rotate
+/// tool has none), so Rotate refuses it with `NO_ROTATE_PARENT`. Gimbal, Normal, Custom and
+/// Component are unsupported and have no variant.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ManipulationSpace {
     Object,
     World,
+    Parent,
 }
 
+pub const NO_ROTATE_PARENT: &str =
+    "unsupported: the Rotate tool has no Parent orientation (Object or World)";
+
 impl ManipulationSpace {
-    pub fn rotate(self) -> RotateSpace {
+    /// `None` for `Parent`, which Rotate does not have.
+    pub fn rotate(self) -> Option<RotateSpace> {
         match self {
-            Self::Object => RotateSpace::Object,
-            Self::World => RotateSpace::World,
+            Self::Object => Some(RotateSpace::Object),
+            Self::World => Some(RotateSpace::World),
+            Self::Parent => None,
         }
     }
 
@@ -205,6 +212,7 @@ impl ManipulationSpace {
         match self {
             Self::Object => ScaleSpace::Object,
             Self::World => ScaleSpace::World,
+            Self::Parent => ScaleSpace::Parent,
         }
     }
 }
@@ -334,8 +342,8 @@ impl std::str::FromStr for PageCursor {
 
 pub enum Operation {
     SetActiveTool(ActiveTool),
-    /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool` is an
-    /// `InvalidInput` error.
+    /// Sets the Axis Orientation of the Rotate or Scale tool settings; any other `tool`, or
+    /// `Parent` for Rotate, is an `InvalidInput` error.
     SetToolSpace {
         tool: ActiveTool,
         space: ManipulationSpace,
