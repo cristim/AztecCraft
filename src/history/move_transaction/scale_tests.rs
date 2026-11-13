@@ -335,3 +335,38 @@ fn a_view_budget_that_cannot_hold_every_member_is_refused_at_begin() {
     assert_eq!(one, Err(ManipulationError::View(ViewError::ResourceLimit)));
     assert!(history.active_manipulation().is_none());
 }
+
+#[test]
+fn a_parent_space_scale_of_several_members_follows_each_members_own_parent_axes() {
+    let (mut history, targets) = cubes(2);
+    // The first cube is turned a quarter about Z, so its local X lies along the parent Y axis; the
+    // second keeps its local axes on the parent axes.
+    history
+        .scene
+        .set_transform(
+            targets[0].node,
+            NativeTransform {
+                rotation: [0.0, 0.0, 90.0],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let token = Uuid::new_v4();
+    let id = history
+        .begin_scale_many(
+            &targets,
+            ScaleHandle::Y,
+            ScaleSpace::Parent,
+            token,
+            NATIVE,
+            BUDGET,
+        )
+        .unwrap();
+    history.update_move(token, id, NATIVE, 3.0).unwrap();
+    let rotated = scale_at(&history, targets[0].node);
+    let plain = scale_at(&history, targets[1].node);
+    for (got, want) in rotated.into_iter().zip([3.0, 1.0, 1.0]) {
+        assert!((got - want).abs() < 1e-9, "rotated member: {rotated:?}");
+    }
+    assert_eq!(plain, [1.0, 3.0, 1.0]);
+}
