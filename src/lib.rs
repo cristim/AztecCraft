@@ -16,6 +16,7 @@ pub mod render;
 pub mod scene;
 pub mod selection;
 pub mod shading;
+pub mod snap;
 #[cfg(feature = "desktop")]
 pub mod ui_icons;
 pub mod view_scene;
