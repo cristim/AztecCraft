@@ -730,7 +730,7 @@ mod tests {
                 tool.annotations.as_ref().unwrap().read_only_hint,
                 Some(matches!(
                     tool.name.as_ref(),
-                    "inspect_scene" | "inspect_keys" | "inspect_uvs"
+                    "inspect_scene" | "inspect_keys" | "inspect_uvs" | "inspect_vertices"
                 ))
             );
             let args = match tool.name.as_ref() {
@@ -794,6 +794,7 @@ mod tests {
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
+                "inspect_vertices" => json!({"shape_id":"2"}),
                 "set_transform" => {
                     json!({"scene_token":token,"node_id":"1","translation":[0,0,0],"rotation_degrees":[0,0,0],"scale":[1,1,1]})
                 }
@@ -1674,6 +1675,25 @@ mod tests {
         };
         assert_eq!(target.vertex_indices, [0, 3]);
         assert_eq!(delta, [1.0, -2.5, 0.0]);
+        for bad in [
+            json!({"shape_id":"2","count":0}),
+            json!({"shape_id":"2","count":1025}),
+            json!({"shape_id":"2","offset":-1}),
+            json!({"count":1}),
+            json!({"shape_id":"2","extra":1}),
+        ] {
+            assert!(parse_request("inspect_vertices", bad.as_object().unwrap().clone()).is_err());
+        }
+        assert!(
+            parse_request(
+                "inspect_vertices",
+                json!({"shape_id":"2","count":1024})
+                    .as_object()
+                    .unwrap()
+                    .clone()
+            )
+            .is_ok()
+        );
         for (field, value) in [
             ("vertex_indices", json!([])),
             ("vertex_indices", json!([-1])),

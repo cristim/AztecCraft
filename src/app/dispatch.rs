@@ -297,6 +297,16 @@ impl Editor {
                 inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
             });
         }
+        if let Operation::InspectVertices {
+            shape,
+            offset,
+            count,
+        } = &request.operation
+        {
+            return Ok(OperationReply::Vertices {
+                inspection: Box::new(self.inspect_vertices(*shape, *offset, *count)?),
+            });
+        }
         if request.expected_scene_token != Some(self.scene_token) {
             return Err(OperationError::StaleScene);
         }
@@ -1224,6 +1234,16 @@ impl Editor {
             Operation::InspectUvs { shape, cursor } => {
                 return Ok(OperationReply::Uvs {
                     inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectVertices {
+                shape,
+                offset,
+                count,
+            } => {
+                return Ok(OperationReply::Vertices {
+                    inspection: Box::new(self.inspect_vertices(shape, offset, count)?),
                 });
             }
             Operation::OpenScene { .. }

@@ -450,6 +450,13 @@ pub enum Operation {
         shape: NativeId,
         cursor: Option<PageCursor>,
     },
+    /// A read, like `Inspect`: it passes no guard. Reads `count` vertex positions from `offset`.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectVertices {
+        shape: NativeId,
+        offset: usize,
+        count: usize,
+    },
     /// A read, like `Inspect`: it passes no guard.
     #[cfg(any(test, feature = "mcp"))]
     #[allow(dead_code)] // constructed by the MCP tools in the next commit
@@ -654,6 +661,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Uvs {
         inspection: Box<UvInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Vertices {
+        inspection: Box<VertexInspection>,
     },
     #[cfg(any(test, feature = "mcp"))]
     CameraBookmarks {
@@ -1069,6 +1080,24 @@ pub struct ShapeInspection {
 /// brackets; `a_full_page_of_the_longest_uvs_fits_the_reply_limit` pins it.
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
+
+/// Most vertices in one `inspect_vertices` reply; about 60 bytes of JSON each keeps it inside the
+/// tool reply limit.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_VERTICES_PER_PAGE: usize = 1024;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct VertexInspection {
+    /// With `revision`, tells a client which document state this read belongs to.
+    pub scene_token: String,
+    pub revision: u64,
+    pub shape_id: String,
+    pub vertices_total: usize,
+    pub offset: usize,
+    /// One [x, y, z] per vertex from `offset`, in declared scene units along the mesh's own axes.
+    pub positions: Vec<[f64; 3]>,
+}
 
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]

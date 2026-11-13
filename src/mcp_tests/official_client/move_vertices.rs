@@ -231,3 +231,74 @@ async fn move_vertices_saved_to_binary_and_ascii_reopens_with_the_moved_points()
         server.await.unwrap();
     }
 }
+
+#[tokio::test]
+async fn inspect_vertices_reports_moved_positions_in_windows_and_refuses_bad_windows() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let token = editor.scene_token.to_string();
+    editor.create(Primitive::Cube);
+    let ids = ids(&editor);
+    let moved = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "move_vertices",
+        args(&token, &ids, json!([6]), json!([2.5, 0.0, 0.0])),
+    )
+    .await;
+    assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
+    let all = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(all["inspection"]["vertices_total"], 8);
+    let positions = all["inspection"]["positions"].as_array().unwrap();
+    assert_eq!(positions.len(), 8);
+    for (index, reported) in positions.iter().enumerate() {
+        assert_eq!(reported, &json!(point(&editor, index)), "{index}");
+    }
+    let window = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_vertices",
+        json!({"shape_id":ids.shape,"offset":6,"count":5}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(window["inspection"]["offset"], 6);
+    assert_eq!(
+        window["inspection"]["positions"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(window["inspection"]["positions"][0], positions[6]);
+    let before = editor.history.scene().clone();
+    for bad in [
+        json!({"shape_id":ids.shape,"offset":9}),
+        json!({"shape_id":"999999"}),
+    ] {
+        let reply = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "inspect_vertices",
+            bad,
+        )
+        .await
+        .structured_content
+        .unwrap();
+        assert!(reply.get("error").is_some(), "{reply}");
+    }
+    assert_eq!(editor.history.scene(), &before);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

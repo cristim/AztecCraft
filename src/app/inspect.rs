@@ -105,6 +105,50 @@ impl Editor {
         });
         Ok(inspection)
     }
+    /// One window of a shape's vertex positions in declared scene units, so a client can read back
+    /// what `move_vertices` wrote. A read passes no token guard; the reply names the document state.
+    #[cfg(any(test, feature = "mcp"))]
+    pub(super) fn inspect_vertices(
+        &self,
+        shape: NativeId,
+        offset: usize,
+        count: usize,
+    ) -> Result<crate::editor_operations::VertexInspection, OperationError> {
+        use crate::editor_operations::{MAX_VERTICES_PER_PAGE, VertexInspection};
+        if count == 0 || count > MAX_VERTICES_PER_PAGE {
+            return Err(OperationError::InvalidInput(
+                "count must be 1 to 1024 vertices".into(),
+            ));
+        }
+        let scene = self.history.scene();
+        let mesh = scene.shape(shape).map_err(OperationError::Scene)?.mesh();
+        let total = mesh.point_count();
+        if offset > total {
+            return Err(OperationError::InvalidInput(
+                "offset is past the last vertex".into(),
+            ));
+        }
+        let factor = scene
+            .units()
+            .linear_factor()
+            .map_err(OperationError::Scene)?;
+        let end = total.min(offset + count);
+        let positions = (offset..end)
+            .map(|index| {
+                mesh.effective_point_cm(index)
+                    .map(|p| p.map(|v| v / factor))
+                    .map_err(OperationError::Scene)
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(VertexInspection {
+            scene_token: self.scene_token.to_string(),
+            revision: self.history.revision(),
+            shape_id: shape.to_decimal(),
+            vertices_total: total,
+            offset,
+            positions,
+        })
+    }
     #[cfg(any(test, feature = "mcp"))]
     pub(super) fn current_viewport_error(&self) -> Option<crate::viewport_renderer::ViewportError> {
         use crate::viewport_renderer::ViewportError;

@@ -1762,6 +1762,48 @@
     }
   },
   {
+    "name": "inspect_vertices",
+    "description": "Read one shape's vertex positions from offset, up to 1024 per call, as [x, y, z] in declared scene units along the mesh's own axes (f32 precision for single-precision meshes). Reports the scene token and revision of the state read; read the next window with a larger offset until offset plus the returned length reaches vertices_total",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "description": "Vertices to read, 1 to 1024; default 1024.",
+          "format": "uint",
+          "maximum": 1024,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "offset": {
+          "description": "First vertex ordinal to read; default 0.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape_id"
+      ],
+      "title": "InspectVerticesArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "create_joint",
     "description": "Create a session-only joint, the same operation as Skeleton > Create Joints: a bare transform that stays selected, with rotation 0 and scale 1. `parent_id` must name a joint and is the only way to attach it; the selection is not read. A world `position` under a parent is solved through the parent's world matrix and refused when that matrix is singular; `relative` stores the position as given. A joint under a joint keeps segment scale compensation on. A scene holding joints cannot be saved, and joints are not written to any file. Refused on an opened scene, in a component selection mode, for a parent that is not a joint, a radius of 0 or less or above 1000000, an invalid or colliding name and past the hierarchy depth limit. `inspect_scene` reports `joint.radius` on each joint; `delete_node` removes a joint with everything below it, as one undo step",
     "inputSchema": {
