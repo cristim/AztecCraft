@@ -263,6 +263,8 @@ pub enum CursorScope {
     Keys(Option<NodeId>),
     /// The UVs of this shape only.
     Uvs(NativeId),
+    /// The vertex positions of this shape only.
+    Vertices(NativeId),
 }
 
 #[cfg(any(test, feature = "mcp"))]
@@ -289,6 +291,7 @@ impl fmt::Display for PageCursor {
             CursorScope::Keys(None) => f.write_str(".keys"),
             CursorScope::Keys(Some(node)) => write!(f, ".keys.{}", node.to_decimal()),
             CursorScope::Uvs(shape) => write!(f, ".uvs.{}", shape.to_decimal()),
+            CursorScope::Vertices(shape) => write!(f, ".verts.{}", shape.to_decimal()),
         }
     }
 }
@@ -318,6 +321,9 @@ impl std::str::FromStr for PageCursor {
                         NodeId::from_decimal(node).map_err(|_| PageCursorError)?,
                     )),
                     Some(("uvs", shape)) => CursorScope::Uvs(
+                        NativeId::from_decimal(shape).map_err(|_| PageCursorError)?,
+                    ),
+                    Some(("verts", shape)) => CursorScope::Vertices(
                         NativeId::from_decimal(shape).map_err(|_| PageCursorError)?,
                     ),
                     _ => return Err(PageCursorError),
@@ -447,6 +453,12 @@ pub enum Operation {
     /// A read, like `Inspect`: it passes no guard, so its cursor binds the document and revision.
     #[cfg(any(test, feature = "mcp"))]
     InspectUvs {
+        shape: NativeId,
+        cursor: Option<PageCursor>,
+    },
+    /// A read, like `Inspect`: it passes no guard. Reads `count` vertex positions from `offset`.
+    #[cfg(any(test, feature = "mcp"))]
+    InspectVertices {
         shape: NativeId,
         cursor: Option<PageCursor>,
     },
@@ -654,6 +666,10 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     Uvs {
         inspection: Box<UvInspection>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    Vertices {
+        inspection: Box<VertexInspection>,
     },
     #[cfg(any(test, feature = "mcp"))]
     CameraBookmarks {
@@ -1069,6 +1085,30 @@ pub struct ShapeInspection {
 /// brackets; `a_full_page_of_the_longest_uvs_fits_the_reply_limit` pins it.
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
+
+/// Most vertices in one `inspect_vertices` reply; about 60 bytes of JSON each keeps it inside the
+/// tool reply limit.
+#[cfg(any(test, feature = "mcp"))]
+pub const MAX_VERTICES_PER_PAGE: usize = 1024;
+
+/// Most vertex indices one `MoveVertices` names. Bounded by the 64 KiB MCP ingress limit: a
+/// request of this many indices (up to about 6 bytes each) still fits with room for the envelope.
+pub const MAX_MOVED_VERTICES: usize = 8192;
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct VertexInspection {
+    /// With `revision`, tells a client which document state this read belongs to.
+    pub scene_token: String,
+    pub revision: u64,
+    pub shape_id: String,
+    pub vertices_total: usize,
+    pub vertex_offset: usize,
+    /// One [x, y, z] per vertex from `vertex_offset`, in declared scene units along the mesh's own
+    /// axes.
+    pub positions: Vec<[f64; 3]>,
+    pub next_cursor: Option<String>,
+}
 
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]

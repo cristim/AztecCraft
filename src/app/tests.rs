@@ -12046,3 +12046,45 @@ fn a_failed_fitted_frame_all_restores_the_original_camera() {
     ));
     assert_eq!(editor.camera, before);
 }
+
+#[test]
+fn native_move_vertices_caps_the_index_count_before_touching_the_scene() {
+    use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+    let mut editor = Editor::default();
+    editor.native_operation(Operation::Create {
+        primitive: Primitive::Plane,
+        options: Some(PrimitiveOptions::Plane {
+            width: 1.0,
+            height: 1.0,
+            sub_width: 90,
+            sub_height: 90,
+            axis: Axis::Y,
+        }),
+        name: None,
+    });
+    let id = editor.single_target().unwrap().0;
+    let shape = editor.history.scene().shapes()[0].id();
+    let path = vec![
+        editor.history.scene().node(id).unwrap().transform_id(),
+        shape,
+    ];
+    let target = |count: usize| azteccraft::native_scene::VertexSetTarget {
+        transform: id,
+        shape,
+        path: path.clone(),
+        vertex_indices: (0..count).collect(),
+    };
+    assert!(editor.history.scene().shapes()[0].mesh().point_count() > 8192);
+    let before = editor.history.scene().clone();
+    let refused = editor.native_operation_result(Operation::MoveVertices {
+        target: target(8193),
+        delta: [1.0, 0.0, 0.0],
+    });
+    assert!(matches!(refused, Err(OperationError::InvalidInput(_))));
+    assert_eq!(editor.history.scene(), &before);
+    let accepted = editor.native_operation_result(Operation::MoveVertices {
+        target: target(8192),
+        delta: [1.0, 0.0, 0.0],
+    });
+    assert!(matches!(accepted, Ok(OperationReply::Changed)));
+}

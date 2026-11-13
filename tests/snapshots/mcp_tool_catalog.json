@@ -1739,7 +1739,7 @@
             "minimum": 0,
             "type": "integer"
           },
-          "maxItems": 65536,
+          "maxItems": 8192,
           "minItems": 1,
           "type": "array"
         }
@@ -1757,6 +1757,36 @@
     },
     "annotations": {
       "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "inspect_vertices",
+    "description": "Read one shape's vertex positions, up to 1024 per call, as [x, y, z] in declared scene units along the mesh's own axes (f32 precision for single-precision meshes). Reports the scene token and revision of the state read. A large shape is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "description": "The `next_cursor` of the previous reply. It is opaque and valid only until the scene\nchanges.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shape_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shape_id"
+      ],
+      "title": "InspectVerticesArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": true,
       "idempotentHint": false,
       "openWorldHint": false
     }
