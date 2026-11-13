@@ -93,7 +93,7 @@ fn parse_inspect_uvs(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
         name: "project_uv_planar",
-        description: "Replace a shape's session-only map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are not saved: Save refuses as for any new scene, and the authored writers refuse them too. Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
+        description: "Replace a shape's map1 with a planar projection from the object-space X, Y or Z axis, fitted to the object-space bounds of the face corners so u and v fill 0 through 1. The axis-to-(u, v) assignment, oriented as the side, top and front views (view-matching, right-handed), and the Y default are PROVISIONAL. Authored shapes only. UVs are saved to an authored Maya ASCII .ma and reopen from it (the .mb writer refuses them with save_unwritable reason session_uvs: Delete UVs or Undo to save a .mb). Extrude is refused on a shape with UVs. A shape with no extent across the projection is refused with degenerate_uv_projection",
         schema: schema::<ProjectUvPlanarArgs>,
         parse: parse_project_uv_planar,
         idempotent: true,
@@ -101,7 +101,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "delete_uvs",
-        description: "Remove a shape's session-only map1. A shape without UVs returns unchanged",
+        description: "Remove a shape's map1. A shape without UVs returns unchanged",
         schema: schema::<DeleteUvsArgs>,
         parse: parse_delete_uvs,
         idempotent: true,
@@ -109,7 +109,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "inspect_uvs",
-        description: "Read one shape's session-only map1: one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
+        description: "Read one shape's map1 (session-only until saved to an authored .ma, which reopens with it): one [u, v] per outer corner of each face, in face order, in single precision (f32 values). `uv_set` is null when the shape has no UVs. On a sourced scene `unavailable_reason` says source UVs are not exposed, which does not mean the shape has none. A large set is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes",
         schema: schema::<InspectUvsArgs>,
         parse: parse_inspect_uvs,
         idempotent: false,

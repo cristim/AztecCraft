@@ -1045,14 +1045,14 @@ valid OBJ, and the Maya docs do not say what objExport writes for a mesh without
 **Issue:** cristim/AztecCraft#156
 
 Save As `.ma` (macOS and Linux only) writes the authored-scene subset: one transform over one mesh per
-object, centimeter/degree/film units, no UVs, no session materials, no curves. Reopening admits a mesh
+object, centimeter/degree/film units, optional session `map1` UVs (#156), no session materials, no curves. Reopening admits a mesh
 `.ma` only when the file is byte-identical to what the writer would emit for the scene it decodes to
 (`src/native_scene/ascii/document.rs`). That makes the reader exactly as wide as the writer: a `.ma`
 with meshes written by Maya, hand-edited, reformatted or saved by another tool is refused, not
 approximated, and Maya-authored mesh files (UVs, shading connections, smooth edges, history) stay
-unsupported. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
+unsupported; only the writer's own UV block reopens. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
 the written files is PROVISIONAL and unproven. A reopened file is an authored document: Save rewrites it,
-and any edit the writer cannot carry (session material, UVs, curves) refuses Save and keeps the scene
+and any edit the writer cannot carry (session material, curves) refuses Save and keeps the scene
 dirty.
 
 Because the gate compares against the writer's exact output (including the fixed header text), any
@@ -1060,7 +1060,7 @@ change to the ASCII writer invalidates `.ma` files saved by earlier builds: a me
 the change is refused at Open by the later build (a file with no meshes opens read-only). Writer changes
 therefore need either a version marker the reader can branch on or an accepted break; neither exists yet.
 
-Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), UV or material writing, or a
+Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), material writing, or a
 public Maya acceptance check (issue #5).
 
 ## Authored Maya Binary writer: unproven profile
@@ -1229,7 +1229,7 @@ A view build error now clears the pointer capture (`missing_move_viewport`, #310
 in the same frame returns before the view build, so the paint is skipped and the capture survives
 for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_pending` failure.
 
-## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs
+## Mesh Save is PROVISIONAL: Maya acceptance unproven, no UVs in .mb
 
 **Severity:** medium
 **Area:** file format, Save As
@@ -1238,7 +1238,7 @@ for that one frame: the selection refusal in `src/app/panels.rs` and a `commit_p
 On Unix, a new (Untitled) scene requires an initial Save As, which writes a fresh Maya
 2025-format `.mb` through the writer above. Subsequent Save operations persist changes
 to that file. Saving Untitled scenes is unsupported on Windows.
-Meshes are written with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
+The `.mb` writer still refuses session UVs (`save_unwritable`, reason `session_uvs`) and writes meshes with an empty UV set (0 points, 0 ids) and no shading assignment. Autodesk
 documents "No UVs" as a primitive option and an empty UV set as a mesh state (citations in
 `.project-docs/binary-authored-writer.md`) but not what a file stores for either, so Maya
 acceptance is unproven. MayaSceneKit (a third-party reader, not Maya; pinned commit 95a11db) decodes the Maya-written
@@ -1415,11 +1415,13 @@ The pages say little about several objects, so these choices are pinned by tests
 Costs: beginning a Move of 4096 objects takes about 0.7 s in a debug build and one update about 45 ms
 (`four_thousand_members_begin_within_the_budget_and_not_one_byte_less`); the inspection checks Move availability over every member once per request.
 
-## UVs are session-only and planar (#360)
+## UVs are planar, session-only except in an authored .ma (#360, #156)
 
 UVs exist only on shapes authored in the session, as one `map1` holding one UV per outer face corner,
-so no two faces share a UV. They are not saved: authored writers and the legacy view refuse a scene
-holding them, rather than dropping them, and OBJ export refuses a shape that has them
+so no two faces share a UV, each an exact f32. An authored Maya ASCII `.ma` Save carries them (`mu` ids in
+the `.fc` rows plus `.uvst[0].uvsn`, `.uvsp` and `.cuvs`, layout PROVISIONAL, `.project-docs/uv-ascii-format.md`)
+and reopens with them f32-exactly. The `.mb` writer and the legacy view still refuse a scene
+holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export refuses a shape that has them
 (`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
@@ -1427,8 +1429,8 @@ Set, the projection manipulator and construction history are missing. The projec
 as Maya's Y-up side, top and front views (X: u=-z, v=y; Y: u=x, v=-z; Z: u=x, v=y), view-matching and
 right-handed, so a face looking along +axis has positive UV area. Maya's pages state no per-axis
 orientation, so this and the Y default are PROVISIONAL. The earlier X and Y mappings were mirrored
-(fixed, #394). Scenes opened from a file do not expose their UVs, which does not
-mean they have none. The UV Editor is a read-only outline, not drawn with a texture, and the viewport
+(fixed, #394). Scenes opened from a Maya file do not expose their UVs, which does not
+mean they have none; a `.ma` this editor saved does. The UV Editor is a read-only outline, not drawn with a texture, and the viewport
 does not show UVs. The native menu and both windows have automated UI tests but no reviewed native
 screenshot yet, and nothing has been compared with Maya (#5).
 

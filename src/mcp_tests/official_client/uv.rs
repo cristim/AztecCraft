@@ -376,6 +376,119 @@ async fn uv_sdk_save_as_and_a_confirmed_save_are_refused_with_the_uv_remedy() {
     server.await.unwrap();
 }
 
+/// Maya ASCII carries the session UVs (#156); the .mb refusal above is unchanged.
+#[cfg(unix)]
+#[tokio::test]
+async fn uv_sdk_ma_save_reopens_with_identical_uvs_and_the_reopened_scene_obeys_the_uv_guards() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id().to_decimal();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uv.ma");
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "project_uv_planar",
+        json!({"shape_id": shape, "axis": "z"}),
+    )
+    .await;
+    let before =
+        read(&mut editor, &context, &client, json!({"shape_id": shape})).await["faces"].clone();
+    assert_eq!(before.as_array().unwrap().len(), 6);
+
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": path}),
+    )
+    .await;
+    let saved = saved.structured_content.unwrap();
+    assert_eq!(saved["outcome"], "saved", "{saved}");
+    assert!(!editor.is_dirty());
+    assert!(std::fs::read_to_string(&path).unwrap().contains(" mu 0 4 "));
+
+    let open = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path": path}),
+    )
+    .await;
+    assert_eq!(
+        open.structured_content.unwrap()["outcome"],
+        "document_applied"
+    );
+    let reopened = editor.history.scene().shapes()[0].id().to_decimal();
+    let after = read(
+        &mut editor,
+        &context,
+        &client,
+        json!({"shape_id": reopened}),
+    )
+    .await;
+    assert_eq!(after["uv_set"], "map1");
+    assert_eq!(after["faces"], before, "f32 UVs must reopen identically");
+
+    // Save of the reopened document keeps the bytes; its UVs still block topology edits.
+    let bytes = std::fs::read(&path).unwrap();
+    let resave = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(resave.structured_content.unwrap()["outcome"], "saved");
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    let node = editor.history.scene().nodes()[0].id().to_decimal();
+    let transform = editor.history.scene().nodes()[0]
+        .transform_id()
+        .to_decimal();
+    let extrude = json!({
+        "node_id": node,
+        "shape_id": reopened,
+        "instance_path": [transform, reopened],
+        "face_index": 0,
+        "distance": 1,
+    });
+    let refused = tool(&mut editor, &context, &client, "extrude_face", extrude).await;
+    assert_eq!(error_code(&refused), "uvs_block_topology_edit");
+
+    let args = json!({"shape_id": reopened});
+    tool(&mut editor, &context, &client, "delete_uvs", args.clone()).await;
+    assert_eq!(
+        read(&mut editor, &context, &client, args.clone()).await["uv_set"],
+        Value::Null
+    );
+    assert!(editor.is_dirty());
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert_eq!(
+        read(&mut editor, &context, &client, args).await["faces"],
+        before
+    );
+
+    // The remaining ASCII refusals are not the UV one: a material still refuses with its own code.
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "assign_session_material",
+        json!({"shape_id": reopened, "color": [1.0, 0.0, 0.0]}),
+    )
+    .await;
+    let refused = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    let error = &refused.structured_content.unwrap()["error"];
+    assert_eq!(error["code"], "save_ascii_write", "{error}");
+    assert!(
+        !error["message"].as_str().unwrap().contains("UV"),
+        "{error}"
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
 #[tokio::test]
 async fn uv_sdk_a_cursor_is_bound_to_its_shape_and_tool() {
     let context = egui::Context::default();
