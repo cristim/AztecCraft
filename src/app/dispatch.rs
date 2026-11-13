@@ -1184,13 +1184,9 @@ impl Editor {
         );
         let outcome = self.history.execute(command).map_err(|error| {
             if key_command
-                && matches!(
-                    error,
-                    azteccraft::native_scene::NativeError::ReadOnlyFormat
-                        | azteccraft::native_scene::NativeError::UnsupportedEdit
-                )
+                && let Some(refusal) = crate::editor_operations::KeysRefusal::from_native(&error)
             {
-                return OperationError::Keys(error);
+                return OperationError::Keys(refusal);
             }
             #[cfg(any(test, feature = "mcp"))]
             if session_material_command

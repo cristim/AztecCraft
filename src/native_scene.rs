@@ -8,6 +8,7 @@ mod manipulator_frame;
 mod maya_import;
 mod mesh;
 mod move_translation;
+mod pivot_edit;
 mod rotate_frame;
 mod scale_frame;
 mod session_joint;
@@ -645,6 +646,15 @@ impl InternalTransform {
         match self.inverse_parent_scale {
             Some(inverse) => parent * DMat3::from_diagonal(DVec3::from_array(inverse)),
             None => parent,
+        }
+    }
+
+    /// SH * S as a linear map: the scale stage between the pivots.
+    pub(crate) fn scale_stage(self) -> DMat3 {
+        let scale = DMat3::from_diagonal(DVec3::from_array(self.scale));
+        match self.extras {
+            Some(extras) => DMat3::from_mat4(extras.shear_matrix()) * scale,
+            None => scale,
         }
     }
 
@@ -2242,6 +2252,10 @@ pub enum NativeError {
     /// An undo preference or chunk call the current undo state refuses.
     UndoState(&'static str),
     UnsupportedView(&'static str),
+    /// An opened Maya Binary has no pivot translate to carry the compensation (#105).
+    PivotNeedsTranslateCorrection,
+    /// A keyed channel is rewritten on every frame change, so a pivot edit would be overwritten.
+    PivotOnKeyedNode,
 }
 impl From<SceneError> for NativeError {
     fn from(value: SceneError) -> Self {
@@ -2336,6 +2350,12 @@ impl fmt::Display for NativeError {
             Self::UndoState(reason) => write!(f, "undo: {reason}"),
             Self::UnsupportedView(reason) => {
                 write!(f, "native viewport representation unsupported: {reason}")
+            }
+            Self::PivotNeedsTranslateCorrection => f.write_str(
+                "Moving this pivot without moving the object needs a pivot translate, which an opened Maya binary scene cannot store yet",
+            ),
+            Self::PivotOnKeyedNode => {
+                f.write_str("Pivots cannot be edited on an animated (keyed) object")
             }
         }
     }
