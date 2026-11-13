@@ -8,6 +8,9 @@ use glam::{DMat3, DMat4, DVec3, Mat3, Vec3};
 use std::fmt;
 use std::mem::size_of;
 
+/// Byte budget for one derived view of the scene (display geometry, picking, OBJ export).
+/// PROVISIONAL application policy: Maya states no scene limit.
+pub const VIEW_BUDGET_BYTES: usize = 256 * 1024 * 1024;
 pub const FACE_CENTER_MARKER_PIXELS: f32 = 4.0;
 pub const FACE_CENTER_CLICK_PIXELS: f32 = 8.0;
 /// Provisional vertex marker size; the click box below is twice it. Policy value, not a Maya default.
