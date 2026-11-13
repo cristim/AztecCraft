@@ -567,7 +567,10 @@ pub enum Operation {
     /// absent checks the node and replies Unchanged.
     #[cfg_attr(
         not(any(test, feature = "mcp")),
-        expect(dead_code, reason = "first native caller is the Attribute Editor (T7)")
+        expect(
+            dead_code,
+            reason = "the Attribute Editor commits through Command like EditNode; only MCP and tests build this"
+        )
     )]
     SetPivots {
         id: NodeId,

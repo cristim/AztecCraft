@@ -18,6 +18,7 @@ impl Editor {
     pub(in crate::app) fn sync_fields(&mut self) {
         self.material_draft = None;
         self.channel_intents = [false; 9];
+        self.pivot_intents = [false; 6];
         self.name_intent = false;
         self.normalize_attribute_editor_tab();
         let scene = self.history.scene();
@@ -31,6 +32,7 @@ impl Editor {
             self.clear_remembered_components();
             self.name.clear();
             self.channels = Default::default();
+            self.pivot_drafts = Default::default();
             self.material_shape = None;
             return;
         };
@@ -53,6 +55,7 @@ impl Editor {
         self.name = node.name().into();
         let values = node.transform().values();
         self.channels = values.map(|value| value.to_string());
+        self.pivot_drafts = pivot_values(node).map(|value| value.to_string());
         let transform = node.transform_id();
         if stale_face {
             self.remembered_face = None;

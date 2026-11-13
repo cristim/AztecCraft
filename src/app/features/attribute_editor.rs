@@ -319,6 +319,9 @@ impl Editor {
 }
 
 #[cfg(test)]
+mod pivot_tests;
+
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]
