@@ -327,7 +327,11 @@ F9, F10, the Select > Components entries and a plain click reach `Camera::pick_v
 and `pick_edge` (#29; the Status Line Vertex, Edge and Face buttons dispatch the same modes). F8 leaves Vertex and Edge for
 Object and enters Face from Object and Hierarchy; Maya's F8 return target is
 UNCONFIRMED, so this is provisional. A click on empty space clears the active type's
-pick, also UNCONFIRMED for Maya.
+pick, also UNCONFIRMED for Maya. Switching between Vertex, Edge and Face keeps each type's
+pick and restores the type you switch to: the 2027 Selection preferences page documents
+Preserve Component Selections, on by default (polygon components only), which backs up the
+component selection on a type switch and restores the type switched to (#29). Maya's
+off setting, which would clear on a switch, is not implemented.
 The Channel Box shows only the parent object's channels in Vertex, Edge and Face modes; there is
 no component feedback (coordinates or attributes) for the picked vertex or edge.
 The vertex click box, edge click distance, vertex marker, selected-edge strip, candidate

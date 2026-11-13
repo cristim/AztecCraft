@@ -231,7 +231,10 @@ F9 and F10, Select > Components > Vertex / Edge, the Status Line Vertex, Edge an
 Face buttons and a plain primary click enter and use Vertex and Edge modes (#29);
 `set_selection_mode` (`vertex`, `edge`), `select_vertex` and `select_edge` reach the
 same typed operations over MCP. Each component type keeps its own remembered pick,
-active only in its mode. Picks are single, replace-only and clear on an empty click
+active only in its mode. Switching between component types restores the type switched to
+(Maya's Preserve Component Selections, on by default, 2027 Selection preferences page; the
+off setting is unimplemented); keeping picks across Object and Hierarchy transitions is
+PROVISIONAL (the page covers only type switches). Picks are single, replace-only and clear on an empty click
 (UNCONFIRMED for Maya). In component modes Shift/Ctrl clicks are refused with `ModifiedClick`; UV, Vertex
 Face (Alt+F9), Multi-Component and masks are unsupported. F8 leaves Vertex and Edge
 for Object (provisional). Constants and limits are in

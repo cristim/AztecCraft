@@ -142,7 +142,11 @@ included; occluded and off-screen edges may be named; failed requests preserve
 state; remote guards match `select_face`). Inspection adds `remembered_edge`, inactive
 outside Edge mode, revalidated and charged against the size budget like the vertex.
 Each component type keeps its own remembered pick: selecting an edge leaves the
-remembered vertex untouched and it becomes active again in Vertex mode.
+remembered vertex untouched and it becomes active again in Vertex mode. This is Maya's
+Preserve Component Selections (on by default; backs up the component selection on a type
+switch and restores the type switched to), 2027 Selection preferences page
+https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Customizing/files/GUID-8C8BA1F4-59EE-4A02-BFE7-9193C0D6F5BE.htm.
+The off setting, which clears on a switch, is not implemented.
 
 Natively, Vertex and Edge modes are reached with F9 and F10, the Select >
 Components menu, the Status Line Vertex, Edge and Face buttons and a plain viewport
