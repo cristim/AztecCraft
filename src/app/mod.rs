@@ -13,7 +13,7 @@ use azteccraft::native_scene::LinearUnit;
 use azteccraft::native_scene::NativeTransform;
 use azteccraft::{
     history::{Command, EditOutcome, History, ManipulationProvenance, UndoQueue},
-    native_scene::{AngularUnit, EdgeTarget, FaceTarget, NativeId, TransformTarget, VertexTarget},
+    native_scene::{AngularUnit, FaceTarget, NativeId, TransformTarget},
     scene::{NodeId, Primitive},
     selection::ObjectSelection,
     view_scene::ViewScene,
@@ -70,9 +70,7 @@ pub struct Editor {
     history: History,
     selection: ObjectSelection,
     selection_mode: SelectionMode,
-    remembered_face: Option<FaceTarget>,
-    remembered_vertex: Option<VertexTarget>,
-    remembered_edge: Option<EdgeTarget>,
+    picks: component_picks::ComponentPicks,
     camera: Camera,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
@@ -140,9 +138,7 @@ impl Default for Editor {
             history: History::default(),
             selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
-            remembered_face: None,
-            remembered_vertex: None,
-            remembered_edge: None,
+            picks: component_picks::ComponentPicks::default(),
             camera: Camera::default(),
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
@@ -235,11 +231,6 @@ impl Editor {
             }
             None => "Select an object to delete".into(),
         }
-    }
-    fn clear_remembered_components(&mut self) {
-        self.remembered_face = None;
-        self.remembered_vertex = None;
-        self.remembered_edge = None;
     }
 
     pub(super) fn sidebar_panel_visible(&self, panel: SidebarPanel) -> bool {
