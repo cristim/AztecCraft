@@ -8709,7 +8709,7 @@ fn delete_in_the_frame_of_a_vertex_or_edge_intent_sees_the_new_mode() {
 }
 
 #[test]
-fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance() {
+fn sync_fields_follows_an_unresolvable_selected_path_and_keeps_that_instances_picks() {
     // Instancing cannot be built from the bin crate, so the second instance is simulated by
     // the same transform selected under a different path.
     let mut editor = deep_group_editor();
@@ -8814,9 +8814,11 @@ fn sync_fields_clears_a_pick_whose_owner_path_differs_from_the_selected_instance
         );
         assert_eq!(state(&editor), baseline, "{phase}: inspection");
     }
+    // sync_fields follows an unresolvable selected path to the node's one real path (#42), so
+    // the picks that belong to that instance are valid again.
     editor.sync_fields();
-    assert_eq!(editor.remembered_vertex, None);
-    assert_eq!(editor.remembered_edge, None);
+    assert_eq!(editor.selection_presentation().1, leaf.path.as_slice());
+    assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
 }
 
 #[test]
@@ -12089,4 +12091,69 @@ fn native_move_vertices_caps_the_index_count_before_touching_the_scene() {
         delta: [1.0, 0.0, 0.0],
     });
     assert!(matches!(accepted, Ok(OperationReply::Changed)));
+}
+
+#[test]
+fn sync_fields_clears_a_pick_when_another_node_becomes_selected() {
+    let mut editor = deep_group_editor();
+    let paths = editor.history.scene().transform_paths().unwrap();
+    let leaf = paths.last().unwrap().clone();
+    remote(
+        &mut editor,
+        Operation::Select {
+            node: Some(leaf.node),
+            instance_path: Some(leaf.path.clone()),
+        },
+    )
+    .unwrap();
+    set_mode(&mut editor, SelectionMode::Vertex);
+    pick_vertex(&mut editor, 0);
+    set_mode(&mut editor, SelectionMode::Edge);
+    pick_edge(&mut editor, 0);
+    editor.sync_fields();
+    assert!(editor.remembered_vertex.is_some() && editor.remembered_edge.is_some());
+    // Another node, with a resolving path, is selected. The owner-path clause for one node at
+    // two instance paths needs a second instance and is not covered here.
+    editor.set_selection_for_test(Some(paths[1].node), paths[1].path.clone());
+    editor.sync_fields();
+    assert_eq!(editor.selection_presentation().1, paths[1].path.as_slice());
+    assert_eq!(editor.remembered_vertex, None);
+    assert_eq!(editor.remembered_edge, None);
+}
+
+#[test]
+fn reparent_undo_and_redo_move_the_selection_to_each_instance_path() {
+    for mode in [SelectionMode::Object, SelectionMode::Hierarchy] {
+        let mut editor = Editor::default();
+        editor.create(Primitive::Cube);
+        let parent = editor.selected().unwrap();
+        editor.create(Primitive::Cube);
+        let child = editor.selected().unwrap();
+        set_mode(&mut editor, mode);
+        let selected_path_len = |editor: &Editor| editor.selection.lead().unwrap().path.len();
+        assert_eq!(selected_path_len(&editor), 1);
+        remote(
+            &mut editor,
+            Operation::Reparent {
+                id: child,
+                parent: Some(parent),
+                keep: azteccraft::native_scene::ReparentKeep::Local,
+            },
+        )
+        .unwrap();
+        assert_eq!(editor.selected(), Some(child), "{mode:?}");
+        assert_eq!(selected_path_len(&editor), 2, "{mode:?}");
+        assert!(
+            editor
+                .history
+                .scene()
+                .resolve_transform_path(child, &editor.selection.lead().unwrap().path)
+                .is_ok()
+        );
+        remote(&mut editor, Operation::Undo).unwrap();
+        assert_eq!(editor.selected(), Some(child), "{mode:?}");
+        assert_eq!(selected_path_len(&editor), 1, "{mode:?}");
+        remote(&mut editor, Operation::Redo).unwrap();
+        assert_eq!(selected_path_len(&editor), 2, "{mode:?}");
+    }
 }

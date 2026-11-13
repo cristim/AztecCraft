@@ -114,6 +114,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     KeysRefusal::UnsupportedEdit => "unsupported_edit",
                 },
                 OperationError::Pivot(error) => pivot_code(error),
+                OperationError::Reparent(_) => "scene_error",
                 OperationError::SessionMaterial(error) => match error {
                     NativeError::UnknownSessionMaterial(_) => "unknown_session_material",
                     NativeError::SessionColorOutOfRange | NativeError::NonFinite => {

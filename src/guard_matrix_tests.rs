@@ -18,8 +18,8 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, PivotReset, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget, WorldAxis,
+    ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, PivotReset, ReparentKeep, RotateAxis,
+    ScaleHandle, SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -875,6 +875,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             translation: [Some(1.0), None, None],
             rotation_degrees: [None; 3],
             scale: [None; 3],
+        },
+        Operation::Reparent {
+            id: t.node,
+            parent: Some(t.other.0),
+            keep: ReparentKeep::World,
         },
         Operation::ExtrudeFace {
             target: t.face(),
@@ -1821,6 +1826,32 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             },
         )],
+        Operation::Reparent { .. } => vec![
+            sample(
+                "reparent(under_other_keep_world)",
+                Operation::Reparent {
+                    id: t.node,
+                    parent: Some(t.other.0),
+                    keep: ReparentKeep::World,
+                },
+            ),
+            sample(
+                "reparent(unparent_root)",
+                Operation::Reparent {
+                    id: t.node,
+                    parent: None,
+                    keep: ReparentKeep::Local,
+                },
+            ),
+            sample(
+                "reparent(unknown_parent)",
+                Operation::Reparent {
+                    id: t.node,
+                    parent: Some(azteccraft::scene::NodeId::from_decimal("999999").unwrap()),
+                    keep: ReparentKeep::World,
+                },
+            ),
+        ],
         Operation::EditNode { .. } => vec![
             sample(
                 "edit_node(translate_x)",

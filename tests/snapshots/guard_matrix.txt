@@ -128,6 +128,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | no state change
+  reparent(unparent_root) => Ok(unchanged) | no state change
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -305,6 +308,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene edited" -> "No change"
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | no state change
+  reparent(unparent_root) => Ok(unchanged) | status: "Scene edited" -> "No change"
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -474,6 +480,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -641,6 +650,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -808,6 +820,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -975,6 +990,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1142,6 +1160,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   edit_node(empty) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(unparent_root) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1309,6 +1330,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   edit_node(empty) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(unparent_root) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   extrude_face => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1476,6 +1500,9 @@
   edit_node(translate_x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(under_other_keep_world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unparent_root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unknown_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   move_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1643,6 +1670,9 @@
   edit_node(translate_x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(under_other_keep_world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unparent_root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unknown_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   move_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1810,6 +1840,9 @@
   edit_node(translate_x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(under_other_keep_world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unparent_root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unknown_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   move_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1977,6 +2010,9 @@
   edit_node(translate_x) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty_unknown_node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   edit_node(empty) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(under_other_keep_world) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unparent_root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reparent(unknown_parent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   extrude_face => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   move_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create_joint(root) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2144,6 +2180,9 @@
   edit_node(translate_x) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   edit_node(empty_unknown_node) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   edit_node(empty) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reparent(under_other_keep_world) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reparent(unparent_root) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reparent(unknown_parent) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   extrude_face => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   move_vertices => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create_joint(root) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2311,6 +2350,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2479,6 +2521,9 @@
   edit_node(translate_x) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   edit_node(empty) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2647,6 +2692,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2814,6 +2862,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 5,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   edit_node(empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(unparent_root) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   extrude_face => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "joint1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -2981,6 +3032,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3148,6 +3202,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   edit_node(empty) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(unparent_root) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   extrude_face => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -3315,6 +3372,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3482,6 +3542,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | no state change
+  reparent(unparent_root) => Ok(unchanged) | no state change
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -3649,6 +3712,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3816,6 +3882,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,0,0,0,0,0,1,1,1; can_redo: true -> false
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: an object cannot be parented under itself or one of its descendants) | no state change
+  reparent(unparent_root) => Ok(unchanged) | no state change
+  reparent(unknown_parent) => Err(Reparent: scene node 999999 does not exist) | no state change
   extrude_face => Ok(changed) | scene changed; can_redo: true -> false
   move_vertices => Ok(changed) | scene changed; can_redo: true -> false
   create_joint(root) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> joint1; name_field: "pCube1" -> "joint1"; channel_fields: 0,0,0,0,0,0,1,1,1 -> 1,2,3,0,0,0,1,1,1; can_redo: true -> false
@@ -3983,6 +4052,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4152,6 +4224,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4319,6 +4394,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4486,6 +4564,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4653,6 +4734,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4820,6 +4904,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4987,6 +5074,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5154,6 +5244,9 @@
   edit_node(translate_x) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty_unknown_node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   edit_node(empty) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(under_other_keep_world) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unparent_root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reparent(unknown_parent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   extrude_face => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   move_vertices => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create_joint(root) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5321,6 +5414,9 @@
   edit_node(translate_x) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
+  reparent(unparent_root) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
+  reparent(unknown_parent) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
   extrude_face => Err(Scene: native mesh shape 2 does not exist) | no state change
   move_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   create_joint(root) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -5488,6 +5584,9 @@
   edit_node(translate_x) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  reparent(under_other_keep_world) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
+  reparent(unparent_root) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
+  reparent(unknown_parent) => Err(Reparent: Maya ASCII scenes are read-only in this version) | no state change
   extrude_face => Err(Scene: native mesh shape 2 does not exist) | no state change
   move_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   create_joint(root) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -5656,6 +5755,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 1,-2,3,0,0,14.32394487827058,1,1,1
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -5824,6 +5926,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 1,-2,3,0,0,14.32394487827058,1,1,1
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -5992,6 +6097,9 @@
   edit_node(translate_x) => Ok(unchanged) | no state change
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6160,6 +6268,9 @@
   edit_node(translate_x) => Ok(unchanged) | status: "Scene ready" -> "No change"
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6424,6 +6535,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 1,-2,3,0,0,14.32394487827058,1,1,1
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | no state change
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6592,6 +6706,9 @@
   edit_node(translate_x) => Ok(changed) | scene changed; status: "Scene ready" -> "Scene edited"; channel_fields: 16777218.125,-2,3,0,0,14.32394487827058,1,1,1 -> 1,-2,3,0,0,14.32394487827058,1,1,1
   edit_node(empty_unknown_node) => Err(Scene: scene node 999999 does not exist) | no state change
   edit_node(empty) => Ok(unchanged) | status: "Scene ready" -> "No change"
+  reparent(under_other_keep_world) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unparent_root) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
+  reparent(unknown_parent) => Err(Reparent: native ownership or edit effects are unsupported) | no state change
   extrude_face => Err(Scene: native ownership or edit effects are unsupported) | no state change
   move_vertices => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create_joint(root) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6760,6 +6877,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6928,6 +7048,9 @@
   edit_node(translate_x) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty_unknown_node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   edit_node(empty) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(under_other_keep_world) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unparent_root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reparent(unknown_parent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   extrude_face => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   move_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create_joint(root) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -6978,4 +7101,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 6378
+cells: 6501
