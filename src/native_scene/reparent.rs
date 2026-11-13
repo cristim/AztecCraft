@@ -312,3 +312,6 @@ impl From<ReparentRefusal> for NativeError {
         Self::InvalidReparent(reason)
     }
 }
+
+#[cfg(test)]
+mod tests;
