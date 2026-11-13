@@ -207,7 +207,10 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::DeleteCameraBookmark { .. }
         | Operation::ApplyCameraBookmark { .. } => false,
         #[cfg(any(test, feature = "mcp"))]
+        Operation::AutosaveNow => false,
+        #[cfg(any(test, feature = "mcp"))]
         Operation::ListCameraBookmarks
+        | Operation::RecoveryStatus
         | Operation::Inspect { .. }
         | Operation::InspectKeys { .. }
         | Operation::InspectUvs { .. }
