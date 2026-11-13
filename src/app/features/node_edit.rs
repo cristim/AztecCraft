@@ -1,20 +1,6 @@
 use crate::app::*;
 
 impl Editor {
-    /// A remembered component is stale unless it still belongs to the selected instance and resolves.
-    fn stale_component(
-        &self,
-        transform: NodeId,
-        path: &[NativeId],
-        resolves: impl FnOnce() -> bool,
-    ) -> bool {
-        let (selected, selected_path) = self.selection_presentation();
-        Some(transform) != selected
-            || path
-                .split_last()
-                .is_none_or(|(_, owner)| owner != selected_path)
-            || !resolves()
-    }
     pub(in crate::app) fn sync_fields(&mut self) {
         self.material_draft = None;
         self.channel_intents = [false; 9];
@@ -65,36 +51,13 @@ impl Editor {
             self.material_shape = None;
             return;
         };
-        let scene = self.history.scene();
-        let stale_face = self.remembered_face().as_ref().is_some_and(|target| {
-            self.stale_component(target.transform, &target.path, || {
-                scene.resolve_face_target(target).is_ok()
-            })
-        });
-        let stale_vertex = self.remembered_vertex().as_ref().is_some_and(|target| {
-            self.stale_component(target.transform, &target.path, || {
-                scene.resolve_vertex_target(target).is_ok()
-            })
-        });
-        let stale_edge = self.remembered_edge().as_ref().is_some_and(|target| {
-            self.stale_component(target.transform, &target.path, || {
-                scene.resolve_edge_target(target).is_ok()
-            })
-        });
+        let prune = self.component_prunes();
         self.name = node.name().into();
         let values = node.transform().values();
         self.channels = values.map(|value| value.to_string());
         self.pivot_drafts = pivot_values(node).map(|value| value.to_string());
         let transform = node.transform_id();
-        if stale_face {
-            self.set_remembered_face(None);
-        }
-        if stale_vertex {
-            self.set_remembered_vertex(None);
-        }
-        if stale_edge {
-            self.set_remembered_edge(None);
-        }
+        self.apply_component_prunes(prune);
         if !self
             .material_shape
             .is_some_and(|shape| self.is_direct_shape(transform, shape))
