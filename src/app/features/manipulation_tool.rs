@@ -242,6 +242,7 @@ pub(in crate::app) fn move_space_name(space: MoveSpace) -> &'static str {
         MoveSpace::World => "World",
         MoveSpace::Object => "Object",
         MoveSpace::Parent => "Parent",
+        MoveSpace::AlongRotationAxis => "Along Rotation Axis",
     }
 }
 

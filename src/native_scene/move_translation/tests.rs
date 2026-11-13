@@ -1081,6 +1081,149 @@ mod move_space {
         near_v(world_delta(&frame, moved), own * DVec3::new(0.0, 3.0, 0.0));
     }
 
+    fn with_extras(scene: &mut NativeScene, node: NodeId, order: u8, axis: [f64; 3]) {
+        test_fixtures::set_extras(
+            scene,
+            node,
+            TransformExtras {
+                rotate_order: Some(order),
+                rotate_axis: Some(axis),
+                ..TransformExtras::default()
+            },
+        );
+    }
+
+    // Independent reference: R(ro) written from raw angles, with `ro` given as the
+    // application sequence (first axis applied first, rightmost factor).
+    fn reference_axes(sequence: [usize; 3], r: [f64; 3], ra: [f64; 3]) -> DMat3 {
+        let turn = |axis: usize, degrees: f64| match axis {
+            0 => DMat3::from_rotation_x(degrees.to_radians()),
+            1 => DMat3::from_rotation_y(degrees.to_radians()),
+            _ => DMat3::from_rotation_z(degrees.to_radians()),
+        };
+        let own = turn(sequence[2], r[sequence[2]])
+            * turn(sequence[1], r[sequence[1]])
+            * turn(sequence[0], r[sequence[0]]);
+        // The Rotate Axis is deliberately not part of this frame (PROVISIONAL, see MoveSpace).
+        let _ = ra;
+        own
+    }
+
+    fn assert_along_rotation_axis(frame: &WorldMoveFrame, parent: DMat3, axes: DMat3) {
+        for (axis, unit) in [
+            (WorldAxis::X, DVec3::X),
+            (WorldAxis::Y, DVec3::Y),
+            (WorldAxis::Z, DVec3::Z),
+        ] {
+            let expected = (parent * (axes * unit)).normalize();
+            near_v(
+                frame.direction(MoveSpace::AlongRotationAxis, axis).unwrap(),
+                expected,
+            );
+            let moved = frame
+                .translation_in(MoveSpace::AlongRotationAxis, axis, 3.0)
+                .unwrap();
+            near_v(world_delta(frame, moved), expected * 3.0);
+        }
+    }
+
+    #[test]
+    fn along_rotation_axis_ignores_the_rotate_axis_unparented_with_a_non_default_order() {
+        let (mut scene, node) = test_fixtures::cube();
+        let (r, ra) = ([23.0, -41.0, 67.0], [17.0, -33.0, 52.0]);
+        posed(&mut scene, node, r);
+        with_extras(&mut scene, node, 1, ra);
+        let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+        assert_along_rotation_axis(&frame, DMat3::IDENTITY, reference_axes([1, 2, 0], r, ra));
+        // The Rotate Axis is ignored: the same frame as with a zero Rotate Axis.
+        with_extras(&mut scene, node, 1, [0.0; 3]);
+        let zero = scene.world_move_frame(&target(&scene, node)).unwrap();
+        for axis in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z] {
+            assert_eq!(
+                zero.direction(MoveSpace::AlongRotationAxis, axis).unwrap(),
+                frame.direction(MoveSpace::AlongRotationAxis, axis).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn along_rotation_axis_is_parented_by_the_parents_map_and_normalised() {
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        scene
+            .set_transform(
+                root,
+                NativeTransform {
+                    rotation: [30.0, -20.0, 50.0],
+                    scale: [2.0, 2.0, 2.0],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        let (r, ra) = ([11.0, 19.0, -8.0], [0.0, 0.0, 90.0]);
+        posed(&mut scene, child, r);
+        with_extras(&mut scene, child, 3, ra);
+        let frame = scene.world_move_frame(&target(&scene, child)).unwrap();
+        let parent = DMat3::from_rotation_z(50.0f64.to_radians())
+            * DMat3::from_rotation_y((-20.0f64).to_radians())
+            * DMat3::from_rotation_x(30.0f64.to_radians())
+            * DMat3::from_diagonal(DVec3::splat(2.0));
+        assert_along_rotation_axis(&frame, parent, reference_axes([0, 2, 1], r, ra));
+        // Normalised despite the parent's scale 2: a 3 cm move is 3 cm in the world.
+        let moved = frame
+            .translation_in(MoveSpace::AlongRotationAxis, WorldAxis::Y, 3.0)
+            .unwrap();
+        assert!((world_delta(&frame, moved).length() - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn along_rotation_axis_equals_object_bit_for_bit_when_the_rotate_axis_is_zero() {
+        for order in [None, Some(0u8), Some(1), Some(5)] {
+            let (mut scene, node) = test_fixtures::cube();
+            posed(&mut scene, node, [23.0, -41.0, 67.0]);
+            if let Some(order) = order {
+                with_extras(&mut scene, node, order, [0.0; 3]);
+            }
+            let frame = scene.world_move_frame(&target(&scene, node)).unwrap();
+            for axis in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z] {
+                let object = frame.direction(MoveSpace::Object, axis).unwrap();
+                let along = frame.direction(MoveSpace::AlongRotationAxis, axis).unwrap();
+                assert_eq!(
+                    object.to_array().map(f64::to_bits),
+                    along.to_array().map(f64::to_bits),
+                    "order {order:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn along_rotation_axis_refuses_like_object() {
+        let (mut scene, node) = test_fixtures::cube();
+        posed(&mut scene, node, [0.0, 0.0, 90.0]);
+        with_extras(&mut scene, node, 0, [0.0, 0.0, 90.0]);
+        let good = scene.world_move_frame(&target(&scene, node)).unwrap();
+        let mut frame = good;
+        frame.object_rotation = DMat3::ZERO;
+        assert!(
+            frame
+                .direction(MoveSpace::AlongRotationAxis, WorldAxis::X)
+                .is_err()
+        );
+        assert!(frame.direction(MoveSpace::Parent, WorldAxis::X).is_ok());
+        let mut frame = good;
+        frame.parent_linear = DMat3::ZERO;
+        assert!(matches!(
+            frame.translation_in(MoveSpace::AlongRotationAxis, WorldAxis::X, 1.0),
+            Err(NativeError::UnsupportedMove(
+                WorldMoveUnsupported::ParentTransform
+            ))
+        ));
+        assert!(matches!(
+            good.translation_in(MoveSpace::AlongRotationAxis, WorldAxis::X, f64::NAN),
+            Err(NativeError::NonFinite)
+        ));
+    }
+
     #[test]
     fn object_composes_the_parents_rotation_with_the_nodes_own() {
         let (mut scene, root, child, _) = test_fixtures::grouped_shape();
