@@ -195,8 +195,8 @@ The provisional Unix and Windows binary Save/Save As candidate preserves proved
 existing records and reconciles uncertain installations. It does not support Maya
 ASCII or structural rewrites, and still needs native Save QA. Windows limits are
 listed under "Windows binary Save limits".
-Recovery, autosave and camera/history persistence remain
-pending. Legacy JSON v1 and OBJ remain separate library utilities; their geometry
+A core recovery-file store (`src/recovery.rs`: staged private writes, never replaces an occupied name, per-session retention, lock-based crash markers) exists but is not wired to the editor, preferences, MCP or a launch dialog; autosave, recovery UI and camera/history persistence remain
+pending (#21). Legacy JSON v1 and OBJ remain separate library utilities; their geometry
 tests don't establish native persistence. Structural
 validation doesn't repair geometry or guarantee rendering fidelity.
 
@@ -462,7 +462,7 @@ covered MCP-driven mode switches on one macOS debug build only
 **Severity:** high
 **Area:** native documents and viewport
 
-The supported legacy 2016 static cubic ASCII class now has inert native Open,
+The supported legacy 2016 static ASCII curve class (open, nonrational, degree 1 to 3) now has inert native Open,
 canonical f64 curve state, evaluated GPU line geometry, conservative framing and
 bounded MCP metadata. Source/SDK/UI/renderer tests cover this class; they do not
 admit general Maya ASCII, arbitrary units (only mm/cm/m/in/ft, deg/rad, film/ntsc; curves need centimeter and meshes need centimeter/degree/film) or history/drivers, rigs, imported

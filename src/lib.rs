@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod camera_bookmarks;
 pub mod document;
 pub mod history;
 pub mod manipulator_handles;
@@ -10,6 +11,7 @@ pub mod move_handles;
 pub mod native_scene;
 pub mod obj;
 pub mod primitive_options;
+pub mod recovery;
 pub mod scene;
 pub mod selection;
 pub mod shading;

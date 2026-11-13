@@ -2181,7 +2181,7 @@ impl fmt::Display for NativeError {
             Self::InvalidIdentity => f.write_str("invalid native identities or DAG references"),
             Self::InvalidRetention => f.write_str("invalid retained source ranges"),
             Self::InvalidTopology => f.write_str("invalid native polygon connectivity"),
-            Self::InvalidCurve => f.write_str("invalid supported native cubic curve"),
+            Self::InvalidCurve => f.write_str("invalid supported native curve"),
             Self::InvalidTransformExtras => {
                 f.write_str("rotate order must be 0 through 5 for supported transform extras")
             }

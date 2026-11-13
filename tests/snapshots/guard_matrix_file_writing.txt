@@ -14,7 +14,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -35,7 +35,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -56,7 +56,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -77,7 +77,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -98,7 +98,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -119,7 +119,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -140,7 +140,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -161,7 +161,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=true keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
@@ -182,7 +182,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -203,7 +203,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -224,7 +224,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -245,7 +245,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   save_scene_as(occupied) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -266,7 +266,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   save_scene_as => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   save_scene_as(occupied) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -287,7 +287,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -309,7 +309,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   save_scene_as => Err(NativeSave: cannot write this scene as a new .mb: the scene retains a parsed source and is not newly authored) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -331,7 +331,7 @@
     timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false pending_action=-
     dirty=true can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -352,7 +352,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   save_scene_as => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -373,7 +373,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -394,7 +394,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -415,7 +415,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -436,7 +436,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this scene has no file yet; use Save As) | no state change
   save_scene_as => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -457,7 +457,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -478,7 +478,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -499,7 +499,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -520,7 +520,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -541,7 +541,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=true
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -562,7 +562,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=true closing=false
     pending_action=New dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -583,7 +583,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -604,7 +604,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=true
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   save_scene_as(occupied) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -625,7 +625,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -646,7 +646,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=false can_undo=false can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as => Err(NativeSave: this native scene or platform cannot be written) | no state change
   save_scene_as(occupied) => Err(NativeSave: this native scene or platform cannot be written) | no state change
@@ -667,7 +667,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -688,7 +688,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -709,7 +709,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -730,7 +730,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -751,7 +751,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -772,7 +772,7 @@
     session_materials=[] timeline=time=1 range=1..48 playing=false keys=0 modal=false closing=false
     pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -793,7 +793,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -814,7 +814,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=false closing=false pending_action=- dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as => Err(NativeSave: save cancelled before installation) | no state change
   save_scene_as(occupied) => Err(NativeSave: destination already exists) | no state change
@@ -835,7 +835,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -856,7 +856,7 @@
     channel_intents=000000000 session_materials=[] timeline=time=1 range=1..48 playing=false keys=0
     modal=true closing=false pending_action=New dirty=true can_undo=true can_redo=false
     tool_settings=rotate_space=Object scale_space=World rotate_axis=X scale_handle=Uniform
-    manipulator_size=1
+    manipulator_size=1 bookmarks=
   save_scene => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   save_scene_as(occupied) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change

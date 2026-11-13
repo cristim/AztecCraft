@@ -424,7 +424,11 @@ editing of imported scenes and other-platform interaction need separate evidence
 ### Read-only static cubic Maya ASCII
 
 ASCII Open uses a bounded inert command decoder, never a MEL evaluator. The
-admitted class is clamped open cubic, nonrational three-dimensional curves with
+admitted class is clamped open nonrational three-dimensional curves of degree 1, 2 or
+3 (#17 added degrees 1 and 2: cv+degree-1 knots, cv-degree spans, `degree` echoed by
+MCP; each span is drawn as an exact cubic Hermite, so no degree-specific viewport
+path; degree 0, 4 and above, closed/periodic forms and rational curves refuse
+Unsupported) with
 finite f64 CVs/knots, strict positive interior spans (repeated interior knots,
 i.e. C0 curves, are refused as Unsupported), supported parent transforms and the
 explicit startup/metadata envelope. The retained legacy 2016 reference
