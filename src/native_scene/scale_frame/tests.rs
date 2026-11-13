@@ -39,6 +39,7 @@ fn refusal(error: ScaleUnsupported) -> NativeError {
     NativeError::UnsupportedScale(error)
 }
 
+mod parent;
 mod world;
 
 const HANDLES: [ScaleHandle; 4] = [

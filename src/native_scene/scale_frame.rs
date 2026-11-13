@@ -7,11 +7,14 @@ use glam::DMat3;
 // are below this bound (about 6e-8 degrees of tilt); a larger tilt would shear the node.
 const ALIGN_TOLERANCE: f64 = 1e-9;
 
-/// Whether a drag scales along the node's own axes or along the world axes.
+/// Whether a drag scales along the node's own axes, the world axes or its parent's axes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScaleSpace {
     Object,
     World,
+    /// The axes the node's local matrix lives in, as Move's Parent: neither the ancestors' map nor
+    /// the node's offsetParentMatrix is applied (opm handling PROVISIONAL, undocumented).
+    Parent,
 }
 
 /// What a scale drag grabs: one axis, or the center box for all three.
@@ -129,7 +132,7 @@ impl NativeScene {
         // maths: only the handle origin needs it (`ManipulatorFrame::handle_origin`).
         // SH^-1 * D * SH is not diagonal for a non-uniform D, so one scale channel cannot express a
         // world-axis scale of a sheared node. Refused before any source or leaf check.
-        if space == ScaleSpace::World
+        if space != ScaleSpace::Object
             && transform
                 .extras
                 .is_some_and(|extras| extras.shear.iter().any(|value| *value != 0.0))
@@ -167,6 +170,12 @@ impl NativeScene {
                     .ok_or(NativeError::InvalidTransformExtras)?;
                 self.world_scale_components(target, rotation)?
             }
+            ScaleSpace::Parent => {
+                let rotation = transform
+                    .rotation_frame()
+                    .ok_or(NativeError::InvalidTransformExtras)?;
+                aligned_components(rotation)
+            }
         };
         let frame = ScaleFrame {
             space,
@@ -202,20 +211,25 @@ impl NativeScene {
             .compensated_parent(linear);
         let uniform =
             (linear.x_axis.length() + linear.y_axis.length() + linear.z_axis.length()) / 3.0;
-        let orientation = (linear / uniform) * rotation;
-        Ok(std::array::from_fn(|axis| {
-            let image = [
-                orientation.x_axis[axis],
-                orientation.y_axis[axis],
-                orientation.z_axis[axis],
-            ];
-            let local = (0..3).max_by(|a, b| image[*a].abs().total_cmp(&image[*b].abs()))?;
-            (0..3)
-                .filter(|other| *other != local)
-                .all(|other| image[other].abs() <= ALIGN_TOLERANCE)
-                .then_some(local)
-        }))
+        Ok(aligned_components((linear / uniform) * rotation))
     }
+}
+
+// For each axis of the space `orientation` maps the node's local axes into, the local scale
+// channel it coincides with, or `None` when it falls between two channels.
+fn aligned_components(orientation: DMat3) -> [Option<usize>; 3] {
+    std::array::from_fn(|axis| {
+        let image = [
+            orientation.x_axis[axis],
+            orientation.y_axis[axis],
+            orientation.z_axis[axis],
+        ];
+        let local = (0..3).max_by(|a, b| image[*a].abs().total_cmp(&image[*b].abs()))?;
+        (0..3)
+            .filter(|other| *other != local)
+            .all(|other| image[other].abs() <= ALIGN_TOLERANCE)
+            .then_some(local)
+    })
 }
 
 #[cfg(test)]

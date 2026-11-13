@@ -649,3 +649,94 @@ fn child_clone(c: &Spec) -> Spec {
         spt: c.spt,
     }
 }
+
+// Parent space scales along the axes the node's local matrix lives in. Reference: the local linear
+// map of the Maya row-vector chain, compared with the same chain built from the new channels.
+#[test]
+fn parent_space_follows_a_non_default_rotate_order_and_rotate_axis() {
+    for (ro, r, ra) in [
+        (1u8, [90.0, 0.0, 90.0], [0.0, 90.0, 0.0]),
+        (2, [0.0, 90.0, 90.0], [90.0, 0.0, 90.0]),
+        (5, [90.0, 90.0, 0.0], [0.0, 0.0, 90.0]),
+    ] {
+        let before = [2.0, 3.0, 5.0];
+        let spec = |s: [f64; 3]| Spec {
+            t: DVec3::ZERO,
+            r,
+            s: DVec3::from_array(s),
+            rp: DVec3::ZERO,
+            ro,
+            ra,
+            rpt: DVec3::ZERO,
+            spt: DVec3::ZERO,
+        };
+        let linear = |sp: &Spec| {
+            DMat3::from_cols(
+                node_point(sp, DVec3::X),
+                node_point(sp, DVec3::Y),
+                node_point(sp, DVec3::Z),
+            )
+        };
+        let old = linear(&spec(before));
+        for (axis, handle) in [ScaleHandle::X, ScaleHandle::Y, ScaleHandle::Z]
+            .into_iter()
+            .enumerate()
+        {
+            let (mut scene, node) = test_fixtures::cube();
+            install(&mut scene, node, &spec(before));
+            let out = scene
+                .begin_scale_frame(&target(&scene, node), handle, ScaleSpace::Parent)
+                .unwrap()
+                .0
+                .scale(handle, 1.5)
+                .unwrap();
+            let mut d = DVec3::ONE;
+            d[axis] = 1.5;
+            let expected = DMat3::from_diagonal(d) * old;
+            let drift = (linear(&spec(out)) - expected)
+                .to_cols_array()
+                .map(f64::abs)
+                .into_iter()
+                .fold(0.0, f64::max);
+            assert!(drift < 1e-12, "ro {ro} axis {axis}: drift {drift}");
+        }
+    }
+}
+
+#[test]
+fn parent_space_ignores_an_offset_parent_matrix_that_world_space_applies() {
+    let (mut scene, node) = test_fixtures::cube();
+    scene
+        .set_transform(
+            node,
+            NativeTransform {
+                scale: [2.0, 3.0, 5.0],
+                ..NativeTransform::default()
+            },
+        )
+        .unwrap();
+    // Row-vector opm of a 90 degree turn about Z: world X is local Y.
+    let mut opm = [0.0; 16];
+    opm[1] = 1.0;
+    opm[4] = -1.0;
+    opm[10] = 1.0;
+    opm[15] = 1.0;
+    with_extras(
+        &mut scene,
+        node,
+        TransformExtras {
+            offset_parent_matrix: Some(opm),
+            ..TransformExtras::default()
+        },
+    );
+    let scaled = |space| {
+        scene
+            .begin_scale_frame(&target(&scene, node), ScaleHandle::X, space)
+            .unwrap()
+            .0
+            .scale(ScaleHandle::X, 2.0)
+            .unwrap()
+    };
+    assert_eq!(scaled(ScaleSpace::World), [2.0, 6.0, 5.0]);
+    assert_eq!(scaled(ScaleSpace::Parent), [4.0, 3.0, 5.0]);
+}
