@@ -98,6 +98,9 @@ pub struct Editor {
     name: String,
     channels: [String; 9],
     channel_intents: [bool; 9],
+    /// Rotate Pivot then Scale Pivot, three components each, in declared units.
+    pivot_drafts: [String; 6],
+    pivot_intents: [bool; 6],
     name_intent: bool,
     material_shape: Option<NativeId>,
     material_draft: Option<MaterialDraft>,
@@ -157,6 +160,8 @@ impl Default for Editor {
             name: String::new(),
             channels: Default::default(),
             channel_intents: [false; 9],
+            pivot_drafts: Default::default(),
+            pivot_intents: [false; 6],
             name_intent: false,
             material_shape: None,
             material_draft: None,
@@ -406,6 +411,13 @@ fn text_edit_focused(ctx: &egui::Context) -> bool {
 
 fn name_edit_id() -> egui::Id {
     egui::Id::unique("node_name")
+}
+
+/// Rotate Pivot then Scale Pivot in declared units, in the order of `Editor::pivot_drafts`.
+fn pivot_values(node: &azteccraft::native_scene::NativeTransformNode) -> [f64; 6] {
+    let [rx, ry, rz] = node.rotate_pivot();
+    let [sx, sy, sz] = node.scale_pivot();
+    [rx, ry, rz, sx, sy, sz]
 }
 
 fn channel_edit_id(index: usize) -> egui::Id {
