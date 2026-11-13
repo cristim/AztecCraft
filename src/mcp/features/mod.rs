@@ -5,6 +5,7 @@ pub(super) mod history;
 pub(super) mod inspect;
 pub(super) mod manipulation;
 pub(super) mod material;
+pub(super) mod move_vertices;
 pub(super) mod node_edit;
 pub(super) mod pivots;
 mod primitive_args;

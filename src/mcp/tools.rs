@@ -833,6 +833,9 @@ mod tests {
                 "extrude_face" => {
                     json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"face_index":0,"distance":1})
                 }
+                "move_vertices" => {
+                    json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"vertex_indices":[0],"delta":[1,0,0]})
+                }
                 "set_menu_set" => json!({"scene_token":token,"set":"rigging"}),
                 "set_current_time" => json!({"scene_token":token,"time":1}),
                 "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
@@ -1808,6 +1811,34 @@ mod tests {
         let mut args = valid;
         args["instance_path"] = json!(vec!["1"; 257]);
         assert!(parse_request("extrude_face", args.as_object().unwrap().clone()).is_ok());
+    }
+
+    #[test]
+    fn move_vertices_requires_bounded_targets_and_a_finite_delta() {
+        let token = Uuid::new_v4().to_string();
+        let valid = json!({"scene_token":token,"node_id":"1","shape_id":"2","instance_path":["1","2"],"vertex_indices":[0,3],"delta":[1,-2.5,0]});
+        let request = parse_request("move_vertices", valid.as_object().unwrap().clone()).unwrap();
+        let Operation::MoveVertices { target, delta } = request.operation else {
+            panic!("expected move_vertices")
+        };
+        assert_eq!(target.vertex_indices, [0, 3]);
+        assert_eq!(delta, [1.0, -2.5, 0.0]);
+        for (field, value) in [
+            ("vertex_indices", json!([])),
+            ("vertex_indices", json!([-1])),
+            ("vertex_indices", json!(vec![0; 65537])),
+            ("instance_path", json!(["1"])),
+            ("delta", json!([1, 2])),
+            ("delta", json!([1, 2, "3"])),
+            ("delta", json!(null)),
+        ] {
+            let mut args = valid.clone();
+            args[field] = value;
+            assert!(parse_request("move_vertices", args.as_object().unwrap().clone()).is_err());
+        }
+        let mut args = valid;
+        args["extra"] = json!(1);
+        assert!(parse_request("move_vertices", args.as_object().unwrap().clone()).is_err());
     }
 
     #[test]

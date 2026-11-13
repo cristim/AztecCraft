@@ -27,6 +27,10 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
 }
 
 /// The selection holds `MAX_TRANSFORM_PATHS` objects, so selecting every imported root cannot fail.
+/// Most vertices one `MoveVertices` operation may name.
+#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+const MAX_MOVED_VERTICES: usize = 65_536;
+
 const _: () =
     assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
 
@@ -506,6 +510,7 @@ impl Editor {
                     | Operation::Delete(_)
                     | Operation::DeleteSelection
                     | Operation::ExtrudeFace { .. }
+                    | Operation::MoveVertices { .. }
                     | Operation::ProjectUvPlanar { .. }
                     | Operation::DeleteUvs { .. }
                     | Operation::CreateJoint { .. }
@@ -897,6 +902,27 @@ impl Editor {
                     shape: target.shape,
                     face_index: target.face_index,
                     distance,
+                }
+            }
+            Operation::MoveVertices { target, delta } => {
+                if !(2..=azteccraft::native_scene::MAX_TRANSFORM_DEPTH + 1)
+                    .contains(&target.path.len())
+                    || target.vertex_indices.is_empty()
+                    || target.vertex_indices.len() > MAX_MOVED_VERTICES
+                    || delta.iter().any(|v| !v.is_finite())
+                {
+                    return Err(OperationError::InvalidInput(
+                        "Moving vertices requires a bounded full shape path, 1 to 65536 vertex indices and a finite delta".into(),
+                    ));
+                }
+                self.history
+                    .scene()
+                    .resolve_vertex_set(&target)
+                    .map_err(OperationError::Scene)?;
+                Command::MoveVertices {
+                    shape: target.shape,
+                    vertices: target.vertex_indices,
+                    delta,
                 }
             }
             Operation::CreateJoint {

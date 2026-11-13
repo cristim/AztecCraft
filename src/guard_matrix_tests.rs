@@ -19,7 +19,7 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, MaterialChoice, MoveSpace, NativeScene, PivotReset, RotateAxis, ScaleHandle,
-    SessionMaterialId, TransformTarget, UvProjectAxis, WorldAxis,
+    SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -310,6 +310,16 @@ impl Targets {
             shape: self.shape,
             path,
             vertex_index: 0,
+        }
+    }
+
+    fn vertex_set(&self) -> VertexSetTarget {
+        let target = self.vertex();
+        VertexSetTarget {
+            transform: target.transform,
+            shape: target.shape,
+            path: target.path,
+            vertex_indices: vec![0, 1],
         }
     }
 
@@ -851,6 +861,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ExtrudeFace {
             target: t.face(),
             distance: 0.5,
+        },
+        Operation::MoveVertices {
+            target: t.vertex_set(),
+            delta: [0.5, 0.0, 0.0],
         },
         Operation::CreateJoint {
             parent: None,
@@ -1800,6 +1814,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             Operation::ExtrudeFace {
                 target: t.face(),
                 distance: 0.5,
+            },
+        )],
+        Operation::MoveVertices { .. } => vec![sample(
+            "move_vertices",
+            Operation::MoveVertices {
+                target: t.vertex_set(),
+                delta: [0.5, 0.0, 0.0],
             },
         )],
         Operation::CreateJoint { .. } => {
