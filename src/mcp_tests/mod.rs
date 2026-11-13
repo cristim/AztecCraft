@@ -138,6 +138,7 @@ mod official_client {
     mod manipulator_size;
     mod marquee;
     mod material;
+    mod maya_import;
     mod move_vertices;
     mod multi_move;
     mod multi_scale;
