@@ -274,6 +274,7 @@ impl Editor {
                     | Operation::SelectFace { .. }
                     | Operation::SelectVertex { .. }
                     | Operation::SelectEdge { .. }
+                    | Operation::ModifyComponentSelection { .. }
                     | Operation::NewScene
                     | Operation::OpenScene { .. }
                     | Operation::RequestClose

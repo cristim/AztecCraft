@@ -4,6 +4,7 @@
 //! readers see. Reached only through `Editor` accessors.
 
 use super::Editor;
+use crate::editor_operations::ComponentKind;
 use azteccraft::native_scene::{ComponentCounts, EdgeTarget, FaceTarget, NativeId, VertexTarget};
 use azteccraft::scene::NodeId;
 use azteccraft::selection::{ComponentOwner, ComponentSet};
@@ -119,6 +120,23 @@ impl Editor {
             &mut self.picks.edges,
             target.map(|t| (t.transform, t.shape, t.path, t.edge_index)),
         )
+    }
+
+    #[allow(dead_code)] // read by the inspection in a later commit
+    pub(super) fn component_set(&self, kind: ComponentKind) -> &ComponentSet {
+        match kind {
+            ComponentKind::Face => &self.picks.faces,
+            ComponentKind::Vertex => &self.picks.vertices,
+            ComponentKind::Edge => &self.picks.edges,
+        }
+    }
+
+    pub(super) fn component_set_mut(&mut self, kind: ComponentKind) -> &mut ComponentSet {
+        match kind {
+            ComponentKind::Face => &mut self.picks.faces,
+            ComponentKind::Vertex => &mut self.picks.vertices,
+            ComponentKind::Edge => &mut self.picks.edges,
+        }
     }
 
     pub(super) fn clear_remembered_components(&mut self) {
