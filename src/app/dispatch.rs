@@ -1002,11 +1002,10 @@ impl Editor {
                 });
             }
             Operation::SelectFace { target } => {
-                let changed = self.remembered_face() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.set_remembered_face(target);
+                let changed = self.set_remembered_face(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1014,11 +1013,10 @@ impl Editor {
                 });
             }
             Operation::SelectVertex { target } => {
-                let changed = self.remembered_vertex() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.set_remembered_vertex(target);
+                let changed = self.set_remembered_vertex(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
@@ -1026,11 +1024,10 @@ impl Editor {
                 });
             }
             Operation::SelectEdge { target } => {
-                let changed = self.remembered_edge() != target;
                 if let Some(target) = &target {
                     self.select_component_owner(target.transform, &target.path)?;
                 }
-                self.set_remembered_edge(target);
+                let changed = self.set_remembered_edge(target);
                 return Ok(if changed {
                     OperationReply::Changed
                 } else {
