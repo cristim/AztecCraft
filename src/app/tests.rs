@@ -3836,6 +3836,7 @@ fn shortcuts_with(
 fn frame_with_children() -> Operation {
     Operation::FrameSelected {
         with_children: true,
+        fit_factor: None,
     }
 }
 
@@ -7277,7 +7278,14 @@ fn frame_selected_in_hierarchy_mode_frames_the_selected_root() {
     let before = editor.camera.clone();
     // F frames the selected root only; the group owns no geometry, so its origin (P2, PROVISIONAL).
     let frame = |editor: &mut Editor, with_children| {
-        remote(editor, Operation::FrameSelected { with_children }).unwrap();
+        remote(
+            editor,
+            Operation::FrameSelected {
+                with_children,
+                fit_factor: None,
+            },
+        )
+        .unwrap();
     };
     frame(&mut editor, false);
     let origin_only = editor.camera.clone();
@@ -9064,11 +9072,11 @@ fn frame_all_frames_every_object_regardless_of_selection() {
             .unwrap();
         assert_ne!(expected, single);
     }
-    remote(&mut editor, Operation::FrameAll).unwrap();
+    remote(&mut editor, Operation::FrameAll { fit_factor: None }).unwrap();
     assert_eq!(editor.camera, expected);
     assert_eq!(editor.selected(), Some(id));
     assert!(matches!(
-        remote(&mut editor, Operation::FrameAll),
+        remote(&mut editor, Operation::FrameAll { fit_factor: None }),
         Ok(OperationReply::Unchanged)
     ));
 }
@@ -9089,7 +9097,7 @@ fn frame_all_frames_a_curve_only_scene() {
     editor.camera.dolly(3.0).unwrap();
     assert_ne!(expected, editor.camera);
     assert!(matches!(
-        remote(&mut editor, Operation::FrameAll),
+        remote(&mut editor, Operation::FrameAll { fit_factor: None }),
         Ok(OperationReply::Changed)
     ));
     assert_eq!(editor.camera, expected);
@@ -9100,7 +9108,7 @@ fn frame_all_on_an_empty_scene_is_a_typed_refusal_that_keeps_the_camera() {
     let mut editor = Editor::default();
     let camera = editor.camera.clone();
     assert!(matches!(
-        remote(&mut editor, Operation::FrameAll),
+        remote(&mut editor, Operation::FrameAll { fit_factor: None }),
         Err(OperationError::NothingToFrame)
     ));
     assert_eq!(editor.camera, camera);
@@ -9894,7 +9902,7 @@ fn default_view_after_frame_all_restores_the_pose_but_keeps_the_grown_far_clip()
     )
     .unwrap();
     let default = Camera::default();
-    remote(&mut editor, Operation::FrameAll).unwrap();
+    remote(&mut editor, Operation::FrameAll { fit_factor: None }).unwrap();
     assert!(editor.camera.far() > default.far());
     let grown = editor.camera.far();
     editor.default_view();
@@ -11528,7 +11536,14 @@ mod frame_members {
         ] {
             let mut editor = parent_with_far_child();
             let expected = framed_by(&editor, children);
-            remote(&mut editor, Operation::FrameSelected { with_children }).unwrap();
+            remote(
+                &mut editor,
+                Operation::FrameSelected {
+                    with_children,
+                    fit_factor: None,
+                },
+            )
+            .unwrap();
             assert_eq!(editor.camera, expected, "{with_children}");
         }
     }
@@ -11622,7 +11637,13 @@ mod frame_members {
                 editor.native_operation(Operation::SetSelectionMode(mode));
                 assert_eq!(editor.selection_mode, mode);
                 let expected = camera_after_frame_all(&editor);
-                let reply = remote(&mut editor, Operation::FrameSelected { with_children });
+                let reply = remote(
+                    &mut editor,
+                    Operation::FrameSelected {
+                        with_children,
+                        fit_factor: None,
+                    },
+                );
                 assert!(reply.is_ok(), "{mode:?} {with_children}");
                 assert_eq!(editor.camera, expected, "{mode:?} {with_children}");
             }
@@ -11899,4 +11920,126 @@ fn native_scene_edits_are_refused_while_a_modal_is_open() {
         assert_eq!(editor.history.scene(), &scene, "{label}");
         assert!(editor.files.is_modal(), "{label}");
     }
+}
+
+fn fit_distance(editor: &mut Editor, operation: Operation) -> f32 {
+    editor.camera = Camera::default();
+    remote(editor, operation).unwrap();
+    editor.camera.distance()
+}
+
+#[test]
+fn fit_factor_scales_frame_all_and_frame_selected_and_none_keeps_the_default() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let default_all = fit_distance(&mut editor, Operation::FrameAll { fit_factor: None });
+    let full_all = fit_distance(
+        &mut editor,
+        Operation::FrameAll {
+            fit_factor: Some(1.0),
+        },
+    );
+    let half_all = fit_distance(
+        &mut editor,
+        Operation::FrameAll {
+            fit_factor: Some(0.5),
+        },
+    );
+    assert!(full_all < default_all && default_all < half_all);
+    for with_children in [false, true] {
+        let frame = |fit_factor| Operation::FrameSelected {
+            with_children,
+            fit_factor,
+        };
+        let default = fit_distance(&mut editor, frame(None));
+        let half = fit_distance(&mut editor, frame(Some(0.5)));
+        assert!(half > default);
+    }
+    // The factor is per call: the camera keeps no margin, so the next unfitted frame, made from
+    // the fitted result without a reset, is the default again.
+    remote(
+        &mut editor,
+        Operation::FrameAll {
+            fit_factor: Some(0.5),
+        },
+    )
+    .unwrap();
+    remote(&mut editor, Operation::FrameAll { fit_factor: None }).unwrap();
+    assert_eq!(editor.camera.distance(), default_all);
+    assert_eq!(editor.camera, camera_after_frame_all(&editor));
+}
+
+#[test]
+fn fit_factor_applies_to_component_and_empty_selection_framing() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let frame = |fit_factor| Operation::FrameSelected {
+        with_children: false,
+        fit_factor,
+    };
+    set_mode(&mut editor, SelectionMode::Edge);
+    pick_edge(&mut editor, 3);
+    let edge_default = fit_distance(&mut editor, frame(None));
+    let edge_half = fit_distance(&mut editor, frame(Some(0.5)));
+    assert!(edge_default > 0.3, "an edge is framed above the near floor");
+    assert!(edge_half > edge_default);
+    set_mode(&mut editor, SelectionMode::Object);
+    editor.deselect_all();
+    let empty_default = fit_distance(&mut editor, frame(None));
+    let empty_half = fit_distance(&mut editor, frame(Some(0.5)));
+    assert!(empty_half > empty_default);
+}
+
+#[test]
+fn invalid_fit_factors_are_refused_without_touching_the_camera() {
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    let before = editor.camera.clone();
+    for bad in [
+        0.0,
+        -0.5,
+        1.5,
+        1.000_000_1,
+        0.009_999,
+        1e-10,
+        1e-30,
+        f32::MIN_POSITIVE / 2.0,
+        f32::NAN,
+        f32::INFINITY,
+    ] {
+        for operation in [
+            Operation::FrameAll {
+                fit_factor: Some(bad),
+            },
+            Operation::FrameSelected {
+                with_children: false,
+                fit_factor: Some(bad),
+            },
+        ] {
+            assert!(
+                matches!(
+                    remote(&mut editor, operation),
+                    Err(OperationError::InvalidInput(_))
+                ),
+                "{bad}"
+            );
+            assert_eq!(editor.camera, before);
+        }
+    }
+}
+
+#[test]
+fn a_failed_fitted_frame_all_restores_the_original_camera() {
+    let mut editor = Editor::default();
+    let before = editor.camera.clone();
+    assert!(matches!(
+        remote(
+            &mut editor,
+            Operation::FrameAll {
+                fit_factor: Some(0.5)
+            }
+        ),
+        Err(OperationError::NothingToFrame)
+    ));
+    assert_eq!(editor.camera, before);
 }

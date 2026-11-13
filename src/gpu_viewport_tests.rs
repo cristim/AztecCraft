@@ -33,6 +33,7 @@ fn headless_gpu_ascii_editor_open_select_frame_reaches_actual_curve_callback() {
     editor
         .apply_operation(Operation::FrameSelected {
             with_children: true,
+            fit_factor: None,
         })
         .unwrap();
     let baseline = editor.history.scene().clone();
