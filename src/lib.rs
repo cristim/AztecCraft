@@ -13,6 +13,7 @@ pub mod obj;
 pub mod primitive_options;
 pub mod recovery;
 pub mod scene;
+pub mod scene_limits;
 pub mod selection;
 pub mod shading;
 #[cfg(feature = "desktop")]

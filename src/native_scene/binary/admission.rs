@@ -1,5 +1,5 @@
 use super::{BinaryError, resource};
-const MAX_WORK: usize = 50_000_000;
+pub(crate) const MAX_WORK: usize = 50_000_000;
 
 #[derive(Default)]
 pub(super) struct Counts {

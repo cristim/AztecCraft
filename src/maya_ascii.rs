@@ -3,7 +3,7 @@ pub(crate) mod lex;
 use std::fmt;
 
 pub(crate) const MAX_BYTES: usize = 16 * 1024 * 1024;
-const MAX_WORK: usize = 50_000_000;
+pub(crate) const MAX_WORK: usize = 50_000_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ErrorKind {

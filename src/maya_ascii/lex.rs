@@ -2,8 +2,8 @@ use super::{AsciiError, MAX_BYTES, Work, malformed, resource, unsupported};
 use crate::native_scene::admission::Budget;
 use std::{fmt, ops::Range, sync::Arc};
 
-const MAX_STATEMENTS: usize = 1_000_000;
-const MAX_TOKENS: usize = 1_000_000;
+pub(crate) const MAX_STATEMENTS: usize = 1_000_000;
+pub(crate) const MAX_TOKENS: usize = 1_000_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TokenKind {
