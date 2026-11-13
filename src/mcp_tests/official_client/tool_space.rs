@@ -46,6 +46,14 @@ async fn sdk_tool_space_reads_defaults_sets_per_tool_and_shares_the_native_opera
         ("move", "parent", "changed", ["parent", "world", "world"]),
         ("move", "parent", "unchanged", ["parent", "world", "world"]),
         ("move", "object", "changed", ["object", "world", "world"]),
+        ("scale", "parent", "changed", ["object", "world", "parent"]),
+        (
+            "scale",
+            "parent",
+            "unchanged",
+            ["object", "world", "parent"],
+        ),
+        ("scale", "world", "changed", ["object", "world", "world"]),
     ] {
         let result = call(
             &mut editor,
@@ -89,7 +97,6 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
     for arguments in [
         json!({"scene_token":token,"tool":"move","space":"gimbal"}),
         json!({"scene_token":token,"tool":"rotate","space":"parent"}),
-        json!({"scene_token":token,"tool":"scale","space":"parent"}),
         json!({"scene_token":token,"tool":"select","space":"world"}),
         json!({"scene_token":token,"tool":"rotate","space":"gimbal"}),
         json!({"scene_token":token,"tool":"rotate"}),
@@ -114,6 +121,14 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
         editor.apply_operation(Operation::SetToolSpace {
             tool: ActiveTool::Move,
             space: ManipulationSpace::Object,
+        }),
+        Err(crate::editor_operations::OperationError::InvalidInput(_))
+    ));
+    // Rotate has no Parent orientation: the core refuses it with a typed error and no change.
+    assert!(matches!(
+        editor.apply_operation(Operation::SetToolSpace {
+            tool: ActiveTool::Rotate,
+            space: ManipulationSpace::Parent,
         }),
         Err(crate::editor_operations::OperationError::InvalidInput(_))
     ));
@@ -198,6 +213,92 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
         spaces(&mut editor, &context, &client).await,
         ["world", "object", "world"]
     );
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_scale_parent_begins_remotely_and_native_drag_refuses_it() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let node = editor.selected().unwrap().to_decimal();
+    let path: Vec<_> = editor
+        .selected_path()
+        .iter()
+        .map(|id| id.to_decimal())
+        .collect();
+    let begin = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        json!({"scene_token":token,"kind":"scale","node_id":node,"instance_path":path,"handle":"x","space":"parent"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+    let update = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "update_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"factor":2.0}),
+    )
+    .await;
+    assert!(update.is_error != Some(true), "{update:?}");
+    let finish = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "finish_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"finish":"commit"}),
+    )
+    .await;
+    assert!(finish.is_error != Some(true), "{finish:?}");
+    // A cube at the root: Parent equals World, so X doubles.
+    let inspected = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_scene",
+        json!({}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(
+        inspected["inspection"]["nodes"][0]["authoring_transform"]["scale"],
+        json!([2.0, 1.0, 1.0])
+    );
+    // The native drag still refuses the Parent setting.
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    let target = editor.selected_move_target().unwrap();
+    assert!(matches!(
+        editor.apply_operation(Operation::BeginScale {
+            target,
+            handle: azteccraft::native_scene::ScaleHandle::X,
+            space: ManipulationSpace::Parent,
+        }),
+        Err(crate::editor_operations::OperationError::InvalidInput(_))
+    ));
+    assert!(editor.history.active_manipulation().is_none());
+    assert!(matches!(
+        editor.apply_operation(Operation::BeginRotate {
+            target: editor.selected_move_target().unwrap(),
+            axis: azteccraft::native_scene::RotateAxis::X,
+            space: ManipulationSpace::Parent,
+        }),
+        Err(crate::editor_operations::OperationError::InvalidInput(_))
+    ));
+    assert!(editor.history.active_manipulation().is_none());
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

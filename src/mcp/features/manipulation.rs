@@ -61,8 +61,17 @@ enum MoveSpaceInput {
     Parent,
 }
 
+/// Scale also works in its parent's axes (`parent`).
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum ScaleSpaceInput {
+    Object,
+    World,
+    Parent,
+}
+
 /// Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next
-/// manipulation. Only Move accepts `parent`.
+/// manipulation. Move and Scale accept `parent`; Rotate does not.
 #[derive(Deserialize, JsonSchema)]
 #[serde(tag = "tool", rename_all = "snake_case", deny_unknown_fields)]
 enum ToolSpaceArgs {
@@ -76,7 +85,7 @@ enum ToolSpaceArgs {
     },
     Scale {
         scene_token: String,
-        space: SpaceInput,
+        space: ScaleSpaceInput,
     },
 }
 
@@ -136,7 +145,7 @@ enum BeginManipulationArgs {
         #[schemars(length(min = 1, max = 256))]
         instance_path: Vec<String>,
         handle: HandleInput,
-        space: SpaceInput,
+        space: ScaleSpaceInput,
     },
 }
 
@@ -203,7 +212,7 @@ fn parse_set_tool_space(arguments: JsonObject) -> Result<RemoteRequest, ErrorDat
             scene_token,
             Operation::SetToolSpace {
                 tool: ActiveTool::Scale,
-                space: space(requested),
+                space: scale_space(requested),
             },
         ),
     };
@@ -277,6 +286,14 @@ fn scale_handle(handle: HandleInput) -> ScaleHandle {
     }
 }
 
+fn scale_space(space: ScaleSpaceInput) -> ManipulationSpace {
+    match space {
+        ScaleSpaceInput::Object => ManipulationSpace::Object,
+        ScaleSpaceInput::World => ManipulationSpace::World,
+        ScaleSpaceInput::Parent => ManipulationSpace::Parent,
+    }
+}
+
 fn space(space: SpaceInput) -> ManipulationSpace {
     match space {
         SpaceInput::Object => ManipulationSpace::Object,
@@ -325,7 +342,7 @@ fn parse_begin_manipulation(arguments: JsonObject) -> Result<RemoteRequest, Erro
             Operation::BeginScale {
                 target: target(&node_id, instance_path)?,
                 handle: scale_handle(handle),
-                space: space(input),
+                space: scale_space(input),
             },
         ),
     };
@@ -441,7 +458,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_tool_space",
-        description: "Set the Axis Orientation of the Move (object, world or parent), Rotate or Scale (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes. Does not change the active tool",
+        description: "Set the Axis Orientation of the Move or Scale (object, world or parent) or Rotate (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes; a scale begun with begin_manipulation names its own space, and the native Scale drag refuses the Parent setting until its handles follow it. Does not change the active tool",
         schema: schema::<ToolSpaceArgs>,
         parse: parse_set_tool_space,
         idempotent: true,
@@ -465,7 +482,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "begin_manipulation",
-        description: "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
+        description: "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
         schema: schema::<BeginManipulationArgs>,
         parse: parse_begin_manipulation,
         idempotent: false,

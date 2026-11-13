@@ -3288,3 +3288,45 @@ fn a_scale_box_drag_scales_about_the_scale_pivot_and_commits() {
     let (_, after) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
     assert_eq!(after.origin(), handle.origin());
 }
+
+#[test]
+fn a_stored_scale_parent_setting_is_visibly_refused_everywhere_native_looks() {
+    let (mut editor, context, view) = setup(Key::R, 1.0);
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    let reason = SCALE_PARENT_HANDLES;
+    let at = view.rect.min + egui::vec2(6.0, 6.0);
+    moved(&mut editor, &context, 1.0, at);
+    assert_eq!(editor.status, format!("Scale unavailable: {reason}"));
+    assert!(editor.error);
+    assert_eq!(pointer_refusal(&editor).as_deref(), Some(reason));
+    assert_eq!(editor.tool_help(), format!("Scale tool (Parent): {reason}"));
+    let kinds = editor.inspect_manipulation().unwrap().kinds;
+    assert!(!kinds[2].available);
+    assert_eq!(kinds[2].unavailable_reason.as_deref(), Some(reason));
+    // No handle exists, so a click is an ordinary selection click: empty space deselects.
+    let before = editor.history.scene().clone();
+    let empty = view.screen(Vec3::ZERO) + egui::vec2(300.0, 200.0);
+    press(&mut editor, &context, 1.0, empty);
+    assert!(!editor.move_suppress_primary, "the press is not consumed");
+    release(&mut editor, &context, 1.0, empty);
+    assert!(editor.selected().is_none(), "an empty click deselects");
+    assert!(editor.history.active_manipulation().is_none());
+    assert_eq!(editor.history.scene(), &before);
+    // Under Parent a click on the object selects it again.
+    let on_cube = view.screen(Vec3::ZERO);
+    press(&mut editor, &context, 1.0, on_cube);
+    release(&mut editor, &context, 1.0, on_cube);
+    assert!(
+        editor.selected().is_some(),
+        "a click on the cube selects it"
+    );
+    // Object stays usable.
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Object,
+    });
+    assert!(editor.inspect_manipulation().unwrap().kinds[2].available);
+}

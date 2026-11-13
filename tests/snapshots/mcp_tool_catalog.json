@@ -73,11 +73,20 @@
   },
   {
     "name": "set_tool_space",
-    "description": "Set the Axis Orientation of the Move (object, world or parent), Rotate or Scale (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes. Does not change the active tool",
+    "description": "Set the Axis Orientation of the Move or Scale (object, world or parent) or Rotate (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes; a scale begun with begin_manipulation names its own space, and the native Scale drag refuses the Parent setting until its handles follow it. Does not change the active tool",
     "inputSchema": {
       "$defs": {
         "MoveSpaceInput": {
           "description": "The Move tool also works in its parent's axes (`parent`).",
+          "enum": [
+            "object",
+            "world",
+            "parent"
+          ],
+          "type": "string"
+        },
+        "ScaleSpaceInput": {
+          "description": "Scale also works in its parent's axes (`parent`).",
           "enum": [
             "object",
             "world",
@@ -95,7 +104,7 @@
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "description": "Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next\nmanipulation. Only Move accepts `parent`.",
+      "description": "Sets the Axis Orientation the Move, Rotate or Scale tool settings use for the next\nmanipulation. Move and Scale accept `parent`; Rotate does not.",
       "oneOf": [
         {
           "additionalProperties": false,
@@ -146,7 +155,7 @@
               "type": "string"
             },
             "space": {
-              "$ref": "#/$defs/SpaceInput"
+              "$ref": "#/$defs/ScaleSpaceInput"
             },
             "tool": {
               "const": "scale",
@@ -282,7 +291,7 @@
   },
   {
     "name": "begin_manipulation",
-    "description": "Begin one remote-owned Move (World axis), Rotate or Scale (Object or World space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
+    "description": "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move acts on the whole current selection with the named node as its lead (the last selected object); with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the Move target and selection refusals, and changes nothing. Rotate and Scale still need exactly one selected object",
     "inputSchema": {
       "$defs": {
         "AxisInput": {
@@ -299,6 +308,15 @@
             "y",
             "z",
             "uniform"
+          ],
+          "type": "string"
+        },
+        "ScaleSpaceInput": {
+          "description": "Scale also works in its parent's axes (`parent`).",
+          "enum": [
+            "object",
+            "world",
+            "parent"
           ],
           "type": "string"
         },
@@ -421,7 +439,7 @@
               "type": "string"
             },
             "space": {
-              "$ref": "#/$defs/SpaceInput"
+              "$ref": "#/$defs/ScaleSpaceInput"
             }
           },
           "required": [

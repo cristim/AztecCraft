@@ -418,10 +418,11 @@ impl Editor {
     pub(in crate::app) fn inspect_manipulation(
         &self,
     ) -> Result<crate::editor_operations::ManipulationInspection, OperationError> {
+        use crate::app::features::manipulation_tool::SCALE_PARENT_HANDLES;
         use crate::app::inspect::{angular_unit_name, linear_unit_name};
         use crate::editor_operations::{
             ActiveManipulationInspection, KindInspection, ManipulationInspection,
-            ManipulationUnits, MoveAxisInspection, MoveViewportInspection,
+            ManipulationUnits, MoveAxisInspection, MoveViewportInspection, NO_ROTATE_PARENT,
         };
         use azteccraft::{
             history::ManipulationKindState,
@@ -505,9 +506,10 @@ impl Editor {
                 }),
         };
         let rotate_space = self.manipulation.space(ActiveTool::Rotate).rotate();
-        let rotate_refusals = match &rotate_target {
-            Err(error) => Err(error.to_string()),
-            Ok(target) => Ok([
+        let rotate_refusals = match (&rotate_target, rotate_space) {
+            (Err(error), _) => Err(error.to_string()),
+            (Ok(_), None) => Err(NO_ROTATE_PARENT.to_owned()),
+            (Ok(target), Some(rotate_space)) => Ok([
                 (RotateAxis::X, "X axis"),
                 (RotateAxis::Y, "Y axis"),
                 (RotateAxis::Z, "Z axis"),
@@ -527,6 +529,12 @@ impl Editor {
         let scale_space = self.manipulation.space(ActiveTool::Scale).scale();
         let scale_refusals = match &scale_target {
             Err(error) => Err(error.to_string()),
+            Ok(_)
+                if self.manipulation.space(ActiveTool::Scale)
+                    == crate::editor_operations::ManipulationSpace::Parent =>
+            {
+                Err(SCALE_PARENT_HANDLES.to_owned())
+            }
             Ok(target) => Ok([
                 (ScaleHandle::X, "X handle"),
                 (ScaleHandle::Y, "Y handle"),
