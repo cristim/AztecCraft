@@ -1,4 +1,5 @@
 use super::*;
+use crate::editor_operations::MAX_MOVED_VERTICES;
 use azteccraft::history::{ManipulationFinish, ManipulationKindState};
 use azteccraft::native_scene::NativeTransformNode;
 
@@ -27,10 +28,6 @@ pub(super) fn radians_keeping_stored(stored: f64, degrees: f64) -> f64 {
 }
 
 /// The selection holds `MAX_TRANSFORM_PATHS` objects, so selecting every imported root cannot fail.
-/// Most vertices one `MoveVertices` operation may name.
-#[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
-const MAX_MOVED_VERTICES: usize = 65_536;
-
 const _: () =
     assert!(azteccraft::obj::import::MAX_OBJECTS <= azteccraft::native_scene::MAX_TRANSFORM_PATHS);
 
@@ -313,6 +310,11 @@ impl Editor {
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
             return Ok(OperationReply::Uvs {
                 inspection: Box::new(self.inspect_uvs(*shape, cursor.as_ref())?),
+            });
+        }
+        if let Operation::InspectVertices { shape, cursor } = &request.operation {
+            return Ok(OperationReply::Vertices {
+                inspection: Box::new(self.inspect_vertices(*shape, cursor.as_ref())?),
             });
         }
         if request.expected_scene_token != Some(self.scene_token) {
@@ -911,9 +913,9 @@ impl Editor {
                     || target.vertex_indices.len() > MAX_MOVED_VERTICES
                     || delta.iter().any(|v| !v.is_finite())
                 {
-                    return Err(OperationError::InvalidInput(
-                        "Moving vertices requires a bounded full shape path, 1 to 65536 vertex indices and a finite delta".into(),
-                    ));
+                    return Err(OperationError::InvalidInput(format!(
+                        "Moving vertices requires a bounded full shape path, 1 to {MAX_MOVED_VERTICES} vertex indices and a finite delta"
+                    )));
                 }
                 self.history
                     .scene()
@@ -1310,6 +1312,12 @@ impl Editor {
             Operation::InspectUvs { shape, cursor } => {
                 return Ok(OperationReply::Uvs {
                     inspection: Box::new(self.inspect_uvs(shape, cursor.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectVertices { shape, cursor } => {
+                return Ok(OperationReply::Vertices {
+                    inspection: Box::new(self.inspect_vertices(shape, cursor.as_ref())?),
                 });
             }
             Operation::OpenScene { .. }

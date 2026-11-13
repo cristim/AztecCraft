@@ -210,7 +210,8 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         Operation::ListCameraBookmarks
         | Operation::Inspect { .. }
         | Operation::InspectKeys { .. }
-        | Operation::InspectUvs { .. } => false,
+        | Operation::InspectUvs { .. }
+        | Operation::InspectVertices { .. } => false,
         _ => true,
     }
 }
