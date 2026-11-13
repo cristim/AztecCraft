@@ -2,6 +2,7 @@
 
 pub mod camera_bookmarks;
 pub mod document;
+pub mod gltf;
 pub mod history;
 pub mod manipulator_handles;
 pub(crate) mod maya_ascii;
