@@ -257,6 +257,7 @@ struct Targets {
     ascii: std::path::PathBuf,
     save_as: std::path::PathBuf,
     export: std::path::PathBuf,
+    export_gltf: std::path::PathBuf,
 }
 
 impl Targets {
@@ -344,6 +345,7 @@ fn targets(rig: &Rig) -> Targets {
         ascii: rig.directory.path().join("curve.ma"),
         save_as: rig.directory.path().join("saved.mb"),
         export: rig.directory.path().join("export.obj"),
+        export_gltf: rig.directory.path().join("export.glb"),
     }
 }
 
@@ -762,6 +764,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         },
         Operation::ExportObj {
             path: t.export.clone(),
+            selection_only: false,
+        },
+        Operation::ExportGltf {
+            path: t.export_gltf.clone(),
             selection_only: false,
         },
         Operation::ResolveFileAction {
@@ -1570,6 +1576,29 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample(
                 "export_obj(not_obj)",
                 Operation::ExportObj {
+                    path: t.save_as.clone(),
+                    selection_only: false,
+                },
+            ),
+        ],
+        Operation::ExportGltf { .. } => vec![
+            sample(
+                "export_gltf(all)",
+                Operation::ExportGltf {
+                    path: t.export_gltf.clone(),
+                    selection_only: false,
+                },
+            ),
+            sample(
+                "export_gltf(selection)",
+                Operation::ExportGltf {
+                    path: t.export_gltf.clone(),
+                    selection_only: true,
+                },
+            ),
+            sample(
+                "export_gltf(not_gltf)",
+                Operation::ExportGltf {
                     path: t.save_as.clone(),
                     selection_only: false,
                 },
