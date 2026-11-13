@@ -804,6 +804,7 @@ mod tests {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})
                 }
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
+                "set_snap_mode" => json!({"scene_token":token,"grid":true}),
                 "set_shading_mode" => json!({"scene_token":token,"mode":"wireframe"}),
                 "set_sidebar_panel_visibility" => {
                     json!({"scene_token":token,"panel":"channel_box","visible":true})
@@ -892,6 +893,7 @@ mod tests {
             let expected = matches!(
                 tool.name.as_ref(),
                 "set_grid_visibility"
+                    | "set_snap_mode"
                     | "set_shading_mode"
                     | "set_menu_set"
                     | "set_sidebar_panel_visibility"
@@ -1246,6 +1248,45 @@ mod tests {
             );
             assert!(
                 matches!(request.operation, Operation::SetGridVisible { visible: actual } if actual == visible)
+            );
+        }
+    }
+
+    #[test]
+    fn snap_mode_schema_and_decoder_require_an_explicit_grid_boolean_and_token() {
+        let token = Uuid::new_v4().to_string();
+        let tool = catalog()
+            .into_iter()
+            .find(|tool| tool.name == "set_snap_mode")
+            .unwrap();
+        assert_eq!(tool.input_schema["properties"]["grid"]["type"], "boolean");
+        assert_eq!(tool.input_schema["additionalProperties"], false);
+        let required = tool.input_schema["required"].as_array().unwrap();
+        assert_eq!(required.len(), 2);
+        assert_eq!(tool.annotations.unwrap().idempotent_hint, Some(true));
+        for arguments in [
+            json!({"scene_token": token}),
+            json!({"grid": true}),
+            json!({"scene_token": token, "grid": null}),
+            json!({"scene_token": token, "grid": "true"}),
+            json!({"scene_token": token, "grid": true, "point": true}),
+            json!({"scene_token": "invalid", "grid": true}),
+        ] {
+            assert!(
+                parse_request("set_snap_mode", arguments.as_object().unwrap().clone()).is_err()
+            );
+        }
+        for enabled in [false, true] {
+            let request = parse_request(
+                "set_snap_mode",
+                json!({"scene_token": token, "grid": enabled})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            assert!(
+                matches!(request.operation, Operation::SetSnapToGrid { enabled: actual } if actual == enabled)
             );
         }
     }

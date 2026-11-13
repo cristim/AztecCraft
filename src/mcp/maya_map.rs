@@ -61,6 +61,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_camera_pose", "`viewPlace -eyePoint` (PROVISIONAL: flag semantics unconfirmed beyond the synopsis), `camera -e`", "target, distance, yaw and pitch; FOV and clip planes untouched (PROVISIONAL)"),
     ("pan_camera", "`track`", "camera-plane world units"),
     ("dolly_camera", "`dolly`", "multiplicative factor"),
+    ("set_snap_mode", "`snapMode -grid`", "grid only (PROVISIONAL: absolute landing of the lead pivot on the drawn 1 cm grid, Move only, refused at begin when the axis is off the world grid; no curve, point, view-plane or step snapping); off by default (PROVISIONAL, docs state none)"),
     ("set_menu_set", "`setMenuMode`", "Modeling and Rigging only; session-only (PROVISIONAL)"),
     ("set_sidebar_panel_visibility", "`workspaceControl -e -visible`", "fixed dock; the 2027 attribute editor page was not found (PROVISIONAL)"),
     ("select_attribute_editor_tab", "no equivalent", "Maya has no command for choosing an Attribute Editor tab (PROVISIONAL)"),

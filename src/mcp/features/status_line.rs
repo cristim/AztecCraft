@@ -103,7 +103,31 @@ fn parse_select_attribute_editor_tab(arguments: JsonObject) -> Result<RemoteRequ
     ))
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct SnapModeArgs {
+    scene_token: String,
+    /// Snap to grids on or off.
+    grid: bool,
+}
+
+fn parse_set_snap_mode(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: SnapModeArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetSnapToGrid { enabled: args.grid },
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
+    ToolSpec {
+        name: "set_snap_mode",
+        description: "Set Snap to grids explicitly (Status Line button, `snapMode -grid`); off by default. While on, a Move begun with begin_manipulation lands the lead object's pivot on the nearest line of the drawn grid (one line per centimetre) along its axis, absolute rather than relative; the rest of the selection moves by the same distance. The Move axis must lie along a world X, Y or Z axis (World orientation, or Object or Parent aligned to the world): otherwise begin_manipulation returns invalid_input and nothing starts. A pivot within a few ulps of a line stays put. Only grid snapping exists: curve, point, surface and relative step snapping are not implemented. Session-only and idempotent; does not edit the scene. Refused with busy_manipulation during any manipulation and busy_editing during a modal or close; inspect_scene snap_to_grid reports the state",
+        schema: schema::<SnapModeArgs>,
+        parse: parse_set_snap_mode,
+        idempotent: true,
+        read_only: false,
+    },
     ToolSpec {
         name: "set_menu_set",
         description: "Switch the menu set the native menu bar shows, like the Status Line selector or F2 and F3. Only modeling and rigging exist; Animation, FX and Rendering are not implemented. Session-only and idempotent: it does not edit the scene, mark it dirty or change the scene token, New and Open keep it, and it cannot be undone. Refused while a file dialog is open. `inspect_scene` reports it as `menu_set`",
