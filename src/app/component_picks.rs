@@ -122,7 +122,6 @@ impl Editor {
         )
     }
 
-    #[cfg(any(test, feature = "mcp"))]
     pub(super) fn component_set(&self, kind: ComponentKind) -> &ComponentSet {
         match kind {
             ComponentKind::Face => &self.picks.faces,
