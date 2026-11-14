@@ -2,6 +2,9 @@
 
 - [Build specification](build-prompt.md): final product scope and parity requirements.
 - [Implementation plan](plan.md): atomic tasks, evidence, unmet acceptance targets and updated prototype publication authority.
+- [Maya 2027 feature and API roadmap](maya-2027-feature-roadmap.md): documented product scope across all 14 families, Autodesk 2027.2 UI/API sources, staged delivery gates, and the still-open 2026 acceptance boundary.
+- [Maya API catalog inventory](maya-2027-api-inventory.md): official command/node/C++/Python catalog sources, actual enumeration status, release deltas, and explicit remaining gaps; not a runtime-compatibility claim.
+- [Maya 2027 menu map](maya-2027-menu-map.md): global menus, five menu sets, dropdown/submenu hierarchy, option boxes, panel/context/marking menus, and provisional gaps.
 - [Reference dossier](reference.md): reference baseline, researched sources, and reuse decisions.
 - [Parity inventory](parity.md): required functionality families, not a measured coverage percentage.
 - [Workflow inventory seed](inventory-seed.md): provisional candidate workflows, official sources, component boundaries and a measurement proposal.

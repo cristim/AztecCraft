@@ -6,6 +6,12 @@ Provisional documentation reference: Autodesk Maya 2027.2, the latest available 
 
 Current entry points: [Maya 2027 Help](https://help.autodesk.com/view/MAYAUL/2027/ENU/) and [Maya 2027 Developer Help](https://help.autodesk.com/view/MAYADEV/2027/ENU/).
 
+The 2026 acceptance target and 2027.2 documentation pin are kept distinct. A
+cross-family 2027.2 UI, command, node, C++ API, Python API and component roadmap
+is recorded in [maya-2027-feature-roadmap.md](maya-2027-feature-roadmap.md).
+It records the retrieved official catalogs and scope, but explicitly leaves the
+full command/node/API/component audit and the 14-family denominator freeze open.
+
 The original Maya 2026 acceptance target remains active and unmet, including issue #5's requested 2026 installation. Updating the documentation reference does not satisfy that request or establish 2026 parity. Existing 2026 feature citations and comparison evidence retain their original attribution. No installed reference build or user-owned reference scenes have been newly verified; platform, display scale, preferences, workspace and plugins remain unconfirmed. Exact-parity acceptance remains blocked on this evidence.
 
 [The workflow inventory seed](inventory-seed.md) records candidate domains and primary source links. Its 100 initial entries aren't a complete denominator, and overall coverage remains unmeasured. Audit commands, node types, menus, extensions and real production workflows against the installation before assigning a percentage.

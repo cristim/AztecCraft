@@ -10,6 +10,12 @@ This inventory replaces the provisional [workflow seed](../inventory-seed.md) as
 - The wording "all Maya 2026 functionality" in #6 maps to this pin. Rows that exist only in the 2026 documentation are tagged `2026-only`; rows that the 2027 notes add are tagged `2027-new`. No claim is made that the 2027.2 set contains or equals the 2026 set.
 - A row whose 2027 page could not be read cites a 2026 page and carries the tag `2026 FALLBACK`. Details the documentation does not state are tagged `PROVISIONAL`.
 - Component versions (Arnold, Bifrost, MayaUSD, LookdevX, MASH, XGen and so on) are taken from the 2027 documentation, never from an install.
+- API catalog enumeration and Maya runtime compatibility are separate evidence
+  tracks. Command/node/C++/Python references can be crawled into symbol
+  inventories; they do not establish execution behavior, defaults, plug-in
+  availability, ABI compatibility, or Maya 2026 parity. Track per-symbol source
+  and runtime status rather than upgrading a family row from catalog presence
+  alone.
 
 ## Status vocabulary
 
@@ -132,6 +138,11 @@ Names and order match [parity.md](../parity.md). Owner issues are open feature, 
 | 14 | Pipeline and robustness | [14-pipeline-and-robustness.md](14-pipeline-and-robustness.md) | PIP | #8, #21, #58 |
 
 ## Top-level menu to family map
+
+The artist-facing menu hierarchy, menu-set switcher, dropdown/option-box
+structure and panel/context/marking-menu surfaces are summarized in the
+[Maya 2027 menu map](../maya-2027-menu-map.md). The table below remains the
+row-level ownership map; it does not imply implementation.
 
 Documented menus and the family that owns their content. The always-available menus and menu sets come from the 2027 [Menus and menu sets](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-D90A2BDB-FD05-4528-8A95-C33A02D15129.htm) page (fetched 2026-10-27); the per-set menus come from the set pages cited in the table. Hotkeys: F2 Modeling, F3 Rigging, F4 Animation, F5 FX, F6 Rendering. File-menu items are split per item in [11-interchange.md](11-interchange.md).
 
