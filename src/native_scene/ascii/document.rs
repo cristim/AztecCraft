@@ -1,6 +1,7 @@
 //! The read-back gate for authored Maya ASCII (#321). A scene that contains meshes is accepted
 //! only when it is byte-identical to what the authored writer emits for the scene it decodes
 //! to, so the reader never claims more of the Maya ASCII grammar than the writer produces.
+use super::material::ParsedMaterials;
 use super::{
     AsciiError, Decoded, ErrorKind, decode_with_uvs,
     write::{DefaultLinks, emit_with_links},
@@ -70,13 +71,16 @@ pub fn decode_document(
         scene: sourced,
         uvs,
         links,
+        materials,
     } = decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    // Such a file was an error before it was read, so it is never retained either.
+    let has_materials = materials.is_some();
     // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
     // can never be proved; skip the clone for it.
-    if sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
+    if !has_materials && sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
         return Ok(AsciiDecoded::Retained(sourced));
     }
-    let candidate = candidate_of(&sourced, uvs);
+    let candidate = candidate_of(&sourced, uvs, materials);
     // Any link selects the linked layout; the byte comparison then admits only the exact one
     // (every shape, in the writer's order), so a partial or duplicated set is refused.
     let layout = if links == 0 {
@@ -89,7 +93,7 @@ pub fn decode_document(
     let proved = candidate.validate().is_ok()
         && emit_with_links(&candidate, layout).is_ok_and(|emitted| emitted.as_slice() == &*source);
     if !proved {
-        return if sourced.shapes.is_empty() {
+        return if sourced.shapes.is_empty() && !has_materials {
             Ok(AsciiDecoded::Retained(sourced))
         } else {
             Err(unsupported())
@@ -105,10 +109,14 @@ pub fn decode_document(
     Ok(AsciiDecoded::Authored(AuthoredProjection(candidate)))
 }
 
-/// The source-free scene the decoded statements describe. A sourced scene cannot hold UVs, so
-/// they join the candidate only now. The comparison against the source re-emits them, which is
-/// what admits a UV block: anything the writer would not emit refuses.
-fn candidate_of(sourced: &NativeScene, uvs: Vec<Option<UvSet>>) -> NativeScene {
+/// The source-free scene the decoded statements describe. A sourced scene cannot hold UVs or
+/// session materials, so they join the candidate only now. The comparison against the source
+/// re-emits them, which is what admits their blocks: anything the writer would not emit refuses.
+fn candidate_of(
+    sourced: &NativeScene,
+    uvs: Vec<Option<UvSet>>,
+    materials: Option<ParsedMaterials>,
+) -> NativeScene {
     let mut candidate = sourced.clone();
     candidate.source = None;
     for (shape, set) in sourced.shapes.iter().zip(uvs) {
@@ -116,11 +124,16 @@ fn candidate_of(sourced: &NativeScene, uvs: Vec<Option<UvSet>>) -> NativeScene {
             candidate.attach_authored_uv_set(shape.id(), set);
         }
     }
+    if let Some(materials) = materials {
+        materials.attach(&mut candidate);
+    }
     candidate
 }
 
 #[cfg(test)]
 mod link_tests;
+#[cfg(test)]
+mod material_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
