@@ -370,8 +370,11 @@ hidden corner picked; and at large distances a flat 6e-3 under-covers the Depth3
 resolution (no readback needed more at d=120 or d=300 with small-object runs, but the
 buffer's relative resolution grows with distance). The relative depth step is about
 5.96e-8 * z / near, which reaches 6e-3 near z = 1007 at near 0.01 and near z = 10067 at
-near 0.1, so the default near of 0.1 moves that limit beyond the default far plane. A pixel-derived bias is
-the planned follow-up (#135).
+near 0.1, so the default near of 0.1 moves that limit beyond the default far plane. The flat 6e-3 above is superseded by the screen-derived `Camera::marker_bias` (#135: `1e-4` plus
+`MARKER_DEPTH_ULPS` = 2 Depth32Float steps, capped at 0.25; table row 6 in `.project-docs/development.md`);
+the readbacks and limits above describe the old constant. Four steps drew a hidden corner through a
+side-2 cube at d=300 (1 degree fov) on software Vulkan, so the guard is two; software Vulkan has
+not been bracketed below that.
 The default near clip is 0.1 (Create Camera Options default; the persp camera's own is
 undocumented, PROVISIONAL). Dolly has no minimum distance, so a distance below the near
 clip puts the target closer to the eye than the near plane (between the eye and the plane) and clips it; whether Maya has a hard dolly

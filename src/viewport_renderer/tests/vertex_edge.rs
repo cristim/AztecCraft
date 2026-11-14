@@ -781,9 +781,9 @@ fn plate_cubes(gap: f64) -> Scene {
 
 #[test]
 fn wireframe_vertex_filter_uses_the_vertex_tolerance_not_the_face_one() {
-    // A gap of 1.5e-4 of the 4-unit distance sits between the face tolerance (1e-4) and the
-    // vertex bias (about 2.2e-4).
-    let scene = plate_cubes(0.0006);
+    // A gap of 1.2e-4 of the 4-unit distance sits between the face tolerance (1e-4) and the
+    // vertex bias (about 1.5e-4).
+    let scene = plate_cubes(0.00048);
     let camera = camera(0.01);
     let wire = submit(
         &scene,

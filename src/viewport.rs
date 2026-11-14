@@ -33,9 +33,11 @@ pub const FACE_CENTER_DEPTH_TOLERANCE: f32 = 1e-4;
 /// chosen from Metal readbacks.
 pub const MARKER_SLOPE_PIXELS: f32 = 4.0;
 /// Depth32Float guard, in units in the last place of NDC depth near 1 (2^-24), for the rounding
-/// of the marker's and the surface's interpolated depth; software Vulkan rounds more coarsely
-/// than Metal, so this is kept generous.
-pub const MARKER_DEPTH_ULPS: f32 = 4.0;
+/// of the marker's and the surface's interpolated depth: one step each. Four steps pulled the
+/// hidden corner of a side-2 cube seen from 300 units (1 degree fov, near 0.01) in front of the
+/// face hiding it on software Vulkan: that corner lies 2.63 units (4.9 steps) behind the face,
+/// and four steps plus the slope allowance leave under one. Two steps keep 2.8 steps of that gap.
+pub const MARKER_DEPTH_ULPS: f32 = 2.0;
 /// Upper bound on the marker bias fraction, so extreme near/far ratios cannot push a marker
 /// through the eye.
 pub const MARKER_BIAS_MAX: f32 = 0.25;

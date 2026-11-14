@@ -156,7 +156,7 @@ fn near(a: f32, b: f32) -> Vec2 {
 fn depth_tolerances_are_pinned_independently() {
     assert_eq!(FACE_CENTER_DEPTH_TOLERANCE, 1e-4);
     assert_eq!(MARKER_SLOPE_PIXELS, 4.0);
-    assert_eq!(MARKER_DEPTH_ULPS, 4.0);
+    assert_eq!(MARKER_DEPTH_ULPS, 2.0);
     assert_eq!(MARKER_BIAS_MAX, 0.25);
 }
 
@@ -170,12 +170,46 @@ fn bias_at(near: f32, far: f32, depth: f32) -> f32 {
 fn marker_bias_is_rounding_plus_the_depth_buffer_step_and_is_capped() {
     // Near depth the buffer step vanishes and only the rounding slack stays.
     assert!((bias_at(0.1, 1000.0, 0.2) - FACE_CENTER_DEPTH_TOLERANCE).abs() < 1e-5);
-    // 4 ulps * 2^-24 * depth * (1/near - 1/far) at depth 500, near 0.01.
-    let expected = 4.0 / 16_777_216.0 * 500.0 * (100.0 - 1e-4) + FACE_CENTER_DEPTH_TOLERANCE;
+    // 2 ulps * 2^-24 * depth * (1/near - 1/far) at depth 500, near 0.01.
+    let expected = 2.0 / 16_777_216.0 * 500.0 * (100.0 - 1e-4) + FACE_CENTER_DEPTH_TOLERANCE;
     assert!((bias_at(0.01, 10_000.0, 500.0) - expected).abs() < 1e-5);
     assert!(bias_at(0.001, 10_000.0, 500.0) > bias_at(0.01, 10_000.0, 500.0));
     assert!(bias_at(0.01, 10_000.0, 5000.0) > bias_at(0.01, 10_000.0, 500.0));
     assert_eq!(bias_at(0.001, 10_000.0, 1e9), MARKER_BIAS_MAX);
+}
+
+#[test]
+fn marker_bias_leaves_two_depth_steps_inside_a_far_small_cubes_hidden_corner_gap() {
+    // Side-2 cube at the origin seen from 300 units (the headless far-small-object readback): the
+    // hidden corner (-1, -1, -1) sits 2.63 units of view depth behind the face its ray enters.
+    // The marker bias must leave two Depth32Float steps (marker and surface rounding) of that gap
+    // unspent, or software Vulkan draws the hidden marker through the cube.
+    let (yaw, pitch, distance, near, far) = (0.6_f32, 0.4_f32, 300.0_f32, 0.01_f32, 10_000.0_f32);
+    let camera = Camera::new(
+        Vec3::ZERO,
+        yaw,
+        pitch,
+        distance,
+        1_f32.to_radians(),
+        near,
+        far,
+    )
+    .unwrap();
+    let corner = Vec3::splat(-1.0);
+    let ray = corner - camera.eye();
+    let entry = ((Vec3::splat(-1.0) - camera.eye()) / ray)
+        .min((Vec3::splat(1.0) - camera.eye()) / ray)
+        .max_element();
+    let forward = -camera.eye().normalize();
+    let gap = (1.0 - entry) * ray.dot(forward);
+    assert!((gap - 2.634).abs() < 0.01, "{gap}");
+    let depth = ray.dot(forward);
+    let step = depth * depth * (1.0 / near - 1.0 / far) * (1.0 / 16_777_216.0);
+    let spent = camera.marker_bias(depth) * depth;
+    assert!(
+        spent + 2.0 * step < gap,
+        "bias {spent} + 2 * step {step} >= gap {gap}"
+    );
 }
 
 #[test]
@@ -235,7 +269,7 @@ fn vertex_pick_skips_an_occluded_vertex_and_uses_its_own_tolerance() {
         (-0.5, None),
         (0.5, Some(4)),
         (-0.0003, Some(4)),
-        (-0.0008, Some(4)),
+        (-0.0006, Some(4)),
         (-0.003, None),
         (-0.05, None),
     ] {
