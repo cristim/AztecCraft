@@ -651,6 +651,7 @@ impl Editor {
                             match space {
                                 RotateSpace::Object => "object",
                                 RotateSpace::World => "world",
+                                RotateSpace::Gimbal => "gimbal",
                             },
                             Some(rotate_axis_id(axis)),
                             None,
