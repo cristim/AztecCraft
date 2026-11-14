@@ -8,6 +8,20 @@ use azteccraft::native_scene::{
     TransformTarget, UngroupOptions,
 };
 
+mod ascii_fixture {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_ascii.rs"
+    ));
+}
+#[allow(dead_code)]
+mod wire {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/support/maya_binary.rs"
+    ));
+}
+
 const OPTIONS: GroupOptions = GroupOptions {
     under: GroupUnder::Parent,
     pivot: GroupPivot::Center,
@@ -193,4 +207,232 @@ fn refusals_keep_selection_scene_and_undo_stack() {
         }
     }
     let _ = ids;
+}
+
+#[test]
+fn a_remote_caller_with_several_objects_needs_the_current_generation() {
+    let (mut editor, _) = cubes(2);
+    let before = baseline(&editor);
+    let current = editor.selection.generation();
+    assert!(matches!(
+        remote(&mut editor, group(None)),
+        Err(OperationError::MultipleSelection)
+    ));
+    let stale = remote(&mut editor, group(Some(current.wrapping_add(1))));
+    assert!(
+        matches!(&stale, Err(OperationError::StaleSelection { expected, .. }) if *expected == current.wrapping_add(1)),
+        "{stale:?}"
+    );
+    assert_eq!(baseline(&editor), before);
+    assert!(matches!(
+        remote(&mut editor, group(Some(current))),
+        Ok(OperationReply::Created { .. })
+    ));
+}
+
+#[test]
+fn a_stale_scene_token_refuses_both_operations() {
+    let (mut editor, _) = cubes(1);
+    let before = baseline(&editor);
+    for operation in [group(None), ungroup(None)] {
+        let stale = editor.remote_operation(
+            RemoteRequest {
+                expected_scene_token: Some(uuid::Uuid::new_v4()),
+                operation,
+            },
+            &egui::Context::default(),
+        );
+        assert!(matches!(stale, Err(OperationError::StaleScene)));
+        assert_eq!(baseline(&editor), before);
+    }
+}
+
+#[test]
+fn a_draft_busies_remote_operations_and_native_ones_commit_it_first() {
+    for operation in [group, ungroup] {
+        let (mut editor, ids) = cubes(1);
+        let id = ids[0].node;
+        editor.channels[0] = "2".into();
+        let scene = editor.history.scene().clone();
+        assert!(matches!(
+            remote(&mut editor, operation(None)),
+            Err(OperationError::BusyEditing)
+        ));
+        assert_eq!(editor.history.scene(), &scene);
+        assert_eq!(editor.channels[0], "2");
+        let _ = editor.apply_operation(operation(None));
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .node(id)
+                .unwrap()
+                .transform()
+                .translation[0],
+            2.0,
+            "the valid draft was committed first"
+        );
+    }
+}
+
+#[test]
+fn modal_and_closing_refuse_both_callers_before_anything_changes() {
+    for closing in [false, true] {
+        let mut editor = Editor::default();
+        if closing {
+            editor.close_document().unwrap();
+        } else {
+            editor.create(Primitive::Cube);
+            editor.new_document().unwrap();
+            assert!(editor.files.is_modal());
+        }
+        let before = baseline(&editor);
+        for operation in [group, ungroup] {
+            for native in [true, false] {
+                if !native || closing || editor.files.is_modal() {
+                    let result = if native {
+                        editor.apply_operation(operation(None))
+                    } else {
+                        remote(&mut editor, operation(None))
+                    };
+                    assert!(
+                        matches!(result, Err(OperationError::BusyEditing)),
+                        "closing={closing} native={native}: {result:?}"
+                    );
+                    assert_eq!(baseline(&editor), before);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn component_modes_are_refused_for_both_callers() {
+    for mode in [
+        SelectionMode::Face,
+        SelectionMode::Vertex,
+        SelectionMode::Edge,
+    ] {
+        for native in [true, false] {
+            let (mut editor, ids) = cubes(2);
+            editor.set_selection_members_for_test(vec![ids[0].clone()]);
+            editor.sync_fields();
+            editor.selection_mode = mode;
+            let before = baseline(&editor);
+            let result = if native {
+                editor.apply_operation(group(None))
+            } else {
+                remote(&mut editor, group(None))
+            };
+            assert!(
+                matches!(result, Err(OperationError::InvalidInput(ref text))
+                    if text.ends_with("are unsupported; switch to Object or Hierarchy selection")),
+                "{mode:?} native={native}: {result:?}"
+            );
+            assert_eq!(baseline(&editor), before);
+        }
+    }
+}
+
+#[test]
+fn hierarchy_mode_works_and_a_group_with_its_descendants_ungroups_once() {
+    let (mut editor, cubes) = cubes(2);
+    editor.selection_mode = SelectionMode::Hierarchy;
+    let Ok(OperationReply::Created { node_id }) = editor.apply_operation(group(None)) else {
+        panic!("group");
+    };
+    let group_id = NodeId::from_decimal(&node_id).unwrap();
+    let mut everything = editor.history.scene().transform_paths().unwrap();
+    everything.retain(|t| t.node == group_id || cubes.iter().any(|c| c.node == t.node));
+    editor.set_selection_members_for_test(everything);
+    editor.sync_fields();
+    assert_eq!(editor.selection.len(), 3);
+    let Ok(OperationReply::Nodes { node_ids }) = editor.apply_operation(ungroup(None)) else {
+        panic!("ungroup");
+    };
+    assert_eq!(node_ids.len(), 2);
+}
+
+#[test]
+fn a_read_only_ascii_scene_and_an_opened_binary_refuse_with_their_typed_errors() {
+    let ascii = azteccraft::native_scene::ascii::decode(ascii_fixture::specimen().into()).unwrap();
+    let mut transform = wire::creation(b"object", None);
+    transform.extend(wire::triple(b"t", [1.0, 2.0, 3.0]));
+    let bytes = wire::scene_with_units(
+        &[
+            wire::group(b"XFRM", &transform, 4),
+            wire::group(
+                b"DMSH",
+                &[
+                    wire::creation(b"shape", Some(b"object")),
+                    wire::chunk(b"MESH", &wire::mesh_payload(&[0, 1, 0x6000_0002]), 8),
+                ]
+                .concat(),
+                4,
+            ),
+        ]
+        .concat(),
+        b"cm",
+        b"deg",
+    );
+    let binary = azteccraft::native_scene::binary::decode(bytes).unwrap();
+    for (scene, expected) in [
+        (ascii, NativeError::ReadOnlyFormat),
+        (binary, NativeError::UnsupportedEdit),
+    ] {
+        let mut editor = Editor {
+            history: azteccraft::history::History::new(scene),
+            ..Editor::default()
+        };
+        let path = editor.history.scene().transform_paths().unwrap()[0].clone();
+        editor.set_selection_members_for_test(vec![path]);
+        editor.sync_fields();
+        let before = editor.history.scene().clone();
+        let result = editor.apply_operation(group(None));
+        assert!(
+            matches!(&result, Err(OperationError::Reparent(error)) if *error == expected),
+            "{result:?}"
+        );
+        assert_eq!(editor.history.scene(), &before);
+    }
+}
+
+#[test]
+fn a_failed_group_keeps_the_selection_and_the_undo_stack() {
+    let mut editor = Editor::default();
+    let mut ids = Vec::new();
+    for _ in 0..azteccraft::native_scene::MAX_TRANSFORM_DEPTH {
+        editor.create(Primitive::Cube);
+        let created = editor.selected().unwrap();
+        if let Some(&last) = ids.last() {
+            editor
+                .apply_operation(Operation::Reparent {
+                    id: created,
+                    parent: Some(last),
+                    keep: ReparentKeep::Local,
+                })
+                .unwrap();
+        }
+        ids.push(created);
+    }
+    let deepest = editor
+        .history
+        .scene()
+        .transform_paths()
+        .unwrap()
+        .into_iter()
+        .find(|t| t.node == ids[0])
+        .unwrap();
+    editor.set_selection_members_for_test(vec![deepest]);
+    editor.sync_fields();
+    let before = baseline(&editor);
+    let result = editor.apply_operation(group(None));
+    assert!(
+        matches!(
+            result,
+            Err(OperationError::Reparent(NativeError::ResourceLimit))
+        ),
+        "{result:?}"
+    );
+    assert_eq!(baseline(&editor), before);
 }
