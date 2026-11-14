@@ -31,6 +31,7 @@ fn frame(scene: &NativeScene, node: NodeId, axis: RotateAxis) -> RotateFrame {
         .0
 }
 
+mod gimbal;
 mod world;
 
 fn matrix_deg(degrees: [f64; 3]) -> DMat3 {

@@ -131,6 +131,8 @@ fn edit_policy_table_names_the_exact_refusal_or_allows_every_cell() {
         for (space, expected, label) in [
             (RotateSpace::Object, row.rotate_object, "Rotate object"),
             (RotateSpace::World, row.rotate_world, "Rotate world"),
+            // The Gimbal channel edit never reads the parent map, so it refuses what Object does.
+            (RotateSpace::Gimbal, row.rotate_object, "Rotate gimbal"),
         ] {
             assert_eq!(
                 scene.begin_rotation(&target, RotateAxis::Z, space).err(),
@@ -138,6 +140,12 @@ fn edit_policy_table_names_the_exact_refusal_or_allows_every_cell() {
                 "{name}: {label}"
             );
         }
+        // The ring axes also need a rotation x uniform scale parent, like World.
+        assert_eq!(
+            scene.gimbal_axes(&target).err(),
+            row.rotate_world.map(NativeError::UnsupportedRotate),
+            "{name}: gimbal axes"
+        );
         for (space, expected, label) in [
             (ScaleSpace::Object, row.scale_object, "Scale object"),
             (ScaleSpace::World, row.scale_world, "Scale world"),
