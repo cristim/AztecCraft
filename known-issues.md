@@ -1596,3 +1596,17 @@ as authored. `src/usd.rs` shares the staged write with `src/gltf.rs` through `sr
 ## Component sets are limited to the one selected object
 
 `modify_component_selection` and the per-type component sets belong to a single shape instance of the one selected object, and a request naming another object is refused. This is an AztecCraft restriction, not Maya behaviour: Maya selects components across objects (`select -add pCube1.f[1] pCube2.f[3]`). Set order and "lead is the last member" are PROVISIONAL because the Maya documentation states neither. Indices are Maya-style `f[n]` positions, so an edit or Undo that renumbers faces can make a stored index name another face; members past the end are dropped. Vertex and edge selections draw every member in the one selected colour (only faces give the lead its own colour). The native Shift, Ctrl and marquee gestures for components are still missing (#30).
+
+## Vertex marker depth bias is derived, not the flat 6e-3 (#135)
+
+The paragraph above that describes the flat `VERTEX_MARKER_DEPTH_TOLERANCE` = 6e-3 and its readback bracket is superseded: the constant is gone. `Camera::marker_bias` pushes a marker toward the eye by `1e-4 + MARKER_DEPTH_ULPS` (4) Depth32Float ulps of linear view depth, capped at `MARKER_BIAS_MAX`. Each surface also hides `MARKER_SLOPE_PIXELS` (4) pixels of its own depth slope behind itself (a wgpu `slope_scale` on the shaded surface pipeline, and the same amount added to the hit triangle's linear depth in CPU occlusion), so a marker on a steep face stays whole while a thin flat plate in front still hides it. The values are PROVISIONAL, chosen from adapter readbacks (Metal locally, software Vulkan in CI), not from Maya documentation. Other adapters were not run.
+
+## Manipulator frames: Rotate Axis and non-uniform parent scale (#38, #5)
+
+PROVISIONAL, derived and not checked against Maya: Move Object and Scale Object include the Rotate Axis (R*RA); Move Along Rotation Axis excludes it (R). Normalised axes can be skewed or left-handed under a non-uniform or negative parent scale. Move Object ignores a joint's inverse parent scale (`move_translation.rs` ~177) while the Scale handles apply it (`manipulator_frame.rs` ~68); they diverge only for a joint under a non-uniformly scaled joint (plan item 10). A Rotate Axis can only come from read-only `.ma` files today, so the RA != 0 Move path is not reachable natively.
+
+The World rotate frame's `parent_linear` (`rotate_frame.rs`, `parent_rotation_scale`) lacks the compensated-parent recheck. This predates #38.
+
+## set_keyframe is O(nodes^2)
+
+Measured in release: 86 ms at 1000 nodes and 258 ms at 4096. `NativeScene::node()` is a linear scan over the nodes (`src/native_scene.rs` ~878), and the `check_effects` DAG scan (~1455) adds to it per call. An index from `NodeId` to position would remove the first.
