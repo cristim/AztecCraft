@@ -560,3 +560,92 @@ async fn native_sdk_new_scene_delete_then_save_as_writes_only_the_remaining_node
     drop(editor);
     server.await.unwrap();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn native_sdk_session_materials_save_as_ma_reopen_equal_and_resave() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("material.ma");
+    for name in ["cube", "sphere"] {
+        let created = tool(
+            &mut editor,
+            &context,
+            &client,
+            "create_primitive",
+            json!({"primitive": name}),
+        )
+        .await;
+        assert_eq!(created["outcome"], "created");
+    }
+    let shape = inspect_json(&mut editor, &context, &client).await["shapes"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "assign_session_material",
+        json!({"shape_id": shape, "color": [0.25, 0.5, 1.0]}),
+    )
+    .await;
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_session_material",
+        json!({"color": [0.0, 0.2, 0.3]}),
+    )
+    .await;
+    let before = inspect_json(&mut editor, &context, &client).await;
+    let saved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "save_scene_as",
+        json!({"path": path}),
+    )
+    .await;
+    assert_eq!(saved["outcome"], "saved");
+    assert!(!editor.is_dirty());
+    let bytes = std::fs::read(&path).unwrap();
+    let opened = tool(
+        &mut editor,
+        &context,
+        &client,
+        "open_scene",
+        json!({"path": path}),
+    )
+    .await;
+    assert_eq!(opened["outcome"], "document_applied");
+    let after = inspect_json(&mut editor, &context, &client).await;
+    assert_eq!(after["session_materials"], before["session_materials"]);
+    assert_eq!(after["session_materials"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        after["shapes"][0]["session_material"],
+        before["shapes"][0]["session_material"]
+    );
+    // The reopened document edits and saves again; nothing changed, so the bytes match first.
+    let recolored = tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_session_material_color",
+        json!({"material_id": "1", "color": [1.0, 1.0, 0.0]}),
+    )
+    .await;
+    assert!(recolored.get("error").is_none(), "{recolored}");
+    assert!(editor.is_dirty());
+    let resaved = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(resaved["outcome"], "saved");
+    let text = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
+    assert_ne!(text.as_bytes(), &bytes[..]);
+    assert!(text.contains("\"float3\" 1 1 0;"));
+    let undone = tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert!(undone.get("error").is_none(), "{undone}");
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

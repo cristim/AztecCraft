@@ -2584,7 +2584,7 @@
   },
   {
     "name": "create_session_material",
-    "description": "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour (stored in single precision: each channel is rounded to the nearest f32), as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Create a session lambert material (saved to an authored .ma and reopened from it; refused as .mb with save_unwritable reason session_materials until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour (stored in single precision: each channel is rounded to the nearest f32), as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2618,7 +2618,7 @@
   },
   {
     "name": "assign_session_material",
-    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Not saved: while a session material exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Assign a session material to a whole authored shape; every instance of the shape changes. Give material_id (existing) or color (creates a lambert in the same undo step). Replies with the material_id, or unchanged. Saved to an authored .ma with the shape's membership; refused as .mb with save_unwritable reason session_materials until it is undone. A scene with a retained source, such as an opened Maya file, refuses; new and legacy JSON scenes accept. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -2665,7 +2665,7 @@
   },
   {
     "name": "set_session_material_color",
-    "description": "Set the linear RGB colour of a session material created in this session (stored in single precision: each channel is rounded to the nearest f32); the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+    "description": "Set the linear RGB colour of a session material created in this session (stored in single precision: each channel is rounded to the nearest f32); the initial material 0 is locked. Saved to an authored .ma like the other session material state; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3525,7 +3525,7 @@
   },
   {
     "name": "save_scene",
-    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven; an authored .ma carries each shape's session map1 UVs (the .mb writer does not and refuses them: use Delete UVs or Undo to save a .mb), and the UV layout in the file is unchecked against Maya",
+    "description": "Save the active supported Maya binary document, or on Unix an authored Maya ASCII document previously saved by this editor, or reconcile an earlier uncertain installation without another write. On Unix, a new Untitled scene returns save_needs_path: use save_scene_as for a fresh .mb or .ma. Imported ASCII scenes remain read-only. Untitled saves are unsupported on Windows. PROVISIONAL: Maya acceptance of new-scene files is unproven; an authored .ma carries each shape's session map1 UVs and the session materials (the .mb writer carries neither and refuses them: use Delete UVs or Undo to save a .mb), and the UV layout in the file is unchecked against Maya",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3548,7 +3548,7 @@
   },
   {
     "name": "save_scene_as",
-    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, with a stable error.reason such as session_materials or session_uvs, save_ascii_write for .ma, for example any session material, created or assigned: undo it to save; session UVs are not a .ma refusal). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, an authored .ma carries each shape's session map1 UVs and reopens with them as an authored document (the UV layout in the file is unchecked against Maya), and a scene with UVs is refused as .mb with save_unwritable reason session_uvs",
+    "description": "Save a supported Maya binary scene to a fresh .mb path without overwriting. On Unix only, a new Untitled scene, or an authored document previously saved by this editor as either .ma or .mb, can be written as a Maya 2025-format .mb or as Maya ASCII .ma, chosen by the extension; an opened Maya binary scene refuses .ma with save_ascii_write. Unsupported content is refused (save_unwritable for .mb, with a stable error.reason such as session_materials or session_uvs, save_ascii_write for .ma; session UVs and session materials are not .ma refusals, but a session material refuses .mb with reason session_materials: undo it to save a .mb). An uncertain prior save is reconciled instead. PROVISIONAL: Maya acceptance of new-scene files is unproven, an authored .ma carries each shape's session map1 UVs and reopens with them as an authored document (the UV layout in the file is unchecked against Maya), an authored .ma also carries session lamberts, their shading groups and each shape's assignment and reopens with them (the statement layout is unchecked against Maya), and a scene with UVs is refused as .mb with save_unwritable reason session_uvs",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

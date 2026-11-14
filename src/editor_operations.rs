@@ -906,7 +906,7 @@ pub struct SceneInspection {
     pub manipulation: ManipulationInspection,
     pub nodes: Vec<NodeInspection>,
     pub shapes: Vec<ShapeInspection>,
-    /// Session-only material table, empty on sourced scenes: entry 0 is `standardSurface1` on
+    /// Session material table (saved to authored `.ma`), empty on sourced scenes: entry 0 is `standardSurface1` on
     /// `initialShadingGroup`, modelled as a placeholder lambert colour (not a standardSurface),
     /// and later entries are lamberts. Ids are valid only at the current history position.
     pub session_materials: Vec<SessionMaterialInspection>,
