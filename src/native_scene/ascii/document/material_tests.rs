@@ -1,8 +1,8 @@
 //! Session-material statements (#156): the reader parses them into a side table and the gate
-//! attaches it to the candidate. The writer still refuses session materials, so the gate refuses
-//! every such file: this slice is inert. `block` writes the nodes the writer will emit.
-use super::tests::refused;
+//! attaches it to the candidate; the writer emits the same block, so the gate admits it.
+//! `block` spells the nodes the writer emits independently of the writer.
 use super::*;
+use crate::native_scene::ascii::write::emit_geometry_prefix;
 use crate::{
     native_scene::{
         MaterialChoice, SessionMaterialId, ascii::decode_inner, session_material::SessionMaterials,
@@ -121,28 +121,29 @@ fn the_reader_parses_the_block_into_a_table_the_candidate_receives() {
 }
 
 #[test]
-fn the_gate_still_refuses_every_material_file_because_the_writer_does() {
+fn the_gate_admits_the_writers_material_files_as_authored() {
     let model = scene();
     let bytes = file(&model);
+    assert_eq!(bytes, emit_geometry_prefix(&model).unwrap());
+    let projection = super::tests::authored(&bytes);
     assert_eq!(
-        refused(&bytes),
-        AsciiDocumentError::Ascii(AsciiError {
-            kind: ErrorKind::Unsupported,
-            offset: None
-        })
+        projection.scene().session_materials,
+        model.session_materials
     );
-    // A material in a file with no shape was an error before the reader knew it, and stays one.
+    // A scene with no shape but a material is a document too; Windows cannot adopt it, and
+    // must not fall back to a retained scene that would drop the material.
     let mut empty = NativeScene::default();
     empty.create_session_material([0.5, 0.5, 0.5]).unwrap();
     let bytes = file(&empty);
     assert!(read(&bytes).unwrap().materials.is_some());
-    assert!(matches!(
-        refused(&bytes),
-        AsciiDocumentError::Ascii(AsciiError {
-            kind: ErrorKind::Unsupported,
-            ..
-        })
-    ));
+    assert_eq!(
+        super::tests::authored(&bytes).scene().session_materials,
+        empty.session_materials
+    );
+    assert_eq!(
+        super::tests::decode(&bytes, false),
+        Err(AsciiDocumentError::AdoptionUnsupported)
+    );
     assert!(decode_inner(Arc::from(file(&model)), false).is_err());
 }
 

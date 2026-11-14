@@ -466,7 +466,7 @@ async fn uv_sdk_ma_save_reopens_with_identical_uvs_and_the_reopened_scene_obeys_
         before
     );
 
-    // The remaining ASCII refusals are not the UV one: a material still refuses with its own code.
+    // A session material now saves beside the UVs; the file keeps both.
     tool(
         &mut editor,
         &context,
@@ -475,14 +475,10 @@ async fn uv_sdk_ma_save_reopens_with_identical_uvs_and_the_reopened_scene_obeys_
         json!({"shape_id": reopened, "color": [1.0, 0.0, 0.0]}),
     )
     .await;
-    let refused = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
-    let error = &refused.structured_content.unwrap()["error"];
-    assert_eq!(error["code"], "save_ascii_write", "{error}");
-    assert!(
-        !error["message"].as_str().unwrap().contains("UV"),
-        "{error}"
-    );
-    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    let saved = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(saved.structured_content.unwrap()["outcome"], "saved");
+    let text = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
+    assert!(text.contains("lambert2SG.dsm") && text.contains(".uvsp"));
 
     client.cancel().await.unwrap();
     drop(editor);

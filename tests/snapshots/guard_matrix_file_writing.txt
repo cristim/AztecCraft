@@ -21,7 +21,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## idle / remote
@@ -42,7 +42,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## closing / native
@@ -147,7 +147,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
 
 ## playing / remote
@@ -168,7 +168,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
 
 ## local_move / native
@@ -359,7 +359,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   save_scene_as(ascii) => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false; can_redo: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | scene changed; has_draft: true -> false; has_channel_draft: true -> false
+  save_scene_as(ascii_material_assigned) => Ok(saved) | scene changed; status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; has_draft: true -> false; has_channel_draft: true -> false; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## channel_draft / remote
@@ -443,7 +443,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## text_focus / remote
@@ -485,7 +485,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene edited" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## native_input_pending / remote
@@ -804,7 +804,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## authored_ascii_dirty / remote
@@ -825,7 +825,7 @@
   save_scene_as(material_assigned) => Err(NativeSave: cannot write this scene as a new .mb: the scene has session materials, which a new .mb cannot carry) | no state change
   save_scene_as(wrong_extension) => Err(NativeSave: Save As requires a new .ma or .mb destination) | no state change
   save_scene_as(ascii) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
-  save_scene_as(ascii_material_assigned) => Err(NativeSave: the scene has session materials, which authored ASCII cannot carry) | no state change
+  save_scene_as(ascii_material_assigned) => Ok(saved) | status: "Scene ready" -> "Scene saved (PROVISIONAL: Maya acceptance of new-scene files is unproven)"; dirty: true -> false
   resolve_file_action(save) => Err(StalePendingAction: pending file action is absent or stale; inspect before deciding) | no state change
 
 ## no_install / native

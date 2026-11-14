@@ -81,9 +81,9 @@ pub fn decode_document(
         return Ok(AsciiDecoded::Retained(sourced));
     }
     let candidate = candidate_of(&sourced, uvs, materials).map_err(AsciiDocumentError::Ascii)?;
-    // Any link selects the linked layout; the byte comparison then admits only the exact one
+    // A material block always links every shape. Any link selects the linked layout; the byte comparison then admits only the exact one
     // (every shape, in the writer's order), so a partial or duplicated set is refused.
-    let layout = if links == 0 {
+    let layout = if links == 0 && !has_materials {
         DefaultLinks::Omit
     } else {
         DefaultLinks::Emit
@@ -100,7 +100,7 @@ pub fn decode_document(
         };
     }
     if !adoption_supported {
-        return if sourced.shapes.is_empty() {
+        return if sourced.shapes.is_empty() && !has_materials {
             Ok(AsciiDecoded::Retained(sourced))
         } else {
             Err(AsciiDocumentError::AdoptionUnsupported)
