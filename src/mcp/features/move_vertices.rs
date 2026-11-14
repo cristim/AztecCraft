@@ -1,5 +1,5 @@
 use crate::{
-    editor_operations::{MAX_MOVED_VERTICES, Operation, PageCursor, RemoteRequest},
+    editor_operations::{MAX_MCP_MOVED_VERTICES, Operation, PageCursor, RemoteRequest},
     mcp::{
         args::{decode, native_id, node_id, schema, scoped, token},
         registry::ToolSpec,
@@ -20,7 +20,7 @@ struct MoveVerticesArgs {
     shape_id: String,
     #[schemars(length(min = 2, max = 257))]
     instance_path: Vec<String>,
-    #[schemars(length(min = 1, max = MAX_MOVED_VERTICES))]
+    #[schemars(length(min = 1, max = MAX_MCP_MOVED_VERTICES))]
     vertex_indices: Vec<usize>,
     /// Offset along the mesh's own X, Y and Z axes in declared scene units.
     delta: [f64; 3],
@@ -29,12 +29,12 @@ struct MoveVerticesArgs {
 fn parse_move_vertices(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     let args: MoveVerticesArgs = decode(arguments)?;
     if !(2..=257).contains(&args.instance_path.len())
-        || !(1..=MAX_MOVED_VERTICES).contains(&args.vertex_indices.len())
+        || !(1..=MAX_MCP_MOVED_VERTICES).contains(&args.vertex_indices.len())
         || args.delta.iter().any(|v| !v.is_finite())
     {
         return Err(ErrorData::invalid_params(
             format!(
-                "Moving vertices requires 2 to 257 path IDs, 1 to {MAX_MOVED_VERTICES} vertex indices and a finite delta"
+                "Moving vertices requires 2 to 257 path IDs, 1 to {MAX_MCP_MOVED_VERTICES} vertex indices and a finite delta"
             ),
             None,
         ));
