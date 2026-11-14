@@ -497,6 +497,16 @@ impl Editor {
             return Err(OperationError::InvalidInput(JOINT_COMPONENT_REASON.into()));
         }
         if let Some(noun) = self.selection_mode.component_noun()
+            && matches!(
+                operation,
+                Operation::Group { .. } | Operation::Ungroup { .. }
+            )
+        {
+            return Err(OperationError::InvalidInput(format!(
+                "Group and Ungroup on {noun} selection are unsupported; switch to Object or Hierarchy selection"
+            )));
+        }
+        if let Some(noun) = self.selection_mode.component_noun()
             && matches!(operation, Operation::ResetPivots { .. })
         {
             return Err(OperationError::InvalidInput(format!(
@@ -625,6 +635,8 @@ impl Editor {
                     | Operation::CloseUndoChunk
                     | Operation::SetPivots { .. }
                     | Operation::ResetPivots { .. }
+                    | Operation::Group { .. }
+                    | Operation::Ungroup { .. }
             )
         {
             return Err(OperationError::BusyEditing);
@@ -1103,23 +1115,22 @@ impl Editor {
                 mode,
                 expected_selection_generation,
             } => {
-                self.check_generation(expected_selection_generation)?;
-                if self.selection.is_empty() {
-                    return Err(OperationError::NoSelection);
-                }
-                if self.selection.len() > 1
-                    && expected_selection_generation.is_none()
-                    && provenance == ManipulationProvenance::Remote
-                {
-                    return Err(OperationError::MultipleSelection);
-                }
-                let mut ids = Vec::new();
-                for member in self.selection.members() {
-                    if !ids.contains(&member.node) {
-                        ids.push(member.node);
-                    }
-                }
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
                 Command::ResetPivots { ids, mode }
+            }
+            Operation::Group {
+                options,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::Group { ids, options }
+            }
+            Operation::Ungroup {
+                options,
+                expected_selection_generation,
+            } => {
+                let ids = self.selected_object_ids(expected_selection_generation, provenance)?;
+                Command::Ungroup { ids, options }
             }
             Operation::SetSelectionMode(mode) => {
                 if mode.is_component() && self.selection.len() > 1 {
@@ -1506,8 +1517,10 @@ impl Editor {
                 | Command::AssignSessionMaterial { .. }
                 | Command::SetSessionMaterialColor { .. }
         );
-        #[cfg(any(test, feature = "mcp"))]
-        let reparent_command = matches!(command, Command::Reparent { .. });
+        let reparent_command = matches!(
+            command,
+            Command::Reparent { .. } | Command::Group { .. } | Command::Ungroup { .. }
+        );
         let key_command = matches!(
             command,
             Command::SetKeys { .. } | Command::DeleteKeys { .. }
@@ -1525,7 +1538,6 @@ impl Editor {
             {
                 return OperationError::Keys(refusal);
             }
-            #[cfg(any(test, feature = "mcp"))]
             if reparent_command && error != azteccraft::native_scene::NativeError::BusyManipulation
             {
                 return OperationError::Reparent(error);
@@ -1578,31 +1590,33 @@ impl Editor {
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })
     }
-    /// Makes the given nodes, at their real instance paths, the object selection in order with
-    /// the last as lead, and forgets remembered component selections. Shared by Create, OBJ
-    /// import, Group and Ungroup.
+    /// Makes the given nodes the object selection, in order with the last as lead, and forgets
+    /// remembered component selections. Shared by Create, OBJ import, Group and Ungroup. The
+    /// paths are root-only; `sync_fields` follows a nested node to its one real path.
     fn after_nodes_created(&mut self, ids: &[NodeId]) -> Result<(), OperationError> {
         self.clear_remembered_components();
-        let paths = self
-            .history
-            .scene()
-            .transform_paths()
-            .map_err(OperationError::Scene)?;
-        let mut targets = Vec::with_capacity(ids.len());
+        let mut targets = Vec::new();
         for id in ids {
-            let mut found = paths.iter().filter(|target| target.node == *id);
-            match (found.next(), found.next()) {
-                (Some(target), None) => targets.push(target.clone()),
-                _ => {
-                    return Err(OperationError::Scene(
-                        azteccraft::native_scene::NativeError::InvalidInstancePath,
-                    ));
-                }
-            }
+            let transform = self
+                .history
+                .scene()
+                .node(*id)
+                .map_err(OperationError::Scene)?
+                .transform_id();
+            targets.push(TransformTarget {
+                node: *id,
+                path: vec![transform],
+            });
         }
-        self.selection
-            .replace_with(targets)
-            .map_err(|error| OperationError::InvalidInput(error.to_string()))
+        match <[TransformTarget; 1]>::try_from(targets) {
+            Ok([only]) => self.selection.replace(only),
+            // Cannot be full: an import adds at most MAX_OBJECTS roots (see the assertion below).
+            Err(targets) => self
+                .selection
+                .replace_with(targets)
+                .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
+        }
+        Ok(())
     }
     pub(super) fn has_draft(&self) -> bool {
         self.material_draft
@@ -1676,6 +1690,31 @@ impl Editor {
                 preserve: false,
             }),
         )
+    }
+    /// The distinct nodes of the object selection for an edit on the selection. A remote caller
+    /// with several objects selected must name the generation it inspected.
+    fn selected_object_ids(
+        &self,
+        expected_generation: Option<u64>,
+        provenance: ManipulationProvenance,
+    ) -> Result<Vec<NodeId>, OperationError> {
+        self.check_generation(expected_generation)?;
+        if self.selection.is_empty() {
+            return Err(OperationError::NoSelection);
+        }
+        if self.selection.len() > 1
+            && expected_generation.is_none()
+            && provenance == ManipulationProvenance::Remote
+        {
+            return Err(OperationError::MultipleSelection);
+        }
+        let mut ids = Vec::new();
+        for member in self.selection.members() {
+            if !ids.contains(&member.node) {
+                ids.push(member.node);
+            }
+        }
+        Ok(ids)
     }
     pub(super) fn commit_pending(&mut self) -> bool {
         if self.history.active_manipulation().is_some() {

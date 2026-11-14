@@ -18,9 +18,9 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, MaterialChoice, MoveSpace, NativeScene, PivotReset, ReparentKeep,
-    RotateAxis, ScaleHandle, SessionMaterialId, TransformTarget, UvProjectAxis, VertexSetTarget,
-    VertexTarget, WorldAxis,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, MaterialChoice, MoveSpace,
+    NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
+    TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -906,6 +906,8 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             parent: Some(t.other.0),
             keep: ReparentKeep::World,
         },
+        group_operation(GroupUnder::Parent, GroupPivot::Center, true),
+        ungroup_operation(),
         Operation::ExtrudeFace {
             target: t.face(),
             distance: 0.5,
@@ -984,6 +986,27 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             pitch: 0.2,
         },
     ]
+}
+
+fn group_operation(under: GroupUnder, pivot: GroupPivot, preserve_position: bool) -> Operation {
+    Operation::Group {
+        options: GroupOptions {
+            under,
+            pivot,
+            preserve_position,
+        },
+        expected_selection_generation: None,
+    }
+}
+
+fn ungroup_operation() -> Operation {
+    Operation::Ungroup {
+        options: UngroupOptions {
+            under: GroupUnder::Parent,
+            keep: ReparentKeep::World,
+        },
+        expected_selection_generation: None,
+    }
 }
 
 /// Samples for one operation kind. No wildcard arm: a new `Operation` variant must be added here.
@@ -1957,6 +1980,25 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             sample("set_pivots(preserve)", pivots(t, true)),
             sample("set_pivots(raw)", pivots(t, false)),
         ],
+        Operation::Group { .. } => vec![
+            sample(
+                "group(parent_center_keep)",
+                group_operation(GroupUnder::Parent, GroupPivot::Center, true),
+            ),
+            sample(
+                "group(world_origin_local)",
+                group_operation(GroupUnder::World, GroupPivot::Origin, false),
+            ),
+            Sample {
+                pre: Pre::FaceMode,
+                ..sample(
+                    "group(face_mode)",
+                    group_operation(GroupUnder::Parent, GroupPivot::Center, true),
+                )
+            },
+        ],
+        // The rig holds no group, so the cell records the typed NotAGroup refusal for a mesh.
+        Operation::Ungroup { .. } => vec![sample("ungroup(mesh_not_a_group)", ungroup_operation())],
         Operation::ResetPivots { .. } => vec![
             sample(
                 "reset_pivots(center)",

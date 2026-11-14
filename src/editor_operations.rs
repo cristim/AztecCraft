@@ -5,8 +5,9 @@ use azteccraft::{
     history::{ManipulationError, ManipulationFinish, ManipulationId, UndoQueue},
     move_handles::ManipulatorSize,
     native_scene::{
-        EdgeTarget, FaceTarget, MoveSpace, NativeError, NativeId, RotateAxis, RotateSpace,
-        ScaleHandle, ScaleSpace, TransformTarget, VertexSetTarget, VertexTarget, WorldAxis,
+        EdgeTarget, FaceTarget, GroupOptions, MoveSpace, NativeError, NativeId, RotateAxis,
+        RotateSpace, ScaleHandle, ScaleSpace, TransformTarget, UngroupOptions, VertexSetTarget,
+        VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
     viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
@@ -690,6 +691,29 @@ pub enum Operation {
         /// The `selection_generation` the caller inspected. With several objects selected a remote
         /// caller must pass it; a value that no longer matches is refused. A native caller acts on
         /// the current selection.
+        expected_selection_generation: Option<u64>,
+    },
+    /// Edit > Group on the object selection: the top-most selected objects become the children
+    /// of a new group, as one "Group" undo step. Object and Hierarchy modes only.
+    #[cfg_attr(
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Edit menu (T7)")
+    )]
+    Group {
+        options: GroupOptions,
+        /// The `selection_generation` the caller inspected. With several objects selected a remote
+        /// caller must pass it; a value that no longer matches is refused. A native caller acts on
+        /// the current selection.
+        expected_selection_generation: Option<u64>,
+    },
+    /// Edit > Ungroup on the object selection: the children of each top-most selected group move
+    /// out and the group is deleted, as one "Ungroup" undo step. Object and Hierarchy modes only.
+    #[cfg_attr(
+        not(any(test, feature = "mcp")),
+        expect(dead_code, reason = "first native caller is the Edit menu (T7)")
+    )]
+    Ungroup {
+        options: UngroupOptions,
         expected_selection_generation: Option<u64>,
     },
     /// Maya `parent`: moves one object under `parent`, or to the world when `None`, keeping its
@@ -1503,8 +1527,7 @@ pub enum OperationError {
     Keys(KeysRefusal),
     /// A pivot command refused for a reason with its own MCP code (`PivotRefusal`).
     Pivot(NativeError),
-    /// A parent or unparent the core refused; the MCP layer reports a typed code.
-    #[cfg(any(test, feature = "mcp"))]
+    /// A group, ungroup, parent or unparent the core refused; the MCP layer reports a typed code.
     Reparent(NativeError),
     NoSelection,
     /// An action that needs exactly one object ran while several were selected.
@@ -1632,7 +1655,6 @@ impl fmt::Display for OperationError {
             Self::SessionMaterial(error) => error.fmt(f),
             Self::Keys(refusal) => refusal.native().fmt(f),
             Self::Pivot(error) => error.fmt(f),
-            #[cfg(any(test, feature = "mcp"))]
             Self::Reparent(error) => error.fmt(f),
             Self::NoSelection => f.write_str("Select an object or face first"),
             Self::MultipleSelection => f.write_str("Several objects are selected; select one object"),
