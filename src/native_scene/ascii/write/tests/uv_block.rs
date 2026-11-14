@@ -117,7 +117,10 @@ fn cube_values_ids_and_length_match_the_stored_set() {
     let mut scene = scene(&["cube"]);
     project(&mut scene);
     let bytes = prefix(&scene).unwrap();
-    assert_eq!(prefix_bytes(&scene).unwrap(), bytes.len());
+    assert_eq!(
+        prefix_bytes(&scene, DefaultLinks::Omit).unwrap(),
+        bytes.len()
+    );
     let text = std::str::from_utf8(&bytes).unwrap();
     let start = text.find("\tsetAttr -s 6 \".fc").unwrap();
     let block = parse_uv_block(&bytes[start..]);

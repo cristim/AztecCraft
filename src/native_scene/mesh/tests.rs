@@ -57,7 +57,7 @@ fn defensive_private_mesh_states_refuse_the_actual_authored_prefix() {
 
 #[test]
 fn authored_faces_keep_admitted_repeated_loop_and_unused_edges() {
-    use crate::native_scene::ascii::emit_geometry_prefix;
+    use crate::native_scene::ascii::write::{DefaultLinks, emit_with_links};
     let (mut scene, _) = crate::native_scene::test_fixtures::cube();
     let mut mesh = NativeMesh::with_options(&crate::primitive_options::SINGLE_QUAD_PLANE).unwrap();
     let repeated = mesh.faces[0].outer.clone();
@@ -67,7 +67,7 @@ fn authored_faces_keep_admitted_repeated_loop_and_unused_edges() {
     scene.shapes[0].mesh = mesh;
     scene.validate().unwrap();
     let before = scene.clone();
-    let bytes = emit_geometry_prefix(&scene).unwrap();
+    let bytes = emit_with_links(&scene, DefaultLinks::Omit).unwrap();
     assert_eq!(scene, before);
     let text = std::str::from_utf8(&bytes).unwrap();
     assert!(text.contains("\tsetAttr -s 6 \".ed[0:5]\"\n"));
