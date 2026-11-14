@@ -172,6 +172,7 @@ async fn move_vertices_is_refused_on_a_scene_opened_from_a_file() {
     server.await.unwrap();
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn move_vertices_saved_to_binary_and_ascii_reopens_with_the_moved_points() {
     for extension in ["mb", "ma"] {
