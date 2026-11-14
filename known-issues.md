@@ -987,8 +987,7 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (a new scene refuses Save and Save As with `save_unwritable` while any
-session material has been created or assigned, because the file cannot carry it; undo the material to save), sourced binary scenes
+lambert table. A new scene saves it to an authored `.ma` (reopened as an authored document; the statement layout is PROVISIONAL and unchecked against Maya, #5) and refuses `.mb` with `save_unwritable` reason `session_materials` (undo the material to save a `.mb`), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
