@@ -126,7 +126,7 @@ impl Cursor<'_, '_> {
 
 /// `lambertN`'s `N`, for a name that is exactly `lambert<N>` (N >= 2: `lambert1` is Maya's own)
 /// or, with `group`, `lambert<N>SG`.
-fn material_name(name: &str, group: bool) -> bool {
+pub(super) fn material_name(name: &str, group: bool) -> bool {
     name.ends_with("SG") == group && lambert_number(name).is_some_and(|number| number >= 2)
 }
 
