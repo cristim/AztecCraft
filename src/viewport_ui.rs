@@ -208,9 +208,13 @@ pub fn capture(
     if response.dragged_by(PointerButton::Primary) && alt {
         ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
         let delta = constrained(ui, PointerButton::Primary, Vec2::new(delta.x, delta.y));
-        navigation.push(Operation::Orbit {
-            radians: (Vec2::new(-delta.x, delta.y) * 0.007).to_array(),
-        });
+        // Tumble is refused in orthographic views (PROVISIONAL: Maya's docs state no behaviour
+        // there); the drag is still consumed.
+        if camera.projection() == azteccraft::viewport::Projection::Perspective {
+            navigation.push(Operation::Orbit {
+                radians: (Vec2::new(-delta.x, delta.y) * 0.007).to_array(),
+            });
+        }
     }
     if response.dragged_by(PointerButton::Middle) && alt {
         let delta = constrained(ui, PointerButton::Middle, Vec2::new(delta.x, delta.y));

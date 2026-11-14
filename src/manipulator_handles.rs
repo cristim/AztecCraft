@@ -291,7 +291,7 @@ impl RotateHandles {
         let (clip, origin) = capture.project_origin(frame.origin)?;
         let size = capture.size();
         let radius = capture.world_length(capture.handle_length(), clip.w);
-        let to_eye = capture.eye() - frame.origin;
+        let to_eye = -capture.view_direction(frame.origin);
         if !radius.is_finite() || !to_eye.is_finite() {
             return Err(HandleError::InvalidProjection);
         }

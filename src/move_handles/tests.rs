@@ -933,3 +933,24 @@ fn screen_direction_refuses_an_overflowing_clip_depth_instead_of_a_degenerate_ax
         Some(HandleError::InvalidProjection)
     );
 }
+
+#[test]
+fn orthographic_projected_fraction_uses_the_parallel_view_direction() {
+    let mut camera = front_camera();
+    camera
+        .show_orthographic(crate::viewport::OrthographicView::Front)
+        .unwrap();
+    let capture = capture(&camera, 1.0);
+    // Off the view axis a perspective camera would foreshorten X; a parallel view does not.
+    let off_axis = DVec3::new(4.0, 3.0, 0.0);
+    assert!((capture.projected_fraction(off_axis, DVec3::X).unwrap() - 1.0).abs() < 1e-9);
+    assert!((capture.projected_fraction(off_axis, DVec3::Y).unwrap() - 1.0).abs() < 1e-9);
+    assert!(
+        capture
+            .projected_fraction(off_axis, DVec3::Z)
+            .unwrap()
+            .abs()
+            < 1e-9
+    );
+    assert_eq!(capture.view_direction(off_axis), -DVec3::Z);
+}

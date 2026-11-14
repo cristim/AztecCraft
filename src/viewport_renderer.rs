@@ -584,7 +584,6 @@ impl Submission {
             u64::try_from(submission.bytes.capacity()).map_err(|_| RenderError::ResourceLimit)?,
             u64::MAX,
         )?;
-        let eye = camera.eye();
         let surface_instances: &[ViewInstance] = if shading == ShadingMode::Wireframe {
             &[]
         } else {
@@ -600,7 +599,7 @@ impl Submission {
                 let center = face
                     .center(instance.world_vertices())
                     .map_err(|_| RenderError::NonFiniteClip)?;
-                let view_dir = (eye - center).normalize_or_zero();
+                let view_dir = -camera.view_direction_at(center);
                 let [red, green, blue] = shade(
                     instance.world_normal(face).to_array(),
                     view_dir.to_array(),

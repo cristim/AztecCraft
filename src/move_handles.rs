@@ -1,6 +1,6 @@
 use crate::{
     native_scene::WorldAxis,
-    viewport::{Camera, InvalidCameraInput, Ray},
+    viewport::{Camera, InvalidCameraInput, Projection, Ray},
 };
 use glam::{DMat4, DVec2, DVec3, DVec4, Vec2};
 use std::fmt;
@@ -294,6 +294,15 @@ impl ViewportCapture {
         self.camera.eye().as_dvec3()
     }
 
+    /// Unit view direction through `point`: from the eye, or parallel for an orthographic
+    /// camera. Zero when `point` is the eye.
+    pub(crate) fn view_direction(&self, point: DVec3) -> DVec3 {
+        match self.camera.projection() {
+            Projection::Perspective => (point - self.eye()).normalize_or_zero(),
+            Projection::Orthographic => self.camera.view_direction_at(point.as_vec3()).as_dvec3(),
+        }
+    }
+
     /// Viewport pixel of a point in front of the camera; it may lie outside the viewport.
     pub(crate) fn project_point(&self, point: DVec3) -> Option<DVec2> {
         let clip = self.view_projection * point.extend(1.0);
@@ -345,12 +354,11 @@ impl ViewportCapture {
         origin_cm: DVec3,
         direction: DVec3,
     ) -> Result<f64, HandleError> {
-        let to_origin = origin_cm - self.eye();
-        let length = to_origin.length();
-        if !length.is_finite() || length <= 0.0 {
+        let to_origin = self.view_direction(origin_cm);
+        if !to_origin.is_finite() || to_origin == DVec3::ZERO {
             return Err(HandleError::InvalidProjection);
         }
-        let cosine = direction.dot(to_origin / length);
+        let cosine = direction.dot(to_origin);
         let fraction = (1.0 - cosine * cosine).max(0.0).sqrt();
         if !fraction.is_finite() {
             return Err(HandleError::InvalidProjection);
