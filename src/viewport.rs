@@ -1,4 +1,5 @@
 use crate::scene::{Node, NodeId, Scene};
+use crate::selection::ComponentSet;
 use crate::{
     native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
     view_scene::{
@@ -557,6 +558,76 @@ impl Camera {
             vertices.get(b).copied().ok_or(InvalidCameraInput)?,
         ];
         self.frame_points(&ends, aspect)
+    }
+
+    /// Frames every selected face of one shape instance. A member the view lacks refuses the
+    /// whole request, as the single-face form does.
+    pub fn frame_faces(
+        &mut self,
+        scene: &ViewScene,
+        set: &ComponentSet,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        let owner = set.owner().ok_or(InvalidCameraInput)?;
+        let instance = component_instance(scene, owner.transform, owner.shape, &owner.path)?;
+        let vertices = instance.world_vertices();
+        let mut points = Vec::new();
+        let mut found = 0;
+        for face in instance
+            .faces()
+            .iter()
+            .filter(|face| set.contains(face.source_index()))
+        {
+            found += 1;
+            for &index in face.corners() {
+                points.push(vertices.get(index).copied().ok_or(InvalidCameraInput)?);
+            }
+        }
+        if found != set.len() {
+            return Err(InvalidCameraInput);
+        }
+        self.frame_points(&points, aspect)
+    }
+
+    /// Frames every selected vertex of one shape instance.
+    pub fn frame_vertices(
+        &mut self,
+        scene: &ViewScene,
+        set: &ComponentSet,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        let owner = set.owner().ok_or(InvalidCameraInput)?;
+        let instance = component_instance(scene, owner.transform, owner.shape, &owner.path)?;
+        let points = set
+            .indices()
+            .iter()
+            .map(|&index| instance.world_vertices().get(index).copied())
+            .collect::<Option<Vec<_>>>()
+            .ok_or(InvalidCameraInput)?;
+        self.frame_points(&points, aspect)
+    }
+
+    /// Frames both ends of every selected edge of one shape instance.
+    pub fn frame_edges(
+        &mut self,
+        scene: &ViewScene,
+        set: &ComponentSet,
+        aspect: f32,
+    ) -> Result<(), InvalidCameraInput> {
+        let owner = set.owner().ok_or(InvalidCameraInput)?;
+        let instance = component_instance(scene, owner.transform, owner.shape, &owner.path)?;
+        let vertices = instance.world_vertices();
+        let mut points = Vec::with_capacity(set.len().saturating_mul(2));
+        for &index in set.indices() {
+            let [a, b] = instance
+                .edges()
+                .get(index)
+                .copied()
+                .ok_or(InvalidCameraInput)?;
+            points.push(vertices.get(a).copied().ok_or(InvalidCameraInput)?);
+            points.push(vertices.get(b).copied().ok_or(InvalidCameraInput)?);
+        }
+        self.frame_points(&points, aspect)
     }
 
     fn frame_iter(

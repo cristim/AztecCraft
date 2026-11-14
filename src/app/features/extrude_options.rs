@@ -10,6 +10,7 @@
 //! and Curve Selected values are display defaults, not documented ones.
 
 use crate::app::*;
+use crate::editor_operations::ComponentKind;
 use azteccraft::native_scene::NativeError;
 use std::fmt;
 
@@ -26,6 +27,8 @@ pub(in crate::app) enum ExtrudeFailure {
 pub(in crate::app) enum ExtrudeBlocker {
     NotFaceMode,
     NoFaceSelected,
+    /// Extruding several faces is #44; Extrude acts on one face, so a set refuses.
+    SeveralFacesSelected,
 }
 
 impl fmt::Display for ExtrudeBlocker {
@@ -33,6 +36,7 @@ impl fmt::Display for ExtrudeBlocker {
         f.write_str(match self {
             Self::NotFaceMode => "Extrude needs Face selection mode (F11)",
             Self::NoFaceSelected => "Select a face first",
+            Self::SeveralFacesSelected => "Extrude acts on one face; select a single face (#44)",
         })
     }
 }
@@ -73,8 +77,10 @@ impl Editor {
     pub(in crate::app) fn extrude_blocker(&self) -> Option<ExtrudeBlocker> {
         if self.selection_mode != SelectionMode::Face {
             Some(ExtrudeBlocker::NotFaceMode)
-        } else if self.remembered_face().is_none() {
+        } else if self.component_set(ComponentKind::Face).is_empty() {
             Some(ExtrudeBlocker::NoFaceSelected)
+        } else if self.component_set(ComponentKind::Face).len() > 1 {
+            Some(ExtrudeBlocker::SeveralFacesSelected)
         } else {
             None
         }
