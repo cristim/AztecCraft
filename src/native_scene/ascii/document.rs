@@ -80,7 +80,7 @@ pub fn decode_document(
     if !has_materials && sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
         return Ok(AsciiDecoded::Retained(sourced));
     }
-    let candidate = candidate_of(&sourced, uvs, materials);
+    let candidate = candidate_of(&sourced, uvs, materials).map_err(AsciiDocumentError::Ascii)?;
     // Any link selects the linked layout; the byte comparison then admits only the exact one
     // (every shape, in the writer's order), so a partial or duplicated set is refused.
     let layout = if links == 0 {
@@ -116,7 +116,7 @@ fn candidate_of(
     sourced: &NativeScene,
     uvs: Vec<Option<UvSet>>,
     materials: Option<ParsedMaterials>,
-) -> NativeScene {
+) -> Result<NativeScene, AsciiError> {
     let mut candidate = sourced.clone();
     candidate.source = None;
     for (shape, set) in sourced.shapes.iter().zip(uvs) {
@@ -125,13 +125,15 @@ fn candidate_of(
         }
     }
     if let Some(materials) = materials {
-        materials.attach(&mut candidate);
+        materials.attach(&sourced.shapes, &mut candidate)?;
     }
-    candidate
+    Ok(candidate)
 }
 
 #[cfg(test)]
 mod link_tests;
+#[cfg(test)]
+mod material_connect_tests;
 #[cfg(test)]
 mod material_tests;
 #[cfg(test)]
