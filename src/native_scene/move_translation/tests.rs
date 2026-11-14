@@ -1031,8 +1031,13 @@ mod move_space {
             }
         }
         let mut frame = good;
-        frame.object_rotation = DMat3::ZERO;
+        frame.rotation_axes = DMat3::ZERO;
         assert!(frame.direction(MoveSpace::Object, WorldAxis::X).is_err());
+        assert!(
+            frame
+                .direction(MoveSpace::AlongRotationAxis, WorldAxis::X)
+                .is_ok()
+        );
         assert!(frame.direction(MoveSpace::Parent, WorldAxis::X).is_ok());
     }
 
@@ -1056,7 +1061,7 @@ mod move_space {
     }
 
     #[test]
-    fn object_follows_the_rotate_order_and_ignores_the_rotate_axis() {
+    fn object_follows_the_rotate_order_and_includes_the_rotate_axis() {
         let (mut scene, node) = test_fixtures::cube();
         let r = [23.0, -41.0, 67.0];
         posed(&mut scene, node, r);
@@ -1075,6 +1080,10 @@ mod move_space {
         let own = DMat3::from_rotation_x(rad[0])
             * DMat3::from_rotation_z(rad[2])
             * DMat3::from_rotation_y(rad[1]);
+        let ra = DMat3::from_rotation_z((52.0f64).to_radians())
+            * DMat3::from_rotation_y((-33.0f64).to_radians())
+            * DMat3::from_rotation_x((17.0f64).to_radians());
+        let own = own * ra;
         let moved = frame
             .translation_in(MoveSpace::Object, WorldAxis::Y, 3.0)
             .unwrap();
@@ -1222,6 +1231,37 @@ mod move_space {
             good.translation_in(MoveSpace::AlongRotationAxis, WorldAxis::X, f64::NAN),
             Err(NativeError::NonFinite)
         ));
+    }
+
+    #[test]
+    fn move_object_and_scale_object_handles_agree_when_the_rotate_axis_is_non_zero() {
+        let (mut scene, root, child, _) = test_fixtures::grouped_shape();
+        scene
+            .set_transform(
+                root,
+                NativeTransform {
+                    rotation: [30.0, -20.0, 50.0],
+                    scale: [2.0, 2.0, 2.0],
+                    ..NativeTransform::default()
+                },
+            )
+            .unwrap();
+        posed(&mut scene, child, [11.0, 19.0, -8.0]);
+        with_extras(&mut scene, child, 4, [17.0, -33.0, 52.0]);
+        let selected = target(&scene, child);
+        let frame = scene.world_move_frame(&selected).unwrap();
+        let handles = scene.manipulator_frame(&selected).unwrap().object_axes;
+        for (axis, handle) in [WorldAxis::X, WorldAxis::Y, WorldAxis::Z]
+            .into_iter()
+            .zip(handles)
+        {
+            near_v(
+                frame.direction(MoveSpace::Object, axis).unwrap(),
+                handle.normalize(),
+            );
+            let along = frame.direction(MoveSpace::AlongRotationAxis, axis).unwrap();
+            assert!((along - handle.normalize()).length() > 0.05);
+        }
     }
 
     #[test]

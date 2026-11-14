@@ -37,7 +37,9 @@ pub enum MoveSpace {
     /// Maya's default.
     #[default]
     World,
-    /// The node's own rotation (rotate order, no Rotate Axis) inside its parents' map.
+    /// The node's own axes R(rotate order) * RotateAxis inside its parents' map, as the Scale
+    /// handles use. PROVISIONAL pending #5. Normalised axes can be skewed or left-handed under a
+    /// non-uniform or negative parent scale.
     Object,
     /// The parents' map alone; the world for a root node.
     Parent,
@@ -112,6 +114,8 @@ pub struct WorldMoveFrame {
     parent_norm: f64,
     /// The node's own rotation R(rotate order), without Rotate Axis, shear or scale.
     object_rotation: DMat3,
+    /// R(rotate order) * RotateAxis: the Object frame, the same one the Scale handles use.
+    rotation_axes: DMat3,
     translation: [f64; 3],
     translation_cm: DVec3,
     linear_factor: f64,
@@ -171,7 +175,7 @@ impl WorldMoveFrame {
         let along = match space {
             MoveSpace::World => return Ok(unit),
             MoveSpace::Parent => self.parent_linear * unit,
-            MoveSpace::Object => self.parent_linear * (self.object_rotation * unit),
+            MoveSpace::Object => self.parent_linear * (self.rotation_axes * unit),
             MoveSpace::AlongRotationAxis => self.parent_linear * (self.object_rotation * unit),
         };
         let length = along.length();
@@ -681,6 +685,11 @@ impl NativeScene {
             parent_norm,
             object_rotation: transform
                 .rotation_only()
+                .ok_or(NativeError::UnsupportedMove(
+                    WorldMoveUnsupported::ParentTransform,
+                ))?,
+            rotation_axes: transform
+                .rotation_frame()
                 .ok_or(NativeError::UnsupportedMove(
                     WorldMoveUnsupported::ParentTransform,
                 ))?,
