@@ -1,6 +1,6 @@
 //! The reader's UV block (PROVISIONAL layout, `.project-docs/uv-ascii-format.md`): what the
 //! writer emits parses into a per-shape side table, and every hand edit of it is refused.
-use super::super::{ErrorKind, decode_with_uvs, write::emit_geometry_prefix};
+use super::super::{Decoded, ErrorKind, decode_with_uvs, write::emit_geometry_prefix};
 use crate::{
     native_scene::{NativeMesh, NativeScene, UvProjectAxis, UvSet},
     primitive_options::SINGLE_QUAD_PLANE,
@@ -24,7 +24,7 @@ fn plane_text() -> String {
 }
 
 fn read(text: &str) -> Result<Vec<Option<UvSet>>, super::super::AsciiError> {
-    decode_with_uvs(Arc::from(text.as_bytes().to_vec()), true).map(|(_, uvs, _)| uvs)
+    decode_with_uvs(Arc::from(text.as_bytes().to_vec()), true).map(|decoded| decoded.uvs)
 }
 
 #[track_caller]
@@ -40,7 +40,11 @@ fn the_writers_uv_block_reads_back_into_the_side_table() {
     for plane in [true, false] {
         let scene = scene_with_uvs(plane);
         let bytes = emit_geometry_prefix(&scene).unwrap();
-        let (decoded, uvs, _) = decode_with_uvs(Arc::from(bytes), true).unwrap();
+        let Decoded {
+            scene: decoded,
+            uvs,
+            ..
+        } = decode_with_uvs(Arc::from(bytes), true).unwrap();
         assert!(decoded.has_source(), "the sourced scene holds no UVs");
         assert!(decoded.uv_set(decoded.shapes()[0].id()).is_none());
         let want = scene.uv_set(scene.shapes()[0].id()).unwrap();
@@ -53,7 +57,7 @@ fn faces_without_mu_give_no_uv_set() {
     let mut scene = scene_with_uvs(false);
     scene.delete_uvs(scene.shapes()[0].id()).unwrap();
     let bytes = emit_geometry_prefix(&scene).unwrap();
-    assert_eq!(decode_with_uvs(Arc::from(bytes), true).unwrap().1, [None]);
+    assert_eq!(decode_with_uvs(Arc::from(bytes), true).unwrap().uvs, [None]);
 }
 
 #[test]
