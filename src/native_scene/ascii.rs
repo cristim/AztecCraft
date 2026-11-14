@@ -80,6 +80,9 @@ enum Kind {
     RenderLayer,
     Script,
     Builtin,
+    /// Index into the material side table's lamberts / shading groups.
+    Lambert(usize),
+    ShadingEngine(usize),
 }
 
 /// Owner attribute bits (1..=1024 are channels): a transform that already has a mesh child, or a
@@ -334,6 +337,7 @@ struct Builder<'a, 'b> {
     /// sets it and adopts the result only after proving it byte-identical to the writer's output.
     meshes: bool,
     mesh_parts: Vec<mesh::MeshParts>,
+    materials: material::MaterialParts,
     requires: bool,
     file_info: Vec<Range<usize>>,
     connections: u8,
@@ -513,6 +517,9 @@ impl Builder<'_, '_> {
                 self.mesh_parts.push(mesh::MeshParts::default());
                 Kind::Mesh(index)
             }
+            ("lambert" | "shadingEngine", _) if !shared && parent.is_none() => self
+                .material_node(class, name, c)?
+                .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?,
             ("camera", "perspShape" | "topShape" | "frontShape" | "sideShape") if shared => {
                 let parent = parent.ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
                 let expected = name
@@ -603,8 +610,10 @@ impl Builder<'_, '_> {
     }
     fn rename(&mut self, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
         let owner = self.owner(c)?;
-        if self.owners[owner].kind == Kind::Builtin
-            || c.word()? != "-uid"
+        if matches!(
+            self.owners[owner].kind,
+            Kind::Builtin | Kind::Lambert(_) | Kind::ShadingEngine(_)
+        ) || c.word()? != "-uid"
             || self.owners[owner].uuid.is_some()
         {
             return Err(error(ErrorKind::Unsupported, c.offset));
@@ -950,6 +959,9 @@ impl Builder<'_, '_> {
                 self.mark(owner, bit, c)?;
             }
             Kind::Mesh(index) => self.mesh_attribute(owner, index, &flags, c, attribute)?,
+            Kind::Lambert(_) | Kind::ShadingEngine(_) => {
+                self.material_attribute(owner, &flags, c, attribute)?
+            }
             _ => return Err(error(ErrorKind::Unsupported, c.offset)),
         }
         Ok(())
@@ -1176,14 +1188,16 @@ fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiErr
     decode_with_uvs(source, meshes).map(|decoded| decoded.scene)
 }
 
-/// What the gate's decode read besides the sourced scene. A sourced scene cannot hold UVs, so
-/// the caller attaches them to the source-free candidate.
+/// What the gate's decode read besides the sourced scene. A sourced scene cannot hold UVs or
+/// session materials, so the caller attaches them to the source-free candidate.
 struct Decoded {
     scene: NativeScene,
     /// Each shape's UV set, parallel to the scene's shapes.
     uvs: Vec<Option<UvSet>>,
     /// How many default shading-group links were read.
     links: usize,
+    /// The material statements, `None` when the file has none.
+    materials: Option<material::ParsedMaterials>,
 }
 
 fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiError> {
@@ -1197,6 +1211,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
     } = lex::inspect(source)?;
     let (mut owners, mut transforms, mut curves, mut shapes, mut file_info) =
         (0usize, 0usize, 0usize, 0usize, 0usize);
+    let (mut lamberts, mut engines) = (0usize, 0usize);
     for statement in &statements {
         let mut c = Cursor {
             source: &source,
@@ -1214,6 +1229,8 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
                     "transform" => transforms = add(transforms, 1)?,
                     "nurbsCurve" => curves = add(curves, 1)?,
                     "mesh" => shapes = add(shapes, 1)?,
+                    "lambert" if meshes => lamberts = add(lamberts, 1)?,
+                    "shadingEngine" if meshes => engines = add(engines, 1)?,
                     _ => (),
                 }
             }
@@ -1253,6 +1270,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         .map_err(|_| resource())?;
     let info_table = budget.vector(file_info).map_err(|_| resource())?;
     let mesh_parts = budget.vector(shapes).map_err(|_| resource())?;
+    let materials = material::MaterialParts::with_capacity(&mut budget, lamberts, engines)?;
     let mut builder = Builder {
         source: &source,
         budget: &mut budget,
@@ -1262,6 +1280,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         units: false,
         meshes,
         mesh_parts,
+        materials,
         requires: false,
         file_info: info_table,
         connections: 0,
@@ -1290,6 +1309,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         return Err(error(ErrorKind::Unsupported, 0));
     }
     let uvs = builder.finish_meshes()?;
+    let materials = builder.finish_materials()?;
     validation_admission(&builder.scene, records, builder.budget, &mut work)?;
     let scene = NativeScene::from_source_candidate(builder.scene).map_err(|e| match e {
         NativeError::ResourceLimit => resource(),
@@ -1306,12 +1326,14 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         scene,
         uvs,
         links: builder.default_links,
+        materials,
     })
 }
 
 #[cfg(test)]
 mod degree_tests;
 mod document;
+mod material;
 mod mesh;
 #[cfg(test)]
 mod tests;
