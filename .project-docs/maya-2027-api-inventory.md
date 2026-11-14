@@ -95,7 +95,9 @@ Method and limitations:
 - Each file is one symbol per line with a `#` header recording the exact source
   URL, retrieval timestamp and count. `crawl-catalogs.ps1` reproduces the lists;
   rerunning it updates the headers, so treat the checked-in snapshot plus its
-  header as the evidence pair.
+  header as the evidence pair. Lists preserve the source page order: commands
+  and nodes are alphabetical, while the Doxygen lists intentionally contain
+  order breaks where namespace rows group their child classes with the parent.
 - Commands and nodes lists contain every catalog anchor, mixing core commands
   with MEL-only script commands; C++ and Python lists mix namespace rows with
   class rows, as the Doxygen pages do.

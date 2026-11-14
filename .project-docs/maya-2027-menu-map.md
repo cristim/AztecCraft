@@ -22,13 +22,14 @@ of Maya 2026 behavior.
 
 IDs below are stable path keys for this document, not Autodesk identifiers.
 Global-menu rows use the lowercase menu name (`file`, `edit`, …); menu-set rows
-use `set.<name>`; UI surfaces use dotted paths such as `panel.*`, `context.*`,
-`shell.*`, `shelf.*` and `editor.*`. `†` denotes an entry explicitly
-named/described by the cited page. `‡` denotes a category whose children or
-exact placement are not fully specified by that page. A path ending in `…` is an
-explicit coverage gap, not an assertion that the preceding page has no further
-entries. Hotkeys are written only where the official page states them; absence
-of a shortcut is not proof that none exists.
+use `set.<name>`; UI surfaces use dotted paths (`panel.*`, `context.*`,
+`shell.*`). `editor.*` is an explicit wildcard for the editor-local menus that
+separate per-editor audits still have to expand into concrete IDs. `†` denotes
+an entry explicitly named/described by the cited page. `‡` denotes a category
+whose children or exact placement are not fully specified by that page. A path
+ending in `…` is an explicit coverage gap, not an assertion that the preceding
+page has no further entries. Hotkeys are written only where the official page
+states them; absence of a shortcut is not proof that none exists.
 
 ## Main menu bar
 

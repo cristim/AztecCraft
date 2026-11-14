@@ -29,7 +29,11 @@ function Get-Catalog {
         if ($name.Length -gt 0) { $names.Add($name) }
     }
 
-    # Preserve first-seen order; the catalog pages are alphabetical.
+    # Preserve first-seen page order. The commands/nodes catalogs are
+    # alphabetical; the Doxygen annotated pages are NOT strictly alphabetical
+    # because namespace rows group their child classes with the parent, so the
+    # flattened lists contain order breaks by design. Do not re-sort here:
+    # the order documents the source page structure.
     $unique = $names | Select-Object -Unique
     $header = "# source: $Url`n# retrieved: $((Get-Date).ToUniversalTime().ToString('o'))`n# count: $($unique.Count)"
     $path = Join-Path $here $OutFile
