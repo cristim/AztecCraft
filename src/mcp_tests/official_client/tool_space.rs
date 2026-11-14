@@ -401,7 +401,7 @@ async fn sdk_scale_parent_under_a_rotated_parent_matches_native_and_undoes_and_a
     assert_eq!(child_scale(&editor), [1.0; 3]);
     // A skewed Parent frame (grandparent scale under a rotated parent) draws no native handles
     // (SkewedFrame). The core scales local channels and reads no parents' map, so the remote
-    // begin starts; the native begin gives the same verdict.
+    // begin starts; natively the frame is refused (asserted below) and no handles are drawn.
     editor.history = crate::app::parent_fixture_tests::parent_child_editor(
         Some([2.0, 1.0, 1.0]),
         std::f64::consts::FRAC_PI_4,

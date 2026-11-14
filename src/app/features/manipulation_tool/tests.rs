@@ -811,6 +811,53 @@ fn unsupported_spaces_are_listed_disabled_with_the_reason() {
 }
 
 #[test]
+fn scale_lists_parent_once_and_enabled() {
+    let (mut editor, context, _) = setup(Key::R, 1.0);
+    assert_eq!(editor.active_tool, ActiveTool::Scale);
+    context.enable_accesskit();
+    let output = idle(&mut editor, &context, 1.0);
+    let combo = output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .find_map(|(_, node)| {
+            (node.role() == egui::accesskit::Role::ComboBox && node.value() == Some("World"))
+                .then(|| node.bounds().unwrap())
+        })
+        .expect("the Scale space selector");
+    let at = Pos2::new(
+        ((combo.x0 + combo.x1) / 2.0) as f32,
+        ((combo.y0 + combo.y1) / 2.0) as f32,
+    );
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, button(at, true)),
+    );
+    frame(
+        &mut editor,
+        &context,
+        raw(SIZE, Pos2::ZERO, 1.0, button(at, false)),
+    );
+    let output = idle(&mut editor, &context, 1.0);
+    let nodes = &output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes;
+    let parents: Vec<_> = nodes
+        .iter()
+        .filter(|(_, node)| node.label() == Some("Parent"))
+        .collect();
+    assert_eq!(parents.len(), 1, "Parent must be listed exactly once");
+    assert!(!parents[0].1.is_disabled());
+}
+
+#[test]
 fn move_lists_maya_axis_orientations_with_object_world_and_parent_enabled() {
     let (mut editor, context, _) = setup(Key::W, 1.0);
     assert_eq!(editor.active_tool, ActiveTool::Move);
