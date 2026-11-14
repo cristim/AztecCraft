@@ -1069,10 +1069,17 @@ the written files is PROVISIONAL and unproven. A reopened file is an authored do
 and any edit the writer cannot carry (session material, curves) refuses Save and keeps the scene
 dirty.
 
-Because the gate compares against the writer's exact output (including the fixed header text), any
-change to the ASCII writer invalidates `.ma` files saved by earlier builds: a mesh file written before
-the change is refused at Open by the later build (a file with no meshes opens read-only). Writer changes
-therefore need either a version marker the reader can branch on or an accepted break; neither exists yet.
+Save also writes each mesh into the default shading group: a trailing `connectAttr "<mesh>.iog"
+":initialShadingGroup.dsm" -na;` per shape, after all nodes (#156). Files saved before links existed
+reopen through the no-links layout and re-save with links; a file with links round-trips only in
+exactly the emitted form (every shape, in order), anything else is refused. The `-na` flag and the
+position after all nodes are PROVISIONAL (derived from the Maya docs, not checked against Maya, #156/#5).
+Instanced shapes and duplicate shape names are refused on write.
+
+Because the gate compares against the writer's exact output (including the fixed header text), a
+writer change that alters the bytes invalidates `.ma` files saved by earlier builds unless the gate
+keeps their layout (as it does for the pre-links layout); otherwise the file is refused at Open (a
+file with no meshes opens read-only).
 
 Reopen trigger: Maya-written mesh `.ma` support (a general mesh reader), material writing, or a
 public Maya acceptance check (issue #5).

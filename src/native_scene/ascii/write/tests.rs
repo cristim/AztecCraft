@@ -50,7 +50,7 @@ fn scene(names: &[&str]) -> NativeScene {
 }
 fn prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
     let original = scene.clone();
-    let result = emit_geometry_prefix(scene);
+    let result = emit_with_links(scene, DefaultLinks::Omit);
     assert_eq!(scene, &original);
     assert_eq!(
         (scene.next_id, scene.next_native_id),
@@ -322,7 +322,10 @@ createNode mesh -n \"storedFirst\" -p \"first\";\n\
     .concat();
     let actual = prefix(&scene).unwrap();
     assert_eq!(actual, golden);
-    assert_eq!(actual.len(), prefix_bytes(&scene).unwrap());
+    assert_eq!(
+        actual.len(),
+        prefix_bytes(&scene, DefaultLinks::Omit).unwrap()
+    );
     let text = std::str::from_utf8(&actual).unwrap();
     let uuids: Vec<_> = text
         .lines()
@@ -385,7 +388,10 @@ createNode mesh -n \"storedFirst\" -p \"first\";\n\
         scene.shapes.swap(0, 1);
         scene.validate().unwrap();
         let bytes = prefix(&scene).unwrap();
-        assert_eq!(bytes.len(), prefix_bytes(&scene).unwrap());
+        assert_eq!(
+            bytes.len(),
+            prefix_bytes(&scene, DefaultLinks::Omit).unwrap()
+        );
         let blocks = parsed_prefix(&bytes).blocks;
         assert_eq!(blocks.len(), 6);
         for (index, node) in scene.nodes.iter().enumerate() {
@@ -947,7 +953,10 @@ fn raw_float_arrays_keep_owner_bits_unused_points_and_duplicate_edges() {
             scene.shapes.swap(0, 1);
             scene.validate().unwrap();
             let bytes = prefix(&scene).unwrap();
-            assert_eq!(bytes.len(), prefix_bytes(&scene).unwrap());
+            assert_eq!(
+                bytes.len(),
+                prefix_bytes(&scene, DefaultLinks::Omit).unwrap()
+            );
             let blocks = parsed_prefix(&bytes).blocks;
             assert_eq!(
                 (blocks[0].0, blocks[0].1, blocks[0].2[0].as_slice()),
@@ -1168,12 +1177,15 @@ fn uuid_and_channel_bytes_are_in_the_admitted_size() {
     scene.shapes[0].mesh = NativeMesh::with_options(&SINGLE_QUAD_PLANE).unwrap();
     scene.nodes[0].transform_uuid = None;
     scene.shapes[0].uuid = None;
-    assert_eq!(prefix_bytes(&scene).unwrap(), 383);
+    assert_eq!(prefix_bytes(&scene, DefaultLinks::Omit).unwrap(), 383);
     assert_eq!(prefix(&scene).unwrap().len(), 383);
     scene.nodes[0].transform_uuid = Some(uuid::Uuid::nil());
     let bytes = prefix(&scene).unwrap();
     assert_eq!(bytes.len(), 436);
-    assert_eq!(bytes.len(), prefix_bytes(&scene).unwrap());
+    assert_eq!(
+        bytes.len(),
+        prefix_bytes(&scene, DefaultLinks::Omit).unwrap()
+    );
     assert!(parsed_prefix(&bytes).channels.is_empty());
     for contribution in [53, 37, MESH_SYNTAX_BYTES] {
         assert_eq!(
@@ -1413,6 +1425,7 @@ fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
     );
 }
 
+mod links;
 mod uv_block;
 
 #[test]
