@@ -63,7 +63,7 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let (sourced, uvs) =
+    let (sourced, uvs, _default_links) =
         decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
     // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
     // can never be proved; skip the clone for it.
@@ -100,6 +100,8 @@ pub fn decode_document(
     Ok(AsciiDecoded::Authored(AuthoredProjection(candidate)))
 }
 
+#[cfg(test)]
+mod link_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
