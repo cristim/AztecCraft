@@ -1,7 +1,10 @@
 //! The read-back gate for authored Maya ASCII (#321). A scene that contains meshes is accepted
 //! only when it is byte-identical to what the authored writer emits for the scene it decodes
 //! to, so the reader never claims more of the Maya ASCII grammar than the writer produces.
-use super::{AsciiError, ErrorKind, decode_with_uvs, write::emit_geometry_prefix};
+use super::{
+    AsciiError, ErrorKind, decode_with_uvs,
+    write::{DefaultLinks, emit_with_links},
+};
 use crate::native_scene::NativeScene;
 use std::{fmt, sync::Arc};
 
@@ -63,7 +66,7 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let (sourced, uvs, _default_links) =
+    let (sourced, uvs, links) =
         decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
     // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
     // can never be proved; skip the clone for it.
@@ -79,10 +82,17 @@ pub fn decode_document(
             candidate.attach_authored_uv_set(shape.id(), set);
         }
     }
+    // Any link selects the linked layout; the byte comparison then admits only the exact one
+    // (every shape, in the writer's order), so a partial or duplicated set is refused.
+    let layout = if links == 0 {
+        DefaultLinks::Omit
+    } else {
+        DefaultLinks::Emit
+    };
     // An empty scene the writer emits (a document whose last object was deleted) is an
     // authored document too: it must reopen the way it was saved.
     let proved = candidate.validate().is_ok()
-        && emit_geometry_prefix(&candidate).is_ok_and(|emitted| emitted.as_slice() == &*source);
+        && emit_with_links(&candidate, layout).is_ok_and(|emitted| emitted.as_slice() == &*source);
     if !proved {
         return if sourced.shapes.is_empty() {
             Ok(AsciiDecoded::Retained(sourced))
