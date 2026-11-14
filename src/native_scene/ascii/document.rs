@@ -83,7 +83,7 @@ pub fn decode_document(
     let candidate = candidate_of(&sourced, uvs, materials).map_err(AsciiDocumentError::Ascii)?;
     // A material block always links every shape. Any link selects the linked layout; the byte comparison then admits only the exact one
     // (every shape, in the writer's order), so a partial or duplicated set is refused.
-    let layout = if links == 0 && !has_materials {
+    let layout = if links == 0 {
         DefaultLinks::Omit
     } else {
         DefaultLinks::Emit

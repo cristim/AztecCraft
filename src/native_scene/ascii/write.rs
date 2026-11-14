@@ -5,7 +5,6 @@ use crate::native_scene::{
     Points, UvSet,
     admission::{self, Budget},
     authored::{self, AuthoredIneligible, UvPolicy, names},
-    is_valid_name,
     session_material::{Lambert, MAX_SESSION_MATERIALS, ShadingGroup},
 };
 use std::{collections::HashSet, error::Error, fmt};
@@ -321,10 +320,7 @@ fn check_materials(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     let mut used: HashSet<&str> = names(scene).map(|(_, name)| name).collect();
     for (material, group) in table.materials.iter().zip(&table.groups).skip(1) {
         let (name, group) = (material.name(), group.name());
-        if !material_name(name, false)
-            || group.strip_suffix("SG") != Some(name)
-            || !is_valid_name(name)
-        {
+        if !material_name(name, false) || group.strip_suffix("SG") != Some(name) {
             return Err(AsciiWriteRefusal::SessionMaterials);
         }
         if !used.insert(name) || !used.insert(group) {
