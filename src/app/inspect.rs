@@ -663,6 +663,11 @@ impl Editor {
                 fov_y_degrees: f64::from(self.camera.fov_y_for(self.aspect)).to_degrees(),
                 near_clip: self.camera.near(),
                 far_clip: self.camera.far(),
+                view: self.view_name(),
+                projection: match self.camera.projection() {
+                    Projection::Perspective => "perspective",
+                    Projection::Orthographic => "orthographic",
+                },
             },
             timeline: self.inspect_timeline(),
         })

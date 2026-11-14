@@ -34,7 +34,7 @@ provenance Native and no token or draft checks. In order:
    `UpdateMove`/`FinishMove`.
 2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn apply_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `SetGridVisible`, `SetShadingMode`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -136,6 +136,10 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - `SetShadingMode` follows Grid: session-only, idempotent (`Unchanged` when the mode already matches),
   never dirty, never a scene-token change; guards are those of `SetGridVisible`. Handler is in
   `src/app/dispatch.rs`; matrix cell is `set_shading_mode(wireframe)`.
+- `SetView` follows Grid: session-only, idempotent (`Unchanged` when the camera already shows the
+  view), never dirty, never a scene-token change; guards are those of `SetGridVisible`. Handler is
+  in `src/app/dispatch.rs`; matrix cell is `set_view(top)`. `Orbit` on an orthographic camera is
+  `InvalidInput` and leaves the camera as it was.
 - `SetMenuSet` follows Grid: session-only, idempotent, never dirty, never a scene-token change, and
   New and Open keep it. Handler is in `src/app/dispatch.rs`; matrix cell is
   `set_menu_set(rigging)`.

@@ -13,11 +13,13 @@
       "fov_y_degrees": 37.849961153583806,
       "near_clip": 0.10000000149011612,
       "pitch_degrees": 22.918312146742387,
+      "projection": "perspective",
       "target": [
         13.5,
         0.0,
         0.0
       ],
+      "view": "persp",
       "yaw_degrees": 34.37746907388723
     },
     "can_redo": false,

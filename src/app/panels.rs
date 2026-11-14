@@ -252,10 +252,11 @@ impl Editor {
         let mut grid_requested = false;
         let mut shading_requested = None;
         let mut default_view_requested = false;
+        let mut view_requested = None;
         let mut frame_all_requested = false;
         let mut frame_selection_requested = None;
         ui.horizontal(|ui| {
-            ui.label("persp");
+            ui.label(self.view_name());
             ui.label(match self.selection_mode {
                 SelectionMode::Object => "Object selection",
                 SelectionMode::Face => "Face selection | visible centers only",
@@ -282,6 +283,28 @@ impl Editor {
                         default_view_requested = true;
                         ui.close();
                     }
+                    ui.separator();
+                    // Panel names follow Maya's persp, top, front and side; the issue #48 slice 1
+                    // offers only these four (PROVISIONAL placement, the 2027 page lists more).
+                    for preset in [
+                        ViewPreset::Persp,
+                        ViewPreset::Top,
+                        ViewPreset::Front,
+                        ViewPreset::Side,
+                    ] {
+                        if ui
+                            .selectable_label(self.view_name() == preset.label().to_lowercase(), preset.label())
+                            .clicked()
+                        {
+                            view_requested = Some(preset);
+                            ui.close();
+                        }
+                    }
+                    for label in ["Back", "Bottom", "Left Side"] {
+                        ui.add_enabled(false, egui::Button::new(label))
+                            .on_disabled_hover_text("Not implemented: only Persp, Top, Front and Side views exist");
+                    }
+                    ui.separator();
                     if ui.button("Frame All (A)").clicked() {
                         frame_all_requested = true;
                         ui.close();
@@ -355,6 +378,11 @@ impl Editor {
         }
         if default_view_requested && self.scene_token == frame_token {
             self.default_view();
+        }
+        if let Some(preset) = view_requested
+            && self.scene_token == frame_token
+        {
+            self.native_operation(Operation::SetView(preset));
         }
         if frame_all_requested && self.scene_token == frame_token {
             self.frame_all();

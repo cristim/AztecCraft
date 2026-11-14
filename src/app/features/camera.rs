@@ -44,8 +44,35 @@ impl Editor {
             .map_err(OperationError::Camera)
     }
 
+    /// The panel name: `persp`, `top`, `front`, `side`, or `ortho` for a hand-posed orthographic camera.
+    pub(in crate::app) fn view_name(&self) -> &'static str {
+        match (self.camera.projection(), self.camera.orthographic_view()) {
+            (Projection::Perspective, _) => "persp",
+            (_, Some(OrthographicView::Top)) => "top",
+            (_, Some(OrthographicView::Front)) => "front",
+            (_, Some(OrthographicView::Side)) => "side",
+            (_, None) => "ortho",
+        }
+    }
+
+    pub(in crate::app) fn show_view(
+        &mut self,
+        view: OrthographicView,
+    ) -> Result<(), OperationError> {
+        self.camera
+            .show_orthographic(view)
+            .map_err(OperationError::Camera)
+    }
+
     pub(in crate::app) fn default_view(&mut self) {
         let default = Camera::default();
+        if self.camera.projection() == Projection::Orthographic {
+            self.native_operation(Operation::SetView(ViewPreset::Persp));
+            // A refused switch (a modal is pending) must not move the pose either.
+            if self.camera.projection() == Projection::Orthographic {
+                return;
+            }
+        }
         self.native_operation(Operation::SetCameraPose {
             target: default.target().to_array(),
             distance: default.distance(),

@@ -173,6 +173,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -358,6 +359,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -532,6 +534,7 @@
   recovery_status(enabled) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_limits => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -706,6 +709,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -880,6 +884,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1054,6 +1059,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1228,6 +1234,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -1402,6 +1409,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -1576,6 +1584,7 @@
   recovery_status(enabled) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_limits => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_view(top) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1750,6 +1759,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_view(top) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1924,6 +1934,7 @@
   recovery_status(enabled) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_limits => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_view(top) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2098,6 +2109,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_view(top) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_menu_set(rigging) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2272,6 +2284,7 @@
   recovery_status(enabled) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_limits => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_shading_mode(wireframe) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_view(top) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_menu_set(rigging) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(channel_box,false) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2446,6 +2459,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2621,6 +2635,7 @@
   recovery_status(enabled) => Ok(recovery_status) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_limits => Ok(scene_limits) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_view(top) => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2796,6 +2811,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2970,6 +2986,7 @@
   recovery_status(enabled) => Ok(recovery_status) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_limits => Ok(scene_limits) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_view(top) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3144,6 +3161,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3318,6 +3336,7 @@
   recovery_status(enabled) => Ok(recovery_status) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_limits => Ok(scene_limits) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_shading_mode(wireframe) => Ok(changed) | scene changed; shading: SmoothShadeAll -> Wireframe; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_view(top) => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_menu_set(rigging) => Ok(changed) | scene changed; menu_set: Modeling -> Rigging; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | scene changed; sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3492,6 +3511,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3666,6 +3686,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -3840,6 +3861,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4014,6 +4036,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -4188,6 +4211,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4364,6 +4388,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4538,6 +4563,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4712,6 +4738,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4886,6 +4913,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5060,6 +5088,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5234,6 +5263,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5408,6 +5438,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_view(top) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_menu_set(rigging) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5582,6 +5613,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5756,6 +5788,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -5931,6 +5964,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -6106,6 +6140,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -6281,6 +6316,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -6456,6 +6492,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -6727,6 +6764,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -6902,6 +6940,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Ok(changed) | shading: SmoothShadeAll -> Wireframe
+  set_view(top) => Ok(changed) | camera changed
   set_menu_set(rigging) => Ok(changed) | menu_set: Modeling -> Rigging
   set_sidebar_panel_visible(channel_box,false) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false
   set_sidebar_panel_visible(attribute_editor,true) => Ok(changed) | sidebar_panels: channel_box=true -> channel_box=false; attribute_editor: panel=false tab=None -> panel=true tab=None
@@ -7077,6 +7116,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7252,6 +7292,7 @@
   recovery_status(enabled) => Ok(recovery_status) | no state change
   inspect_limits => Ok(scene_limits) | no state change
   set_shading_mode(wireframe) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_view(top) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_menu_set(rigging) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(channel_box,false) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_sidebar_panel_visible(attribute_editor,true) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7267,4 +7308,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 6667
+cells: 6708

@@ -188,6 +188,7 @@ impl Editor {
             | Operation::SetGridVisible { .. }
             | Operation::SetSnapToGrid { .. }
             | Operation::SetShadingMode(_)
+            | Operation::SetView(_)
             | Operation::SetMenuSet { .. }
             | Operation::SetSidebarPanelVisible { .. }
             | Operation::SelectAttributeEditorTab { .. }
@@ -511,6 +512,7 @@ impl Editor {
             Operation::SetGridVisible { .. }
                 | Operation::SetSnapToGrid { .. }
                 | Operation::SetShadingMode(_)
+                | Operation::SetView(_)
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
@@ -884,6 +886,20 @@ impl Editor {
                     OperationReply::Changed
                 } else {
                     OperationReply::Unchanged
+                });
+            }
+            Operation::SetView(preset) => {
+                let before = self.camera.clone();
+                match preset {
+                    ViewPreset::Persp => self.camera.show_perspective(),
+                    ViewPreset::Top => self.show_view(OrthographicView::Top)?,
+                    ViewPreset::Front => self.show_view(OrthographicView::Front)?,
+                    ViewPreset::Side => self.show_view(OrthographicView::Side)?,
+                }
+                return Ok(if self.camera == before {
+                    OperationReply::Unchanged
+                } else {
+                    OperationReply::Changed
                 });
             }
             Operation::SetMenuSet { set } => {
@@ -1422,6 +1438,11 @@ impl Editor {
                 let original = self.begin_fit(fit_factor)?;
                 let result = self.frame_everything();
                 return self.end_fit(original, result);
+            }
+            Operation::Orbit { .. } if self.camera.projection() == Projection::Orthographic => {
+                return Err(OperationError::InvalidInput(
+                    "orthographic views cannot be orbited; switch to Persp first".into(),
+                ));
             }
             Operation::Orbit { .. } | Operation::Pan { .. } | Operation::Dolly { .. } => {
                 let before = self.camera.clone();

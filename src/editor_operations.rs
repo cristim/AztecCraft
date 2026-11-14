@@ -181,6 +181,28 @@ pub enum ShadingMode {
     #[default]
     SmoothShadeAll,
 }
+/// Maya viewSet `-persp`, `-top`, `-front` and `-rightSide` for the viewport. Session-only like
+/// shading; never saved or dirtying. Back, bottom and left views are not offered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ViewPreset {
+    Persp,
+    Top,
+    Front,
+    Side,
+}
+
+impl ViewPreset {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Persp => "Persp",
+            Self::Top => "Top",
+            Self::Front => "Front",
+            Self::Side => "Side",
+        }
+    }
+}
 #[cfg(any(test, feature = "mcp"))]
 use uuid::Uuid;
 
@@ -746,6 +768,9 @@ pub enum Operation {
         enabled: bool,
     },
     SetShadingMode(ShadingMode),
+    /// Switches the viewport camera to a named view; Top, Front and Side are orthographic and
+    /// refuse `Orbit`. Unchanged when the camera already shows it.
+    SetView(ViewPreset),
     SetMenuSet {
         set: MenuSet,
     },
@@ -1379,6 +1404,11 @@ pub struct CameraInspection {
     pub fov_y_degrees: f64,
     pub near_clip: f32,
     pub far_clip: f32,
+    /// `persp`, `top`, `front` or `side`; `ortho` for an orthographic camera posed by hand.
+    pub view: &'static str,
+    /// `perspective` or `orthographic`. An orthographic view shows `distance * tan(fov_y / 2)`
+    /// as its half height (PROVISIONAL).
+    pub projection: &'static str,
 }
 
 /// The only native refusals a key command can report; any other failure has its own `OperationError`
@@ -1755,7 +1785,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
-    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0},"#,
+    r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0}}"#
 );

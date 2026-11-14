@@ -953,6 +953,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::RecoveryStatus,
         Operation::InspectLimits,
         Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+        Operation::SetView(crate::editor_operations::ViewPreset::Top),
         Operation::SetMenuSet {
             set: crate::editor_operations::MenuSet::Rigging,
         },
@@ -2178,6 +2179,10 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::SetShadingMode(_) => vec![sample(
             "set_shading_mode(wireframe)",
             Operation::SetShadingMode(crate::editor_operations::ShadingMode::Wireframe),
+        )],
+        Operation::SetView(_) => vec![sample(
+            "set_view(top)",
+            Operation::SetView(crate::editor_operations::ViewPreset::Top),
         )],
         Operation::SetMenuSet { .. } => vec![sample(
             "set_menu_set(rigging)",

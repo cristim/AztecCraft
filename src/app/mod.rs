@@ -1,6 +1,7 @@
 use crate::editor_operations::{
     ActiveTool, AttributeEditorTab, MarqueeMode, MenuSet, Operation, OperationError,
     OperationReply, SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
+    ViewPreset,
 };
 #[cfg(any(test, feature = "mcp"))]
 use crate::editor_operations::{
@@ -17,7 +18,7 @@ use azteccraft::{
     scene::{NodeId, Primitive},
     selection::ObjectSelection,
     view_scene::ViewScene,
-    viewport::{Camera, FrameChildren},
+    viewport::{Camera, FrameChildren, OrthographicView, Projection},
 };
 use eframe::egui::{self, Color32, Key, RichText};
 #[cfg(test)]
@@ -461,6 +462,8 @@ mod pivot_ops_tests;
 
 #[cfg(test)]
 mod rotated_scale_tests;
+#[cfg(test)]
+mod view_preset_tests;
 
 #[cfg(all(test, any(unix, windows)))]
 mod pivot_persistence_tests;
