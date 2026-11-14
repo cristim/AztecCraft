@@ -58,6 +58,46 @@ pub struct Camera {
     /// viewFit Fit Factor for the next framing; `None` is the default 1.05 margin. Only `fitted`
     /// sets it and `unfitted` clears it.
     fit_factor: Option<f32>,
+    projection: Projection,
+    /// The perspective pose to restore when leaving an orthographic view; set on entering the
+    /// first orthographic view, so Top to Front keeps it.
+    saved_perspective: Option<PerspectivePose>,
+}
+
+/// Camera projection. Orthographic keeps the perspective camera's distance as its zoom: the
+/// visible half height is `distance * tan(half fov)` (PROVISIONAL, the docs state no mapping).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Projection {
+    Perspective,
+    Orthographic,
+}
+
+/// Maya viewSet -top, -front and -rightSide (`-side` is deprecated in 2027).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OrthographicView {
+    Top,
+    Front,
+    Side,
+}
+
+impl OrthographicView {
+    /// Yaw and pitch of the axis-aligned eye. Top looks down within `MAX_PITCH` of the pole
+    /// (about 0.06 degrees short of exact, PROVISIONAL), so its screen up is world -Z.
+    fn yaw_pitch(self) -> (f32, f32) {
+        match self {
+            Self::Top => (0.0, MAX_PITCH),
+            Self::Front => (0.0, 0.0),
+            Self::Side => (std::f32::consts::FRAC_PI_2, 0.0),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct PerspectivePose {
+    target: Vec3,
+    distance: f32,
+    yaw: f32,
+    pitch: f32,
 }
 
 const DEFAULT_FRAME_MARGIN: f32 = 1.05;
@@ -128,6 +168,8 @@ impl Default for Camera {
             near: 0.1,
             far: 10_000.0,
             fit_factor: None,
+            projection: Projection::Perspective,
+            saved_perspective: None,
         };
         camera.validate().expect("default camera is valid");
         camera
@@ -158,6 +200,67 @@ impl Camera {
                 ]
                 .map(f32::to_bits)
             && self.lens.capture_bits() == other.lens.capture_bits()
+            && self.projection == other.projection
+    }
+
+    pub fn projection(&self) -> Projection {
+        self.projection
+    }
+
+    /// The named view the pose shows: an orthographic camera at exactly a Top, Front or Side
+    /// angle, else `None` (a perspective camera, or an orthographic one posed by hand).
+    pub fn orthographic_view(&self) -> Option<OrthographicView> {
+        if self.projection != Projection::Orthographic {
+            return None;
+        }
+        [
+            OrthographicView::Top,
+            OrthographicView::Front,
+            OrthographicView::Side,
+        ]
+        .into_iter()
+        .find(|view| view.yaw_pitch() == (self.yaw, self.pitch))
+    }
+
+    /// Switches to an axis-aligned orthographic view of the same target and zoom. The first
+    /// switch from perspective remembers that pose for `show_perspective`. The camera is
+    /// unchanged on error.
+    pub fn show_orthographic(&mut self, view: OrthographicView) -> Result<(), InvalidCameraInput> {
+        let mut next = self.clone();
+        if next.projection == Projection::Perspective {
+            next.saved_perspective = Some(PerspectivePose {
+                target: next.target,
+                distance: next.distance,
+                yaw: next.yaw,
+                pitch: next.pitch,
+            });
+        }
+        (next.yaw, next.pitch) = view.yaw_pitch();
+        next.projection = Projection::Orthographic;
+        next.validate()?;
+        *self = next;
+        Ok(())
+    }
+
+    /// Returns to the perspective pose left by the first `show_orthographic`; with none saved,
+    /// only the projection changes.
+    pub fn show_perspective(&mut self) {
+        if let Some(pose) = self.saved_perspective.take() {
+            self.target = pose.target;
+            self.distance = pose.distance;
+            self.yaw = pose.yaw;
+            self.pitch = pose.pitch;
+        }
+        self.projection = Projection::Perspective;
+    }
+
+    /// Unit view direction (from the eye into the scene) through `point`: parallel for an
+    /// orthographic camera.
+    pub fn view_direction_at(&self, point: Vec3) -> Vec3 {
+        match self.projection {
+            Projection::Perspective => (point - self.eye()).normalize_or_zero(),
+            Projection::Orthographic => (self.target - self.eye()).normalize_or_zero(),
+        }
     }
 
     /// Builds a camera in the same normal form `orbit` and `set_pose` keep: yaw wraps into
@@ -180,6 +283,8 @@ impl Camera {
             near,
             far,
             fit_factor: None,
+            projection: Projection::Perspective,
+            saved_perspective: None,
         };
         camera.validate()?;
         Ok(camera)
@@ -268,7 +373,12 @@ impl Camera {
     /// step at `depth` for this near and far (`d * (1/near - 1/far)` ulps of NDC depth,
     /// relative). Surface slope is handled separately, per surface (`MARKER_SLOPE_PIXELS`).
     pub fn marker_bias(&self, depth: f32) -> f32 {
-        let buffer = MARKER_DEPTH_ULPS * DEPTH32_ULP * depth * (1.0 / self.near - 1.0 / self.far);
+        let step = match self.projection {
+            Projection::Perspective => depth * (1.0 / self.near - 1.0 / self.far),
+            // Linear depth: one NDC step is (far - near) / 2^24 world units, relative to depth.
+            Projection::Orthographic => (self.far - self.near) / depth.max(self.near),
+        };
+        let buffer = MARKER_DEPTH_ULPS * DEPTH32_ULP * step;
         (FACE_CENTER_DEPTH_TOLERANCE + buffer).min(MARKER_BIAS_MAX)
     }
 
@@ -278,7 +388,13 @@ impl Camera {
     pub fn marker_biased(&self, point: Vec3) -> Vec3 {
         let eye = self.eye();
         let depth = -self.view_matrix().transform_point3(point).z;
-        eye + (point - eye) * (1.0 - self.marker_bias(depth))
+        match self.projection {
+            Projection::Perspective => eye + (point - eye) * (1.0 - self.marker_bias(depth)),
+            // Toward the eye plane along the parallel view direction, not toward the eye point.
+            Projection::Orthographic => {
+                point - self.view_direction_at(point) * (depth * self.marker_bias(depth))
+            }
+        }
     }
 
     pub fn view_matrix(&self) -> Mat4 {
@@ -308,6 +424,20 @@ impl Camera {
         if !aspect.is_finite() || aspect <= 0.0 {
             return Err(InvalidCameraInput);
         }
+        if self.projection == Projection::Orthographic {
+            let half_height = self.distance * self.lens.tan_half_y(aspect);
+            let depth = self.far - self.near;
+            let matrix = Mat4::from_cols(
+                Vec4::new(1.0 / (half_height * aspect), 0.0, 0.0, 0.0),
+                Vec4::new(0.0, 1.0 / half_height, 0.0, 0.0),
+                Vec4::new(0.0, 0.0, -1.0 / depth, 0.0),
+                Vec4::new(0.0, 0.0, -self.near / depth, 1.0),
+            );
+            return matrix
+                .is_finite()
+                .then_some(matrix)
+                .ok_or(InvalidCameraInput);
+        }
         let y = 1.0 / self.lens.tan_half_y(aspect);
         let z = self.far / (self.near - self.far);
         let matrix = Mat4::from_cols(
@@ -323,7 +453,7 @@ impl Camera {
     }
 
     pub fn orbit(&mut self, radians: Vec2) -> Result<(), InvalidCameraInput> {
-        if !radians.is_finite() {
+        if !radians.is_finite() || self.projection == Projection::Orthographic {
             return Err(InvalidCameraInput);
         }
         let mut next = self.clone();
@@ -661,10 +791,15 @@ impl Camera {
         let mut next = self.clone();
         next.target = target;
         let floor = (self.near + radius).max(self.near * 2.0) * DEFAULT_FRAME_MARGIN;
-        let limit = match self.fit_factor {
-            None => radius / half_angle.sin() * DEFAULT_FRAME_MARGIN,
+        let limit = match (self.projection, self.fit_factor) {
+            // The visible half extent is d * tan(half_angle); the sphere fills r / that.
+            (Projection::Orthographic, None) => radius / half_angle.tan() * DEFAULT_FRAME_MARGIN,
+            (Projection::Orthographic, Some(fit)) => radius / (fit * half_angle.tan()),
+            (Projection::Perspective, None) => radius / half_angle.sin() * DEFAULT_FRAME_MARGIN,
             // The sphere's screen fill is tan(asin(r/d)) / tan(half_angle); solve it for d.
-            Some(fit) => radius * (1.0 + 1.0 / (fit * half_angle.tan()).powi(2)).sqrt(),
+            (Projection::Perspective, Some(fit)) => {
+                radius * (1.0 + 1.0 / (fit * half_angle.tan()).powi(2)).sqrt()
+            }
         };
         next.distance = limit.max(floor);
         next.far = self.far.max(next.distance + radius + self.near);
@@ -706,6 +841,19 @@ impl Camera {
     }
 
     fn ray_from_projection(&self, ndc: Vec2, projection: Mat4) -> Result<Ray, InvalidCameraInput> {
+        if self.projection == Projection::Orthographic {
+            let inverse_view = self.view_matrix().inverse();
+            let origin = inverse_view.transform_point3(Vec3::new(
+                ndc.x / projection.x_axis.x,
+                ndc.y / projection.y_axis.y,
+                0.0,
+            ));
+            let direction = self.view_direction_at(origin);
+            if !origin.is_finite() || direction == Vec3::ZERO {
+                return Err(InvalidCameraInput);
+            }
+            return Ok(Ray { origin, direction });
+        }
         let view_direction = Vec3::new(
             ndc.x / projection.x_axis.x,
             ndc.y / projection.y_axis.y,
@@ -1425,6 +1573,8 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
     (distance.is_finite() && distance >= 0.0).then_some(distance)
 }
 
+#[cfg(test)]
+mod ortho_tests;
 #[cfg(test)]
 #[path = "viewport/tests.rs"]
 mod tests;
