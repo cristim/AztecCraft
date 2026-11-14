@@ -35,7 +35,22 @@ const UV_SCALAR_BYTES: usize = 1 + 2 + 44 + 9;
 const UV_ROW_BYTES: usize = 2 * UV_SCALAR_BYTES + "\t \n".len();
 const MU_FACE_BYTES: usize = " mu 0 ".len() + "2147483647".len();
 const MU_ID_BYTES: usize = " 2147483647".len();
+const LINK_OPENER: &str = "connectAttr \"";
+const LINK_TAIL: &str = ".iog\" \":initialShadingGroup.dsm\" -na;\n";
+const LINK_SYNTAX_BYTES: usize = LINK_OPENER.len() + LINK_TAIL.len();
 const UV_STATEMENT_BYTES: usize = UVSN_STATEMENT.len() + CUVS_STATEMENT.len();
+
+/// Whether each mesh shape is written into the default shading group with a trailing
+/// `connectAttr "<mesh>.iog" ":initialShadingGroup.dsm" -na;`. `instObjGroups` into
+/// `dagSetMembers` puts the whole object in the set (Maya 2027 Nodes/objectSet and
+/// Nodes/shadingEngine); the `-na` and the position after all nodes are PROVISIONAL (#5). Save
+/// always emits; the reopen gate re-emits whichever layout the file declares by its link count,
+/// so files saved before links existed (`Omit`) still reopen (#156).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DefaultLinks {
+    Omit,
+    Emit,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AsciiWriteRefusal {
@@ -186,6 +201,7 @@ fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
         work.charge(mul(t, name.len())?)?;
         work.charge(mul(2, name.len())?)?;
     }
+    work.charge(mul(s, LINK_SYNTAX_BYTES)?)?;
     for shape in &scene.shapes {
         let mesh = shape.mesh();
         work.charge(mesh_array_work(mesh.point_count(), mesh.edges().len())?)?;
@@ -466,7 +482,20 @@ fn mesh_arrays(
     consume(ARRAY_END)?;
     consume(CUVS_STATEMENT.as_bytes())
 }
-fn prefix_bytes(scene: &NativeScene) -> Result<usize, AsciiWriteRefusal> {
+/// The link block, shared by the byte count and the emitter so they cannot drift.
+fn default_links(
+    scene: &NativeScene,
+    mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
+) -> Result<(), AsciiWriteRefusal> {
+    for node in &scene.nodes {
+        let shape = child(scene, node)?;
+        for bytes in [LINK_OPENER, shape.name(), LINK_TAIL] {
+            consume(bytes.as_bytes())?;
+        }
+    }
+    Ok(())
+}
+fn prefix_bytes(scene: &NativeScene, links: DefaultLinks) -> Result<usize, AsciiWriteRefusal> {
     let name_bytes = scene
         .nodes
         .iter()
@@ -498,6 +527,12 @@ fn prefix_bytes(scene: &NativeScene) -> Result<usize, AsciiWriteRefusal> {
             Ok(())
         })?;
     }
+    if links == DefaultLinks::Emit {
+        default_links(scene, |bytes| {
+            length = add_prefix_bytes(length, bytes.len())?;
+            Ok(())
+        })?;
+    }
     Ok(length)
 }
 fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiWriteRefusal> {
@@ -511,9 +546,17 @@ fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiW
 
 /// The one ASCII writer: Save (unix-only), the reopen gate (every platform) and tests call it. Each
 /// shape's session UVs are carried (#156); only the binary writer still refuses them.
+#[cfg(any(unix, test))]
 pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, AsciiWriteRefusal> {
+    emit_with_links(scene, DefaultLinks::Emit)
+}
+
+pub(crate) fn emit_with_links(
+    scene: &NativeScene,
+    links: DefaultLinks,
+) -> Result<Vec<u8>, AsciiWriteRefusal> {
     check(scene)?;
-    let length = prefix_bytes(scene)?;
+    let length = prefix_bytes(scene, links)?;
     let mut out = Budget::new(0)
         .and_then(|mut b| b.vector::<u8>(length))
         .map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
@@ -535,6 +578,9 @@ pub(crate) fn emit_geometry_prefix(scene: &NativeScene) -> Result<Vec<u8>, Ascii
         mesh_arrays(shape.mesh(), scene.uv_set(shape.id()), |bytes| {
             append(&mut out, length, bytes)
         })?;
+    }
+    if links == DefaultLinks::Emit {
+        default_links(scene, |bytes| append(&mut out, length, bytes))?;
     }
     Ok(out)
 }
