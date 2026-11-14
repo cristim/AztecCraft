@@ -1,7 +1,8 @@
 use crate::editor_operations::ShadingMode;
 use azteccraft::{
-    native_scene::{EdgeTarget, FaceTarget, NativeId, VertexTarget},
+    native_scene::NativeId,
     scene::NodeId,
+    selection::ComponentSet,
     shading::shade,
     view_scene::{
         FACE_CENTER_MARKER_PIXELS, SELECTED_EDGE_PIXELS, VERTEX_MARKER_PIXELS, ViewFace,
@@ -136,15 +137,15 @@ pub enum SelectionFeedback<'a> {
     Multi(&'a [azteccraft::native_scene::TransformTarget]),
     Face {
         active: Option<(NodeId, &'a [NativeId])>,
-        selected: Option<&'a FaceTarget>,
+        selected: Option<&'a ComponentSet>,
     },
     Vertex {
         active: Option<(NodeId, &'a [NativeId])>,
-        selected: Option<&'a VertexTarget>,
+        selected: Option<&'a ComponentSet>,
     },
     Edge {
         active: Option<(NodeId, &'a [NativeId])>,
-        selected: Option<&'a EdgeTarget>,
+        selected: Option<&'a ComponentSet>,
     },
 }
 
@@ -156,7 +157,16 @@ enum Highlight {
     Lead,
 }
 
-impl SelectionFeedback<'_> {
+/// Whether the component set belongs to this shape instance.
+fn owns(set: &ComponentSet, instance: &ViewInstance) -> bool {
+    set.owner().is_some_and(|owner| {
+        owner.transform == instance.transform()
+            && owner.shape == instance.shape()
+            && owner.path == instance.path()
+    })
+}
+
+impl<'a> SelectionFeedback<'a> {
     fn object_highlight(self, path: &[NativeId]) -> Highlight {
         match self {
             Self::Object(Some(selected)) if path.starts_with(selected) => Highlight::Member,
@@ -184,15 +194,16 @@ impl SelectionFeedback<'_> {
     fn highlight(self, instance: &ViewInstance, face: &ViewFace) -> Highlight {
         match self {
             Self::Object(_) | Self::Multi(_) => self.object_highlight(instance.path()),
-            Self::Face { selected, .. }
-                if selected.is_some_and(|target| {
-                    target.transform == instance.transform()
-                        && target.shape == instance.shape()
-                        && target.path == instance.path()
-                        && target.face_index == face.source_index()
-                }) =>
-            {
-                Highlight::Member
+            Self::Face {
+                selected: Some(set),
+                ..
+            } if owns(set, instance) && set.contains(face.source_index()) => {
+                // Like several selected objects, a set of faces gives its lead its own colour.
+                if set.len() > 1 && set.lead() == Some(face.source_index()) {
+                    Highlight::Lead
+                } else {
+                    Highlight::Member
+                }
             }
             Self::Face { .. } | Self::Vertex { .. } | Self::Edge { .. } => Highlight::None,
         }
@@ -214,33 +225,24 @@ impl SelectionFeedback<'_> {
             if instance.is_direct_shape_of(owner, path))
     }
 
-    fn selected_vertex(self, instance: &ViewInstance) -> Option<usize> {
+    /// The selected vertices when they belong to `instance`.
+    fn selected_vertices(self, instance: &ViewInstance) -> Option<&'a ComponentSet> {
         match self {
             Self::Vertex {
-                selected: Some(target),
+                selected: Some(set),
                 ..
-            } if target.transform == instance.transform()
-                && target.shape == instance.shape()
-                && target.path == instance.path() =>
-            {
-                Some(target.vertex_index)
-            }
+            } if owns(set, instance) => Some(set),
             _ => None,
         }
     }
 
-    fn selected_edge(self, instance: &ViewInstance) -> Option<usize> {
+    /// The selected edges when they belong to `instance`, whose edge list is drawn.
+    fn selected_edges(self, instance: &ViewInstance) -> Option<&'a ComponentSet> {
         match self {
             Self::Edge {
-                selected: Some(target),
+                selected: Some(set),
                 ..
-            } if self.edges_shown(instance)
-                && target.transform == instance.transform()
-                && target.shape == instance.shape()
-                && target.path == instance.path() =>
-            {
-                Some(target.edge_index)
-            }
+            } if self.edges_shown(instance) && owns(set, instance) => Some(set),
             _ => None,
         }
     }
@@ -519,11 +521,13 @@ impl Submission {
             }
             let component_vertices = if selection.edges_shown(instance) {
                 instance.edges().len().checked_mul(2).and_then(|count| {
-                    count.checked_add(if selection.selected_edge(instance).is_some() {
-                        6
-                    } else {
-                        0
-                    })
+                    // One quad of 6 vertices per selected edge.
+                    let selected = selection
+                        .selected_edges(instance)
+                        .map_or(0, ComponentSet::len);
+                    selected
+                        .checked_mul(6)
+                        .and_then(|quads| count.checked_add(quads))
                 })
             } else if selection.vertex_markers(instance) {
                 instance.world_vertices().len().checked_mul(6)
@@ -772,11 +776,11 @@ impl Submission {
             .iter()
             .filter(|instance| draw_centers && selection.vertex_markers(instance))
         {
-            let selected = selection.selected_vertex(instance);
+            let selected = selection.selected_vertices(instance);
             // The selected marker goes last so it stays on top at the shared depth.
             for selected_pass in [false, true] {
                 for (index, &point) in instance.world_vertices().iter().enumerate() {
-                    if (selected == Some(index)) != selected_pass {
+                    if selected.is_some_and(|set| set.contains(index)) != selected_pass {
                         continue;
                     }
                     let clip = matrix * camera.marker_biased(point).extend(1.0);
@@ -816,20 +820,24 @@ impl Submission {
             }
         }
         for instance in scene.instances() {
-            let Some(&[a, b]) = selection
-                .selected_edge(instance)
-                .and_then(|index| instance.edges().get(index))
-            else {
+            let Some(selected) = selection.selected_edges(instance) else {
                 continue;
             };
-            let [red, green, blue] = SELECTED_EDGE_RGB;
-            submission.edge_quad(
-                matrix,
-                [a, b].map(|index| camera.marker_biased(instance.world_vertices()[index])),
-                physical_size,
-                Color32::from_rgb(red, green, blue),
-                format,
-            )?;
+            // Selection order, so the lead is drawn last and stays on top.
+            for &[a, b] in selected
+                .indices()
+                .iter()
+                .filter_map(|&index| instance.edges().get(index))
+            {
+                let [red, green, blue] = SELECTED_EDGE_RGB;
+                submission.edge_quad(
+                    matrix,
+                    [a, b].map(|index| camera.marker_biased(instance.world_vertices()[index])),
+                    physical_size,
+                    Color32::from_rgb(red, green, blue),
+                    format,
+                )?;
+            }
         }
         submission.markers = marker_start..submission.vertex_count();
         Ok(submission)

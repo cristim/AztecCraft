@@ -1,4 +1,6 @@
 use super::*;
+use azteccraft::native_scene::FaceTarget;
+use azteccraft::selection::{ComponentOwner, ComponentSet};
 use azteccraft::{
     history::{Command, History},
     native_scene::{MaterialChoice, NativeScene, NativeTransform},
@@ -12,6 +14,35 @@ use std::{sync::mpsc, time::Duration};
 const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 const SIZE: u32 = 128;
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+/// A one-member set for feedback that borrows it. Leaked: the tests build the feedback inline and
+/// the set is a few bytes.
+fn one_member_set(
+    transform: NodeId,
+    shape: NativeId,
+    path: &[NativeId],
+    index: usize,
+) -> &'static ComponentSet {
+    let mut set = ComponentSet::default();
+    set.replace_with(
+        &ComponentOwner {
+            transform,
+            shape,
+            path: path.to_vec(),
+        },
+        [index],
+    );
+    Box::leak(Box::new(set))
+}
+
+fn face_set(target: &FaceTarget) -> &'static ComponentSet {
+    one_member_set(
+        target.transform,
+        target.shape,
+        &target.path,
+        target.face_index,
+    )
+}
+
 // Frozen CPU oracle from f11ec66, source blob fbd5cbb0dac65c0004a3b4fd26ac921cb145c152.
 // Test-only duplication preserves executable fail-before pixels after GPU promotion.
 #[path = "parent_cpu_reference.rs"]
@@ -643,7 +674,7 @@ fn face_submission_highlights_only_exact_identity_and_charges_physical_markers()
     for size in [128, 256] {
         let selection = SelectionFeedback::Face {
             active: Some((instance.transform(), path)),
-            selected: Some(&target),
+            selected: Some(face_set(&target)),
         };
         let submission = Submission::new(
             &view,
@@ -723,7 +754,7 @@ fn face_submission_highlights_only_exact_identity_and_charges_physical_markers()
         [SIZE; 2],
         SelectionFeedback::Face {
             active: None,
-            selected: Some(&target),
+            selected: Some(face_set(&target)),
         },
         true,
         ShadingMode::SmoothShadeAll,
@@ -866,7 +897,7 @@ fn headless_gpu_face_feedback_matches_exact_face_and_instance_and_hides_occluded
             [SIZE; 2],
             SelectionFeedback::Face {
                 active: Some((owner, path)),
-                selected: Some(&target),
+                selected: Some(face_set(&target)),
             },
             true,
             ShadingMode::SmoothShadeAll,
@@ -1060,7 +1091,7 @@ fn grid_visibility_omits_only_original_grid_bytes_and_its_allocation_charge() {
                 instance.transform(),
                 &instance.path()[..instance.path().len() - 1],
             )),
-            selected: Some(&target),
+            selected: Some(face_set(&target)),
         },
     ] {
         let visible = Submission::new(
