@@ -30,9 +30,9 @@ pub struct ManipulatorFrame {
     /// scale; the handles refuse such frames.
     pub object_axes: [DVec3; 3],
     /// The Scale Parent axes: the columns of the parents' linear map, the frame the node's
-    /// rotation sits under (its scale channels live in `object_axes`). A joint's inverse parent scale is included, as in the Scale
-    /// frame (`world_scale_components`); Move Object leaves it out (known-issues). A root node's
-    /// are the world axes. Not normalized, mirrored or skewed like `object_axes`.
+    /// rotation sits under (its scale channels live in `object_axes`). A joint's inverse parent
+    /// scale is included, as in the Scale frame (`world_scale_components`); Move Object leaves it
+    /// out (known-issues). A root node's are the world axes. Not normalized, mirrored or skewed like `object_axes`.
     pub parent_axes: [DVec3; 3],
 }
 

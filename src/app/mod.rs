@@ -469,6 +469,9 @@ mod group_persistence_tests;
 mod pivot_ops_tests;
 
 #[cfg(test)]
+mod parent_fixture_tests;
+
+#[cfg(test)]
 mod rotated_scale_tests;
 #[cfg(test)]
 mod view_preset_tests;
