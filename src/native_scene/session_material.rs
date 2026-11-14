@@ -95,7 +95,7 @@ impl Default for SessionMaterials {
 }
 
 /// `N` of a `lambert<N>` or `lambert<N>SG` name, with `N` a `u32` without leading zeros.
-fn lambert_number(name: &str) -> Option<u32> {
+pub(super) fn lambert_number(name: &str) -> Option<u32> {
     let digits = name.strip_prefix("lambert")?;
     let digits = digits.strip_suffix("SG").unwrap_or(digits);
     if digits.starts_with('0') || !digits.bytes().all(|b| b.is_ascii_digit()) {
@@ -211,6 +211,12 @@ impl SessionMaterials {
 }
 
 impl NativeScene {
+    /// Stores a table read back from a file on the source-free candidate; `validate` still
+    /// checks it.
+    pub(super) fn attach_authored_session_materials(&mut self, table: SessionMaterials) {
+        self.session_materials = table;
+    }
+
     pub fn session_materials(&self) -> &[Lambert] {
         &self.session_materials.materials
     }
