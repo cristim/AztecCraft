@@ -460,6 +460,8 @@ mod gpu_viewport_tests;
 mod undrawable_scene_tests;
 
 #[cfg(test)]
+mod group_ops_tests;
+#[cfg(test)]
 mod pivot_ops_tests;
 
 #[cfg(test)]
