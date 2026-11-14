@@ -1392,33 +1392,78 @@ fn declaration_size_checks_exact_cap_and_overflow_without_an_output_buffer() {
 }
 
 #[test]
-fn assigned_session_materials_are_refused_before_ascii_output() {
+fn assigned_and_unassigned_session_materials_are_written_not_refused() {
     use crate::native_scene::MaterialChoice;
-    let mut scene = scene(&["box"]);
-    prefix(&scene).unwrap();
+    let mut scene = scene(&["box", "other"]);
     let shape = scene.shapes()[0].id();
     let material = scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
     scene
         .assign_session_material(shape, MaterialChoice::Existing(material))
         .unwrap();
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+    scene.create_session_material([0.0, 1.0, 0.125]).unwrap();
+    let text = String::from_utf8(prefix(&scene).unwrap()).unwrap();
+    assert!(text.contains("createNode lambert -n \"lambert2\";"));
+    assert!(text.contains("\"boxShape.iog\" \"lambert2SG.dsm\" -na;"));
+    assert!(text.contains("\"otherShape.iog\" \":initialShadingGroup.dsm\" -na;"));
+    assert!(text.contains("createNode lambert -n \"lambert3\";"));
 }
 
 #[test]
-fn a_created_unassigned_session_material_is_refused_by_the_ascii_writer() {
-    let mut scene = scene(&["box"]);
-    scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+fn session_tables_the_reader_would_not_rebuild_are_refused() {
+    use crate::native_scene::MaterialChoice;
+    let base = || {
+        let mut scene = scene(&["box"]);
+        let shape = scene.shapes()[0].id();
+        scene
+            .assign_session_material(
+                shape,
+                MaterialChoice::New {
+                    color: [0.5, 0.5, 0.5],
+                },
+            )
+            .unwrap();
+        scene
+    };
+    prefix(&base()).unwrap();
+    let mut renamed = base();
+    renamed.session_materials.materials[1].name = "lambert1".into();
+    renamed.session_materials.groups[1].name = "lambert1SG".into();
+    assert_eq!(prefix(&renamed), Err(AsciiWriteRefusal::SessionMaterials));
+    let mut unpaired = base();
+    unpaired.session_materials.groups[1].name = "lambert9SG".into();
+    assert_eq!(prefix(&unpaired), Err(AsciiWriteRefusal::SessionMaterials));
+    let mut default_entry = base();
+    let shape = default_entry.shapes()[0].id();
+    default_entry.session_materials.assignments.insert(shape, 0);
+    assert_eq!(
+        prefix(&default_entry),
+        Err(AsciiWriteRefusal::SessionMaterials)
+    );
+    let mut collides = base();
+    collides.nodes[0].name = "lambert2".into();
+    assert_eq!(prefix(&collides), Err(AsciiWriteRefusal::NameCollision));
+    let mut duplicate = base();
+    let again = duplicate.session_materials.materials[1].clone();
+    let group = duplicate.session_materials.groups[1].clone();
+    duplicate.session_materials.materials.push(again);
+    duplicate
+        .session_materials
+        .groups
+        .push(crate::native_scene::session_material::ShadingGroup {
+            material: crate::native_scene::SessionMaterialId::from_index(2),
+            ..group
+        });
+    assert_eq!(prefix(&duplicate), Err(AsciiWriteRefusal::NameCollision));
 }
 
 // `encode_authored` exists only where the binary save path does.
 #[cfg(unix)]
 #[test]
-fn a_created_unassigned_session_material_is_refused_by_both_authored_writers() {
+fn the_binary_writer_still_refuses_session_materials() {
     use crate::native_scene::binary::{AuthoredRefusalCode, encode_authored};
     let mut scene = scene(&["box"]);
     scene.create_session_material([0.25, 0.5, 0.75]).unwrap();
-    assert_eq!(prefix(&scene), Err(AsciiWriteRefusal::SessionMaterials));
+    prefix(&scene).unwrap();
     assert_eq!(
         AuthoredRefusalCode::from(&encode_authored(&scene).unwrap_err()),
         AuthoredRefusalCode::SessionMaterials

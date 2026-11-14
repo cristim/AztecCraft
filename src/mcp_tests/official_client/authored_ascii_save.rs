@@ -76,12 +76,14 @@ async fn authored_ascii_sdk_save_as_edit_save_and_history_preserve_document() {
 }
 
 #[tokio::test]
-async fn authored_ascii_sdk_material_refusal_preserves_dirty_scene_and_destinations() {
+async fn authored_ascii_sdk_material_saves_as_ma_and_a_material_mb_refusal_preserves_the_scene() {
     for already_saved in [false, true] {
         let context = egui::Context::default();
         let (mut editor, client, server) = start(&context).await;
         let directory = tempfile::tempdir().unwrap();
-        let path = directory.path().join("new.ma");
+        let path = directory
+            .path()
+            .join(if already_saved { "new.ma" } else { "new.mb" });
         let created = tool(
             &mut editor,
             &context,
@@ -120,27 +122,30 @@ async fn authored_ascii_sdk_material_refusal_preserves_dirty_scene_and_destinati
         let undo = editor.history.can_undo();
         let redo = editor.history.can_redo();
         let token = editor.scene_token;
-        let error = if already_saved {
-            tool(&mut editor, &context, &client, "save_scene", json!({})).await
+        if already_saved {
+            let saved = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+            assert_eq!(saved["outcome"], "saved");
+            assert!(!editor.is_dirty());
+            let bytes = std::fs::read(&path).unwrap();
+            assert_ne!(Some(bytes.clone()), original);
+            assert!(String::from_utf8(bytes).unwrap().contains("lambert2SG.dsm"));
         } else {
-            tool(
+            let error = tool(
                 &mut editor,
                 &context,
                 &client,
                 "save_scene_as",
                 json!({"path":path}),
             )
-            .await
-        };
-        assert_eq!(error["error"]["code"], "save_ascii_write");
-        assert!(editor.is_dirty());
-        assert_eq!(editor.history.scene(), &scene);
-        assert_eq!(editor.history.can_undo(), undo);
-        assert_eq!(editor.history.can_redo(), redo);
-        assert_eq!(editor.scene_token, token);
-        match original {
-            Some(bytes) => assert_eq!(std::fs::read(&path).unwrap(), bytes),
-            None => assert!(!path.exists()),
+            .await;
+            assert_eq!(error["error"]["code"], "save_unwritable");
+            assert_eq!(error["error"]["reason"], "session_materials");
+            assert!(editor.is_dirty());
+            assert_eq!(editor.history.scene(), &scene);
+            assert_eq!(editor.history.can_undo(), undo);
+            assert_eq!(editor.history.can_redo(), redo);
+            assert_eq!(editor.scene_token, token);
+            assert!(!path.exists());
         }
         client.cancel().await.unwrap();
         drop(editor);
@@ -282,7 +287,6 @@ enum Expect {
     Saves,
     /// The edit itself is refused on an authored scene, so there is nothing to save.
     EditRefused,
-    Refuses(&'static str),
 }
 
 /// One MCP edit applied to a freshly opened authored `.ma`: it must land in exactly one of
@@ -340,14 +344,8 @@ async fn round_trip(label: &str, edit: Edit, expect: Expect) {
         }
     }
     assert!(editor.is_dirty(), "{label}");
-    let original = std::fs::read(&path).unwrap();
     let result = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
     match expect {
-        Expect::Refuses(code) => {
-            assert_eq!(result["error"]["code"], code, "{label}: {result}");
-            assert!(editor.is_dirty(), "{label}");
-            assert_eq!(std::fs::read(&path).unwrap(), original, "{label}");
-        }
         Expect::EditRefused => unreachable!(),
         Expect::Saves => {
             assert_eq!(result["outcome"], "saved", "{label}: {result}");
@@ -393,7 +391,7 @@ fn first_node(inspection: &Value) -> Value {
 
 #[tokio::test]
 async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
-    use Expect::{EditRefused, Refuses, Saves};
+    use Expect::{EditRefused, Saves};
     let cases: Vec<(&str, Edit, Expect)> = vec![
         (
             "create cube",
@@ -511,7 +509,7 @@ async fn authored_ascii_sdk_every_edit_either_round_trips_or_refuses_save() {
         (
             "session material",
             |_| vec![("create_session_material", json!({"color":[0.1,0.2,0.3]}))],
-            Refuses("save_ascii_write"),
+            Saves,
         ),
         (
             "uvs",

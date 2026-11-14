@@ -1,12 +1,13 @@
-use super::{add, mul, resource};
+use super::{add, material::material_name, mul, resource};
 use crate::maya_ascii::{AsciiError, MAX_BYTES, Work};
 use crate::native_scene::{
     DirectedEdge, NativeError, NativeMesh, NativeMeshShape, NativeScene, NativeTransformNode,
-    Points, SessionMaterials, UvSet,
+    Points, UvSet,
     admission::{self, Budget},
     authored::{self, AuthoredIneligible, UvPolicy, names},
+    session_material::{Lambert, MAX_SESSION_MATERIALS, ShadingGroup},
 };
-use std::{error::Error, fmt};
+use std::{collections::HashSet, error::Error, fmt};
 
 const HEADER: &str = "//Maya ASCII 2026 scene\nrequires maya \"2026\";\ncurrentUnit -l centimeter -a degree -t film;\nfileInfo \"AztecCraft\" \"1\";\n";
 const OPENER: &str = "createNode transform -n \"";
@@ -36,8 +37,33 @@ const UV_ROW_BYTES: usize = 2 * UV_SCALAR_BYTES + "\t \n".len();
 const MU_FACE_BYTES: usize = " mu 0 ".len() + "2147483647".len();
 const MU_ID_BYTES: usize = " 2147483647".len();
 const LINK_OPENER: &str = "connectAttr \"";
-const LINK_TAIL: &str = ".iog\" \":initialShadingGroup.dsm\" -na;\n";
-const LINK_SYNTAX_BYTES: usize = LINK_OPENER.len() + LINK_TAIL.len();
+const LINK_MID: &str = ".iog\" \"";
+const LINK_END: &str = ".dsm\" -na;\n";
+const DEFAULT_GROUP: &str = ":initialShadingGroup";
+const LINK_SYNTAX_BYTES: usize =
+    LINK_OPENER.len() + LINK_MID.len() + DEFAULT_GROUP.len() + LINK_END.len();
+const LAMBERT_OPENER: &str = "createNode lambert -n \"";
+const COLOR_OPENER: &str = "\tsetAttr \".c\" -type \"float3\" ";
+const GROUP_OPENER: &str = "createNode shadingEngine -n \"";
+const GROUP_RO: &str = "\tsetAttr \".ro\" yes;\n";
+const OC_OPENER: &str = "connectAttr \"";
+const OC_MID: &str = ".oc\" \"";
+const SS_END: &str = ".ss\";\n";
+const PA_MID: &str = ".pa\" \":renderPartition.st\" -na;\n";
+const MSG_MID: &str = ".msg\" \":defaultShaderList1.s\" -na;\n";
+/// Fixed syntax and colour per material; its two names (three uses each) are counted apart.
+const MATERIAL_SYNTAX_BYTES: usize = LAMBERT_OPENER.len()
+    + GROUP_OPENER.len()
+    + 2 * CLOSER.len()
+    + COLOR_OPENER.len()
+    + 3 * UV_SCALAR_BYTES
+    + GROUP_RO.len()
+    + 2 * OC_OPENER.len()
+    + OC_MID.len()
+    + SS_END.len()
+    + OC_OPENER.len()
+    + PA_MID.len()
+    + MSG_MID.len();
 const UV_STATEMENT_BYTES: usize = UVSN_STATEMENT.len() + CUVS_STATEMENT.len();
 
 /// Whether each mesh shape is written into the default shading group with a trailing
@@ -90,7 +116,7 @@ impl fmt::Display for AsciiWriteRefusal {
             Self::Curves => "curve declarations are unsupported",
             Self::Joints => "joints are session-only and cannot be saved yet",
             Self::SessionMaterials => {
-                "the scene has session materials, which authored ASCII cannot carry"
+                "the session material table is not one the authored layout can carry"
             }
             Self::Keys => "session keys are not saved",
             Self::InvalidScene(error) => return error.fmt(f),
@@ -174,6 +200,33 @@ fn mesh_uv_work(faces: usize, corners: usize) -> Result<usize, AsciiError> {
         )?,
     )
 }
+/// The material block, charged per material and bounded by `MAX_SESSION_MATERIALS`; a group
+/// name reappears in the link of each shape assigned to it.
+fn material_work(scene: &NativeScene, work: &mut Work) -> Result<(), AsciiError> {
+    let table = &scene.session_materials;
+    if table.materials.len() > MAX_SESSION_MATERIALS || table.groups.len() > MAX_SESSION_MATERIALS {
+        return Err(resource());
+    }
+    work.charge(mul(
+        table.materials.len().saturating_sub(1),
+        MATERIAL_SYNTAX_BYTES,
+    )?)?;
+    for name in table
+        .materials
+        .iter()
+        .skip(1)
+        .map(Lambert::name)
+        .chain(table.groups.iter().skip(1).map(ShadingGroup::name))
+    {
+        work.charge(mul(3, name.len())?)?;
+    }
+    for group in table.assignments.values() {
+        if let Some(group) = table.groups.get(*group) {
+            work.charge(group.name().len())?;
+        }
+    }
+    Ok(())
+}
 fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
     let n = scene.nodes.len();
     let s = scene.shapes.len();
@@ -202,6 +255,7 @@ fn resource_admission(scene: &NativeScene) -> Result<(), AsciiError> {
         work.charge(mul(2, name.len())?)?;
     }
     work.charge(mul(s, LINK_SYNTAX_BYTES)?)?;
+    material_work(scene, &mut work)?;
     for shape in &scene.shapes {
         let mesh = shape.mesh();
         work.charge(mesh_array_work(mesh.point_count(), mesh.edges().len())?)?;
@@ -229,6 +283,7 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     authored::check_content_kind(scene, UvPolicy::Admit)?;
     resource_admission(scene).map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     authored::check_scene(scene)?;
+    check_materials(scene)?;
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and `check_scene` above.
@@ -250,14 +305,32 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
         // Inert `file -r` declarations (#440): parsed only with a source, which is refused above;
         // the writer never emits them, so a decode candidate carrying any differs from its source.
         references: _,
-        // Created, assigned or reassigned materials: the file has only the default pair.
-        session_materials,
+        // Created, assigned or reassigned materials: `check_materials` above.
+        session_materials: _,
         // Emitted per shape (`UvPolicy::Admit`); keys and joints are refused by `check_content_kind`.
         session_joints: _,
         session_uvs: _,
         session_keys: _,
     } = scene;
-    if *session_materials != SessionMaterials::default() {
+    Ok(())
+}
+
+/// The session table must be exactly what the reader rebuilds, so a reopened scene equals it:
+/// `lambertN`/`lambertNSG` pairs with distinct N >= 2 that no node or shape name uses, and no
+/// stored assignment to the default group (assigning back to it removes the entry).
+fn check_materials(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
+    let table = &scene.session_materials;
+    let mut used: HashSet<&str> = names(scene).map(|(_, name)| name).collect();
+    for (material, group) in table.materials.iter().zip(&table.groups).skip(1) {
+        let (name, group) = (material.name(), group.name());
+        if !material_name(name, false) || group.strip_suffix("SG") != Some(name) {
+            return Err(AsciiWriteRefusal::SessionMaterials);
+        }
+        if !used.insert(name) || !used.insert(group) {
+            return Err(AsciiWriteRefusal::NameCollision);
+        }
+    }
+    if table.assignments.values().any(|group| *group == 0) {
         return Err(AsciiWriteRefusal::SessionMaterials);
     }
     Ok(())
@@ -482,16 +555,74 @@ fn mesh_arrays(
     consume(ARRAY_END)?;
     consume(CUVS_STATEMENT.as_bytes())
 }
-/// The link block, shared by the byte count and the emitter so they cannot drift.
+/// Each shape's one membership, into its assigned group or the default one.
 fn default_links(
     scene: &NativeScene,
     mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
 ) -> Result<(), AsciiWriteRefusal> {
+    let table = &scene.session_materials;
     for node in &scene.nodes {
         let shape = child(scene, node)?;
-        for bytes in [LINK_OPENER, shape.name(), LINK_TAIL] {
+        let group = match table.assignments.get(&shape.id()) {
+            Some(index) => table
+                .groups
+                .get(*index)
+                .ok_or(AsciiWriteRefusal::SessionMaterials)?
+                .name(),
+            None => DEFAULT_GROUP,
+        };
+        for bytes in [LINK_OPENER, shape.name(), LINK_MID, group, LINK_END] {
             consume(bytes.as_bytes())?;
         }
+    }
+    Ok(())
+}
+/// The session lamberts and shading groups: all nodes, then each pair's three connects.
+fn material_nodes(
+    scene: &NativeScene,
+    mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
+) -> Result<(), AsciiWriteRefusal> {
+    let table = &scene.session_materials;
+    let pairs = || table.materials.iter().zip(&table.groups).skip(1);
+    let mut line = ChannelLine {
+        bytes: [0; CHANNEL_BYTES],
+        used: 0,
+    };
+    for (material, group) in pairs() {
+        for bytes in [LAMBERT_OPENER, material.name(), CLOSER] {
+            consume(bytes.as_bytes())?;
+        }
+        let [r, g, b] = material.color().map(|channel| channel as f32);
+        line.used = 0;
+        line.format(format_args!("{COLOR_OPENER}{r} {g} {b};\n"))?;
+        consume(&line.bytes[..line.used])?;
+        for bytes in [GROUP_OPENER, group.name(), CLOSER, GROUP_RO] {
+            consume(bytes.as_bytes())?;
+        }
+    }
+    for (material, group) in pairs() {
+        let (m, sg) = (material.name(), group.name());
+        for bytes in [
+            OC_OPENER, m, OC_MID, sg, SS_END, OC_OPENER, sg, PA_MID, OC_OPENER, m, MSG_MID,
+        ] {
+            consume(bytes.as_bytes())?;
+        }
+    }
+    Ok(())
+}
+/// Everything after the last node, shared by the byte count and the emitter so they cannot
+/// drift. A scene with session materials always links every shape, whatever `links` says.
+fn session_block(
+    scene: &NativeScene,
+    links: DefaultLinks,
+    mut consume: impl FnMut(&[u8]) -> Result<(), AsciiWriteRefusal>,
+) -> Result<(), AsciiWriteRefusal> {
+    let custom = scene.session_materials.materials.len() > 1;
+    if custom {
+        material_nodes(scene, &mut consume)?;
+    }
+    if custom || links == DefaultLinks::Emit {
+        default_links(scene, consume)?;
     }
     Ok(())
 }
@@ -527,12 +658,10 @@ fn prefix_bytes(scene: &NativeScene, links: DefaultLinks) -> Result<usize, Ascii
             Ok(())
         })?;
     }
-    if links == DefaultLinks::Emit {
-        default_links(scene, |bytes| {
-            length = add_prefix_bytes(length, bytes.len())?;
-            Ok(())
-        })?;
-    }
+    session_block(scene, links, |bytes| {
+        length = add_prefix_bytes(length, bytes.len())?;
+        Ok(())
+    })?;
     Ok(length)
 }
 fn append(out: &mut Vec<u8>, admitted: usize, bytes: &[u8]) -> Result<(), AsciiWriteRefusal> {
@@ -579,9 +708,7 @@ pub(crate) fn emit_with_links(
             append(&mut out, length, bytes)
         })?;
     }
-    if links == DefaultLinks::Emit {
-        default_links(scene, |bytes| append(&mut out, length, bytes))?;
-    }
+    session_block(scene, links, |bytes| append(&mut out, length, bytes))?;
     Ok(out)
 }
 
