@@ -352,3 +352,32 @@ async fn sdk_modify_component_selection_refuses_a_draft_and_a_modal() {
     assert_eq!(code(modal), "busy_editing");
     assert!(face_members(&editor).is_empty());
 }
+
+#[tokio::test]
+async fn sdk_extrude_face_names_its_own_target_whatever_the_face_set_holds() {
+    let context = egui::Context::default();
+    let (mut editor, client, _server) = start(&context).await;
+    let peer = client.peer();
+    let (token, owner) = cube_in_face_mode(&mut editor, &context, peer).await;
+    call(
+        &mut editor,
+        &context,
+        peer,
+        "modify_component_selection",
+        arguments(&token, "face", Some("add"), &owner, &[2, 5]),
+    )
+    .await;
+    let extruded = call(
+        &mut editor,
+        &context,
+        peer,
+        "extrude_face",
+        json!({
+            "scene_token":token,"node_id":owner["node_id"],"shape_id":owner["shape_id"],
+            "instance_path":owner["instance_path"],"face_index":0,"distance":0.25
+        }),
+    )
+    .await;
+    assert_ne!(extruded.is_error, Some(true));
+    assert_eq!(face_members(&editor), [2, 5]);
+}
