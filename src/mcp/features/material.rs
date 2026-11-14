@@ -129,7 +129,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "create_session_material",
-        description: "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour, as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Create a session-only lambert material (not saved: while one exists, a scene that can otherwise save refuses Save and Save As with save_unwritable (save_ascii_write for .ma) until it is undone; a scene with a retained source, such as an opened Maya file, refuses, while new and legacy JSON scenes accept) with a linear RGB colour (stored in single precision: each channel is rounded to the nearest f32), as its own undo step. Replies with its material_id. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<CreateSessionMaterialArgs>,
         parse: parse_create_session_material,
         idempotent: false,
@@ -145,7 +145,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_session_material_color",
-        description: "Set the linear RGB colour of a session material created in this session; the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
+        description: "Set the linear RGB colour of a session material created in this session (stored in single precision: each channel is rounded to the nearest f32); the initial material 0 is locked. Not saved; unrelated to the saved Phong set_material_diffuse. Material ids are decimal table indices valid only at the current history position: undo or redo can free and reuse them, so never cache one across edits",
         schema: schema::<SetSessionMaterialColorArgs>,
         parse: parse_set_session_material_color,
         idempotent: true,

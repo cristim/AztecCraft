@@ -114,6 +114,14 @@ fn check_color(color: [f64; 3]) -> Result<(), NativeError> {
     Ok(())
 }
 
+/// Validates `color`, then rounds each channel to the nearest f32: Maya stores `float3`, so a
+/// colour that is not f32-exact could not survive a save and reopen. Range is checked on the
+/// given value, before rounding.
+fn quantize_color(color: [f64; 3]) -> Result<[f64; 3], NativeError> {
+    check_color(color)?;
+    Ok(color.map(|channel| f64::from(channel as f32)))
+}
+
 impl SessionMaterials {
     pub(super) fn validate(
         &self,
@@ -133,6 +141,13 @@ impl SessionMaterials {
         }
         for material in &self.materials {
             check_color(material.color)?;
+        }
+        // Material 0's placeholder (83/255) is not f32-exact; it is locked and never written.
+        if self.materials[1..]
+            .iter()
+            .any(|material| material.color.map(|c| f64::from(c as f32) == c) != [true; 3])
+        {
+            return Err(NativeError::InvalidSessionMaterials);
         }
         if sourced && !self.assignments.is_empty() {
             return Err(NativeError::InvalidSessionMaterials);
@@ -165,7 +180,7 @@ impl SessionMaterials {
         color: [f64; 3],
         scene_names: impl Iterator<Item = &'a str>,
     ) -> Result<SessionMaterialId, NativeError> {
-        check_color(color)?;
+        let color = quantize_color(color)?;
         if self.materials.len() >= MAX_SESSION_MATERIALS {
             return Err(NativeError::ResourceLimit);
         }
@@ -260,7 +275,6 @@ impl NativeScene {
         let (material, group) = match choice {
             MaterialChoice::Existing(material) => (material, materials.group_of(material)?),
             MaterialChoice::New { color } => {
-                check_color(color)?;
                 let material = materials.add(color, names)?;
                 (material, materials.groups.len() - 1)
             }
@@ -279,7 +293,7 @@ impl NativeScene {
         color: [f64; 3],
     ) -> Result<(), NativeError> {
         self.structural_edit()?;
-        check_color(color)?;
+        let color = quantize_color(color)?;
         if material.0 == 0 {
             return Err(NativeError::InitialSessionMaterialLocked);
         }
