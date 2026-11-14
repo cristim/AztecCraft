@@ -419,7 +419,7 @@ fn a_scene_with_uvs_saves_as_ma_reopens_with_the_same_uvs_and_active_saves() {
 }
 
 #[test]
-fn a_scene_with_uvs_still_refuses_mb_and_material_ma_saves_with_the_unchanged_codes() {
+fn a_scene_with_uvs_still_refuses_mb_and_a_material_scene_saves_ma_but_still_refuses_mb() {
     let directory = tempfile::tempdir().unwrap();
     let (scene, shape) = with_uvs();
     let mb = directory.path().join("uv.mb");
@@ -438,9 +438,39 @@ fn a_scene_with_uvs_still_refuses_mb_and_material_ma_saves_with_the_unchanged_co
         )
         .unwrap();
     let ma = directory.path().join("material.ma");
+    saved(saved_as(&material, &ma, &NativeOrigin::Untitled));
+    let bytes = std::fs::read(&ma).unwrap();
+    let reopened = load_native(&ma).unwrap();
+    assert!(matches!(reopened.origin, NativeOrigin::AuthoredAscii(_)));
     assert_eq!(
-        saved_as(&material, &ma, &NativeOrigin::Untitled).unwrap_err(),
-        Error::AsciiWrite(AsciiWriteRefusal::SessionMaterials)
+        reopened.scene.session_materials(),
+        material.session_materials()
     );
-    assert!(!ma.exists());
+    assert_eq!(
+        reopened.scene.session_material(&reopened.scene.shapes()[0]),
+        material.session_material(&material.shapes()[0])
+    );
+    // Save, reopen and save again is byte-identical.
+    saved(save_native(
+        &reopened.origin,
+        &reopened.scene,
+        SaveDestination::Active,
+        &|| true,
+    ));
+    assert_eq!(std::fs::read(&ma).unwrap(), bytes);
+    let mut only = authored();
+    let target = only.shapes()[0].id();
+    only.assign_session_material(
+        target,
+        crate::native_scene::MaterialChoice::New {
+            color: [1.0, 0.0, 0.0],
+        },
+    )
+    .unwrap();
+    let mb_material = directory.path().join("material.mb");
+    assert_eq!(
+        saved_as(&only, &mb_material, &NativeOrigin::Untitled).unwrap_err(),
+        Error::Unwritable(AuthoredRefusalCode::SessionMaterials)
+    );
+    assert!(!mb_material.exists());
 }
