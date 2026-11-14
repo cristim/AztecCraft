@@ -190,3 +190,40 @@ fn same_parent_is_unchanged() {
 }
 
 mod refusals;
+
+#[test]
+fn keep_world_under_an_equal_frame_moves_keyed_and_pivoted_nodes_with_channels_untouched() {
+    let (mut scene, parent, keyed) = two();
+    scene
+        .set_keys(&[keyed], 1, crate::native_scene::ALL_CHANNELS, 1)
+        .unwrap();
+    set(
+        &mut scene,
+        keyed,
+        [1.0, 2.0, 3.0],
+        [10.0, 20.0, 30.0],
+        [1.0, 2.0, 3.0],
+    );
+    let pivoted = scene.create(Primitive::Cube, "pivoted").unwrap();
+    scene
+        .set_pivots(pivoted, Some([1.0, 0.25, 0.5]), None, false)
+        .unwrap();
+    let channels = |s: &NativeScene, id| {
+        s.node(id)
+            .unwrap()
+            .channels
+            .clone()
+            .map(|c| c.value.to_bits())
+    };
+    let before = (channels(&scene, keyed), channels(&scene, pivoted));
+    // The parent is the identity frame, the same as the world the nodes leave.
+    scene
+        .reparent(keyed, Some(parent), ReparentKeep::World)
+        .unwrap();
+    scene
+        .reparent(pivoted, Some(parent), ReparentKeep::World)
+        .unwrap();
+    assert_eq!(before, (channels(&scene, keyed), channels(&scene, pivoted)));
+    assert_eq!(parent_of(&scene, keyed), Some(parent));
+    assert_eq!(parent_of(&scene, pivoted), Some(parent));
+}

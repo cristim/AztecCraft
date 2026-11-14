@@ -23,7 +23,7 @@ pub enum ReparentRefusal {
     Cycle,
     /// The node or one of its ancestors is instanced, so it has no single parent or world.
     Instanced,
-    /// Keeping the world transform needs a node with default pivots and extras and no keys.
+    /// Keeping a different world frame needs a node with default pivots and extras and no keys.
     WorldNeedsPlainTransform,
     /// The local transform that keeps the world one is not a translate, XYZ rotate and scale.
     WorldNotRepresentable,
@@ -35,7 +35,7 @@ impl fmt::Display for ReparentRefusal {
             Self::Cycle => "an object cannot be parented under itself or one of its descendants",
             Self::Instanced => "instanced objects cannot be reparented",
             Self::WorldNeedsPlainTransform => {
-                "keeping the world transform needs default pivots and transform extras and no keys; use keep local"
+                "keeping the world transform under a different frame needs default pivots and transform extras and no keys; use keep local"
             }
             Self::WorldNotRepresentable => {
                 "the world transform cannot be kept as translate, rotate and scale under that parent (shear, negative or zero scale); use keep local"
@@ -141,7 +141,7 @@ impl NativeScene {
             .iter()
             .enumerate()
             .filter(|(_, edge)| edge.child == node_id);
-        let (edge_at, edge) = incoming.next().ok_or(NativeError::InvalidIdentity)?;
+        let (_, edge) = incoming.next().ok_or(NativeError::InvalidIdentity)?;
         if incoming.next().is_some() {
             return Err(ReparentRefusal::Instanced.into());
         }
@@ -153,6 +153,31 @@ impl NativeScene {
         {
             return Err(ReparentRefusal::Cycle.into());
         }
+        let old_channels = self.nodes[index].channels.clone();
+        let old_dag = self.dag.clone();
+        self.move_node(index, parent_id, keep)?;
+        if let Err(error) = self
+            .validate()
+            .and_then(|()| self.transform_paths().map(drop))
+        {
+            self.nodes[index].channels = old_channels;
+            self.dag = old_dag;
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    /// Moves node `index` under `parent_id` as the last child: the clash check, the keep-world
+    /// channel rewrite and the edge swap. It neither validates nor rolls back; the caller owns
+    /// atomicity (single `reparent` restores itself, batch operations work on a clone). The
+    /// caller has checked that the node has one incoming edge and no cycle results.
+    pub(super) fn move_node(
+        &mut self,
+        index: usize,
+        parent_id: Option<NativeId>,
+        keep: ReparentKeep,
+    ) -> Result<(), NativeError> {
+        let node_id = self.nodes[index].transform_id;
         // Maya renames the parented object on a clash; this editor refuses, as rename_node does.
         let name = self.nodes[index].name.as_str();
         let clash = self
@@ -179,8 +204,11 @@ impl NativeScene {
             ReparentKeep::Local => None,
             ReparentKeep::World => self.world_keeping_channels(index, parent_id)?,
         };
-        let old_channels = self.nodes[index].channels.clone();
-        let old_dag = self.dag.clone();
+        let edge_at = self
+            .dag
+            .iter()
+            .position(|edge| edge.child == node_id)
+            .ok_or(NativeError::InvalidIdentity)?;
         if let Some(values) = channels {
             self.nodes[index].channels = self.replacement_channels(index, values.map(Some))?;
         }
@@ -189,14 +217,6 @@ impl NativeScene {
             parent: parent_id,
             child: node_id,
         });
-        if let Err(error) = self
-            .validate()
-            .and_then(|()| self.transform_paths().map(drop))
-        {
-            self.nodes[index].channels = old_channels;
-            self.dag = old_dag;
-            return Err(error);
-        }
         Ok(())
     }
 
@@ -256,16 +276,6 @@ impl NativeScene {
         new_parent: Option<NativeId>,
     ) -> Result<Option<[f64; 9]>, NativeError> {
         let node = &self.nodes[index];
-        let plain = node
-            .rotate_pivot
-            .iter()
-            .chain(&node.scale_pivot)
-            .all(|v| v.value.to_bits() == 0)
-            && node.extras == TransformExtras::default()
-            && self.key_rows(Some(node.id)).next().is_none();
-        if !plain {
-            return Err(ReparentRefusal::WorldNeedsPlainTransform.into());
-        }
         let target = self.sole_target(node.id)?;
         let old_world = self.path_world(&target.path[..target.path.len() - 1])?;
         let new_world = match new_parent {
@@ -279,10 +289,20 @@ impl NativeScene {
                 self.path_world(&self.sole_target(owner.id)?.path)?
             }
         };
-        let linear = |m: &DMat4| [m.x_axis, m.y_axis, m.z_axis].map(|c| c.truncate().to_array());
         if old_world == new_world {
             return Ok(None);
         }
+        let plain = node
+            .rotate_pivot
+            .iter()
+            .chain(&node.scale_pivot)
+            .all(|v| v.value.to_bits() == 0)
+            && node.extras == TransformExtras::default()
+            && self.key_rows(Some(node.id)).next().is_none();
+        if !plain {
+            return Err(ReparentRefusal::WorldNeedsPlainTransform.into());
+        }
+        let linear = |m: &DMat4| [m.x_axis, m.y_axis, m.z_axis].map(|c| c.truncate().to_array());
         let determinant = new_world.determinant();
         if !determinant.is_finite() || determinant.abs() <= MIN_SCALE {
             return Err(ReparentRefusal::WorldNotRepresentable.into());

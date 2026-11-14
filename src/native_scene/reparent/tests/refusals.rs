@@ -50,7 +50,7 @@ fn shear_negative_scale_and_a_zero_scale_parent_refuse_keep_world_only() {
 }
 
 #[test]
-fn keep_world_refuses_pivots_extras_and_keys_but_keep_local_does_not() {
+fn keep_world_under_a_different_frame_refuses_pivots_extras_and_keys_but_keep_local_does_not() {
     let plain = Err(NativeError::InvalidReparent(
         ReparentRefusal::WorldNeedsPlainTransform,
     ));
@@ -63,6 +63,7 @@ fn keep_world_refuses_pivots_extras_and_keys_but_keep_local_does_not() {
         "a root stays put"
     );
     let group = pivoted.create(Primitive::Cube, "group").unwrap();
+    set(&mut pivoted, group, [5.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
     let before = pivoted.clone();
     assert_eq!(
         pivoted.reparent(node, Some(group), ReparentKeep::World),
@@ -74,6 +75,7 @@ fn keep_world_refuses_pivots_extras_and_keys_but_keep_local_does_not() {
         .unwrap();
     let child = scene.create(Primitive::Cube, "keyed").unwrap();
     scene.set_keys(&[child], 1, ALL_CHANNELS, 1).unwrap();
+    set(&mut scene, parent, [0.0; 3], [0.0, 0.0, 90.0], [1.0; 3]);
     let before = scene.clone();
     assert_eq!(
         scene.reparent(child, Some(parent), ReparentKeep::World),
