@@ -1214,3 +1214,5 @@ fn pick_layers_an_enabled_handle_over_a_disabled_one() {
     assert!(enabled > 0 && disabled > 0, "{enabled} {disabled}");
     assert_eq!(scale.pick(DVec2::NAN), None);
 }
+
+mod gimbal;
