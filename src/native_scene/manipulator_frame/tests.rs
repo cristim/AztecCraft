@@ -560,3 +560,101 @@ fn ancestor_offsets_and_inherits_off_shape_the_handle_frame() {
     let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
     near(frame.pivot_cm, DVec3::new(1.0, 4.0, 0.0));
 }
+
+fn set_root(scene: &mut NativeScene, node: NodeId, transform: NativeTransform) {
+    scene.set_transform(node, transform).unwrap();
+}
+
+#[test]
+fn a_root_nodes_parent_axes_are_the_world_axes() {
+    let (mut scene, node) = test_fixtures::cube();
+    set_root(
+        &mut scene,
+        node,
+        NativeTransform {
+            rotation: [10.0, 20.0, 30.0],
+            scale: [2.0, 3.0, 4.0],
+            ..NativeTransform::default()
+        },
+    );
+    let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
+    assert_eq!(frame.parent_axes, [DVec3::X, DVec3::Y, DVec3::Z]);
+}
+
+#[test]
+fn a_rotated_parents_axes_match_the_reference_and_make_a_handle_frame() {
+    use crate::manipulator_handles::HandleFrame;
+    let (mut scene, root, node, _) = test_fixtures::grouped_shape();
+    let r = [23.0, -41.0, 67.0];
+    set_root(
+        &mut scene,
+        root,
+        NativeTransform {
+            translation: [4.0, 5.0, 6.0],
+            rotation: r,
+            scale: [2.0, 2.0, 2.0],
+        },
+    );
+    set_root(
+        &mut scene,
+        node,
+        NativeTransform {
+            rotation: [90.0, 0.0, 0.0],
+            scale: [9.0, 8.0, 7.0],
+            ..NativeTransform::default()
+        },
+    );
+    let frame = scene.manipulator_frame(&target_of(&scene, node)).unwrap();
+    // Independent reference: default xyz order, row-vector axes, times the uniform scale of 2.
+    let want = crate::native_scene::transform_extras::tests::row_vector_axes(
+        0,
+        r.map(f64::to_radians),
+        [0.0; 3],
+    );
+    for (axis, expected) in frame.parent_axes.into_iter().zip(want) {
+        near(axis, 2.0 * DVec3::from_array(expected));
+    }
+    assert!(HandleFrame::new(frame.origin_cm, frame.parent_axes).is_ok());
+}
+
+#[test]
+fn uneven_or_mirrored_parent_scale_is_refused_by_the_handle_frame() {
+    use crate::manipulator_handles::HandleFrame;
+    use crate::move_handles::HandleError;
+    let (mut scene, root, mid, leaf) = test_fixtures::chain_of_three();
+    set_root(
+        &mut scene,
+        root,
+        NativeTransform {
+            scale: [2.0, 1.0, 1.0],
+            ..NativeTransform::default()
+        },
+    );
+    set_root(
+        &mut scene,
+        mid,
+        NativeTransform {
+            rotation: [0.0, 0.0, 45.0],
+            ..NativeTransform::default()
+        },
+    );
+    let skewed = scene.manipulator_frame(&target_of(&scene, leaf)).unwrap();
+    assert_eq!(
+        HandleFrame::new(skewed.origin_cm, skewed.parent_axes).err(),
+        Some(HandleError::SkewedFrame)
+    );
+    set_root(
+        &mut scene,
+        root,
+        NativeTransform {
+            scale: [-1.0, 1.0, 1.0],
+            ..NativeTransform::default()
+        },
+    );
+    set_root(&mut scene, mid, NativeTransform::default());
+    let mirrored = scene.manipulator_frame(&target_of(&scene, leaf)).unwrap();
+    assert_eq!(
+        HandleFrame::new(mirrored.origin_cm, mirrored.parent_axes).err(),
+        Some(HandleError::MirroredFrame)
+    );
+}
