@@ -46,14 +46,7 @@ impl HandleFrame {
     /// the world axes. A mirrored (left-handed) frame would flip the sign of every ring drag and a
     /// skewed one would draw rings that do not match the edit, so both are refused.
     pub fn new(origin: DVec3, axes: [DVec3; 3]) -> Result<Self, HandleError> {
-        let mut unit = [DVec3::ZERO; 3];
-        for (slot, axis) in unit.iter_mut().zip(axes) {
-            let length = axis.length();
-            if !origin.is_finite() || !axis.is_finite() || !length.is_finite() || length == 0.0 {
-                return Err(HandleError::InvalidProjection);
-            }
-            *slot = axis / length;
-        }
+        let unit = unit_axes(origin, axes)?;
         let [x, y, z] = unit;
         if x.dot(y).abs() > MAX_SKEW || y.dot(z).abs() > MAX_SKEW || z.dot(x).abs() > MAX_SKEW {
             return Err(HandleError::SkewedFrame);
@@ -70,6 +63,83 @@ impl HandleFrame {
 
     pub fn world(origin: DVec3) -> Result<Self, HandleError> {
         Self::new(origin, [DVec3::X, DVec3::Y, DVec3::Z])
+    }
+}
+
+fn unit_axes(origin: DVec3, axes: [DVec3; 3]) -> Result<[DVec3; 3], HandleError> {
+    let mut unit = [DVec3::ZERO; 3];
+    for (slot, axis) in unit.iter_mut().zip(axes) {
+        let length = axis.length();
+        if !origin.is_finite() || !axis.is_finite() || !length.is_finite() || length == 0.0 {
+            return Err(HandleError::InvalidProjection);
+        }
+        *slot = axis / length;
+    }
+    Ok(unit)
+}
+
+/// Pivot and ring axes of the Gimbal orientation. The axes are neither perpendicular nor
+/// necessarily right-handed or distinct (each ring turns about its own axis, so the drag sign does not depend
+/// on handedness); only Rotate accepts this frame, so Move and Scale keep refusing skewed frames.
+#[derive(Clone, Copy, Debug)]
+pub struct GimbalFrame {
+    origin: DVec3,
+    axes: [DVec3; 3],
+}
+
+impl GimbalFrame {
+    /// Refuses a non-finite or zero axis. Axes that coincide (exact gimbal lock) are accepted:
+    /// each ring has its own plane, so only a ring without an axis is degenerate.
+    pub fn new(origin: DVec3, axes: [DVec3; 3]) -> Result<Self, HandleError> {
+        Ok(Self {
+            origin,
+            axes: unit_axes(origin, axes)?,
+        })
+    }
+
+    pub fn origin(&self) -> DVec3 {
+        self.origin
+    }
+}
+
+// Ring normals with the plane basis (u, v) of each ring, u x v = normal. Orthogonal frames use
+// the other two frame axes, so their geometry is the same as before gimbal frames existed.
+struct RingFrame {
+    origin: DVec3,
+    normals: [DVec3; 3],
+    bases: [(DVec3, DVec3); 3],
+}
+
+impl From<&HandleFrame> for RingFrame {
+    fn from(frame: &HandleFrame) -> Self {
+        Self {
+            origin: frame.origin,
+            normals: frame.axes,
+            bases: [0, 1, 2].map(|index| {
+                let (u, v) = ring_basis(index);
+                (frame.axes[u], frame.axes[v])
+            }),
+        }
+    }
+}
+
+impl From<&GimbalFrame> for RingFrame {
+    fn from(frame: &GimbalFrame) -> Self {
+        Self {
+            origin: frame.origin,
+            normals: frame.axes,
+            bases: [0, 1, 2].map(|index| {
+                let normal = frame.axes[index];
+                // The world axis least aligned with the ring axis is never parallel to it, so
+                // the basis exists for every ring, including the rings that coincide at lock.
+                let seed = [DVec3::X, DVec3::Y, DVec3::Z]
+                    .into_iter()
+                    .min_by(|a, b| a.dot(normal).abs().total_cmp(&b.dot(normal).abs()))
+                    .unwrap_or(DVec3::X);
+                let u = (seed - normal * seed.dot(normal)).normalize();
+                (u, normal.cross(u))
+            }),
+        }
     }
 }
 
@@ -210,6 +280,14 @@ fn axis_index(axis: RotateAxis) -> usize {
 
 impl RotateHandles {
     pub fn new(capture: &ViewportCapture, frame: &HandleFrame) -> Result<Self, HandleError> {
+        Self::build(capture, &frame.into())
+    }
+
+    pub fn new_gimbal(capture: &ViewportCapture, frame: &GimbalFrame) -> Result<Self, HandleError> {
+        Self::build(capture, &frame.into())
+    }
+
+    fn build(capture: &ViewportCapture, frame: &RingFrame) -> Result<Self, HandleError> {
         let (clip, origin) = capture.project_origin(frame.origin)?;
         let size = capture.size();
         let radius = capture.world_length(capture.handle_length(), clip.w);
@@ -218,9 +296,8 @@ impl RotateHandles {
             return Err(HandleError::InvalidProjection);
         }
         let rings = ROTATE_AXES.map(|axis| {
-            let (u, v) = ring_basis(axis_index(axis));
-            let normal =
-                |step: f64| frame.axes[u] * (TAU * step).cos() + frame.axes[v] * (TAU * step).sin();
+            let (u, v) = frame.bases[axis_index(axis)];
+            let normal = |step: f64| u * (TAU * step).cos() + v * (TAU * step).sin();
             let mut segments = Vec::new();
             for step in 0..RING_SEGMENTS {
                 let from = step as f64 / RING_SEGMENTS as f64;
@@ -323,13 +400,31 @@ impl RotateDrag {
         axis: RotateAxis,
         pointer: Vec2,
     ) -> Result<Self, HandleError> {
+        Self::start(capture, &frame.into(), axis, pointer)
+    }
+
+    pub fn begin_gimbal(
+        capture: ViewportCapture,
+        frame: &GimbalFrame,
+        axis: RotateAxis,
+        pointer: Vec2,
+    ) -> Result<Self, HandleError> {
+        Self::start(capture, &frame.into(), axis, pointer)
+    }
+
+    fn start(
+        capture: ViewportCapture,
+        frame: &RingFrame,
+        axis: RotateAxis,
+        pointer: Vec2,
+    ) -> Result<Self, HandleError> {
         let index = axis_index(axis);
-        let (u, v) = ring_basis(index);
+        let (u, v) = frame.bases[index];
         let mut drag = Self {
             origin: frame.origin,
-            normal: frame.axes[index],
-            u: frame.axes[u],
-            v: frame.axes[v],
+            normal: frame.normals[index],
+            u,
+            v,
             last: 0.0,
             total: 0.0,
             capture,
