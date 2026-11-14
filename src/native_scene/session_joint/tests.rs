@@ -761,3 +761,47 @@ fn an_absolute_world_position_beyond_f32_range_is_refused_even_when_the_local_on
     );
     assert_eq!(scene, before);
 }
+
+#[test]
+fn scale_parent_axes_include_the_joints_inverse_parent_scale() {
+    let mut scene = NativeScene::default();
+    let root = joint(&mut scene, None, [0.0; 3]);
+    let child = joint(&mut scene, Some(root), [1.0, 0.0, 0.0]);
+    set(
+        &mut scene,
+        root,
+        NativeTransform {
+            rotation: [0.0, 0.0, 90.0],
+            scale: [2.0, 4.0, 0.5],
+            ..NativeTransform::default()
+        },
+    );
+    let frame = scene.manipulator_frame(&target(&scene, child)).unwrap();
+    // Same compensated map as the Scale frame: the parent's rotation, its scale cancelled.
+    assert_near(frame.parent_axes[0], DVec3::new(0.0, 1.0, 0.0));
+    assert_near(frame.parent_axes[1], DVec3::new(-1.0, 0.0, 0.0));
+    assert_near(frame.parent_axes[2], DVec3::new(0.0, 0.0, 1.0));
+}
+
+#[test]
+fn scale_parent_axes_of_a_joint_under_negative_parent_scale_cancel_a_negative_parent_scale() {
+    let mut scene = NativeScene::default();
+    let root = joint(&mut scene, None, [0.0; 3]);
+    let child = joint(&mut scene, Some(root), [1.0, 0.0, 0.0]);
+    set(
+        &mut scene,
+        root,
+        NativeTransform {
+            scale: [-2.0, 2.0, 2.0],
+            ..NativeTransform::default()
+        },
+    );
+    let axes = scene
+        .manipulator_frame(&target(&scene, child))
+        .unwrap()
+        .parent_axes;
+    // The inverse parent scale undoes the mirror too, leaving the world axes.
+    assert_near(axes[0], DVec3::X);
+    assert_near(axes[1], DVec3::Y);
+    assert_near(axes[2], DVec3::Z);
+}

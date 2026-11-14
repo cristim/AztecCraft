@@ -29,6 +29,11 @@ pub struct ManipulatorFrame {
     /// enter it. Not normalized, and mirrored or skewed when a parent has negative or uneven
     /// scale; the handles refuse such frames.
     pub object_axes: [DVec3; 3],
+    /// The Scale Parent axes: the columns of the parents' linear map, the frame the node's
+    /// rotation sits under (its scale channels live in `object_axes`). A joint's inverse parent scale is included, as in the Scale
+    /// frame (`world_scale_components`); Move Object leaves it out (known-issues). A root node's
+    /// are the world axes. Not normalized, mirrored or skewed like `object_axes`.
+    pub parent_axes: [DVec3; 3],
 }
 
 impl ManipulatorFrame {
@@ -63,11 +68,13 @@ impl NativeScene {
                 (parent_world * local).transform_point3(DVec3::from_array(transform.scale_pivot_cm))
             })
             .ok_or(refused.clone())?;
+        let parent = transform.compensated_parent(DMat3::from_mat4(parent_world));
         let axes = transform
             .rotation_frame()
-            .map(|rotation| transform.compensated_parent(DMat3::from_mat4(parent_world)) * rotation)
+            .map(|rotation| parent * rotation)
             .ok_or(refused.clone())?;
         let object_axes = [axes.x_axis, axes.y_axis, axes.z_axis];
+        let parent_axes = [parent.x_axis, parent.y_axis, parent.z_axis];
         if !origin_cm.is_finite()
             || !pivot_cm.is_finite()
             || object_axes.iter().any(|axis| !axis.is_finite())
@@ -79,6 +86,7 @@ impl NativeScene {
             pivot_cm,
             scale_origin_cm,
             object_axes,
+            parent_axes,
         })
     }
 
