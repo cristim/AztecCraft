@@ -100,7 +100,7 @@ impl NativeScene {
 
     /// The node index and ancestor path (root first, the node itself excluded) of each of `ids`
     /// that has no ancestor in `ids`, in list order. Refuses an instanced or restricted object.
-    fn top_most_with_parents(
+    pub(super) fn top_most_with_parents(
         &self,
         ids: &[NodeId],
     ) -> Result<Vec<(usize, Vec<NativeId>)>, NativeError> {
@@ -171,4 +171,4 @@ fn common_prefix<'a>(mut paths: impl Iterator<Item = &'a [NativeId]>) -> &'a [Na
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

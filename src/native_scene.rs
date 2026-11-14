@@ -22,6 +22,7 @@ mod session_uv;
 mod source;
 mod source_removal;
 mod transform_extras;
+mod ungroup;
 pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
@@ -61,6 +62,7 @@ use session_uv::SessionUvs;
 pub use session_uv::{DEFAULT_UV_SET, UvProjectAxis, UvSet};
 use source::{ScalarOrigin, SourceFormat, SourceRetention, TransformField};
 pub use transform_extras::{InternalExtras, TransformAttributes, TransformExtras};
+pub use ungroup::UngroupOptions;
 
 use crate::primitive_options::PrimitiveOptions;
 use crate::scene::{NodeId, Primitive, Scene, SceneError, Transform};

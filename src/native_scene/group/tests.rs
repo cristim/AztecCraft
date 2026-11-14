@@ -8,11 +8,11 @@ const PARENT: GroupOptions = GroupOptions {
     preserve_position: true,
 };
 
-fn cube(scene: &mut NativeScene, name: &str) -> NodeId {
+pub(crate) fn cube(scene: &mut NativeScene, name: &str) -> NodeId {
     scene.create(Primitive::Cube, name).unwrap()
 }
 
-fn set(scene: &mut NativeScene, id: NodeId, t: [f64; 3], r: [f64; 3], s: [f64; 3]) {
+pub(crate) fn set(scene: &mut NativeScene, id: NodeId, t: [f64; 3], r: [f64; 3], s: [f64; 3]) {
     scene
         .set_transform(
             id,
@@ -25,7 +25,7 @@ fn set(scene: &mut NativeScene, id: NodeId, t: [f64; 3], r: [f64; 3], s: [f64; 3
         .unwrap();
 }
 
-fn parent_of(scene: &NativeScene, id: NodeId) -> Option<NodeId> {
+pub(crate) fn parent_of(scene: &NativeScene, id: NodeId) -> Option<NodeId> {
     let transform = scene.node(id).unwrap().transform_id();
     let parent = scene
         .dag
@@ -40,7 +40,7 @@ fn parent_of(scene: &NativeScene, id: NodeId) -> Option<NodeId> {
         .map(|node| node.id)
 }
 
-fn children_of(scene: &NativeScene, id: Option<NodeId>) -> Vec<NodeId> {
+pub(crate) fn children_of(scene: &NativeScene, id: Option<NodeId>) -> Vec<NodeId> {
     let parent = id.map(|id| scene.node(id).unwrap().transform_id());
     scene
         .dag
@@ -51,7 +51,7 @@ fn children_of(scene: &NativeScene, id: Option<NodeId>) -> Vec<NodeId> {
         .collect()
 }
 
-fn bits(scene: &NativeScene, id: NodeId) -> [u64; 9] {
+pub(crate) fn bits(scene: &NativeScene, id: NodeId) -> [u64; 9] {
     scene
         .node(id)
         .unwrap()
@@ -61,19 +61,19 @@ fn bits(scene: &NativeScene, id: NodeId) -> [u64; 9] {
 }
 
 /// Hand-written translate * Rz(degrees) * scale applied to a point, with no matrix library.
-fn image(t: [f64; 3], z_degrees: f64, s: [f64; 3], p: [f64; 3]) -> [f64; 3] {
+pub(crate) fn image(t: [f64; 3], z_degrees: f64, s: [f64; 3], p: [f64; 3]) -> [f64; 3] {
     let (sin, cos) = z_degrees.to_radians().sin_cos();
     let (x, y, z) = (p[0] * s[0], p[1] * s[1], p[2] * s[2]);
     [t[0] + cos * x - sin * y, t[1] + sin * x + cos * y, t[2] + z]
 }
 
-fn close(a: [f64; 3], b: [f64; 3]) {
+pub(crate) fn close(a: [f64; 3], b: [f64; 3]) {
     for axis in 0..3 {
         assert!((a[axis] - b[axis]).abs() < 1e-9, "{a:?} != {b:?}");
     }
 }
 
-fn local(scene: &NativeScene, id: NodeId) -> NativeTransform {
+pub(crate) fn local(scene: &NativeScene, id: NodeId) -> NativeTransform {
     scene.node(id).unwrap().transform()
 }
 

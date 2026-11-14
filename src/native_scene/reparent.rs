@@ -29,6 +29,8 @@ pub enum ReparentRefusal {
     WorldNotRepresentable,
     /// A batch operation was given no objects.
     EmptySet,
+    /// Ungroup targets a plain group: a transform without shapes that is not a joint.
+    NotAGroup,
 }
 
 impl fmt::Display for ReparentRefusal {
@@ -40,6 +42,7 @@ impl fmt::Display for ReparentRefusal {
                 "keeping the world transform under a different frame needs default pivots and transform extras and no keys; use keep local"
             }
             Self::EmptySet => "no objects were given",
+            Self::NotAGroup => "only a group (a transform without shapes that is not a joint) can be ungrouped",
             Self::WorldNotRepresentable => {
                 "the world transform cannot be kept as translate, rotate and scale under that parent (shear, negative or zero scale); use keep local"
             }
