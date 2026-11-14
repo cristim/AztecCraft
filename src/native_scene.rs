@@ -27,7 +27,7 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
-pub use group::{GroupOptions, GroupUnder};
+pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};

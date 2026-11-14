@@ -4,6 +4,7 @@ use crate::scene::Primitive;
 
 const PARENT: GroupOptions = GroupOptions {
     under: GroupUnder::Parent,
+    pivot: GroupPivot::Origin,
     preserve_position: true,
 };
 
@@ -125,6 +126,7 @@ fn group_under_the_world_keeps_each_world_point_by_a_closed_form_oracle() {
     let (mut scene, _, a, b) = under_a_parent();
     let options = GroupOptions {
         under: GroupUnder::World,
+        pivot: GroupPivot::Origin,
         preserve_position: true,
     };
     let group = scene.group(&[a, b], options).unwrap();
@@ -162,6 +164,7 @@ fn preserve_position_off_keeps_the_local_channels_and_the_members_shift() {
     let before = (bits(&scene, a), bits(&scene, b));
     let options = GroupOptions {
         under: GroupUnder::World,
+        pivot: GroupPivot::Origin,
         preserve_position: false,
     };
     scene.group(&[a, b], options).unwrap();
@@ -361,4 +364,76 @@ fn a_failure_after_the_second_member_leaves_the_baseline_equal() {
     assert_eq!(scene, before);
     assert_eq!(scene.next_id, before.next_id);
     assert_eq!(scene.next_native_id, before.next_native_id);
+}
+
+const CENTER: GroupOptions = GroupOptions {
+    pivot: GroupPivot::Center,
+    ..PARENT
+};
+
+#[test]
+fn center_puts_both_pivots_at_the_hand_derived_bounding_box_centre() {
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "a");
+    let b = cube(&mut scene, "b");
+    set(&mut scene, a, [2.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    set(&mut scene, b, [0.0, 4.0, 0.0], [0.0; 3], [1.0; 3]);
+    let (a_bits, b_bits) = (bits(&scene, a), bits(&scene, b));
+    let group = scene.group(&[a, b], CENTER).unwrap();
+    // Unit cubes: x spans -0.5..2.5, y -0.5..4.5, z -0.5..0.5.
+    let node = scene.node(group).unwrap();
+    assert_eq!(node.rotate_pivot(), [1.0, 2.0, 0.0]);
+    assert_eq!(node.scale_pivot(), [1.0, 2.0, 0.0]);
+    assert_eq!(local(&scene, group), NativeTransform::default());
+    assert_eq!((bits(&scene, a), bits(&scene, b)), (a_bits, b_bits));
+}
+
+#[test]
+fn origin_leaves_the_pivots_at_zero() {
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "a");
+    set(&mut scene, a, [2.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    let group = scene.group(&[a], PARENT).unwrap();
+    let node = scene.node(group).unwrap();
+    assert_eq!(node.rotate_pivot(), [0.0; 3]);
+    assert_eq!(node.scale_pivot(), [0.0; 3]);
+}
+
+#[test]
+fn center_of_a_member_with_a_hierarchy_uses_its_descendants_too() {
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "a");
+    let child = cube(&mut scene, "child");
+    set(&mut scene, child, [10.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    scene.reparent(child, Some(a), ReparentKeep::Local).unwrap();
+    let group = scene.group(&[a], CENTER).unwrap();
+    assert_eq!(scene.node(group).unwrap().rotate_pivot(), [5.0, 0.0, 0.0]);
+}
+
+#[test]
+fn a_centre_pivoted_group_and_a_keyed_cube_group_with_the_defaults() {
+    let mut scene = NativeScene::default();
+    let a = cube(&mut scene, "a");
+    let b = cube(&mut scene, "b");
+    let keyed = cube(&mut scene, "keyed");
+    set(&mut scene, a, [2.0, 0.0, 0.0], [0.0; 3], [1.0; 3]);
+    set(&mut scene, keyed, [0.0, 0.0, 6.0], [0.0; 3], [1.0; 3]);
+    scene.set_keys(&[keyed], 1, ALL_CHANNELS, 1).unwrap();
+    let inner = scene.group(&[a, b], CENTER).unwrap();
+    let inner_bits = (
+        bits(&scene, inner),
+        scene.node(inner).unwrap().rotate_pivot(),
+    );
+    assert_ne!(inner_bits.1, [0.0; 3]);
+    let outer = scene.group(&[inner, keyed], CENTER).unwrap();
+    assert_eq!(children_of(&scene, Some(outer)), vec![inner, keyed]);
+    assert_eq!(
+        (
+            bits(&scene, inner),
+            scene.node(inner).unwrap().rotate_pivot()
+        ),
+        inner_bits
+    );
+    // inner spans x -0.5..2.5 and keyed z 5.5..6.5, so the outer centre is (1, 0, 3).
+    assert_eq!(scene.node(outer).unwrap().rotate_pivot(), [1.0, 0.0, 3.0]);
 }

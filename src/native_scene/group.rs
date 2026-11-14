@@ -6,7 +6,8 @@
 
 use super::{
     DagEdge, GeometryViewFacts, NativeError, NativeId, NativeScene, NativeTransform,
-    NativeTransformNode, ReparentKeep, ReparentRefusal, Scalar, TransformExtras, Units, Uuid,
+    NativeTransformNode, PivotReset, ReparentKeep, ReparentRefusal, Scalar, TransformExtras, Units,
+    Uuid,
 };
 use crate::scene::{NodeId, SceneError};
 use std::collections::HashSet;
@@ -19,10 +20,19 @@ pub enum GroupUnder {
     World,
 }
 
+/// Where the group's pivot goes: the centre of its members' bounding box (Center) or the group's
+/// own origin.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GroupPivot {
+    Center,
+    Origin,
+}
+
 /// The Group options this editor offers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GroupOptions {
     pub under: GroupUnder,
+    pub pivot: GroupPivot,
     /// Keep every member's world transform (`-absolute`, the default) or its local channels
     /// (`-relative`, so the members shift when the new group's frame differs).
     pub preserve_position: bool,
@@ -81,6 +91,9 @@ impl NativeScene {
         };
         for (index, _) in members {
             self.move_node(index, Some(group_transform), keep)?;
+        }
+        if options.pivot == GroupPivot::Center {
+            self.reset_pivots(&[group], PivotReset::Center)?;
         }
         Ok(group)
     }
