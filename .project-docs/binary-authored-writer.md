@@ -172,7 +172,7 @@ restrictions, effects, non-authored visibility, double-precision points, point o
 face holes and unsupported channels. The Binary writer adds `SessionMaterials` (the session material table differs from its default: a created
 lambert, an assignment, or a shape reassigned to the initial group all leave an extra lambert and shading
 group, or an assignment entry, that the file cannot carry and that would be lost on reopen, so the write
-refuses; undo removes a created material; the ASCII emitter ignores materials and is unchanged). The
+refuses; undo removes a created material; the ASCII emitter writes session materials to `.ma`, so only `.mb` refuses). The
 destructure of `NativeScene` in `encode_authored` names every field, so a new field must be decided there. The writer also refuses `MissingUuid` (later commit), edge count over 2^24, counts
 over u32, output over 16 MiB and resource overruns.
 
