@@ -30,6 +30,7 @@ pub(crate) fn assert_text_file(path: &std::path::Path, name: &str, actual: &str,
     // A checkout may apply autocrlf despite .gitattributes; line endings are not content.
     let expected = String::from_utf8_lossy(&expected).replace("\r\n", "\n");
     if let Some(difference) = first_difference(&expected, actual) {
+        eprintln!("DBG-BEGIN {name}\n{actual}\n DBG-END {name}");
         panic!(
             "{name} differs, {difference}\nregenerate with {update_var}=1 only if the change is intended"
         );
