@@ -2069,6 +2069,21 @@ fn a_plain_ascii_source_reports_the_rotate_ring_although_move_refuses() {
     assert_eq!(editor.status, format!("Object Y Rotate: {reason}"));
 }
 
+// `editor` with `tool` active, and the view of its first idle frame.
+fn with_view(mut editor: Editor, tool: ActiveTool) -> (Editor, egui::Context, View) {
+    editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
+    editor.camera = oblique();
+    editor.native_operation(Operation::SetActiveTool(tool));
+    let context = egui::Context::default();
+    let view = View {
+        camera: editor.camera.clone(),
+        aspect: editor.aspect,
+        rect: viewport(&idle(&mut editor, &context, 1.0)),
+        scale: 1.0,
+    };
+    (editor, context, view)
+}
+
 // An editor on a decoded Maya ASCII scene (read-only), with the node `select` selected and `tool`
 // active, and the viewport rect taken from an idle frame.
 fn ascii_editor(nodes: &str, select: &str, tool: ActiveTool) -> (Editor, egui::Context, View) {
@@ -3339,44 +3354,74 @@ fn a_y_scale_handle_drag_scales_every_selected_object_in_one_undo_step() {
     assert_eq!(scales(&editor), vec![[1.0; 3]; 2]);
 }
 
+fn node_scale(editor: &Editor, name: &str) -> [f64; 3] {
+    let scene = editor.history.scene();
+    let node = scene
+        .nodes()
+        .iter()
+        .find(|node| node.name() == name)
+        .unwrap();
+    node.transform().scale
+}
+
 #[test]
-fn a_stored_scale_parent_setting_is_visibly_refused_everywhere_native_looks() {
-    let (mut editor, context, view) = setup(Key::R, 1.0);
+fn scale_parent_draws_the_parents_axes_and_refuses_unaligned_handles_per_handle() {
+    // The child sits at 45 degrees under a parent at 90: its Object axes differ from the Parent
+    // ones, and only the Parent Z handle is a local axis.
+    let quarter = std::f64::consts::FRAC_PI_2;
+    let editor =
+        crate::app::parent_fixture_tests::parent_child_editor(None, quarter, quarter / 2.0);
+    let (mut editor, context, view) = with_view(editor, ActiveTool::Scale);
     editor.native_operation(Operation::SetToolSpace {
         tool: ActiveTool::Scale,
         space: ManipulationSpace::Parent,
     });
-    let reason = SCALE_PARENT_HANDLES;
-    let at = view.rect.min + egui::vec2(6.0, 6.0);
-    moved(&mut editor, &context, 1.0, at);
-    assert_eq!(editor.status, format!("Scale unavailable: {reason}"));
-    assert!(editor.error);
-    assert_eq!(pointer_refusal(&editor).as_deref(), Some(reason));
-    assert_eq!(editor.tool_help(), format!("Scale tool (Parent): {reason}"));
-    let kinds = editor.inspect_manipulation().unwrap().kinds;
-    assert!(!kinds[2].available);
-    assert_eq!(kinds[2].unavailable_reason.as_deref(), Some(reason));
-    // No handle exists, so a click is an ordinary selection click: empty space deselects.
-    let before = editor.history.scene().clone();
-    let empty = view.screen(Vec3::ZERO) + egui::vec2(300.0, 200.0);
-    press(&mut editor, &context, 1.0, empty);
-    assert!(!editor.move_suppress_primary, "the press is not consumed");
-    release(&mut editor, &context, 1.0, empty);
-    assert!(editor.selected().is_none(), "an empty click deselects");
-    assert!(editor.history.active_manipulation().is_none());
-    assert_eq!(editor.history.scene(), &before);
-    // Under Parent a click on the object selects it again.
-    let on_cube = view.screen(Vec3::ZERO);
-    press(&mut editor, &context, 1.0, on_cube);
-    release(&mut editor, &context, 1.0, on_cube);
-    assert!(
-        editor.selected().is_some(),
-        "a click on the cube selects it"
+    idle(&mut editor, &context, 1.0);
+    let target = editor.selected_move_lead().unwrap();
+    let frame = editor.history.scene().manipulator_frame(&target).unwrap();
+    for (axis, want) in frame.parent_axes.into_iter().zip(ROTATED_AXES) {
+        assert!((axis - want).length() < 1e-9, "{axis:?} vs {want:?}");
+    }
+    assert!((frame.object_axes[0] - ROTATED_AXES[0]).length() > 0.1);
+    let (_, handle) = editor.manipulation_frame(ActiveTool::Scale).unwrap();
+    let want = HandleFrame::new(frame.scale_origin_cm, ROTATED_AXES).unwrap();
+    assert_eq!(handle.origin(), want.origin());
+    assert!(editor.tool_help().starts_with("Scale tool (Parent):"));
+    let handles = scale_handles_at(&editor, DVec3::ZERO, ROTATED_AXES);
+    let reason = NativeError::UnsupportedScale(ScaleUnsupported::NotAxisAligned).to_string();
+    for (index, expected) in [(0, Some(reason.as_str())), (2, None)] {
+        let pixel = shaft_probe(&editor, DVec3::ZERO, &handles, index, &[]);
+        moved(&mut editor, &context, 1.0, logical(view.rect, pixel));
+        assert_eq!(pointer_refusal(&editor).as_deref(), expected, "{index}");
+    }
+}
+
+#[test]
+fn a_scale_parent_drag_scales_the_child_along_the_rotated_parents_axis_and_undoes() {
+    let editor = crate::app::parent_fixture_tests::parent_child_editor(
+        None,
+        std::f64::consts::FRAC_PI_2,
+        0.0,
     );
-    // Object stays usable.
+    let (mut editor, context, view) = with_view(editor, ActiveTool::Scale);
     editor.native_operation(Operation::SetToolSpace {
         tool: ActiveTool::Scale,
-        space: ManipulationSpace::Object,
+        space: ManipulationSpace::Parent,
     });
-    assert!(editor.inspect_manipulation().unwrap().kinds[2].available);
+    idle(&mut editor, &context, 1.0);
+    let radius = view.radius();
+    // Parent X is world Y here.
+    let begin = view.screen(Vec3::Y * radius);
+    moved(&mut editor, &context, 1.0, begin);
+    assert_eq!(pointer_pick(&editor), (Some("x"), None));
+    press(&mut editor, &context, 1.0, begin);
+    assert!(editor.history.active_manipulation().is_some());
+    let end = view.screen(Vec3::Y * radius * 2.0);
+    moved(&mut editor, &context, 1.0, end);
+    release(&mut editor, &context, 1.0, end);
+    let scale = node_scale(&editor, "c");
+    near(scale[0], 2.0, 1e-3);
+    assert_eq!((scale[1], scale[2]), (1.0, 1.0));
+    assert!(editor.history.undo());
+    assert_eq!(node_scale(&editor, "c"), [1.0; 3]);
 }

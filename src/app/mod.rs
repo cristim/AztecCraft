@@ -463,6 +463,9 @@ mod gpu_viewport_tests;
 mod pivot_ops_tests;
 
 #[cfg(test)]
+mod parent_fixture_tests;
+
+#[cfg(test)]
 mod rotated_scale_tests;
 
 #[cfg(all(test, any(unix, windows)))]

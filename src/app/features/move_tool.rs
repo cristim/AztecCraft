@@ -454,7 +454,6 @@ impl Editor {
     pub(in crate::app) fn inspect_manipulation(
         &self,
     ) -> Result<crate::editor_operations::ManipulationInspection, OperationError> {
-        use crate::app::features::manipulation_tool::SCALE_PARENT_HANDLES;
         use crate::app::inspect::{angular_unit_name, linear_unit_name};
         use crate::editor_operations::{
             ActiveManipulationInspection, KindInspection, ManipulationInspection,
@@ -569,12 +568,6 @@ impl Editor {
         let scale_space = self.manipulation.space(ActiveTool::Scale).scale();
         let scale_refusals = match &scale_target {
             Err(error) => Err(error.to_string()),
-            Ok(_)
-                if self.manipulation.space(ActiveTool::Scale)
-                    == crate::editor_operations::ManipulationSpace::Parent =>
-            {
-                Err(SCALE_PARENT_HANDLES.to_owned())
-            }
             // Several: every member decides, a covered lead included.
             Ok(_) if self.selection.len() > 1 => self
                 .history

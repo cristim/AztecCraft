@@ -219,7 +219,7 @@ async fn sdk_tool_space_rejects_invalid_values_and_honours_every_guard() {
 }
 
 #[tokio::test]
-async fn sdk_scale_parent_begins_remotely_and_native_drag_refuses_it() {
+async fn sdk_scale_parent_begins_remotely_and_natively() {
     let context = egui::Context::default();
     let (mut editor, client, server) = start(&context).await;
     editor.create(Primitive::Cube);
@@ -275,22 +275,22 @@ async fn sdk_scale_parent_begins_remotely_and_native_drag_refuses_it() {
         inspected["inspection"]["nodes"][0]["authoring_transform"]["scale"],
         json!([2.0, 1.0, 1.0])
     );
-    // The native drag still refuses the Parent setting.
+    // The native begin accepts it too: Parent is a state both callers share.
     editor.native_operation(Operation::SetToolSpace {
         tool: ActiveTool::Scale,
         space: ManipulationSpace::Parent,
     });
     let target = editor.selected_move_target().unwrap();
-    assert!(matches!(
-        editor.apply_operation(Operation::BeginScale {
+    editor
+        .apply_operation(Operation::BeginScale {
             target,
             handle: azteccraft::native_scene::ScaleHandle::X,
             space: ManipulationSpace::Parent,
             expected_selection_generation: None,
-        }),
-        Err(crate::editor_operations::OperationError::InvalidInput(_))
-    ));
-    assert!(editor.history.active_manipulation().is_none());
+        })
+        .unwrap();
+    assert!(editor.history.active_manipulation().is_some());
+    editor.history.cancel_active_move().unwrap();
     assert!(matches!(
         editor.apply_operation(Operation::BeginRotate {
             target: editor.selected_move_target().unwrap(),
@@ -300,6 +300,148 @@ async fn sdk_scale_parent_begins_remotely_and_native_drag_refuses_it() {
         Err(crate::editor_operations::OperationError::InvalidInput(_))
     ));
     assert!(editor.history.active_manipulation().is_none());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+fn child_scale(editor: &Editor) -> [f64; 3] {
+    let scene = editor.history.scene();
+    scene
+        .nodes()
+        .iter()
+        .find(|node| node.name() == "c")
+        .unwrap()
+        .transform()
+        .scale
+}
+
+#[tokio::test]
+async fn sdk_scale_parent_under_a_rotated_parent_matches_native_and_undoes_and_a_skewed_parent_draws_no_handles()
+ {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.history = crate::app::parent_fixture_tests::parent_child_editor(
+        None,
+        std::f64::consts::FRAC_PI_2,
+        0.0,
+    )
+    .history;
+    crate::app::parent_fixture_tests::select_child(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let target = editor.selected_move_target().unwrap();
+    let node = target.node.to_decimal();
+    let path: Vec<_> = target.path.iter().map(|id| id.to_decimal()).collect();
+    let begin = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        json!({"scene_token":token,"kind":"scale","node_id":node,"instance_path":path,"handle":"x","space":"parent"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    let id = begin["manipulation_id"].as_str().unwrap().to_owned();
+    for (tool, args) in [
+        ("update_manipulation", json!({"factor":2.0})),
+        ("finish_manipulation", json!({"finish":"commit"})),
+    ] {
+        let mut args = args;
+        args["scene_token"] = json!(token);
+        args["manipulation_id"] = json!(id);
+        let result = call(&mut editor, &context, client.peer(), tool, args).await;
+        assert!(result.is_error != Some(true), "{result:?}");
+    }
+    let remote = child_scale(&editor);
+    assert_eq!(remote, [2.0, 1.0, 1.0]);
+    // Undo reverts the remote edit.
+    call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "undo",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(child_scale(&editor), [1.0; 3]);
+    // The native operation on the same scene gives the same result.
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    let reply = editor
+        .apply_operation(Operation::BeginScale {
+            target,
+            handle: azteccraft::native_scene::ScaleHandle::X,
+            space: ManipulationSpace::Parent,
+            expected_selection_generation: None,
+        })
+        .unwrap();
+    let crate::editor_operations::OperationReply::ManipulationStarted { manipulation_id } = reply
+    else {
+        panic!("{reply:?}");
+    };
+    let id = azteccraft::history::ManipulationId::from_decimal(&manipulation_id).unwrap();
+    editor
+        .apply_operation(Operation::UpdateManipulation {
+            id,
+            value: crate::editor_operations::ManipulationValue::Factor(2.0),
+        })
+        .unwrap();
+    editor
+        .apply_operation(Operation::FinishMove {
+            id,
+            finish: azteccraft::history::ManipulationFinish::Commit,
+        })
+        .unwrap();
+    assert_eq!(child_scale(&editor), remote);
+    assert!(editor.history.undo());
+    assert_eq!(child_scale(&editor), [1.0; 3]);
+    // A skewed Parent frame (grandparent scale under a rotated parent) draws no native handles
+    // (SkewedFrame). The core scales local channels and reads no parents' map, so the remote
+    // begin starts; the native begin gives the same verdict.
+    editor.history = crate::app::parent_fixture_tests::parent_child_editor(
+        Some([2.0, 1.0, 1.0]),
+        std::f64::consts::FRAC_PI_4,
+        0.0,
+    )
+    .history;
+    crate::app::parent_fixture_tests::select_child(&mut editor);
+    frame(&mut editor, &context, vec![]);
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    let refusal = editor.manipulation_frame(ActiveTool::Scale).err().unwrap();
+    assert!(refusal.to_string().contains("skew"), "{refusal}");
+    let token = editor.scene_token.to_string();
+    let target = editor.selected_move_target().unwrap();
+    let before = editor.history.scene().clone();
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "begin_manipulation",
+        json!({"scene_token":token,"kind":"scale","node_id":target.node.to_decimal(),
+            "instance_path":target.path.iter().map(|id| id.to_decimal()).collect::<Vec<_>>(),
+            "handle":"x","space":"parent"}),
+    )
+    .await;
+    let started = refused.structured_content.unwrap();
+    assert_eq!(started["outcome"], "manipulation_started");
+    let id = started["manipulation_id"].as_str().unwrap().to_owned();
+    let cancel = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "finish_manipulation",
+        json!({"scene_token":token,"manipulation_id":id,"finish":"cancel"}),
+    )
+    .await;
+    assert!(cancel.is_error != Some(true), "{cancel:?}");
+    assert_eq!(editor.history.scene(), &before);
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

@@ -193,10 +193,6 @@ pub(in crate::app) fn is_manipulation_tool(tool: ActiveTool) -> bool {
     )
 }
 
-// PROVISIONAL until the Scale handles and the native drag follow the Parent orientation: a native
-// drag would measure along other axes than a remote Scale begun with `space: parent` uses.
-pub(in crate::app) const SCALE_PARENT_HANDLES: &str = "Scale along Parent axes is available through MCP only; choose Object or World in the Scale tool settings";
-
 fn space_name(space: ManipulationSpace) -> &'static str {
     match space {
         ManipulationSpace::Object => "Object",
@@ -319,8 +315,6 @@ fn handle_error(tool: ActiveTool, error: HandleError) -> OperationError {
 pub(in crate::app) enum FrameFailure {
     Operation(OperationError),
     Handle(HandleError),
-    /// A stored setting whose handles native does not draw yet; the fixed text names the way out.
-    Unsupported(&'static str),
 }
 
 impl FrameFailure {
@@ -330,7 +324,6 @@ impl FrameFailure {
         match self {
             Self::Handle(error) => Some(error.describe_for(tool_name(tool))),
             Self::Operation(OperationError::Scene(error)) => Some(error.to_string()),
-            Self::Unsupported(reason) => Some((*reason).to_owned()),
             Self::Operation(_) => None,
         }
     }
@@ -339,7 +332,6 @@ impl FrameFailure {
         match self {
             Self::Operation(error) => error,
             Self::Handle(error) => handle_error(tool, error),
-            Self::Unsupported(reason) => OperationError::InvalidInput(reason.to_owned()),
         }
     }
 }
@@ -454,11 +446,6 @@ impl Editor {
         expected_selection_generation: Option<u64>,
     ) -> Result<OperationReply, OperationError> {
         self.check_selection_target("Scale", target, provenance, expected_selection_generation)?;
-        if provenance == ManipulationProvenance::Native && space == ManipulationSpace::Parent {
-            return Err(OperationError::InvalidInput(
-                SCALE_PARENT_HANDLES.to_owned(),
-            ));
-        }
         let id = self
             .history
             .begin_scale_many(
@@ -578,11 +565,6 @@ impl Editor {
                 "Rotate tool ({space}): drag a ring to turn about that axis | Esc cancels | \
                  view ring and free rotate are unsupported"
             ),
-            ActiveTool::Scale
-                if self.manipulation.space(ActiveTool::Scale) == ManipulationSpace::Parent =>
-            {
-                format!("Scale tool (Parent): {SCALE_PARENT_HANDLES}")
-            }
             ActiveTool::Scale => format!(
                 "Scale tool ({space}): drag an axis box or the center box | Esc cancels | \
                  plane scale is unsupported"
@@ -627,9 +609,8 @@ impl Editor {
         let axes = match self.manipulation.space(tool) {
             ManipulationSpace::Object => frame.object_axes,
             ManipulationSpace::World => [DVec3::X, DVec3::Y, DVec3::Z],
-            ManipulationSpace::Parent => {
-                return Err(FrameFailure::Unsupported(SCALE_PARENT_HANDLES));
-            }
+            // Rotate refuses Parent when it is set, so only Scale reaches this arm.
+            ManipulationSpace::Parent => frame.parent_axes,
         };
         let kind = match tool {
             ActiveTool::Scale => azteccraft::native_scene::ManipulatorTool::Scale,
@@ -993,7 +974,22 @@ impl Editor {
                                 chosen = Some(space);
                             }
                         }
-                        for name in UNSUPPORTED_SPACES {
+                        if tool == ActiveTool::Scale {
+                            let space = ManipulationSpace::Parent;
+                            if ui
+                                .selectable_label(
+                                    self.manipulation.space(tool) == space,
+                                    space_name(space),
+                                )
+                                .clicked()
+                            {
+                                chosen = Some(space);
+                            }
+                        }
+                        for name in UNSUPPORTED_SPACES
+                            .into_iter()
+                            .filter(|name| tool != ActiveTool::Scale || *name != "Parent")
+                        {
                             ui.add_enabled(false, egui::Button::selectable(false, name))
                                 .on_disabled_hover_text(NOT_IMPLEMENTED_YET);
                         }
