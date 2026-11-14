@@ -135,6 +135,8 @@ mod link_tests;
 #[cfg(test)]
 mod material_connect_tests;
 #[cfg(test)]
+mod material_refusal_tests;
+#[cfg(test)]
 mod material_tests;
 #[cfg(test)]
 mod tests;
