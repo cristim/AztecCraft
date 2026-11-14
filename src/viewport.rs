@@ -36,7 +36,7 @@ pub const MARKER_SLOPE_PIXELS: f32 = 4.0;
 /// of the marker's and the surface's interpolated depth: one step each. Four steps pulled the
 /// hidden corner of a side-2 cube seen from 300 units (1 degree fov, near 0.01) in front of the
 /// face hiding it on software Vulkan: that corner lies 2.63 units (4.9 steps) behind the face,
-/// and four steps plus the slope allowance leave under one. Two steps keep 2.8 steps of that gap.
+/// and four steps plus the slope allowance leave under one. Two steps keep about 2.6 steps of that gap after the slope allowance.
 pub const MARKER_DEPTH_ULPS: f32 = 2.0;
 /// Upper bound on the marker bias fraction, so extreme near/far ratios cannot push a marker
 /// through the eye.

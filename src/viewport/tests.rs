@@ -284,7 +284,7 @@ fn vertex_and_face_center_picks_read_their_own_depth_tolerance() {
     // 4 and centre are both occluded by the quad's surface.
     for (gap, vertex, face) in [
         (0.00025, Some(4), Some(1)),
-        (0.0008, Some(4), None),
+        (0.0006, Some(4), None),
         (0.05, None, None),
     ] {
         let points = vec![
