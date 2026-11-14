@@ -987,8 +987,7 @@ lighting models.
 ## Session materials are a first, MCP-only slice (#51)
 
 `create_session_material`, `assign_session_material` and `set_session_material_color` edit a
-session-only lambert table. It is not saved (a new scene refuses Save and Save As with `save_unwritable` while any
-session material has been created or assigned, because the file cannot carry it; undo the material to save), sourced binary scenes
+lambert table. A new scene saves it to an authored `.ma` (reopened as an authored document; the statement layout is PROVISIONAL and unchecked against Maya, #5) and refuses `.mb` with `save_unwritable` reason `session_materials` (undo the material to save a `.mb`), sourced binary scenes
 refuse it with `unsupported_edit` and Maya ASCII scenes with `read_only_format`; it stays separate
 from the saved Phong `set_material_diffuse`. There is no native UI until the Attribute Editor
 branch lands. Assignment is whole-shape only: per-face assignment and instance-specific groups
@@ -1059,14 +1058,14 @@ valid OBJ, and the Maya docs do not say what objExport writes for a mesh without
 **Issue:** cristim/AztecCraft#156
 
 Save As `.ma` (macOS and Linux only) writes the authored-scene subset: one transform over one mesh per
-object, centimeter/degree/film units, optional session `map1` UVs (#156), no session materials, no curves. Reopening admits a mesh
+object, centimeter/degree/film units, optional session `map1` UVs (#156), session lamberts with shading groups and shape memberships (layout PROVISIONAL), no curves. Reopening admits a mesh
 `.ma` only when the file is byte-identical to what the writer would emit for the scene it decodes to
 (`src/native_scene/ascii/document.rs`). That makes the reader exactly as wide as the writer: a `.ma`
 with meshes written by Maya, hand-edited, reformatted or saved by another tool is refused, not
 approximated, and Maya-authored mesh files (UVs, shading connections, smooth edges, history) stay
-unsupported; only the writer's own UV block reopens. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
+unsupported; only the writer's own UV block, default shading links and session material block reopen. Windows refuses mesh `.ma` files at Open and has no authored ASCII Save. Maya acceptance of
 the written files is PROVISIONAL and unproven. A reopened file is an authored document: Save rewrites it,
-and any edit the writer cannot carry (session material, curves) refuses Save and keeps the scene
+and any edit the writer cannot carry (curves, a material the writer cannot name) refuses Save and keeps the scene
 dirty.
 
 Save also writes each mesh into the default shading group: a trailing `connectAttr "<mesh>.iog"
