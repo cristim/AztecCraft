@@ -1,8 +1,9 @@
 # Maya API catalog inventory (2027.2 lens; 2026 acceptance)
 
-**Status: partial source audit, not an exhaustive API inventory.** This file
-records what can be established from Autodesk's public catalogs and explicitly
-tracks the enumeration work still required. It does not assert that AztecCraft
+**Status: name-level catalog snapshot with open leaf work — not an exhaustive
+API inventory.** This file records what can be established from Autodesk's
+public catalogs (now including crawled 2027/2026 name lists), explicitly tracks
+the per-symbol leaf work still required, and does not assert that AztecCraft
 implements, loads, or is compatible with any Maya API. Catalog membership is
 not runtime compatibility.
 
@@ -12,9 +13,10 @@ not runtime compatibility.
   where versioned changelogs are available. Retrieval date: 2026-11-14.
 - Acceptance remains the pinned Maya 2026 target; a 2027 catalog or runtime
   cannot silently expand or satisfy that target.
-- Sources below are Autodesk Help / Developer Help only. Pages are live
-  catalogs, not locally archived snapshots; no source SHA or full crawl was
-  produced for this artifact.
+- Sources below are Autodesk Help / Developer Help only. The name-level
+  snapshots in `maya-2027-api/` record their exact source URL and retrieval
+  timestamp in each file header; leaf-page details have not been crawled or
+  archived.
 - No Maya executable, matching devkit, plug-in installation manifest, or
   runtime comparison was established here.
 - Family assignment uses the project's 14 families: SHL application shell,
@@ -28,11 +30,11 @@ not runtime compatibility.
 
 | Surface | Autodesk source | What this establishes | Enumeration status here |
 |---|---|---|---|
-| MEL / `maya.cmds` commands | [2027 Commands index](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/index.html); [2026 index](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Commands/index.html) | Official command reference entry point. The wrapper page is a frameset whose child `Commands/index_all.html` carries the alphabetized command catalog; a direct fetch of that child exposes every linked command anchor. | **Catalog names available via `index_all.html` but not yet transcribed or counted in this artifact.** Flags, modes, results and notes on the leaf pages remain uncrawled. |
-| Dependency nodes | [2027 Node reference](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/index.html); [2026 index](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Nodes/index.html) | Official node reference entry point. Its frameset child `Nodes/index_all.html` carries the alphabetized node catalog, including node names and "Updated" markers. | **Catalog names available via `index_all.html` but not yet transcribed or counted in this artifact.** Attributes, defaults and classifications on leaf pages remain uncrawled. |
-| C++ API classes | [2027 class list](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/annotated.html); [2026 class list](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/annotated.html) | Official Doxygen class catalog. The raw `annotated.html` HTML exposes every class/namespace row (hundreds of anchors, including nested namespaces); text-only extraction collapses it and must use HTML parsing. 2027 class page visibly spans Maya API, `MHWRender`, function sets, iterators, callbacks, plug-in base classes and other domains. | **Catalog rows retrievable in HTML; no complete transcription/count in this artifact yet.** |
+| MEL / `maya.cmds` commands | [2027 Commands index](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Commands/index.html); [2026 index](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Commands/index.html) | Official command reference entry point. The wrapper page is a frameset whose child `Commands/index_all.html` carries the alphabetized command catalog; a direct fetch of that child exposes every linked command anchor. | **Name list crawled:** 2027: 1528, 2026: 1524 (`commands.txt`, `commands-2026.txt`). The list mixes core commands and MEL scripts, as the catalog does. Flags, modes, results and notes on the leaf pages remain uncrawled. |
+| Dependency nodes | [2027 Node reference](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/Nodes/index.html); [2026 index](https://help.autodesk.com/cloudhelp/2026/ENU/Maya-Tech-Docs/Nodes/index.html) | Official node reference entry point. Its frameset child `Nodes/index_all.html` carries the alphabetized node catalog, including node names and "Updated" markers. | **Name list crawled:** 2027: 944, 2026: 943 (`nodes.txt`, `nodes-2026.txt`). Attributes, defaults and classifications on leaf pages remain uncrawled. |
+| C++ API classes | [2027 class list](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/annotated.html); [2026 class list](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/annotated.html) | Official Doxygen class catalog. The raw `annotated.html` HTML exposes every class/namespace row (hundreds of anchors, including nested namespaces); text-only extraction collapses it and must use HTML parsing. 2027 class page visibly spans Maya API, `MHWRender`, function sets, iterators, callbacks, plug-in base classes and other domains. | **Name list crawled:** 2027: 639, 2026: 633 (`cpp-classes.txt`, `cpp-classes-2026.txt`). Rows mix namespace entries with class entries, mirroring the Doxygen page. Per-class members/signatures remain uncrawled. |
 | C++ namespaces/modules/members | [2027 namespaces](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/namespaces.html); [modules](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/modules.html); [member index](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/functions.html) | Separate indexes needed in addition to class names to cover free functions, namespace members and grouped API. `functions.html` is a valid alphabetical class-members index with letter pages (`functions_a.html` … `functions_~.html`). | **Letter-page structure confirmed; members not enumerated in this artifact.** |
-| Python API 2.0 | [2027 package index](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/namespaces.html); [2026 package index](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/py_ref/namespaces.html) | Autodesk package index exposes `OpenMaya`, `OpenMayaAnim`, `OpenMayaRender`, `OpenMayaUI` (rendered by page extraction as `NOpenMaya...`). Each package's `namespace_open_maya*.html` page lists its classes and functions, and `py_ref/annotated.html` exposes every class row in HTML. | **Package names and retrievable class/members indexes confirmed; class/member symbols not transcribed in this artifact.** |
+| Python API 2.0 | [2027 package index](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/namespaces.html); [2026 package index](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/py_ref/namespaces.html) | Autodesk package index exposes `OpenMaya`, `OpenMayaAnim`, `OpenMayaRender`, `OpenMayaUI` (rendered by page extraction as `NOpenMaya...`). Each package's `namespace_open_maya*.html` page lists its classes and functions, and `py_ref/annotated.html` exposes every class row in HTML. | **Name list crawled:** 2027: 313, 2026: 310 (`py2-classes.txt`, `py2-classes-2026.txt`). Rows mix the package names with class entries. Per-class members/functions remain uncrawled. |
 | Python API 1.0 | [Maya scripting/API overview](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Scripting/files/GUID-49701DA7-9224-424D-93F7-EC1DA779C99C.htm); [Developer Help entry](https://help.autodesk.com/view/MAYADEV/2027/ENU/) | Autodesk distinguishes `maya.OpenMaya` (API 1.0) from `maya.api.OpenMaya` (API 2.0), and `maya.cmds`; PyMEL is third-party, not Autodesk-supported. | **No standalone API 1.0 symbol index enumerated or verified.** Do not infer its inventory from API 2.0. |
 | Release deltas | [2027.0](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/changelog_2027_0.html), [2027.1](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/changelog_2027_1.html), [2027.2](https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/cpp_ref/changelog_2027_2.html); [2026.1](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/changelog_2026_1.html), [2026.2](https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/changelog_2026_2.html) | Published C++ API change pages for listed updates. | **Partial delta review only; not a full command/node/Python diff.** No 2026.0 changelog verified at expected URL. |
 
@@ -76,6 +78,53 @@ symbol-by-symbol review):
 These are release-note/catalog observations, not proof of runtime availability,
 source/ABI compatibility, or equivalent behavior in Maya 2026.
 
+## Machine-readable catalog snapshots
+
+`maya-2027-api/` holds first-pass name inventories plus the crawl script:
+
+| File | Source page | Symbols |
+|---|---|---|
+| `commands.txt` / `commands-2026.txt` | `Commands/index_all.html` of 2027 / 2026 | 1528 / 1524 |
+| `nodes.txt` / `nodes-2026.txt` | `Nodes/index_all.html` of 2027 / 2026 | 944 / 943 |
+| `cpp-classes.txt` / `cpp-classes-2026.txt` | Doxygen `cpp_ref/annotated.html` of 2027 / 2026 | 639 / 633 |
+| `py2-classes.txt` / `py2-classes-2026.txt` | Doxygen `py_ref/annotated.html` of 2027 / 2026 | 313 / 310 |
+| `crawl-catalogs.ps1` | regenerates all eight lists with retrieval timestamps | — |
+
+Method and limitations:
+
+- Each file is one symbol per line with a `#` header recording the exact source
+  URL, retrieval timestamp and count. `crawl-catalogs.ps1` reproduces the lists;
+  rerunning it updates the headers, so treat the checked-in snapshot plus its
+  header as the evidence pair.
+- Commands and nodes lists contain every catalog anchor, mixing core commands
+  with MEL-only script commands; C++ and Python lists mix namespace rows with
+  class rows, as the Doxygen pages do.
+- These are **documentation-catalog snapshots of the live online help**, not
+  the complete leaf inventory: flags, attributes, member signatures, version
+  annotations and option semantics still require the per-symbol leaf pages.
+- Name-list membership is not runtime existence, and a symbol absent from one
+  release's online catalog is not proof it was absent in that shipped runtime.
+
+First-pass cross-version name diff (2026 catalog → 2027 catalog, same anchors,
+retrieved 2026-11-14):
+
+| Surface | 2027-only names in catalog | 2026-only names |
+|---|---|---|
+| Commands | `cameraSequencer`, `cameraSequencerCurrentTimeCtx`, `polySmartBevel`, `traxAudioTrack` | none |
+| Nodes | `shotLabel` | none |
+| C++ classes | `MPreviewRenderEnvironment`, `MPxFileDialog`, `MSequencerDrawPrimitive`, `MSequencerDrawPrimitives`, `MSequencerEditPrimitiveFct`, `MSequencerPrimitiveBuildMenuFct` | none |
+| Python API 2.0 classes | `MPreviewRenderEnvironment`, `MSequencerCustomDrawManager`, `MSequencerDrawPrimitive` | none |
+
+Notes: `MPxFileDialog` (C++) and the sequencer/preview additions are consistent
+with the published 2027.0/2027.1 changelog deltas; `polySmartBevel` matches the
+Smart Bevel workflow documented for 2027. Commands such as `cameraSequencer` /
+`traxAudioTrack` appearing only in the 2027 catalog while 2027 marks other
+sequencer commands "Updated" suggests catalog-page reorganization rather than
+new functionality, and needs per-command verification before use as a version
+claim. This diff compares the live online catalogs; the served 2026 pages may
+already include 2026.1/2026.2-era content, and neither list is a runtime
+inventory of any installed Maya.
+
 ## Coverage by API surface and family
 
 “Retrievable, not transcribed” means the official catalog page exposes the names
@@ -85,46 +134,47 @@ produced and hashed.
 
 | Surface | Families implicated (candidate mapping) | Names/counts in this artifact | 2027.0/1/2 vs 2026 status |
 |---|---|---|---|
-| MEL / `maya.cmds` | All 14; especially SCN, MOD, CRV, UVE, ANM, RIG, MAT, RND, INT, DYN, PIP | Names retrievable from `index_all.html` (hundreds of anchors observed); not transcribed here. Flags, query/edit/create modes and result contracts also uncrawled. | No command-level release diff performed. |
-| Nodes | All 14; cross-cutting DG nodes; especially SCN, MOD, ANM, RIG, MAT, RND, DYN | Names retrievable from `Nodes/index_all.html` (hundreds of anchors observed); not transcribed here. No attributes, defaults, classifications, affects/connections or version annotations crawled. | No node-level release diff performed. |
-| C++ API classes and members | SHL, SCN, VPT, MOD, CRV, UVE, ANM, RIG, MAT, RND, INT, SCR, DYN, PIP | `annotated.html` exposes class rows in HTML; `functions*.html` letter pages expose members. Partial observed names above; total class/member count not transcribed. `MHWRender`, UI, DG/DAG, function sets, iterators and plug-in extension APIs visibly occur in catalog. | Partial official C++ changelog observations above; exhaustive 2027/2026 diff not done. |
-| C++ namespaces/free functions/modules | Potentially all families | Index pages confirmed; not transcribed; count unknown. | Not compared. |
-| Python API 2.0 | All 14 | Four package names: `OpenMaya`, `OpenMayaAnim`, `OpenMayaRender`, `OpenMayaUI`. `py_ref/annotated.html` exposes per-package class rows in HTML; not transcribed here; leaf members/counts unknown. | Not compared. |
+| MEL / `maya.cmds` | All 14; especially SCN, MOD, CRV, UVE, ANM, RIG, MAT, RND, INT, DYN, PIP | 1528 (2027) / 1524 (2026) names crawled. Flags, query/edit/create modes and result contracts uncrawled. | Name-level diff done (see snapshots); flag/behavior diff not performed. |
+| Nodes | All 14; cross-cutting DG nodes; especially SCN, MOD, ANM, RIG, MAT, RND, DYN | 944 (2027) / 943 (2026) names crawled. No attributes, defaults, classifications, affects/connections or version annotations crawled. | Name-level diff done (see snapshots); attribute/behavior diff not performed. |
+| C++ API classes and members | SHL, SCN, VPT, MOD, CRV, UVE, ANM, RIG, MAT, RND, INT, SCR, DYN, PIP | 639 (2027) / 633 (2026) class/namespace names crawled. Per-class members/signatures uncrawled. `MHWRender`, UI, DG/DAG, function sets, iterators and plug-in extension APIs visibly occur in catalog. | Name-level diff done (see snapshots); partial official C++ changelog observations above; member-level diff not done. |
+| C++ namespaces/free functions/modules | Potentially all families | Index pages confirmed; members not enumerated; count unknown. | Not compared. |
+| Python API 2.0 | All 14 | Four package names: `OpenMaya`, `OpenMayaAnim`, `OpenMayaRender`, `OpenMayaUI`. 313 (2027) / 310 (2026) class/namespace names crawled; leaf members/counts unknown. | Name-level diff done (see snapshots); member-level diff not performed. |
 | Python API 1.0 (`maya.OpenMaya`) | All 14 | Autodesk overview confirms surface exists; no leaf symbol index or enumeration here. | Not compared; API 2.0 must not be used as proxy. |
 | Runtime compatibility / ABI / plug-in loading | All 14, especially SCR and PIP | No claims established. No Maya 2026 executable/devkit or component manifest tested. | Unverified independently of symbol enumeration. |
 
 ### 14-family disposition for the catalog crawl
 
-Every family has API exposure to inspect; no family has a complete symbol
-inventory in this artifact.
+Every family has API exposure to inspect; name-level lists exist for all
+families via the four snapshots, while no family has leaf-level detail or a
+complete semantic inventory in this artifact.
 
 | Family | Relevant likely catalog domains (candidate, not an exhaustive mapping) | Enumeration |
 |---|---|---|
-| SHL | C++ UI, panels, controls, contexts, editor APIs; commands/nodes | Not done |
-| SCN | Commands, DG/DAG/data/function sets, file/reference APIs, nodes | Not done |
-| VPT | `MHWRender`, view, selection, manipulator and tool APIs | Not done |
-| MOD | polygon commands/nodes, mesh function sets/iterators | Not done |
-| CRV | curve/surface commands/nodes/function sets/iterators | Not done |
-| UVE | UV commands/nodes, mesh UV members, texture editor extensions | Not done |
-| ANM | animation commands/nodes, animation API, sequencer/editor APIs | Not done |
-| RIG | joint/IK/skin/deformer commands/nodes/function sets | Not done |
-| MAT | shader/light/texture commands/nodes and rendering APIs | Not done |
-| RND | render commands/nodes, `MHWRender`, renderer/override APIs | Not done |
-| INT | file commands, translators, file I/O and external-content APIs | Not done |
-| SCR | all command and API catalogs; plug-in lifecycle and `MPx*` surfaces | Not done |
-| DYN | simulation commands/nodes and component/plug-in APIs | Not done |
-| PIP | file/resolver/evaluation/profiling/batch-related commands and APIs | Not done |
+| SHL | C++ UI, panels, controls, contexts, editor APIs; commands/nodes | Names crawled; leaf details open |
+| SCN | Commands, DG/DAG/data/function sets, file/reference APIs, nodes | Names crawled; leaf details open |
+| VPT | `MHWRender`, view, selection, manipulator and tool APIs | Names crawled; leaf details open |
+| MOD | polygon commands/nodes, mesh function sets/iterators | Names crawled; leaf details open |
+| CRV | curve/surface commands/nodes/function sets/iterators | Names crawled; leaf details open |
+| UVE | UV commands/nodes, mesh UV members, texture editor extensions | Names crawled; leaf details open |
+| ANM | animation commands/nodes, animation API, sequencer/editor APIs | Names crawled; leaf details open |
+| RIG | joint/IK/skin/deformer commands/nodes/function sets | Names crawled; leaf details open |
+| MAT | shader/light/texture commands/nodes and rendering APIs | Names crawled; leaf details open |
+| RND | render commands/nodes, `MHWRender`, renderer/override APIs | Names crawled; leaf details open |
+| INT | file commands, translators, file I/O and external-content APIs | Names crawled; leaf details open |
+| SCR | all command and API catalogs; plug-in lifecycle and `MPx*` surfaces | Names crawled; leaf details open |
+| DYN | simulation commands/nodes and component/plug-in APIs | Names crawled; leaf details open |
+| PIP | file/resolver/evaluation/profiling/batch-related commands and APIs | Names crawled; leaf details open |
 
 ## Remaining work and auditable completion criteria
 
-There is no defensible numeric “remaining symbol count” in this artifact yet:
-the catalog names are retrievable from `Commands/index_all.html`,
-`Nodes/index_all.html`, Doxygen `annotated.html`/`functions.html` letter pages
-and `py_ref/annotated.html`/`namespacemembers.html`, but none have been
-transcribed into a counted list here. Therefore the concrete remaining limit is
-**all leaf symbols and total counts for every surface**, except the four Python
-API 2.0 package names and the explicitly observed C++ delta names. Do not
-substitute a guessed count.
+There is a defensible name-level baseline now, but not a leaf-symbol inventory:
+`maya-2027-api/` holds crawled 2027 and 2026 name lists for commands, nodes,
+C++ and Python API 2.0 classes with counts and source headers. The concrete
+remaining limit is **every leaf detail for every listed symbol** — command
+flags/modes/results, node attributes/defaults/classifications, C++/Python
+members/signatures, plus C++ namespaces/free functions, Python package
+functions and a verified Python API 1.0 catalog. Do not substitute a guessed
+count for the uncrawled leaf work.
 
 To turn this into an exhaustive inventory:
 
@@ -160,11 +210,12 @@ To turn this into an exhaustive inventory:
    availability and ABI/plugin compatibility as independent evidence fields.
 
 **Genuinely complete here:** source registry for the named official entry-point
-catalogs, including the frameset-child catalogs and Doxygen letter/members pages
-that make full name enumeration mechanically possible; observed Python API 2.0
-package names; a small explicit C++ class and 2027.0 delta sample; family-by-family
-statement that enumeration remains open; and the boundary that catalog presence
-is not compatibility. **Not complete:** any transcribed command, node, C++ or
-Python symbol list in this artifact, exact catalog totals, leaf-page
-flags/attributes/members, full cross-version diff, or runtime compatibility
-audit.
+catalogs including frameset-child catalogs and Doxygen letter/members pages;
+crawled 2027 and 2026 name snapshots for commands, nodes, C++ classes and
+Python API 2.0 classes with counts, headers and a name-level cross-version diff;
+observed Python API 2.0 package names; a small explicit C++ delta sample;
+family-by-family statement that leaf enumeration remains open; and the boundary
+that catalog presence is not compatibility. **Not complete:** per-symbol leaf
+detail (flags/attributes/members), C++ namespace/member and Python
+package-function inventories, a verified Python API 1.0 catalog, semantic or
+behavioral diffs, or any runtime compatibility audit.
