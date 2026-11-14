@@ -2045,7 +2045,7 @@
             "minimum": 0,
             "type": "integer"
           },
-          "maxItems": 8192,
+          "maxItems": 6144,
           "minItems": 1,
           "type": "array"
         }

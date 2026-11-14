@@ -1202,6 +1202,32 @@ mod tests {
         assert!(headroom > 2048, "only {headroom} bytes of headroom");
     }
 
+    #[test]
+    fn a_largest_move_vertices_request_fits_the_ingress_line() {
+        // Worst case: eight-digit indices, 20-digit u64 ids, the schema's 257-id path and the
+        // longest text a finite f64 serialises to in JSON.
+        let longest = -f64::MAX;
+        assert_eq!(
+            serde_json::to_string(&longest).unwrap(),
+            "-1.7976931348623157e+308"
+        );
+        let indices = vec![16_777_215; crate::editor_operations::MAX_MCP_MOVED_VERTICES];
+        let envelope = json!({
+            "jsonrpc": "2.0", "id": 4_294_967_295_u64, "method": "tools/call",
+            "params": {"name": "move_vertices", "arguments": {
+                "scene_token": Uuid::new_v4().to_string(),
+                "node_id": "18446744073709551615", "shape_id": "18446744073709551615",
+                "instance_path": vec!["18446744073709551615"; 257],
+                "vertex_indices": indices,
+                "delta": [longest, longest, longest],
+            }},
+        });
+        let line = serde_json::to_vec(&envelope).unwrap().len();
+        assert!(line < crate::mcp::transport::MAX_INGRESS_BYTES, "{line}");
+        let headroom = crate::mcp::transport::MAX_INGRESS_BYTES - line;
+        assert!(headroom > 2048, "only {headroom} bytes of headroom");
+    }
+
     type PickedComponent = Option<(
         azteccraft::scene::NodeId,
         azteccraft::native_scene::NativeId,
@@ -1940,7 +1966,13 @@ mod tests {
         for (field, value) in [
             ("vertex_indices", json!([])),
             ("vertex_indices", json!([-1])),
-            ("vertex_indices", json!(vec![0; 8193])),
+            (
+                "vertex_indices",
+                json!(vec![
+                    0;
+                    crate::editor_operations::MAX_MCP_MOVED_VERTICES + 1
+                ]),
+            ),
             ("instance_path", json!(["1"])),
             ("delta", json!([1, 2])),
             ("delta", json!([1, 2, "3"])),
@@ -1951,8 +1983,17 @@ mod tests {
             assert!(parse_request("move_vertices", args.as_object().unwrap().clone()).is_err());
         }
         let mut cap = valid.clone();
-        cap["vertex_indices"] = json!(vec![0; 8192]);
+        cap["vertex_indices"] = json!(vec![0; crate::editor_operations::MAX_MCP_MOVED_VERTICES]);
         assert!(parse_request("move_vertices", cap.as_object().unwrap().clone()).is_ok());
+        let mut over = valid.clone();
+        over["vertex_indices"] = json!(vec![
+            0;
+            crate::editor_operations::MAX_MCP_MOVED_VERTICES + 1
+        ]);
+        let error = parse_request("move_vertices", over.as_object().unwrap().clone())
+            .err()
+            .expect("cap + 1 indices are refused");
+        assert_eq!(error.code, rmcp::model::ErrorCode::INVALID_PARAMS);
         let mut args = valid;
         args["extra"] = json!(1);
         assert!(parse_request("move_vertices", args.as_object().unwrap().clone()).is_err());
