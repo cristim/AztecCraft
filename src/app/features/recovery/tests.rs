@@ -2,6 +2,7 @@ use super::*;
 use crate::app::tests::remote;
 use azteccraft::scene::Primitive;
 
+#[cfg(unix)]
 fn enabled(dir: &std::path::Path) -> Editor {
     let mut editor = Editor::default();
     editor.enable_recovery(dir.join("recovery")).unwrap();
@@ -9,6 +10,7 @@ fn enabled(dir: &std::path::Path) -> Editor {
     editor
 }
 
+#[cfg(unix)]
 fn files(dir: &std::path::Path) -> Vec<String> {
     let Ok(read) = std::fs::read_dir(dir.join("recovery")) else {
         return Vec::new();
