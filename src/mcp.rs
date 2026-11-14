@@ -181,6 +181,7 @@ impl UiBridge {
                     | OperationReply::CloseRequested { .. }
                     | OperationReply::Exported { .. }
                     | OperationReply::Imported { .. }
+                    | OperationReply::Nodes { .. }
                     | OperationReply::GltfExported { .. }
                     | OperationReply::UsdExported { .. })
                     | Ok(OperationReply::Saved { .. }

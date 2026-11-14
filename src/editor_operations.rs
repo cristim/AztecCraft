@@ -845,6 +845,11 @@ pub enum OperationReply {
     Created {
         node_id: String,
     },
+    /// The objects a group edit produced or moved, as decimal ids in order (the children an
+    /// Ungroup released).
+    Nodes {
+        node_ids: Vec<String>,
+    },
     ManipulationStarted {
         manipulation_id: String,
     },

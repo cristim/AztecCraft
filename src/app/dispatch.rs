@@ -1541,7 +1541,9 @@ impl Editor {
         })?;
         match &outcome {
             EditOutcome::Created(id) => self.after_nodes_created(&[*id])?,
-            EditOutcome::Imported(ids) => self.after_nodes_created(ids)?,
+            EditOutcome::Imported(ids) | EditOutcome::Nodes(ids) => {
+                self.after_nodes_created(ids)?
+            }
             EditOutcome::CreatedJoint(target) => {
                 self.clear_remembered_components();
                 self.selection.replace(target.clone());
@@ -1560,6 +1562,9 @@ impl Editor {
                 ignored_records: import_totals.ignored_records,
                 node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
             },
+            EditOutcome::Nodes(ids) => OperationReply::Nodes {
+                node_ids: ids.iter().map(|id| id.to_decimal()).collect(),
+            },
             EditOutcome::CreatedJoint(target) => OperationReply::Created {
                 node_id: target.node.to_decimal(),
             },
@@ -1573,32 +1578,31 @@ impl Editor {
             EditOutcome::Unchanged => OperationReply::Unchanged,
         })
     }
-    /// Makes new root nodes the object selection, in order with the last as lead, and forgets
-    /// remembered component selections. Shared by Create and OBJ import.
+    /// Makes the given nodes, at their real instance paths, the object selection in order with
+    /// the last as lead, and forgets remembered component selections. Shared by Create, OBJ
+    /// import, Group and Ungroup.
     fn after_nodes_created(&mut self, ids: &[NodeId]) -> Result<(), OperationError> {
         self.clear_remembered_components();
-        let mut targets = Vec::new();
+        let paths = self
+            .history
+            .scene()
+            .transform_paths()
+            .map_err(OperationError::Scene)?;
+        let mut targets = Vec::with_capacity(ids.len());
         for id in ids {
-            let transform = self
-                .history
-                .scene()
-                .node(*id)
-                .map_err(OperationError::Scene)?
-                .transform_id();
-            targets.push(TransformTarget {
-                node: *id,
-                path: vec![transform],
-            });
+            let mut found = paths.iter().filter(|target| target.node == *id);
+            match (found.next(), found.next()) {
+                (Some(target), None) => targets.push(target.clone()),
+                _ => {
+                    return Err(OperationError::Scene(
+                        azteccraft::native_scene::NativeError::InvalidInstancePath,
+                    ));
+                }
+            }
         }
-        match <[TransformTarget; 1]>::try_from(targets) {
-            Ok([only]) => self.selection.replace(only),
-            // Cannot be full: an import adds at most MAX_OBJECTS roots (see the assertion below).
-            Err(targets) => self
-                .selection
-                .replace_with(targets)
-                .map_err(|error| OperationError::InvalidInput(error.to_string()))?,
-        }
-        Ok(())
+        self.selection
+            .replace_with(targets)
+            .map_err(|error| OperationError::InvalidInput(error.to_string()))
     }
     pub(super) fn has_draft(&self) -> bool {
         self.material_draft

@@ -1,8 +1,8 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, JointRequest, MaterialChoice, NativeError, NativeId,
-        NativeScene, NativeTransform, ObjImportPlan, PivotReset, ReparentKeep, SessionMaterialId,
-        TransformTarget, UvProjectAxis,
+        ChannelMask, DEFAULT_FRAME, GroupOptions, JointRequest, MaterialChoice, NativeError,
+        NativeId, NativeScene, NativeTransform, ObjImportPlan, PivotReset, ReparentKeep,
+        SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -44,6 +44,17 @@ pub enum Command {
         id: NodeId,
         parent: Option<NodeId>,
         keep: ReparentKeep,
+    },
+    /// Maya `group`: the top-most of `ids` become the children of a new group, as one undo step.
+    Group {
+        ids: Vec<NodeId>,
+        options: GroupOptions,
+    },
+    /// Maya `ungroup`: the children of each top-most group of `ids` move out and the emptied
+    /// groups are deleted, as one undo step.
+    Ungroup {
+        ids: Vec<NodeId>,
+        options: UngroupOptions,
     },
     EditNode {
         id: NodeId,
@@ -135,6 +146,9 @@ impl Command {
                 parent: Some(_), ..
             } => "Parent".to_string(),
             Self::Reparent { parent: None, .. } => "Unparent".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::Group { .. } => "Group".to_string(),
+            Self::Ungroup { .. } => "Ungroup".to_string(),
             // execute_labeled names it from the stored before/after values.
             Self::SetTransform { .. } => "Transform".to_string(),
             Self::EditNode { .. } | Self::EditNodes(_) => "Edit".to_string(),
@@ -226,6 +240,8 @@ pub enum EditOutcome {
     Created(NodeId),
     /// The roots an import added, in file order.
     Imported(Vec<NodeId>),
+    /// The objects a group edit produced or moved (the children an Ungroup released), in order.
+    Nodes(Vec<NodeId>),
     /// A joint with its full path, proved valid by the core before the edit committed.
     CreatedJoint(TransformTarget),
     SessionMaterial(SessionMaterialId),
@@ -560,6 +576,12 @@ impl History {
                 candidate.reparent(id, parent, keep)?;
                 EditOutcome::Changed
             }
+            Command::Group { ids, options } => {
+                EditOutcome::Created(candidate.group(&ids, options)?)
+            }
+            Command::Ungroup { ids, options } => {
+                EditOutcome::Nodes(candidate.ungroup(&ids, options)?)
+            }
             Command::EditNode { id, name, channels } => {
                 candidate.edit_node(id, name.as_deref(), channels)?;
                 EditOutcome::Changed
@@ -752,6 +774,8 @@ impl History {
     }
 }
 
+#[cfg(test)]
+mod group_tests;
 #[cfg(test)]
 mod pivot_tests;
 #[cfg(test)]

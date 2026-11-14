@@ -544,6 +544,7 @@ impl Editor {
             EditOutcome::Changed
             | EditOutcome::Created(_)
             | EditOutcome::Imported(_)
+            | EditOutcome::Nodes(_)
             | EditOutcome::CreatedJoint(_)
             | EditOutcome::SessionMaterial(_) => OperationReply::Changed,
             EditOutcome::Unchanged => OperationReply::Unchanged,
