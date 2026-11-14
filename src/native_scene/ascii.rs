@@ -1180,16 +1180,20 @@ pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, 
 }
 
 fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiError> {
-    decode_with_uvs(source, meshes).map(|(scene, ..)| scene)
+    decode_with_uvs(source, meshes).map(|decoded| decoded.scene)
 }
 
-/// The sourced scene, each shape's UV set (parallel to its shapes) and how many default
-/// shading-group links were read. A sourced scene cannot hold UVs, so the caller attaches them
-/// to the source-free candidate. The count is not yet consumed (the writer emits no links).
-fn decode_with_uvs(
-    source: Arc<[u8]>,
-    meshes: bool,
-) -> Result<(NativeScene, Vec<Option<UvSet>>, usize), AsciiError> {
+/// What the gate's decode read besides the sourced scene. A sourced scene cannot hold UVs, so
+/// the caller attaches them to the source-free candidate.
+struct Decoded {
+    scene: NativeScene,
+    /// Each shape's UV set, parallel to the scene's shapes.
+    uvs: Vec<Option<UvSet>>,
+    /// How many default shading-group links were read.
+    links: usize,
+}
+
+fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiError> {
     let lex::Records {
         source,
         statements,
@@ -1305,7 +1309,11 @@ fn decode_with_uvs(
             offset: None,
         },
     })?;
-    Ok((scene, uvs, builder.default_links))
+    Ok(Decoded {
+        scene,
+        uvs,
+        links: builder.default_links,
+    })
 }
 
 #[cfg(test)]

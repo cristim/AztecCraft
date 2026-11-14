@@ -2,10 +2,10 @@
 //! only when it is byte-identical to what the authored writer emits for the scene it decodes
 //! to, so the reader never claims more of the Maya ASCII grammar than the writer produces.
 use super::{
-    AsciiError, ErrorKind, decode_with_uvs,
+    AsciiError, Decoded, ErrorKind, decode_with_uvs,
     write::{DefaultLinks, emit_with_links},
 };
-use crate::native_scene::NativeScene;
+use crate::native_scene::{NativeScene, UvSet};
 use std::{fmt, sync::Arc};
 
 /// A source-free scene proved to re-emit the exact bytes it was decoded from. Only
@@ -66,22 +66,17 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
-    let (sourced, uvs, links) =
-        decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
+    let Decoded {
+        scene: sourced,
+        uvs,
+        links,
+    } = decode_with_uvs(source.clone(), true).map_err(AsciiDocumentError::Ascii)?;
     // The emitter writes one mesh per transform, so a scene with nodes but no shapes (curves)
     // can never be proved; skip the clone for it.
     if sourced.shapes.is_empty() && !sourced.nodes.is_empty() {
         return Ok(AsciiDecoded::Retained(sourced));
     }
-    let mut candidate = sourced.clone();
-    candidate.source = None;
-    // A sourced scene cannot hold UVs, so they join the candidate only now. The comparison below
-    // re-emits them, which is what admits a UV block: anything the writer would not emit refuses.
-    for (shape, set) in sourced.shapes.iter().zip(uvs) {
-        if let Some(set) = set {
-            candidate.attach_authored_uv_set(shape.id(), set);
-        }
-    }
+    let candidate = candidate_of(&sourced, uvs);
     // Any link selects the linked layout; the byte comparison then admits only the exact one
     // (every shape, in the writer's order), so a partial or duplicated set is refused.
     let layout = if links == 0 {
@@ -108,6 +103,20 @@ pub fn decode_document(
         };
     }
     Ok(AsciiDecoded::Authored(AuthoredProjection(candidate)))
+}
+
+/// The source-free scene the decoded statements describe. A sourced scene cannot hold UVs, so
+/// they join the candidate only now. The comparison against the source re-emits them, which is
+/// what admits a UV block: anything the writer would not emit refuses.
+fn candidate_of(sourced: &NativeScene, uvs: Vec<Option<UvSet>>) -> NativeScene {
+    let mut candidate = sourced.clone();
+    candidate.source = None;
+    for (shape, set) in sourced.shapes.iter().zip(uvs) {
+        if let Some(set) = set {
+            candidate.attach_authored_uv_set(shape.id(), set);
+        }
+    }
+    candidate
 }
 
 #[cfg(test)]
