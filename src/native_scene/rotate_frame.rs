@@ -28,11 +28,13 @@ impl RotateAxis {
     }
 }
 
-/// Whether a ring turns about the node's own axes or about the world axes.
+/// Whether a ring turns about the node's own axes, the world axes, or the gimbal axes, where
+/// each ring edits exactly one rotate channel (Maya's Gimbal orientation, xyz order only).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RotateSpace {
     Object,
     World,
+    Gimbal,
 }
 
 // Parent linear maps may deviate from rotation x uniform scale by this relative amount.
@@ -95,6 +97,23 @@ pub(super) fn rotation_times_uniform_scale(linear: DMat3) -> bool {
             .all(|i| ((i + 1)..3).all(|j| columns[i].dot(columns[j]).abs() <= tolerance * scale))
 }
 
+// Channel edits are xyz Euler deltas, and R * RA * Rd * RA^-1 != R * Rd.
+fn require_xyz_without_rotate_axis(transform: &InternalTransform) -> Result<(), NativeError> {
+    if let Some(extras) = transform.extras {
+        if extras.rotate_order != 0 {
+            return Err(NativeError::UnsupportedRotate(
+                RotateUnsupported::RotateOrder,
+            ));
+        }
+        if extras.rotate_axis_radians.iter().any(|value| *value != 0.0) {
+            return Err(NativeError::UnsupportedRotate(
+                RotateUnsupported::RotateAxis,
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn rotation_matrix([x, y, z]: [f64; 3]) -> DMat3 {
     DMat3::from_rotation_z(z) * DMat3::from_rotation_y(y) * DMat3::from_rotation_x(x)
 }
@@ -106,13 +125,14 @@ fn unwrap_toward(value: f64, base: f64) -> f64 {
 
 impl RotateFrame {
     // Maya binary files omit default (zero) rotate leaves and the encoder cannot insert them.
-    // An X ring changes rotateX only; Y and Z rings can change all three channels.
+    // An X ring changes rotateX only; Y and Z rings can change all three channels. A gimbal ring
+    // changes its own channel only.
     // A world ring can change all three channels, whichever axis it turns about.
     pub fn require_leaves(&self, axis: RotateAxis) -> Result<(), NativeError> {
-        let needed = if axis == RotateAxis::X && self.space == RotateSpace::Object {
-            0..1
-        } else {
-            0..3
+        let needed = match self.space {
+            RotateSpace::Object if axis == RotateAxis::X => 0..1,
+            RotateSpace::Gimbal => axis.index()..axis.index() + 1,
+            _ => 0..3,
         };
         for component in needed {
             if self.absent_leaf[component] {
@@ -159,9 +179,9 @@ impl RotateFrame {
             return Err(refused);
         }
         let mut radians = match (self.space, axis) {
-            (RotateSpace::Object, RotateAxis::X) => {
+            (RotateSpace::Object, RotateAxis::X) | (RotateSpace::Gimbal, _) => {
                 let mut radians = self.radians;
-                radians[0] += delta;
+                radians[axis.index()] += delta;
                 radians
             }
             (RotateSpace::Object, _) => self.decompose(
@@ -186,7 +206,7 @@ impl RotateFrame {
         // Heuristic: the channel that moves most is taken as intended; a genuine change below
         // SNAP_TOLERANCE on any other channel is snapped away (see known-issues.md).
         let intended = match self.space {
-            RotateSpace::Object => axis.index(),
+            RotateSpace::Object | RotateSpace::Gimbal => axis.index(),
             RotateSpace::World => (0..3)
                 .max_by(|a, b| {
                     let moved = |i: usize| (radians[i] - self.radians[i]).abs();
@@ -285,18 +305,7 @@ impl NativeScene {
         // channel maths: only the handle origin needs it (`ManipulatorFrame::handle_origin`).
         // Channel edits are xyz Euler deltas, and R * RA * Rd * RA^-1 != R * Rd: refuse before
         // any source or leaf check so the reason is the same in every format (Task 2d lifts it).
-        if let Some(extras) = transform.extras {
-            if extras.rotate_order != 0 {
-                return Err(NativeError::UnsupportedRotate(
-                    RotateUnsupported::RotateOrder,
-                ));
-            }
-            if extras.rotate_axis_radians.iter().any(|value| *value != 0.0) {
-                return Err(NativeError::UnsupportedRotate(
-                    RotateUnsupported::RotateAxis,
-                ));
-            }
-        }
+        require_xyz_without_rotate_axis(&transform)?;
         let mut absent_leaf = [false; 3];
         if let Some(source) = &self.source {
             if source.format != SourceFormat::Binary {
@@ -323,6 +332,8 @@ impl NativeScene {
         let parent_linear = match space {
             RotateSpace::Object => DMat3::IDENTITY,
             RotateSpace::World => self.parent_linear(target, transform.scale)?,
+            // The channel edit never reads P; `gimbal_axes` checks the parent for the handles.
+            RotateSpace::Gimbal => DMat3::IDENTITY,
         };
         let frame = RotateFrame {
             space,
@@ -347,12 +358,18 @@ impl NativeScene {
         target: &TransformTarget,
         scale: [f64; 3],
     ) -> Result<DMat3, NativeError> {
-        let refused = NativeError::UnsupportedRotate(RotateUnsupported::ParentTransform);
         if scale.iter().any(|value| value.is_nan() || *value <= 0.0) {
             return Err(NativeError::UnsupportedRotate(
                 RotateUnsupported::NonPositiveScale,
             ));
         }
+        self.parent_rotation_scale(target)
+    }
+
+    // The compensated parent linear map, refused unless it is a rotation times a uniform
+    // positive scale.
+    fn parent_rotation_scale(&self, target: &TransformTarget) -> Result<DMat3, NativeError> {
+        let refused = NativeError::UnsupportedRotate(RotateUnsupported::ParentTransform);
         let parent_world = self.ancestor_world(target)?.ok_or(refused.clone())?;
         let linear = DMat3::from_mat4(parent_world);
         if rotation_times_uniform_scale(linear) {
@@ -364,6 +381,42 @@ impl NativeScene {
         } else {
             Err(refused)
         }
+    }
+
+    // The compensated parent map must itself be rotation x uniform scale: a ring drag measures
+    // its angle in the world plane of P * axis, which equals the channel delta only then, and a
+    // joint's inverse parent scale can break what the raw ancestors satisfy.
+    fn gimbal_parent(&self, target: &TransformTarget) -> Result<DMat3, NativeError> {
+        let parent = self.parent_rotation_scale(target)?;
+        if rotation_times_uniform_scale(parent) {
+            Ok(parent)
+        } else {
+            Err(NativeError::UnsupportedRotate(
+                RotateUnsupported::ParentTransform,
+            ))
+        }
+    }
+
+    /// The world directions of the X, Y and Z gimbal rings: `P * (Rz Ry e_x)`, `P * (Rz e_y)` and
+    /// `P * e_z`, with P the compensated parent map. Turning about ring `a` changes only rotate
+    /// channel `a`. Not normalized (P may carry a uniform scale). Refused for a
+    /// non-xyz rotate order, a non-zero rotate axis, or a parent that is not rotation x uniform
+    /// scale (the channel edit itself, `begin_rotation`, does not need the parent). It does not check source or leaf rules; `rotation_refusal` does.
+    pub fn gimbal_axes(&self, target: &TransformTarget) -> Result<[DVec3; 3], NativeError> {
+        if target.path.len() > MAX_TRANSFORM_DEPTH {
+            return Err(NativeError::ResourceLimit);
+        }
+        self.resolve_transform_path(target.node, &target.path)?;
+        let transform = self.internal_transform(target.node)?;
+        require_xyz_without_rotate_axis(&transform)?;
+        let parent = self.gimbal_parent(target)?;
+        let [_, y, z] = transform.rotation_radians;
+        let axes = [
+            parent * (DMat3::from_rotation_z(z) * DMat3::from_rotation_y(y) * DVec3::X),
+            parent * (DMat3::from_rotation_z(z) * DVec3::Y),
+            parent * DVec3::Z,
+        ];
+        Ok(axes)
     }
 }
 
