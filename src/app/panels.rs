@@ -1,4 +1,5 @@
 use super::*;
+use crate::editor_operations::ComponentKind;
 use azteccraft::{ui_icons::UiIcon, view_scene::VIEW_BUDGET};
 
 impl Editor {
@@ -573,11 +574,6 @@ impl Editor {
                     }
                 }
             }
-            let (vertex_pick, edge_pick, face_pick) = (
-                self.remembered_vertex(),
-                self.remembered_edge(),
-                self.remembered_face(),
-            );
             let painted = input.paint(
                 self.renderer.as_ref(),
                 &self.camera,
@@ -597,15 +593,15 @@ impl Editor {
                     }
                     SelectionMode::Vertex => crate::viewport_renderer::SelectionFeedback::Vertex {
                         active: self.single_target().ok(),
-                        selected: vertex_pick.as_ref(),
+                        selected: Some(self.component_set(ComponentKind::Vertex)),
                     },
                     SelectionMode::Edge => crate::viewport_renderer::SelectionFeedback::Edge {
                         active: self.single_target().ok(),
-                        selected: edge_pick.as_ref(),
+                        selected: Some(self.component_set(ComponentKind::Edge)),
                     },
                     SelectionMode::Face => crate::viewport_renderer::SelectionFeedback::Face {
                         active: self.single_target().ok(),
-                        selected: face_pick.as_ref(),
+                        selected: Some(self.component_set(ComponentKind::Face)),
                     },
                 },
                 self.grid_visible,

@@ -5,6 +5,7 @@
 use super::*;
 use azteccraft::{
     native_scene::{EdgeTarget, VertexTarget},
+    selection::{ComponentOwner, ComponentSet},
     viewport::{FACE_CENTER_DEPTH_TOLERANCE, VERTEX_MARKER_DEPTH_TOLERANCE},
 };
 
@@ -91,20 +92,17 @@ fn submit(
     .unwrap()
 }
 
-fn vertex_feedback<'a>(
-    scene: &'a Scene,
-    selected: Option<&'a VertexTarget>,
-) -> SelectionFeedback<'a> {
+fn vertex_feedback<'a>(scene: &'a Scene, selected: Option<&VertexTarget>) -> SelectionFeedback<'a> {
     SelectionFeedback::Vertex {
         active: scene.active(),
-        selected,
+        selected: selected.map(|t| one_member_set(t.transform, t.shape, &t.path, t.vertex_index)),
     }
 }
 
-fn edge_feedback<'a>(scene: &'a Scene, selected: Option<&'a EdgeTarget>) -> SelectionFeedback<'a> {
+fn edge_feedback<'a>(scene: &'a Scene, selected: Option<&EdgeTarget>) -> SelectionFeedback<'a> {
     SelectionFeedback::Edge {
         active: scene.active(),
-        selected,
+        selected: selected.map(|t| one_member_set(t.transform, t.shape, &t.path, t.edge_index)),
     }
 }
 
@@ -194,7 +192,12 @@ fn vertex_mode_without_an_active_object_or_in_other_modes_draws_no_markers() {
     for selection in [
         SelectionFeedback::Vertex {
             active: None,
-            selected: Some(&target),
+            selected: Some(one_member_set(
+                target.transform,
+                target.shape,
+                &target.path,
+                target.vertex_index,
+            )),
         },
         SelectionFeedback::Object(Some(&scene.path)),
         edge_feedback(&scene, None),
@@ -937,4 +940,119 @@ fn vertex_markers_and_picks_follow_world_vertices_under_a_mirrored_parent() {
             .unwrap();
         assert_eq!(picked.map(|target| target.vertex_index), Some(index));
     }
+}
+
+fn set_with(scene: &Scene, indices: &[usize]) -> &'static ComponentSet {
+    let mut set = ComponentSet::default();
+    set.replace_with(
+        &ComponentOwner {
+            transform: scene.owner,
+            shape: scene.instance().shape(),
+            path: scene.instance().path().to_vec(),
+        },
+        indices.iter().copied(),
+    );
+    Box::leak(Box::new(set))
+}
+
+#[test]
+fn every_selected_vertex_draws_in_the_selected_colour() {
+    let scene = Scene::new(cube());
+    let camera = camera(0.01);
+    let front: Vec<usize> = scene
+        .instance()
+        .world_vertices()
+        .iter()
+        .enumerate()
+        .filter(|(_, point)| point.z > 0.0)
+        .map(|(index, _)| index)
+        .collect();
+    assert_eq!(front.len(), 4);
+    let selection = SelectionFeedback::Vertex {
+        active: scene.active(),
+        selected: Some(set_with(&scene, &front[..3])),
+    };
+    let submission = submit(&scene, &camera, selection, ShadingMode::SmoothShadeAll);
+    let selected = vertices(&submission, &submission.markers)
+        .iter()
+        .filter(|vertex| color(vertex) == rgba(SELECTED_VERTEX_RGB))
+        .count();
+    assert_eq!(selected, 3 * 6);
+    let plain = submit(
+        &scene,
+        &camera,
+        vertex_feedback(&scene, None),
+        ShadingMode::SmoothShadeAll,
+    );
+    assert_eq!(submission.markers.len(), plain.markers.len());
+}
+
+#[test]
+fn every_selected_edge_draws_a_quad_and_a_set_owned_by_another_object_draws_none() {
+    let scene = Scene::new(cube());
+    let camera = camera(0.01);
+    let selection = SelectionFeedback::Edge {
+        active: scene.active(),
+        selected: Some(set_with(&scene, &[5, 0, 3])),
+    };
+    let submission = submit(&scene, &camera, selection, ShadingMode::SmoothShadeAll);
+    let quads = vertices(&submission, &submission.markers);
+    assert_eq!(quads.len(), 3 * 6);
+    assert!(
+        quads
+            .iter()
+            .all(|vertex| color(vertex) == rgba(SELECTED_EDGE_RGB))
+    );
+    let mut foreign = ComponentSet::default();
+    let mut owner = ComponentOwner {
+        transform: scene.owner,
+        shape: scene.instance().shape(),
+        path: scene.instance().path().to_vec(),
+    };
+    owner.path.reverse();
+    foreign.replace_with(&owner, [0, 1]);
+    let none = submit(
+        &scene,
+        &camera,
+        SelectionFeedback::Edge {
+            active: scene.active(),
+            selected: Some(Box::leak(Box::new(foreign))),
+        },
+        ShadingMode::SmoothShadeAll,
+    );
+    assert!(vertices(&none, &none.markers).is_empty());
+    // The byte budget counts one quad per selected edge.
+    let bytes = |selection| {
+        submit(&scene, &camera, selection, ShadingMode::SmoothShadeAll)
+            .bytes
+            .len()
+    };
+    let one = SelectionFeedback::Edge {
+        active: scene.active(),
+        selected: Some(set_with(&scene, &[5])),
+    };
+    assert_eq!(bytes(selection) - bytes(one), 2 * 6 * VERTEX_BYTES);
+}
+
+#[test]
+fn a_set_of_faces_gives_its_lead_its_own_colour_but_a_single_face_stays_a_member() {
+    let scene = Scene::new(cube());
+    let instance = scene.instance();
+    let classify = |set| {
+        let feedback = SelectionFeedback::Face {
+            active: None,
+            selected: Some(set),
+        };
+        instance
+            .faces()
+            .iter()
+            .map(|face| match feedback.highlight(instance, face) {
+                Highlight::None => 'n',
+                Highlight::Member => 'm',
+                Highlight::Lead => 'l',
+            })
+            .collect::<String>()
+    };
+    assert_eq!(classify(set_with(&scene, &[4, 1, 2])), "nmlnmn");
+    assert_eq!(classify(set_with(&scene, &[3])), "nnnmnn");
 }
