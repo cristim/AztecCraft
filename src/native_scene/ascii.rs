@@ -983,8 +983,11 @@ impl Builder<'_, '_> {
     fn connect(&mut self, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
         let from = c.literal()?.0;
         let to = c.literal()?.0;
-        if let (Some(shape), ":initialShadingGroup.dsm") = (from.strip_suffix(".iog"), to) {
-            return self.default_link(shape, c);
+        if let (Some(shape), Some(group)) = (from.strip_suffix(".iog"), to.strip_suffix(".dsm")) {
+            return self.membership(shape, group, c);
+        }
+        if self.material_connect(from, to, c)? {
+            return Ok(());
         }
         let bit = match (from, to) {
             ("layerManager.dli[0]", "defaultLayer.id") => {
@@ -1013,17 +1016,30 @@ impl Builder<'_, '_> {
         self.connections |= bit;
         Ok(())
     }
-    /// `connectAttr "<mesh>.iog" ":initialShadingGroup.dsm" -na;`: the shape joins the default
-    /// shading group. `instObjGroups` into `dagSetMembers` is documented (Maya 2027 Nodes/objectSet
-    /// and Nodes/shadingEngine pages: a DAG node's instObjGroups into dagSetMembers puts the whole
-    /// object in the set; connectAttr -na: CommandsPython/connectAttr). The `-na` placement is
-    /// PROVISIONAL (not compared with Maya, #5). Counted only: the read-back gate decides whether
-    /// a file with links is admitted, and it is exactly as wide as the writer's output (#156).
-    fn default_link(&mut self, shape: &str, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
+    /// `connectAttr "<mesh>.iog" "<group>.dsm" -na;`: the shape joins a shading group. The
+    /// default group is counted only: the read-back gate decides whether a file with links is
+    /// admitted, and it is exactly as wide as the writer's output (#156). A session group goes
+    /// to the material side table. `instObjGroups` into `dagSetMembers` is documented (Maya 2027
+    /// Nodes/objectSet and Nodes/shadingEngine pages: a DAG node's instObjGroups into
+    /// dagSetMembers puts the whole object in the set; connectAttr -na:
+    /// CommandsPython/connectAttr). The `-na` placement is PROVISIONAL (not compared with Maya,
+    /// #5).
+    fn membership(
+        &mut self,
+        shape: &str,
+        group: &str,
+        c: &mut Cursor<'_, '_>,
+    ) -> Result<(), AsciiError> {
         let owner = self
             .find(shape, c.work)?
             .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
-        if !matches!(self.owners[owner].kind, Kind::Mesh(_)) || c.word()? != "-na" {
+        if !matches!(self.owners[owner].kind, Kind::Mesh(_)) {
+            return Err(error(ErrorKind::Unsupported, c.offset));
+        }
+        if group != ":initialShadingGroup" {
+            return self.group_membership(owner, group, c);
+        }
+        if c.word()? != "-na" {
             return Err(error(ErrorKind::Unsupported, c.offset));
         }
         self.mark(owner, HAS_DEFAULT_LINK, c)?;
@@ -1270,7 +1286,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         .map_err(|_| resource())?;
     let info_table = budget.vector(file_info).map_err(|_| resource())?;
     let mesh_parts = budget.vector(shapes).map_err(|_| resource())?;
-    let materials = material::MaterialParts::with_capacity(&mut budget, lamberts, engines)?;
+    let materials = material::MaterialParts::with_capacity(&mut budget, lamberts, engines, shapes)?;
     let mut builder = Builder {
         source: &source,
         budget: &mut budget,
