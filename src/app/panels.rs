@@ -451,15 +451,12 @@ impl Editor {
                     self.selection_mode,
                 )
                 .is_some();
-            // Shift and Ctrl clicks modify the object selection; only the component modes refuse them.
             let object_mode = matches!(
                 self.selection_mode,
                 SelectionMode::Object | SelectionMode::Hierarchy
             );
             let selection_refusal = input.unsupported_selection().filter(|refusal| {
                 can_select
-                    && !(object_mode
-                        && *refusal == crate::viewport_ui::SelectionRefusal::ModifiedClick)
                     && (*refusal != crate::viewport_ui::SelectionRefusal::ComponentMarquee
                         || (!object_mode && !(consumed || mode_refused || mode_changes)))
             });
@@ -527,6 +524,10 @@ impl Editor {
                 }
             };
             // Picks dispatch through `apply_operation`, not `native_operation`.
+            // Shift toggles, Ctrl or Command removes, Shift+Ctrl adds, as for a marquee. The
+            // component mapping is PROVISIONAL: the Maya page covers objects only.
+            let click_mode =
+                features::marquee::marquee_mode(input.click_modifiers().unwrap_or_default());
             if !self.files.is_modal()
                 && let Some(ndc) = clickable
             {
@@ -555,17 +556,8 @@ impl Editor {
                                 None => (None, None),
                             },
                         };
-                        // Shift toggles, Ctrl (or Command) removes, Shift+Ctrl adds. A modified
-                        // click on empty space leaves the selection alone.
-                        let modifiers = input.click_modifiers().unwrap_or_default();
-                        let ctrl = modifiers.ctrl || modifiers.command;
-                        let change = match (modifiers.shift, ctrl) {
-                            (false, false) => None,
-                            (true, false) => Some(SelectionChange::Toggle),
-                            (false, true) => Some(SelectionChange::Remove),
-                            (true, true) => Some(SelectionChange::Add),
-                        };
-                        match (change, node) {
+                        // A modified click on empty space leaves the selection alone.
+                        match (features::marquee::selection_change(click_mode), node) {
                             (None, _) => {
                                 self.apply_operation(Operation::Select {
                                     node,
@@ -586,19 +578,52 @@ impl Editor {
                         let target = input
                             .pick_face_center(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        self.apply_operation(Operation::SelectFace { target })?;
+                        match (click_mode, target) {
+                            (MarqueeMode::Replace, target) => {
+                                self.apply_operation(Operation::SelectFace { target })?;
+                            }
+                            (mode, Some(t)) => self.modify_component_click(
+                                ComponentKind::Face,
+                                mode,
+                                (t.transform, t.shape, t.path),
+                                t.face_index,
+                            )?,
+                            (_, None) => {}
+                        }
                     }
                     SelectionMode::Vertex => {
                         let target = input
                             .pick_vertex(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        self.apply_operation(Operation::SelectVertex { target })?;
+                        match (click_mode, target) {
+                            (MarqueeMode::Replace, target) => {
+                                self.apply_operation(Operation::SelectVertex { target })?;
+                            }
+                            (mode, Some(t)) => self.modify_component_click(
+                                ComponentKind::Vertex,
+                                mode,
+                                (t.transform, t.shape, t.path),
+                                t.vertex_index,
+                            )?,
+                            (_, None) => {}
+                        }
                     }
                     SelectionMode::Edge => {
                         let target = input
                             .pick_edge(&self.camera, &view, self.single_target().ok())
                             .map_err(|e| OperationError::View(e.to_string()))?;
-                        self.apply_operation(Operation::SelectEdge { target })?;
+                        match (click_mode, target) {
+                            (MarqueeMode::Replace, target) => {
+                                self.apply_operation(Operation::SelectEdge { target })?;
+                            }
+                            (mode, Some(t)) => self.modify_component_click(
+                                ComponentKind::Edge,
+                                mode,
+                                (t.transform, t.shape, t.path),
+                                t.edge_index,
+                            )?,
+                            (_, None) => {}
+                        }
                     }
                 }
             }

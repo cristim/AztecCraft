@@ -1,6 +1,28 @@
 use crate::app::*;
 
 impl Editor {
+    /// A modified click on one component: `mode` combines it with the set of `kind`, through the
+    /// same operation MCP `modify_component_selection` dispatches.
+    pub(in crate::app) fn modify_component_click(
+        &mut self,
+        kind: ComponentKind,
+        mode: MarqueeMode,
+        (transform, shape, path): (NodeId, NativeId, Vec<NativeId>),
+        index: usize,
+    ) -> Result<(), OperationError> {
+        self.apply_operation(Operation::ModifyComponentSelection {
+            kind,
+            mode,
+            owner: azteccraft::selection::ComponentOwner {
+                transform,
+                shape,
+                path,
+            },
+            indices: vec![index],
+        })?;
+        Ok(())
+    }
+
     pub(in crate::app) fn selection_presentation(&self) -> (Option<NodeId>, &[NativeId]) {
         self.selection.lead().map_or((None, &[][..]), |lead| {
             (Some(lead.node), lead.path.as_slice())

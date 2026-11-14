@@ -209,6 +209,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         &[
             "native_operation_result",
             "viewport",
+            "modify_component_click",
             "file_modal",
             "finish_native_sample",
             "handle_move_input",

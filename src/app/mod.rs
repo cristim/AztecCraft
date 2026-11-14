@@ -1,5 +1,5 @@
 use crate::editor_operations::{
-    ActiveTool, AttributeEditorTab, MarqueeMode, MenuSet, Operation, OperationError,
+    ActiveTool, AttributeEditorTab, ComponentKind, MarqueeMode, MenuSet, Operation, OperationError,
     OperationReply, SelectRule, SelectionChange, SelectionMode, ShadingMode, SidebarPanel,
     ViewPreset,
 };

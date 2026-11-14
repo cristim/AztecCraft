@@ -3699,7 +3699,7 @@ fn face_native_keys_coalesce_before_same_frame_click_and_preserve_authoring_stat
 }
 
 #[test]
-fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
+fn face_native_modified_click_on_empty_space_and_delete_never_fall_back_to_object_mutation() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.camera =
@@ -3730,7 +3730,7 @@ fn face_native_modified_click_and_delete_never_fall_back_to_object_mutation() {
             modifiers,
             vec![],
         );
-        assert!(editor.error && editor.status.contains("unsupported"));
+        assert!(!editor.error);
         assert_eq!(
             (
                 editor.history.scene().clone(),
@@ -8591,25 +8591,230 @@ fn viewport_click_in_edge_mode_replaces_then_clears_the_pick() {
     assert_eq!(editor.history.scene(), &before);
 }
 
+/// Screen points and indices of three visible components of `key_code`'s mode on the head-on cube.
+fn modified_click_targets(
+    editor: &Editor,
+    rect: egui::Rect,
+    vertex: bool,
+) -> (Vec<usize>, Vec<egui::Pos2>) {
+    let (front, points) = front_vertices(editor);
+    if vertex {
+        let at = front[..3]
+            .iter()
+            .map(|&index| screen_point(editor, rect, points[index]))
+            .collect();
+        return (front[..3].to_vec(), at);
+    }
+    let shape = selected_edge(editor, 0).shape;
+    let edges = editor
+        .history
+        .scene()
+        .shape(shape)
+        .unwrap()
+        .mesh()
+        .edges()
+        .to_vec();
+    let front_edges: Vec<usize> = (0..edges.len())
+        .filter(|&i| edges[i].endpoints().iter().all(|end| front.contains(end)))
+        .take(3)
+        .collect();
+    let at = front_edges
+        .iter()
+        .map(|&i| {
+            let [a, b] = edges[i].endpoints();
+            screen_point(editor, rect, (points[a] + points[b]) * 0.5)
+        })
+        .collect();
+    (front_edges, at)
+}
+
+fn modified_click_set(editor: &Editor, kind: ComponentKind) -> Vec<usize> {
+    editor.component_set(kind).indices().to_vec()
+}
+
 #[test]
-fn modified_clicks_in_vertex_and_edge_modes_are_refused_without_changes() {
-    for key_code in [Key::F9, Key::F10] {
+fn modified_clicks_in_vertex_and_edge_modes_toggle_remove_and_add_across_frames() {
+    let none = egui::Modifiers::NONE;
+    let (shift, ctrl) = (egui::Modifiers::SHIFT, egui::Modifiers::CTRL);
+    let command = egui::Modifiers::COMMAND;
+    for (key_code, kind) in [
+        (Key::F9, ComponentKind::Vertex),
+        (Key::F10, ComponentKind::Edge),
+    ] {
         let (mut editor, ctx, rect) = component_click_editor();
         frame(&mut editor, &ctx, vec![key(key_code)]);
-        let (front, points) = front_vertices(&editor);
-        let at = screen_point(&editor, rect, points[front[0]]);
-        face_pointer_click(&mut editor, &ctx, at, egui::Modifiers::NONE, vec![]);
-        let baseline = click_baseline(&editor);
-        for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL] {
-            face_pointer_click(&mut editor, &ctx, at, modifiers, vec![]);
-            assert!(editor.error && editor.status.contains("unsupported"));
-            assert_eq!(
-                click_baseline(&editor),
-                baseline,
-                "{key_code:?} {modifiers:?}"
-            );
-        }
+        let (ids, at) = modified_click_targets(&editor, rect, kind == ComponentKind::Vertex);
+        let (a, b) = (ids[0], ids[1]);
+        let click = |editor: &mut Editor, point: usize, modifiers| {
+            face_pointer_click(editor, &ctx, at[point], modifiers, vec![]);
+            assert!(!editor.error, "{kind:?} {modifiers:?}: {}", editor.status);
+            modified_click_set(editor, kind)
+        };
+        assert_eq!(click(&mut editor, 0, none), [a]);
+        assert_eq!(
+            click(&mut editor, 1, shift),
+            [a, b],
+            "{kind:?} Shift toggles in"
+        );
+        assert_eq!(click(&mut editor, 0, ctrl), [b], "{kind:?} Ctrl removes");
+        assert_eq!(
+            click(&mut editor, 0, ctrl),
+            [b],
+            "{kind:?} removing an absent member"
+        );
+        assert_eq!(
+            click(&mut editor, 0, shift | ctrl),
+            [b, a],
+            "{kind:?} Shift+Ctrl adds"
+        );
+        assert_eq!(
+            click(&mut editor, 0, shift | ctrl),
+            [b, a],
+            "{kind:?} adding a member twice"
+        );
+        assert_eq!(
+            click(&mut editor, 1, shift),
+            [a],
+            "{kind:?} Shift toggles out"
+        );
+        assert_eq!(
+            click(&mut editor, 2, command),
+            [a],
+            "{kind:?} Command removes"
+        );
+        // A modified click that misses every component keeps the set; a plain one still replaces.
+        let corner = rect.left_top() + egui::vec2(20.0, 20.0);
+        face_pointer_click(&mut editor, &ctx, corner, shift, vec![]);
+        assert!(!editor.error);
+        assert_eq!(modified_click_set(&editor, kind), [a]);
+        assert_eq!(
+            click(&mut editor, 1, none),
+            [b],
+            "{kind:?} a plain click replaces"
+        );
     }
+}
+
+#[test]
+fn modified_clicks_in_face_mode_toggle_remove_and_add_at_face_centres() {
+    let none = egui::Modifiers::NONE;
+    let (shift, ctrl) = (egui::Modifiers::SHIFT, egui::Modifiers::CTRL);
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+    editor.camera =
+        Camera::new(Vec3::ZERO, 0.5, 0.3, 5.0, 45_f32.to_radians(), 0.01, 100.0).unwrap();
+    let ctx = egui::Context::default();
+    let rect = face_viewport_rect(&frame(&mut editor, &ctx, vec![]));
+    frame(&mut editor, &ctx, vec![key(Key::F11)]);
+    let shape = selected_face(&editor, 0).shape;
+    let mesh = editor.history.scene().shape(shape).unwrap().mesh().clone();
+    let points = world_points(&editor, &(0..8).collect::<Vec<_>>());
+    let eye = editor.camera.eye();
+    let centre = |face: usize| {
+        let outer = mesh.faces()[face].outer();
+        let corner = |d: &azteccraft::native_scene::DirectedEdge| {
+            points[mesh.edges()[d.edge].endpoints()[usize::from(d.reversed)]]
+        };
+        outer.iter().map(corner).sum::<Vec3>() / outer.len() as f32
+    };
+    let face_count = mesh.faces().len();
+    let mut order: Vec<usize> = (0..face_count).collect();
+    order.sort_by(|&a, &b| centre(a).distance(eye).total_cmp(&centre(b).distance(eye)));
+    let (a, b) = (order[0], order[1]);
+    let screens: Vec<egui::Pos2> = (0..face_count)
+        .map(|face| screen_point(&editor, rect, centre(face)))
+        .collect();
+    let click = |editor: &mut Editor, face: usize, modifiers| {
+        face_pointer_click(editor, &ctx, screens[face], modifiers, vec![]);
+        assert!(!editor.error, "{modifiers:?}: {}", editor.status);
+        modified_click_set(editor, ComponentKind::Face)
+    };
+    assert_eq!(click(&mut editor, a, none), [a]);
+    assert_eq!(click(&mut editor, b, shift), [a, b], "Shift toggles in");
+    assert_eq!(click(&mut editor, a, ctrl), [b], "Ctrl removes");
+    assert_eq!(
+        click(&mut editor, a, shift | ctrl),
+        [b, a],
+        "Shift+Ctrl adds"
+    );
+    assert_eq!(click(&mut editor, b, shift), [a], "Shift toggles out");
+}
+
+#[test]
+fn native_modified_clicks_reach_the_modify_component_selection_result() {
+    let none = egui::Modifiers::NONE;
+    let (shift, ctrl) = (egui::Modifiers::SHIFT, egui::Modifiers::CTRL);
+    let (mut native, ctx, rect) = component_click_editor();
+    frame(&mut native, &ctx, vec![key(Key::F9)]);
+    let (ids, at) = modified_click_targets(&native, rect, true);
+    let mut remote_editor = Editor::default();
+    remote_editor.create(Primitive::Cube);
+    set_mode(&mut remote_editor, SelectionMode::Vertex);
+    let owner = {
+        let target = selected_vertex(&remote_editor, 0);
+        azteccraft::selection::ComponentOwner {
+            transform: target.transform,
+            shape: target.shape,
+            path: target.path,
+        }
+    };
+    let steps = [
+        (0, none, MarqueeMode::Replace),
+        (1, shift, MarqueeMode::Toggle),
+        (2, shift | ctrl, MarqueeMode::Add),
+        (0, ctrl, MarqueeMode::Remove),
+    ];
+    for (point, modifiers, mode) in steps {
+        face_pointer_click(&mut native, &ctx, at[point], modifiers, vec![]);
+        remote(
+            &mut remote_editor,
+            Operation::ModifyComponentSelection {
+                kind: ComponentKind::Vertex,
+                mode,
+                owner: owner.clone(),
+                indices: vec![ids[point]],
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            modified_click_set(&native, ComponentKind::Vertex),
+            modified_click_set(&remote_editor, ComponentKind::Vertex),
+            "{modifiers:?}"
+        );
+        assert_eq!(
+            native.remembered_vertex(),
+            remote_editor.remembered_vertex()
+        );
+    }
+    assert_eq!(
+        modified_click_set(&native, ComponentKind::Vertex),
+        [ids[1], ids[2]]
+    );
+}
+
+#[test]
+fn modified_clicks_keep_each_component_type_set_across_mode_switches() {
+    let (mut editor, ctx, rect) = component_click_editor();
+    frame(&mut editor, &ctx, vec![key(Key::F9)]);
+    let (ids, at) = modified_click_targets(&editor, rect, true);
+    face_pointer_click(&mut editor, &ctx, at[0], egui::Modifiers::NONE, vec![]);
+    face_pointer_click(&mut editor, &ctx, at[1], egui::Modifiers::SHIFT, vec![]);
+    frame(&mut editor, &ctx, vec![key(Key::F10)]);
+    let (_, edge_at) = modified_click_targets(&editor, rect, false);
+    face_pointer_click(
+        &mut editor,
+        &ctx,
+        edge_at[0],
+        egui::Modifiers::SHIFT,
+        vec![],
+    );
+    assert_eq!(modified_click_set(&editor, ComponentKind::Edge).len(), 1);
+    frame(&mut editor, &ctx, vec![key(Key::F9)]);
+    assert_eq!(
+        modified_click_set(&editor, ComponentKind::Vertex),
+        [ids[0], ids[1]]
+    );
+    assert_eq!(modified_click_set(&editor, ComponentKind::Edge).len(), 1);
 }
 
 #[test]
@@ -10963,7 +11168,7 @@ fn viewport_ctrl_click_arriving_as_a_secondary_click_does_not_select() {
 }
 
 #[test]
-fn modified_clicks_are_still_refused_in_component_modes() {
+fn modified_clicks_in_component_modes_never_change_the_object_selection() {
     let mut rig = gesture_rig();
     let ids: Vec<NodeId> = rig.3.iter().map(|t| t.node).collect();
     click_cube(&mut rig, 0, egui::Modifiers::NONE);
@@ -10972,11 +11177,8 @@ fn modified_clicks_are_still_refused_in_component_modes() {
         .unwrap();
     for modifiers in [egui::Modifiers::SHIFT, egui::Modifiers::CTRL, SHIFT_CTRL] {
         click_cube(&mut rig, 1, modifiers);
-        assert!(
-            rig.0.error && rig.0.status.contains("component modes"),
-            "{}",
-            rig.0.status
-        );
+        // The other cube is not the selected object, so the component pick finds nothing.
+        assert!(!rig.0.error, "{}", rig.0.status);
         assert_eq!(members(&rig), [ids[0]]);
     }
 }

@@ -13,6 +13,16 @@ pub(in crate::app) fn marquee_mode(modifiers: egui::Modifiers) -> MarqueeMode {
     }
 }
 
+/// The object-selection change a modified click makes; a plain click (Replace) is not one.
+pub(in crate::app) fn selection_change(mode: MarqueeMode) -> Option<SelectionChange> {
+    match mode {
+        MarqueeMode::Replace => None,
+        MarqueeMode::Add => Some(SelectionChange::Add),
+        MarqueeMode::Toggle => Some(SelectionChange::Toggle),
+        MarqueeMode::Remove => Some(SelectionChange::Remove),
+    }
+}
+
 impl Editor {
     /// The objects whose visible mesh overlaps `rect` (any overlap, occluded objects included like Maya's object marquee: PROVISIONAL; a point
     /// rectangle picks like a click),

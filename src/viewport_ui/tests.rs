@@ -100,7 +100,7 @@ fn narrower_scissor_crops_without_reframing_click_or_mutating_camera() {
 #[test]
 fn face_click_uses_release_event_modifiers_even_when_they_change_later() {
     for (released, later, click, unsupported) in [
-        (Modifiers::SHIFT, Modifiers::NONE, true, true),
+        (Modifiers::SHIFT, Modifiers::NONE, true, false),
         (Modifiers::NONE, Modifiers::SHIFT, true, false),
         (Modifiers::ALT, Modifiers::NONE, false, false),
         (Modifiers::NONE, Modifiers::ALT, true, false),
@@ -151,6 +151,7 @@ fn face_click_uses_release_event_modifiers_even_when_they_change_later() {
         assert_eq!(input.click_ndc().is_some(), click);
         if click {
             assert_eq!(input.unsupported_selection().is_some(), unsupported);
+            assert_eq!(input.click_modifiers(), Some(released));
         }
     }
 }
@@ -222,7 +223,7 @@ fn face_click_does_not_borrow_a_later_drag_release_modifiers() {
         } else if later_drag {
             Some(SelectionRefusal::AmbiguousPrimaryInput)
         } else {
-            Some(SelectionRefusal::ModifiedClick)
+            None
         };
         assert_eq!(input.unsupported_selection(), expected);
         assert_eq!(input.click_ndc().is_some(), !only_alt && !later_drag);
@@ -1345,19 +1346,16 @@ fn alt_drag_orbits_without_marquee_even_when_alt_is_released_before_the_button()
 }
 
 #[test]
-fn shift_click_reports_its_modifiers_and_the_component_mode_refusal() {
-    // The capture reports the refusal; the Object and Hierarchy modes turn the click into
-    // ModifySelection and only the component modes surface it (app tests).
+fn shift_click_reports_its_modifiers_without_a_refusal() {
+    // The capture reports the modifiers; every mode maps them to its selection operation (app tests).
     for modifiers in [
         Modifiers::SHIFT,
         Modifiers::CTRL,
         Modifiers::SHIFT | Modifiers::CTRL,
     ] {
         let (input, _) = drag_release(modifiers, modifiers, modifiers, 0.0);
-        assert_eq!(
-            input.unsupported_selection(),
-            Some(SelectionRefusal::ModifiedClick)
-        );
+        assert_eq!(input.unsupported_selection(), None);
+        assert!(input.click_ndc().is_some());
         assert_eq!(input.click_modifiers(), Some(modifiers));
     }
     let (input, _) = drag_release(Modifiers::NONE, Modifiers::NONE, Modifiers::NONE, 0.0);

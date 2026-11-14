@@ -15,7 +15,6 @@ use axis_lock::AxisLock;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SelectionRefusal {
-    ModifiedClick,
     AmbiguousPrimaryInput,
     ComponentMarquee,
 }
@@ -69,9 +68,6 @@ fn primary_releases(events: &[egui::Event], max_click_dist: f32) -> Vec<PrimaryR
 impl SelectionRefusal {
     pub fn message(self) -> &'static str {
         match self {
-            Self::ModifiedClick => {
-                "Only plain primary-click selection is supported in component modes; Shift/Ctrl selection is unsupported"
-            }
             Self::AmbiguousPrimaryInput => {
                 "Ambiguous coalesced primary input cannot select; retry with a single click"
             }
@@ -268,9 +264,6 @@ pub fn capture(
         click_ndc = Some(ndc);
         click_points = Some(Vec2::new(point.x - rect.min.x, point.y - rect.min.y));
         click_modifiers = Some(modifiers);
-        if modifiers.shift || modifiers.ctrl || modifiers.command {
-            unsupported_selection = Some(SelectionRefusal::ModifiedClick);
-        }
     }
     let to_ndc = |point: egui::Pos2| {
         let p = (point - rect.min) / rect.size();
