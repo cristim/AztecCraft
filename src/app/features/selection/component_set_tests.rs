@@ -412,3 +412,92 @@ fn a_huge_set_inspects_inside_the_result_limit_and_says_it_is_truncated() {
     assert!(face.truncated);
     assert!(serde_json::to_string(&inspected).unwrap().len() < MAX_RESULT_BYTES);
 }
+
+fn frame_selected(editor: &mut Editor) -> OperationReply {
+    editor
+        .apply_operation(Operation::FrameSelected {
+            with_children: false,
+            fit_factor: None,
+        })
+        .unwrap()
+}
+
+#[test]
+fn frame_selected_frames_every_vertex_and_face_of_the_set_not_only_the_lead() {
+    let mut editor = cube();
+    editor.channels[0] = "5".into();
+    editor.commit_pending();
+    let view = ViewScene::from_native(editor.history.scene(), 1 << 28).unwrap();
+    let instance = &view.instances()[0];
+    let world = instance.world_vertices();
+    mode(&mut editor, SelectionMode::Vertex);
+    modify(
+        &mut editor,
+        ComponentKind::Vertex,
+        MarqueeMode::Add,
+        &[0, 6, 3],
+    )
+    .unwrap();
+    let mut expected = editor.camera.clone();
+    expected
+        .frame_points(&[world[0], world[6], world[3]], editor.aspect)
+        .unwrap();
+    assert!(matches!(
+        frame_selected(&mut editor),
+        OperationReply::Changed
+    ));
+    assert_eq!(editor.camera, expected);
+    assert!(matches!(
+        frame_selected(&mut editor),
+        OperationReply::Unchanged
+    ));
+    let mut lead_only = Editor::default().camera.clone();
+    lead_only.frame_points(&[world[3]], editor.aspect).unwrap();
+    assert_ne!(editor.camera, lead_only);
+
+    mode(&mut editor, SelectionMode::Face);
+    modify(&mut editor, ComponentKind::Face, MarqueeMode::Add, &[1, 4]).unwrap();
+    let corners: Vec<_> = instance
+        .faces()
+        .iter()
+        .filter(|face| [1, 4].contains(&face.source_index()))
+        .flat_map(|face| face.corners().iter().map(|&index| world[index]))
+        .collect();
+    let mut expected = editor.camera.clone();
+    expected.frame_points(&corners, editor.aspect).unwrap();
+    frame_selected(&mut editor);
+    assert_eq!(editor.camera, expected);
+}
+
+#[test]
+fn native_extrude_refuses_a_set_but_the_explicit_operation_extrudes_its_target_and_keeps_the_set() {
+    let mut editor = cube();
+    mode(&mut editor, SelectionMode::Face);
+    modify(&mut editor, ComponentKind::Face, MarqueeMode::Add, &[2, 5]).unwrap();
+    let scene = editor.history.scene().clone();
+    assert_eq!(
+        editor.extrude_blocker(),
+        Some(crate::app::features::extrude_options::ExtrudeBlocker::SeveralFacesSelected)
+    );
+    let refusal = editor.extrude_refusal().unwrap();
+    assert!(refusal.contains("one face"), "{refusal}");
+    assert!(editor.extrude_selected_face(0.5).is_err());
+    assert_eq!(editor.history.scene(), &scene);
+
+    // MCP `extrude_face` names its own target, so the set does not matter.
+    let owner = owner_of(&editor);
+    editor
+        .apply_operation(Operation::ExtrudeFace {
+            target: azteccraft::native_scene::FaceTarget {
+                transform: owner.transform,
+                shape: owner.shape,
+                path: owner.path,
+                face_index: 0,
+            },
+            distance: 0.25,
+        })
+        .unwrap();
+    assert_ne!(editor.history.scene(), &scene);
+    // PROVISIONAL, as the single pick: the indices stay, they are not moved to the new faces.
+    assert_eq!(members(&editor, ComponentKind::Face), [2, 5]);
+}

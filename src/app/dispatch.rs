@@ -1300,21 +1300,21 @@ impl Editor {
                     let view = ViewScene::from_native(self.history.scene(), 256 * 1024 * 1024)
                         .map_err(|error| OperationError::View(error.to_string()))?;
                     let before = self.camera.clone();
+                    // The whole set, not just its lead; the clone ends the borrow of `self`.
+                    let (set, aspect) = (
+                        self.component_set(match self.selection_mode {
+                            SelectionMode::Face => ComponentKind::Face,
+                            SelectionMode::Vertex => ComponentKind::Vertex,
+                            _ => ComponentKind::Edge,
+                        })
+                        .clone(),
+                        self.aspect,
+                    );
                     match self.selection_mode {
-                        SelectionMode::Face => self
-                            .remembered_face()
-                            .as_ref()
-                            .map(|target| self.camera.frame_face(&view, target, self.aspect)),
-                        SelectionMode::Vertex => self
-                            .remembered_vertex()
-                            .as_ref()
-                            .map(|target| self.camera.frame_vertex(&view, target, self.aspect)),
-                        _ => self
-                            .remembered_edge()
-                            .as_ref()
-                            .map(|target| self.camera.frame_edge(&view, target, self.aspect)),
+                        SelectionMode::Face => self.camera.frame_faces(&view, &set, aspect),
+                        SelectionMode::Vertex => self.camera.frame_vertices(&view, &set, aspect),
+                        _ => self.camera.frame_edges(&view, &set, aspect),
                     }
-                    .ok_or(OperationError::NoSelection)?
                     .map_err(OperationError::Camera)?;
                     Ok(if self.camera == before {
                         OperationReply::Unchanged
