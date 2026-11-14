@@ -1218,6 +1218,12 @@ pub const MAX_MOVED_VERTICES: usize = 8192;
 /// the session. The native operation keeps `MAX_COMPONENT_INDICES`.
 #[cfg(feature = "mcp")]
 pub const MAX_MCP_COMPONENT_INDICES: usize = 6144;
+/// Most vertex indices one MCP `move_vertices` request carries. An entry is the same eight-digit
+/// index plus comma as in `modify_component_selection`; the three worst-case finite f64 deltas
+/// (about 24 bytes each) add under 100 bytes, so the same 6144 keeps the line well under 64 KiB.
+/// The native `MAX_MOVED_VERTICES` stays larger.
+#[cfg(feature = "mcp")]
+pub const MAX_MCP_MOVED_VERTICES: usize = MAX_MCP_COMPONENT_INDICES;
 
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
