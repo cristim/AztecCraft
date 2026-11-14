@@ -1471,6 +1471,7 @@ fn the_binary_writer_still_refuses_session_materials() {
 }
 
 mod links;
+mod material_block;
 mod uv_block;
 
 #[test]
