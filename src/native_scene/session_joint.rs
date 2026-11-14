@@ -258,7 +258,7 @@ impl NativeScene {
                 }
                 name.clone()
             }
-            None => self.free_joint_name()?,
+            None => self.free_name("joint")?,
         };
         let (parent, translation) = match request.parent {
             Some(parent) => self.joint_placement(parent, request)?,
@@ -339,15 +339,6 @@ impl NativeScene {
                 Err(error)
             }
         }
-    }
-
-    /// The lowest `joint<N>` no transform or shape holds, as `create_default_named` does.
-    fn free_joint_name(&self) -> Result<String, NativeError> {
-        let taken: HashSet<&str> = authored::names(self).map(|(_, name)| name).collect();
-        (1..=taken.len() + 1)
-            .map(|suffix| format!("joint{suffix}"))
-            .find(|name| !taken.contains(name.as_str()))
-            .ok_or(NativeError::ResourceLimit)
     }
 
     /// The plain world matrix of `parent`, or the singular-parent refusal when it has none.

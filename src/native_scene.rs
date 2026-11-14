@@ -4,6 +4,7 @@ pub mod ascii;
 mod authored;
 pub mod binary;
 mod curve;
+mod group;
 mod import;
 mod manipulator_frame;
 mod maya_import;
@@ -26,6 +27,7 @@ pub use appearance::{
     MaterialShader,
 };
 pub use curve::{CurveForm, NativeCurveShape};
+pub use group::{GroupOptions, GroupUnder};
 pub use import::ObjImportPlan;
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
@@ -1329,16 +1331,20 @@ impl NativeScene {
             Primitive::Cone => "pCone",
             Primitive::Torus => "pTorus",
         };
-        let count = authored::names(self).count();
-        let free = |prefix: &str| {
-            (1..=count + 1)
-                .map(|suffix| format!("{prefix}{suffix}"))
-                .find(|name| !authored::names(self).any(|(_, taken)| taken == name))
-                .expect("count names cannot take count + 1 suffixes")
-        };
-        let name = free(base);
-        let shape_name = free(&format!("{base}Shape"));
+        let name = self.free_name(base)?;
+        let shape_name = self.free_name(&format!("{base}Shape"))?;
         self.create_named(primitive, options, &name, shape_name)
+    }
+
+    /// The lowest `<prefix><N>` that no transform or shape holds, because authored saves need
+    /// unique names.
+    fn free_name(&self, prefix: &str) -> Result<String, NativeError> {
+        let taken: std::collections::HashSet<&str> =
+            authored::names(self).map(|(_, name)| name).collect();
+        (1..=taken.len() + 1)
+            .map(|suffix| format!("{prefix}{suffix}"))
+            .find(|name| !taken.contains(name.as_str()))
+            .ok_or(NativeError::ResourceLimit)
     }
 
     fn create_named(

@@ -27,6 +27,8 @@ pub enum ReparentRefusal {
     WorldNeedsPlainTransform,
     /// The local transform that keeps the world one is not a translate, XYZ rotate and scale.
     WorldNotRepresentable,
+    /// A batch operation was given no objects.
+    EmptySet,
 }
 
 impl fmt::Display for ReparentRefusal {
@@ -37,6 +39,7 @@ impl fmt::Display for ReparentRefusal {
             Self::WorldNeedsPlainTransform => {
                 "keeping the world transform under a different frame needs default pivots and transform extras and no keys; use keep local"
             }
+            Self::EmptySet => "no objects were given",
             Self::WorldNotRepresentable => {
                 "the world transform cannot be kept as translate, rotate and scale under that parent (shear, negative or zero scale); use keep local"
             }

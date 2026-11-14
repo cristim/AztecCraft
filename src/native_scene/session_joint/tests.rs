@@ -193,7 +193,7 @@ fn default_name_scans_the_names_once_however_many_joints_exist() {
             joint(&mut scene, None, [0.0; 3]);
         }
         let before = authored::NAME_PASSES.with(std::cell::Cell::get);
-        let name = scene.free_joint_name().unwrap();
+        let name = scene.free_name("joint").unwrap();
         assert_eq!(
             authored::NAME_PASSES.with(std::cell::Cell::get) - before,
             1,
