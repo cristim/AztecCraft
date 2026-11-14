@@ -89,6 +89,8 @@ const HAS_MESH: u32 = 2048;
 const HAS_CURVE: u32 = 4096;
 const HAS_IT: u32 = 8192;
 const HAS_OPM: u32 = 16384;
+/// A mesh owner's bit; mesh.rs uses 8192..=262144 on the same word.
+const HAS_DEFAULT_LINK: u32 = 524288;
 
 struct Owner {
     name: Range<usize>,
@@ -336,6 +338,7 @@ struct Builder<'a, 'b> {
     file_info: Vec<Range<usize>>,
     connections: u8,
     relationships: u8,
+    default_links: usize,
 }
 
 impl Builder<'_, '_> {
@@ -968,6 +971,9 @@ impl Builder<'_, '_> {
     fn connect(&mut self, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
         let from = c.literal()?.0;
         let to = c.literal()?.0;
+        if let (Some(shape), ":initialShadingGroup.dsm") = (from.strip_suffix(".iog"), to) {
+            return self.default_link(shape, c);
+        }
         let bit = match (from, to) {
             ("layerManager.dli[0]", "defaultLayer.id") => {
                 self.metadata_owner("layerManager", Kind::LayerManager, c)?;
@@ -993,6 +999,23 @@ impl Builder<'_, '_> {
             return Err(error(ErrorKind::Unsupported, c.offset));
         }
         self.connections |= bit;
+        Ok(())
+    }
+    /// `connectAttr "<mesh>.iog" ":initialShadingGroup.dsm" -na;`: the shape joins the default
+    /// shading group. `instObjGroups` into `dagSetMembers` is documented (Maya 2027 Nodes/objectSet
+    /// and Nodes/shadingEngine pages: a DAG node's instObjGroups into dagSetMembers puts the whole
+    /// object in the set; connectAttr -na: CommandsPython/connectAttr). The `-na` placement is
+    /// PROVISIONAL (not compared with Maya, #5). Counted only: the read-back gate decides whether
+    /// a file with links is admitted, and it is exactly as wide as the writer's output (#156).
+    fn default_link(&mut self, shape: &str, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
+        let owner = self
+            .find(shape, c.work)?
+            .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+        if !matches!(self.owners[owner].kind, Kind::Mesh(_)) || c.word()? != "-na" {
+            return Err(error(ErrorKind::Unsupported, c.offset));
+        }
+        self.mark(owner, HAS_DEFAULT_LINK, c)?;
+        self.default_links = add(self.default_links, 1)?;
         Ok(())
     }
     fn relationship(&mut self, c: &mut Cursor<'_, '_>) -> Result<(), AsciiError> {
@@ -1150,15 +1173,16 @@ pub(super) fn decode_admitting_meshes(source: Arc<[u8]>) -> Result<NativeScene, 
 }
 
 fn decode_inner(source: Arc<[u8]>, meshes: bool) -> Result<NativeScene, AsciiError> {
-    decode_with_uvs(source, meshes).map(|(scene, _)| scene)
+    decode_with_uvs(source, meshes).map(|(scene, ..)| scene)
 }
 
-/// The sourced scene plus each shape's UV set (parallel to its shapes). A sourced scene cannot
-/// hold UVs, so the caller attaches them to the source-free candidate.
+/// The sourced scene, each shape's UV set (parallel to its shapes) and how many default
+/// shading-group links were read. A sourced scene cannot hold UVs, so the caller attaches them
+/// to the source-free candidate. The count is not yet consumed (the writer emits no links).
 fn decode_with_uvs(
     source: Arc<[u8]>,
     meshes: bool,
-) -> Result<(NativeScene, Vec<Option<UvSet>>), AsciiError> {
+) -> Result<(NativeScene, Vec<Option<UvSet>>, usize), AsciiError> {
     let lex::Records {
         source,
         statements,
@@ -1238,6 +1262,7 @@ fn decode_with_uvs(
         file_info: info_table,
         connections: 0,
         relationships: 0,
+        default_links: 0,
     };
     for statement in &statements {
         let mut c = Cursor {
@@ -1273,7 +1298,7 @@ fn decode_with_uvs(
             offset: None,
         },
     })?;
-    Ok((scene, uvs))
+    Ok((scene, uvs, builder.default_links))
 }
 
 #[cfg(test)]

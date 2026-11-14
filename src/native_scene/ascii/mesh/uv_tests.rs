@@ -24,7 +24,7 @@ fn plane_text() -> String {
 }
 
 fn read(text: &str) -> Result<Vec<Option<UvSet>>, super::super::AsciiError> {
-    decode_with_uvs(Arc::from(text.as_bytes().to_vec()), true).map(|(_, uvs)| uvs)
+    decode_with_uvs(Arc::from(text.as_bytes().to_vec()), true).map(|(_, uvs, _)| uvs)
 }
 
 #[track_caller]
@@ -40,7 +40,7 @@ fn the_writers_uv_block_reads_back_into_the_side_table() {
     for plane in [true, false] {
         let scene = scene_with_uvs(plane);
         let bytes = emit_geometry_prefix(&scene).unwrap();
-        let (decoded, uvs) = decode_with_uvs(Arc::from(bytes), true).unwrap();
+        let (decoded, uvs, _) = decode_with_uvs(Arc::from(bytes), true).unwrap();
         assert!(decoded.has_source(), "the sourced scene holds no UVs");
         assert!(decoded.uv_set(decoded.shapes()[0].id()).is_none());
         let want = scene.uv_set(scene.shapes()[0].id()).unwrap();
