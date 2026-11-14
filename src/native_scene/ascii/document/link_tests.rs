@@ -25,7 +25,7 @@ fn with(bytes: &[u8], tail: &str) -> Vec<u8> {
 }
 
 fn read(bytes: &[u8]) -> Result<usize, AsciiError> {
-    decode_with_uvs(Arc::from(bytes.to_vec()), true).map(|(_, _, links)| links)
+    decode_with_uvs(Arc::from(bytes.to_vec()), true).map(|decoded| decoded.links)
 }
 
 fn unsupported_kind(result: Result<usize, AsciiError>) -> bool {
