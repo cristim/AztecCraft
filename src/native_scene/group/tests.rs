@@ -1,4 +1,5 @@
 use super::*;
+use crate::native_scene::{ALL_CHANNELS, MAX_TRANSFORM_DEPTH, test_fixtures};
 use crate::scene::Primitive;
 
 const PARENT: GroupOptions = GroupOptions {
@@ -199,4 +200,165 @@ fn names_take_the_lowest_free_number_even_when_a_shape_holds_the_name() {
     assert_eq!(scene.node(first).unwrap().name(), "group2");
     let second = scene.group(&[b], PARENT).unwrap();
     assert_eq!(scene.node(second).unwrap().name(), "group3");
+}
+
+#[test]
+fn a_mixed_depth_selection_goes_under_the_lowest_common_parent_and_keeps_world_points() {
+    let mut scene = NativeScene::default();
+    let top = cube(&mut scene, "top");
+    let mid = cube(&mut scene, "mid");
+    let deep = cube(&mut scene, "deep");
+    let shallow = cube(&mut scene, "shallow");
+    set(
+        &mut scene,
+        top,
+        [10.0, 0.0, 0.0],
+        [0.0, 0.0, 90.0],
+        [2.0; 3],
+    );
+    set(&mut scene, mid, [0.0, 5.0, 0.0], [0.0; 3], [1.0; 3]);
+    set(
+        &mut scene,
+        deep,
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 30.0],
+        [1.0, 3.0, 1.0],
+    );
+    for (child, parent) in [(mid, top), (deep, mid), (shallow, top)] {
+        scene
+            .reparent(child, Some(parent), ReparentKeep::Local)
+            .unwrap();
+    }
+    let group = scene.group(&[deep, shallow], PARENT).unwrap();
+    assert_eq!(parent_of(&scene, group), Some(top));
+    let p = [0.5, 0.25, 0.75];
+    // deep's old frame is top * mid (a translation apart), so its translation is rewritten.
+    let before = image(
+        [10.0, 0.0, 0.0],
+        90.0,
+        [2.0; 3],
+        image(
+            [0.0, 5.0, 0.0],
+            0.0,
+            [1.0; 3],
+            image([1.0, 0.0, 0.0], 30.0, [1.0, 3.0, 1.0], p),
+        ),
+    );
+    let new = local(&scene, deep);
+    let after = image(
+        [10.0, 0.0, 0.0],
+        90.0,
+        [2.0; 3],
+        image(new.translation, new.rotation[2], new.scale, p),
+    );
+    close(before, after);
+}
+
+#[test]
+fn a_mixed_depth_keyed_member_is_refused_with_the_scene_untouched() {
+    let mut scene = NativeScene::default();
+    let top = cube(&mut scene, "top");
+    let mid = cube(&mut scene, "mid");
+    let deep = cube(&mut scene, "deep");
+    let shallow = cube(&mut scene, "shallow");
+    set(&mut scene, mid, [0.0, 5.0, 0.0], [0.0; 3], [1.0; 3]);
+    for (child, parent) in [(mid, top), (deep, mid), (shallow, top)] {
+        scene
+            .reparent(child, Some(parent), ReparentKeep::Local)
+            .unwrap();
+    }
+    scene.set_keys(&[deep], 1, ALL_CHANNELS, 1).unwrap();
+    let before = scene.clone();
+    assert_eq!(
+        scene.group(&[deep, shallow], PARENT),
+        Err(NativeError::InvalidReparent(
+            ReparentRefusal::WorldNeedsPlainTransform
+        ))
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn only_top_most_objects_are_grouped_and_a_listed_descendant_stays_put() {
+    let (mut scene, parent, a, b) = under_a_parent();
+    let group = scene.group(&[a, parent, b], PARENT).unwrap();
+    assert_eq!(children_of(&scene, Some(group)), vec![parent]);
+    assert_eq!(parent_of(&scene, a), Some(parent));
+    assert_eq!(parent_of(&scene, b), Some(parent));
+}
+
+#[test]
+fn refusals_leave_the_scene_untouched() {
+    let (mut scene, _, a, b) = under_a_parent();
+    let before = scene.clone();
+    assert_eq!(
+        scene.group(&[], PARENT),
+        Err(NativeError::InvalidReparent(ReparentRefusal::EmptySet))
+    );
+    assert_eq!(
+        scene.group(&[a, a], PARENT),
+        Err(SceneError::InvalidIds.into())
+    );
+    assert!(scene.group(&[NodeId::new(9999)], PARENT).is_err());
+    assert_eq!(scene, before);
+
+    let transform = scene.node(a).unwrap().transform_id();
+    let owner = scene.node(b).unwrap().transform_id();
+    scene.dag.push(DagEdge {
+        parent: Some(owner),
+        child: transform,
+    });
+    let before = scene.clone();
+    assert_eq!(
+        scene.group(&[a], PARENT),
+        Err(NativeError::InvalidReparent(ReparentRefusal::Instanced))
+    );
+    assert_eq!(scene, before);
+
+    let (mut restricted, node) = test_fixtures::cube();
+    test_fixtures::restrict_edits(&mut restricted, node);
+    let before = restricted.clone();
+    assert_eq!(
+        restricted.group(&[node], PARENT),
+        Err(NativeError::UnsupportedEdit)
+    );
+    assert_eq!(restricted, before);
+}
+
+#[test]
+fn a_member_name_clash_inside_the_group_is_refused_untouched() {
+    let (mut scene, _, a, _) = under_a_parent();
+    let twin = cube(&mut scene, "twin");
+    scene.rename(twin, "a").unwrap_err();
+    // Two same-named objects in different hierarchies cannot both enter the group.
+    scene.nodes.iter_mut().find(|n| n.id == twin).unwrap().name = "a".into();
+    let before = scene.clone();
+    assert_eq!(
+        scene.group(&[a, twin], PARENT),
+        Err(NativeError::NameCollision)
+    );
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn a_failure_after_the_second_member_leaves_the_baseline_equal() {
+    let mut scene = NativeScene::default();
+    let mut ids = Vec::new();
+    for index in 0..MAX_TRANSFORM_DEPTH {
+        let id = cube(&mut scene, &format!("n{index}"));
+        if let Some(&last) = ids.last() {
+            scene.reparent(id, Some(last), ReparentKeep::Local).unwrap();
+        }
+        ids.push(id);
+    }
+    let other = cube(&mut scene, "other");
+    let before = scene.clone();
+    // Both members move into the group before the extra level breaks the depth limit.
+    assert_eq!(
+        scene.group(&[other, ids[0]], PARENT),
+        Err(NativeError::ResourceLimit)
+    );
+    assert_eq!(scene, before);
+    assert_eq!(scene.next_id, before.next_id);
+    assert_eq!(scene.next_native_id, before.next_native_id);
 }
