@@ -87,7 +87,8 @@ fn validate_refuses_each_malformed_table() {
 #[test]
 fn validate_refuses_an_over_cap_or_misaligned_table() {
     let (mut scene, _) = cube();
-    let lambert = scene.session_materials.materials[0].clone();
+    let mut lambert = scene.session_materials.materials[0].clone();
+    lambert.color = [0.25; 3];
     let group = scene.session_materials.groups[0].clone();
     for index in 1..=MAX_SESSION_MATERIALS {
         scene.session_materials.materials.push(lambert.clone());
@@ -415,4 +416,61 @@ mod operations {
         assert!(!history.can_undo());
         assert_eq!(history.scene().session_materials().len(), 1);
     }
+}
+
+fn is_single(color: [f64; 3]) -> bool {
+    color.iter().all(|c| f64::from(*c as f32) == *c)
+}
+
+#[test]
+fn create_and_assign_new_round_colours_to_single_precision() {
+    let (mut scene, shape) = assigned_cube();
+    let id = scene.create_session_material([0.1, 0.2, 1.0]).unwrap();
+    let stored = scene.session_materials()[id.index()].color();
+    assert!(is_single(stored));
+    assert_eq!(stored, [f64::from(0.1_f32), f64::from(0.2_f32), 1.0]);
+    let id = scene
+        .assign_session_material(
+            shape,
+            MaterialChoice::New {
+                color: [0.3, 0.0, 0.7],
+            },
+        )
+        .unwrap();
+    assert!(is_single(scene.session_materials()[id.index()].color()));
+    scene.validate().unwrap();
+}
+
+#[test]
+fn set_color_rounds_and_still_refuses_bad_input() {
+    let (mut scene, _) = assigned_cube();
+    let id = scene.create_session_material([0.5; 3]).unwrap();
+    scene
+        .set_session_material_color(id, [0.1, 0.9, 0.0])
+        .unwrap();
+    assert!(is_single(scene.session_materials()[id.index()].color()));
+    assert_eq!(
+        scene.set_session_material_color(id, [f64::NAN, 0.0, 0.0]),
+        Err(NativeError::NonFinite)
+    );
+    assert_eq!(
+        scene.set_session_material_color(id, [1.0 + 1e-12, 0.0, 0.0]),
+        Err(NativeError::SessionColorOutOfRange)
+    );
+    assert_eq!(
+        scene.set_session_material_color(SessionMaterialId(0), [0.1; 3]),
+        Err(NativeError::InitialSessionMaterialLocked)
+    );
+}
+
+#[test]
+fn validate_requires_single_precision_for_created_materials_only() {
+    let (mut scene, _) = cube();
+    // Material 0 keeps 83/255, which is not f32-exact, and still validates.
+    assert!(!is_single(scene.session_materials()[0].color()));
+    scene.validate().unwrap();
+    let id = scene.create_session_material([0.25; 3]).unwrap();
+    scene.validate().unwrap();
+    scene.session_materials.materials[id.index()].color[1] = 0.1;
+    assert_eq!(scene.validate(), Err(NativeError::InvalidSessionMaterials));
 }
