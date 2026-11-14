@@ -1,7 +1,7 @@
 [
   {
     "name": "inspect_scene",
-    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
+    "description": "Inspect committed editor state, including an active manipulation preview (Move, Rotate or Scale), document origin, bounded canonical curve IDs/names/class/counts/domain, retained-source counts and read-only reason, pending human edits and source-appearance readiness. A node's read-only `transform_attributes` (rotate order, rotate axis in degrees, shear, rotate and scale pivots, pivot translations, `inherits_transform`, `offset_parent_matrix` (row-vector as stored, translation row in the scene's linear unit, omitted when it is the identity; the `inherits_transform` false plus offset combination is PROVISIONAL, unverified against Maya) and `non_default`) reports transform extras and is present only when at least one is non-default. Curve draw_available means at least one visible instance prepared as draw geometry; it does not claim GPU health or framebuffer success. `status_message` mirrors the native status line text (null when empty, capped at 512 characters, a fixed notice instead of file-error text that can carry a local path). `camera` reports the view (persp, top, front, side or ortho), the projection (perspective or orthographic) and the pose: target, eye, distance, yaw/pitch in degrees, vertical field of view at the current viewport aspect and clip planes. `manipulation.viewport` reports the last native pointer's pick: `pointer_hit` for the active tool's handle and `pointer_disabled` for a drawn-but-unsupported handle and `pointer_refusal` for why a Rotate or Scale press there would be refused (with a hit: that handle; with a null hit: the whole tool, for example a mirrored frame; null for Move), all null during an active manipulation. They mirror the painted highlight, so window focus, an open popup or a file modal do not null them; a hidden window has no `viewport`, and a view build error (for example an overflowing scale) nulls `viewport` from the first frame after the edit until a frame builds a view. No CV arrays or script bodies are exposed. A scene too large for one reply is read in pages: pass `node_limit` (50 to 100 suits most clients) and follow `page.next_cursor` while `page.truncated` is true; the cursor goes stale (`stale_scene`) as soon as the scene changes, and then the walk restarts without a cursor. Every page repeats the selection, camera and editor state; a shape or curve appears on the page of the node that holds it",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,
@@ -3065,6 +3065,45 @@
     }
   },
   {
+    "name": "set_viewport_view",
+    "description": "Switch the viewport camera to a named view: persp, top, front or side (Maya viewSet -persp, -top, -front, -rightSide). Top, front and side are orthographic, axis-aligned, keep the target and distance (the distance sets the zoom) and refuse orbit_camera until persp restores the perspective pose left on the first switch. Reports changed or unchanged; inspect_scene camera.view and camera.projection read the state. Session-only and idempotent; does not edit the scene. Back, bottom and left views are not implemented",
+    "inputSchema": {
+      "$defs": {
+        "ViewPreset": {
+          "description": "Maya viewSet `-persp`, `-top`, `-front` and `-rightSide` for the viewport. Session-only like\nshading; never saved or dirtying. Back, bottom and left views are not offered.",
+          "enum": [
+            "persp",
+            "top",
+            "front",
+            "side"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "view": {
+          "$ref": "#/$defs/ViewPreset"
+        }
+      },
+      "required": [
+        "scene_token",
+        "view"
+      ],
+      "title": "ViewArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "orbit_camera",
     "description": "Orbit the live camera by [yaw, pitch] radians; pitch clamps near the poles",
     "inputSchema": {
@@ -3099,7 +3138,7 @@
   },
   {
     "name": "set_camera_pose",
-    "description": "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly. Yaw wraps; pitch beyond about ±89.94 degrees is rejected. The field of view and clip planes are untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable. Session-only; does not edit the scene",
+    "description": "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly within the same projection (the pose carries no projection; use set_viewport_view to change it). Yaw wraps; pitch beyond about ±89.94 degrees is rejected. The field of view and clip planes are untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable. Session-only; does not edit the scene",
     "inputSchema": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": false,

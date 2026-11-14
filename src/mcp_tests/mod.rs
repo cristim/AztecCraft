@@ -175,6 +175,7 @@ mod official_client {
     mod usd_export;
     mod uv;
     mod vertex_edge;
+    mod viewport_views;
 
     async fn call_response(
         editor: &mut Editor,

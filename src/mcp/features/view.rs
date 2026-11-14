@@ -1,5 +1,5 @@
 use crate::{
-    editor_operations::{Operation, RemoteRequest, ShadingMode},
+    editor_operations::{Operation, RemoteRequest, ShadingMode, ViewPreset},
     mcp::{
         args::{decode, schema, scoped, token},
         registry::ToolSpec,
@@ -108,6 +108,21 @@ fn parse_set_grid_visibility(arguments: JsonObject) -> Result<RemoteRequest, Err
         Operation::SetGridVisible {
             visible: args.visible,
         },
+    ))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ViewArgs {
+    scene_token: String,
+    view: ViewPreset,
+}
+
+fn parse_set_view(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: ViewArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetView(args.view),
     ))
 }
 
@@ -233,6 +248,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
     ToolSpec {
+        name: "set_viewport_view",
+        description: "Switch the viewport camera to a named view: persp, top, front or side (Maya viewSet -persp, -top, -front, -rightSide). Top, front and side are orthographic, axis-aligned, keep the target and distance (the distance sets the zoom) and refuse orbit_camera until persp restores the perspective pose left on the first switch. Reports changed or unchanged; inspect_scene camera.view and camera.projection read the state. Session-only and idempotent; does not edit the scene. Back, bottom and left views are not implemented",
+        schema: schema::<ViewArgs>,
+        parse: parse_set_view,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "orbit_camera",
         description: "Orbit the live camera by [yaw, pitch] radians; pitch clamps near the poles",
         schema: schema::<OrbitArgs>,
@@ -242,7 +265,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_camera_pose",
-        description: "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly. Yaw wraps; pitch beyond about \u{b1}89.94 degrees is rejected. The field of view and clip planes are untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable. Session-only; does not edit the scene",
+        description: "Set the live camera to an absolute pose: target [x, y, z], distance, yaw_degrees and pitch_degrees, the values inspect_scene reports, so a read pose restores exactly within the same projection (the pose carries no projection; use set_viewport_view to change it). Yaw wraps; pitch beyond about \u{b1}89.94 degrees is rejected. The field of view and clip planes are untouched; a distance below near_clip puts the target closer to the eye than the near plane (between the eye and the plane), so it is clipped and not pickable. Session-only; does not edit the scene",
         schema: schema::<SetCameraPoseArgs>,
         parse: parse_set_camera_pose,
         idempotent: true,

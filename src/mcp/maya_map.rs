@@ -64,6 +64,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("frame_all", "`viewFit -allObjects`", "`-fitFactor` only (sphere fit, PROVISIONAL range 0.01 to 1); no `-animate`"),
     ("set_grid_visibility", "`grid -toggle`, `modelEditor -grid`", "current viewport only"),
     ("set_shading_mode", "`modelEditor -displayAppearance wireframe` / `smoothShaded`", "two modes"),
+    ("set_viewport_view", "`viewSet -persp`, `-top`, `-front`, `-rightSide`", "four views; orthographic zoom maps to the camera distance (PROVISIONAL); no back, bottom, left or home"),
     ("orbit_camera", "`tumble`", "radians; pitch clamps near the poles"),
     ("set_camera_pose", "`viewPlace -eyePoint` (PROVISIONAL: flag semantics unconfirmed beyond the synopsis), `camera -e`", "target, distance, yaw and pitch; FOV and clip planes untouched (PROVISIONAL)"),
     ("pan_camera", "`track`", "camera-plane world units"),

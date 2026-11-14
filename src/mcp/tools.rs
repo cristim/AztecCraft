@@ -354,7 +354,7 @@ mod tests {
     use super::*;
     use crate::editor_operations::{
         AttributeEditorTab, FileDecision, MAX_NAME_BYTES, ManipulationSpace, ManipulationValue,
-        MoveDistance, Operation, SelectionMode, ShadingMode, SidebarPanel,
+        MoveDistance, Operation, SelectionMode, ShadingMode, SidebarPanel, ViewPreset,
     };
     use crate::mcp::tool_names;
     use azteccraft::native_scene::{PivotLeaf, RotateAxis, ScaleHandle};
@@ -900,6 +900,7 @@ mod tests {
                 "set_grid_visibility" => json!({"scene_token":token,"visible":true}),
                 "set_snap_mode" => json!({"scene_token":token,"grid":true}),
                 "set_shading_mode" => json!({"scene_token":token,"mode":"wireframe"}),
+                "set_viewport_view" => json!({"scene_token":token,"view":"top"}),
                 "set_sidebar_panel_visibility" => {
                     json!({"scene_token":token,"panel":"channel_box","visible":true})
                 }
@@ -991,6 +992,7 @@ mod tests {
                 "set_grid_visibility"
                     | "set_snap_mode"
                     | "set_shading_mode"
+                    | "set_viewport_view"
                     | "set_menu_set"
                     | "set_sidebar_panel_visibility"
                     | "select_attribute_editor_tab"
@@ -1510,6 +1512,48 @@ mod tests {
             assert!(
                 matches!(request.operation, Operation::SetShadingMode(actual) if actual == expected)
             );
+        }
+    }
+
+    #[test]
+    fn view_schema_and_decoder_require_token_and_a_known_view() {
+        let token = Uuid::new_v4().to_string();
+        let tool = catalog()
+            .into_iter()
+            .find(|tool| tool.name == "set_viewport_view")
+            .unwrap();
+        assert_eq!(tool.input_schema["additionalProperties"], false);
+        assert_eq!(tool.annotations.unwrap().idempotent_hint, Some(true));
+        for arguments in [
+            json!({"scene_token": token}),
+            json!({"view": "top"}),
+            json!({"scene_token": token, "view": null}),
+            json!({"scene_token": token, "view": "Top"}),
+            json!({"scene_token": token, "view": "back"}),
+            json!({"scene_token": token, "view": "right_side"}),
+            json!({"scene_token": token, "view": 1}),
+            json!({"scene_token": token, "view": "top", "extra": true}),
+            json!({"scene_token": "invalid", "view": "top"}),
+        ] {
+            assert!(
+                parse_request("set_viewport_view", arguments.as_object().unwrap().clone()).is_err()
+            );
+        }
+        for (name, expected) in [
+            ("persp", ViewPreset::Persp),
+            ("top", ViewPreset::Top),
+            ("front", ViewPreset::Front),
+            ("side", ViewPreset::Side),
+        ] {
+            let request = parse_request(
+                "set_viewport_view",
+                json!({"scene_token": token, "view": name})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+            assert!(matches!(request.operation, Operation::SetView(actual) if actual == expected));
         }
     }
 
