@@ -464,7 +464,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_tool_space",
-        description: "Set the Axis Orientation of the Move or Scale (object, world or parent) or Rotate (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes; a scale begun with begin_manipulation names its own space, and the native Scale drag refuses the Parent setting until its handles follow it. Does not change the active tool",
+        description: "Set the Axis Orientation of the Move or Scale (object, world or parent) or Rotate (object or world) tool settings, the same setting as the native Tool Settings selector; read it from inspect_scene manipulation.move_space, rotate_space and scale_space. A move begun with begin_manipulation uses the Move setting, so each selected object moves along its own orientation axes; a scale begun with begin_manipulation names its own space, and the native Scale drag draws Parent handles along the parent axes; a handle that does not line up with a local axis is refused with a NotAxisAligned reason (PROVISIONAL, undocumented by Maya), and a skewed parent draws no handles, though numeric entry still applies, as MCP does. Does not change the active tool",
         schema: schema::<ToolSpaceArgs>,
         parse: parse_set_tool_space,
         idempotent: true,
