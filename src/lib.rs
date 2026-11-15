@@ -5,6 +5,7 @@ pub mod document;
 pub(crate) mod export_write;
 pub mod gltf;
 pub mod history;
+pub mod image_plane;
 pub mod manipulator_handles;
 pub(crate) mod maya_ascii;
 pub mod maya_binary;

@@ -402,6 +402,7 @@ dependencies = [
  "libc",
  "macos-quit-menu",
  "nom",
+ "png",
  "pollster",
  "rfd",
  "rmcp",
@@ -414,6 +415,7 @@ dependencies = [
  "tokio-util",
  "uuid",
  "winapi-util",
+ "zune-jpeg",
 ]
 
 [[package]]
