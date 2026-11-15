@@ -17,7 +17,14 @@ function Get-Catalog {
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$Url,
         [Parameter(Mandatory = $true)][string]$AnchorPattern,
-        [Parameter(Mandatory = $true)][string]$OutFile
+        [Parameter(Mandatory = $true)][string]$OutFile,
+        # Qualify each row name with its Doxygen ancestor rows (::). Required
+        # for the C++ pages, where distinct nested classes share a bare name
+        # (for example MPxHardwareShader::RenderParameters and
+        # MPxHwShaderNode::RenderParameters); deduplicating bare names would
+        # silently drop one of them. The Python 2.0 pages have no such
+        # collisions and stay unqualified bare class names.
+        [switch]$Qualified
     )
 
     $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 120
@@ -28,12 +35,13 @@ function Get-Catalog {
         # <a class="el"> anchor would also capture description-column links
         # (56 extra matches on the 2027 C++ page) and miss the four bold
         # namespace rows that carry no anchor at all (for example MHWRender).
-        # NOTE: the loop variable is $symbol, NOT $name - $name would collide
-        # with the [string]$Name parameter (PowerShell variables are
-        # case-insensitive) and every assignment would be coerced to
+        # NOTE: the loop variables are $symbol/$qualified, NOT $name - $name
+        # would collide with the [string]$Name parameter (PowerShell variables
+        # are case-insensitive) and every assignment would be coerced to
         # Match.ToString(), silently breaking this extraction.
-        $names = New-Object System.Collections.Generic.List[string]
+        $recorded = New-Object System.Collections.Generic.List[object]
         foreach ($row in [regex]::Matches($html, '(?s)<tr id="row_[\d_]+"[^>]*>(.*?)</tr>')) {
+            $rowId = [regex]::Match($row.Groups[0].Value, 'id="(row_[\d_]+)"').Groups[1].Value
             $entry = [regex]::Match($row.Groups[1].Value, '(?s)<td class="entry">(.*?)</td>')
             if (-not $entry.Success) { continue }
             $symbol = [regex]::Match($entry.Groups[1].Value, '<a class="el"[^>]*>([^<]+)</a>')
@@ -41,10 +49,32 @@ function Get-Catalog {
                 $symbol = [regex]::Match($entry.Groups[1].Value, '<b>([^<]+)</b>')
             }
             if ($symbol.Success) {
-                $names.Add(([System.Net.WebUtility]::HtmlDecode($symbol.Groups[1].Value)).Trim())
+                $recorded.Add([pscustomobject]@{
+                    Id = $rowId
+                    Symbol = ([System.Net.WebUtility]::HtmlDecode($symbol.Groups[1].Value)).Trim()
+                })
             } else {
                 Write-Warning ("Row without a name cell on {0}" -f $Url)
             }
+        }
+
+        if ($Qualified) {
+            $byId = @{}
+            foreach ($item in $recorded) { $byId[$item.Id] = $item.Symbol }
+            $names = New-Object System.Collections.Generic.List[string]
+            foreach ($item in $recorded) {
+                $segments = $item.Id.Substring(4).Trim('_').Split('_')
+                $parts = New-Object System.Collections.Generic.List[string]
+                for ($take = 1; $take -le $segments.Count; $take++) {
+                    $ancestorId = 'row_' + (($segments[0..($take - 1)] -join '_')) + '_'
+                    if ($byId.ContainsKey($ancestorId)) { $parts.Add($byId[$ancestorId]) }
+                }
+                $names.Add(($parts -join '::'))
+            }
+        }
+        else {
+            $names = New-Object System.Collections.Generic.List[string]
+            foreach ($item in $recorded) { $names.Add($item.Symbol) }
         }
     }
     else {
@@ -70,8 +100,8 @@ function Get-Catalog {
 $catalogs = @(
     @{ Name = 'commands'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/Maya-Tech-Docs/Commands/index_all.html'; Pattern = 'href="(?<href>[^"]+\.html)"[^>]*>(?<name>[^<]+)</a>'; Out = 'commands{0}.txt' },
     @{ Name = 'nodes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/Maya-Tech-Docs/Nodes/index_all.html'; Pattern = 'href="(?<href>[^"]+\.html)"[^>]*>(?<name>[^<]+)</a>'; Out = 'nodes{0}.txt' },
-    @{ Name = 'cpp-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/cpp_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'cpp-classes{0}.txt' },
-    @{ Name = 'py2-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/py_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'py2-classes{0}.txt' }
+    @{ Name = 'cpp-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/cpp_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'cpp-classes{0}.txt'; Qualified = $true },
+    @{ Name = 'py2-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/py_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'py2-classes{0}.txt'; Qualified = $false }
 )
 
 foreach ($release in @('', '-2026')) {
@@ -80,7 +110,8 @@ foreach ($release in @('', '-2026')) {
         Get-Catalog -Name $catalog.Name `
             -Url ($catalog.Base -f $year) `
             -AnchorPattern $catalog.Pattern `
-            -OutFile ($catalog.Out -f $release)
+            -OutFile ($catalog.Out -f $release) `
+            -Qualified:$catalog.Qualified
     }
 }
 
