@@ -105,3 +105,10 @@ Keep the same non-author reviewer across the two plan passes and each two-pass d
 ## Isolation
 
 Retain isolated worktrees for active changes, record ownership and reviewed hashes in the session plan, and preserve existing state. The current user instruction authorizes the prototype's GitHub publication and merge to `main`. Keep unsupported functionality and unmet acceptance criteria explicit when publishing.
+
+## Camera optics and film back (#458)
+
+Claimed by `codex-458-film-back`. [Research and slice plan](camera-film-back.md)
+records the Maya 2027.2 documentation, UI placement, conflicting defaults and
+projection policy, native camera/source-binding gaps and the implementation gates.
+Status: research only; camera optics editing, keying and persistence remain open.
