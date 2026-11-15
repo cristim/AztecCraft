@@ -2340,6 +2340,8 @@ pub enum NativeError {
     InvalidSessionMaterials,
     InvalidSessionJoints,
     UnsupportedJoint(JointUnsupported),
+    /// An edit that leaves a node's world geometry outside the range the view draws in (f32).
+    WorldOutOfRange,
     InvalidSessionKeys,
     InvalidFrame,
     InvalidPlaybackRange,
@@ -2430,6 +2432,10 @@ impl fmt::Display for NativeError {
             }
             Self::InvalidSessionJoints => f.write_str("invalid session joint table references"),
             Self::UnsupportedJoint(reason) => write!(f, "Create joint unsupported: {reason}"),
+            Self::WorldOutOfRange => f.write_str(
+                "the edit would move geometry outside the range the view can draw; \
+                 use smaller translation, scale or pivot values",
+            ),
             Self::InvalidSessionKeys => f.write_str("invalid session key table"),
             Self::InvalidFrame => write!(
                 f,

@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_scene::{NativeTransform, ScaleUnsupported, test_fixtures};
+use crate::native_scene::{Channel, NativeTransform, ScaleUnsupported, test_fixtures};
 use crate::scene::{NodeId, Primitive, SceneError};
 
 const BUDGET: usize = 256 * 1024 * 1024;
@@ -369,4 +369,24 @@ fn a_parent_space_scale_of_several_members_follows_each_members_own_parent_axes(
         assert!((got - want).abs() < 1e-9, "rotated member: {rotated:?}");
     }
     assert_eq!(plain, [1.0, 3.0, 1.0]);
+}
+
+// #396: every preview builds the view, so a scale that pushes a vertex past f32 is refused at the
+// update with the view's own error, although every f64 value is finite, and nothing is written.
+#[test]
+fn a_scale_preview_that_pushes_a_vertex_past_f32_is_refused_and_leaves_the_scene() {
+    let (mut history, targets) = cubes(1);
+    let node = targets[0].node;
+    history
+        .scene
+        .set_channel(node, Channel::TranslateX, 3.3e38)
+        .unwrap();
+    let before = history.scene.clone();
+    let token = Uuid::new_v4();
+    let id = begin(&mut history, &targets, token).unwrap();
+    assert_eq!(
+        history.update_move(token, id, NATIVE, 1.0e39),
+        Err(ManipulationError::View(ViewError::NonFiniteWorld))
+    );
+    assert_eq!(history.scene, before);
 }

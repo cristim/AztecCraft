@@ -52,6 +52,7 @@ fn pivot_code(error: &NativeError) -> &'static str {
         NativeError::PivotNeedsTranslateCorrection => "pivot_needs_translate_correction",
         NativeError::PivotOnKeyedNode => "pivot_on_keyed_node",
         NativeError::NonFinite => "invalid_input",
+        NativeError::WorldOutOfRange => "world_out_of_range",
         _ => "scene_error",
     }
 }
@@ -120,6 +121,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     NativeError::InvalidReparent(_) => "invalid_reparent",
                     NativeError::NameCollision => "name_collision",
                     NativeError::ResourceLimit => "resource_limit",
+                    NativeError::WorldOutOfRange => "world_out_of_range",
                     _ => "scene_error",
                 },
                 OperationError::SessionMaterial(error) => match error {
@@ -158,6 +160,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 )) => "invalid_primitive_options",
                 OperationError::Scene(NativeError::UnsupportedDelete(_)) => "unsupported_delete",
                 OperationError::Scene(NativeError::UnsupportedJoint(_)) => "unsupported_joint",
+                OperationError::Scene(NativeError::WorldOutOfRange) => "world_out_of_range",
                 OperationError::Scene(NativeError::InvalidFrame) => "invalid_frame",
                 OperationError::Scene(NativeError::InvalidPlaybackRange) => {
                     "invalid_playback_range"
@@ -380,6 +383,25 @@ mod tests {
             )),
             "alternate_path_ancestor"
         );
+    }
+
+    #[test]
+    fn a_world_out_of_range_refusal_has_its_own_code_on_the_edit_routes() {
+        let code = |error: OperationError| {
+            let result = tool_reply(Err(error));
+            serde_json::to_value(&result).unwrap()["structuredContent"]["error"]["code"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        let refusal = || NativeError::WorldOutOfRange;
+        for error in [
+            OperationError::Scene(refusal()),
+            OperationError::Pivot(refusal()),
+            OperationError::Reparent(refusal()),
+        ] {
+            assert_eq!(code(error), "world_out_of_range");
+        }
     }
 
     #[test]

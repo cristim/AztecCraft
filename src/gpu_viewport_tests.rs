@@ -449,16 +449,25 @@ fn headless_gpu_a_failed_view_build_reports_scene_geometry_until_undo() {
         .textures_delta
         .clear();
     assert_eq!(editor.inspect(false).unwrap().viewport_error, None);
-    editor
-        .apply_operation(Operation::SetTransform {
+    // The edit is refused; Undo leads into the undrawable scene instead.
+    assert!(
+        editor
+            .apply_operation(Operation::SetTransform {
+                id,
+                transform: TransformInput {
+                    translation: [0.0; 3],
+                    rotation_degrees: [0.0; 3],
+                    scale: [1e300; 3],
+                },
+            })
+            .is_err()
+    );
+    editor.history =
+        crate::app::undrawable_scene_tests::history_that_undoes_into_an_undrawable_scale(
+            editor.history.scene(),
             id,
-            transform: TransformInput {
-                translation: [0.0; 3],
-                rotation_degrees: [0.0; 3],
-                scale: [1e300; 3],
-            },
-        })
-        .unwrap();
+        );
+    assert!(editor.history.undo());
 
     // A stale category from an earlier frame must not survive this failure.
     editor.viewport_error = Some(ViewportError::ResourceLimit);
@@ -470,7 +479,7 @@ fn headless_gpu_a_failed_view_build_reports_scene_geometry_until_undo() {
         Some(ViewportError::SceneGeometry)
     );
 
-    assert!(editor.history.undo());
+    assert!(editor.history.redo());
     render(&mut editor, &context, Vec::new())
         .textures_delta
         .clear();

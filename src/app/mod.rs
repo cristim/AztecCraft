@@ -456,6 +456,8 @@ mod mcp_editor_tests;
 #[cfg(test)]
 #[path = "../gpu_viewport_tests.rs"]
 mod gpu_viewport_tests;
+#[cfg(test)]
+mod undrawable_scene_tests;
 
 #[cfg(test)]
 mod pivot_ops_tests;

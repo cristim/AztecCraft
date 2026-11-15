@@ -305,6 +305,13 @@ async fn sdk_pointer_fields_clear_after_a_view_build_error() {
         editor.renderer = Some(crate::viewport_renderer::tests::renderer_handle());
         editor.camera = oblique();
         editor.create(Primitive::Cube);
+        // The edit tools refuse an out-of-range scale, so Undo leads into the undrawable scene.
+        let cube = editor.selected().unwrap();
+        editor.history =
+            crate::app::undrawable_scene_tests::history_that_undoes_into_an_undrawable_scale(
+                editor.history.scene(),
+                cube,
+            );
         let node = editor.selected().unwrap().to_decimal();
         frame(&mut editor, &context, vec![]);
         let token = editor.scene_token.to_string();
@@ -337,13 +344,27 @@ async fn sdk_pointer_fields_clear_after_a_view_build_error() {
             hit,
             "{tool}"
         );
-        let edited = call(
+        let refused = call(
             &mut editor,
             &context,
             client.peer(),
             "set_transform",
             json!({"scene_token":token,"node_id":node,"translation":[0,0,0],
                    "rotation_degrees":[0,0,0],"scale":[1e300,1e300,1e300]}),
+        )
+        .await;
+        assert!(refused.is_error.unwrap_or(false), "{tool}");
+        assert_eq!(
+            refused.structured_content.unwrap()["error"]["code"],
+            "world_out_of_range",
+            "{tool}"
+        );
+        let edited = call(
+            &mut editor,
+            &context,
+            client.peer(),
+            "undo",
+            json!({"scene_token":token}),
         )
         .await;
         assert!(!edited.is_error.unwrap_or(false), "{tool}");
@@ -374,7 +395,7 @@ async fn sdk_pointer_fields_clear_after_a_view_build_error() {
             &mut editor,
             &context,
             client.peer(),
-            "undo",
+            "redo",
             json!({"scene_token":token}),
         )
         .await;

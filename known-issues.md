@@ -1541,9 +1541,14 @@ Cost: a multi-object begin enumerates every transform path of the scene once (`t
   joint, singular parent, radius, position range) is `unsupported_joint`. Typing those two is
   deferred with the same gap in the other tools.
 - `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
-  one such joint would fail every view build. `edit_node` still accepts translations beyond f32
-  range on `main` (code outside the rigging slice), with the same effect on the view build; it is
-  not changed here.
+  one such joint would fail every view build. A transform edit (`edit_node`, `set_transform`),
+  a parent, a set pivots and a reset pivots that would make the
+  view fail with a non-finite world position (a vertex or joint centre past f32) are refused with
+  `world_out_of_range` (#396); `History::execute` checks the candidate with the same view build,
+  and only when the scene before the edit still built. A Move, Rotate or Scale builds the
+  view at every preview update and already refuses the same condition with `view_error`, so it
+  needs no check of its own. Still open: a keyed channel evaluated at a frame (`set_keys`, time
+  change) or an opened file can still produce an out-of-range world position.
 - Undo and redo do not restore the object selection: undoing a joint creation leaves nothing
   selected and redo does not reselect the joints, and undoing a delete does not reselect the
   deleted chain. Maya's selection undo behaviour is not documented for these operations

@@ -508,6 +508,15 @@ impl History {
             return Err(NativeError::BusyManipulation);
         }
         let mut candidate = self.scene.clone();
+        let moves_geometry = matches!(
+            command,
+            Command::SetTransform { .. }
+                | Command::EditNode { .. }
+                | Command::EditNodes(_)
+                | Command::Reparent { .. }
+                | Command::SetPivots { .. }
+                | Command::ResetPivots { .. }
+        );
         let transform_target = match &command {
             Command::SetTransform { id, .. } => Some(*id),
             _ => None,
@@ -641,6 +650,9 @@ impl History {
         if self.scene == candidate {
             return Ok(EditOutcome::Unchanged);
         }
+        if moves_geometry {
+            self.refuse_undrawable_world(&candidate)?;
+        }
         let label = match transform_target {
             Some(id) => match (self.scene.node(id), candidate.node(id)) {
                 (Ok(before), Ok(after)) => {
@@ -668,6 +680,22 @@ impl History {
             self.pose_frame = frame;
         }
         Ok(outcome)
+    }
+
+    /// Refuses an edit whose candidate cannot be drawn because world geometry leaves f32 range
+    /// (`ViewError::NonFiniteWorld`), which would fail every view build until Undo. A scene that
+    /// was already undrawable for that reason does not block the edit that may repair it.
+    fn refuse_undrawable_world(&self, candidate: &NativeScene) -> Result<(), NativeError> {
+        let undrawable = |scene: &NativeScene| {
+            matches!(
+                ViewScene::from_native(scene, VIEW_BUDGET),
+                Err(ViewError::NonFiniteWorld)
+            )
+        };
+        if undrawable(candidate) && !undrawable(&self.scene) {
+            return Err(NativeError::WorldOutOfRange);
+        }
+        Ok(())
     }
 
     /// Writes every keyed channel's value at `frame` through the revision path. It takes no undo
@@ -726,6 +754,8 @@ impl History {
 
 #[cfg(test)]
 mod pivot_tests;
+#[cfg(test)]
+mod world_range_tests;
 #[cfg(test)]
 mod tests {
     use super::*;

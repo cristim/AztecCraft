@@ -2661,16 +2661,25 @@ fn a_view_build_error_clears_the_move_capture_for_every_tool() {
                 editor.history = azteccraft::history::History::new(scene);
             } else {
                 let id = editor.selected().unwrap();
-                editor
-                    .apply_operation(Operation::SetTransform {
+                // The edit is refused; Undo leads into the undrawable scene instead.
+                assert!(
+                    editor
+                        .apply_operation(Operation::SetTransform {
+                            id,
+                            transform: crate::editor_operations::TransformInput {
+                                translation: [0.0; 3],
+                                rotation_degrees: [0.0; 3],
+                                scale: [1e300; 3],
+                            },
+                        })
+                        .is_err()
+                );
+                editor.history =
+                    crate::app::undrawable_scene_tests::history_that_undoes_into_an_undrawable_scale(
+                        editor.history.scene(),
                         id,
-                        transform: crate::editor_operations::TransformInput {
-                            translation: [0.0; 3],
-                            rotation_degrees: [0.0; 3],
-                            scale: [1e300; 3],
-                        },
-                    })
-                    .unwrap();
+                    );
+                assert!(editor.history.undo());
             }
             idle(&mut editor, &context, 1.0);
             assert!(
