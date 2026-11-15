@@ -32,7 +32,9 @@ pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
 pub use manipulator_frame::{ManipulatorFrame, ManipulatorTool};
 pub use maya_import::{MAX_PREFIX_BYTES, MayaImportOptions, MayaImportPlan, MayaImportRefusal};
-pub use mesh::{DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points};
+pub use mesh::{
+    DirectedEdge, NativeEdge, NativeFace, NativeMesh, Points, ReduceRefusal, ReduceTarget,
+};
 pub(crate) use move_translation::{ChannelBaseline, ChannelEdits, MoveBeginError};
 pub use move_translation::{
     ChannelLeaf, MoveSpace, WorldAxis, WorldMoveFrame, WorldMoveUnsupported,
@@ -2367,6 +2369,8 @@ pub enum NativeError {
     DegenerateUvProjection,
     UnsupportedUvTopology,
     UvsBlockTopologyEdit,
+    /// Mesh > Reduce refused its target or the mesh; see `ReduceRefusal`.
+    Reduce(ReduceRefusal),
     UnsupportedMove(WorldMoveUnsupported),
     UnsupportedRotate(RotateUnsupported),
     UnsupportedScale(ScaleUnsupported),
@@ -2488,6 +2492,7 @@ impl fmt::Display for NativeError {
             Self::UvsBlockTopologyEdit => {
                 f.write_str("UVs do not follow topology edits yet; delete the UVs first")
             }
+            Self::Reduce(reason) => reason.fmt(f),
             Self::AbsentChannelLeaf { channel, component } => write!(
                 f,
                 "{} is absent from the Maya binary source and cannot be edited; leaf insertion is unsupported",
