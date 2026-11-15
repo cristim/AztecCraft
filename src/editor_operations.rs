@@ -1495,9 +1495,11 @@ pub struct UndoStateInspection {
     pub queue_size: Option<usize>,
     pub undo_length: usize,
     pub redo_length: usize,
-    /// `-printQueue`: the newest `UNDO_PRINT_LIMIT` undo labels, next Undo first.
+    /// Counterpart of `undoInfo -printQueue`, which only prints to the Script Editor: the newest
+    /// `UNDO_PRINT_LIMIT` undo labels, next Undo first (the order is PROVISIONAL, not Maya's).
     pub undo_queue: Vec<String>,
-    /// `-printRedoQueue`: the newest `UNDO_PRINT_LIMIT` redo labels, next Redo first.
+    /// Counterpart of `-printRedoQueue`: the newest `UNDO_PRINT_LIMIT` redo labels, next Redo first
+    /// (PROVISIONAL order).
     pub redo_queue: Vec<String>,
     pub open_chunk: Option<String>,
 }

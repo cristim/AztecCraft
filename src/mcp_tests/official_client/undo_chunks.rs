@@ -321,3 +321,52 @@ async fn sdk_undo_tools_reject_invalid_arguments_and_stale_tokens() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_undo_state_lists_the_newest_fifty_labels_next_step_first() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let set = run(
+        &mut editor,
+        &context,
+        &client,
+        "set_undo_queue",
+        json!({"queue":"infinite"}),
+    )
+    .await;
+    assert_eq!(set["outcome"], "changed");
+    for n in 1..=51 {
+        let name = format!("s{n}");
+        run(
+            &mut editor,
+            &context,
+            &client,
+            "open_undo_chunk",
+            json!({"name":name}),
+        )
+        .await;
+        cube(&mut editor, &context, &client).await;
+        run(
+            &mut editor,
+            &context,
+            &client,
+            "close_undo_chunk",
+            json!({}),
+        )
+        .await;
+    }
+    let state = undo_state(&mut editor, &context, &client).await;
+    let want: Vec<String> = (2..=51).rev().map(|n| format!("s{n}")).collect();
+    assert_eq!(state["undo_length"], json!(51));
+    assert_eq!(state["undo_queue"], json!(want));
+    assert_eq!(state["redo_queue"], json!([]));
+    run(&mut editor, &context, &client, "undo", json!({})).await;
+    run(&mut editor, &context, &client, "undo", json!({})).await;
+    let state = undo_state(&mut editor, &context, &client).await;
+    assert_eq!(state["redo_queue"], json!(["s50", "s51"]));
+    assert_eq!(state["undo_queue"][0], json!("s49"));
+    assert_eq!(state["undo_queue"].as_array().unwrap().len(), 49);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

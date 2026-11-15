@@ -1639,3 +1639,10 @@ joints cannot be grouped or ungrouped (Maya allows it; unsupported here, `invali
 ## Status feedback overwrites a showing hover refusal
 
 Any operation that sets status feedback, for example Undo, overwrites a hover refusal that is showing. The refusal returns only when the hover changes. Pre-existing; noted while fixing the Scale Parent status refresh (#38).
+
+## The inspect_scene size preflight ignores the undo labels
+
+`inspection_page_lower_bound` counts the scene only, not `undo_state.undo_queue` and `redo_queue` (up to 100
+labels, roughly 1 KB with short labels, and up to about 26 KB with long chunk names). A page can pass the
+preflight and still be refused `too_large` after serialising. Pre-existing pattern (the other history fields
+are uncounted too); fixing it needs the History in the bound.
