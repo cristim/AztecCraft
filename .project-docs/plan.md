@@ -143,8 +143,9 @@ PROVISIONAL entries; the sources state no formula, queue size or cancellation ru
 Slice 2: Alt+left+middle emits the existing typed Dolly operation, with precedence
 above tumble and track. Release tails stay consumed until both buttons are up.
 The gain and release policy are PROVISIONAL (development.md). Native egui
-pointer-event tests cover the actual chord and modifier/release tail; desktop
-visual verification remains pending. No new MCP schema or authoring state.
+pointer-event tests cover the actual chord and modifier/release tail. An isolated
+Linux x86_64 Wayland native-window check confirmed dolly and unchanged release
+tails; Maya comparison remains pending. No new MCP schema or authoring state.
 
 Slice 3: `Operation::BoxDolly` stages target-plane pan + distance scale, using the
 live Editor aspect and positive-area NDC rectangle in either corner order. Native
@@ -157,3 +158,38 @@ Esc/focus/pointer loss, modifier changes or other buttons cancel and consume the
 primary release. A held native navigation gesture blocks remote mutations even
 on stationary frames; hidden-window cancellation clears this guard. The actual
 SDK and Editor guard matrix cover token/draft/modal/close/manipulation boundaries.
+An isolated Linux x86_64 Wayland native-window check confirmed the rubber band,
+release zoom and Escape cancellation. Synthetic input used a QtTest native seat
+at 1440x900; this establishes that path only, without a Maya comparison.
+
+Slice 4: `UndoView`, `RedoView`, `DefaultView` are shared native/MCP operations.
+Record only successful camera changes from orbit/pan/dolly/box/frame/preset/pose/
+bookmark/default operations. Full Camera snapshots include lens, clips, projection
+and saved perspective pose. PROVISIONAL cap: 50 undo and 50 redo views; no preference
+or persistence. Native button drags coalesce until a button boundary (including
+release+press in one frame); a discrete camera command breaks the group. Remote
+commands remain individual steps and refuse a held native gesture. Wheel-only emissions
+are individual steps. Unchanged/refused operations retain forward history. A
+changed navigation clears forward views. Successful New/Open clears history;
+failed or pending replacement does not. All this grouping/cap/lifecycle policy is
+PROVISIONAL: Autodesk states only session camera views and [/] traversal.
+
+Native View > Undo/Redo View Change, [ and ], and Default View/Alt+Home use these
+operations and existing focus/popup/modal/close guards. MCP tools are
+`undo_view_change`, `redo_view_change`, `default_camera_view`; inspection adds
+`camera.can_undo_view` / `can_redo_view`. Scene authoring history and dirty state
+remain independent except the established native valid-draft commit policy.
+Actual SDK tests cover empty history, round trips, schema errors and the full
+Editor guards; native pointer tests cover drag grouping and coalesced boundaries.
+
+Final slice verification (Linux x86_64, 2026-11-15): 1,447 Editor/MCP/native-event
+tests passed (40 explicitly ignored); 1,783 core/integration tests passed (18
+explicitly ignored); strict all-target MCP-client Clippy, formatting and production
+desktop MCP build passed. Independent plan/diff review: `codex-452-camera-reviewer`.
+The isolated Wayland native-window check used a synthetic cube at 1440x900. Genuine
+[ / ] key events and View menu Undo/Redo each restored the expected viewport with
+zero changed pixels; genuine Escape while the box buttons/modifiers stayed held
+cancelled the band with no camera change, including after release. Native verifier:
+`native_verify_452`; tested binary SHA256
+`13571b8a87891c7929fb8ff09c652a6f2738d5422a3519f642c0f2b9ec6ce5fa`.
+Evidence remains local; this is bounded native-path evidence, not Maya comparison.

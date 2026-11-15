@@ -1,7 +1,7 @@
 use crate::{
     editor_operations::{Operation, RemoteRequest, ShadingMode, ViewPreset},
     mcp::{
-        args::{decode, schema, scoped, token, unit_point},
+        args::{MutationArgs, decode, schema, scoped, token, unit_point},
         registry::ToolSpec,
     },
 };
@@ -236,7 +236,44 @@ fn parse_box_dolly(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
     ))
 }
 
+fn parse_undo_view(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: MutationArgs = decode(arguments)?;
+    Ok(scoped(token(&args.scene_token)?, Operation::UndoView))
+}
+fn parse_redo_view(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: MutationArgs = decode(arguments)?;
+    Ok(scoped(token(&args.scene_token)?, Operation::RedoView))
+}
+fn parse_default_view(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: MutationArgs = decode(arguments)?;
+    Ok(scoped(token(&args.scene_token)?, Operation::DefaultView))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
+    ToolSpec {
+        name: "undo_view_change",
+        description: "Go back one session camera view (View > Undo View Change, [). Separate from scene Undo; restores the full viewport camera. Empty history reports unchanged. inspect_scene camera.can_undo_view/can_redo_view report availability. Session-only, bounded to 50 views (PROVISIONAL); successful New/Open clears history",
+        schema: schema::<MutationArgs>,
+        parse: parse_undo_view,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "redo_view_change",
+        description: "Go forward one session camera view (View > Redo View Change, ]). Separate from scene Redo. Empty history reports unchanged; a successful changed navigation clears the forward views. Does not edit the scene",
+        schema: schema::<MutationArgs>,
+        parse: parse_redo_view,
+        idempotent: false,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "default_camera_view",
+        description: "Restore the provisional default perspective pose (View > Default View, Alt+Home), keeping the current lens and clip range. One view-history step, independent of scene Undo; already default reports unchanged",
+        schema: schema::<MutationArgs>,
+        parse: parse_default_view,
+        idempotent: true,
+        read_only: false,
+    },
     ToolSpec {
         name: "box_dolly_camera",
         description: "Dolly into a positive-area rectangle, like Ctrl+Alt+left drag. min/max are opposite NDC corners (x right, y up, each in [-1,1], either order). Uses the last painted viewport aspect, or 1 before the first paint. PROVISIONAL target-plane fitting: center the rectangle at the camera target depth and scale distance by half its larger NDC extent; orthographic width scales the same way. Orientation, focal length and clips stay fixed. Zero width/height or an unrepresentable camera returns camera_error with camera unchanged. Session-only; does not edit the scene or selection",

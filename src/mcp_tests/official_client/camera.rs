@@ -432,7 +432,7 @@ async fn sdk_set_camera_pose_restores_an_inspected_pose_exactly() {
         arguments["scene_token"] = json!(text);
         call(&mut editor, &context, client.peer(), tool, arguments).await;
         let saved = editor.camera.clone();
-        let read = inspected_camera(&mut editor, &context, &client).await;
+        let mut read = inspected_camera(&mut editor, &context, &client).await;
         let same = call(
             &mut editor,
             &context,
@@ -455,6 +455,8 @@ async fn sdk_set_camera_pose_restores_an_inspected_pose_exactly() {
         .await;
         assert_eq!(moved.structured_content.unwrap()["outcome"], "changed");
         assert!(editor.camera.same_capture(&saved), "{tool}");
+        // Restoring a changed camera adds a view-history entry, independent of pose equality.
+        read["can_undo_view"] = json!(true);
         assert_eq!(inspected_camera(&mut editor, &context, &client).await, read);
     }
     assert_eq!(editor.scene_token, token);
@@ -769,5 +771,186 @@ async fn sdk_box_dolly_respects_scene_draft_modal_close_and_manipulation_guards(
         client.cancel().await.unwrap();
         drop(editor);
         server.await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn sdk_view_history_round_trips_camera_and_exposes_availability() {
+    let ctx = egui::Context::default();
+    let (mut editor, client, server) = start(&ctx).await;
+    let token = editor.scene_token.to_string();
+    let initial = editor.camera.clone();
+    for (tool, args) in [
+        ("undo_view_change", json!({"scene_token":token})),
+        ("redo_view_change", json!({"scene_token":token})),
+    ] {
+        let result = call(&mut editor, &ctx, client.peer(), tool, args).await;
+        assert_eq!(result.structured_content.unwrap()["outcome"], "unchanged");
+    }
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "dolly_camera",
+        json!({"scene_token":token,"factor":0.5}),
+    )
+    .await;
+    let changed = editor.camera.clone();
+    assert_eq!(
+        inspected_camera(&mut editor, &ctx, &client).await["can_undo_view"],
+        true
+    );
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "undo_view_change",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(editor.camera, initial);
+    assert_eq!(
+        inspected_camera(&mut editor, &ctx, &client).await["can_redo_view"],
+        true
+    );
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "redo_view_change",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(editor.camera, changed);
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "set_viewport_view",
+        json!({"scene_token":token,"view":"top"}),
+    )
+    .await;
+    let before = editor.camera.clone();
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "default_camera_view",
+        json!({"scene_token":token}),
+    )
+    .await;
+    call(
+        &mut editor,
+        &ctx,
+        client.peer(),
+        "undo_view_change",
+        json!({"scene_token":token}),
+    )
+    .await;
+    assert_eq!(editor.camera, before);
+    assert!(!editor.is_dirty());
+    assert!(!editor.history.can_undo());
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_view_history_has_strict_schemas_and_editor_guards() {
+    for tool in [
+        "undo_view_change",
+        "redo_view_change",
+        "default_camera_view",
+    ] {
+        for guard in ["stale", "draft", "modal", "close", "manipulation"] {
+            let ctx = egui::Context::default();
+            let (mut editor, client, server) = start(&ctx).await;
+            if guard != "close" {
+                editor.create(Primitive::Cube);
+            }
+            let token = editor.scene_token.to_string();
+            editor
+                .apply_operation(Operation::Dolly { factor: 0.5 })
+                .unwrap();
+            let expected = match guard {
+                "draft" => {
+                    editor.channels[0] = "7".into();
+                    "busy_editing"
+                }
+                "modal" => {
+                    editor.new_document().unwrap();
+                    "busy_editing"
+                }
+                "close" => {
+                    editor.close_document().unwrap();
+                    "busy_editing"
+                }
+                "manipulation" => {
+                    let node = editor.selected().unwrap().to_decimal();
+                    let path: Vec<_> = editor
+                        .selected_path()
+                        .iter()
+                        .map(|id| id.to_decimal())
+                        .collect();
+                    let result=call(&mut editor,&ctx,client.peer(),"begin_manipulation",json!({"scene_token":token,"node_id":node,"instance_path":path,"kind":"move","axis":"x"})).await;
+                    assert_eq!(
+                        result.structured_content.unwrap()["outcome"],
+                        "manipulation_started"
+                    );
+                    "busy_manipulation"
+                }
+                _ => "stale_scene",
+            };
+            let before = editor.camera.clone();
+            let lengths = (
+                editor.view_history.undo.len(),
+                editor.view_history.redo.len(),
+            );
+            let requested = if guard == "stale" {
+                Uuid::new_v4().to_string()
+            } else {
+                token.clone()
+            };
+            let result = call(
+                &mut editor,
+                &ctx,
+                client.peer(),
+                tool,
+                json!({"scene_token":requested}),
+            )
+            .await;
+            assert_eq!(
+                result.structured_content.unwrap()["error"]["code"],
+                expected,
+                "{tool} {guard}"
+            );
+            assert_eq!(editor.camera, before);
+            assert_eq!(
+                (
+                    editor.view_history.undo.len(),
+                    editor.view_history.redo.len()
+                ),
+                lengths
+            );
+            assert!(
+                call_response(
+                    &mut editor,
+                    &ctx,
+                    client.peer(),
+                    tool,
+                    json!({"scene_token":token,"extra":true})
+                )
+                .await
+                .is_err()
+            );
+            assert!(
+                call_response(&mut editor, &ctx, client.peer(), tool, json!({}))
+                    .await
+                    .is_err()
+            );
+            client.cancel().await.unwrap();
+            drop(editor);
+            server.await.unwrap();
+        }
     }
 }

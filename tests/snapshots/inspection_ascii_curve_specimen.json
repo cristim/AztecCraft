@@ -3,6 +3,8 @@
     "appearance_incomplete": true,
     "attribute_editor_tab": null,
     "camera": {
+      "can_redo_view": false,
+      "can_undo_view": false,
       "center_of_interest_cm": 10.858717918395996,
       "distance": 10.858717918395996,
       "eye": [

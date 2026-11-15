@@ -223,6 +223,32 @@ impl Editor {
         if frame_all {
             self.frame_all();
         }
+        let view_history = ctx.input(|i| {
+            i.events
+                .iter()
+                .filter_map(|event| match event {
+                    egui::Event::Key {
+                        key,
+                        pressed: true,
+                        repeat: false,
+                        modifiers,
+                        ..
+                    } if modifiers.is_none() => match key {
+                        Key::OpenBracket => Some(false),
+                        Key::CloseBracket => Some(true),
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .next_back()
+        });
+        if let Some(redo) = view_history {
+            self.native_operation(if redo {
+                Operation::RedoView
+            } else {
+                Operation::UndoView
+            });
+        }
         if default_view {
             self.default_view();
         }

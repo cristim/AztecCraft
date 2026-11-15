@@ -15,14 +15,18 @@ Remote, `remote_operation_guarded` (`src/app/dispatch.rs "fn remote_operation_gu
 3. An active Move, Rotate or Scale is `BusyManipulation` unless it is Remote and the operation is
    `UpdateMove`, `UpdateManipulation` or `FinishMove` (`src/app/dispatch.rs "active.provenance != ManipulationProvenance::Remote"`). This is default-deny.
 4. Closing, modal (all but `ResolveFileAction`), focused text edit, any draft or pending native
-   input is `BusyEditing` (`src/app/dispatch.rs "|| self.native_input_pending"`). An Attribute Editor
+   input, or a held native camera gesture (including stationary frames), is `BusyEditing` (`src/app/dispatch.rs "|| self.native_input_pending"`). An Attribute Editor
    pivot field is a draft through `has_channel_draft`; the `pivot_draft` state (non-file cells only) matches the
    `channel_draft` cells, except where the committed draft changes what the operation then sees (`select_in_rect`,
    `reset_pivots`, whose cube moved with the channel draft and had its rp moved with the pivot draft).
-5. Then `apply_operation_guarded` with provenance Remote (`src/app/dispatch.rs "ManipulationProvenance::Remote,"`).
+5. Then `apply_operation_guarded` with provenance Remote, which delegates to `dispatch_operation_guarded` (`src/app/dispatch.rs "ManipulationProvenance::Remote,"`).
 
-Native, `apply_operation` (`src/app/dispatch.rs "fn apply_operation("`) calls `apply_operation_guarded` (`src/app/dispatch.rs "fn apply_operation_guarded"`) with
-provenance Native and no token or draft checks. In order:
+Native, `apply_operation` calls `apply_operation_guarded` with provenance Native and no
+outer token or draft checks. That wrapper snapshots camera-changing operations,
+delegates once to `dispatch_operation_guarded`, then records a full camera view
+only on successful changed navigation. All existing scene mutations and guards
+remain inside `dispatch_operation_guarded`; the entry-point gate admits no other
+caller. In order:
 
 0. `stops_playback` (`src/app/features/timeline.rs "fn stops_playback"`) stops playback before anything else, for native and remote callers alike, even when the operation is then refused. Reads, selection, the camera, tool settings and view settings keep playing; any new variant stops it by default. A remote request refused by its outer guards never gets here.
 1. A Delete, DeleteSelection or ResetPivots in Face, Vertex or Edge mode is refused first (see Behavior that stays inside
@@ -32,9 +36,9 @@ provenance Native and no token or draft checks. In order:
    pointer sequence only on a real tool change that cancelled nothing
    (`src/app/features/move_tool.rs "self.consume_pointer_sequence()"`). Other operations during a Move are `BusyManipulation` except
    `UpdateMove`/`FinishMove`.
-2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn apply_operation_guarded"`), so a native `NewScene` while closing cancels the
+2. Closing is `BusyEditing` (the first `is_closing()` check in `src/app/dispatch.rs "fn dispatch_operation_guarded"`), so a native `NewScene` while closing cancels the
    Move and then fails.
-3. `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `apply_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `apply_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
+3. `BoxDolly`, `UndoView`, `RedoView`, `DefaultView`, `SetGridVisible`, `SetShadingMode`, `SetView`, `SetMenuSet`, `SetSidebarPanelVisible` and `SelectAttributeEditorTab` while modal are `BusyEditing` (the `is_modal()` check right after it in `dispatch_operation_guarded`). `SetToolSpace`, `SetToolHandle` and `SetManipulatorSize` are refused while modal by the per-variant modal list in `dispatch_operation_guarded` (`src/app/dispatch.rs "| Operation::SetToolHandle(_)"`, after the `is_modal()` match); the remote path reaches the same refusal earlier through the `is_modal()` check in `remote_operation_guarded`.
 4. File operations are decided in one match (`src/app/dispatch.rs "Operation::OpenScene { path } | Operation::SaveSceneAs { path }"`), before any draft commit. For
    `OpenScene` and `SaveSceneAs`, path validity (`src/app/dispatch.rs "Scene path must contain 1 to 4096 bytes and no NUL"`) runs first. `OpenScene` then
    reaches `open_candidate` with no modal check (`src/app/dispatch.rs "return self.open_candidate(path)"`); `SaveSceneAs` is refused while
@@ -44,7 +48,7 @@ provenance Native and no token or draft checks. In order:
    and a valid native draft is committed before the import runs (`import_obj` cells in the guard matrix).
 5. `SetActiveTool`, `SetToolSpace`, `SetToolHandle`, `SetManipulatorSize`, the Move, Rotate and Scale operations and every selection-changing operation (`Select`,
    `ModifySelection`, `SelectByRule`, `SelectInRect`, `DeselectAll`, `SetSelectionMode`, `SelectFace`, `SelectVertex`, `SelectEdge`) are `BusyEditing` while modal
-   (the modal `matches!` after the file-operation match in `apply_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
+   (the modal `matches!` after the file-operation match in `dispatch_operation_guarded`), whoever the caller. The refusal is in the pipeline, not only in the UI checks in
    `src/app/panels.rs` and runs before validation and before the draft commit, so a refused selection change never
    commits a draft. `SetCurrentTime`, `SetPlaybackRange`, `Play`, `SetKeyframe` and `DeleteKeys` are in the same list; `Stop` is not (`native_selection_changes_refuse_modal_before_committing_drafts`). Nothing in the modal's own
    resolve path dispatches a selection operation. Create, Delete and Undo/Redo also move the selection as a side
@@ -69,8 +73,8 @@ These are not expressible as a shared guard and must not be hoisted without a ne
   `src/native_scene.rs "fn authoring_read_only_reason"`) and surfaces as `ReadOnlyFormat`; Move, Rotate and Scale map it in
   `begin_error` (`src/app/features/manipulation_tool.rs "fn begin_error"`).
 - `EditNode` with no fields returns `Unchanged` after only checking the node (`src/app/dispatch.rs "Operation::EditNode {"`).
-- Delete and DeleteSelection in Face, Vertex or Edge mode are refused by the first guard of `apply_operation_guarded`
-  (`src/app/dispatch.rs "fn apply_operation_guarded"`), so native and remote callers refuse alike;
+- Delete and DeleteSelection in Face, Vertex or Edge mode are refused by the first guard of `dispatch_operation_guarded`
+  (`src/app/dispatch.rs "fn dispatch_operation_guarded"`), so native and remote callers refuse alike;
   `native_operation` no longer carries a separate pre-check and
   `native_operation_reports_face_mode_delete_refusal` covers the UI status line. The remote
   pipeline's outer state guards (stale token, busy editing, busy manipulation) still take priority,
@@ -94,7 +98,7 @@ These are not expressible as a shared guard and must not be hoisted without a ne
 - The viewport click path (`src/app/panels.rs`) dispatches Object, Hierarchy, Face, Vertex and Edge picks through
   `apply_operation`, not `native_operation`, so a pick takes the shared guards like any other native operation.
 - `ResetPivots` in Face, Vertex or Edge mode is refused by the second component-mode check at the top of
-  `apply_operation_guarded` (`src/app/dispatch.rs "Pivot reset on {noun} selection is unsupported"`), ahead of
+  `dispatch_operation_guarded` (`src/app/dispatch.rs "Pivot reset on {noun} selection is unsupported"`), ahead of
   `guard_move_dispatch`, so it shows in every native state (closing, move, modal, draft) as the `reset_pivots(face_mode)`
   cells; remote cells still report the outer state guard first. `SetPivots` names its node and has no such check.
 - The two pivot operations are in the native modal list of step 5 (`BusyEditing` under a file modal, issue #430, like every
@@ -161,12 +165,12 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - `AutosaveNow` writes a recovery file of the committed scene when the host enabled recovery (`--recovery-dir`; otherwise `Recovery(Disabled)`). It is not undoable, never dirties, keeps the scene token, never touches `files` or `history` and never commits a draft (native or remote). Native and remote refuse a native modal and closing with `BusyEditing` and an active manipulation with `BusyManipulation`; remotely it also needs the token and refuses drafts and text focus. A scene Save cannot encode returns `Recovery(Encode)`. `RecoveryStatus` is a read like `ListCameraBookmarks`: it returns before the token and draft guards. Matrix cells: `autosave_now(enabled)`, `autosave_now(disabled)` (file-writing section: an authored scene has no recovery encoder on Windows, so there the enabled cell reads `recovery_unsupported` and binary-sourced states succeed), `recovery_status`, `recovery_status(enabled)`; the matrix observes `recovery_files`.
 - `SetSidebarPanelVisible` follows Grid: remote refuses a stale token, a Move (`BusyManipulation`), a
   draft of any kind (valid or not; `src/mcp_tests/official_client/attribute_editor.rs "Human draft: any draft is busy_editing, valid or not."`), text focus, modal and closing (`BusyEditing`); native refuses closing and modal
-  before any draft commit (the closing and modal checks at the top of `src/app/dispatch.rs "fn apply_operation_guarded"`), is
+  before any draft commit (the closing and modal checks at the top of `src/app/dispatch.rs "fn dispatch_operation_guarded"`), is
   `BusyManipulation` during a manipulation (`src/app/features/move_tool.rs "fn guard_move_dispatch"`), and otherwise commits a valid
   draft first and refuses an invalid one (`src/app/dispatch.rs "&& !self.commit_pending()"`). The handler is
   `src/app/dispatch.rs "Operation::SetSidebarPanelVisible { panel, visible }"`; matrix cells are `set_sidebar_panel_visible(channel_box,false)` and
   `set_sidebar_panel_visible(attribute_editor,true)`.
-- `SelectAttributeEditorTab` has the same guards as `SetSidebarPanelVisible` (modal check in `apply_operation_guarded`, the `commit_pending` gate `src/app/dispatch.rs "&& !self.commit_pending()"`, Move default-deny).
+- `SelectAttributeEditorTab` has the same guards as `SetSidebarPanelVisible` (modal check in `dispatch_operation_guarded`, the `commit_pending` gate `src/app/dispatch.rs "&& !self.commit_pending()"`, Move default-deny).
   It is view state only and never enters history. After the draft commit it is refused as
   `InvalidInput` unless the Attribute Editor is the active dock panel (no hidden state that
   inspection cannot show), when the tab does not resolve, or when the shape is beyond the tab

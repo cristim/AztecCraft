@@ -240,8 +240,8 @@ Undo and Redo entry names are PROVISIONAL: the Maya 2027 documentation names no 
 transform edit that changes several value groups reads "Transform"; Channel Box and numeric edits
 read "Edit" whatever channel changed.
 
-Selection, camera, tool and panel changes do not create undo entries in
-AztecCraft (`.project-docs/mcp.md` already says selection does not). Whether Maya
+Selection, camera, tool and panel changes do not create scene-authoring undo entries in
+AztecCraft (camera navigation has its own session view history) (`.project-docs/mcp.md` already says selection does not). Whether Maya
 puts selection changes on its undo queue is not stated by its Undo preferences page; see
 row 22 of the [policy constants table](.project-docs/development.md#application-policy-constants).
 
@@ -1225,8 +1225,10 @@ New, which does not apply to history steps.
 The Default View row and Alt+Home restore AztecCraft's own default camera (row 24 of the [policy constants table](.project-docs/development.md#application-policy-constants)). Maya documents no default perspective pose, so the pose is not
 compared with Maya: PROVISIONAL. Default View restores only the pose (target, distance, yaw,
 pitch); the far clip plane, which framing can grow, is not reset. Fn+Option+Left as Alt+Home on compact Mac keyboards is unchecked.
-Maya's Undo/Redo View Change, the `[` and `]` view history and View > Bookmarks are not
-implemented; camera changes create no undo entries (see Core authoring limits).
+Undo/Redo View Change and `[`/`]` now use a separate session camera history
+(PROVISIONAL cap 50 and button-drag grouping; #452). Camera changes create no
+scene-authoring undo entries. Native View > Bookmarks remains unsupported (#292);
+MCP bookmark operations exist.
 
 Set Camera Pose and `set_camera_pose` judge Changed/Unchanged numerically, so -0.0 over 0.0 (target, yaw or
 pitch) replies Unchanged while the stored sign bits flip; the view renders identically and inspect may show
@@ -1643,7 +1645,9 @@ Any operation that sets status feedback, for example Undo, overwrites a hover re
 ## #452 viewport navigation candidate
 
 Box dolly uses a provisional target-plane fit, not a depth-picked object fit.
-Ctrl+Alt+left and Alt+left+middle have native event tests, but desktop visual
-comparison against Maya remains pending. The session viewport lens/centre-of-interest
-reads do not inspect imported Maya camera nodes. View history remains pending on
-this candidate until its independent review/test gate passes.
+Ctrl+Alt+left and Alt+left+middle have native event tests and an isolated Linux
+Wayland native-window check (rubber band, release zoom, Escape, chord and unchanged
+release tails). Comparison against Maya remains pending. The session viewport lens/centre-of-interest
+reads do not inspect imported Maya camera nodes. Session view history has a provisional cap of 50, button-gesture grouping and no persistence;
+Native bracket-key and View menu history round trips passed on the isolated Linux
+Wayland window; independent review/test evidence is recorded in the #452 plan.

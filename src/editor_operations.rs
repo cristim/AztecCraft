@@ -824,6 +824,9 @@ pub enum Operation {
     BoxDolly {
         rect: NdcRect,
     },
+    UndoView,
+    RedoView,
+    DefaultView,
     /// Absolute view, radians like `Orbit`. The lens and clip planes are untouched. Unchanged is
     /// judged numerically, so a pose differing only in zero signs replies Unchanged.
     SetCameraPose {
@@ -1438,6 +1441,8 @@ pub struct PendingInspection {
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct CameraInspection {
+    pub can_undo_view: bool,
+    pub can_redo_view: bool,
     /// A held native navigation gesture blocks remote mutation, even on stationary frames.
     pub native_gesture_active: bool,
     /// Millimetres, unknown for an explicit field-of-view lens.
@@ -1856,7 +1861,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"native_gesture_active":true,"focal_length_mm":0.0,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"can_undo_view":true,"can_redo_view":true,"native_gesture_active":true,"focal_length_mm":0.0,"center_of_interest_cm":0.0,"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0}}"#

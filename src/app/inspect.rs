@@ -655,6 +655,8 @@ impl Editor {
                 }
             }),
             camera: CameraInspection {
+                can_undo_view: !self.view_history.undo.is_empty(),
+                can_redo_view: !self.view_history.redo.is_empty(),
                 native_gesture_active: self.native_camera_drag,
                 focal_length_mm: self.camera.lens().focal_length_mm(),
                 center_of_interest_cm: self.camera.distance(),
