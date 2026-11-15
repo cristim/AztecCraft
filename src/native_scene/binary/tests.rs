@@ -559,6 +559,73 @@ fn inert_custom_definitions_bind_only_typed_owner_state_and_appearance_outputs()
 }
 
 #[test]
+fn admit_work_accepts_exactly_the_cap_and_refuses_one_more_unit_of_each_term() {
+    use super::admission::{Counts, MAX_WORK};
+    assert_eq!(MAX_WORK, 50_000_000);
+    // `chunks` is a linear term worth 32 each; it tops every case up to exactly MAX_WORK.
+    type Bump = fn(&mut Counts);
+    let dup = |c: &Counts| Counts {
+        transforms: c.transforms,
+        shapes: c.shapes,
+        dag: c.dag,
+        leaves: c.leaves,
+        chunks: c.chunks,
+        ..Counts::default()
+    };
+    let cases: [(&str, Counts, Vec<Bump>); 3] = [
+        (
+            "2 * v * dag",
+            Counts {
+                transforms: 2048,
+                shapes: 2048,
+                dag: 6000,
+                chunks: 16_404,
+                ..Counts::default()
+            },
+            vec![|c| c.transforms += 1, |c| c.shapes += 1, |c| c.dag += 1],
+        ),
+        (
+            "transforms * leaves",
+            Counts {
+                transforms: 10_000,
+                leaves: 3008,
+                chunks: 468_163,
+                ..Counts::default()
+            },
+            vec![|c| c.transforms += 1, |c| c.leaves += 1],
+        ),
+        (
+            "leaves * (leaves - 1) / 2",
+            Counts {
+                leaves: 9024,
+                chunks: 281_233,
+                ..Counts::default()
+            },
+            vec![|c| c.leaves += 1],
+        ),
+    ];
+    for (term, counts, bumps) in cases {
+        assert!(counts.admit_work().is_ok(), "{term} at the cap");
+        for bump in bumps {
+            let mut over = dup(&counts);
+            bump(&mut over);
+            assert_eq!(
+                over.admit_work().unwrap_err().kind(),
+                ErrorKind::ResourceLimit,
+                "{term} over the cap"
+            );
+        }
+        let mut over = dup(&counts);
+        over.chunks += 1;
+        assert_eq!(
+            over.admit_work().unwrap_err().kind(),
+            ErrorKind::ResourceLimit,
+            "{term} linear term over the cap"
+        );
+    }
+}
+
+#[test]
 fn allocation_and_work_policies_refuse_before_expensive_finish() {
     use super::admission::{Budget, Counts};
     assert!(Budget::new(128 * 1024 * 1024).is_ok());
