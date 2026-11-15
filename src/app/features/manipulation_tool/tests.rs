@@ -811,6 +811,75 @@ fn unsupported_spaces_are_listed_disabled_with_the_reason() {
 }
 
 #[test]
+fn changing_the_active_tools_space_refreshes_the_status_only_then() {
+    let (mut editor, _context, _) = setup(Key::R, 1.0);
+    assert_eq!(editor.active_tool, ActiveTool::Scale);
+    editor.status = "stale".into();
+    editor.error = true;
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    assert!(
+        editor.status.starts_with("Scale tool (Parent)"),
+        "{}",
+        editor.status
+    );
+    assert!(!editor.error);
+    // Unchanged space and a non-active tool leave the status alone.
+    editor.status = "kept".into();
+    for (tool, space) in [
+        (ActiveTool::Scale, ManipulationSpace::Parent),
+        (ActiveTool::Rotate, ManipulationSpace::World),
+    ] {
+        editor.native_operation(Operation::SetToolSpace { tool, space });
+        assert_eq!(editor.status, "kept");
+    }
+    let (mut editor, _context, _) = setup(Key::E, 1.0);
+    assert_eq!(editor.active_tool, ActiveTool::Rotate);
+    for (space, name) in [
+        (ManipulationSpace::World, "Rotate tool (World)"),
+        (ManipulationSpace::Object, "Rotate tool (Object)"),
+    ] {
+        editor.status = "stale".into();
+        editor.native_operation(Operation::SetToolSpace {
+            tool: ActiveTool::Rotate,
+            space,
+        });
+        assert!(editor.status.starts_with(name), "{}", editor.status);
+    }
+}
+
+#[test]
+fn a_space_change_re_shows_a_hover_refusal_whose_text_is_unchanged() {
+    let editor = crate::app::parent_fixture_tests::parent_child_editor(
+        Some([2.0, 1.0, 1.0]),
+        std::f64::consts::FRAC_PI_4,
+        0.0,
+    );
+    let (mut editor, context, view) = with_view(editor, ActiveTool::Scale);
+    crate::app::parent_fixture_tests::select_child(&mut editor);
+    editor
+        .set_tool_space(ActiveTool::Scale, ManipulationSpace::Object)
+        .unwrap();
+    idle(&mut editor, &context, 1.0);
+    let at = view.screen(Vec3::ZERO);
+    moved(&mut editor, &context, 1.0, at);
+    moved(&mut editor, &context, 1.0, at);
+    assert!(editor.error, "{}", editor.status);
+    let refusal = editor.status.clone();
+    assert!(refusal.contains("not perpendicular"), "{refusal}");
+    editor.native_operation(Operation::SetToolSpace {
+        tool: ActiveTool::Scale,
+        space: ManipulationSpace::Parent,
+    });
+    moved(&mut editor, &context, 1.0, at);
+    moved(&mut editor, &context, 1.0, at);
+    assert!(editor.error, "{}", editor.status);
+    assert_eq!(editor.status, refusal);
+}
+
+#[test]
 fn scale_lists_parent_once_and_enabled() {
     let (mut editor, context, _) = setup(Key::R, 1.0);
     assert_eq!(editor.active_tool, ActiveTool::Scale);

@@ -129,6 +129,11 @@ impl Editor {
         };
         let changed = *slot != space;
         *slot = space;
+        if changed && tool == self.active_tool {
+            self.manipulation.hover = None;
+            self.status = self.tool_help();
+            self.error = false;
+        }
         Ok(if changed {
             OperationReply::Changed
         } else {
