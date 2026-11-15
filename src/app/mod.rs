@@ -438,6 +438,9 @@ fn material_edit_id() -> egui::Id {
 mod tests;
 
 #[cfg(test)]
+mod a11y_tests;
+
+#[cfg(test)]
 #[path = "../snapshots.rs"]
 pub(crate) mod snapshots;
 
