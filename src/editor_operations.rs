@@ -492,6 +492,13 @@ pub enum Operation {
         time: Option<f64>,
         channels: azteccraft::native_scene::ChannelMask,
     },
+    /// Unrolls whole-turn jumps in the rotation keys of `channels` (rotation channels only), as one
+    /// undo step. No `nodes` means the object selection.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    EulerFilter {
+        nodes: Option<Vec<NodeId>>,
+        channels: azteccraft::native_scene::ChannelMask,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: azteccraft::native_scene::UvProjectAxis,

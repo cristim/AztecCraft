@@ -198,6 +198,7 @@ impl Editor {
             | Operation::Stop => None,
             Operation::SetKeyframe { .. } => Some("Key set"),
             Operation::DeleteKeys { .. } => Some("Keys deleted"),
+            Operation::EulerFilter { .. } => Some("Euler filter applied"),
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
@@ -631,6 +632,7 @@ impl Editor {
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
+                    | Operation::EulerFilter { .. }
                     | Operation::Create { .. }
                     | Operation::Delete(_)
                     | Operation::DeleteSelection
@@ -759,6 +761,11 @@ impl Editor {
                 time,
                 channels,
             } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
+            Operation::EulerFilter { nodes, channels } => {
+                azteccraft::native_scene::check_euler_channels(*channels)
+                    .map_err(OperationError::Scene)?;
+                self.check_key_request(nodes.as_deref(), None, *channels)?;
+            }
             Operation::SetPlaybackRange { start, end } => {
                 self.check_playback_range(*start, *end)?;
             }
@@ -870,6 +877,9 @@ impl Editor {
                 time,
                 channels,
             } => self.delete_keys_command(nodes, time, channels)?,
+            Operation::EulerFilter { nodes, channels } => {
+                self.euler_filter_command(nodes, channels)
+            }
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::CreateCameraBookmark { name } => {
@@ -1544,7 +1554,7 @@ impl Editor {
         );
         let key_command = matches!(
             command,
-            Command::SetKeys { .. } | Command::DeleteKeys { .. }
+            Command::SetKeys { .. } | Command::DeleteKeys { .. } | Command::EulerFilter { .. }
         );
         let pivot_command = matches!(
             command,

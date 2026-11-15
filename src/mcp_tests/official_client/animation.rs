@@ -598,12 +598,99 @@ async fn animation_sdk_a_scene_in_another_time_unit_refuses_every_time_tool() {
         ("play_timeline", json!({})),
         ("set_keyframe", json!({"node_ids": [id.clone()]})),
         ("delete_keys", json!({"node_ids": [id.clone()]})),
+        ("euler_filter", json!({"node_ids": [id.clone()]})),
     ] {
         let refused = tool(&mut editor, &context, &client, name, args).await;
         assert_eq!(refused.is_error, Some(true), "{name}");
         assert_eq!(error_code(&refused), "unsupported_time_unit", "{name}");
     }
     assert_eq!(editor.timeline.current, 1);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn animation_sdk_euler_filter_is_one_undo_step_and_refuses_bad_input() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let id = editor.selected().unwrap().to_decimal();
+    for (time, degrees) in [(1, 10.0), (2, 350.0)] {
+        let rotation = json!([0.0, degrees, 0.0]);
+        let args = json!({"node_id": id, "translation": [0, 0, 0], "rotation_degrees": rotation, "scale": [1, 1, 1]});
+        let set = tool(&mut editor, &context, &client, "set_transform", args).await;
+        assert_ne!(set.is_error, Some(true), "{set:?}");
+        let key = json!({"time": time, "channels": ["rotate_y"]});
+        tool(&mut editor, &context, &client, "set_keyframe", key).await;
+    }
+    let rotate_y = |keys: &Value| -> Vec<f64> {
+        keys["keys"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|key| key["channel"] == "rotate_y")
+            .map(|key| key["value"].as_f64().unwrap())
+            .collect()
+    };
+    let before = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(rotate_y(&before), vec![10.0, 350.0]);
+
+    let none = tool(
+        &mut editor,
+        &context,
+        &client,
+        "euler_filter",
+        json!({"node_ids": [id.clone()], "channels": ["rotate_x"]}),
+    )
+    .await;
+    assert_eq!(error_code(&none), "no_rotation_keys");
+    for channels in [json!(["translate_x"]), json!(["rotate_y", "scale_z"])] {
+        let refused = tool(
+            &mut editor,
+            &context,
+            &client,
+            "euler_filter",
+            json!({"channels": channels}),
+        )
+        .await;
+        assert_eq!(error_code(&refused), "not_rotation_channel");
+    }
+    let scene_token = editor.scene_token.to_string();
+    for mut args in [
+        json!({"channels": []}),
+        json!({"channels": ["rotate_y", "rotate_y"]}),
+        json!({"channels": ["visibility"]}),
+    ] {
+        args["scene_token"] = json!(scene_token);
+        let refused =
+            call_response(&mut editor, &context, client.peer(), "euler_filter", args).await;
+        assert!(refused.is_err());
+    }
+    let empty = tool(
+        &mut editor,
+        &context,
+        &client,
+        "euler_filter",
+        json!({"node_ids": []}),
+    )
+    .await;
+    assert_eq!(error_code(&empty), "invalid_input");
+    let untouched = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(rotate_y(&untouched), vec![10.0, 350.0]);
+
+    let filtered = tool(&mut editor, &context, &client, "euler_filter", json!({})).await;
+    assert_eq!(outcome(filtered), "changed");
+    let after = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(rotate_y(&after), vec![10.0, -10.0]);
+    let again = tool(&mut editor, &context, &client, "euler_filter", json!({})).await;
+    assert_eq!(outcome(again), "unchanged");
+
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    let undone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(rotate_y(&undone), vec![10.0, 350.0]);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    let redone = keys(&mut editor, &context, &client, json!({})).await;
+    assert_eq!(rotate_y(&redone), vec![10.0, -10.0]);
     client.cancel().await.unwrap();
     server.await.unwrap();
 }

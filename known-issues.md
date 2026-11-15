@@ -96,6 +96,7 @@ PROVISIONAL, because the docs do not state it or the feature behind it is absent
   re-evaluate at the current time only when the restored snapshot was taken at another time, which
   they do not restore; at an unchanged time they give back the recorded state, held edits included.
 - Setting the time to the current frame replies unchanged and keeps a held edit.
+- Euler filter (#461, `euler_filter`) unrolls each rotation curve on its own by whole turns, so no key's orientation changes. It never swaps an equivalent rotation triple, which Maya's filter may do (PROVISIONAL: the 2027 `filterCurve` page states no algorithm). It has no Graph Editor or Channel Box control. Pre/post-infinity is not implemented: keys are not saved (above), so there is nothing to round-trip yet, and the Graph Editor and native-screenshot criteria of #461 stay open.
 - Step Key does not wrap at the first or last key, and Step Frame ignores the Loop Play Range
   preferences. A held step repeats, and S does not.
 - Play from outside the playback range starts at the range start.

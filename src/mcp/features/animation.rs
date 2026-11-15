@@ -151,6 +151,33 @@ fn parse_delete_keys(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
 
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+struct EulerFilterArgs {
+    scene_token: String,
+    /// The objects to filter. Omit it for the object selection.
+    #[schemars(length(min = 1, max = 4096))]
+    node_ids: Option<Vec<String>>,
+    /// Rotation channels only. Omit it for rotate_x, rotate_y and rotate_z.
+    #[schemars(length(min = 1, max = 3), extend("uniqueItems" = true))]
+    channels: Option<Vec<KeyChannel>>,
+}
+
+fn parse_euler_filter(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: EulerFilterArgs = decode(arguments)?;
+    let channels = match args.channels {
+        Some(channels) => channel_mask(Some(channels))?,
+        None => [false, false, false, true, true, true, false, false, false],
+    };
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::EulerFilter {
+            nodes: node_ids(args.node_ids)?,
+            channels,
+        },
+    ))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 struct InspectKeysArgs {
     /// Read only this object's keys.
     node_id: Option<String>,
@@ -199,6 +226,14 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         description: "Delete keys as one undo step: at `time`, or at every frame when it is omitted. No node_ids means the object selection, and no channels means all nine. Remaining keys are evaluated at the current time; a channel left with no key keeps its pose. Stops playback",
         schema: schema::<KeyArgs>,
         parse: parse_delete_keys,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "euler_filter",
+        description: "Remove whole-turn jumps from rotation keys as one undo step, without changing the orientation at any key: each rotation curve is unrolled so neighbouring keys differ by at most half a turn (180 degrees, or pi radians in a radian scene). No node_ids means the object selection, and no channels means rotate_x, rotate_y and rotate_z. A non-rotation channel is refused with not_rotation_channel, and named channels holding no key with no_rotation_keys; a refusal changes nothing. Keys already within half a turn leave the scene unchanged. The unroll is per curve and never swaps an equivalent rotation triple (PROVISIONAL: Maya's algorithm is unstated). Remaining keys are evaluated at the current time. Stops playback",
+        schema: schema::<EulerFilterArgs>,
+        parse: parse_euler_filter,
         idempotent: true,
         read_only: false,
     },

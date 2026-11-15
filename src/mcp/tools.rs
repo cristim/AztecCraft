@@ -167,6 +167,8 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     "invalid_playback_range"
                 }
                 OperationError::Scene(NativeError::KeyLimit) => "key_limit",
+                OperationError::Scene(NativeError::EulerNotRotation) => "not_rotation_channel",
+                OperationError::Scene(NativeError::EulerNoRotationKeys) => "no_rotation_keys",
                 OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
@@ -905,7 +907,9 @@ mod tests {
                 }
                 "set_menu_set" => json!({"scene_token":token,"set":"rigging"}),
                 "set_current_time" => json!({"scene_token":token,"time":1}),
-                "set_keyframe" | "delete_keys" => json!({"scene_token":token,"node_ids":["1"]}),
+                "set_keyframe" | "delete_keys" | "euler_filter" => {
+                    json!({"scene_token":token,"node_ids":["1"]})
+                }
                 "set_playback_range" => json!({"scene_token":token,"start":1,"end":48}),
                 "inspect_keys" | "get_recovery_status" | "inspect_limits" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
@@ -1043,6 +1047,7 @@ mod tests {
                     | "set_session_material_color"
                     | "set_current_time"
                     | "delete_keys"
+                    | "euler_filter"
                     | "set_playback_range"
                     | "play_timeline"
                     | "stop_timeline"

@@ -57,6 +57,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
@@ -250,6 +251,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
@@ -441,6 +443,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -623,6 +626,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -805,6 +809,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -987,6 +992,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1169,6 +1175,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1351,6 +1358,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; status: "Scene edited" -> "Key set"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1533,6 +1541,7 @@
   set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1715,6 +1724,7 @@
   set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1897,6 +1907,7 @@
   set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2079,6 +2090,7 @@
   set_keyframe(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_keyframe(node,frame_9) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_keys(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  euler_filter(selection) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2261,6 +2273,7 @@
   set_keyframe(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_keyframe(node,frame_9) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete_keys(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  euler_filter(selection) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   project_uv_planar => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2443,6 +2456,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2626,6 +2640,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect => Ok(scene) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2809,6 +2824,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2991,6 +3007,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3173,6 +3190,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3355,6 +3373,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect => Ok(scene) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3537,6 +3556,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3719,6 +3739,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
@@ -3901,6 +3922,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4083,6 +4105,7 @@
   set_keyframe(selection) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   set_keyframe(node,frame_9) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=9; can_redo: true -> false
   delete_keys(selection) => Ok(unchanged) | no state change
+  euler_filter(selection) => Err(Scene: the named rotation channels hold no key to filter) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
@@ -4265,6 +4288,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4449,6 +4473,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4631,6 +4656,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4813,6 +4839,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4995,6 +5022,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5177,6 +5205,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5359,6 +5388,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5541,6 +5571,7 @@
   set_keyframe(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_keyframe(node,frame_9) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_keys(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  euler_filter(selection) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5723,6 +5754,7 @@
   set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  euler_filter(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -5905,6 +5937,7 @@
   set_keyframe(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   set_keyframe(node,frame_9) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   delete_keys(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
+  euler_filter(selection) => Err(Keys: Maya ASCII scenes are read-only in this version) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6088,6 +6121,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6271,6 +6305,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6454,6 +6489,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6637,6 +6673,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6916,6 +6953,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7099,6 +7137,7 @@
   set_keyframe(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   set_keyframe(node,frame_9) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   delete_keys(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
+  euler_filter(selection) => Err(Keys: native ownership or edit effects are unsupported) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7282,6 +7321,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7465,6 +7505,7 @@
   set_keyframe(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_keyframe(node,frame_9) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_keys(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  euler_filter(selection) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect => Ok(scene) | no state change
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7595,4 +7636,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 6995
+cells: 7036

@@ -704,6 +704,18 @@ impl Editor {
         })
     }
 
+    pub(in crate::app) fn euler_filter_command(
+        &self,
+        nodes: Option<Vec<NodeId>>,
+        channels: ChannelMask,
+    ) -> Command {
+        Command::EulerFilter {
+            nodes: self.key_nodes(nodes),
+            channels,
+            current_frame: self.timeline.current,
+        }
+    }
+
     /// One page of keys. A read passes no token guard, so the cursor binds the document and the
     /// revision; a playback tick that moves a keyed channel makes it stale.
     #[cfg(any(test, feature = "mcp"))]

@@ -804,6 +804,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             time: None,
             channels: ALL_CHANNELS,
         },
+        Operation::EulerFilter {
+            nodes: None,
+            channels: [false, false, false, true, true, true, false, false, false],
+        },
         Operation::Inspect { page: None },
         Operation::InspectKeys {
             node: None,
@@ -1335,6 +1339,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 nodes: None,
                 time: None,
                 channels: ALL_CHANNELS,
+            },
+        )],
+        Operation::EulerFilter { .. } => vec![sample(
+            "euler_filter(selection)",
+            Operation::EulerFilter {
+                nodes: None,
+                channels: [false, false, false, true, true, true, false, false, false],
             },
         )],
         Operation::InspectKeys { .. } => vec![sample(

@@ -119,6 +119,12 @@ pub enum Command {
         channels: ChannelMask,
         current_frame: i32,
     },
+    /// Unrolls the rotation keys of `channels` by whole turns, then evaluates at `current_frame`.
+    EulerFilter {
+        nodes: Vec<NodeId>,
+        channels: ChannelMask,
+        current_frame: i32,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: UvProjectAxis,
@@ -166,6 +172,7 @@ impl Command {
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::SetKeys { .. } => "Set Key".to_string(),
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
+            Self::EulerFilter { .. } => "Euler Filter".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
@@ -542,9 +549,9 @@ impl History {
             _ => None,
         };
         let evaluated_at = match &command {
-            Command::SetKeys { current_frame, .. } | Command::DeleteKeys { current_frame, .. } => {
-                Some(*current_frame)
-            }
+            Command::SetKeys { current_frame, .. }
+            | Command::DeleteKeys { current_frame, .. }
+            | Command::EulerFilter { current_frame, .. } => Some(*current_frame),
             _ => None,
         };
         let outcome = match command {
@@ -657,6 +664,14 @@ impl History {
                 current_frame,
             } => {
                 candidate.delete_keys(&nodes, frame, channels, current_frame)?;
+                EditOutcome::Changed
+            }
+            Command::EulerFilter {
+                nodes,
+                channels,
+                current_frame,
+            } => {
+                candidate.euler_filter(&nodes, channels, current_frame)?;
                 EditOutcome::Changed
             }
             Command::ProjectUvPlanar { shape, axis } => {
