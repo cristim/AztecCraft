@@ -1613,3 +1613,22 @@ The World rotate frame's `parent_linear` (`rotate_frame.rs`, `parent_rotation_sc
 ## set_keyframe is O(nodes^2)
 
 Measured in release: 86 ms at 1000 nodes and 258 ms at 4096. `NativeScene::node()` is a linear scan over the nodes (`src/native_scene.rs` ~878), and the `check_effects` DAG scan (~1455) adds to it per call. An index from `NodeId` to position would remove the first.
+
+
+## Group and Ungroup: hierarchies cannot be saved or recovered yet (#42)
+
+**Severity:** high
+**Area:** persistence, recovery, selection
+**Issue:** #42
+
+Edit > Group and MCP `group_selection` create a hierarchy in an authored scene, and the authored `.ma`
+and `.mb` writers accept no hierarchy (one transform per mesh). Save As of a grouped scene is refused
+(`non_authored_hierarchy` on Unix, `save_unsupported` on Windows) and writes no file; Save on an Untitled
+scene asks for a path first (`save_needs_path`; Windows reports `save_unsupported`). Ungroup back to a flat
+scene saves again. The autosave encoder is the same writer, so after Group autosave fails typed
+(`RecoveryEncodeError::Unwritable` on Unix, `Encode` on Windows) and the newest recovery file stays the
+pre-group flat scene: restoring it silently drops the hierarchy. The writer slice (queue area 2) removes
+this. PROVISIONAL differences from Maya: Undo of Group leaves the selection empty (Maya restores the previous
+selection) and Redo does not reselect the group; a name clash is refused where Maya renames; a keep-world
+move of a keyed or pivoted node under a different frame, or under shear, negative or zero scale, is refused;
+the Group and Ungroup option boxes and Shift+G are not implemented.
