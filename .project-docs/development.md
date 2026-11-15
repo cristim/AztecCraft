@@ -862,3 +862,13 @@ and 4096 nodes (default cubes and bare transforms). Expected order of magnitude 
 Silicon: checks under 1 ms at 512 nodes and under 10 ms at 4096; whole encode about 7 ms
 at 512 and about 50 ms at 4096 cubes (4096 nodes are refused as too large by the decoder
 budget). Tens of milliseconds for the checks at 4096 nodes mean a quadratic scan came back.
+
+### #452 dolly chord policy (PROVISIONAL)
+
+Alt+left+middle uses the existing Alt+right exponential dolly gain (row 27),
+through the same `Operation::Dolly` and MCP `dolly_camera`. While both buttons
+are down, no orbit or pan is emitted. A chord consumes both release tails, even
+if Alt goes up first; motion with just one remaining button does nothing. The
+Maya 2027 Camera Tools and View hotkeys pages state the chord, but no gain,
+button-order, release or mixed-button rule. The chord is native input mapping;
+no additional remote operation is needed.

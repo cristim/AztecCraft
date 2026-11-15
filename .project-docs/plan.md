@@ -141,3 +141,9 @@ coverage, not camera editing or Maya parity.
 Remaining slices: native chord, guarded box dolly, session view history. Their
 rectangle fitting, grouping, bounded history and lifecycle policies require
 PROVISIONAL entries; the sources state no formula, queue size or cancellation rule.
+
+Slice 2: Alt+left+middle emits the existing typed Dolly operation, with precedence
+above tumble and track. Release tails stay consumed until both buttons are up.
+The gain and release policy are PROVISIONAL (development.md). Native egui
+pointer-event tests cover the actual chord and modifier/release tail; desktop
+visual verification remains pending. No new MCP schema or authoring state.
