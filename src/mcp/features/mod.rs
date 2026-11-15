@@ -12,6 +12,7 @@ pub(super) mod node_edit;
 pub(super) mod pivots;
 mod primitive_args;
 pub(super) mod recovery;
+pub(super) mod reduce;
 pub(super) mod rigging;
 pub(super) mod selection;
 pub(super) mod status_line;

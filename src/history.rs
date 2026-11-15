@@ -2,7 +2,7 @@ use crate::{
     native_scene::{
         ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
         MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
-        PivotReset, ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions,
+        PivotReset, ReduceTarget, ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions,
         UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
@@ -142,6 +142,11 @@ pub enum Command {
     DeleteUvs {
         shape: NativeId,
     },
+    /// Decimates one shape's mesh to `target`; the scene must stay displayable.
+    ReduceMesh {
+        shape: NativeId,
+        target: ReduceTarget,
+    },
     /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
     /// admission, so an import can never make the viewport refuse the scene.
     ImportObjects(Box<ObjImportPlan>),
@@ -186,6 +191,8 @@ impl Command {
             Self::SetInfinity { .. } => "Set Infinity".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
+            // PROVISIONAL: Maya's docs name no undo entries.
+            Self::ReduceMesh { .. } => "Reduce".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
             Self::ImportObjects(_) | Self::ImportMaya(_) => "Import".to_string(),
         }
@@ -721,6 +728,11 @@ impl History {
             }
             Command::DeleteUvs { shape } => {
                 candidate.delete_uvs(shape)?;
+                EditOutcome::Changed
+            }
+            Command::ReduceMesh { shape, target } => {
+                candidate.reduce_mesh(shape, target)?;
+                ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Changed
             }
             Command::ImportObjects(plan) => {

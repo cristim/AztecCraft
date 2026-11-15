@@ -515,6 +515,13 @@ pub enum Operation {
     DeleteUvs {
         shape: NativeId,
     },
+    /// Mesh > Reduce and MCP `reduce_mesh`: decimates one authored polygon mesh to `target` as one
+    /// undo step. Only MCP and tests build it until the Mesh menu item is wired (#462).
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    ReduceMesh {
+        shape: NativeId,
+        target: azteccraft::native_scene::ReduceTarget,
+    },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {
         page: Option<InspectPage>,

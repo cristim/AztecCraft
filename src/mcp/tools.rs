@@ -10,7 +10,7 @@ use crate::editor_operations::{
 use azteccraft::{
     camera_bookmarks::BookmarkError,
     history::ManipulationError,
-    native_scene::{NativeError, ScaleUnsupported, WorldMoveUnsupported},
+    native_scene::{NativeError, ReduceRefusal, ScaleUnsupported, WorldMoveUnsupported},
     scene::SceneError,
 };
 use rmcp::{
@@ -171,6 +171,14 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::EulerNoRotationKeys) => "no_rotation_keys",
                 OperationError::Scene(NativeError::InfinityNoKeys) => "no_keys",
                 OperationError::Scene(NativeError::EulerValueTooLarge) => "euler_value_too_large",
+                OperationError::Scene(NativeError::Reduce(reason)) => match reason {
+                    ReduceRefusal::InvalidTarget => "invalid_reduce_target",
+                    ReduceRefusal::NothingToReduce => "nothing_to_reduce",
+                    ReduceRefusal::NotManifold => "reduce_not_manifold",
+                    ReduceRefusal::LooseGeometry => "reduce_loose_geometry",
+                    ReduceRefusal::NotTriangulable => "reduce_not_triangulable",
+                    ReduceRefusal::Unreachable { .. } => "reduce_target_unreachable",
+                },
                 OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })
@@ -916,6 +924,7 @@ mod tests {
                 "inspect_keys" | "get_recovery_status" | "inspect_limits" => json!({}),
                 "project_uv_planar" => json!({"scene_token":token,"shape_id":"2","axis":"x"}),
                 "delete_uvs" => json!({"scene_token":token,"shape_id":"2"}),
+                "reduce_mesh" => json!({"scene_token":token,"shape_id":"2","percent":50}),
                 "inspect_uvs" => json!({"shape_id":"2"}),
                 "inspect_vertices" => json!({"shape_id":"2"}),
                 "set_transform" => {
