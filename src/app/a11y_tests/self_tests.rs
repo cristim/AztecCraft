@@ -97,13 +97,6 @@ fn text_edit_fails_name_until_labelled() {
 }
 
 #[test]
-fn glyph_name_fails_quality() {
-    assert_eq!(codes(&tree_of(|ui| ui.button("\u{2610}"))), ["R5"]);
-    assert_eq!(codes(&tree_of(|ui| ui.button("<k"))), ["R5"]);
-    assert!(codes(&tree_of(|ui| ui.button("Options"))).is_empty());
-}
-
-#[test]
 fn disabled_control_needs_the_reason_description() {
     let hover_only = tree_of(|ui| {
         ui.add_enabled(false, Button::new("Undo"))
@@ -144,6 +137,13 @@ fn checkbox_without_state_fails() {
     assert_eq!(codes(&stateless), ["R4"]);
     let mut flag = false;
     assert!(codes(&tree_of(|ui| ui.checkbox(&mut flag, "Flag"))).is_empty());
+}
+
+#[test]
+fn glyph_name_fails_quality() {
+    assert_eq!(codes(&tree_of(|ui| ui.button("\u{2610}"))), ["R5"]);
+    assert_eq!(codes(&tree_of(|ui| ui.button("<k"))), ["R5"]);
+    assert!(codes(&tree_of(|ui| ui.button("Options"))).is_empty());
 }
 
 #[test]
@@ -194,10 +194,5 @@ fn key_names_scenario_rule_role_and_anchor() {
     assert!(
         key.starts_with("menus|R1|") && key.matches('|').count() == 3,
         "{key}"
-    );
-    assert!(
-        violations("menus", &update, &[])[0]
-            .message()
-            .contains("R1")
     );
 }

@@ -3,6 +3,7 @@
 
 mod dialogs;
 mod fields;
+mod keyboard;
 mod menus;
 mod shell;
 mod timeline;
@@ -14,3 +15,6 @@ pub(super) const AREAS: [(&str, &[&str]); 5] = [
     ("shell", shell::GAPS),
     ("timeline", timeline::GAPS),
 ];
+
+/// Keyboard walk gaps, see `keyboard.rs`.
+pub(super) const KEYBOARD: &[&str] = keyboard::GAPS;
