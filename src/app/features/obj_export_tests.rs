@@ -241,3 +241,67 @@ fn export_writes_session_uvs_through_the_shared_operation_and_leaves_the_scene()
     assert!(text.lines().any(|l| l.starts_with("f ") && l.contains('/')));
     assert_eq!(editor.history.scene(), &before);
 }
+
+fn extended(name: &str) -> PathBuf {
+    with_default_extension(PathBuf::from(name))
+}
+
+#[test]
+fn a_bare_name_gets_obj_appended() {
+    assert_eq!(extended("foo"), PathBuf::from("foo.obj"));
+}
+
+#[test]
+fn a_dotted_name_keeps_its_dot_and_gets_obj_appended() {
+    assert_eq!(extended("chair.v2"), PathBuf::from("chair.v2.obj"));
+}
+
+#[test]
+fn another_extension_is_kept_and_obj_appended() {
+    assert_eq!(extended("foo.txt"), PathBuf::from("foo.txt.obj"));
+}
+
+#[test]
+fn one_trailing_dot_is_dropped_before_appending() {
+    assert_eq!(extended("foo."), PathBuf::from("foo.obj"));
+    assert_eq!(extended("foo.."), PathBuf::from("foo..obj"));
+}
+
+#[test]
+fn an_obj_extension_is_unchanged_in_any_case() {
+    assert_eq!(extended("foo.obj"), PathBuf::from("foo.obj"));
+    assert_eq!(extended("foo.OBJ"), PathBuf::from("foo.OBJ"));
+    assert_eq!(extended("foo.ObJ."), PathBuf::from("foo.ObJ"));
+}
+
+#[test]
+fn a_file_named_dot_obj_gets_obj_appended_and_then_passes_the_path_rules() {
+    let path = extended(".obj");
+    assert_eq!(path, PathBuf::from(".obj.obj"));
+    assert!(validate_export_path(&path).is_ok());
+}
+
+#[test]
+fn an_occupied_destination_after_the_append_is_refused_and_writes_nothing() {
+    let directory = tempfile::tempdir().unwrap();
+    let occupied = directory.path().join("foo.obj");
+    std::fs::write(&occupied, b"occupant").unwrap();
+    let mut editor = Editor::default();
+    editor.create(Primitive::Cube);
+
+    let result = editor.export_obj(
+        &with_default_extension(directory.path().join("foo")),
+        false,
+        &|| true,
+    );
+
+    assert!(
+        matches!(
+            result,
+            Err(OperationError::ObjExport(ObjExportError::DestinationExists))
+        ),
+        "{result:?}"
+    );
+    assert_eq!(std::fs::read(&occupied).unwrap(), b"occupant");
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+}
