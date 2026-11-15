@@ -322,6 +322,14 @@ pub enum Lens {
 }
 
 impl Lens {
+    /// A field of view alone does not determine focal length without a film aperture.
+    pub fn focal_length_mm(self) -> Option<f32> {
+        match self {
+            Self::Film(film) => Some(film.focal_mm as f32),
+            Self::VerticalFov(_) => None,
+        }
+    }
+
     /// The lens an orthographic view uses: Maya's top, front and side cameras have their own
     /// attributes, so the film back is ignored there (PROVISIONAL).
     pub(super) fn for_orthographic(self) -> Self {

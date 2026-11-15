@@ -78,6 +78,11 @@ async fn sdk_camera_navigation_inspects_real_view_without_authoring_changes() {
             assert_eq!(actual, expected.to_array());
         }
         assert_eq!(camera["distance"].as_f64().unwrap() as f32, distance);
+        assert_eq!(
+            camera["center_of_interest_cm"].as_f64().unwrap() as f32,
+            distance
+        );
+        assert_eq!(camera["focal_length_mm"], 35.0);
         for (field, expected) in [
             ("yaw_degrees", f64::from(editor.camera.yaw()).to_degrees()),
             (
@@ -574,6 +579,24 @@ async fn sdk_set_camera_pose_converts_degrees_in_double_precision() {
             (pitch_degrees.to_radians() as f32).to_bits()
         );
     }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_camera_focal_length_is_unknown_for_a_field_of_view_only_lens() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.camera = Camera::new(Vec3::ZERO, 0.0, 0.0, 12.0, 0.7, 0.1, 100.0).unwrap();
+    let token = editor.scene_token;
+    let before = editor.history.scene().clone();
+    let camera = inspected_camera(&mut editor, &context, &client).await;
+    assert!(camera["focal_length_mm"].is_null());
+    assert_eq!(camera["center_of_interest_cm"], 12.0);
+    assert_eq!(editor.scene_token, token);
+    assert_eq!(editor.history.scene(), &before);
+    assert!(!editor.is_dirty());
     client.cancel().await.unwrap();
     drop(editor);
     server.await.unwrap();

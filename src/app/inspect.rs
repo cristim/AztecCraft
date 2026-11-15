@@ -661,6 +661,8 @@ impl Editor {
                 }
             }),
             camera: CameraInspection {
+                focal_length_mm: self.camera.lens().focal_length_mm(),
+                center_of_interest_cm: self.camera.distance(),
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
                 distance: self.camera.distance(),
