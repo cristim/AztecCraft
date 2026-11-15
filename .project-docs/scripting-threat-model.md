@@ -1,9 +1,12 @@
 # Scripting and plug-in threat model
 
-Design note for issue #57 (scripting and plug-in compatibility). It states what AztecCraft may ever
-execute, what was evaluated, and the smallest first slice that can be proven without an
-interpreter. It is a proposal: the owner-only decision in section 6 is open, and until it is made
-nothing in this document authorizes executing any script. Nothing here is a Maya parity claim (#5).
+Design note for issue #57 (scripting and plug-in compatibility). It states what AztecCraft may
+ever execute and what was evaluated. The owner decided on 2026-11-15 that execution is in scope
+inside a sandbox (bundled CPython in WASM, run in a helper process); the decision, the lane decisions and the open questions are in
+[scripting-adr.md](scripting-adr.md), which supersedes the "Recommended default (proposed)" in
+section 6 and the first-slice proposal in section 7 below (kept as history and as the API surface
+the sandbox may call). Until a sandboxed runner ships nothing here executes any script, and
+nothing here is a Maya parity claim (#5).
 
 ## 1. Rule today
 
@@ -21,7 +24,8 @@ nothing in this document authorizes executing any script. Nothing here is a Maya
 | Source of text | Execute? | Notes |
 | --- | --- | --- |
 | Scene file contents (`scriptNode`, expressions, bundled MEL, file-embedded Python) | Never | Security preferences for files that run code on load are also listed on #58; coordinate, do not duplicate. Kept as data, round-tripped byte-faithfully where the writer supports it, surfaced as "present, not executed". Same as the strictest Maya Security preference [S9]. |
-| MCP string arguments | Never as a language | Typed fields only. No tool takes a "MEL" or "Python" string to evaluate. |
+| MCP string arguments | Never as a language, except `run_script` | Typed fields only. The one exception is `run_script`, which never executes by itself: a human must approve the exact code in a native modal ([scripting-adr.md](scripting-adr.md)). |
+| Script Editor Run (human-submitted Python, [scripting-adr.md](scripting-adr.md)) | Yes, only as bundled CPython in WASM inside a helper process, behind a closed typed call set and the `Scripting` provenance | Never triggered by opening a scene. MCP can only request a run that a human approves per run in a native modal, default off. No sandbox means no run. Scene-embedded scripts stay in the first row. |
 | User-typed Command Line text (#63) | Only the typed subset in section 7, and only after the owner decision | One command per line, parsed to a typed command, resolved against the scene, then dispatched through the normal guards. |
 | Script Editor buffer | Same as Command Line | A buffer is a list of Command Line lines, not a program. No procedures, no `eval`. |
 | User-chosen script file (a `source`-like action) | Not in the first release | Path-taking; would need its own decision and the existing path validation. Never triggered by opening a scene. |
@@ -78,6 +82,8 @@ promise to users, so it is the maintainer's call, not an implementation detail.
 
 ## 6. Owner-only decision
 
+Superseded 2026-11-15 by [scripting-adr.md](scripting-adr.md): the owner answered "B but try to mitigate it somehow maybe by running python in a sandbox of some sorts", then answered with a bundled CPython in WASM (wasmtime in a helper process) and MCP run behind per-run approval. The text below is the earlier proposal, kept for history.
+
 Decision needed: may AztecCraft ever execute user-supplied script text, and in what form?
 
 Recommended default (proposed, not yet decided):
@@ -107,6 +113,8 @@ the authentication in item 5; (d) confirm or withdraw Python 2 emulation as resh
 ADR" stay blocked until answered.
 
 ## 7. First slice proposal (provable without launching the app)
+
+Superseded as the first slice by [scripting-adr.md](scripting-adr.md); the typed subset below becomes the closed call set a sandboxed script may use.
 
 Slice 1, pure parser, no UI, no execution of expressions:
 
