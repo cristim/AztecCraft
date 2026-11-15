@@ -722,6 +722,9 @@ mod grid;
 #[cfg(test)]
 mod grid_tests;
 mod reduce;
+#[cfg(test)]
+mod reduce_tests;
+pub use reduce::{ReduceRefusal, ReduceTarget};
 mod sphere;
 #[cfg(test)]
 mod sphere_tests;

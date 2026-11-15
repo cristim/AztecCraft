@@ -13,9 +13,15 @@
 //!
 //! A target the collapses cannot reach is refused, not approximated.
 
-#![allow(dead_code, reason = "wired by NativeMesh::reduced in the next commit")]
-
 mod engine;
+use super::{NativeMesh, Points};
+use crate::native_scene::{NativeError, NativeId, NativeScene};
+#[cfg(test)]
+pub(super) use engine::triangulate;
+use engine::{Reducer, triangulate as split_faces};
+use glam::DVec3;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 
 /// How far to reduce: by a share of the triangles, or to a triangle or vertex count.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -44,4 +50,150 @@ pub enum ReduceRefusal {
     NotTriangulable,
     /// The collapses ran out before the target; `triangles` and `vertices` are the best reachable.
     Unreachable { triangles: usize, vertices: usize },
+}
+
+impl fmt::Display for ReduceRefusal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidTarget => f.write_str(
+                "reduce needs a percentage above 0 and below 100, or a count of at least 1 triangle or 3 vertices",
+            ),
+            Self::NothingToReduce => {
+                f.write_str("the target does not remove any triangle or vertex")
+            }
+            Self::NotManifold => f.write_str("reduce needs an oriented manifold mesh"),
+            Self::LooseGeometry => f.write_str("reduce refuses vertices or edges that no face uses"),
+            Self::NotTriangulable => {
+                f.write_str("a polygon cannot be triangulated without flipping a triangle")
+            }
+            Self::Unreachable {
+                triangles,
+                vertices,
+            } => write!(
+                f,
+                "the target is out of reach: borders and manifold limits stop at {triangles} triangles and {vertices} vertices"
+            ),
+        }
+    }
+}
+
+impl From<ReduceRefusal> for NativeError {
+    fn from(value: ReduceRefusal) -> Self {
+        Self::Reduce(value)
+    }
+}
+
+/// Symmetric quadric `v^T A v + 2 b.v + c` of squared distances to planes.
+impl NativeMesh {
+    /// Edge-collapse decimation to `target`; the mesh is unchanged on error. The result is all
+    /// triangles with hard edges, and the vertex order of the survivors is kept.
+    pub(in crate::native_scene) fn reduced(
+        &self,
+        target: ReduceTarget,
+    ) -> Result<Self, NativeError> {
+        if !self.unsupported_channels.is_empty()
+            || !self.point_offsets.is_empty()
+            || self.faces.iter().any(|f| !f.holes.is_empty())
+            || self.edges.iter().any(|e| e.smooth != Some(false))
+        {
+            return Err(NativeError::UnsupportedEdit);
+        }
+        let used: BTreeSet<usize> = self
+            .faces
+            .iter()
+            .flat_map(|f| &f.outer)
+            .map(|e| e.edge)
+            .collect();
+        if used.len() != self.edges.len() {
+            return Err(ReduceRefusal::LooseGeometry.into());
+        }
+        let positions = self.points.values();
+        let mut tris = Vec::new();
+        for face in &self.faces {
+            let corners = self.loop_vertices(&face.outer)?;
+            tris.extend(split_faces(&corners, &positions).ok_or(ReduceRefusal::NotTriangulable)?);
+        }
+        let mut reducer = Reducer::new(tris, positions)?;
+        let triangles = reducer.live_tris;
+        let goal = match target {
+            ReduceTarget::Percent(p) if p > 0.0 && p < 100.0 => {
+                ReduceTarget::Triangles(((triangles as f64) * (1.0 - p / 100.0)).ceil() as usize)
+            }
+            ReduceTarget::Triangles(n) if n >= 1 => target,
+            ReduceTarget::Vertices(n) if n >= 3 => target,
+            _ => return Err(ReduceRefusal::InvalidTarget.into()),
+        };
+        let reached = |r: &Reducer| match goal {
+            ReduceTarget::Triangles(n) => r.live_tris <= n,
+            ReduceTarget::Vertices(n) => r.live_verts <= n,
+            ReduceTarget::Percent(_) => true,
+        };
+        if reached(&reducer) {
+            return Err(ReduceRefusal::NothingToReduce.into());
+        }
+        if !reducer.run(reached) {
+            return Err(ReduceRefusal::Unreachable {
+                triangles: reducer.live_tris,
+                vertices: reducer.live_verts,
+            }
+            .into());
+        }
+        self.rebuilt(&reducer)
+    }
+
+    fn rebuilt(&self, reducer: &Reducer) -> Result<Self, NativeError> {
+        let mut renumber = BTreeMap::new();
+        let live: Vec<[usize; 3]> = reducer
+            .tris
+            .iter()
+            .zip(&reducer.tri_alive)
+            .filter(|(_, alive)| **alive)
+            .map(|(t, _)| *t)
+            .collect();
+        for v in live.iter().flatten() {
+            renumber.entry(*v).or_insert(0);
+        }
+        for (new, slot) in renumber.values_mut().enumerate() {
+            *slot = new;
+        }
+        let points: Vec<DVec3> = renumber.keys().map(|v| reducer.pos[*v]).collect();
+        let loops = live
+            .iter()
+            .map(|t| t.iter().map(|v| renumber[v]).collect())
+            .collect();
+        let mut mesh = Self::from_loops(vec![[0.0; 3]; points.len()], loops);
+        mesh.points = match self.points {
+            Points::Float3(_) => {
+                let narrowed: Vec<[f32; 3]> =
+                    points.iter().map(|p| p.as_vec3().to_array()).collect();
+                if narrowed.iter().flatten().any(|v| !v.is_finite()) {
+                    return Err(NativeError::NonFinite);
+                }
+                Points::Float3(narrowed)
+            }
+            Points::Double3(_) => Points::Double3(points.iter().map(|p| p.to_array()).collect()),
+        };
+        mesh.validate()?;
+        Ok(mesh)
+    }
+}
+
+impl NativeScene {
+    /// Reduces the shape's mesh to `target` as one edit; every instance shares it. Authored scenes
+    /// only, and a shape with UVs refuses because UVs do not follow topology edits yet.
+    pub fn reduce_mesh(&mut self, id: NativeId, target: ReduceTarget) -> Result<(), NativeError> {
+        self.structural_edit()?;
+        let index = self
+            .shapes
+            .iter()
+            .position(|shape| shape.id == id)
+            .ok_or(NativeError::MissingShape(id))?;
+        self.check_effects(id)?;
+        if self.uv_set(id).is_some() {
+            return Err(NativeError::UvsBlockTopologyEdit);
+        }
+        let mesh = self.shapes[index].mesh.reduced(target)?;
+        self.shapes[index].mesh = mesh;
+        Ok(())
+    }
 }

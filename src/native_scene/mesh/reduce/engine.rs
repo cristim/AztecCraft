@@ -51,7 +51,10 @@ fn area_normal(p: [DVec3; 3]) -> DVec3 {
 }
 
 /// Triangles of one polygon, or `None` when no fan keeps every triangle on the polygon's side.
-pub(super) fn triangulate(corners: &[usize], points: &[DVec3]) -> Option<Vec<[usize; 3]>> {
+pub(in crate::native_scene::mesh) fn triangulate(
+    corners: &[usize],
+    points: &[DVec3],
+) -> Option<Vec<[usize; 3]>> {
     let n = corners.len();
     if n == 3 {
         return Some(vec![[corners[0], corners[1], corners[2]]]);
