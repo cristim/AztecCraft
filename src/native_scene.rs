@@ -28,7 +28,7 @@ pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
 };
-pub use component_move::{ComponentMoveFrame, VertexBaseline};
+pub use component_move::{ComponentMoveFrame, MAX_MOVED_VERTICES, VertexBaseline};
 pub use curve::{CurveForm, NativeCurveShape};
 pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
