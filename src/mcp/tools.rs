@@ -876,6 +876,7 @@ mod tests {
                 "set_pivots" => json!({"scene_token":token,"node_id":"1"}),
                 "reset_pivots" => json!({"scene_token":token,"mode":"zero"}),
                 "parent_node" => json!({"scene_token":token,"node_id":"1","world":true}),
+                "group_selection" | "ungroup_selection" => json!({"scene_token":token}),
                 "set_material_diffuse" => json!({"scene_token":token,"shape_id":"2","value":1.25}),
                 "create_session_material" => {
                     json!({"scene_token":token,"color":[1.0,0.0,0.0]})

@@ -32,6 +32,8 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("parent_node", "`parent`, `parent -world`", "one object per call with an explicit parent; refuses a name clash instead of renaming; no instancing (`-add`), no joints; keep world is `-absolute`, keep local `-relative`"),
     ("set_transform", "`xform -translation -rotation -scale`, `setAttr`", "rotation in degrees regardless of `currentUnit -angle`"),
     ("edit_node", "`xform`, `setAttr`, `rename`", "one undo entry; rotation in degrees regardless of `currentUnit -angle`"),
+    ("group_selection", "`group` (`-absolute` default, `-world`), Edit > Group", "top-most selected objects only; refuses a name clash instead of renaming; no `-empty`, `-name`, `-useAsGroup` or instancing; the Center pivot default is PROVISIONAL"),
+    ("ungroup_selection", "`ungroup` (`-absolute` default, `-relative`, `-world`), Edit > Ungroup", "plain groups only (no shape, not a joint); refuses a name clash instead of renaming; no `-parent` target, `-name` or `-numberOfChildren`"),
     ("set_pivots", "`xform -rotatePivot -scalePivot -preserve`", "Object (local) space only; the preserve placement through the pivot translates is PROVISIONAL"),
     ("reset_pivots", "Modify > Center Pivot (`xform -centerPivots`) and Zero Pivot (`xform -zeroTransformPivots`)", "box space and Zero Pivot channel placement are PROVISIONAL; refused on a keyed node"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),

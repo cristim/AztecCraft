@@ -2,6 +2,7 @@ pub(super) mod animation;
 pub(super) mod camera_bookmarks;
 pub(super) mod extrude;
 pub(super) mod file;
+pub(super) mod group;
 pub(super) mod history;
 pub(super) mod inspect;
 pub(super) mod manipulation;
