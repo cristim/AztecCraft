@@ -210,3 +210,5 @@ fn decoder_debug_hides_buffered_guest_output() {
     assert!(!shown.contains("SECRET"), "{shown}");
     assert!(shown.contains("buffered_bytes"));
 }
+
+mod hostile;
