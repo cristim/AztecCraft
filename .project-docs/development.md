@@ -440,7 +440,7 @@ steps and refuses nothing) stay with their owners. Not in the table: the rendere
 | `view_bytes` | 256 MiB | bytes | `view_scene::VIEW_BUDGET` | `ViewError::ResourceLimit` |
 | `recovery_payload_bytes` | 512 MiB | bytes | `recovery::MAX_RECOVERY_BYTES` | `RecoveryError::TooLarge` |
 
-Boundary tests live with each owner (the binary admission work meter has no boundary test and the ASCII one is charged to its cap directly, and the view budget is exercised with a small byte budget); a generated flat scene proves the
+Boundary tests live with each owner (the binary admission work meter is pinned at exactly the cap and with one more count of each term (the smallest overshoot is 32 work units); instance depth, path identities and document bytes are pinned at N and N+1 (`native_scene::tests`, `document::native_open_tests`); the ASCII one is charged to its cap directly, and the view budget is exercised with a small byte budget); a generated flat scene proves the
 instance cap from the table (`scene_limits::tests`). Counts and bytes are asserted, never wall time.
 
 ## Native documents
