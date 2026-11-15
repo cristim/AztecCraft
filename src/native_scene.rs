@@ -3,6 +3,7 @@ mod appearance;
 pub mod ascii;
 mod authored;
 pub mod binary;
+mod component_move;
 mod curve;
 mod group;
 mod import;
@@ -27,6 +28,7 @@ pub use appearance::{
     AppearanceIssue, AppearanceIssues, AppearanceState, AppearanceSummary, MaterialInspection,
     MaterialShader,
 };
+pub use component_move::ComponentMoveFrame;
 pub use curve::{CurveForm, NativeCurveShape};
 pub use group::{GroupOptions, GroupPivot, GroupUnder};
 pub use import::ObjImportPlan;
