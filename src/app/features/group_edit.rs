@@ -41,7 +41,20 @@ impl Editor {
     /// Group and Ungroup need an object selection (Object or Hierarchy mode) in a scene that can
     /// be edited.
     pub(in crate::app) fn group_enabled(&self, authoring: bool) -> bool {
-        authoring && !self.selection.is_empty() && !self.selection_mode.is_component()
+        authoring
+            && !self.selection.is_empty()
+            && !self.selection_mode.is_component()
+            && !self.selection_has_joint()
+    }
+
+    /// Joints cannot be grouped or ungrouped, so a selection holding one disables both rows.
+    fn selection_has_joint(&self) -> bool {
+        let scene = self.history.scene();
+        self.selection.members().iter().any(|member| {
+            scene
+                .node(member.node)
+                .is_ok_and(|node| scene.joint(node.transform_id()).is_some())
+        })
     }
 
     pub(in crate::app) fn group_disabled_hover(
@@ -51,6 +64,11 @@ impl Editor {
     ) -> String {
         if let Some(reason) = read_only {
             return reason.to_owned();
+        }
+        if self.selection_has_joint() {
+            return format!(
+                "Joints cannot be grouped or ungrouped (Maya allows it; unsupported here); deselect the joint to {verb}"
+            );
         }
         match self.selection_mode.component_noun() {
             Some(noun) => format!(

@@ -17,7 +17,7 @@ pub struct UngroupOptions {
 impl NativeScene {
     /// Ungroups the top-most of `ids` (a listed group below another listed group is carried by
     /// its ancestor, as in Hierarchy selection mode) and returns the children that moved, in
-    /// order. A target must be a plain group: a transform without shapes that is not a joint.
+    /// order. A target must be a plain group: a transform without shapes; a joint is refused as `Joint`.
     /// A refusal leaves the scene unchanged: the work runs on a copy that replaces the scene
     /// only once it validates.
     pub fn ungroup(
@@ -49,6 +49,7 @@ impl NativeScene {
         if !ids.iter().all(|id| seen.insert(*id)) {
             return Err(SceneError::InvalidIds.into());
         }
+        self.refuse_joints(ids)?;
         let groups = self.top_most_with_parents(ids)?;
         let mut moved = Vec::new();
         let mut gone = Vec::with_capacity(groups.len());
@@ -78,9 +79,6 @@ impl NativeScene {
     /// The transform children of `group`, or `NotAGroup` when it holds a shape or is a joint,
     /// and `Instanced` when a child has another parent too.
     fn plain_group_children(&self, group: NativeId) -> Result<Vec<NativeId>, NativeError> {
-        if self.joint(group).is_some() {
-            return Err(ReparentRefusal::NotAGroup.into());
-        }
         let mut children = Vec::new();
         for edge in self.dag.iter().filter(|edge| edge.parent == Some(group)) {
             if !self

@@ -436,3 +436,37 @@ fn a_failed_group_keeps_the_selection_and_the_undo_stack() {
     );
     assert_eq!(baseline(&editor), before);
 }
+
+#[test]
+fn a_selected_joint_is_refused_typed_for_both_callers_and_both_operations() {
+    for native in [true, false] {
+        let mut editor = Editor::default();
+        editor
+            .apply_operation(Operation::CreateJoint {
+                parent: None,
+                position: [0.0; 3],
+                relative: false,
+                radius: 1.0,
+                name: None,
+            })
+            .unwrap();
+        let before = baseline(&editor);
+        for operation in [group(None), ungroup(None)] {
+            let result = if native {
+                editor.apply_operation(operation)
+            } else {
+                remote(&mut editor, operation)
+            };
+            assert!(
+                matches!(
+                    result,
+                    Err(OperationError::Reparent(NativeError::InvalidReparent(
+                        ReparentRefusal::Joint
+                    )))
+                ),
+                "native={native}: {result:?}"
+            );
+            assert_eq!(baseline(&editor), before);
+        }
+    }
+}

@@ -68,6 +68,7 @@ impl NativeScene {
         if !ids.iter().all(|id| seen.insert(*id)) {
             return Err(SceneError::InvalidIds.into());
         }
+        self.refuse_joints(ids)?;
         let members = self.top_most_with_parents(ids)?;
         let common = common_prefix(members.iter().map(|(_, parents)| parents.as_slice()));
         let parent = match options.under {
@@ -96,6 +97,16 @@ impl NativeScene {
             self.reset_pivots(&[group], PivotReset::Center)?;
         }
         Ok(group)
+    }
+
+    /// A joint's parent must be a joint, so a joint can neither enter nor leave a group.
+    pub(super) fn refuse_joints(&self, ids: &[NodeId]) -> Result<(), NativeError> {
+        for id in ids {
+            if self.joint(self.node(*id)?.transform_id()).is_some() {
+                return Err(ReparentRefusal::Joint.into());
+            }
+        }
+        Ok(())
     }
 
     /// The node index and ancestor path (root first, the node itself excluded) of each of `ids`

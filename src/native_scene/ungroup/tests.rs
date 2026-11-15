@@ -158,7 +158,10 @@ fn a_mesh_transform_and_a_joint_are_not_groups() {
         })
         .unwrap();
     let before = scene.clone();
-    assert_eq!(scene.ungroup(&[target.node], WORLD_KEPT), not_a_group);
+    assert_eq!(
+        scene.ungroup(&[target.node], WORLD_KEPT),
+        Err(NativeError::InvalidReparent(ReparentRefusal::Joint))
+    );
     assert_eq!(scene, before);
 }
 
@@ -216,4 +219,33 @@ fn an_empty_group_is_deleted_and_moves_nothing() {
     scene.reparent(a, None, ReparentKeep::Local).unwrap();
     assert!(scene.ungroup(&[group], WORLD_KEPT).unwrap().is_empty());
     assert!(scene.node(group).is_err());
+}
+
+#[test]
+fn a_root_joint_and_a_child_joint_are_refused_by_group_and_ungroup_untouched() {
+    let mut scene = NativeScene::default();
+    let request = |parent, position| JointRequest {
+        parent,
+        position,
+        relative: false,
+        radius: 1.0,
+        name: None,
+    };
+    let root = scene.create_joint(&request(None, [0.0; 3])).unwrap().node;
+    let child = scene
+        .create_joint(&request(Some(root), [0.0, 1.0, 0.0]))
+        .unwrap()
+        .node;
+    let cube = cube(&mut scene, "cube");
+    let before = scene.clone();
+    let refused = NativeError::InvalidReparent(ReparentRefusal::Joint);
+    for ids in [vec![root], vec![child], vec![cube, root], vec![child, cube]] {
+        assert_eq!(scene.group(&ids, GROUP), Err(refused.clone()), "{ids:?}");
+        assert_eq!(
+            scene.ungroup(&ids, WORLD_KEPT),
+            Err(refused.clone()),
+            "{ids:?}"
+        );
+        assert_eq!(scene, before);
+    }
 }
