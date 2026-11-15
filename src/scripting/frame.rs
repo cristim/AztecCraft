@@ -385,3 +385,6 @@ fn exceeds_depth(bytes: &[u8]) -> bool {
     }
     false
 }
+
+#[cfg(test)]
+mod tests;
