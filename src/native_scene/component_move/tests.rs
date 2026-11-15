@@ -247,6 +247,77 @@ fn bits(points: &Points) -> Vec<u64> {
 }
 
 #[test]
+fn edges_and_faces_map_to_their_unique_sorted_vertices() {
+    let (scene, _) = test_fixtures::cube();
+    let shape = first_shape(&scene);
+    let mesh = scene.shapes[0].mesh();
+    let one_edge = scene.vertices_of_edges(shape, &[0]).unwrap();
+    assert_eq!(one_edge.len(), 2);
+    assert!(one_edge.windows(2).all(|w| w[0] < w[1]));
+    let every_edge: Vec<usize> = (0..mesh.edges().len()).collect();
+    assert_eq!(
+        scene.vertices_of_edges(shape, &every_edge).unwrap(),
+        (0..8).collect::<Vec<_>>()
+    );
+    // Two edges sharing a vertex give three vertices, the shared one once.
+    let shared: Vec<usize> = (1..mesh.edges().len())
+        .find(|j| {
+            let a = mesh.edges()[0].endpoints();
+            let b = mesh.edges()[*j].endpoints();
+            a.iter().any(|v| b.contains(v)) && a != b
+        })
+        .into_iter()
+        .collect();
+    let pair = scene.vertices_of_edges(shape, &[0, shared[0]]).unwrap();
+    assert_eq!(pair.len(), 3);
+    let face = scene.vertices_of_faces(shape, &[0]).unwrap();
+    assert_eq!(face.len(), 4);
+    let every_face: Vec<usize> = (0..mesh.faces().len()).collect();
+    assert_eq!(
+        scene.vertices_of_faces(shape, &every_face).unwrap(),
+        (0..8).collect::<Vec<_>>()
+    );
+    // A second face shares an edge with some neighbour, so the union is under eight and over four.
+    let both = scene.vertices_of_faces(shape, &[0, 1, 2]).unwrap();
+    assert!(both.len() > 4 && both.len() <= 8);
+    assert_eq!(
+        scene.vertices_of_edges(shape, &[mesh.edges().len()]),
+        Err(NativeError::InvalidTopology)
+    );
+    assert_eq!(
+        scene.vertices_of_faces(shape, &[mesh.faces().len()]),
+        Err(NativeError::InvalidTopology)
+    );
+}
+
+#[test]
+fn a_face_with_a_hole_includes_the_hole_vertices() {
+    let (mut scene, _) = test_fixtures::polygon_shape(
+        (0..8).map(|i| [f64::from(i), 0.0, 0.0]).collect(),
+        &[vec![0, 1, 2, 3]],
+    );
+    test_fixtures::add_hole_to_first_face(&mut scene, &[4, 5, 6]);
+    let shape = first_shape(&scene);
+    assert_eq!(
+        scene.vertices_of_faces(shape, &[0]).unwrap(),
+        vec![0, 1, 2, 3, 4, 5, 6]
+    );
+}
+
+#[test]
+fn a_set_over_the_cap_is_refused() {
+    let count = MAX_MOVED_VERTICES + 1;
+    let (scene, _) = test_fixtures::polygon_shape(
+        (0..count).map(|i| [i as f64, 0.0, 0.0]).collect(),
+        &[(0..count).collect()],
+    );
+    assert_eq!(
+        scene.vertices_of_faces(first_shape(&scene), &[0]),
+        Err(NativeError::ResourceLimit)
+    );
+}
+
+#[test]
 fn check_vertex_move_reports_every_refusal_without_changing_anything() {
     let (scene, _) = test_fixtures::cube();
     let shape = first_shape(&scene);

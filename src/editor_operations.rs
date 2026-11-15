@@ -1374,9 +1374,8 @@ pub const MAX_UV_CORNERS_PER_PAGE: usize = 4096;
 #[cfg(any(test, feature = "mcp"))]
 pub const MAX_VERTICES_PER_PAGE: usize = 1024;
 
-/// Most vertex indices one `MoveVertices` names. Bounded by the 64 KiB MCP ingress limit: a
-/// request of this many indices (up to about 6 bytes each) still fits with room for the envelope.
-pub const MAX_MOVED_VERTICES: usize = 8192;
+/// Most vertex indices one `MoveVertices` names; see the constant's own note.
+pub use azteccraft::native_scene::MAX_MOVED_VERTICES;
 /// Most indices one MCP `modify_component_selection` request carries. Like `move_vertices`, it
 /// keeps the line under the transport's 64 KiB ingress cap: indices reach 16,777,215 (the binary
 /// writer's edge limit), so 6144 eight-digit indices with commas are 54 KiB; a longer line closes

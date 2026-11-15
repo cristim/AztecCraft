@@ -3,6 +3,12 @@
 
 use super::move_translation::{MAX_PARENT_CONDITION, infinity_norm};
 use super::*;
+use std::collections::BTreeSet;
+
+/// Most vertices one component Move edits. Bounded by the 64 KiB MCP ingress line: a request of
+/// this many indices (up to about 6 bytes each) still fits with room for the envelope.
+pub const MAX_MOVED_VERTICES: usize = 8192;
+
 /// An instance's world matrix `W` (mesh-local centimetres to world centimetres) and the inverse of
 /// its linear part `L`. A world displacement `v` moves a mesh point by `L^-1 v`.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -121,6 +127,56 @@ impl VertexBaseline {
 }
 
 impl NativeScene {
+    /// The unique vertices of `edges` (edge indices into the shape's mesh), sorted. An out-of-range
+    /// edge refuses, and so does a result over `MAX_MOVED_VERTICES`.
+    pub fn vertices_of_edges(
+        &self,
+        shape: NativeId,
+        edges: &[usize],
+    ) -> Result<Vec<usize>, NativeError> {
+        let mesh = self.shape(shape)?.mesh();
+        let mut vertices = BTreeSet::new();
+        for edge in edges {
+            let edge = mesh
+                .edges()
+                .get(*edge)
+                .ok_or(NativeError::InvalidTopology)?;
+            vertices.extend(edge.endpoints());
+            if vertices.len() > MAX_MOVED_VERTICES {
+                return Err(NativeError::ResourceLimit);
+            }
+        }
+        Ok(vertices.into_iter().collect())
+    }
+
+    /// The unique vertices of every loop (outer and holes) of `faces`, sorted. An out-of-range face
+    /// refuses, and so does a result over `MAX_MOVED_VERTICES`.
+    pub fn vertices_of_faces(
+        &self,
+        shape: NativeId,
+        faces: &[usize],
+    ) -> Result<Vec<usize>, NativeError> {
+        let mesh = self.shape(shape)?.mesh();
+        let mut vertices = BTreeSet::new();
+        for face in faces {
+            let face = mesh
+                .faces()
+                .get(*face)
+                .ok_or(NativeError::InvalidTopology)?;
+            for directed in face.outer().iter().chain(face.holes().iter().flatten()) {
+                let edge = mesh
+                    .edges()
+                    .get(directed.edge)
+                    .ok_or(NativeError::InvalidTopology)?;
+                vertices.extend(edge.endpoints());
+            }
+            if vertices.len() > MAX_MOVED_VERTICES {
+                return Err(NativeError::ResourceLimit);
+            }
+        }
+        Ok(vertices.into_iter().collect())
+    }
+
     /// Why moving `vertices` of `shape` would be refused, without changing anything; the position
     /// of the shape on success. Source-bound scenes, shapes with effects or per-point offsets,
     /// and missing or duplicate vertices refuse.
