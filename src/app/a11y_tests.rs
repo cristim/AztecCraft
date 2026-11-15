@@ -130,6 +130,12 @@ pub(super) fn known_ids() -> HashMap<NodeId, String> {
         .collect()
 }
 
+/// Area id of `egui::Window::new(title)` without an explicit id (egui hashes the title text as an
+/// `Option<Cow<str>>`).
+pub(super) fn titled_window_id(title: &str) -> egui::Id {
+    egui::Id::unique(Some(std::borrow::Cow::Borrowed(title)))
+}
+
 /// Ids of the unnamed chrome egui adds to a window of area id `area`: the title-bar click area
 /// (every window) and the resize corner (resizable windows).
 fn chrome_ids(windows: &[egui::Id]) -> HashSet<NodeId> {

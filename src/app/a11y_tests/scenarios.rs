@@ -2,6 +2,7 @@
 //! A scenario other than the default only reports nodes that its base frame does not contain.
 //! Add a scenario by adding a line to `all`.
 
+mod dialogs;
 pub(super) mod panels;
 
 use super::{Violation, gaps, rig::Rig, violations};
@@ -119,6 +120,7 @@ pub(super) fn all() -> Vec<Scenario> {
         all.push(menu_scenario(name, set, path));
     }
     all.extend(panels::scenarios());
+    all.extend(dialogs::scenarios());
     all
 }
 
