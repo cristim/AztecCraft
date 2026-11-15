@@ -15,6 +15,7 @@ use std::{
 pub const MAX_FILE_BYTES: u64 = 32 * 1024 * 1024;
 pub const MAX_LINE_BYTES: usize = 64 * 1024;
 pub const MAX_VERTICES: usize = 262_144;
+pub const MAX_UVS: usize = 262_144;
 pub const MAX_FACES: usize = 262_144;
 pub const MAX_CORNERS: usize = 1_048_576;
 pub const MAX_CORNERS_PER_FACE: usize = 1024;
@@ -23,7 +24,8 @@ pub const MAX_NAME_BYTES: usize = 256;
 /// Largest accepted coordinate magnitude, chosen so f32 rounding and world math stay finite.
 pub const MAX_COORD: f64 = 1e12;
 
-/// Records that are recognised, counted and dropped. Normals and UVs are not imported.
+/// Records that are recognised, counted and dropped. Normals are not imported; `vt` records are
+/// read into [`ParsedObj::uvs`] and never counted here.
 const IGNORED: &[&str] = &[
     "vp",
     "usemtl",
@@ -52,6 +54,8 @@ const FREE_FORM: &[&str] = &[
 #[derive(Clone, Debug, PartialEq)]
 pub struct ParsedObj {
     pub vertices: Vec<[f32; 3]>,
+    /// The `vt` table in file order; `w` is validated and dropped, a missing `v` is 0.
+    pub uvs: Vec<[f32; 2]>,
     /// Objects that own at least one face, in file order. An empty name means the file gave none.
     pub objects: Vec<ParsedObject>,
     pub ignored_records: usize,
@@ -62,6 +66,19 @@ pub struct ParsedObject {
     pub name: String,
     /// Global 0-based vertex indices, each face with distinct corners.
     pub faces: Vec<Vec<u32>>,
+    /// Global 0-based `vt` indices parallel to `faces`. `Some` only when every corner of every
+    /// face has one; an object with any corner lacking `vt` has `None` (PROVISIONAL policy).
+    pub uv_faces: Option<Vec<Vec<u32>>>,
+}
+
+impl ParsedObject {
+    fn new(name: String) -> Self {
+        Self {
+            name,
+            faces: Vec::new(),
+            uv_faces: Some(Vec::new()),
+        }
+    }
 }
 
 /// Reads and parses a regular `.obj` file. Empty object names (no `o`/`g`, or a bare one) take the
@@ -102,7 +119,7 @@ struct State {
     vertices: Vec<[f32; 3]>,
     objects: Vec<ParsedObject>,
     current: Option<ParsedObject>,
-    texcoords: usize,
+    uvs: Vec<[f32; 2]>,
     normals: usize,
     faces: usize,
     corners: usize,
@@ -190,11 +207,7 @@ impl State {
             "f" => self.face(tokens, line),
             "o" => self.group(tokens.next().into_iter().collect(), line),
             "g" => self.group(tokens.collect(), line),
-            "vt" => {
-                self.texcoords = self.texcoords.saturating_add(1);
-                self.ignored = self.ignored.saturating_add(1);
-                Ok(())
-            }
+            "vt" => self.texcoord(tokens, line),
             "vn" => {
                 self.normals = self.normals.saturating_add(1);
                 self.ignored = self.ignored.saturating_add(1);
@@ -240,6 +253,35 @@ impl State {
         Ok(())
     }
 
+    fn texcoord<'a>(
+        &mut self,
+        tokens: impl Iterator<Item = &'a str>,
+        line: usize,
+    ) -> Result<(), ObjImportError> {
+        let mut values = [0f32; 3];
+        let mut count = 0usize;
+        for token in tokens {
+            let slot = values.get_mut(count).ok_or(ObjImportError::Syntax {
+                line,
+                what: SyntaxKind::TexcoordNeedsOneToThreeNumbers,
+            })?;
+            *slot = coordinate(token, line)?;
+            count += 1;
+        }
+        if count == 0 {
+            return Err(ObjImportError::Syntax {
+                line,
+                what: SyntaxKind::TexcoordNeedsOneToThreeNumbers,
+            });
+        }
+        if self.uvs.len() >= MAX_UVS {
+            return Err(ObjImportError::LimitExceeded(Limit::Uvs));
+        }
+        reserve(&mut self.uvs, 1)?;
+        self.uvs.push([values[0], values[1]]);
+        Ok(())
+    }
+
     fn group(&mut self, names: Vec<&str>, line: usize) -> Result<(), ObjImportError> {
         if names.len() > 1 {
             return Err(ObjImportError::Unsupported {
@@ -252,10 +294,7 @@ impl State {
             return Err(ObjImportError::LimitExceeded(Limit::NameBytes));
         }
         self.close_current()?;
-        self.current = Some(ParsedObject {
-            name: name.to_owned(),
-            faces: Vec::new(),
-        });
+        self.current = Some(ParsedObject::new(name.to_owned()));
         Ok(())
     }
 
@@ -294,9 +333,17 @@ impl State {
             return Err(ObjImportError::LimitExceeded(Limit::Corners));
         }
         let mut face: Vec<u32> = Vec::new();
+        let mut uv_face: Vec<u32> = Vec::new();
         reserve(&mut face, tokens.len())?;
+        reserve(&mut uv_face, tokens.len())?;
+        let mut complete = true;
         for token in tokens {
-            face.push(self.corner(token, line)?);
+            let (vertex, uv) = self.corner(token, line)?;
+            face.push(vertex);
+            match uv {
+                Some(uv) => uv_face.push(uv),
+                None => complete = false,
+            }
         }
         self.scratch.clear();
         reserve(&mut self.scratch, face.len())?;
@@ -309,20 +356,25 @@ impl State {
         {
             return Err(ObjImportError::DegenerateFace { line });
         }
-        let object = self.current.get_or_insert_with(|| ParsedObject {
-            name: String::new(),
-            faces: Vec::new(),
-        });
+        let object = self
+            .current
+            .get_or_insert_with(|| ParsedObject::new(String::new()));
         reserve(&mut object.faces, 1)?;
         object.faces.push(face);
+        if !complete {
+            object.uv_faces = None;
+        } else if let Some(uv_faces) = &mut object.uv_faces {
+            reserve(uv_faces, 1)?;
+            uv_faces.push(uv_face);
+        }
         self.faces += 1;
         self.corners += self.scratch.len();
         Ok(())
     }
 
-    /// Parses `v`, `v/vt`, `v//vn` or `v/vt/vn`; returns the 0-based vertex index. The `vt` and
-    /// `vn` indices are range-checked and dropped.
-    fn corner(&self, token: &str, line: usize) -> Result<u32, ObjImportError> {
+    /// Parses `v`, `v/vt`, `v//vn` or `v/vt/vn`; returns the 0-based vertex index and the 0-based
+    /// `vt` index when present. The `vn` index is range-checked and dropped.
+    fn corner(&self, token: &str, line: usize) -> Result<(u32, Option<u32>), ObjImportError> {
         let bad = ObjImportError::Syntax {
             line,
             what: SyntaxKind::BadFaceCorner,
@@ -339,13 +391,19 @@ impl State {
             _ => {}
         }
         let resolved = resolve(vertex, self.vertices.len(), line)?;
-        if let Some(texcoord) = texcoord.filter(|text| !text.is_empty()) {
-            resolve(texcoord, self.texcoords, line)?;
-        }
+        let uv = match texcoord.filter(|text| !text.is_empty()) {
+            Some(texcoord) => {
+                let index = resolve(texcoord, self.uvs.len(), line)?;
+                Some(u32::try_from(index).map_err(|_| ObjImportError::LimitExceeded(Limit::Uvs))?)
+            }
+            None => None,
+        };
         if let Some(normal) = normal {
             resolve(normal, self.normals, line)?;
         }
-        u32::try_from(resolved).map_err(|_| ObjImportError::LimitExceeded(Limit::Vertices))
+        let vertex =
+            u32::try_from(resolved).map_err(|_| ObjImportError::LimitExceeded(Limit::Vertices))?;
+        Ok((vertex, uv))
     }
 
     fn finish(mut self) -> Result<ParsedObj, ObjImportError> {
@@ -355,6 +413,7 @@ impl State {
         }
         Ok(ParsedObj {
             vertices: self.vertices,
+            uvs: self.uvs,
             objects: self.objects,
             ignored_records: self.ignored,
         })

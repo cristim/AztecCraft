@@ -11,6 +11,7 @@ fn limits_are_pinned_to_their_provisional_values() {
     assert_eq!(MAX_FILE_BYTES, 32 * 1024 * 1024);
     assert_eq!(MAX_LINE_BYTES, 64 * 1024);
     assert_eq!(MAX_VERTICES, 262_144);
+    assert_eq!(MAX_UVS, 262_144);
     assert_eq!(MAX_FACES, 262_144);
     assert_eq!(MAX_CORNERS, 1_048_576);
     assert_eq!(MAX_CORNERS_PER_FACE, 1024);
@@ -217,7 +218,7 @@ fn unsupported_records_are_refused_and_dropped_ones_counted() {
     );
     let dropped = "vn 0 0 1\nvt 0 0\nvp 0\nusemtl m\nmtllib a.mtl\ns off\nl 1 2\np 1\nmg 1\nmaplib a\n\
                    usemap a\nbevel on\nc_interp on\nd_interp on\nlod 1\nshadow_obj a\ntrace_obj a\nctech a\nstech a\n";
-    assert_eq!(parse_text(&with_tri(dropped)).unwrap().ignored_records, 19);
+    assert_eq!(parse_text(&with_tri(dropped)).unwrap().ignored_records, 18);
 }
 
 #[test]
@@ -238,6 +239,16 @@ fn invalid_utf8_is_refused_with_its_line() {
     assert_eq!(
         parse(&b"v 0 0 0\n# \xff\n"[..]),
         Err(ObjImportError::InvalidUtf8 { line: 2 })
+    );
+}
+
+#[test]
+fn the_uv_table_holds_exactly_at_its_cap() {
+    let uvs = |count: usize| format!("{}{}", TRI, "vt 0 0\n".repeat(count));
+    assert_eq!(parse_text(&uvs(MAX_UVS)).unwrap().uvs.len(), MAX_UVS);
+    assert_eq!(
+        err(&uvs(MAX_UVS + 1)),
+        ObjImportError::LimitExceeded(Limit::Uvs)
     );
 }
 
@@ -456,4 +467,93 @@ fn cr_only_files_are_refused_with_a_clear_error() {
     );
     // A lone CR as the very last byte is trailing whitespace, not a line ending.
     assert!(parse_text(&format!("{TRI}\r")).is_ok());
+}
+
+const QUAD: &str = "v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\n";
+
+fn uv_faces(text: &str) -> Option<Vec<Vec<u32>>> {
+    parse_text(text).unwrap().objects[0].uv_faces.clone()
+}
+
+#[test]
+fn vt_values_are_read_with_u_required_and_v_and_w_optional() {
+    let parsed = parse_text(&format!("vt 0.5\nvt 1 2\nvt -1 2 3\n{TRI}")).unwrap();
+    assert_eq!(parsed.uvs, [[0.5, 0.0], [1.0, 2.0], [-1.0, 2.0]]);
+    assert_eq!(parsed.ignored_records, 0);
+}
+
+#[test]
+fn every_vt_corner_form_gives_the_object_its_uv_faces() {
+    for face in [
+        "f 1/1 2/2 3/3 4/4",
+        "f 1/1/1 2/2/1 3/3/1 4/4/1",
+        "f -4/-4 -3/-3 -2/-2 -1/-1",
+    ] {
+        let text = format!("{QUAD}vn 0 0 1\n{face}\n");
+        assert_eq!(uv_faces(&text), Some(vec![vec![0, 1, 2, 3]]), "{face}");
+    }
+    let shared = format!("{QUAD}f 1/4 2/3 3/2\nf 1/1 3/1 4/1\n");
+    assert_eq!(uv_faces(&shared), Some(vec![vec![3, 2, 1], vec![0, 0, 0]]));
+}
+
+#[test]
+fn a_corner_without_vt_leaves_the_whole_object_without_uv_faces() {
+    for face in ["f 1//1 2//1 3//1 4//1", "f 1 2 3 4"] {
+        let text = format!("{QUAD}vn 0 0 1\n{face}\n");
+        assert_eq!(uv_faces(&text), None, "{face}");
+    }
+    let mixed_corner = format!("{QUAD}f 1/1 2/2 3\n");
+    assert_eq!(uv_faces(&mixed_corner), None);
+    let later_face = format!("{QUAD}f 1/1 2/2 3/3\nf 1 3 4\n");
+    assert_eq!(uv_faces(&later_face), None);
+    let separate = parse_text(&format!("{QUAD}o a\nf 1/1 2/2 3/3\no b\nf 1 3 4\n")).unwrap();
+    assert_eq!(separate.objects[0].uv_faces, Some(vec![vec![0, 1, 2]]));
+    assert_eq!(separate.objects[1].uv_faces, None);
+}
+
+#[test]
+fn vt_indices_outside_the_table_are_index_errors_with_their_line() {
+    for corner in [
+        "1/0 2/1 3/1",
+        "1/5 2/1 3/1",
+        "1/-5 2/1 3/1",
+        "1/99999999999999999999 2/1 3/1",
+    ] {
+        assert_eq!(
+            err(&format!("{QUAD}f {corner}\n")),
+            ObjImportError::IndexOutOfRange { line: 9 },
+            "{corner}"
+        );
+    }
+    assert_eq!(
+        err("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1/1 2/1 3/1\nvt 0 0\n"),
+        ObjImportError::IndexOutOfRange { line: 4 }
+    );
+}
+
+#[test]
+fn malformed_vt_records_are_refused() {
+    let bad = |what| ObjImportError::Syntax { line: 1, what };
+    let need = SyntaxKind::TexcoordNeedsOneToThreeNumbers;
+    assert_eq!(err(&with_tri_after("vt\n")), bad(need));
+    assert_eq!(err(&with_tri_after("vt 0 0 0 0\n")), bad(need));
+    assert_eq!(err(&with_tri_after("vt a 0\n")), bad(SyntaxKind::BadNumber));
+    assert_eq!(
+        err(&with_tri_after("vt 0 0 # c\nvt 0 x\n")),
+        ObjImportError::Syntax {
+            line: 2,
+            what: SyntaxKind::BadNumber
+        }
+    );
+    for value in ["nan", "inf", "-inf", "1e13", "1e309"] {
+        assert_eq!(
+            err(&with_tri_after(&format!("vt {value} 0\n"))),
+            ObjImportError::CoordinateOutOfRange { line: 1 },
+            "{value}"
+        );
+    }
+}
+
+fn with_tri_after(first: &str) -> String {
+    format!("{first}{TRI}")
 }

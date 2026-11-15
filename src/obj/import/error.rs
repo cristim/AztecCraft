@@ -8,6 +8,7 @@ pub enum SyntaxKind {
     VertexNeedsThreeNumbers,
     BadNumber,
     BadFaceCorner,
+    TexcoordNeedsOneToThreeNumbers,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +21,7 @@ pub enum UnsupportedKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Limit {
     Vertices,
+    Uvs,
     Faces,
     Corners,
     CornersPerFace,
@@ -64,6 +66,9 @@ impl fmt::Display for ObjImportError {
                     SyntaxKind::VertexNeedsThreeNumbers => "a vertex needs three numbers",
                     SyntaxKind::BadNumber => "a number is malformed",
                     SyntaxKind::BadFaceCorner => "a face corner is malformed",
+                    SyntaxKind::TexcoordNeedsOneToThreeNumbers => {
+                        "a texture coordinate needs one to three numbers"
+                    }
                 };
                 write!(f, "line {line}: {what}")
             }
