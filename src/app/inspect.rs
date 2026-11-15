@@ -655,6 +655,7 @@ impl Editor {
                 }
             }),
             camera: CameraInspection {
+                native_gesture_active: self.native_camera_drag,
                 focal_length_mm: self.camera.lens().focal_length_mm(),
                 center_of_interest_cm: self.camera.distance(),
                 target: self.camera.target().to_array(),

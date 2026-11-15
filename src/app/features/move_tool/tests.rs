@@ -920,7 +920,7 @@ fn tiny_visible_geometry_inspection_reports_pointer_exclusion_without_global_rea
                 egui::UiBuilder::new()
                     .max_rect(Rect::from_min_size(Pos2::ZERO, egui::vec2(4.0, 4.0))),
             );
-            let input = crate::viewport_ui::capture(&mut child, &editor.camera)
+            let input = crate::viewport_ui::capture(&mut child, &editor.camera, editor.scene_token)
                 .unwrap()
                 .unwrap();
             assert!(

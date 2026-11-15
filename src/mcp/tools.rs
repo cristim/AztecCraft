@@ -924,6 +924,9 @@ mod tests {
                 "delete_selected" => json!({"scene_token":token}),
                 "orbit_camera" => json!({"scene_token":token,"radians":[0,0]}),
                 "pan_camera" => json!({"scene_token":token,"world_units":[0,0]}),
+                "box_dolly_camera" => {
+                    json!({"scene_token":token,"min":[-0.5,-0.5],"max":[0.5,0.5]})
+                }
                 "dolly_camera" => json!({"scene_token":token,"factor":1}),
                 "set_camera_pose" => {
                     json!({"scene_token":token,"target":[0,0,0],"distance":8,"yaw_degrees":30,"pitch_degrees":20})

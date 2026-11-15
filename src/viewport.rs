@@ -12,6 +12,7 @@ use std::fmt;
 
 mod lens;
 pub use lens::Lens;
+mod box_dolly;
 mod rect_pick;
 pub use rect_pick::{InvalidRect, NdcRect};
 

@@ -63,6 +63,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_undo_enabled", "`undoInfo -state`, `-stateWithoutFlush`", "an edit made while undo is off flushes both queues (stricter than Maya); flush defaults to true when turning off, false when turning on (PROVISIONAL); Undo and Redo while off report unchanged, read undo_state.enabled"),
     ("open_undo_chunk", "`undoInfo -openChunk -chunkName`", "chunks do not nest; an unnamed chunk is called Chunk (PROVISIONAL)"),
     ("close_undo_chunk", "`undoInfo -closeChunk`", "a chunk with no net change records no step"),
+    ("box_dolly_camera", "`dolly` / Ctrl+Alt+left marquee", "PROVISIONAL target-plane rectangle fit"),
     ("frame_selected", "`viewFit`", "`-fitFactor` only (sphere fit, PROVISIONAL range 0.01 to 1); no `-animate`"),
     ("frame_all", "`viewFit -allObjects`", "`-fitFactor` only (sphere fit, PROVISIONAL range 0.01 to 1); no `-animate`"),
     ("set_grid_visibility", "`grid -toggle`, `modelEditor -grid`", "current viewport only"),

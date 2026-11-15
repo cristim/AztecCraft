@@ -145,3 +145,15 @@ above tumble and track. Release tails stay consumed until both buttons are up.
 The gain and release policy are PROVISIONAL (development.md). Native egui
 pointer-event tests cover the actual chord and modifier/release tail; desktop
 visual verification remains pending. No new MCP schema or authoring state.
+
+Slice 3: `Operation::BoxDolly` stages target-plane pan + distance scale, using the
+live Editor aspect and positive-area NDC rectangle in either corner order. Native
+Ctrl+Alt+primary draws a rubber band and dispatches on release; MCP
+`box_dolly_camera` uses the same operation. Orientation/lens/clips stay fixed.
+The larger fractional viewport extent determines scale. This formula, zero-area
+refusal, outside-endpoint clamp and cancellation rules are PROVISIONAL; no source
+states them. Captures bind scene token, full Camera, viewport rectangle and DPI;
+Esc/focus/pointer loss, modifier changes or other buttons cancel and consume the
+primary release. A held native navigation gesture blocks remote mutations even
+on stationary frames; hidden-window cancellation clears this guard. The actual
+SDK and Editor guard matrix cover token/draft/modal/close/manipulation boundaries.

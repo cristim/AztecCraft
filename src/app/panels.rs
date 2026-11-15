@@ -350,16 +350,22 @@ impl Editor {
                 });
             });
             ui.separator();
-            ui.weak("Alt + left: orbit | Alt + middle: pan | Alt + right drag or wheel: dolly");
+            ui.weak("Alt + left: orbit | Alt + middle: pan | Alt + right drag or wheel: dolly")
+                .on_hover_text("Alt + left + middle: dolly | Ctrl + Alt + left drag: box dolly");
         });
         self.manipulation_options(ui);
-        let captured = crate::viewport_ui::capture(ui, &self.camera);
+        let captured = crate::viewport_ui::capture(ui, &self.camera, self.scene_token);
         if !matches!(&captured, Ok(Some(_)))
             && let Err(error) = self.missing_move_viewport()
         {
             self.set_error_status(&error);
             self.error = true;
         }
+        self.native_camera_drag = captured
+            .as_ref()
+            .ok()
+            .and_then(Option::as_ref)
+            .is_some_and(|input| input.navigation_active());
         if let Ok(Some(input)) = &captured {
             self.aspect = input.aspect();
         }

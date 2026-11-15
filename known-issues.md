@@ -1639,3 +1639,11 @@ joints cannot be grouped or ungrouped (Maya allows it; unsupported here, `invali
 ## Status feedback overwrites a showing hover refusal
 
 Any operation that sets status feedback, for example Undo, overwrites a hover refusal that is showing. The refusal returns only when the hover changes. Pre-existing; noted while fixing the Scale Parent status refresh (#38).
+
+## #452 viewport navigation candidate
+
+Box dolly uses a provisional target-plane fit, not a depth-picked object fit.
+Ctrl+Alt+left and Alt+left+middle have native event tests, but desktop visual
+comparison against Maya remains pending. The session viewport lens/centre-of-interest
+reads do not inspect imported Maya camera nodes. View history remains pending on
+this candidate until its independent review/test gate passes.

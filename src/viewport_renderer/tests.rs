@@ -1224,7 +1224,7 @@ fn headless_gpu_grid_callback_clears_cold_and_warm_empty_frames_and_restores_pix
             (&view, true),
         ] {
             let frame = ui_frame(pixels_per_point, |ui| {
-                crate::viewport_ui::capture(ui, &camera)
+                crate::viewport_ui::capture(ui, &camera, uuid::Uuid::nil())
                     .unwrap()
                     .unwrap()
                     .paint(
@@ -1634,7 +1634,7 @@ fn headless_gpu_actual_viewport_caller_preserves_crossing_side() {
     let path = view.instances()[0].path();
     let frame = ui_frame(1.0, |ui| {
         let producer = renderer_handle();
-        crate::viewport_ui::capture(ui, &camera(4.75))
+        crate::viewport_ui::capture(ui, &camera(4.75), uuid::Uuid::nil())
             .unwrap()
             .unwrap()
             .paint(

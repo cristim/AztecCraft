@@ -601,3 +601,173 @@ async fn sdk_camera_focal_length_is_unknown_for_a_field_of_view_only_lens() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_box_dolly_uses_the_live_aspect_and_preserves_authoring() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    for _ in 0..5 {
+        frame(&mut editor, &context, vec![]);
+    }
+    let token = editor.scene_token.to_string();
+    let scene = editor.history.scene().clone();
+    let mut expected = editor.camera.clone();
+    expected
+        .box_dolly(
+            azteccraft::viewport::NdcRect::new(glam::Vec2::ZERO, glam::Vec2::ONE).unwrap(),
+            editor.aspect,
+        )
+        .unwrap();
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "box_dolly_camera",
+        json!({"scene_token":token,"min":[0,0],"max":[1,1]}),
+    )
+    .await;
+    assert_eq!(result.structured_content.unwrap()["outcome"], "changed");
+    assert_eq!(editor.camera, expected);
+    assert_eq!(editor.history.scene(), &scene);
+    assert!(!editor.is_dirty());
+    assert!(!editor.history.can_undo());
+    let baseline = editor.camera.clone();
+    for (fields, code) in [
+        (json!({"min":[0,0],"max":[0,1]}), "camera_error"),
+        (json!({"min":[0,0],"max":[0,0]}), "camera_error"),
+        (json!({"min":[-1,-1],"max":[1,1]}), ""),
+        (json!({"min":[0,0],"max":[1.00000000001,1]}), "protocol"),
+        (json!({"min":[0,0],"max":[1e100,1]}), "protocol"),
+        (json!({"min":[0],"max":[1,1]}), "protocol"),
+        (json!({"min":[0,0],"max":[1,1],"extra":true}), "protocol"),
+    ] {
+        let mut args = fields;
+        args["scene_token"] = json!(token);
+        let result = call_response(
+            &mut editor,
+            &context,
+            client.peer(),
+            "box_dolly_camera",
+            args,
+        )
+        .await;
+        if code == "protocol" {
+            assert!(result.is_err());
+        } else if code.is_empty() {
+            assert_eq!(
+                result.unwrap().structured_content.unwrap()["outcome"],
+                "unchanged"
+            );
+        } else {
+            assert_eq!(
+                result.unwrap().structured_content.unwrap()["error"]["code"],
+                code
+            );
+        }
+        assert_eq!(editor.camera, baseline);
+    }
+    let pos = egui::pos2(600.0, 400.0);
+    frame(
+        &mut editor,
+        &context,
+        vec![
+            egui::Event::ModifiersChanged(egui::Modifiers::ALT),
+            egui::Event::PointerMoved(pos),
+            egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::ALT,
+            },
+        ],
+    );
+    frame(&mut editor, &context, vec![]);
+    assert!(editor.native_camera_drag);
+    let read = inspected_camera(&mut editor, &context, &client).await;
+    assert_eq!(read["native_gesture_active"], true);
+    let result = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "box_dolly_camera",
+        json!({"scene_token":token,"min":[0,0],"max":[1,1]}),
+    )
+    .await;
+    assert_eq!(
+        result.structured_content.unwrap()["error"]["code"],
+        "busy_editing"
+    );
+    assert_eq!(editor.camera, baseline);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn sdk_box_dolly_respects_scene_draft_modal_close_and_manipulation_guards() {
+    for guard in ["stale", "draft", "modal", "close", "manipulation"] {
+        let ctx = egui::Context::default();
+        let (mut editor, client, server) = start(&ctx).await;
+        if guard != "close" {
+            editor.create(Primitive::Cube);
+        }
+        let token = editor.scene_token.to_string();
+        let expected = match guard {
+            "draft" => {
+                editor.channels[0] = "7".into();
+                "busy_editing"
+            }
+            "modal" => {
+                editor.new_document().unwrap();
+                "busy_editing"
+            }
+            "close" => {
+                editor.close_document().unwrap();
+                "busy_editing"
+            }
+            "manipulation" => {
+                let node = editor.selected().unwrap().to_decimal();
+                let path: Vec<_> = editor
+                    .selected_path()
+                    .iter()
+                    .map(|id| id.to_decimal())
+                    .collect();
+                let result=call(&mut editor,&ctx,client.peer(),"begin_manipulation",json!({"scene_token":token,"node_id":node,"instance_path":path,"kind":"move","axis":"x"})).await;
+                assert_eq!(
+                    result.structured_content.unwrap()["outcome"],
+                    "manipulation_started"
+                );
+                "busy_manipulation"
+            }
+            _ => "stale_scene",
+        };
+        let before = editor.camera.clone();
+        let scene = editor.history.scene().clone();
+        let requested_token = if guard == "stale" {
+            Uuid::new_v4().to_string()
+        } else {
+            token
+        };
+        let result = call(
+            &mut editor,
+            &ctx,
+            client.peer(),
+            "box_dolly_camera",
+            json!({"scene_token":requested_token,"min":[-0.5,-0.5],"max":[0.5,0.5]}),
+        )
+        .await;
+        assert_eq!(
+            result.structured_content.unwrap()["error"]["code"],
+            expected,
+            "{guard}"
+        );
+        assert_eq!(editor.camera, before);
+        assert_eq!(editor.history.scene(), &scene);
+        if guard == "draft" {
+            assert_eq!(editor.channels[0], "7");
+        }
+        client.cancel().await.unwrap();
+        drop(editor);
+        server.await.unwrap();
+    }
+}

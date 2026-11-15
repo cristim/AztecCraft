@@ -14,7 +14,7 @@ mod ascii_fixture {
     ));
 }
 
-fn camera_operations() -> [Operation; 4] {
+fn camera_operations() -> [Operation; 5] {
     [
         Operation::Orbit {
             radians: [0.2, -0.1],
@@ -23,6 +23,13 @@ fn camera_operations() -> [Operation; 4] {
             world_units: [1.0, -2.0],
         },
         Operation::Dolly { factor: 0.5 },
+        Operation::BoxDolly {
+            rect: azteccraft::viewport::NdcRect::new(
+                glam::Vec2::splat(-0.5),
+                glam::Vec2::splat(0.5),
+            )
+            .unwrap(),
+        },
         Operation::SetCameraPose {
             target: [1.0, 0.5, -2.0],
             distance: 5.0,

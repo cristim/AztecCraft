@@ -73,6 +73,7 @@ pub struct Editor {
     selection_mode: SelectionMode,
     picks: component_picks::ComponentPicks,
     camera: Camera,
+    native_camera_drag: bool,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -141,6 +142,7 @@ impl Default for Editor {
             selection_mode: SelectionMode::default(),
             picks: component_picks::ComponentPicks::default(),
             camera: Camera::default(),
+            native_camera_drag: false,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -311,6 +313,7 @@ impl eframe::App for Editor {
                 self.set_error_status(&error);
                 self.error = true;
             }
+            self.native_camera_drag = false;
             self.handle_close(ctx);
             #[cfg(feature = "mcp")]
             self.process_mcp(ctx);

@@ -1,7 +1,7 @@
 use crate::{
     editor_operations::{Operation, RemoteRequest, ShadingMode, ViewPreset},
     mcp::{
-        args::{decode, schema, scoped, token},
+        args::{decode, schema, scoped, token, unit_point},
         registry::ToolSpec,
     },
 };
@@ -47,6 +47,15 @@ struct OrbitArgs {
 struct PanArgs {
     scene_token: String,
     world_units: [f32; 2],
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct BoxDollyArgs {
+    scene_token: String,
+    /// Opposite corners in NDC, x right, y up; each coordinate within [-1, 1].
+    min: [f64; 2],
+    max: [f64; 2],
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -214,7 +223,28 @@ fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
     ))
 }
 
+fn parse_box_dolly(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: BoxDollyArgs = decode(arguments)?;
+    let rect = azteccraft::viewport::NdcRect::new(
+        unit_point("min", args.min)?,
+        unit_point("max", args.max)?,
+    )
+    .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::BoxDolly { rect },
+    ))
+}
+
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
+    ToolSpec {
+        name: "box_dolly_camera",
+        description: "Dolly into a positive-area rectangle, like Ctrl+Alt+left drag. min/max are opposite NDC corners (x right, y up, each in [-1,1], either order). Uses the last painted viewport aspect, or 1 before the first paint. PROVISIONAL target-plane fitting: center the rectangle at the camera target depth and scale distance by half its larger NDC extent; orthographic width scales the same way. Orientation, focal length and clips stay fixed. Zero width/height or an unrepresentable camera returns camera_error with camera unchanged. Session-only; does not edit the scene or selection",
+        schema: schema::<BoxDollyArgs>,
+        parse: parse_box_dolly,
+        idempotent: false,
+        read_only: false,
+    },
     ToolSpec {
         name: "frame_selected",
         description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry (meshes, curves and joints) without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection. Optional fit_factor (Maya viewFit -fitFactor) is the fraction of the view (limiting axis) the framed geometry fills, from 0.01 to 1 (the default margin is about 0.95); a value outside that range returns invalid_input and keeps the camera",
