@@ -196,6 +196,7 @@ fn torus_ranges_counts_and_mismatch_are_checked() {
     let torus = |radius, section_radius, sub_axis, sub_height| PrimitiveOptions::Torus {
         radius,
         section_radius,
+        twist: 0.0,
         sub_axis,
         sub_height,
         axis: Axis::Y,
@@ -468,4 +469,30 @@ fn cylinder_and_cone_accept_division_edges() {
             assert_eq!(round(primitive, axis, height).validate(primitive), Ok(()));
         }
     }
+}
+
+#[test]
+fn twist_accepts_any_finite_angle_and_rejects_the_rest() {
+    let torus = |twist| PrimitiveOptions::Torus {
+        radius: 1.0,
+        section_radius: 0.5,
+        twist,
+        sub_axis: 8,
+        sub_height: 8,
+        axis: Axis::Y,
+    };
+    for ok in [0.0, -0.0, 45.0, -720.0, 1e300, f64::MAX, f64::MIN] {
+        assert_eq!(torus(ok).validate(Primitive::Torus), Ok(()), "{ok}");
+    }
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert_eq!(
+            torus(bad).validate(Primitive::Torus),
+            Err(PrimitiveOptionsError::TwistNotFinite)
+        );
+    }
+    assert_eq!(DEFAULT_TORUS_TWIST_DEG, 0.0);
+    assert!(matches!(
+        PrimitiveOptions::default_for(Primitive::Torus),
+        PrimitiveOptions::Torus { twist, .. } if twist == 0.0
+    ));
 }

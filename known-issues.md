@@ -801,8 +801,8 @@ The legacy quad-only JSON/OBJ scene refuses spheres with a typed error.
 `create_primitive` with `torus` builds a radius-1, section-radius-0.5, 20x20, Y-axis torus
 (400 points, 800 edges, 400 quads, no poles). Defaults come from the polyTorus node page (2026 and 2027 pages agree; the command page was read for 2026 only, while reference.md pins 2027.2); the
 pages state no ranges or relation between the two radii, so a section radius larger than the
-radius is accepted (PROVISIONAL, self-intersecting). `twist` and Create UVs are not
-implemented and are not offered. Vertex order and winding are not claimed to match Maya.
+radius is accepted (PROVISIONAL, self-intersecting). `twist` (degrees, any finite value, a uniform turn of every section; formula PROVISIONAL, policy row 54)
+is implemented in core; Create UVs are not implemented and are not offered. Vertex order and winding are not claimed to match Maya.
 Edges are hard, there are no UVs or normals, and persistence follows the sphere. The Create >
 Polygon Primitives > Torus row is still disabled; enabling it needs an in-app check.
 

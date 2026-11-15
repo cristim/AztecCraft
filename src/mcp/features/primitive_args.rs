@@ -6,9 +6,9 @@ use azteccraft::{
         Axis, DEFAULT_AXIS, DEFAULT_AXIS_DIVISIONS, DEFAULT_CUBE_DIVISIONS, DEFAULT_CUBE_SIZE_CM,
         DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS, DEFAULT_HEIGHT_CM, DEFAULT_PLANE_DIVISIONS,
         DEFAULT_PLANE_SIZE_CM, DEFAULT_RADIUS_CM, DEFAULT_SECTION_RADIUS_CM,
-        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_TORUS_HEIGHT_DIVISIONS, MAX_DIVISIONS,
-        MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM, MIN_SPHERE_HEIGHT_DIVISIONS,
-        PrimitiveOptions,
+        DEFAULT_SPHERE_HEIGHT_DIVISIONS, DEFAULT_TORUS_HEIGHT_DIVISIONS, DEFAULT_TORUS_TWIST_DEG,
+        MAX_DIVISIONS, MAX_SIZE_CM, MIN_AXIS_DIVISIONS, MIN_DIVISIONS, MIN_SIZE_CM,
+        MIN_SPHERE_HEIGHT_DIVISIONS, PrimitiveOptions,
     },
     scene::Primitive,
 };
@@ -269,6 +269,7 @@ impl CreateArgs {
                 options.map(|o| PrimitiveOptions::Torus {
                     radius: o.radius,
                     section_radius: o.section_radius,
+                    twist: DEFAULT_TORUS_TWIST_DEG,
                     sub_axis: o.subdivisions_axis,
                     sub_height: o.subdivisions_height,
                     axis: o.axis.into(),

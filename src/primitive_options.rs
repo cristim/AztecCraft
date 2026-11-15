@@ -43,6 +43,8 @@ pub const DEFAULT_CYLINDER_CONE_HEIGHT_DIVISIONS: u32 = 1;
 /// polyTorus node page (sectionRadius 0.5, 20x20); PROVISIONAL, Maya 2026 is unverified.
 pub const DEFAULT_SECTION_RADIUS_CM: f64 = 0.5;
 pub const DEFAULT_TORUS_HEIGHT_DIVISIONS: u32 = 20;
+/// polyTorus `twist` default, in degrees (polyTorus command page, 2027).
+pub const DEFAULT_TORUS_TWIST_DEG: f64 = 0.0;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Axis {
@@ -93,6 +95,8 @@ pub enum PrimitiveOptions {
     Torus {
         radius: f64,
         section_radius: f64,
+        /// Degrees; any finite value. PROVISIONAL meaning: a uniform rotation of every section.
+        twist: f64,
         sub_axis: u32,
         sub_height: u32,
         axis: Axis,
@@ -116,6 +120,7 @@ pub enum PrimitiveOptionsError {
         faces: u64,
         budget: u64,
     },
+    TwistNotFinite,
 }
 
 impl fmt::Display for PrimitiveOptionsError {
@@ -134,6 +139,7 @@ impl fmt::Display for PrimitiveOptionsError {
             Self::TooManyFaces { faces, budget } => {
                 write!(f, "{faces} faces exceed the limit of {budget}")
             }
+            Self::TwistNotFinite => write!(f, "twist must be a finite number of degrees"),
         }
     }
 }
@@ -192,6 +198,7 @@ impl PrimitiveOptions {
             Primitive::Torus => Self::Torus {
                 radius: DEFAULT_RADIUS_CM,
                 section_radius: DEFAULT_SECTION_RADIUS_CM,
+                twist: DEFAULT_TORUS_TWIST_DEG,
                 sub_axis: DEFAULT_AXIS_DIVISIONS,
                 sub_height: DEFAULT_TORUS_HEIGHT_DIVISIONS,
                 axis,
@@ -228,6 +235,11 @@ impl PrimitiveOptions {
                     max: MAX_DIVISIONS,
                 });
             }
+        }
+        if let Self::Torus { twist, .. } = self
+            && !twist.is_finite()
+        {
+            return Err(PrimitiveOptionsError::TwistNotFinite);
         }
         let faces = self.face_count();
         if faces > MAX_FACES {

@@ -455,12 +455,14 @@ impl NativeMesh {
             PrimitiveOptions::Torus {
                 radius,
                 section_radius,
+                twist,
                 sub_axis,
                 sub_height,
                 axis,
             } => Ok(Self::polygon_torus(
                 &revolve(radius, sub_axis, sub_height, axis),
                 section_radius,
+                twist,
             )),
         }
     }

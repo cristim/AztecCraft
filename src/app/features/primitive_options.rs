@@ -8,7 +8,7 @@
 //! click uses; here Create keeps it open and a plain click uses the remembered options.
 
 use crate::app::*;
-use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+use azteccraft::primitive_options::{Axis, DEFAULT_TORUS_TWIST_DEG, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
@@ -221,6 +221,7 @@ fn assemble(
             PrimitiveOptions::Torus {
                 radius,
                 section_radius,
+                twist: DEFAULT_TORUS_TWIST_DEG,
                 sub_axis,
                 sub_height,
                 axis,
