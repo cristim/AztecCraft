@@ -230,3 +230,137 @@ fn the_bbox_centre_is_the_centre_of_the_world_box_not_the_mean() {
         Err(NativeError::NonFinite)
     );
 }
+
+fn first_shape(scene: &NativeScene) -> NativeId {
+    scene.shapes[0].id
+}
+
+fn points_of(scene: &NativeScene) -> Points {
+    scene.shapes[0].mesh.points().clone()
+}
+
+fn bits(points: &Points) -> Vec<u64> {
+    match points {
+        Points::Float3(p) => p.iter().flatten().map(|v| u64::from(v.to_bits())).collect(),
+        Points::Double3(p) => p.iter().flatten().map(|v| v.to_bits()).collect(),
+    }
+}
+
+#[test]
+fn check_vertex_move_reports_every_refusal_without_changing_anything() {
+    let (scene, _) = test_fixtures::cube();
+    let shape = first_shape(&scene);
+    let before = points_of(&scene);
+    assert_eq!(scene.vertex_move_refusal(shape, &[0, 7]), None);
+    for (vertices, expected) in [
+        (vec![], NativeError::InvalidTopology),
+        (vec![8], NativeError::InvalidTopology),
+        (vec![1, 1], NativeError::InvalidTopology),
+    ] {
+        assert_eq!(
+            scene.vertex_move_refusal(shape, &vertices),
+            Some(expected),
+            "{vertices:?}"
+        );
+    }
+    assert!(matches!(
+        scene.vertex_move_refusal(NativeId::from_decimal("999999").unwrap(), &[0]),
+        Some(NativeError::MissingShape(_))
+    ));
+    assert_eq!(bits(&points_of(&scene)), bits(&before));
+    let (offsets, _) = test_fixtures::offset_triangle_shape();
+    assert_eq!(
+        offsets.vertex_move_refusal(first_shape(&offsets), &[0]),
+        Some(NativeError::UnsupportedEdit)
+    );
+}
+
+#[test]
+fn preview_then_restore_is_byte_identical_and_not_cumulative() {
+    for double in [false, true] {
+        let (mut scene, _) = if double {
+            test_fixtures::polygon_shape(
+                vec![[-0.0, 1.0, 2.0], [3.0, -0.0, 5.0], [6.0, 7.0, -0.0]],
+                &[vec![0, 1, 2]],
+            )
+        } else {
+            let (mut scene, id) = test_fixtures::cube();
+            scene.shapes[0].mesh = NativeMesh::from_loops(
+                vec![[-0.0, 1.0, 2.0], [3.0, -0.0, 5.0], [6.0, 7.0, -0.0]],
+                vec![vec![0, 1, 2]],
+            );
+            (scene, id)
+        };
+        let shape = first_shape(&scene);
+        let original = bits(&points_of(&scene));
+        let baseline = scene.capture_vertices(shape, &[0, 1]).unwrap();
+        scene
+            .preview_vertices(&baseline, [1.5, -2.25, 0.1])
+            .unwrap();
+        let once = bits(&points_of(&scene));
+        assert_ne!(once, original);
+        scene
+            .preview_vertices(&baseline, [1.5, -2.25, 0.1])
+            .unwrap();
+        assert_eq!(bits(&points_of(&scene)), once, "not cumulative");
+        // The unlisted vertex never changes.
+        assert_eq!(once[6..], original[6..]);
+        scene.preview_vertices(&baseline, [0.0; 3]).unwrap();
+        assert_eq!(bits(&points_of(&scene)), original, "zero keeps -0.0");
+        scene.preview_vertices(&baseline, [4.0, 4.0, 4.0]).unwrap();
+        scene.restore_vertices(&baseline).unwrap();
+        assert_eq!(bits(&points_of(&scene)), original);
+    }
+}
+
+#[test]
+fn a_refused_preview_leaves_the_mesh_alone() {
+    let (mut scene, _) = test_fixtures::cube();
+    let shape = first_shape(&scene);
+    let baseline = scene.capture_vertices(shape, &[0, 1]).unwrap();
+    scene.preview_vertices(&baseline, [1.0, 1.0, 1.0]).unwrap();
+    let held = bits(&points_of(&scene));
+    for delta in [[f64::NAN, 0.0, 0.0], [1e300, 0.0, 0.0]] {
+        assert!(scene.preview_vertices(&baseline, delta).is_err());
+        assert_eq!(bits(&points_of(&scene)), held);
+    }
+}
+
+#[test]
+fn preview_equals_translate_points_bit_for_bit() {
+    let mut state = 0x2545_f491_4f6c_dd1d_u64;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state as f64 / u64::MAX as f64 - 0.5) * 2000.0
+    };
+    for case in 0..40 {
+        let points: Vec<[f64; 3]> = (0..6).map(|_| [next(), next(), next()]).collect();
+        let delta = [next() * 0.37, next() / 7.0, next() * 1e-3];
+        let (mut previewed, _) = if case % 2 == 0 {
+            test_fixtures::polygon_shape(points.clone(), &[vec![0, 1, 2, 3, 4, 5]])
+        } else {
+            let (mut scene, id) = test_fixtures::cube();
+            scene.shapes[0].mesh = NativeMesh::from_loops(
+                points.iter().map(|p| p.map(|v| v as f32)).collect(),
+                vec![vec![0, 1, 2, 3, 4, 5]],
+            );
+            (scene, id)
+        };
+        let mut translated = previewed.clone();
+        let shape = first_shape(&previewed);
+        let set = [4, 0, 2];
+        let baseline = previewed.capture_vertices(shape, &set).unwrap();
+        // A first preview at another delta must not leak into the second.
+        previewed
+            .preview_vertices(&baseline, [9.0, 9.0, 9.0])
+            .unwrap();
+        previewed.preview_vertices(&baseline, delta).unwrap();
+        translated.shapes[0]
+            .mesh
+            .translate_points(&set, delta)
+            .unwrap();
+        assert_eq!(bits(&points_of(&previewed)), bits(&points_of(&translated)));
+    }
+}
