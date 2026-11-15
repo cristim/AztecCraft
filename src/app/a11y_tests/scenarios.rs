@@ -3,7 +3,7 @@
 //! Add a scenario by adding a line to `all`.
 
 use super::{Violation, gaps, rig::Rig, violations};
-use crate::editor_operations::ActiveTool;
+use crate::editor_operations::{ActiveTool, MenuSet, Operation};
 use eframe::egui::{
     self,
     accesskit::{NodeId, TreeUpdate},
@@ -67,13 +67,56 @@ fn tool_scenario(name: &str, tool: ActiveTool) -> Scenario {
     })
 }
 
+/// Opens `path` (menu button, then submenus by hover) on a cube scene and reports the new nodes.
+fn menu_scenario(name: &str, set: MenuSet, path: &'static [&'static str]) -> Scenario {
+    Scenario::new(name, "menus", move || {
+        let mut rig = Rig::new(true);
+        if set != MenuSet::Modeling {
+            rig.editor.native_operation(Operation::SetMenuSet { set });
+            rig.settle();
+        }
+        let base = rig.update();
+        rig.click(path[0]);
+        for label in &path[1..] {
+            rig.hover(label);
+        }
+        rig.settle();
+        plain(&rig, Some(base))
+    })
+}
+
 pub(super) fn all() -> Vec<Scenario> {
-    vec![
+    let mut all = vec![
         Scenario::new("default", "shell", || plain(&Rig::new(false), None)),
         tool_scenario("tool-move", ActiveTool::Move),
         tool_scenario("tool-rotate", ActiveTool::Rotate),
         tool_scenario("tool-scale", ActiveTool::Scale),
-    ]
+    ];
+    let modeling = MenuSet::Modeling;
+    for (name, set, path) in [
+        ("menu-file", modeling, &["File"][..]),
+        ("menu-edit", modeling, &["Edit"]),
+        (
+            "menu-create-polygon",
+            modeling,
+            &["Create", "Polygon Primitives"],
+        ),
+        (
+            "menu-select-components",
+            modeling,
+            &["Select", "Components"],
+        ),
+        ("menu-view", modeling, &["View"]),
+        ("menu-shading", modeling, &["Shading"]),
+        ("menu-modify", modeling, &["Modify"]),
+        ("menu-display", modeling, &["Display"]),
+        ("menu-uv", modeling, &["UV"]),
+        ("menu-skeleton", MenuSet::Rigging, &["Skeleton"]),
+        ("menu-help", modeling, &["Help"]),
+    ] {
+        all.push(menu_scenario(name, set, path));
+    }
+    all
 }
 
 /// Failure lines: new violations (fix the control, or add its key to the area file) and recorded
