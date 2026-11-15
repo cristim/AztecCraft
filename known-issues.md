@@ -1055,7 +1055,7 @@ descendants, each instance once, in scene order rather than selection order (PRO
 the docs give no export order). Maya's options page says the parents of selected nodes are
 also exported; a parent's own mesh is not written here unless it is selected, so that is
 unmet. Normals, materials, smoothing groups, curves and Maya's OBJ Export Options are not
-written or offered, and a shape with session UVs is refused rather than exported without them (the option boxes are disabled), and export never overwrites an
+written or offered (the option boxes are disabled). A shape with session UVs writes one `vt` per corner and `f v/vt` rows, mirrored instances reversed together; a mixed file of plain and mapped objects is valid OBJ but some readers dislike it (PROVISIONAL), and scenes opened from .ma/.mb hold no session UVs, so they write no `vt`. Export never overwrites an
 existing file. The view of the whole scene is built first, so one mesh the viewport
 cannot display (for example a concave n-gon) fails every export, including Export
 Selection of another object. The Windows save dialog may first ask whether to
@@ -1456,8 +1456,7 @@ UVs exist only on shapes authored in the session, as one `map1` holding one UV p
 so no two faces share a UV, each an exact f32. An authored Maya ASCII `.ma` Save carries them (`mu` ids in
 the `.fc` rows plus `.uvst[0].uvsn`, `.uvsp` and `.cuvs`, layout PROVISIONAL, `.project-docs/uv-ascii-format.md`)
 and reopens with them f32-exactly. The `.mb` writer and the legacy view still refuse a scene
-holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export refuses a shape that has them
-(`export_invalid`, remedy Delete UVs) instead of writing it without `vt` records. A shape with UVs refuses Extrude until Delete UVs or Undo,
+holding them, rather than dropping them (`save_unwritable`, reason `session_uvs`), and OBJ export writes them as `vt` records and `f v/vt` rows. A shape with UVs refuses Extrude until Delete UVs or Undo,
 because UVs do not follow topology edits. Planar projection covers the whole shape in object space with
 bounds of the face corners (Bounding box fit, PROVISIONAL; points no face uses do not affect the fit) only; Best plane, Camera, Keep image ratio, Insert before deformers, Create new UV
 Set, the projection manipulator and construction history are missing. The projections are oriented

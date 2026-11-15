@@ -84,7 +84,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("open_scene", "`file -open`", "dirty confirmation is a separate `resolve_file_action` step; Maya uses `-force`"),
     ("save_scene", "`file -save`", "Maya binary, or authored Maya ASCII with its session UVs"),
     ("save_scene_as", "`file -rename`, then `file -save -type`", "never overwrites; an authored .ma carries session UVs, an .mb refuses them"),
-    ("export_obj", "`file -exportAll` / `-exportSelected -type \"OBJexport\"`", "faces only, centimeters, never overwrites (PROVISIONAL: OBJexport options)"),
+    ("export_obj", "`file -exportAll` / `-exportSelected -type \"OBJexport\"`", "faces and session UVs, centimeters, never overwrites (PROVISIONAL: OBJexport options)"),
     ("import_obj", "`file -import -type \"OBJ\"`", "meshes only, one undo step, new roots selected; normals, UVs and materials dropped (PROVISIONAL: OBJ import options)"),
     ("export_gltf", "none (Maya has no native glTF export; an AztecCraft extension, see #436)", "meters, +Y up, no normals/UVs/materials, never overwrites (PROVISIONAL)"),
     ("export_usd", "none (Maya ships USD through the separate maya-usd plug-in; an AztecCraft slice of #438)", "centimeters with metersPerUnit 0.01, +Y up, mesh points and topology only, never overwrites (PROVISIONAL)"),

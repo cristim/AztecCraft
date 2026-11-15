@@ -208,3 +208,37 @@ async fn sdk_export_obj_writes_new_files_and_never_changes_the_scene() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn sdk_export_obj_writes_session_uvs_as_vt_records() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    let shape = editor.history.scene().shapes()[0].id();
+    editor
+        .apply_operation(Operation::ProjectUvPlanar {
+            shape,
+            axis: azteccraft::native_scene::UvProjectAxis::Z,
+        })
+        .unwrap();
+    frame(&mut editor, &context, vec![]);
+    let token = editor.scene_token.to_string();
+    let scene = editor.history.scene().clone();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("uv.obj");
+    let exported = export(
+        &mut editor,
+        &context,
+        &client,
+        json!({"scene_token": token, "path": path}),
+    )
+    .await;
+    assert_eq!(exported["outcome"], "exported", "{exported}");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(text.lines().filter(|l| l.starts_with("vt ")).count(), 24);
+    assert!(text.lines().any(|l| l.starts_with("f 1/1 ")), "{text}");
+    assert_eq!(editor.history.scene(), &scene);
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

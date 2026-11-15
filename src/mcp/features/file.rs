@@ -283,7 +283,7 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "export_obj",
-        description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces only: no normals, UVs, groups or materials. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
+        description: "Export displayed polygon geometry as a new Wavefront OBJ file (File > Export All, or Export Selection with selection_only), the same operation as the native menu. World-space f64 positions in centimeters, one object per instance, faces and session UVs (one vt per corner, f v/vt rows, mirrored instances re-wound together); no normals, groups or materials. A session UV set that does not match the displayed faces is refused with export_invalid. Never overwrites; the scene is not changed. Replies with object, vertex and face counts",
         schema: schema::<ExportArgs>,
         parse: parse_export_obj,
         idempotent: false,

@@ -209,7 +209,7 @@ fn a_remote_export_whose_install_permission_is_revoked_installs_nothing() {
 }
 
 #[test]
-fn export_refuses_session_uvs_through_the_shared_operation_and_writes_nothing() {
+fn export_writes_session_uvs_through_the_shared_operation_and_leaves_the_scene() {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     let shape = editor.history.scene().shapes()[0].id();
@@ -226,9 +226,18 @@ fn export_refuses_session_uvs_through_the_shared_operation_and_writes_nothing() 
     let result = editor.export_obj(&path, false, &|| true);
 
     assert!(
-        matches!(&result, Err(OperationError::ObjExport(ObjExportError::Invalid(text))) if text.contains("UVs")),
+        matches!(
+            result,
+            Ok(OperationReply::Exported {
+                vertices: 8,
+                faces: 6,
+                ..
+            })
+        ),
         "{result:?}"
     );
-    assert!(!path.exists());
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(text.lines().filter(|l| l.starts_with("vt ")).count(), 24);
+    assert!(text.lines().any(|l| l.starts_with("f ") && l.contains('/')));
     assert_eq!(editor.history.scene(), &before);
 }

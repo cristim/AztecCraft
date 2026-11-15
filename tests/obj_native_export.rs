@@ -236,27 +236,167 @@ fn a_faceless_instance_beside_a_solid_one_is_written_as_a_vertex_only_object() {
     assert!(parsed.faces.iter().flatten().all(|index| *index > 8));
 }
 
+struct UvFile {
+    uvs: Vec<[f32; 2]>,
+    faces: Vec<Vec<(usize, Option<usize>)>>,
+}
+
+fn parse_uv(text: &str) -> UvFile {
+    let mut file = UvFile {
+        uvs: Vec::new(),
+        faces: Vec::new(),
+    };
+    for line in text.lines().filter(|line| !line.starts_with('#')) {
+        let mut fields = line.split_whitespace();
+        match fields.next().unwrap() {
+            "vt" => {
+                let uv: Vec<f32> = fields.map(|s| s.parse().unwrap()).collect();
+                file.uvs.push([uv[0], uv[1]]);
+            }
+            "f" => file.faces.push(
+                fields
+                    .map(|corner| match corner.split_once('/') {
+                        Some((v, vt)) => (v.parse().unwrap(), Some(vt.parse().unwrap())),
+                        None => (corner.parse().unwrap(), None),
+                    })
+                    .collect(),
+            ),
+            _ => {}
+        }
+    }
+    file
+}
+
+fn export_text(scene: &NativeScene) -> String {
+    let view = ViewScene::from_native(scene, BUDGET).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("out.obj");
+    export_native_new(&path, scene, &all(&view), &|| true).unwrap();
+    fs::read_to_string(path).unwrap()
+}
+
+/// Asserts that every instance's face rows carry exactly its shape's UV corners, in file order.
+fn assert_uvs_written(scene: &NativeScene, file: &UvFile) {
+    let view = ViewScene::from_native(scene, BUDGET).unwrap();
+    let mut rows = file.faces.iter();
+    for instance in view.instances() {
+        let set = scene.uv_set(instance.shape());
+        for face in instance.faces() {
+            let row = rows.next().unwrap();
+            assert_eq!(row.len(), face.corners().len());
+            match set {
+                Some(set) => {
+                    let expected = &set.faces()[face.source_index()];
+                    for ((_, vt), uv) in row.iter().zip(expected) {
+                        let at = file.uvs[vt.unwrap() - 1];
+                        assert_eq!(at, [uv[0] as f32, uv[1] as f32]);
+                    }
+                }
+                None => assert!(row.iter().all(|(_, vt)| vt.is_none())),
+            }
+        }
+    }
+    assert!(rows.next().is_none());
+}
+
 #[test]
-fn session_uvs_on_an_exported_shape_are_refused_not_dropped() {
+fn planar_mapped_cube_writes_one_vt_per_corner_and_v_vt_faces() {
     use azteccraft::native_scene::UvProjectAxis;
-    let mut scene = scene_with(&[(Primitive::Cube, "plain"), (Primitive::Cube, "mapped")]);
-    let mapped = scene.shapes()[1].id();
-    scene.project_uv_planar(mapped, UvProjectAxis::Z).unwrap();
+    let mut scene = scene_with(&[(Primitive::Cube, "mapped")]);
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+    let file = parse_uv(&export_text(&scene));
+    assert_eq!(file.uvs.len(), 24);
+    assert_eq!(file.faces.len(), 6);
+    assert_uvs_written(&scene, &file);
+}
+
+#[test]
+fn polygon_faces_with_uvs_keep_every_corner() {
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut scene = scene_with(&[(Primitive::Cylinder, "cap")]);
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Y).unwrap();
+    let file = parse_uv(&export_text(&scene));
+    assert!(file.faces.iter().any(|face| face.len() > 4));
+    assert_uvs_written(&scene, &file);
+}
+
+#[test]
+fn mixed_plain_and_mapped_objects_keep_their_own_vt_offsets() {
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut scene = scene_with(&[
+        (Primitive::Cube, "plain1"),
+        (Primitive::Cube, "mapped1"),
+        (Primitive::Plane, "plain2"),
+        (Primitive::Plane, "mapped2"),
+    ]);
+    for (index, axis) in [(1, UvProjectAxis::Z), (3, UvProjectAxis::Y)] {
+        let shape = scene.shapes()[index].id();
+        scene.project_uv_planar(shape, axis).unwrap();
+    }
+    let file = parse_uv(&export_text(&scene));
+    let mapped: usize = [1, 3]
+        .iter()
+        .map(|i| {
+            scene
+                .uv_set(scene.shapes()[*i].id())
+                .unwrap()
+                .corner_count()
+        })
+        .sum();
+    assert_eq!(file.uvs.len(), mapped);
+    assert_uvs_written(&scene, &file);
+}
+
+#[test]
+fn mirrored_instance_reverses_vertices_and_uvs_together() {
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut plain = scene_with(&[(Primitive::Cube, "c")]);
+    let shape = plain.shapes()[0].id();
+    plain.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
+    let mut mirrored = plain.clone();
+    let id = mirrored.nodes()[0].id();
+    mirrored.set_channel(id, Channel::ScaleX, -1.0).unwrap();
+    let plain_file = parse_uv(&export_text(&plain));
+    let mirrored_file = parse_uv(&export_text(&mirrored));
+    // A cube vertex is shared by several faces with different UVs, so compare corner by corner:
+    // the mirrored row is the plain row reversed, vertex and UV alike.
+    assert_eq!(plain_file.faces.len(), mirrored_file.faces.len());
+    for (plain_row, mirrored_row) in plain_file.faces.iter().zip(&mirrored_file.faces) {
+        let plain_pairs: Vec<_> = plain_row
+            .iter()
+            .map(|(v, vt)| (*v, plain_file.uvs[vt.unwrap() - 1]))
+            .collect();
+        let mut mirrored_pairs: Vec<_> = mirrored_row
+            .iter()
+            .map(|(v, vt)| (*v, mirrored_file.uvs[vt.unwrap() - 1]))
+            .collect();
+        mirrored_pairs.reverse();
+        assert_eq!(plain_pairs, mirrored_pairs);
+    }
+    assert_ne!(plain_file.faces, mirrored_file.faces);
+}
+
+#[test]
+fn mapped_export_still_refuses_an_occupied_destination_and_a_revoked_install() {
+    use azteccraft::native_scene::UvProjectAxis;
+    let mut scene = scene_with(&[(Primitive::Cube, "mapped")]);
+    let shape = scene.shapes()[0].id();
+    scene.project_uv_planar(shape, UvProjectAxis::Z).unwrap();
     let view = ViewScene::from_native(&scene, BUDGET).unwrap();
     let directory = tempfile::tempdir().unwrap();
-
-    let path = directory.path().join("both.obj");
-    let error = export_native_new(&path, &scene, &all(&view), &|| true).unwrap_err();
-    assert!(matches!(error, ObjError::SessionUvs), "{error}");
-    assert!(!path.exists());
-
-    // An export that leaves the mapped shape out has nothing to drop.
-    let only_plain: Vec<_> = view
-        .instances()
-        .iter()
-        .filter(|instance| instance.shape() != mapped)
-        .collect();
-    let path = directory.path().join("plain.obj");
-    export_native_new(&path, &scene, &only_plain, &|| true).unwrap();
-    assert!(path.exists());
+    let taken = directory.path().join("taken.obj");
+    fs::write(&taken, b"keep me").unwrap();
+    assert!(matches!(
+        export_native_new(&taken, &scene, &all(&view), &|| true),
+        Err(ObjError::Io { source, .. }) if source.kind() == io::ErrorKind::AlreadyExists
+    ));
+    assert_eq!(fs::read(&taken).unwrap(), b"keep me");
+    let fresh = directory.path().join("fresh.obj");
+    assert!(matches!(
+        export_native_new(&fresh, &scene, &all(&view), &|| false),
+        Err(ObjError::Cancelled)
+    ));
+    assert!(!fresh.exists());
 }
