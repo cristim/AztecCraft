@@ -394,10 +394,11 @@ Sources:
 | 50 | OBJ import name length | 256 bytes for an `o` or `g` name | `src/obj/import.rs` `MAX_NAME_BYTES` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 51 | OBJ import coordinate magnitude | 1e12; larger or non-finite values are refused | `src/obj/import.rs` `MAX_COORD` | provisional | The Maya help states no OBJ import limit. | `limits_are_pinned_to_their_provisional_values` |
 | 52 | Fit Factor framing | viewFit `-fitFactor` f (MCP `fit_factor` on `frame_selected` and `frame_all`): the framed bounding sphere fills fraction f of the limiting view dimension, distance = radius * sqrt(1 + 1 / (f * tan(limiting half angle))^2) (fill is tan(asin(r/d)) / tan(half angle)), never below the near-clip floor; accepted 0.01 <= f <= 1 (PROVISIONAL lower bound, about 100 radii); omitted keeps the 1.05 margin (f about 0.952); no native control | `src/viewport.rs` `Camera::fitted`, `src/app/features/camera.rs` `begin_fit` | provisional | viewFit 2027: `-fitFactor` "Specifies how much of the view should be filled with the 'fitted' items", example 0.5 fills 50 percent; no default or range stated and Maya fits the bounding box, not a sphere. The Frame page documents no fit control. | `fit_factor_*` (incl. the projected-fill test), `invalid_fit_factors_are_refused_without_touching_the_camera`, `a_failed_fitted_frame_all_restores_the_original_camera`, `sdk_frame_all_fit_factor_*`, `sdk_frame_selected_fit_factor_*` |
+| 53 | Polygon sphere default radius | 1.0 cm with 20x20 subdivisions, Y axis | `src/primitive_options.rs` `DEFAULT_RADIUS_CM`, `default_for` | differs-from-docs | [polySphere command][maya-polysphere] (2027, retrieved 2026-11-15): radius "C: Default is 0.5." The polySphere node page lists 1.0 and the Create menu path uses the node default, so the command page default is not adopted (#43, #453). | `the_sphere_default_radius_is_one_not_the_command_page_half` |
 
-Tally: 51 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
+Tally: 53 rows. Verified-by-docs parts: the manipulator size range (17), the Undo
 default of 50 (21) and the Pick Range value of 8 px (14, its radius and unit interpretation stay provisional). Row 25 matches the Create Camera values for focal length, aperture, near and far; its Fill rule is provisional. Differs-from-docs parts: the
-fixed undo queue (21) and the grid major spacing and divisions (28). Everything else is provisional.
+fixed undo queue (21), the grid major spacing and divisions (28) and the polygon sphere default radius (53). Everything else is provisional.
 Changing any value requires updating its pinning test and this row in the same commit.
 
 [maya-select-obj]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5C5F2B9B-BE16-4C49-B72B-70EA7CB4C688.htm
@@ -411,6 +412,7 @@ Changing any value requires updating its pinning test and this row in the same c
 [maya-cam]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-35B872B1-840E-4DEE-B80F-F2715B1E8BF0.htm
 [maya-tumble]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-A3305185-DFBD-42BF-8A70-59208C2C9887.htm
 [maya-grid]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/grid.html
+[maya-polysphere]: https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/polySphere.html
 
 ## Scene resource budgets
 

@@ -29,6 +29,18 @@ fn sphere(radius: f64, sub_axis: u32, sub_height: u32) -> PrimitiveOptions {
     }
 }
 
+/// The polySphere command page lists radius 0.5, the node page and the Create menu 1.0 (#43, #453).
+/// Policy table row 53 records the difference; changing the default must update both.
+#[test]
+fn the_sphere_default_radius_is_one_not_the_command_page_half() {
+    assert_eq!(DEFAULT_RADIUS_CM, 1.0);
+    let PrimitiveOptions::Sphere { radius, .. } = PrimitiveOptions::default_for(Primitive::Sphere)
+    else {
+        panic!("sphere default is not a sphere");
+    };
+    assert_eq!(radius, 1.0);
+}
+
 #[test]
 fn defaults_match_the_documented_table() {
     for primitive in ALL {

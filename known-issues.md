@@ -786,7 +786,8 @@ Tracked in the UI parity inventory (`.project-docs/ui-parity-inventory.md`, sect
 Create > Polygon Primitives > Sphere and `create_primitive` with `sphere` build a radius-1,
 20x20, Y-axis sphere (382 points, 780 edges, 400 faces: 40 pole triangles and
 360 quads). The radius and subdivisions come from the polySphere node reference;
-the command page lists radius 0.5, and Maya 2026 defaults are unverified (#5).
+the command page lists radius 0.5 (kept at 1.0, policy table row 53, differs-from-docs), and
+Maya 2026 defaults are unverified (#5).
 Vertex and face order and winding are not claimed to match Maya. Edges are hard,
 so the viewport looks faceted. There are no UVs or normals. On Unix, new scenes require
 an initial Save As to a fresh Maya binary file; subsequent Save operations persist changes
