@@ -4,11 +4,8 @@
 //! authored save. Ungrouping back to a flat scene saves again.
 use super::tests::remote;
 use super::*;
-use crate::editor_operations::RecoveryFailure;
 use azteccraft::document::NativeSaveError;
-use azteccraft::native_scene::{
-    GroupOptions, GroupPivot, GroupUnder, ReparentKeep, UngroupOptions,
-};
+use azteccraft::native_scene::{GroupOptions, GroupPivot, GroupUnder};
 
 const GROUP: GroupOptions = GroupOptions {
     under: GroupUnder::Parent,
@@ -53,7 +50,6 @@ fn save_of_an_untitled_grouped_scene_asks_for_a_path_on_unix_and_is_unsupported_
 
 #[test]
 fn save_as_of_a_grouped_scene_is_refused_and_writes_no_file() {
-    use azteccraft::native_scene::binary::AuthoredRefusalCode;
     let directory = tempfile::tempdir().unwrap();
     for name in ["grouped.mb", "grouped.ma"] {
         let mut editor = grouped();
@@ -65,29 +61,35 @@ fn save_as_of_a_grouped_scene_is_refused_and_writes_no_file() {
                 path: destination.clone(),
             },
         );
-        match (cfg!(unix), name) {
-            (true, "grouped.mb") => assert!(
-                matches!(
-                    result,
-                    Err(OperationError::NativeSave(NativeSaveError::Unwritable(
-                        AuthoredRefusalCode::NonAuthoredHierarchy
-                    )))
-                ),
-                "{result:?}"
-            ),
-            (true, _) => assert!(
-                matches!(&result, Err(OperationError::NativeSave(NativeSaveError::AsciiWrite(refusal)))
-                    if refusal.to_string() == "only flat transform-over-mesh ownership is supported"),
-                "{result:?}"
-            ),
-            (false, _) => assert!(
-                matches!(
-                    result,
-                    Err(OperationError::NativeSave(NativeSaveError::Unsupported))
-                ),
-                "{result:?}"
-            ),
+        #[cfg(unix)]
+        {
+            use azteccraft::native_scene::binary::AuthoredRefusalCode;
+            if name == "grouped.mb" {
+                assert!(
+                    matches!(
+                        result,
+                        Err(OperationError::NativeSave(NativeSaveError::Unwritable(
+                            AuthoredRefusalCode::NonAuthoredHierarchy
+                        )))
+                    ),
+                    "{result:?}"
+                );
+            } else {
+                assert!(
+                    matches!(&result, Err(OperationError::NativeSave(NativeSaveError::AsciiWrite(refusal)))
+                        if refusal.to_string() == "only flat transform-over-mesh ownership is supported"),
+                    "{result:?}"
+                );
+            }
         }
+        #[cfg(not(unix))]
+        assert!(
+            matches!(
+                result,
+                Err(OperationError::NativeSave(NativeSaveError::Unsupported))
+            ),
+            "{result:?}"
+        );
         assert!(!destination.exists(), "{name}");
         assert_eq!(editor.history.scene(), &before);
         assert!(editor.is_dirty(), "{name} stays unsaved");
@@ -98,6 +100,7 @@ fn save_as_of_a_grouped_scene_is_refused_and_writes_no_file() {
 #[cfg(unix)]
 #[test]
 fn ungrouping_back_to_a_flat_scene_saves_again() {
+    use azteccraft::native_scene::{ReparentKeep, UngroupOptions};
     let directory = tempfile::tempdir().unwrap();
     let destination = directory.path().join("flat.mb");
     let mut editor = grouped();
@@ -150,6 +153,7 @@ fn the_recovery_encoder_refuses_a_grouped_scene_with_a_typed_error() {
 #[cfg(unix)]
 #[test]
 fn autosave_after_group_fails_typed_and_leaves_the_previous_recovery_file() {
+    use crate::editor_operations::RecoveryFailure;
     use azteccraft::document::RecoveryEncodeError;
     let tmp = tempfile::tempdir().unwrap();
     let recovery = tmp.path().join("recovery");
