@@ -220,6 +220,8 @@ enum Pre {
     JointChain,
     /// Assigns a created material to the first shape, which a new Maya Binary cannot hold.
     AssignedMaterial,
+    /// Projects planar UVs on the first shape, which OBJ export writes as `vt` records.
+    PlanarUvs,
     /// Puts a file at the Save As destination before the operation runs.
     OccupiedDestination,
     /// Enables recovery files in `<directory>/recovery`, off in every other cell.
@@ -1819,6 +1821,17 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     selection_only: true,
                 },
             ),
+            Sample {
+                pre: Pre::PlanarUvs,
+                only: Some(&[State::Idle]),
+                ..sample(
+                    "export_obj(with_uvs)",
+                    Operation::ExportObj {
+                        path: t.export.clone(),
+                        selection_only: false,
+                    },
+                )
+            },
             sample(
                 "export_obj(not_obj)",
                 Operation::ExportObj {
@@ -2595,6 +2608,14 @@ fn run_cell(state: State, pipeline: Pipeline, index: usize) -> (String, String) 
                     material: MaterialChoice::New {
                         color: [1.0, 0.0, 0.0],
                     },
+                });
+            }
+        }
+        Pre::PlanarUvs => {
+            if let Some(shape) = rig.editor.history.scene().shapes().first().map(|s| s.id()) {
+                let _ = rig.editor.history.execute(Command::ProjectUvPlanar {
+                    shape,
+                    axis: UvProjectAxis::Y,
                 });
             }
         }

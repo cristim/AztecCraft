@@ -117,6 +117,7 @@
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
   export_obj(all) => Ok(exported) | no state change
   export_obj(selection) => Ok(exported) | no state change
+  export_obj(with_uvs) => Ok(exported) | no state change
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; name_field: "pCube1" -> "imported"; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | no state change
@@ -311,6 +312,7 @@
   open_scene(empty_path) => Err(InvalidInput: Scene path must contain 1 to 4096 bytes and no NUL) | no state change
   export_obj(all) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(selection) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
+  export_obj(with_uvs) => Ok(exported) | status: "Scene edited" -> "Exported 1 object(s), 8 vertices and 6 faces to OBJ"
   export_obj(not_obj) => Err(InvalidInput: Export path must end in .obj) | no state change
   import_obj(valid) => Ok(imported) | scene changed; nodes: 1 -> 2; selected: pCube1 -> imported; status: "Scene edited" -> "Imported 1 object(s), 3 vertices and 1 faces (normals, UVs and materials are not imported)"; name_field: "pCube1" -> "imported"; can_redo: true -> false
   import_obj(not_obj) => Err(InvalidInput: Import path must end in .obj) | no state change
@@ -7636,4 +7638,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7036
+cells: 7038
