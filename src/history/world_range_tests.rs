@@ -136,3 +136,62 @@ fn parenting_under_a_huge_scale_and_pivot_edits_are_refused_too() {
         },
     );
 }
+
+fn group_options(preserve_position: bool) -> crate::native_scene::GroupOptions {
+    use crate::native_scene::{GroupPivot, GroupUnder};
+    crate::native_scene::GroupOptions {
+        under: GroupUnder::World,
+        pivot: GroupPivot::Origin,
+        preserve_position,
+    }
+}
+
+// The parent's 1e-3 scale keeps the child at 1e38 in world space; leaving it unscaled puts it
+// past f32.
+#[test]
+fn group_without_preserve_position_and_ungroup_keep_local_that_leave_f32_are_refused() {
+    use crate::native_scene::{GroupUnder, UngroupOptions};
+    let (mut scene, parent) = test_fixtures::cube();
+    let child = scene.create(Primitive::Cube, "child").unwrap();
+    scene.set_channel(parent, Channel::ScaleX, 1.0e-3).unwrap();
+    scene
+        .set_channel(child, Channel::TranslateX, 1.0e41)
+        .unwrap();
+    scene
+        .reparent(child, Some(parent), ReparentKeep::Local)
+        .unwrap();
+    let mut history = History::new(scene);
+    refused_and_untouched(
+        &mut history,
+        Command::Group {
+            ids: vec![child],
+            options: group_options(false),
+        },
+    );
+    // With Preserve Position the world position is kept, so the group is fine.
+    history
+        .execute(Command::Group {
+            ids: vec![child],
+            options: group_options(true),
+        })
+        .unwrap();
+    let group = history.scene().nodes().last().unwrap().id();
+    history
+        .execute(Command::EditNode {
+            id: group,
+            name: None,
+            channels: channel(Channel::ScaleX, 1.0e-3),
+        })
+        .unwrap();
+    edit(&mut history, child, channel(Channel::TranslateX, 1.0e41)).unwrap();
+    refused_and_untouched(
+        &mut history,
+        Command::Ungroup {
+            ids: vec![group],
+            options: UngroupOptions {
+                under: GroupUnder::World,
+                keep: ReparentKeep::Local,
+            },
+        },
+    );
+}

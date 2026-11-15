@@ -530,6 +530,8 @@ impl History {
                 | Command::EditNode { .. }
                 | Command::EditNodes(_)
                 | Command::Reparent { .. }
+                | Command::Group { .. }
+                | Command::Ungroup { .. }
                 | Command::SetPivots { .. }
                 | Command::ResetPivots { .. }
         );
