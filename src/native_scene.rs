@@ -51,8 +51,8 @@ pub use session_joint::{
 };
 use session_keys::SessionKeys;
 pub use session_keys::{
-    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
-    MAX_SESSION_KEYS, check_euler_channels, whole_frame,
+    ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, Infinity, InfinityPair,
+    KEY_CHANNELS, KeyRow, MAX_FRAME, MAX_SESSION_KEYS, check_euler_channels, whole_frame,
 };
 use session_material::SessionMaterials;
 pub use session_material::{
@@ -2360,6 +2360,8 @@ pub enum NativeError {
     EulerNoRotationKeys,
     /// A rotation key is too large for a shift by whole turns to keep its precision.
     EulerValueTooLarge,
+    /// An infinity setting named channels that hold no key.
+    InfinityNoKeys,
     UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
@@ -2471,6 +2473,7 @@ impl fmt::Display for NativeError {
             Self::EulerNoRotationKeys => {
                 f.write_str("the named rotation channels hold no key to filter")
             }
+            Self::InfinityNoKeys => f.write_str("no key on the named channels to set an infinity on"),
             Self::EulerValueTooLarge => f.write_str(
                 "a rotation key is too large to filter by whole turns without losing precision",
             ),

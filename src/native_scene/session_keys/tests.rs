@@ -593,3 +593,196 @@ fn filtering_twice_changes_nothing_in_either_unit_even_at_half_a_turn() {
         assert_eq!(scene, once);
     }
 }
+
+const PRE_POST: [Infinity; 5] = [
+    Infinity::Constant,
+    Infinity::Linear,
+    Infinity::Cycle,
+    Infinity::CycleRelative,
+    Infinity::Oscillate,
+];
+
+/// A bent curve: 2 at frame 1, 8 at 3 and 10 at 5, so the first segment rises 3 a frame, the last
+/// rises 1, the span is 4 and the whole span rises 8. No two modes agree beyond the keys.
+fn infinity_curve() -> Curve {
+    Curve::from([(1, 2.0), (3, 8.0), (5, 10.0)])
+}
+
+#[test]
+fn every_infinity_mode_continues_the_curve_beyond_its_keys() {
+    use Infinity::*;
+    let curve = infinity_curve();
+    let at = |pre, post, frame| evaluate_with(&curve, frame, (pre, post)).unwrap();
+    // Inside and at the keys the modes make no difference.
+    for mode in PRE_POST {
+        for (frame, value) in [(1, 2.0), (2, 5.0), (3, 8.0), (4, 9.0), (5, 10.0)] {
+            assert_eq!(at(mode, mode, frame), value, "{mode:?} at {frame}");
+        }
+    }
+    // Post side: (mode, [(frame, value)]), several periods out.
+    for (mode, rows) in [
+        (Constant, [(6, 10.0), (9, 10.0), (13, 10.0), (14, 10.0)]),
+        // The last segment's slope (1), not the first's (3).
+        (Linear, [(6, 11.0), (9, 14.0), (13, 18.0), (14, 19.0)]),
+        (Cycle, [(6, 5.0), (9, 2.0), (13, 2.0), (14, 5.0)]),
+        (
+            CycleRelative,
+            [(6, 13.0), (9, 18.0), (13, 26.0), (14, 29.0)],
+        ),
+        (Oscillate, [(6, 9.0), (9, 2.0), (13, 10.0), (14, 9.0)]),
+    ] {
+        for (frame, value) in rows {
+            assert_eq!(at(Constant, mode, frame), value, "post {mode:?} at {frame}");
+        }
+    }
+    for (frame, value) in [(7, 8.0), (10, 5.0), (11, 8.0)] {
+        assert_eq!(at(Constant, Cycle, frame), value, "post cycle at {frame}");
+        assert_eq!(
+            at(Constant, Oscillate, frame),
+            value,
+            "post oscillate at {frame}"
+        );
+    }
+    assert_eq!(at(Constant, CycleRelative, 7), 16.0);
+    assert_eq!(at(Constant, CycleRelative, 10), 21.0);
+    // Pre side, several periods out: the first segment's slope (3), not the last's.
+    for (mode, rows) in [
+        (Constant, [(0, 2.0), (-1, 2.0), (-3, 2.0), (-4, 2.0)]),
+        (Linear, [(0, -1.0), (-1, -4.0), (-3, -10.0), (-4, -13.0)]),
+        (Cycle, [(0, 9.0), (-1, 8.0), (-3, 2.0), (-4, 9.0)]),
+        (CycleRelative, [(0, 1.0), (-1, 0.0), (-3, -6.0), (-4, -7.0)]),
+        (Oscillate, [(0, 5.0), (-1, 8.0), (-3, 10.0), (-4, 9.0)]),
+    ] {
+        for (frame, value) in rows {
+            assert_eq!(at(mode, Constant, frame), value, "pre {mode:?} at {frame}");
+        }
+    }
+    // Each side reads only its own mode.
+    assert_eq!(at(Constant, Linear, 0), 2.0);
+    assert_eq!(at(Linear, Constant, 9), 10.0);
+    assert_eq!(at(Cycle, CycleRelative, 0), 9.0);
+    assert_eq!(at(Cycle, CycleRelative, 6), 13.0);
+}
+
+#[test]
+fn a_single_key_or_a_missing_curve_holds_under_every_mode() {
+    let one = Curve::from([(4, 3.5)]);
+    for mode in PRE_POST {
+        for frame in [-1_000_000, 0, 4, 5, 1_000_000] {
+            assert_eq!(evaluate_with(&one, frame, (mode, mode)), Some(3.5));
+        }
+        assert_eq!(evaluate_with(&Curve::new(), 1, (mode, mode)), None);
+    }
+}
+
+#[test]
+fn set_infinity_changes_evaluation_reports_back_and_re_evaluates_the_channel() {
+    let (mut scene, id) = keyed_cube();
+    assert_eq!(
+        scene.infinity_of(id, 0),
+        (Infinity::Constant, Infinity::Constant)
+    );
+    scene
+        .set_infinity(&[id], FX, Some(Infinity::Linear), Some(Infinity::Cycle), 7)
+        .unwrap();
+    assert_eq!(
+        scene.infinity_of(id, 0),
+        (Infinity::Linear, Infinity::Cycle)
+    );
+    // Frame 7 is two past the last key: cycle of span 4 reads frame 3, which holds 6.
+    assert_eq!(tx(&scene, id), 6.0);
+    evaluate_at(&mut scene, -1);
+    assert_eq!(tx(&scene, id), -2.0);
+    // Only one side given leaves the other alone.
+    scene
+        .set_infinity(&[id], FX, None, Some(Infinity::Oscillate), 1)
+        .unwrap();
+    assert_eq!(
+        scene.infinity_of(id, 0),
+        (Infinity::Linear, Infinity::Oscillate)
+    );
+    // Setting the same values again is unchanged.
+    let once = scene.clone();
+    scene
+        .set_infinity(&[id], FX, Some(Infinity::Linear), None, 1)
+        .unwrap();
+    assert_eq!(scene, once);
+    // The setting is part of the table's equality and returns to the default exactly.
+    scene
+        .set_infinity(
+            &[id],
+            FX,
+            Some(Infinity::Constant),
+            Some(Infinity::Constant),
+            1,
+        )
+        .unwrap();
+    let mut plain = keyed_cube().0;
+    evaluate_at(&mut plain, 1);
+    assert!(scene.session_keys == plain.session_keys);
+    assert!(scene.session_keys != once.session_keys);
+}
+
+#[test]
+fn infinity_is_per_curve_and_dies_with_the_curves_last_key() {
+    let (mut scene, id) = keyed_cube();
+    scene.set_channel(id, Channel::TranslateY, 1.0).unwrap();
+    let fy = [false, true, false, false, false, false, false, false, false];
+    scene.set_keys(&[id], 1, fy, 1).unwrap();
+    scene
+        .set_infinity(&[id], FX, Some(Infinity::Cycle), None, 1)
+        .unwrap();
+    assert_eq!(scene.infinity_of(id, 0).0, Infinity::Cycle);
+    assert_eq!(scene.infinity_of(id, 1).0, Infinity::Constant);
+    scene.delete_keys(&[id], None, FX, 1).unwrap();
+    assert_eq!(
+        scene.infinity_of(id, 0),
+        (Infinity::Constant, Infinity::Constant)
+    );
+    assert!(scene.validate().is_ok());
+    // Keying the channel again starts from the default, not the forgotten setting.
+    scene.set_keys(&[id], 2, FX, 2).unwrap();
+    assert_eq!(scene.infinity_of(id, 0).0, Infinity::Constant);
+    scene
+        .set_infinity(&[id], FX, Some(Infinity::Linear), None, 2)
+        .unwrap();
+    scene.remove(id).unwrap();
+    assert!(scene.session_keys.infinity.is_empty());
+    assert!(scene.validate().is_ok());
+}
+
+#[test]
+fn refused_infinity_changes_nothing() {
+    let (mut scene, id) = keyed_cube();
+    let other = cube(&mut scene, "b");
+    let fy = [false, true, false, false, false, false, false, false, false];
+    let before = scene.clone();
+    for (nodes, mask, frame, error) in [
+        (vec![id], fy, 1, NativeError::InfinityNoKeys),
+        (vec![other], FX, 1, NativeError::InfinityNoKeys),
+        (vec![], FX, 1, NativeError::InfinityNoKeys),
+        (vec![id], FX, MAX_FRAME + 1, NativeError::InvalidFrame),
+    ] {
+        let result = scene.set_infinity(&nodes, mask, Some(Infinity::Cycle), None, frame);
+        assert_eq!(result, Err(error));
+        assert_eq!(scene, before);
+    }
+    let missing = NodeId::from_decimal("999").unwrap();
+    assert!(
+        scene
+            .set_infinity(&[id, missing], FX, Some(Infinity::Cycle), None, 1)
+            .is_err()
+    );
+    assert_eq!(scene, before);
+    let mut bad = before.clone();
+    bad.session_keys
+        .infinity
+        .insert((id, 1), (Infinity::Cycle, Infinity::Cycle));
+    assert_eq!(bad.validate(), Err(NativeError::InvalidSessionKeys));
+    let mut default = before.clone();
+    default
+        .session_keys
+        .infinity
+        .insert((id, 0), (Infinity::Constant, Infinity::Constant));
+    assert_eq!(default.validate(), Err(NativeError::InvalidSessionKeys));
+}
