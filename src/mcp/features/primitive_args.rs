@@ -60,12 +60,15 @@ fn present<'de, D: Deserializer<'de>, T: DeserializeOwned>(d: D) -> Result<Optio
 }
 
 macro_rules! option_structs {
-    ($($name:ident => $primitive:ident { $($field:ident : $ty:ty = $default:expr, $min:expr, $max:expr;)* })*) => {$(
+    ($($name:ident => $primitive:ident {
+        $($(#[$meta:meta])* $field:ident : $ty:ty = $default:expr $(, $min:expr, $max:expr)?;)*
+    })*) => {$(
         #[derive(Deserialize, JsonSchema)]
         #[serde(deny_unknown_fields, default)]
         pub(super) struct $name {
             $(
-                #[schemars(range(min = $min, max = $max))]
+                $(#[$meta])*
+                $(#[schemars(range(min = $min, max = $max))])?
                 $field: $ty,
             )*
             axis: AxisInput,
@@ -114,6 +117,8 @@ option_structs! {
     TorusOptions => Torus {
         radius: f64 = DEFAULT_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
         section_radius: f64 = DEFAULT_SECTION_RADIUS_CM, MIN_SIZE_CM, MAX_SIZE_CM;
+        /// Degrees; any finite angle turns every section of the tube by the same amount.
+        twist: f64 = DEFAULT_TORUS_TWIST_DEG;
         subdivisions_axis: u32 = DEFAULT_AXIS_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
         subdivisions_height: u32 = DEFAULT_TORUS_HEIGHT_DIVISIONS, MIN_AXIS_DIVISIONS, MAX_DIVISIONS;
     }
@@ -269,7 +274,7 @@ impl CreateArgs {
                 options.map(|o| PrimitiveOptions::Torus {
                     radius: o.radius,
                     section_radius: o.section_radius,
-                    twist: DEFAULT_TORUS_TWIST_DEG,
+                    twist: o.twist,
                     sub_axis: o.subdivisions_axis,
                     sub_height: o.subdivisions_height,
                     axis: o.axis.into(),
@@ -308,6 +313,17 @@ mod tests {
 
     fn t() -> String {
         "token".to_owned()
+    }
+
+    #[test]
+    fn a_twist_beyond_the_f64_range_is_a_json_syntax_error_not_infinity() {
+        let error = serde_json::from_str::<CreateArgs>(
+            r#"{"primitive":"torus","scene_token":"t","options":{"twist":1e400}}"#,
+        )
+        .err()
+        .expect("1e400 does not fit an f64");
+        assert!(error.is_syntax(), "{error}");
+        assert!(error.to_string().contains("number out of range"), "{error}");
     }
 
     #[test]

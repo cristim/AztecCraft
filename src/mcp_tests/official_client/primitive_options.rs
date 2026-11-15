@@ -174,6 +174,10 @@ async fn invalid_or_mismatched_options_are_invalid_params_and_leave_the_editor_u
         ("torus", json!({"subdivisions_height":2})),
         ("torus", json!({"subdivisions_height":129})),
         ("torus", json!({"subdivisions_axis":2.5})),
+        ("torus", json!({"twist":null})),
+        ("torus", json!({"twist":"45"})),
+        ("cylinder", json!({"twist":45})),
+        ("sphere", json!({"twist":0})),
     ];
     for (primitive, options) in cases {
         let rejected = call_response(

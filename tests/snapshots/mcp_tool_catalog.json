@@ -610,7 +610,7 @@
   },
   {
     "name": "create_primitive",
-    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions and axis (x, y or z) for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
+    "description": "Create a cube, plane, sphere, cylinder, cone or torus in the live editor. Optional options set sizes, subdivisions, axis (x, y or z) and the torus twist in degrees for that primitive; omitted fields use the defaults, and fields of other primitives are rejected. Options are validated against a 20,000-face budget per primitive; larger subdivisions are refused with invalid_params",
     "inputSchema": {
       "$defs": {
         "ConeOptions": {
@@ -874,6 +874,12 @@
               "maximum": 128,
               "minimum": 3,
               "type": "integer"
+            },
+            "twist": {
+              "default": 0.0,
+              "description": "Degrees; any finite angle turns every section of the tube by the same amount.",
+              "format": "double",
+              "type": "number"
             }
           },
           "type": "object"

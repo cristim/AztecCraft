@@ -69,6 +69,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -263,6 +265,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -455,6 +459,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -638,6 +644,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -821,6 +829,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1004,6 +1014,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1187,6 +1199,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   select(node) => Ok(unchanged) | no state change
@@ -1370,6 +1384,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   select(node) => Ok(unchanged) | no state change
@@ -1553,6 +1569,8 @@
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Ok(unchanged) | active_move: native -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -1736,6 +1754,8 @@
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1919,6 +1939,8 @@
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Ok(unchanged) | active_move: remote -> none; pointer_consumed_frame: false -> true; pointer_suppress_primary: false -> true
@@ -2102,6 +2124,8 @@
   create(cylinder) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cube,options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  create(torus,non-finite twist) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(sphere,invalid options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(cone,mismatched options) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   select(node) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2285,6 +2309,8 @@
   create(cylinder) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cube,options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(torus,twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  create(torus,non-finite twist) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(sphere,invalid options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(cone,mismatched options) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   select(node) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2468,6 +2494,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2652,6 +2680,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   select(node) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2836,6 +2866,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3019,6 +3051,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select(node) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3202,6 +3236,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3385,6 +3421,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   select(node) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3568,6 +3606,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3751,6 +3791,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -3934,6 +3976,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4117,6 +4161,8 @@
   create(cylinder) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCylinder1; name_field: "pCube1" -> "pCylinder1"; can_redo: true -> false
   create(cone) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCone1; name_field: "pCube1" -> "pCone1"; can_redo: true -> false
   create(cube,options) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pCube2; name_field: "pCube1" -> "pCube2"; can_redo: true -> false
+  create(torus,twist) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pTorus1; name_field: "pCube1" -> "pTorus1"; can_redo: true -> false
+  create(torus,non-finite twist) => Err(Scene: invalid primitive options: twist must be a finite number of degrees) | no state change
   create(sphere,invalid options) => Err(Scene: invalid primitive options: radius must be finite and between 0.000001 and 1000000) | no state change
   create(cone,mismatched options) => Err(Scene: invalid primitive options: options do not belong to a Cone) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -4300,6 +4346,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4485,6 +4533,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4668,6 +4718,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4851,6 +4903,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5034,6 +5088,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5217,6 +5273,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5400,6 +5458,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5583,6 +5643,8 @@
   create(cylinder) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cube,options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  create(torus,non-finite twist) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(sphere,invalid options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   create(cone,mismatched options) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   select(node) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5766,6 +5828,8 @@
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(sphere,invalid options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,mismatched options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -5949,6 +6013,8 @@
   create(cylinder) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cube,options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(torus,twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  create(torus,non-finite twist) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(sphere,invalid options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   create(cone,mismatched options) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -6133,6 +6199,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -6317,6 +6385,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -6501,6 +6571,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -6685,6 +6757,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -6965,6 +7039,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -7149,6 +7225,8 @@
   create(cylinder) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cube,options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  create(torus,non-finite twist) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(sphere,invalid options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   create(cone,mismatched options) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   select(node) => Ok(unchanged) | no state change
@@ -7333,6 +7411,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7517,6 +7597,8 @@
   create(cylinder) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cube,options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  create(torus,non-finite twist) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(sphere,invalid options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(cone,mismatched options) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   select(node) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7636,4 +7718,4 @@
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7036
+cells: 7118

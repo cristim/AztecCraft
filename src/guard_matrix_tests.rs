@@ -1430,6 +1430,36 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 },
             ),
             sample(
+                "create(torus,twist)",
+                Operation::Create {
+                    primitive: Primitive::Torus,
+                    options: Some(PrimitiveOptions::Torus {
+                        radius: 2.0,
+                        section_radius: 0.5,
+                        twist: 45.0,
+                        sub_axis: 8,
+                        sub_height: 6,
+                        axis: Axis::X,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
+                "create(torus,non-finite twist)",
+                Operation::Create {
+                    primitive: Primitive::Torus,
+                    options: Some(PrimitiveOptions::Torus {
+                        radius: 1.0,
+                        section_radius: 0.5,
+                        twist: f64::NAN,
+                        sub_axis: 20,
+                        sub_height: 20,
+                        axis: Axis::Y,
+                    }),
+                    name: None,
+                },
+            ),
+            sample(
                 "create(sphere,invalid options)",
                 Operation::Create {
                     primitive: Primitive::Sphere,
