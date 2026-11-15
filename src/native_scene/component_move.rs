@@ -102,5 +102,94 @@ impl NativeScene {
     }
 }
 
+/// The stored points of one shape's moved vertices, captured before a drag. A preview writes
+/// `baseline + delta` from it every time, so the last preview and the commit agree bit for bit.
+#[derive(Clone, Debug, PartialEq)]
+pub struct VertexBaseline {
+    shape: NativeId,
+    vertices: Vec<usize>,
+    points: Points,
+}
+
+impl VertexBaseline {
+    pub fn shape(&self) -> NativeId {
+        self.shape
+    }
+    pub fn vertices(&self) -> &[usize] {
+        &self.vertices
+    }
+}
+
+impl NativeScene {
+    /// Why moving `vertices` of `shape` would be refused, without changing anything; the position
+    /// of the shape on success. Source-bound scenes, shapes with effects or per-point offsets,
+    /// and missing or duplicate vertices refuse.
+    pub(super) fn check_vertex_move(
+        &self,
+        shape: NativeId,
+        vertices: &[usize],
+    ) -> Result<usize, NativeError> {
+        self.structural_edit()?;
+        let index = self
+            .shapes
+            .iter()
+            .position(|candidate| candidate.id == shape)
+            .ok_or(NativeError::MissingShape(shape))?;
+        self.check_effects(shape)?;
+        self.shapes[index].mesh.check_points(vertices)?;
+        Ok(index)
+    }
+
+    /// `check_vertex_move` as a public, non-mutating question.
+    pub fn vertex_move_refusal(&self, shape: NativeId, vertices: &[usize]) -> Option<NativeError> {
+        self.check_vertex_move(shape, vertices).err()
+    }
+
+    /// Captures the stored points of `vertices` for `preview_vertices` and `restore_vertices`.
+    pub fn capture_vertices(
+        &self,
+        shape: NativeId,
+        vertices: &[usize],
+    ) -> Result<VertexBaseline, NativeError> {
+        let index = self.check_vertex_move(shape, vertices)?;
+        Ok(VertexBaseline {
+            shape,
+            vertices: vertices.to_vec(),
+            points: self.shapes[index].mesh.capture_points(vertices)?,
+        })
+    }
+
+    /// Sets the baseline vertices to their baseline plus `delta_cm` (centimetres, mesh-local). Not
+    /// cumulative. Unchanged on error.
+    pub fn preview_vertices(
+        &mut self,
+        baseline: &VertexBaseline,
+        delta_cm: [f64; 3],
+    ) -> Result<(), NativeError> {
+        let shape = self
+            .shapes
+            .iter_mut()
+            .find(|shape| shape.id == baseline.shape)
+            .ok_or(NativeError::MissingShape(baseline.shape))?;
+        shape
+            .mesh
+            .displace_from(&baseline.vertices, &baseline.points, delta_cm)
+    }
+
+    /// Whether any baseline vertex now differs from its captured bytes.
+    pub fn vertices_differ_from(&self, baseline: &VertexBaseline) -> Result<bool, NativeError> {
+        let current = self
+            .shape(baseline.shape)?
+            .mesh
+            .capture_points(&baseline.vertices)?;
+        Ok(current != baseline.points)
+    }
+
+    /// Puts the baseline vertices back exactly as captured.
+    pub fn restore_vertices(&mut self, baseline: &VertexBaseline) -> Result<(), NativeError> {
+        self.preview_vertices(baseline, [0.0; 3])
+    }
+}
+
 #[cfg(test)]
 mod tests;

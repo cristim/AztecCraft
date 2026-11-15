@@ -679,7 +679,8 @@ impl History {
                 vertices,
                 delta,
             } => {
-                candidate.move_vertices(shape, &vertices, delta)?;
+                let factor = candidate.units().linear_factor()?;
+                candidate.move_vertices(shape, &vertices, delta.map(|v| v * factor))?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(moved_view_refusal)?;
                 EditOutcome::Changed
             }

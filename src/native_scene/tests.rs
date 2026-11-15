@@ -2079,7 +2079,9 @@ fn move_vertices_converts_the_declared_unit_and_vertex_positions_convert_back() 
         scene.units.linear = unit;
         let shape = scene.shapes[0].id;
         let before = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
-        scene.move_vertices(shape, &[3], [2.0, 0.0, -1.0]).unwrap();
+        scene
+            .move_vertices(shape, &[3], [2.0, 0.0, -1.0].map(|v| v * factor))
+            .unwrap();
         let after = scene.shapes[0].mesh.effective_point_cm(3).unwrap();
         for (k, delta) in [2.0, 0.0, -1.0].into_iter().enumerate() {
             assert_eq!(after[k], f64::from((before[k] + delta * factor) as f32));
