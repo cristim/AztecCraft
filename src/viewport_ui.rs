@@ -145,6 +145,17 @@ pub fn capture(
     let (delta, modifiers, scroll) =
         ui.input(|i| (i.pointer.delta(), i.modifiers, i.smooth_scroll_delta.y));
     let alt = modifiers.alt;
+    let chord_key = response.id.with("dolly_chord");
+    let (primary_down, middle_down) = ui.input(|i| {
+        (
+            i.pointer.button_down(PointerButton::Primary),
+            i.pointer.button_down(PointerButton::Middle),
+        )
+    });
+    // Keep the whole chord consumed through both releases, even if Alt is released first.
+    let dolly_chord = ui.data(|d| d.get_temp::<bool>(chord_key)).unwrap_or(false)
+        || (alt && primary_down && middle_down && response.contains_pointer());
+    ui.data_mut(|d| d.insert_temp(chord_key, dolly_chord && (primary_down || middle_down)));
     let orbit_in_drag = response.id.with("orbit_in_drag");
     let marquee_origin = response.id.with("marquee_origin");
     let marquee_cancelled = response.id.with("marquee_cancelled");
@@ -201,7 +212,21 @@ pub fn capture(
         ui.data_mut(|data| data.insert_temp(key, lock));
         delta
     };
-    if response.dragged_by(PointerButton::Primary) && alt {
+    if dolly_chord {
+        ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
+        if alt
+            && primary_down
+            && middle_down
+            && (response.dragged_by(PointerButton::Primary)
+                || response.dragged_by(PointerButton::Middle))
+            && focused
+        {
+            navigation.push(Operation::Dolly {
+                factor: (-delta.y * 0.01).exp(),
+            });
+        }
+    }
+    if response.dragged_by(PointerButton::Primary) && alt && !dolly_chord {
         ui.data_mut(|data| data.insert_temp(orbit_in_drag, true));
         let delta = constrained(ui, PointerButton::Primary, Vec2::new(delta.x, delta.y));
         // Tumble is refused in orthographic views (PROVISIONAL: Maya's docs state no behaviour
@@ -212,13 +237,13 @@ pub fn capture(
             });
         }
     }
-    if response.dragged_by(PointerButton::Middle) && alt {
+    if response.dragged_by(PointerButton::Middle) && alt && !dolly_chord {
         let delta = constrained(ui, PointerButton::Middle, Vec2::new(delta.x, delta.y));
         navigation.push(Operation::Pan {
             world_units: (Vec2::new(-delta.x, delta.y) * camera.distance() * 0.002).to_array(),
         });
     }
-    if response.dragged_by(PointerButton::Secondary) && alt {
+    if response.dragged_by(PointerButton::Secondary) && alt && !dolly_chord {
         navigation.push(Operation::Dolly {
             factor: (-delta.y * 0.01).exp(),
         });
@@ -254,6 +279,7 @@ pub fn capture(
         && !ambiguous
         && let Some((point, modifiers)) = released
         && !modifiers.alt
+        && !dolly_chord
         && rect.contains(point)
     {
         let p = (point - rect.min) / rect.size();
@@ -329,7 +355,8 @@ pub fn capture(
             && input.pointer.button_pressed(PointerButton::Primary),
         released: input.pointer.button_released(PointerButton::Primary),
         down: input.pointer.button_down(PointerButton::Primary),
-        modified: !input.modifiers.is_none()
+        modified: dolly_chord
+            || !input.modifiers.is_none()
             || input.events.iter().any(|event| match event {
                 egui::Event::ModifiersChanged(modifiers)
                 | egui::Event::PointerButton { modifiers, .. }

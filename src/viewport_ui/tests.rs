@@ -353,7 +353,7 @@ fn gestures_first_x(gestures: &[Gesture]) -> f32 {
 }
 
 #[test]
-fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_once() {
+fn captured_navigation_gives_chord_precedence_and_drains_once() {
     let context = egui::Context::default();
     let mut camera = camera();
     camera
@@ -408,19 +408,12 @@ fn captured_typed_navigation_preserves_orbit_pan_and_both_dollies_and_drains_onc
     assert_ne!(scroll, 0.0);
     let operations = input.take_navigation();
     let [
-        Operation::Orbit { radians },
-        Operation::Pan { world_units },
         Operation::Dolly { factor: secondary },
         Operation::Dolly { factor: wheel },
     ] = operations.as_slice()
     else {
         panic!("captured operations must keep the existing order")
     };
-    assert_eq!(*radians, (Vec2::new(-10.0, 20.0) * 0.007).to_array());
-    assert_eq!(
-        *world_units,
-        (Vec2::new(-10.0, 20.0) * camera.distance() * 0.002).to_array()
-    );
     assert_eq!(*secondary, (-0.2_f32).exp());
     assert_eq!(*wheel, (-scroll * 0.002).exp());
     assert!(input.take_navigation().is_empty());
@@ -1667,4 +1660,69 @@ fn a_drag_pressed_with_alt_never_becomes_a_marquee_even_if_alt_is_released_early
     // The next plain drag is unaffected.
     let (_, next) = marquee_drag(&context, clip, START, &[end], Modifiers::NONE);
     assert!(next.marquee().is_some());
+}
+
+#[test]
+fn alt_left_middle_dolly_consumes_the_chord_and_release_tails() {
+    let ctx = egui::Context::default();
+    let camera = camera();
+    let point = egui::pos2(40.0, 40.0);
+    let button = |button, pressed, pos, modifiers| Event::PointerButton {
+        pos,
+        button,
+        pressed,
+        modifiers,
+    };
+    capture_frame(
+        &ctx,
+        &camera,
+        raw(0.0, Modifiers::ALT, vec![Event::PointerMoved(point)]),
+        Rect::EVERYTHING,
+    );
+    capture_frame(
+        &ctx,
+        &camera,
+        raw(
+            0.1,
+            Modifiers::ALT,
+            vec![
+                button(PointerButton::Primary, true, point, Modifiers::ALT),
+                button(PointerButton::Middle, true, point, Modifiers::ALT),
+            ],
+        ),
+        Rect::EVERYTHING,
+    );
+    let end = point + egui::vec2(15.0, 20.0);
+    let (mut input, _) = capture_frame(
+        &ctx,
+        &camera,
+        raw(0.2, Modifiers::ALT, vec![Event::PointerMoved(end)]),
+        Rect::EVERYTHING,
+    );
+    let ops = input.take_navigation();
+    assert!(matches!(ops.as_slice(), [Operation::Dolly { factor }] if *factor == (-0.2_f32).exp()));
+    assert!(input.marquee().is_none());
+    for (time, events) in [
+        (0.25, vec![Event::PointerMoved(end + egui::vec2(5.0, 5.0))]),
+        (
+            0.3,
+            vec![button(PointerButton::Primary, false, end, Modifiers::NONE)],
+        ),
+        (0.4, vec![Event::PointerMoved(end + egui::vec2(10.0, 10.0))]),
+        (
+            0.5,
+            vec![button(PointerButton::Middle, false, end, Modifiers::NONE)],
+        ),
+    ] {
+        let (mut input, _) = capture_frame(
+            &ctx,
+            &camera,
+            raw(time, Modifiers::NONE, events),
+            Rect::EVERYTHING,
+        );
+        assert!(input.take_navigation().is_empty());
+        assert!(input.click_ndc().is_none());
+        assert!(input.marquee().is_none());
+        assert!(input.move_pointer().modified);
+    }
 }
