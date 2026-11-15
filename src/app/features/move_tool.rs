@@ -699,7 +699,9 @@ impl Editor {
                         ManipulationKindState::Rotate { .. } => "rotate",
                         ManipulationKindState::Scale { .. } => "scale",
                     },
-                    baseline_channels: active.baseline_channels,
+                    baseline_channels: active.baseline_channels.ok_or_else(|| {
+                        OperationError::InvalidInput("Manipulated node is unreadable".into())
+                    })?,
                     current_channels: active.current_channels.ok_or_else(|| {
                         OperationError::InvalidInput("Manipulated node is unreadable".into())
                     })?,
