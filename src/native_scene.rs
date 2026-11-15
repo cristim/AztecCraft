@@ -52,7 +52,7 @@ pub use session_joint::{
 use session_keys::SessionKeys;
 pub use session_keys::{
     ALL_CHANNELS, ChannelMask, DEFAULT_FRAME, EvaluatedWrites, KEY_CHANNELS, KeyRow, MAX_FRAME,
-    MAX_SESSION_KEYS, whole_frame,
+    MAX_SESSION_KEYS, check_euler_channels, whole_frame,
 };
 use session_material::SessionMaterials;
 pub use session_material::{
@@ -2354,6 +2354,10 @@ pub enum NativeError {
     InvalidFrame,
     InvalidPlaybackRange,
     KeyLimit,
+    /// An Euler filter was asked for a channel that is not a rotation channel.
+    EulerNotRotation,
+    /// The named rotation channels hold no key to filter.
+    EulerNoRotationKeys,
     UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
@@ -2459,6 +2463,12 @@ impl fmt::Display for NativeError {
                 "the scene holds the most keys allowed ({})",
                 session_keys::MAX_SESSION_KEYS
             ),
+            Self::EulerNotRotation => {
+                f.write_str("the Euler filter acts on rotate_x, rotate_y and rotate_z only")
+            }
+            Self::EulerNoRotationKeys => {
+                f.write_str("the named rotation channels hold no key to filter")
+            }
             Self::UnsupportedTimeUnit => {
                 f.write_str("only the film (24 fps) time unit is supported")
             }

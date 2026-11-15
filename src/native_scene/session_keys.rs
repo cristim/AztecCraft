@@ -6,6 +6,9 @@
 //! exact stored value. Sourced scenes refuse keys like every other structural edit, and their own
 //! animation curves are not evaluated.
 
+mod euler;
+pub use euler::check_euler_channels;
+
 use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformField};
 use crate::scene::NodeId;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};

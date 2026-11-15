@@ -1,5 +1,5 @@
 use super::*;
-use crate::native_scene::{Channel, NativeTransform, ascii};
+use crate::native_scene::{AngularUnit, Channel, NativeTransform, ascii};
 use crate::scene::Primitive;
 
 const FX: ChannelMask = [true, false, false, false, false, false, false, false, false];
@@ -338,4 +338,119 @@ fn an_empty_table_still_refuses_a_frame_outside_the_bound() {
     let mut history = crate::history::History::new(scene);
     assert!(history.apply_evaluated(i32::MAX).is_err());
     assert_eq!(history.pose_frame(), DEFAULT_FRAME);
+}
+
+const RY: ChannelMask = [false, false, false, false, true, false, false, false, false];
+const RYZ: ChannelMask = [false, false, false, false, true, true, false, false, false];
+
+fn key_rotation(scene: &mut NativeScene, id: NodeId, frame: i32, value: f64) {
+    scene.set_channel(id, Channel::RotateY, value).unwrap();
+    scene.set_keys(&[id], frame, RY, frame).unwrap();
+}
+
+fn ry_values(scene: &NativeScene, id: NodeId) -> Vec<f64> {
+    scene.key_rows(Some(id)).map(|row| row.value).collect()
+}
+
+#[test]
+fn the_euler_filter_unrolls_a_flip_without_changing_any_orientation() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    for (frame, value) in [(1, 10.0), (2, 350.0), (3, 20.0), (4, 700.0)] {
+        key_rotation(&mut scene, id, frame, value);
+    }
+    let before = ry_values(&scene, id);
+    scene.euler_filter(&[id], RY, 4).unwrap();
+    let after = ry_values(&scene, id);
+    assert_eq!(after, vec![10.0, -10.0, 20.0, -20.0]);
+    for (old, new) in before.iter().zip(&after) {
+        let (old, new) = (old.to_radians(), new.to_radians());
+        assert!((old.sin() - new.sin()).abs() < 1e-12 && (old.cos() - new.cos()).abs() < 1e-12);
+    }
+    assert_eq!(scene.node(id).unwrap().transform().values()[4], -20.0);
+    let once = scene.clone();
+    scene.euler_filter(&[id], RY, 4).unwrap();
+    assert_eq!(scene, once);
+}
+
+#[test]
+fn the_euler_filter_keeps_a_half_turn_and_follows_the_angular_unit() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    key_rotation(&mut scene, id, 1, 0.0);
+    key_rotation(&mut scene, id, 2, 180.0);
+    key_rotation(&mut scene, id, 3, -180.0);
+    scene.euler_filter(&[id], RY, 3).unwrap();
+    assert_eq!(ry_values(&scene, id), vec![0.0, 180.0, 180.0]);
+    let mut radians = NativeScene::default();
+    radians.units.angular = AngularUnit::Radian;
+    let id = cube(&mut radians, "r");
+    key_rotation(&mut radians, id, 1, 0.5);
+    key_rotation(&mut radians, id, 2, 0.5 + std::f64::consts::TAU);
+    radians.euler_filter(&[id], RY, 2).unwrap();
+    let values = ry_values(&radians, id);
+    assert!((values[1] - 0.5).abs() < 1e-12, "{values:?}");
+}
+
+#[test]
+fn the_euler_filter_leaves_other_channels_and_nodes_alone() {
+    let mut scene = NativeScene::default();
+    let (a, b) = (cube(&mut scene, "a"), cube(&mut scene, "b"));
+    for id in [a, b] {
+        key_rotation(&mut scene, id, 1, 10.0);
+        key_rotation(&mut scene, id, 2, 350.0);
+    }
+    scene.euler_filter(&[a, a], RYZ, 2).unwrap();
+    assert_eq!(ry_values(&scene, a), vec![10.0, -10.0]);
+    assert_eq!(ry_values(&scene, b), vec![10.0, 350.0]);
+}
+
+#[test]
+fn a_refused_euler_filter_leaves_the_scene_untouched() {
+    let mut scene = NativeScene::default();
+    let (a, b) = (cube(&mut scene, "a"), cube(&mut scene, "b"));
+    key_rotation(&mut scene, a, 1, 10.0);
+    key_rotation(&mut scene, a, 2, 350.0);
+    scene.set_channel(a, Channel::TranslateX, 3.0).unwrap();
+    scene.set_keys(&[a], 1, FX, 2).unwrap();
+    let before = scene.clone();
+    let mut mixed = RY;
+    mixed[0] = true;
+    for (nodes, mask, frame, error) in [
+        (vec![a], mixed, 2, NativeError::EulerNotRotation),
+        (vec![a], FX, 2, NativeError::EulerNotRotation),
+        (vec![a], [false; 9], 2, NativeError::EulerNoRotationKeys),
+        (vec![b], RY, 2, NativeError::EulerNoRotationKeys),
+        (vec![], RY, 2, NativeError::EulerNoRotationKeys),
+        (
+            vec![a],
+            [false, false, false, true, false, false, false, false, false],
+            2,
+            NativeError::EulerNoRotationKeys,
+        ),
+        (vec![a], RY, MAX_FRAME + 1, NativeError::InvalidFrame),
+    ] {
+        assert_eq!(scene.euler_filter(&nodes, mask, frame), Err(error));
+        assert_eq!(scene, before);
+    }
+    let missing = NodeId::from_decimal("999").unwrap();
+    assert!(scene.euler_filter(&[a, missing], RY, 2).is_err());
+    assert_eq!(scene, before);
+}
+
+#[test]
+fn the_euler_filter_refuses_an_overflowing_unroll_and_an_unsupported_unit() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    key_rotation(&mut scene, id, 1, 0.0);
+    key_rotation(&mut scene, id, 2, f64::MAX);
+    let before = scene.clone();
+    // The shift is finite but the unroll must still never write a non-finite key.
+    let _ = scene.euler_filter(&[id], RY, 2);
+    scene.session_keys.validate(&scene.nodes, false).unwrap();
+    let mut grads = before.clone();
+    grads.units.angular = AngularUnit::Unsupported("grad".into());
+    let kept = grads.clone();
+    assert!(grads.euler_filter(&[id], RY, 2).is_err());
+    assert_eq!(grads, kept);
 }
