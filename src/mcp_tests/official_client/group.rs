@@ -394,3 +394,59 @@ async fn a_modal_dialog_refuses_both_tools() {
     drop(editor);
     server.await.unwrap();
 }
+
+#[tokio::test]
+async fn ungroup_keep_local_past_f32_and_selected_joints_are_typed_refusals() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let child = cubes(&mut editor, 1);
+    let made = tool(&mut editor, &context, &client, "group_selection", json!({})).await;
+    let group = reply(&made)["node_id"].as_str().unwrap().to_owned();
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "edit_node",
+        json!({"node_id":group,"scale":[0.001,1,1]}),
+    )
+    .await;
+    // World 1e38 under the group's 1e-3 scale; keep local would leave it at 1e41.
+    let moved = tool(
+        &mut editor,
+        &context,
+        &client,
+        "edit_node",
+        json!({"node_id":child,"translation":[1e41,0,0]}),
+    )
+    .await;
+    assert_ne!(moved.is_error, Some(true), "{moved:?}");
+    let scene = editor.history.scene().clone();
+    let refused = tool(
+        &mut editor,
+        &context,
+        &client,
+        "ungroup_selection",
+        json!({"keep":"local"}),
+    )
+    .await;
+    assert_eq!(code(&refused), "world_out_of_range");
+    assert_eq!(editor.history.scene(), &scene);
+
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "create_joint",
+        json!({"position":[0,0,0]}),
+    )
+    .await;
+    let scene = editor.history.scene().clone();
+    for name in ["group_selection", "ungroup_selection"] {
+        let refused = tool(&mut editor, &context, &client, name, json!({})).await;
+        assert_eq!(code(&refused), "invalid_reparent", "{name}");
+        assert_eq!(editor.history.scene(), &scene);
+    }
+    client.cancel().await.unwrap();
+    drop(editor);
+    server.await.unwrap();
+}

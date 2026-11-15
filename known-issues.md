@@ -1631,4 +1631,4 @@ pre-group flat scene: restoring it silently drops the hierarchy. The writer slic
 this. PROVISIONAL differences from Maya: Undo of Group leaves the selection empty (Maya restores the previous
 selection) and Redo does not reselect the group; a name clash is refused where Maya renames; a keep-world
 move of a keyed or pivoted node under a different frame, or under shear, negative or zero scale, is refused;
-the Group and Ungroup option boxes and Shift+G are not implemented.
+joints cannot be grouped or ungrouped (Maya allows it; unsupported here, `invalid_reparent` and the menu rows are disabled), because a joint's parent must be a joint; Group with Preserve Position off and Ungroup with keep local are refused with `world_out_of_range` when the world geometry would leave the f32 range; the Group and Ungroup option boxes and Shift+G are not implemented.
