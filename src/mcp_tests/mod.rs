@@ -132,6 +132,7 @@ mod official_client {
     mod frame_selected;
     mod gltf_export;
     mod grid;
+    mod group;
     mod inspect_budget;
     mod inspect_paging;
     mod limits;
