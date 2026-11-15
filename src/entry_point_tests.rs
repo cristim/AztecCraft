@@ -242,6 +242,8 @@ fn native_operation_callers_are_the_known_ui_handlers() {
             "run_timeline_action",
             "timeline_controls",
             "history_step",
+            "native_group",
+            "native_ungroup",
             "manipulation_options",
             "outliner",
             "render",

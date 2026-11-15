@@ -3412,7 +3412,7 @@ fn typed_extrusion_uses_native_history_and_preserves_pending_edits_on_error() {
     );
 }
 
-fn key(key: Key) -> egui::Event {
+pub(in crate::app) fn key(key: Key) -> egui::Event {
     egui::Event::Key {
         key,
         physical_key: None,
@@ -3422,7 +3422,11 @@ fn key(key: Key) -> egui::Event {
     }
 }
 
-fn frame(editor: &mut Editor, ctx: &egui::Context, events: Vec<egui::Event>) -> egui::FullOutput {
+pub(in crate::app) fn frame(
+    editor: &mut Editor,
+    ctx: &egui::Context,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
     frame_with(editor, ctx, egui::vec2(1440.0, 900.0), 1.0, events)
 }
 
@@ -3605,7 +3609,7 @@ fn face_viewport_rect(output: &egui::FullOutput) -> egui::Rect {
         .unwrap()
 }
 
-fn face_text_position(output: &egui::FullOutput, text: &str) -> egui::Pos2 {
+pub(in crate::app) fn face_text_position(output: &egui::FullOutput, text: &str) -> egui::Pos2 {
     output
         .shapes
         .iter()
@@ -3630,7 +3634,7 @@ fn face_text_position(output: &egui::FullOutput, text: &str) -> egui::Pos2 {
         })
 }
 
-fn face_pointer_click(
+pub(in crate::app) fn face_pointer_click(
     editor: &mut Editor,
     ctx: &egui::Context,
     position: egui::Pos2,
@@ -3841,7 +3845,7 @@ fn frame_with_children() -> Operation {
     }
 }
 
-fn key_event(key: Key, modifiers: egui::Modifiers, repeat: bool) -> egui::Event {
+pub(in crate::app) fn key_event(key: Key, modifiers: egui::Modifiers, repeat: bool) -> egui::Event {
     egui::Event::Key {
         key,
         physical_key: None,
@@ -3860,7 +3864,7 @@ fn shortcuts_events(
 }
 
 /// egui derives `repeat` from whether the key was already down in this context.
-fn shortcuts_in(
+pub(in crate::app) fn shortcuts_in(
     ctx: &egui::Context,
     editor: &mut Editor,
     modifiers: egui::Modifiers,
@@ -7138,7 +7142,7 @@ fn selecting_in_hierarchy_mode_clears_the_remembered_face() {
     assert_eq!(editor.remembered_face(), None);
 }
 
-fn button_disabled(output: &egui::FullOutput, label: &str) -> bool {
+pub(in crate::app) fn button_disabled(output: &egui::FullOutput, label: &str) -> bool {
     let update = output
         .platform_output
         .accesskit_update
@@ -10205,7 +10209,7 @@ fn selection_mode_camera_tool_and_panel_changes_add_no_undo_entry() {
     }
 }
 
-fn two_cube_editor() -> Editor {
+pub(in crate::app) fn two_cube_editor() -> Editor {
     let mut editor = Editor::default();
     editor.create(Primitive::Cube);
     editor.create(Primitive::Cube);
@@ -10622,7 +10626,7 @@ fn role_states(output: &egui::FullOutput, role: eframe::egui::accesskit::Role) -
         .collect()
 }
 
-fn editing_ctx() -> egui::Context {
+pub(in crate::app) fn editing_ctx() -> egui::Context {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
     ctx

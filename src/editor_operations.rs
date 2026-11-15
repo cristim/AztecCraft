@@ -695,10 +695,6 @@ pub enum Operation {
     },
     /// Edit > Group on the object selection: the top-most selected objects become the children
     /// of a new group, as one "Group" undo step. Object and Hierarchy modes only.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(dead_code, reason = "first native caller is the Edit menu (T7)")
-    )]
     Group {
         options: GroupOptions,
         /// The `selection_generation` the caller inspected. With several objects selected a remote
@@ -708,10 +704,6 @@ pub enum Operation {
     },
     /// Edit > Ungroup on the object selection: the children of each top-most selected group move
     /// out and the group is deleted, as one "Ungroup" undo step. Object and Hierarchy modes only.
-    #[cfg_attr(
-        not(any(test, feature = "mcp")),
-        expect(dead_code, reason = "first native caller is the Edit menu (T7)")
-    )]
     Ungroup {
         options: UngroupOptions,
         expected_selection_generation: Option<u64>,

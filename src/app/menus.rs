@@ -405,6 +405,47 @@ impl Editor {
                     ui.add_enabled(false, egui::Button::new(label))
                         .on_disabled_hover_text(DELETE_BY_TYPE_REASON);
                 }
+                ui.separator();
+                let group_enabled = self.group_enabled(authoring);
+                for ungroup in [false, true] {
+                    let (label, verb, reason) = if ungroup {
+                        ("Ungroup", "ungroup", features::UNGROUP_OPTIONS_REASON)
+                    } else {
+                        (
+                            "Group   Ctrl/Cmd G",
+                            "group",
+                            features::GROUP_OPTIONS_REASON,
+                        )
+                    };
+                    let clicked = ui
+                        .horizontal(|ui| {
+                            let clicked = ui
+                                .add_enabled(group_enabled, egui::Button::new(label))
+                                .on_disabled_hover_text(
+                                    self.group_disabled_hover(read_only_reason, verb),
+                                )
+                                .clicked();
+                            features::primitive_options::option_box(
+                                ui,
+                                &format!(
+                                    "{} option box",
+                                    if ungroup { "Ungroup" } else { "Group" }
+                                ),
+                                false,
+                                Some(reason),
+                            );
+                            clicked
+                        })
+                        .inner;
+                    if clicked {
+                        ui.close();
+                        if ungroup {
+                            self.native_ungroup();
+                        } else {
+                            self.native_group();
+                        }
+                    }
+                }
             });
             ui.menu_button("Create", |ui| {
                 ui.menu_button(POLYGON_PRIMITIVES_MENU, |ui| {

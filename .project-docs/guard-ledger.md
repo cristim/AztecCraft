@@ -188,6 +188,7 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 - Human-draft commits (`commit_pending`) are the only history mutation besides operations and
   evaluated time writes; the entry-point test names them.
 - The native timeline hotkeys and row share `run_timeline_action` (`src/app/features/timeline.rs "fn run_timeline_action"`), the one native caller of the key and time operations, except `timeline_controls`, which dispatches `SetPlaybackRange`. A step-key request with no adjacent key dispatches nothing and only sets the status.
+- Edit > Group, Edit > Ungroup and Ctrl/Cmd+G reach `Operation::Group` and `Operation::Ungroup` through `native_group` and `native_ungroup` (`src/app/features/group_edit.rs`). The operations take the `ResetPivots` selection rules (no selection, a remote caller with several objects needs the inspected generation, component modes refused before the guards) and are in the modal `BusyEditing` list; the draft, closing and generation cells are `group(...)` and `ungroup(mesh_not_a_group)` in `tests/snapshots/guard_matrix.txt`.
 - `History::apply_evaluated` writes keyed channels with no undo entry and has two callers: dispatch
   after Undo and Redo, and `write_time` (`src/app/features/timeline.rs "fn write_time"`), which serves
   `SetCurrentTime`, `Play` and the playback tick. The tick is not an `Operation`, so it passes no

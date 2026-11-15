@@ -214,6 +214,9 @@ impl Editor {
         if let Some(operation) = history {
             self.native_operation(operation);
         }
+        if ctx.input(|i| features::group_chord(&i.events)) {
+            self.native_group();
+        }
         if let Some(with_children) = frame {
             self.frame_selected(with_children);
         }

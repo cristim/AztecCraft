@@ -6,6 +6,7 @@ mod export_common;
 pub(in crate::app) mod extrude_options;
 #[cfg(any(test, feature = "mcp"))]
 pub(super) mod gltf_export;
+mod group_edit;
 mod history;
 pub(in crate::app) mod manipulation_tool;
 mod material;
@@ -16,6 +17,7 @@ pub(super) mod obj_import;
 #[cfg(any(test, feature = "mcp"))]
 mod recovery;
 
+pub(in crate::app) use group_edit::{GROUP_OPTIONS_REASON, UNGROUP_OPTIONS_REASON, group_chord};
 pub(in crate::app) use node_edit::NameStyle;
 pub(in crate::app) mod marquee;
 pub(in crate::app) mod primitive_options;
