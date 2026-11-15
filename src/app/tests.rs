@@ -9838,16 +9838,15 @@ fn every_primitive_variant_is_in_the_create_menu() {
             | Primitive::Plane
             | Primitive::Sphere
             | Primitive::Cylinder
-            | Primitive::Cone => assert!(listed(primitive), "{primitive:?}"),
-            // The Torus row stays disabled until the UI slice (#43).
-            Primitive::Torus => assert!(!listed(primitive)),
+            | Primitive::Cone
+            | Primitive::Torus => assert!(listed(primitive), "{primitive:?}"),
         }
     }
     let built = menus::POLYGON_PRIMITIVES
         .iter()
         .filter(|(_, primitive)| primitive.is_some())
         .count();
-    assert_eq!(built, 5);
+    assert_eq!(built, 6);
 }
 
 #[test]
@@ -9870,17 +9869,11 @@ fn unbuilt_primitives_and_the_interactive_toggles_are_disabled_with_their_reason
     ];
     for (label, primitive) in menus::POLYGON_PRIMITIVES {
         if primitive.is_none() {
-            let reason = if label == "Torus" {
-                "Torus is available through the MCP create_primitive tool only; its menu entry is not built yet".to_owned()
-            } else {
-                format!(
-                    "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
-                )
-            };
+            let reason = format!("{label} is not built yet; see #466");
             rows.push((label.into(), reason));
         }
     }
-    assert_eq!(rows.len(), 12);
+    assert_eq!(rows.len(), 11);
     for (label, reason) in rows {
         let item = submenu_item(&output, &label);
         assert!(item.disabled, "{label} enabled");

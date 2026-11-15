@@ -897,3 +897,132 @@ fn escape_while_a_close_is_in_progress_keeps_the_hidden_window() {
     run(&mut editor, &ctx, vec![key(Key::Escape)]);
     assert!(editor.primitive_options.dialog.is_some());
 }
+
+#[test]
+fn torus_window_from_the_menu_creates_a_twisted_torus_and_remembers_it() {
+    let (mut editor, ctx) = setup();
+    open_menu_and_click(&mut editor, &ctx, "Torus option box");
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(dialog_open(&output, Primitive::Torus));
+    assert_eq!(
+        labels(Primitive::Torus).0,
+        ["Radius", "Section radius", "Twist"]
+    );
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts,
+        ["1", "0.5", "0", "20", "20"]
+    );
+    let before = editor.history.scene().clone();
+    for (text, message) in [
+        ("abc", "Twist must be a number"),
+        ("NaN", "twist must be a finite number of degrees"),
+        ("inf", "twist must be a finite number of degrees"),
+    ] {
+        set_field(&mut editor, &ctx, 2, text);
+        press(&mut editor, &ctx, "Create");
+        assert_eq!(editor.history.scene(), &before, "{text}");
+        let dialog = editor.primitive_options.dialog.as_ref().unwrap();
+        assert_eq!(dialog.message.as_deref(), Some(message), "{text}");
+    }
+    set_field(&mut editor, &ctx, 2, "90");
+    set_field(&mut editor, &ctx, 3, "4");
+    set_field(&mut editor, &ctx, 4, "4");
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(node_count(&editor), 1);
+    let torus = |twist| PrimitiveOptions::Torus {
+        radius: 1.0,
+        section_radius: 0.5,
+        twist,
+        sub_axis: 4,
+        sub_height: 4,
+        axis: Axis::Y,
+    };
+    assert_eq!(editor.remembered_options(Primitive::Torus), torus(90.0));
+    press(&mut editor, &ctx, "Close");
+    open_dialog(&mut editor, &ctx, Primitive::Torus);
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[2],
+        "90",
+        "reopening shows the remembered twist"
+    );
+    open_menu_and_click(&mut editor, &ctx, "Torus");
+    assert_eq!(node_count(&editor), 2);
+    // The same typed operation with the twist, then without it, for comparison.
+    for twist in [90.0, 0.0] {
+        editor
+            .apply_operation(Operation::Create {
+                primitive: Primitive::Torus,
+                options: Some(torus(twist)),
+                name: None,
+            })
+            .unwrap();
+    }
+    let shapes = editor.history.scene().shapes();
+    let points = |index: usize| shapes[index].mesh().points();
+    assert_eq!(points(1), points(0), "the plain click reuses the twist");
+    assert_eq!(points(2), points(0));
+    assert_ne!(points(3), points(0));
+}
+
+#[test]
+fn torus_window_refuses_a_read_only_scene_without_changing_it() {
+    let (mut editor, ctx) = setup();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("curve.ma");
+    std::fs::write(&path, ascii_fixture::specimen()).unwrap();
+    editor
+        .apply_operation(Operation::OpenScene { path })
+        .unwrap();
+    assert!(
+        editor
+            .history
+            .scene()
+            .authoring_read_only_reason()
+            .is_some()
+    );
+    let output = open_polygon_primitives(&mut editor, &ctx, SIZE);
+    assert!(submenu_item(&output, "Torus").disabled);
+    assert!(submenu_item(&output, "Torus option box").disabled);
+    open_dialog(&mut editor, &ctx, Primitive::Torus);
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(window_button(&output, "Create").disabled);
+    let before = editor.history.scene().clone();
+    press(&mut editor, &ctx, "Create");
+    assert_eq!(editor.history.scene(), &before);
+}
+
+#[test]
+fn torus_window_follows_the_escape_draft_and_modal_guards() {
+    let (mut editor, ctx) = setup();
+    editor.create(Primitive::Cube);
+    open_dialog(&mut editor, &ctx, Primitive::Torus);
+    // A pending channel draft takes the first Escape; the window survives it.
+    editor.channels[0] = "9".into();
+    assert!(editor.has_draft());
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(!editor.has_draft());
+    assert!(editor.primitive_options.dialog.is_some());
+    // Typing in a field keeps the window on Escape.
+    focus_field(&mut editor, &ctx, 2);
+    run(&mut editor, &ctx, vec![]);
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_some());
+    // A file modal hides the window and keeps the twist text.
+    set_field(&mut editor, &ctx, 2, "45");
+    editor.request_new();
+    assert!(editor.files.is_modal());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(!dialog_open(&output, Primitive::Torus));
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    run(&mut editor, &ctx, vec![]);
+    assert!(!editor.files.is_modal());
+    let output = run(&mut editor, &ctx, vec![]);
+    assert!(dialog_open(&output, Primitive::Torus));
+    assert_eq!(
+        editor.primitive_options.dialog.as_ref().unwrap().texts[2],
+        "45"
+    );
+    // With nothing else wanting it, Escape closes the window.
+    run(&mut editor, &ctx, vec![key(Key::Escape)]);
+    assert!(editor.primitive_options.dialog.is_none());
+}

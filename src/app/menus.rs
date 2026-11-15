@@ -73,7 +73,7 @@ pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
     ("Cube", Some(Primitive::Cube)),
     ("Cylinder", Some(Primitive::Cylinder)),
     ("Cone", Some(Primitive::Cone)),
-    ("Torus", None),
+    ("Torus", Some(Primitive::Torus)),
     ("Plane", Some(Primitive::Plane)),
     ("Disc", None),
     ("Platonic Solid", None),
@@ -87,12 +87,7 @@ pub(super) const POLYGON_PRIMITIVES: [(&str, Option<Primitive>); 15] = [
 ];
 
 fn unbuilt_primitive_reason(label: &str) -> String {
-    if label == "Torus" {
-        return "Torus is available through the MCP create_primitive tool only; its menu entry is not built yet".into();
-    }
-    format!(
-        "{label} is not implemented yet; the supported primitives are Sphere, Cube, Cylinder, Cone and Plane"
-    )
+    format!("{label} is not built yet; see #466")
 }
 
 fn placeholder_menu(ui: &mut egui::Ui, label: &str) {

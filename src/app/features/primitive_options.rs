@@ -8,7 +8,7 @@
 //! click uses; here Create keeps it open and a plain click uses the remembered options.
 
 use crate::app::*;
-use azteccraft::primitive_options::{Axis, DEFAULT_TORUS_TWIST_DEG, PrimitiveOptions};
+use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 
 /// Cube has the most numeric fields: three sizes and three subdivision counts.
 const MAX_FIELDS: usize = 6;
@@ -76,7 +76,7 @@ fn labels(primitive: Primitive) -> (&'static [&'static str], &'static [&'static 
             &["Subdivisions axis", "Subdivisions height"],
         ),
         Primitive::Torus => (
-            &["Radius", "Section radius"],
+            &["Radius", "Section radius", "Twist"],
             &["Subdivisions axis", "Subdivisions height"],
         ),
     }
@@ -126,10 +126,14 @@ fn texts(options: &PrimitiveOptions) -> Vec<String> {
         PrimitiveOptions::Torus {
             radius,
             section_radius,
+            twist,
             sub_axis,
             sub_height,
             ..
-        } => (vec![radius, section_radius], vec![sub_axis, sub_height]),
+        } => (
+            vec![radius, section_radius, twist],
+            vec![sub_axis, sub_height],
+        ),
     };
     sizes
         .iter()
@@ -217,11 +221,11 @@ fn assemble(
             sub_height,
             axis,
         },
-        (Primitive::Torus, &[radius, section_radius], &[sub_axis, sub_height]) => {
+        (Primitive::Torus, &[radius, section_radius, twist], &[sub_axis, sub_height]) => {
             PrimitiveOptions::Torus {
                 radius,
                 section_radius,
-                twist: DEFAULT_TORUS_TWIST_DEG,
+                twist,
                 sub_axis,
                 sub_height,
                 axis,

@@ -570,8 +570,8 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Files | Unix new-scene Save and Save As to Maya ASCII `.ma` | supported | `save_scene`, `save_scene_as` | `save_available`, `save_as_available`, `document_origin` | Limited writer: session materials are written;  imported ASCII remains read-only; a reopened mesh `.ma` is editable and saveable and Maya acceptance is unverified |
 | Files | Maya ASCII writing of opened `.ma` scenes | unsupported | | | |
 | Rendering | Path-tracer render to a PPM file (`src/render`, library only, PROVISIONAL: fixed light and sky, no BVH, no Maya or Arnold parity claimed); no UI entry point yet, so MCP needs nothing until one exists, and then the operation, schemas and tests are required in the same gate | unsupported | | | |
-| Create | Sphere, Cube, Cylinder, Cone, Plane (Create > Polygon Primitives, shelf Cube and Plane); Torus is MCP only, its menu row stays disabled until the UI slice (#43) | supported | `create_primitive` | `nodes` | |
-| Create | Torus, Disc, Platonic Solid, Pyramid, Prism, Pipe, Helix, Gear, Soccer Ball, Super Shapes, Interactive Creation and Exit on Completion (disabled rows in Create > Polygon Primitives); Bevel, shelf Materials, Mesh and other placeholder menus | unsupported | | | |
+| Create | Sphere, Cube, Cylinder, Cone, Torus, Plane (Create > Polygon Primitives with option boxes, shelf Cube and Plane) | supported | `create_primitive` | `nodes` | |
+| Create | Disc, Platonic Solid, Pyramid, Prism, Pipe, Helix, Gear, Soccer Ball, Super Shapes, Interactive Creation and Exit on Completion (disabled rows in Create > Polygon Primitives); Bevel, shelf Materials, Mesh and other placeholder menus | unsupported | | | |
 | Modeling | Move vertices (Move tool on components; operation exposed, native drag still refused, Object axis orientation only) | supported | `move_vertices`, `inspect_vertices` | `shapes` | |
 | Modeling | Extrude face (shelf button and Extrude Options window for one picked face; operation exposed) | supported | `extrude_face` | `shapes` | |
 | Modeling | Construction history and Inputs | unsupported | | | |
