@@ -23,10 +23,36 @@ function Get-Catalog {
     $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 120
     $html = $response.Content
 
-    $names = New-Object System.Collections.Generic.List[string]
-    foreach ($match in [regex]::Matches($html, $AnchorPattern)) {
-        $name = $match.Groups['name'].Value.Trim()
-        if ($name.Length -gt 0) { $names.Add($name) }
+    if ($AnchorPattern -eq '<doxygen-rows>') {
+        # Doxygen annotated.html: parse each row's NAME CELL. Taking every
+        # <a class="el"> anchor would also capture description-column links
+        # (56 extra matches on the 2027 C++ page) and miss the four bold
+        # namespace rows that carry no anchor at all (for example MHWRender).
+        # NOTE: the loop variable is $symbol, NOT $name - $name would collide
+        # with the [string]$Name parameter (PowerShell variables are
+        # case-insensitive) and every assignment would be coerced to
+        # Match.ToString(), silently breaking this extraction.
+        $names = New-Object System.Collections.Generic.List[string]
+        foreach ($row in [regex]::Matches($html, '(?s)<tr id="row_[\d_]+"[^>]*>(.*?)</tr>')) {
+            $entry = [regex]::Match($row.Groups[1].Value, '(?s)<td class="entry">(.*?)</td>')
+            if (-not $entry.Success) { continue }
+            $symbol = [regex]::Match($entry.Groups[1].Value, '<a class="el"[^>]*>([^<]+)</a>')
+            if (-not $symbol.Success) {
+                $symbol = [regex]::Match($entry.Groups[1].Value, '<b>([^<]+)</b>')
+            }
+            if ($symbol.Success) {
+                $names.Add(([System.Net.WebUtility]::HtmlDecode($symbol.Groups[1].Value)).Trim())
+            } else {
+                Write-Warning ("Row without a name cell on {0}" -f $Url)
+            }
+        }
+    }
+    else {
+        $names = New-Object System.Collections.Generic.List[string]
+        foreach ($match in [regex]::Matches($html, $AnchorPattern)) {
+            $symbol = $match.Groups['name'].Value.Trim()
+            if ($symbol.Length -gt 0) { $names.Add($symbol) }
+        }
     }
 
     # Preserve first-seen page order. The commands/nodes catalogs are
@@ -44,8 +70,8 @@ function Get-Catalog {
 $catalogs = @(
     @{ Name = 'commands'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/Maya-Tech-Docs/Commands/index_all.html'; Pattern = 'href="(?<href>[^"]+\.html)"[^>]*>(?<name>[^<]+)</a>'; Out = 'commands{0}.txt' },
     @{ Name = 'nodes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/Maya-Tech-Docs/Nodes/index_all.html'; Pattern = 'href="(?<href>[^"]+\.html)"[^>]*>(?<name>[^<]+)</a>'; Out = 'nodes{0}.txt' },
-    @{ Name = 'cpp-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/cpp_ref/annotated.html'; Pattern = '<a class="el" href="[^"]+"[^>]*>(?<name>[^<]+)</a>'; Out = 'cpp-classes{0}.txt' },
-    @{ Name = 'py2-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/py_ref/annotated.html'; Pattern = '<a class="el" href="[^"]+"[^>]*>(?<name>[^<]+)</a>'; Out = 'py2-classes{0}.txt' }
+    @{ Name = 'cpp-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/cpp_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'cpp-classes{0}.txt' },
+    @{ Name = 'py2-classes'; Base = 'https://help.autodesk.com/cloudhelp/{0}/ENU/MAYA-API-REF/py_ref/annotated.html'; Pattern = '<doxygen-rows>'; Out = 'py2-classes{0}.txt' }
 )
 
 foreach ($release in @('', '-2026')) {

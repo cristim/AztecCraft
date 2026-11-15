@@ -1,19 +1,18 @@
 # source: https://help.autodesk.com/cloudhelp/2026/ENU/MAYA-API-REF/cpp_ref/annotated.html
-# retrieved: 2026-11-14T18:26:02.3743465Z
+# retrieved: 2026-11-15T06:10:03.7027675Z
 # count: 633
+adsk
+Data
 AccessorMaya
 Accessor
 StructureNameLessThan
-Structure
 AccessorFactory
 AccessorFactoryBase
 Associations
 AssociationsIterator
 AssociationsSerializer
-adsk::Data::Associations
 Attach
 AttachDirectly
-adsk::Data::Attach
 Channel
 ChannelIterator
 ChannelSerializer
@@ -28,10 +27,12 @@ SerializerInitializer
 Stream
 StreamIterator
 StreamSerializer
+Structure
 StructureIterator
 StructureIteratorImpl
 StructureSerializer
 StructureSerializerDebug
+Debug
 Count
 CRTP_Debug
 Footprint
@@ -42,9 +43,9 @@ details
 ControlBlock
 DefaultDeleter
 ObjectAndControlBlock
-MSharedPtr
 PtrAndControlBlock
 SharedPtrBase
+MHWRender
 MAttributeParameterMapping
 MAttributeParameterMappingList
 MBlendState
@@ -53,10 +54,8 @@ MCameraOverride
 MClearOperation
 MComponentDataIndexing
 MComponentDataIndexingList
-MIndexBufferDescriptor
 MDataServerOperation
 MDepthNormalizationDescription
-MImage
 MDepthStencilState
 MDepthStencilStateDesc
 MDrawContext
@@ -75,6 +74,7 @@ MGeometryRequirements
 MGeometryUtilities
 MHUDRender
 MIndexBuffer
+MIndexBufferDescriptor
 MIndexBufferDescriptorList
 MIntersection
 MLightParameterInformation
@@ -152,7 +152,6 @@ MArgParser
 MArrayDataBuilder
 MArrayDataHandle
 MaterialInputData
-MPxMaterialInformation
 MAtomic
 MAttributeIndex
 MAttributePattern
@@ -214,7 +213,6 @@ MDistance
 MDoubleArray
 MDrawData
 MDrawInfo
-MPxSurfaceShapeUI
 MDrawProcedureBase
 MDrawRequest
 MDrawRequestQueue
@@ -232,7 +230,6 @@ MEvaluationNodeIterator
 MEvent
 MEventMessage
 MExternalContentInfoTable
-MPxNode
 MExternalContentLocationTable
 MExternalDropCallback
 MExternalDropData
@@ -394,13 +391,10 @@ MGeometryManager
 MGeometryPrimitive
 MGeometryRequirementsLegacy
 MGLFunctionTable
-MHWRender::MVertexBuffer
-MHWRender::MPxGeometryOverride
 MGlobal
 MGPUDeformerBuffer
 MGPUDeformerData
 MGPUDeformerRegistrationInfo
-MPxGPUDeformer
 MGPUDeformerRegistry
 MGraphEditorInfo
 MGraphNodeIterator
@@ -413,6 +407,7 @@ MIffFile
 MIffTag
 MIkHandleGroup
 MIkSystem
+MImage
 MImageFileInfo
 MIndexMapper
 MInt64Array
@@ -516,6 +511,7 @@ MPxGeometryData
 MPxGeometryFilter
 MPxGeometryIterator
 MPxGlBuffer
+MPxGPUDeformer
 MPxGPUStandardDeformer
 MPxHardwareShader
 RenderParameters
@@ -528,12 +524,14 @@ MPxImagePlane
 MPxLocatorNode
 MPxManipContainer
 MPxManipulatorNode
+MPxMaterialInformation
 MPxMayaAsciiFilter
 MPxMayaAsciiFilterOutput
 MPxMidiInputDevice
 MPxModelEditorCommand
 MPxMotionPathNode
 MPxMultiPolyTweakUVCommand
+MPxNode
 MPxObjectSet
 MPxParticleAttributeMapperNode
 MPxPolyTrg
@@ -549,6 +547,7 @@ MPxSelectionContext
 MPxSkinCluster
 MPxSpringNode
 MPxSurfaceShape
+MPxSurfaceShapeUI
 MPxTexContext
 MPxThreadedDeviceNode
 MPxToolCommand
@@ -580,6 +579,7 @@ MSelectionList
 MSelectionMask
 MSetAttrEdit
 MSetCopyPrimitivesFct
+MSharedPtr
 MSpace
 MSpinLock
 MStartPrimitiveEditingFct

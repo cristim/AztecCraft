@@ -1,5 +1,5 @@
 # source: https://help.autodesk.com/cloudhelp/2027/ENU/MAYA-API-REF/py_ref/annotated.html
-# retrieved: 2026-11-14T18:26:01.7168681Z
+# retrieved: 2026-11-15T06:10:03.1978567Z
 # count: 313
 OpenMaya
 MAngle
