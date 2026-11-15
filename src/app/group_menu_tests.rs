@@ -220,3 +220,55 @@ fn the_chord_is_ignored_while_a_dialog_or_the_close_prompt_is_open() {
         assert_eq!(editor.history.scene(), &before, "closing={closing}");
     }
 }
+
+#[test]
+fn the_chord_puts_the_group_pivots_at_the_bounding_box_centre() {
+    let mut editor = two_cube_editor();
+    let far = editor.selection.lead().unwrap().node;
+    editor
+        .apply_operation(Operation::SetTransform {
+            id: far,
+            transform: TransformInput {
+                translation: [4.0, 0.0, 0.0],
+                rotation_degrees: [0.0; 3],
+                scale: [1.0; 3],
+            },
+        })
+        .unwrap();
+    let chord = egui::Modifiers::COMMAND;
+    shortcuts_in(
+        &egui::Context::default(),
+        &mut editor,
+        chord,
+        vec![key_event(Key::G, chord, false)],
+    );
+    let group = editor.selection.lead().unwrap().node;
+    // Unit cubes at x = 0 and x = 4 span -0.5..4.5, so the Center pivot is x = 2.
+    let node = editor.history.scene().node(group).unwrap();
+    assert_eq!(node.rotate_pivot(), [2.0, 0.0, 0.0]);
+    assert_eq!(node.scale_pivot(), [2.0, 0.0, 0.0]);
+}
+
+#[test]
+fn a_selected_joint_disables_both_rows_with_the_reason() {
+    let ctx = editing_ctx();
+    let mut editor = Editor::default();
+    editor
+        .apply_operation(Operation::CreateJoint {
+            parent: None,
+            position: [0.0; 3],
+            relative: false,
+            radius: 1.0,
+            name: None,
+        })
+        .unwrap();
+    assert!(!editor.selection.is_empty());
+    assert!(
+        editor
+            .group_disabled_hover(None, "group")
+            .contains("Joints cannot be grouped")
+    );
+    let output = open_edit_menu(&mut editor, &ctx);
+    assert!(button_disabled(&output, "Group   Ctrl/Cmd G"));
+    assert!(button_disabled(&output, "Ungroup"));
+}
