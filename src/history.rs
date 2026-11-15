@@ -543,6 +543,7 @@ impl History {
                 | Command::Ungroup { .. }
                 | Command::SetPivots { .. }
                 | Command::ResetPivots { .. }
+                | Command::ExtrudeFace { .. }
         );
         let transform_target = match &command {
             Command::SetTransform { id, .. } => Some(*id),

@@ -1544,7 +1544,7 @@ Cost: a multi-object begin enumerates every transform path of the scene once (`t
   deferred with the same gap in the other tools.
 - `create_joint` refuses a position that is not representable as f32 (`unsupported_joint`), because
   one such joint would fail every view build. A transform edit (`edit_node`, `set_transform`),
-  a parent, a set pivots and a reset pivots that would make the
+  a parent, a set pivots, a reset pivots and an `extrude_face` that would make the
   view fail with a non-finite world position (a vertex or joint centre past f32) are refused with
   `world_out_of_range` (#396); `History::execute` checks the candidate with the same view build,
   and only when the scene before the edit still built. A Move, Rotate or Scale builds the
