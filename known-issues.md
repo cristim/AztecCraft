@@ -1632,3 +1632,7 @@ this. PROVISIONAL differences from Maya: Undo of Group leaves the selection empt
 selection) and Redo does not reselect the group; a name clash is refused where Maya renames; a keep-world
 move of a keyed or pivoted node under a different frame, or under shear, negative or zero scale, is refused;
 joints cannot be grouped or ungrouped (Maya allows it; unsupported here, `invalid_reparent` and the menu rows are disabled), because a joint's parent must be a joint; Group with Preserve Position off and Ungroup with keep local are refused with `world_out_of_range` when the world geometry would leave the f32 range; the Group and Ungroup option boxes and Shift+G are not implemented.
+
+## Status feedback overwrites a showing hover refusal
+
+Any operation that sets status feedback, for example Undo, overwrites a hover refusal that is showing. The refusal returns only when the hover changes. Pre-existing; noted while fixing the Scale Parent status refresh (#38).
