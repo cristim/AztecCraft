@@ -2358,6 +2358,8 @@ pub enum NativeError {
     EulerNotRotation,
     /// The named rotation channels hold no key to filter.
     EulerNoRotationKeys,
+    /// A rotation key is too large for a shift by whole turns to keep its precision.
+    EulerValueTooLarge,
     UnsupportedTimeUnit,
     InvalidSessionUvs,
     DegenerateUvProjection,
@@ -2469,6 +2471,9 @@ impl fmt::Display for NativeError {
             Self::EulerNoRotationKeys => {
                 f.write_str("the named rotation channels hold no key to filter")
             }
+            Self::EulerValueTooLarge => f.write_str(
+                "a rotation key is too large to filter by whole turns without losing precision",
+            ),
             Self::UnsupportedTimeUnit => {
                 f.write_str("only the film (24 fps) time unit is supported")
             }

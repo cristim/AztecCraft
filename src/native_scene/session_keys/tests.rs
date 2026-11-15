@@ -439,18 +439,157 @@ fn a_refused_euler_filter_leaves_the_scene_untouched() {
 }
 
 #[test]
-fn the_euler_filter_refuses_an_overflowing_unroll_and_an_unsupported_unit() {
+fn the_euler_filter_refuses_a_key_too_large_to_shift_and_an_unsupported_unit() {
     let mut scene = NativeScene::default();
     let id = cube(&mut scene, "a");
     key_rotation(&mut scene, id, 1, 0.0);
     key_rotation(&mut scene, id, 2, f64::MAX);
     let before = scene.clone();
-    // The shift is finite but the unroll must still never write a non-finite key.
-    let _ = scene.euler_filter(&[id], RY, 2);
-    scene.session_keys.validate(&scene.nodes, false).unwrap();
+    assert_eq!(
+        scene.euler_filter(&[id], RY, 2),
+        Err(NativeError::EulerValueTooLarge)
+    );
+    assert_eq!(scene, before);
     let mut grads = before.clone();
     grads.units.angular = AngularUnit::Unsupported("grad".into());
     let kept = grads.clone();
     assert!(grads.euler_filter(&[id], RY, 2).is_err());
     assert_eq!(grads, kept);
+}
+
+const RXYZ: ChannelMask = [false, false, false, true, true, true, false, false, false];
+
+fn key_triple(scene: &mut NativeScene, id: NodeId, frame: i32, triple: [f64; 3]) {
+    for (channel, value) in [Channel::RotateX, Channel::RotateY, Channel::RotateZ]
+        .into_iter()
+        .zip(triple)
+    {
+        scene.set_channel(id, channel, value).unwrap();
+    }
+    scene.set_keys(&[id], frame, RXYZ, frame).unwrap();
+}
+
+fn triples(scene: &NativeScene, id: NodeId) -> Vec<[f64; 3]> {
+    let rows: Vec<KeyRow> = scene.key_rows(Some(id)).collect();
+    let last = rows.iter().map(|row| row.frame).max().unwrap_or(0);
+    let mut out = vec![[0.0; 3]; last as usize];
+    for row in rows
+        .iter()
+        .filter(|row| row.channel >= 3 && row.channel < 6)
+    {
+        out[(row.frame - 1) as usize][row.channel - 3] = row.value;
+    }
+    out
+}
+
+fn matrix(order: u8, triple: [f64; 3], radians: bool) -> glam::DMat4 {
+    let angles = triple.map(|value| if radians { value } else { value.to_radians() });
+    crate::native_scene::transform_extras::rotation_matrix(order, angles).unwrap()
+}
+
+/// A camera panning through 90 degrees on its middle axis: the solver reports the equivalent
+/// flipped triple after the pan, and one key a whole turn away on top of that.
+#[test]
+fn the_euler_filter_removes_a_triple_flip_for_every_rotate_order_and_unit() {
+    for radians in [false, true] {
+        let (turn, scale) = if radians {
+            (std::f64::consts::TAU, 1f64.to_radians())
+        } else {
+            (360.0, 1.0)
+        };
+        let half = turn / 2.0;
+        for order in 0..6u8 {
+            let axes = crate::native_scene::transform_extras::order_axes(order).unwrap();
+            let smooth = [
+                [10.0, 80.0, 5.0],
+                [12.0, 85.0, 6.0],
+                [14.0, 88.0, 7.0],
+                [16.0, 89.0, 8.0],
+            ]
+            .map(|triple| triple.map(|value| value * scale));
+            let mut solved = smooth;
+            for (index, triple) in solved.iter_mut().enumerate().skip(1) {
+                triple[axes[0]] += half;
+                triple[axes[1]] = half - triple[axes[1]];
+                triple[axes[2]] += half;
+                if index == 3 {
+                    triple[axes[0]] += turn;
+                }
+            }
+            let mut scene = NativeScene::default();
+            scene.units.angular = if radians {
+                AngularUnit::Radian
+            } else {
+                AngularUnit::Degree
+            };
+            let id = cube(&mut scene, "cam");
+            for (frame, triple) in (1..).zip(solved) {
+                key_triple(&mut scene, id, frame, triple);
+            }
+            scene.nodes[0].extras.rotate_order = Some(order);
+            scene.euler_filter(&[id], RXYZ, 4).unwrap();
+            let filtered = triples(&scene, id);
+            for (index, (got, want)) in filtered.iter().zip(&smooth).enumerate() {
+                for axis in 0..3 {
+                    assert!(
+                        (got[axis] - want[axis]).abs() < 1e-9,
+                        "order {order} radians {radians} key {index}: {got:?} vs {want:?}"
+                    );
+                }
+                let (a, b) = (
+                    matrix(order, solved[index], radians),
+                    matrix(order, *got, radians),
+                );
+                assert!(
+                    a.abs_diff_eq(b, 1e-9),
+                    "orientation changed: order {order} radians {radians} key {index}"
+                );
+            }
+            let once = scene.clone();
+            scene.euler_filter(&[id], RXYZ, 4).unwrap();
+            assert_eq!(scene, once, "order {order} radians {radians}");
+        }
+    }
+}
+
+#[test]
+fn a_partial_mask_or_mismatched_frames_unroll_each_curve_without_a_flip() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    key_triple(&mut scene, id, 1, [10.0, 80.0, 5.0]);
+    key_triple(&mut scene, id, 2, [190.0, 100.0, 185.0]);
+    let partial = [false, false, false, true, true, false, false, false, false];
+    scene.euler_filter(&[id], partial, 2).unwrap();
+    assert_eq!(triples(&scene, id)[1], [190.0, 100.0, 185.0]);
+    key_rotation(&mut scene, id, 3, 99.0);
+    let mut mismatched = scene.clone();
+    mismatched.euler_filter(&[id], RXYZ, 3).unwrap();
+    assert_eq!(mismatched.key_rows(Some(id)).count(), 7);
+    assert_eq!(triples(&mismatched, id)[1], [190.0, 100.0, 185.0]);
+}
+
+#[test]
+fn filtering_twice_changes_nothing_in_either_unit_even_at_half_a_turn() {
+    for (unit, turn) in [
+        (AngularUnit::Degree, 360.0),
+        (AngularUnit::Radian, std::f64::consts::TAU),
+    ] {
+        let half = turn / 2.0;
+        let mut scene = NativeScene::default();
+        scene.units.angular = unit;
+        let id = cube(&mut scene, "a");
+        for (frame, value) in [
+            (1, 0.1),
+            (2, 0.1 + half),
+            (3, 0.1 + 2.0 * half),
+            (4, 0.1 - 3.0 * turn),
+            (5, 0.1 + half),
+        ] {
+            key_rotation(&mut scene, id, frame, value);
+        }
+        scene.euler_filter(&[id], RY, 5).unwrap();
+        let once = scene.clone();
+        scene.euler_filter(&[id], RY, 5).unwrap();
+        assert_eq!(scene, once);
+    }
 }

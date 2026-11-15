@@ -124,7 +124,7 @@ pub struct InternalExtras {
 }
 
 /// Axis indices applied first to last for each rotateOrder value; `None` outside 0 to 5.
-fn order_axes(order: u8) -> Option<[usize; 3]> {
+pub(crate) fn order_axes(order: u8) -> Option<[usize; 3]> {
     Some(match order {
         0 => [0, 1, 2],
         1 => [1, 2, 0],

@@ -762,9 +762,9 @@ impl Editor {
                 channels,
             } => self.check_key_request(nodes.as_deref(), *time, *channels)?,
             Operation::EulerFilter { nodes, channels } => {
+                self.check_key_request(nodes.as_deref(), None, *channels)?;
                 azteccraft::native_scene::check_euler_channels(*channels)
                     .map_err(OperationError::Scene)?;
-                self.check_key_request(nodes.as_deref(), None, *channels)?;
             }
             Operation::SetPlaybackRange { start, end } => {
                 self.check_playback_range(*start, *end)?;

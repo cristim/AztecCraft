@@ -169,6 +169,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                 OperationError::Scene(NativeError::KeyLimit) => "key_limit",
                 OperationError::Scene(NativeError::EulerNotRotation) => "not_rotation_channel",
                 OperationError::Scene(NativeError::EulerNoRotationKeys) => "no_rotation_keys",
+                OperationError::Scene(NativeError::EulerValueTooLarge) => "euler_value_too_large",
                 OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
                 OperationError::Scene(NativeError::UnsupportedTimeUnit) => "unsupported_time_unit",
                 OperationError::Scene(NativeError::DeleteMemberRefused { reason, .. })

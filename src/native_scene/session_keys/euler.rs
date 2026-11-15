@@ -1,17 +1,25 @@
-//! Euler filter: removes whole-turn jumps between neighbouring rotation keys.
+//! Euler filter: removes whole-turn jumps and equivalent-triple flips between neighbouring
+//! rotation keys, without changing the orientation at any key.
 //!
-//! Each selected rotation curve is unrolled on its own. A key moves by a whole number of turns
-//! until it lies within half a turn of the previous key, so the orientation at every key is
-//! unchanged. Maya's filter may also swap an equivalent triple (x + 180, 180 - y, z + 180); this
-//! one never does (PROVISIONAL, the 2027 `filterCurve` page does not state its algorithm).
+//! When a node's three rotation curves are all selected and share their key frames, each key is
+//! taken in two equivalent forms: its own triple, and the triple (a + 180, 180 - b, c + 180) where
+//! b is the middle axis of the node's rotate order. Each form is then moved by whole turns per
+//! axis to lie nearest the previous (already filtered) key, and the form with the smaller total
+//! distance wins; a tie keeps the key's own form. Otherwise each selected curve is unrolled on
+//! its own. Maya's 2027 `filterCurve` page states no algorithm, so the choice of forms, the
+//! distance measure and the tie rule are PROVISIONAL.
 
 use super::{ChannelMask, NativeError, NativeScene, check_frame};
 use crate::native_scene::AngularUnit;
+use crate::native_scene::transform_extras::order_axes;
 use crate::scene::NodeId;
 use std::collections::HashSet;
 
 /// Index range of the rotation channels in `KEY_CHANNELS`.
 const ROTATION: std::ops::Range<usize> = 3..6;
+/// Largest key magnitude, in whole turns, the filter accepts. Beyond it a shift by turns loses
+/// more precision than a key may lose (PROVISIONAL bound).
+const MAX_TURNS: f64 = 1.0e6;
 
 /// Refuses a mask that names anything but rotation channels, or none.
 pub fn check_euler_channels(channels: ChannelMask) -> Result<(), NativeError> {
@@ -28,19 +36,48 @@ pub fn check_euler_channels(channels: ChannelMask) -> Result<(), NativeError> {
     Ok(())
 }
 
-/// Whole turns to add to `value` so it lies within half a turn of `previous`. A distance of
-/// exactly half a turn stays, so filtering twice changes nothing more.
-fn turns_to_add(previous: f64, value: f64, turn: f64) -> f64 {
-    let ratio = (previous - value) / turn;
-    if ratio >= 0.0 {
-        (ratio - 0.5).ceil()
+/// `value` moved by whole turns nearer `previous`, or unchanged unless that is strictly nearer,
+/// so a second pass never moves it again.
+fn nearest(previous: f64, value: f64, turn: f64) -> f64 {
+    let shifted = value + ((previous - value) / turn).round() * turn;
+    if (previous - shifted).abs() < (previous - value).abs() {
+        shifted
     } else {
-        (ratio + 0.5).floor()
+        value
+    }
+}
+
+fn distance(previous: [f64; 3], triple: [f64; 3]) -> f64 {
+    (0..3)
+        .map(|axis| (previous[axis] - triple[axis]).abs())
+        .sum()
+}
+
+/// The form of `triple` nearest `previous`: its own, or the equivalent flipped one.
+fn next_triple(previous: [f64; 3], triple: [f64; 3], axes: [usize; 3], turn: f64) -> [f64; 3] {
+    let near = |triple: [f64; 3]| {
+        let mut out = triple;
+        for axis in 0..3 {
+            out[axis] = nearest(previous[axis], triple[axis], turn);
+        }
+        out
+    };
+    let own = near(triple);
+    let half = turn / 2.0;
+    let mut flipped = triple;
+    flipped[axes[0]] += half;
+    flipped[axes[1]] = half - flipped[axes[1]];
+    flipped[axes[2]] += half;
+    let flipped = near(flipped);
+    if distance(previous, flipped) < distance(previous, own) {
+        flipped
+    } else {
+        own
     }
 }
 
 impl NativeScene {
-    /// Unrolls the keyed rotation curves of `channels` on `nodes`, then evaluates them at
+    /// Filters the keyed rotation curves of `channels` on `nodes`, then evaluates them at
     /// `current_frame`. Every node is filtered or none is. A node without a key on a named
     /// channel is skipped; no key on any of them is `EulerNoRotationKeys`.
     pub fn euler_filter(
@@ -66,22 +103,48 @@ impl NativeScene {
         for id in nodes.iter().filter(|id| unique.insert(**id)) {
             let node = self.node(*id)?;
             self.check_effects(node.transform_id)?;
+            let axes = order_axes(node.extras.rotate_order.unwrap_or(0))
+                .ok_or(NativeError::UnsupportedView("rotate order"))?;
             let Some(curves) = keys.curves.get_mut(id) else {
                 continue;
             };
-            for slot in ROTATION.filter(|slot| channels[*slot]) {
-                let mut previous = None;
-                for value in curves[slot].values_mut() {
-                    found = true;
-                    if let Some(before) = previous {
-                        let shifted = *value + turns_to_add(before, *value, turn) * turn;
-                        if !shifted.is_finite() {
-                            return Err(NativeError::NonFinite);
-                        }
-                        *value = shifted;
+            let selected: Vec<usize> = ROTATION.filter(|slot| channels[*slot]).collect();
+            if selected
+                .iter()
+                .flat_map(|slot| curves[*slot].values())
+                .any(|value| value.abs() > MAX_TURNS * turn)
+            {
+                return Err(NativeError::EulerValueTooLarge);
+            }
+            found |= selected.iter().any(|slot| !curves[*slot].is_empty());
+            let frames: Vec<i32> = curves[ROTATION.start].keys().copied().collect();
+            let shared = selected.len() == 3
+                && ROTATION
+                    .clone()
+                    .all(|slot| curves[slot].keys().copied().eq(frames.iter().copied()));
+            if shared {
+                let mut previous: Option<[f64; 3]> = None;
+                for frame in &frames {
+                    let own = [0, 1, 2].map(|axis| curves[ROTATION.start + axis][frame]);
+                    let next = previous.map_or(own, |before| next_triple(before, own, axes, turn));
+                    for axis in 0..3 {
+                        curves[ROTATION.start + axis].insert(*frame, next[axis]);
                     }
-                    previous = Some(*value);
+                    previous = Some(next);
                 }
+            } else {
+                for slot in selected {
+                    let mut previous = None;
+                    for value in curves[slot].values_mut() {
+                        if let Some(before) = previous {
+                            *value = nearest(before, *value, turn);
+                        }
+                        previous = Some(*value);
+                    }
+                }
+            }
+            if curves.iter().flatten().any(|(_, value)| !value.is_finite()) {
+                return Err(NativeError::NonFinite);
             }
         }
         if !found {

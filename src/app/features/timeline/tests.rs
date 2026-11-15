@@ -1274,3 +1274,21 @@ fn playback_survives_a_stale_token_and_a_repeated_play_and_stop_ends_it_itself()
     assert!(refused.is_err());
     assert!(!editor.timeline.playing);
 }
+
+#[test]
+fn euler_filter_refuses_an_empty_mask_as_invalid_input_and_other_channels_as_not_rotation() {
+    let (mut editor, _) = keyed();
+    let before = editor.history.scene().clone();
+    for (channels, expected) in [([false; 9], "invalid"), (ALL_CHANNELS, "not_rotation")] {
+        let refused = editor.apply_operation(Operation::EulerFilter {
+            nodes: None,
+            channels,
+        });
+        match (expected, refused) {
+            ("invalid", Err(OperationError::InvalidInput(_))) => {}
+            ("not_rotation", Err(OperationError::Scene(NativeError::EulerNotRotation))) => {}
+            (_, other) => panic!("{expected}: {other:?}"),
+        }
+        assert!(*editor.history.scene() == before);
+    }
+}
