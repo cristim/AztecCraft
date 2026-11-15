@@ -4,6 +4,8 @@ mod app;
 mod editor_operations;
 #[cfg(feature = "mcp")]
 mod mcp;
+#[cfg(feature = "scripting")]
+mod scripting;
 mod tool_icons;
 mod viewport_renderer;
 mod viewport_ui;
