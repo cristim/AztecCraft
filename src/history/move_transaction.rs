@@ -106,9 +106,11 @@ pub struct ManipulationState<'a> {
     pub provenance: ManipulationProvenance,
     pub parameter: f64,
     pub kind: ManipulationKindState,
-    /// The three channels this manipulation edits, as stored at begin.
-    pub baseline_channels: [f64; 3],
-    /// The same three channels now (the live preview); `None` if the node cannot be read.
+    /// The three channels this manipulation edits, as stored at begin; `None` for a kind that
+    /// edits no channels.
+    pub baseline_channels: Option<[f64; 3]>,
+    /// The same three channels now (the live preview); `None` if there are none or the node
+    /// cannot be read.
     pub current_channels: Option<[f64; 3]>,
     member_count: usize,
     covered_count: usize,
@@ -135,6 +137,12 @@ impl ManipulationState<'_> {
     pub fn move_distance_cm(&self) -> Option<f64> {
         self.move_axis().map(|_| self.parameter)
     }
+}
+
+/// What a preview wrote, as the kind knows how to take it back.
+enum Undo {
+    /// The previous baselines of the channels a preview wrote.
+    Channels(Vec<ChannelBaseline>),
 }
 
 /// The kind of manipulation and its kind-specific state; the guards in `History` are shared.
@@ -212,14 +220,14 @@ impl ManipulationKind {
         }
     }
 
-    /// Writes the preview for `parameter`; returns each written node's previous baseline and
-    /// whether anything changed. For a Move every value is computed before the first write.
+    /// Writes the preview for `parameter`; returns how to take it back and whether anything
+    /// changed. For a Move every value is computed before the first write.
     fn preview(
         &self,
         scene: &mut NativeScene,
         parameter: f64,
         declared: Option<f64>,
-    ) -> Result<(Vec<ChannelBaseline>, bool), NativeError> {
+    ) -> Result<(Undo, bool), NativeError> {
         let values = match self {
             Self::Move {
                 axis,
@@ -231,9 +239,9 @@ impl ManipulationKind {
                     .iter()
                     .map(|(frame, _)| frame.translation_in(*space, *axis, parameter))
                     .collect::<Result<Vec<_>, _>>()?;
-                return scene.preview_channels_many(
-                    movers.iter().map(|(_, baseline)| baseline).zip(values),
-                );
+                return scene
+                    .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
+                    .map(|(previous, changed)| (Undo::Channels(previous), changed));
             }
             Self::Rotate {
                 axis,
@@ -248,13 +256,20 @@ impl ManipulationKind {
                     .iter()
                     .map(|(frame, _)| frame.scale(*handle, parameter))
                     .collect::<Result<Vec<_>, _>>()?;
-                return scene.preview_channels_many(
-                    movers.iter().map(|(_, baseline)| baseline).zip(values),
-                );
+                return scene
+                    .preview_channels_many(movers.iter().map(|(_, baseline)| baseline).zip(values))
+                    .map(|(previous, changed)| (Undo::Channels(previous), changed));
             }
         };
         let (previous, changed) = scene.preview_channels(values.0, values.1)?;
-        Ok((vec![previous], changed))
+        Ok((Undo::Channels(vec![previous]), changed))
+    }
+
+    /// Takes back the preview that returned `undo`.
+    fn undo(&self, scene: &mut NativeScene, undo: Undo) -> Result<(), NativeError> {
+        match undo {
+            Undo::Channels(previous) => scene.restore_channels_many(previous.iter()),
+        }
     }
 
     fn restore(&self, scene: &mut NativeScene) -> Result<(), NativeError> {
@@ -599,18 +614,20 @@ fn plan_scale(
 impl History {
     pub fn active_manipulation(&self) -> Option<ManipulationState<'_>> {
         let active = self.active_manipulation.as_ref()?;
-        let baseline = active.kind.baseline()?;
+        let baseline = active.kind.baseline();
         Some(ManipulationState {
             id: active.id,
             target: &active.target,
             provenance: active.provenance,
             parameter: active.parameter,
             kind: active.kind.state(),
-            baseline_channels: baseline.values(),
-            current_channels: self.scene.node(baseline.node()).ok().map(|node| {
-                let first = baseline.first_channel();
-                let values = node.transform().values();
-                [values[first], values[first + 1], values[first + 2]]
+            baseline_channels: baseline.map(ChannelBaseline::values),
+            current_channels: baseline.and_then(|baseline| {
+                self.scene.node(baseline.node()).ok().map(|node| {
+                    let first = baseline.first_channel();
+                    let values = node.transform().values();
+                    [values[first], values[first + 1], values[first + 2]]
+                })
             }),
             member_count: active.member_count,
             covered_count: active.covered_count,
@@ -878,14 +895,15 @@ impl History {
             .as_mut()
             .ok_or(ManipulationError::StaleManipulation)?;
         active.matches(scene_token, id, provenance)?;
-        let (previous, changed) = active.kind.preview(
+        let (undo, changed) = active.kind.preview(
             Self::touch(&mut self.scene, &mut self.revision),
             distance_cm,
             declared,
         )?;
         if let Err(error) = ViewScene::from_native(&self.scene, active.view_budget) {
-            Self::touch(&mut self.scene, &mut self.revision)
-                .restore_channels_many(previous.iter())?;
+            active
+                .kind
+                .undo(Self::touch(&mut self.scene, &mut self.revision), undo)?;
             return Err(error.into());
         }
         active.parameter = distance_cm;
