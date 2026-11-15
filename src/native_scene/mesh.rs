@@ -721,6 +721,7 @@ mod edge_index_tests;
 mod grid;
 #[cfg(test)]
 mod grid_tests;
+mod reduce;
 mod sphere;
 #[cfg(test)]
 mod sphere_tests;
