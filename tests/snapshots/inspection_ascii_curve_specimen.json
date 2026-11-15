@@ -3,6 +3,7 @@
     "appearance_incomplete": true,
     "attribute_editor_tab": null,
     "camera": {
+      "center_of_interest_cm": 10.858717918395996,
       "distance": 10.858717918395996,
       "eye": [
         19.147294998168945,
@@ -10,6 +11,7 @@
         8.25462818145752
       ],
       "far_clip": 10000.0,
+      "focal_length_mm": 35.0,
       "fov_y_degrees": 37.849961153583806,
       "near_clip": 0.10000000149011612,
       "pitch_degrees": 22.918312146742387,

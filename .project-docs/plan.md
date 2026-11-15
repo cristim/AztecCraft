@@ -105,3 +105,37 @@ Keep the same non-author reviewer across the two plan passes and each two-pass d
 ## Isolation
 
 Retain isolated worktrees for active changes, record ownership and reviewed hashes in the session plan, and preserve existing state. The current user instruction authorizes the prototype's GitHub publication and merge to `main`. Keep unsupported functionality and unmet acceptance criteria explicit when publishing.
+
+## Issue #452: remaining viewport navigation
+
+Session `codex-452-camera`; isolated feature branch, independent plan and diff review.
+Documentation baseline remains Maya 2027.2 (no installed reference comparison).
+Read on 2026-11-15:
+
+- [Camera Tools menu](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-DDE25A30-0D59-4F92-8150-98DD12EF39DE.htm):
+  View > Camera Tools > Dolly Tool; Alt+right or Alt+left+middle dollies;
+  Ctrl+Alt+left draws an area to dolly into, in perspective or orthographic views.
+- [View hotkeys](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-8D330D02-98DC-441F-872E-4648BC23DCFF.htm):
+  confirms the three-button chord; macOS uses Option and Control.
+- [Previous views](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Basics/files/GUID-5DB3F04B-7CED-4CD2-9C02-8C9D1368266A.htm):
+  [ and ] traverse session camera views; panel View > Undo/Redo View Change.
+- [dolly](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/dolly.html):
+  absolute perspective dolly holds the COI fixed; relative dolly moves COI too;
+  orthographic dolly changes width. Existing multiplicative distance operation
+  approximates the absolute model, not the documented default relative mode.
+- [camera](https://help.autodesk.com/cloudhelp/2027/ENU/Maya-Tech-Docs/CommandsPython/camera.html):
+  focalLength is millimetres, centerOfInterest is eye-to-COI linear distance.
+  These are command attributes; no new shelf, Tool Box, Status Line, marking-menu,
+  Channel Box or Attribute Editor placement is stated by these pages.
+
+Atomic slice 1: expose `focal_length_mm` and `center_of_interest_cm` on the existing
+`inspect_scene.camera` state. Film lens has known 35 mm focal length; explicit
+VerticalFov lenses report null (no aperture is known). COI uses the authoritative
+viewport camera distance in internal cm, independent of scene unit declarations.
+Imported camera nodes remain unsupported. Verify through the actual SDK and retain
+catalogue/inspection snapshots and inspection-budget lower bound. This is read
+coverage, not camera editing or Maya parity.
+
+Remaining slices: native chord, guarded box dolly, session view history. Their
+rectangle fitting, grouping, bounded history and lifecycle policies require
+PROVISIONAL entries; the sources state no formula, queue size or cancellation rule.

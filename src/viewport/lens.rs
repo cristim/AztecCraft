@@ -24,6 +24,14 @@ fn film_tan_half(aperture_in: f32) -> f32 {
 }
 
 impl Lens {
+    /// A field of view alone does not determine focal length without a film aperture.
+    pub fn focal_length_mm(self) -> Option<f32> {
+        match self {
+            Self::Film => Some(FOCAL_MM),
+            Self::VerticalFov(_) => None,
+        }
+    }
+
     /// Half the vertical field of view in radians at the given viewport aspect. Fill fits the
     /// resolution gate within the film gate: a viewport at least as wide as the film matches
     /// horizontally, a narrower one vertically.
