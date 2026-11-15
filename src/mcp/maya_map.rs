@@ -44,6 +44,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_keyframe", "`setKeyframe`", "linear interpolation, no tangents (PROVISIONAL); transform channels only"),
     ("delete_keys", "`cutKey -clear`", "transform channels only"),
     ("euler_filter", "`filterCurve -filter euler`", "rotation curves of the selected objects; whole-turn unroll plus the equivalent-triple flip when all three curves share frames (PROVISIONAL: algorithm unstated)"),
+    ("set_infinity", "`setInfinity -preInfinite -postInfinite`", "keyed transform curves of the selected objects; formulas are PROVISIONAL; settings are session-only and read through inspect_keys"),
     ("set_playback_range", "`playbackOptions -min -max`", "whole frames; animation range not separate (PROVISIONAL)"),
     ("play_timeline", "`play -forward true`", "fixed 24 fps looping; no `-wait`"),
     ("stop_timeline", "`play -state off` (PROVISIONAL: flag semantics unconfirmed beyond the synopsis)", "none known (PROVISIONAL)"),

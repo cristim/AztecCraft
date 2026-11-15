@@ -111,7 +111,7 @@ async fn animation_sdk_keys_scrubs_reads_undoes_and_deletes() {
     assert_eq!(read["unavailable_reason"], Value::Null);
     assert_eq!(
         read["keys"][1],
-        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0})
+        json!({"node_id": node, "channel": "translate_x", "frame": 11, "value": 10.0, "pre_infinity": "constant", "post_infinity": "constant"})
     );
 
     tool(
@@ -436,6 +436,8 @@ fn a_full_page_of_the_longest_keys_fits_the_reply_limits() {
                     channel: "translate_x",
                     frame: -azteccraft::native_scene::MAX_FRAME,
                     value: -1.234_567_890_123_456_7e-308,
+                    pre_infinity: "cycle_relative",
+                    post_infinity: "cycle_relative",
                 })
                 .collect(),
             next_cursor: Some(

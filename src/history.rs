@@ -1,8 +1,9 @@
 use crate::{
     native_scene::{
-        ChannelMask, DEFAULT_FRAME, GroupOptions, JointRequest, MaterialChoice, MayaImportPlan,
-        NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan, PivotReset,
-        ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis,
+        ChannelMask, DEFAULT_FRAME, GroupOptions, Infinity, JointRequest, MaterialChoice,
+        MayaImportPlan, NativeError, NativeId, NativeScene, NativeTransform, ObjImportPlan,
+        PivotReset, ReparentKeep, SessionMaterialId, TransformTarget, UngroupOptions,
+        UvProjectAxis,
     },
     primitive_options::PrimitiveOptions,
     scene::{NodeId, Primitive},
@@ -125,6 +126,15 @@ pub enum Command {
         channels: ChannelMask,
         current_frame: i32,
     },
+    /// Sets the pre and/or post infinity of the keyed curves of `channels`, then evaluates at
+    /// `current_frame`.
+    SetInfinity {
+        nodes: Vec<NodeId>,
+        channels: ChannelMask,
+        pre: Option<Infinity>,
+        post: Option<Infinity>,
+        current_frame: i32,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: UvProjectAxis,
@@ -173,6 +183,7 @@ impl Command {
             Self::SetKeys { .. } => "Set Key".to_string(),
             Self::DeleteKeys { .. } => "Delete Keys".to_string(),
             Self::EulerFilter { .. } => "Euler Filter".to_string(),
+            Self::SetInfinity { .. } => "Set Infinity".to_string(),
             Self::ProjectUvPlanar { .. } => "Planar Mapping".to_string(),
             Self::DeleteUvs { .. } => "Delete UVs".to_string(),
             // PROVISIONAL: Maya's docs name no undo entries.
@@ -552,7 +563,8 @@ impl History {
         let evaluated_at = match &command {
             Command::SetKeys { current_frame, .. }
             | Command::DeleteKeys { current_frame, .. }
-            | Command::EulerFilter { current_frame, .. } => Some(*current_frame),
+            | Command::EulerFilter { current_frame, .. }
+            | Command::SetInfinity { current_frame, .. } => Some(*current_frame),
             _ => None,
         };
         let outcome = match command {
@@ -673,6 +685,16 @@ impl History {
                 current_frame,
             } => {
                 candidate.euler_filter(&nodes, channels, current_frame)?;
+                EditOutcome::Changed
+            }
+            Command::SetInfinity {
+                nodes,
+                channels,
+                pre,
+                post,
+                current_frame,
+            } => {
+                candidate.set_infinity(&nodes, channels, pre, post, current_frame)?;
                 EditOutcome::Changed
             }
             Command::ProjectUvPlanar { shape, axis } => {

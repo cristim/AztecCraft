@@ -199,6 +199,7 @@ impl Editor {
             Operation::SetKeyframe { .. } => Some("Key set"),
             Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::EulerFilter { .. } => Some("Euler filter applied"),
+            Operation::SetInfinity { .. } => Some("Infinity set"),
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
@@ -633,6 +634,7 @@ impl Editor {
                     | Operation::SetKeyframe { .. }
                     | Operation::DeleteKeys { .. }
                     | Operation::EulerFilter { .. }
+                    | Operation::SetInfinity { .. }
                     | Operation::Create { .. }
                     | Operation::Delete(_)
                     | Operation::DeleteSelection
@@ -766,6 +768,19 @@ impl Editor {
                 azteccraft::native_scene::check_euler_channels(*channels)
                     .map_err(OperationError::Scene)?;
             }
+            Operation::SetInfinity {
+                nodes,
+                channels,
+                pre,
+                post,
+            } => {
+                if pre.is_none() && post.is_none() {
+                    return Err(OperationError::InvalidInput(
+                        "set_infinity needs pre, post or both".into(),
+                    ));
+                }
+                self.check_key_request(nodes.as_deref(), None, *channels)?;
+            }
             Operation::SetPlaybackRange { start, end } => {
                 self.check_playback_range(*start, *end)?;
             }
@@ -880,6 +895,12 @@ impl Editor {
             Operation::EulerFilter { nodes, channels } => {
                 self.euler_filter_command(nodes, channels)
             }
+            Operation::SetInfinity {
+                nodes,
+                channels,
+                pre,
+                post,
+            } => self.set_infinity_command(nodes, channels, pre, post),
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
             Operation::CreateCameraBookmark { name } => {
@@ -1554,7 +1575,10 @@ impl Editor {
         );
         let key_command = matches!(
             command,
-            Command::SetKeys { .. } | Command::DeleteKeys { .. } | Command::EulerFilter { .. }
+            Command::SetKeys { .. }
+                | Command::DeleteKeys { .. }
+                | Command::EulerFilter { .. }
+                | Command::SetInfinity { .. }
         );
         let pivot_command = matches!(
             command,
