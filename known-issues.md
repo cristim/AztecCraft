@@ -24,8 +24,9 @@ File > Import... and MCP `import_obj` add the meshes of an OBJ file to the scene
 parity with Maya is claimed and nothing was compared with Maya's OBJ reader (#5).
 
 - **Meshes only.** `v` and `f` records, `o` and `g` groups (one new object per group, Multiple
-  Objects semantics). Normals, UVs, materials, smoothing groups and `.mtl` files are counted in
-  `ignored_records` and dropped. The Group and Single Object options and other import types do not
+  Objects semantics). Normals, materials, smoothing groups and `.mtl` files are counted in
+  `ignored_records` and dropped. `vt` records are parsed and validated (up to 262,144) but the UVs are
+  not yet applied to the imported shapes, and nothing reports them. The Group and Single Object options and other import types do not
   exist; the option box beside Import... is disabled.
 - **Opened Maya files refuse it.** A scene opened from `.mb` or `.ma` cannot take structural edits,
   so Import returns the same refusal Create gives. It works in Untitled, authored and legacy
