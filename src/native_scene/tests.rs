@@ -346,6 +346,58 @@ fn transform_paths_refuse_excess_path_identities_below_the_other_caps() {
     );
 }
 
+#[test]
+fn transform_paths_accept_exactly_the_depth_cap_and_refuse_one_deeper() {
+    for (nodes, accepted) in [
+        (MAX_TRANSFORM_DEPTH, true),
+        (MAX_TRANSFORM_DEPTH + 1, false),
+    ] {
+        let mut scene = flat_cubes(nodes);
+        let t = transform_ids(&scene);
+        for link in 1..t.len() {
+            instance(&mut scene, t[link - 1], t[link], false);
+        }
+        scene.validate().unwrap();
+        if accepted {
+            let paths = scene.transform_paths().unwrap();
+            assert_eq!(paths.len(), nodes);
+            assert_eq!(paths.last().unwrap().path.len(), MAX_TRANSFORM_DEPTH);
+        } else {
+            assert_eq!(scene.transform_paths(), Err(NativeError::ResourceLimit));
+        }
+    }
+}
+
+#[test]
+fn transform_paths_accept_exactly_the_identity_cap_and_refuse_one_more() {
+    // Two roots share a chain whose deepest path has `m` ids: those paths cost m * (m + 1)
+    // identities, and each extra flat root costs one more.
+    let m = 255;
+    for (extra, accepted) in [
+        (MAX_PATH_IDENTITIES - m * (m + 1), true),
+        (MAX_PATH_IDENTITIES - m * (m + 1) + 1, false),
+    ] {
+        let mut scene = flat_cubes(m + 1 + extra);
+        let t = transform_ids(&scene);
+        instance(&mut scene, t[0], t[2], false);
+        instance(&mut scene, t[1], t[2], true);
+        for link in 3..=m {
+            instance(&mut scene, t[link - 1], t[link], false);
+        }
+        scene.validate().unwrap();
+        if accepted {
+            let paths = scene.transform_paths().unwrap();
+            assert_eq!(
+                paths.iter().map(|target| target.path.len()).sum::<usize>(),
+                MAX_PATH_IDENTITIES
+            );
+            assert!(paths.len() < MAX_TRANSFORM_PATHS);
+        } else {
+            assert_eq!(scene.transform_paths(), Err(NativeError::ResourceLimit));
+        }
+    }
+}
+
 pub(super) fn retain(scene: &mut NativeScene, bytes: &[u8], records: Vec<Range<usize>>) {
     scene.source = Some(SourceRetention {
         has_removals: false,
