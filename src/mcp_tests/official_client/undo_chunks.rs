@@ -50,7 +50,7 @@ async fn sdk_undo_chunk_groups_several_tool_calls_into_one_named_step() {
     let before = undo_state(&mut editor, &context, &client).await;
     assert_eq!(
         before,
-        json!({"enabled":true,"infinite":false,"queue_size":50,"undo_length":0,"redo_length":0,"open_chunk":null})
+        json!({"enabled":true,"infinite":false,"queue_size":50,"undo_length":0,"redo_length":0,"undo_queue":[],"redo_queue":[],"open_chunk":null})
     );
     let opened = run(
         &mut editor,
@@ -85,7 +85,13 @@ async fn sdk_undo_chunk_groups_several_tool_calls_into_one_named_step() {
         (json!(1), json!(null))
     );
     assert_eq!(editor.history.undo_label().as_deref(), Some("Build"));
+    assert_eq!(after["undo_queue"], json!(["Build"]));
     run(&mut editor, &context, &client, "undo", json!({})).await;
+    let undone = undo_state(&mut editor, &context, &client).await;
+    assert_eq!(
+        (undone["undo_queue"].clone(), undone["redo_queue"].clone()),
+        (json!([]), json!(["Build"]))
+    );
     assert_eq!(editor.history.scene().nodes().len(), 0);
     let nothing = run(
         &mut editor,

@@ -230,7 +230,9 @@
       "open_chunk": null,
       "queue_size": 50,
       "redo_length": 0,
-      "undo_length": 0
+      "redo_queue": [],
+      "undo_length": 0,
+      "undo_queue": []
     },
     "units": {
       "angular": "deg",

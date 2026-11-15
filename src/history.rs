@@ -347,6 +347,24 @@ impl History {
     pub fn redo_len(&self) -> usize {
         self.redo.len()
     }
+    /// `undoInfo -printQueue`: the labels of up to `limit` undo steps, the next Undo first.
+    pub fn undo_labels(&self, limit: usize) -> Vec<String> {
+        self.undo
+            .iter()
+            .rev()
+            .take(limit)
+            .map(|e| e.label.clone())
+            .collect()
+    }
+    /// `undoInfo -printRedoQueue`: the labels of up to `limit` redo steps, the next Redo first.
+    pub fn redo_labels(&self, limit: usize) -> Vec<String> {
+        self.redo
+            .iter()
+            .rev()
+            .take(limit)
+            .map(|e| e.label.clone())
+            .collect()
+    }
     /// The name of the open undo chunk, if any.
     pub fn open_chunk_name(&self) -> Option<&str> {
         self.chunk.as_ref().map(|chunk| chunk.name.as_str())

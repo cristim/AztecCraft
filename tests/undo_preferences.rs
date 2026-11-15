@@ -224,3 +224,19 @@ fn undo_settings_carry_to_a_replacement_history() {
     assert_eq!(fresh.undo_queue(), UndoQueue::Infinite);
     assert!(!fresh.undo_enabled());
 }
+
+#[test]
+fn queue_labels_list_the_next_step_first_and_honour_the_limit() {
+    let mut history = History::default();
+    let id = create(&mut history, "a");
+    rename(&mut history, id, 1);
+    rename(&mut history, id, 2);
+    let all = history.undo_labels(10);
+    assert_eq!(all.len(), 3);
+    assert_eq!(Some(all[0].clone()), history.undo_label());
+    assert_eq!(history.undo_labels(2), all[..2].to_vec());
+    assert!(history.redo_labels(10).is_empty());
+    history.undo();
+    assert_eq!(history.undo_labels(10), all[1..].to_vec());
+    assert_eq!(history.redo_labels(10), vec![all[0].clone()]);
+}

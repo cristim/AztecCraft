@@ -1495,8 +1495,16 @@ pub struct UndoStateInspection {
     pub queue_size: Option<usize>,
     pub undo_length: usize,
     pub redo_length: usize,
+    /// `-printQueue`: the newest `UNDO_PRINT_LIMIT` undo labels, next Undo first.
+    pub undo_queue: Vec<String>,
+    /// `-printRedoQueue`: the newest `UNDO_PRINT_LIMIT` redo labels, next Redo first.
+    pub redo_queue: Vec<String>,
     pub open_chunk: Option<String>,
 }
+
+/// Most labels `inspect_scene` lists per queue (PROVISIONAL: bounds an Infinite queue's reply).
+#[cfg(any(test, feature = "mcp"))]
+pub const UNDO_PRINT_LIMIT: usize = 50;
 
 #[cfg(any(test, feature = "mcp"))]
 /// Why an autosave wrote nothing. Display carries no path, scene name or payload.
@@ -1844,7 +1852,7 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""selection_count":0,"selection_generation":0,"selection_mode":"","remembered_face":null,"remembered_vertex":null,"#,
     r#""remembered_edge":null,"component_selection":{"face":null,"vertex":null,"edge":null},"#,
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
-    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
+    r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"undo_queue":[],"redo_queue":[],"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
     r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,

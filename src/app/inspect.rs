@@ -627,6 +627,12 @@ impl Editor {
                 },
                 undo_length: self.history.undo_len(),
                 redo_length: self.history.redo_len(),
+                undo_queue: self
+                    .history
+                    .undo_labels(crate::editor_operations::UNDO_PRINT_LIMIT),
+                redo_queue: self
+                    .history
+                    .redo_labels(crate::editor_operations::UNDO_PRINT_LIMIT),
                 open_chunk: self.history.open_chunk_name().map(str::to_string),
             },
             dirty: self.is_dirty(),
