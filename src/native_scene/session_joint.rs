@@ -343,10 +343,10 @@ impl NativeScene {
 
     /// The lowest `joint<N>` no transform or shape holds, as `create_default_named` does.
     fn free_joint_name(&self) -> Result<String, NativeError> {
-        let count = authored::names(self).count();
-        (1..=count + 1)
+        let taken: HashSet<&str> = authored::names(self).map(|(_, name)| name).collect();
+        (1..=taken.len() + 1)
             .map(|suffix| format!("joint{suffix}"))
-            .find(|name| !authored::names(self).any(|(_, taken)| taken == name))
+            .find(|name| !taken.contains(name.as_str()))
             .ok_or(NativeError::ResourceLimit)
     }
 

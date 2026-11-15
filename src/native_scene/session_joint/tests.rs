@@ -183,6 +183,28 @@ fn default_names_take_the_lowest_free_number_across_transforms_and_shapes() {
     assert_eq!(gaps.node(again).unwrap().name(), "joint3");
 }
 
+// #396: a default name scans the scene's names once, however many `joint<N>` are taken, rather
+// than once per candidate. Counting passes pins that without a wall-clock assertion.
+#[test]
+fn default_name_scans_the_names_once_however_many_joints_exist() {
+    for count in [1, 64] {
+        let mut scene = NativeScene::default();
+        for _ in 0..count {
+            joint(&mut scene, None, [0.0; 3]);
+        }
+        let before = authored::NAME_PASSES.with(std::cell::Cell::get);
+        let name = scene.free_joint_name().unwrap();
+        assert_eq!(
+            authored::NAME_PASSES.with(std::cell::Cell::get) - before,
+            1,
+            "{count} joints"
+        );
+        assert_eq!(name, format!("joint{}", count + 1));
+        let next = joint(&mut scene, None, [0.0; 3]);
+        assert_eq!(scene.node(next).unwrap().name(), name);
+    }
+}
+
 #[test]
 fn refusals_name_the_cause_and_leave_the_scene_unchanged() {
     let (mut scene, mesh) = cube();

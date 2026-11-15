@@ -71,7 +71,15 @@ pub(crate) enum AuthoredIneligible {
     SessionUvs,
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Whole-scene name passes started; pins that a lookup scans the names once, not per candidate.
+    pub(super) static NAME_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 pub(super) fn names(scene: &NativeScene) -> impl Iterator<Item = (Option<NodeId>, &str)> {
+    #[cfg(test)]
+    NAME_PASSES.with(|passes| passes.set(passes.get() + 1));
     scene
         .nodes
         .iter()
