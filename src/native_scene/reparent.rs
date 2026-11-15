@@ -248,7 +248,7 @@ impl NativeScene {
     }
 
     /// World matrix of the transform at the end of `path`.
-    fn path_world(&self, path: &[NativeId]) -> Result<DMat4, NativeError> {
+    pub(super) fn path_world(&self, path: &[NativeId]) -> Result<DMat4, NativeError> {
         let mut world = DMat4::IDENTITY;
         for id in path {
             let node = self
