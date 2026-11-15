@@ -18,8 +18,8 @@ use azteccraft::history::{Command, UndoQueue};
 use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
-    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, MaterialChoice, MoveSpace,
-    NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
+    ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
+    MoveSpace, NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
     TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
@@ -810,6 +810,12 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             nodes: None,
             channels: [false, false, false, true, true, true, false, false, false],
         },
+        Operation::SetInfinity {
+            nodes: None,
+            channels: ALL_CHANNELS,
+            pre: Some(Infinity::Cycle),
+            post: None,
+        },
         Operation::Inspect { page: None },
         Operation::InspectKeys {
             node: None,
@@ -1348,6 +1354,15 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             Operation::EulerFilter {
                 nodes: None,
                 channels: [false, false, false, true, true, true, false, false, false],
+            },
+        )],
+        Operation::SetInfinity { .. } => vec![sample(
+            "set_infinity(selection)",
+            Operation::SetInfinity {
+                nodes: None,
+                channels: ALL_CHANNELS,
+                pre: Some(Infinity::Cycle),
+                post: None,
             },
         )],
         Operation::InspectKeys { .. } => vec![sample(

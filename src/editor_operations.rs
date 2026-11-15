@@ -499,6 +499,15 @@ pub enum Operation {
         nodes: Option<Vec<NodeId>>,
         channels: azteccraft::native_scene::ChannelMask,
     },
+    /// Sets the pre and/or post infinity of the keyed curves of `channels`, as one undo step. No
+    /// `nodes` means the object selection; at least one of `pre` and `post` is set.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetInfinity {
+        nodes: Option<Vec<NodeId>>,
+        channels: azteccraft::native_scene::ChannelMask,
+        pre: Option<azteccraft::native_scene::Infinity>,
+        post: Option<azteccraft::native_scene::Infinity>,
+    },
     ProjectUvPlanar {
         shape: NativeId,
         axis: azteccraft::native_scene::UvProjectAxis,
@@ -1064,6 +1073,9 @@ pub struct KeyInspection {
     pub channel: &'static str,
     pub frame: i32,
     pub value: f64,
+    /// The curve's behaviour before its first key and after its last.
+    pub pre_infinity: &'static str,
+    pub post_infinity: &'static str,
 }
 
 #[derive(Debug, Serialize)]

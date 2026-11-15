@@ -2551,6 +2551,102 @@
     }
   },
   {
+    "name": "set_infinity",
+    "description": "Set what keyed curves do before their first key (pre) and after their last (post), as one undo step: constant holds the end value, linear continues the end segment's slope, cycle repeats the keyed span, cycle_relative repeats it with the span's rise added each cycle, oscillate repeats it alternately forwards and backwards. At least one of pre and post is required, and one left out stays as it is. No node_ids means the object selection, and no channels means all nine; a named channel without a key is skipped, and none keyed is refused with no_keys. A refusal changes nothing. Read the settings as pre_infinity and post_infinity on each inspect_keys key. The setting lives with the curve's keys: deleting its last key resets it to constant, and it is session-only like the keys. Remaining keys are evaluated at the current time (PROVISIONAL: the modes' formulas are not stated by Maya's docs, and linear uses the end segment's slope because tangents are not implemented). Stops playback",
+    "inputSchema": {
+      "$defs": {
+        "InfinityMode": {
+          "enum": [
+            "constant",
+            "linear",
+            "cycle",
+            "cycle_relative",
+            "oscillate"
+          ],
+          "type": "string"
+        },
+        "KeyChannel": {
+          "enum": [
+            "translate_x",
+            "translate_y",
+            "translate_z",
+            "rotate_x",
+            "rotate_y",
+            "rotate_z",
+            "scale_x",
+            "scale_y",
+            "scale_z"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "channels": {
+          "description": "Omit it for all nine channels. A channel without a key is skipped.",
+          "items": {
+            "$ref": "#/$defs/KeyChannel"
+          },
+          "maxItems": 9,
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ],
+          "uniqueItems": true
+        },
+        "node_ids": {
+          "description": "The objects to act on. Omit it for the object selection.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "minItems": 1,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "post": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InfinityMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Behaviour after the last key. Omit it to leave it as it is."
+        },
+        "pre": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InfinityMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Behaviour before the first key. Omit it to leave it as it is."
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token"
+      ],
+      "title": "SetInfinityArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "set_playback_range",
     "description": "Set the playback range in whole frames. Session-only, not an undo step. The start must not be after the end (invalid_playback_range). Stops playback",
     "inputSchema": {
