@@ -195,3 +195,41 @@ fn group_without_preserve_position_and_ungroup_keep_local_that_leave_f32_are_ref
         },
     );
 }
+
+// The cap moves 1e10 cm in the mesh frame; the parent's 1e30 scale carries it to 1e40 in world
+// space, past f32::MAX, while the parent matrix stays finite.
+#[test]
+fn an_extrusion_under_a_huge_scale_that_leaves_f32_is_refused() {
+    let (mut scene, parent) = test_fixtures::cube();
+    let child = scene.create(Primitive::Cube, "child").unwrap();
+    for axis in [Channel::ScaleX, Channel::ScaleY, Channel::ScaleZ] {
+        scene.set_channel(parent, axis, 1.0e30).unwrap();
+    }
+    scene
+        .reparent(child, Some(parent), ReparentKeep::Local)
+        .unwrap();
+    let shape = scene.shapes().last().unwrap().id();
+    let mut history = History::new(scene);
+    let extrude = |distance| Command::ExtrudeFace {
+        shape,
+        face_index: 1,
+        distance,
+    };
+    refused_and_untouched(&mut history, extrude(1.0e10));
+    history.execute(extrude(1.0)).unwrap();
+}
+
+#[test]
+fn an_extrusion_in_an_already_undrawable_scene_is_not_blocked() {
+    let (mut scene, node) = test_fixtures::cube();
+    scene.set_channel(node, Channel::ScaleX, 1.0e300).unwrap();
+    let shape = scene.shapes()[0].id();
+    let mut history = History::new(scene);
+    history
+        .execute(Command::ExtrudeFace {
+            shape,
+            face_index: 1,
+            distance: 1.0,
+        })
+        .unwrap();
+}

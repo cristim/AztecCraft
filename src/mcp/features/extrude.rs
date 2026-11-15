@@ -52,7 +52,7 @@ fn parse_extrude_face(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[ToolSpec {
     name: "extrude_face",
-    description: "Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported",
+    description: "Extrude one current canonical quad along its local normal by distance in declared scene units. Requires node, shape and full root-to-shape path; shared-shape edits affect every instance. Zero distance changes topology; imported structural edits remain unsupported. A result whose world geometry leaves the f32 range the viewport draws is refused with world_out_of_range. All or nothing: the scene and undo stack are untouched on any refusal",
     schema: schema::<ExtrudeArgs>,
     parse: parse_extrude_face,
     idempotent: false,
