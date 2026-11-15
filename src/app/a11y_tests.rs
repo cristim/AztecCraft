@@ -81,6 +81,7 @@ pub(super) struct Violation {
     pub(super) scenario: String,
     pub(super) rule: Rule,
     pub(super) role: Role,
+    pub(super) node: NodeId,
     pub(super) name: String,
     pub(super) bounds: Option<(f64, f64, f64, f64)>,
     pub(super) ancestor: String,
@@ -171,6 +172,7 @@ fn name_of(nodes: &HashMap<NodeId, &Node>, node: &Node) -> Option<String> {
 
 /// One node with everything the rules and the keys need, so the rules read plain fields.
 pub(super) struct Entry {
+    pub(super) id: NodeId,
     pub(super) role: Role,
     pub(super) name: Option<String>,
     bounds: Option<(f64, f64, f64, f64)>,
@@ -191,6 +193,7 @@ impl Entry {
             scenario: scenario.to_owned(),
             rule,
             role: self.role,
+            node: self.id,
             name: self.name.clone().unwrap_or_default(),
             bounds: self.bounds,
             ancestor: self.ancestor.clone(),
@@ -227,6 +230,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             .unwrap_or_else(|| format!("{}#{}", ancestor.1, index));
         *index += 1;
         order.push(Entry {
+            id,
             role,
             name: name_of(&nodes, node),
             bounds: node.bounds().map(|b| (b.x0, b.y0, b.x1, b.y1)),
@@ -292,4 +296,7 @@ pub(super) fn violations(
     found
 }
 
+mod gaps;
+mod rig;
+mod scenarios;
 mod self_tests;

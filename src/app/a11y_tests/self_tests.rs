@@ -42,6 +42,16 @@ fn codes(update: &TreeUpdate) -> Vec<&'static str> {
     codes
 }
 
+/// Test-local stand-in for the production helper: the reason replaces any hover description.
+fn describe_disabled(response: egui::Response, reason: &str) -> egui::Response {
+    if !response.enabled() {
+        response.ctx.accesskit_node_builder(response.id, |node| {
+            node.set_description(format!("{DISABLED_PREFIX}{reason}"));
+        });
+    }
+    response
+}
+
 fn custom_region(ui: &mut egui::Ui, named: bool) {
     let response = ui.allocate_response(vec2(20.0, 20.0), Sense::click());
     if named {
@@ -84,6 +94,56 @@ fn text_edit_fails_name_until_labelled() {
             .labelled_by(label.id);
     });
     assert!(codes(&by_label).is_empty());
+}
+
+#[test]
+fn glyph_name_fails_quality() {
+    assert_eq!(codes(&tree_of(|ui| ui.button("\u{2610}"))), ["R5"]);
+    assert_eq!(codes(&tree_of(|ui| ui.button("<k"))), ["R5"]);
+    assert!(codes(&tree_of(|ui| ui.button("Options"))).is_empty());
+}
+
+#[test]
+fn disabled_control_needs_the_reason_description() {
+    let hover_only = tree_of(|ui| {
+        ui.add_enabled(false, Button::new("Undo"))
+            .on_hover_text("Nothing to undo");
+    });
+    assert_eq!(codes(&hover_only), ["R3"]);
+    let described = tree_of(|ui| {
+        describe_disabled(
+            ui.add_enabled(false, Button::new("Undo"))
+                .on_hover_text("Nothing to undo"),
+            "Nothing to undo",
+        );
+    });
+    assert!(codes(&described).is_empty());
+}
+
+#[test]
+fn enabled_control_with_the_reason_prefix_fails() {
+    let stale = tree_of(|ui| {
+        let response = ui.button("Undo");
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_description(format!("{DISABLED_PREFIX}old reason"));
+        });
+    });
+    assert_eq!(codes(&stale), ["R3b"]);
+    let enabled = tree_of(|ui| describe_disabled(ui.button("Undo"), "never written"));
+    assert!(codes(&enabled).is_empty());
+}
+
+#[test]
+fn checkbox_without_state_fails() {
+    let stateless = tree_of(|ui| {
+        let response = ui.allocate_response(vec2(20.0, 20.0), Sense::click());
+        response.widget_info(|| WidgetInfo::labeled(accesskit::Role::CheckBox, true, "Flag"));
+        ui.ctx()
+            .accesskit_node_builder(response.id, |node| node.clear_toggled());
+    });
+    assert_eq!(codes(&stateless), ["R4"]);
+    let mut flag = false;
+    assert!(codes(&tree_of(|ui| ui.checkbox(&mut flag, "Flag"))).is_empty());
 }
 
 #[test]

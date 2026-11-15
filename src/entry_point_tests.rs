@@ -51,9 +51,10 @@ fn is_test_file(relative: &Path) -> bool {
         || name == "test_fixtures.rs"
         || name == "snapshots.rs"
         || name.ends_with("_tests.rs")
-        || relative
-            .components()
-            .any(|part| part.as_os_str() == "tests" || part.as_os_str() == "mcp_tests")
+        || relative.components().any(|part| {
+            let part = part.as_os_str().to_str().unwrap();
+            part == "tests" || part == "mcp_tests" || part.ends_with("_tests")
+        })
 }
 
 fn collect(directory: &Path, root: &Path, library: &BTreeSet<String>, out: &mut Vec<PathBuf>) {
