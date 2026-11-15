@@ -594,6 +594,40 @@ fn filtering_twice_changes_nothing_in_either_unit_even_at_half_a_turn() {
     }
 }
 
+#[test]
+fn the_euler_filter_accepts_a_key_at_the_turn_limit_and_refuses_the_next_one() {
+    let limit = 1.0e6 * 360.0;
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    key_rotation(&mut scene, id, 1, 0.0);
+    key_rotation(&mut scene, id, 2, limit);
+    scene.euler_filter(&[id], RY, 2).unwrap();
+    let mut over = NativeScene::default();
+    let id = cube(&mut over, "b");
+    key_rotation(&mut over, id, 1, 0.0);
+    key_rotation(&mut over, id, 2, f64::from_bits(limit.to_bits() + 1));
+    let before = over.clone();
+    assert_eq!(
+        over.euler_filter(&[id], RY, 2),
+        Err(NativeError::EulerValueTooLarge)
+    );
+    assert_eq!(over, before);
+}
+
+/// At exactly 90 degrees on the middle axis the key's own triple and its flipped equivalent are
+/// the same distance from the previous key, and the tie keeps the key's own form.
+#[test]
+fn an_exact_tie_at_the_gimbal_keeps_the_keys_own_triple() {
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    key_triple(&mut scene, id, 1, [90.0, 90.0, 90.0]);
+    key_triple(&mut scene, id, 2, [0.0, 90.0, 0.0]);
+    let before = scene.clone();
+    scene.euler_filter(&[id], RXYZ, 2).unwrap();
+    assert_eq!(triples(&scene, id)[1], [0.0, 90.0, 0.0]);
+    assert_eq!(scene, before);
+}
+
 const PRE_POST: [Infinity; 5] = [
     Infinity::Constant,
     Infinity::Linear,
@@ -673,6 +707,36 @@ fn a_single_key_or_a_missing_curve_holds_under_every_mode() {
         }
         assert_eq!(evaluate_with(&Curve::new(), 1, (mode, mode)), None);
     }
+}
+
+#[test]
+fn infinity_extremes_stay_inside_the_frame_bound_and_overflow_is_refused() {
+    let curve = Curve::from([(-MAX_FRAME, 0.0), (MAX_FRAME, 1.0)]);
+    for mode in PRE_POST {
+        let _ = evaluate_with(&curve, MAX_FRAME, (mode, mode)).unwrap();
+        let _ = evaluate_with(&curve, -MAX_FRAME, (mode, mode)).unwrap();
+    }
+    let wide = Curve::from([(0, 0.0), (1, f64::MAX)]);
+    let value = evaluate_with(
+        &wide,
+        1_000_000,
+        (Infinity::Constant, Infinity::CycleRelative),
+    );
+    assert!(!value.unwrap().is_finite());
+    let mut scene = NativeScene::default();
+    let id = cube(&mut scene, "a");
+    scene.set_channel(id, Channel::TranslateX, 0.0).unwrap();
+    scene.set_keys(&[id], 0, FX, 0).unwrap();
+    scene
+        .set_channel(id, Channel::TranslateX, f64::MAX)
+        .unwrap();
+    scene.set_keys(&[id], 1, FX, 1).unwrap();
+    let before = scene.clone();
+    assert_eq!(
+        scene.set_infinity(&[id], FX, None, Some(Infinity::CycleRelative), 1_000_000),
+        Err(NativeError::NonFinite)
+    );
+    assert_eq!(scene, before);
 }
 
 #[test]
