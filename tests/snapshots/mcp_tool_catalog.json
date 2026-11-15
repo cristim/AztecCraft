@@ -2159,6 +2159,61 @@
     }
   },
   {
+    "name": "reduce_mesh",
+    "description": "Reduce one shape's polygon mesh as one undo step by edge-collapse decimation (PROVISIONAL: the polyReduce page states no algorithm): give exactly one of percent (share of triangles removed, above 0 and below 100), target_triangles (stop at or below) or target_vertices (stop at). Every face is triangulated; border vertices never move, no triangle flips or degenerates and the mesh stays manifold. A target the collapses cannot reach is refused with reduce_target_unreachable, a target that removes nothing with nothing_to_reduce, a bad value with invalid_reduce_target, a non-manifold mesh with reduce_not_manifold, vertices or edges no face uses with reduce_loose_geometry and a polygon that cannot be split with reduce_not_triangulable. A shape with UVs is refused with uvs_block_topology_edit (delete the UVs first); sourced scenes and holes are refused with unsupported_edit. A refusal changes nothing. Face, edge and vertex picks are cleared. Shared-shape edits affect every instance",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "percent": {
+          "description": "Remove this percentage of the triangles, above 0 and below 100.",
+          "format": "double",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "scene_token": {
+          "type": "string"
+        },
+        "shape_id": {
+          "type": "string"
+        },
+        "target_triangles": {
+          "description": "Stop at or below this many triangles.",
+          "format": "uint32",
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "target_vertices": {
+          "description": "Stop at this many vertices.",
+          "format": "uint32",
+          "maximum": 4294967295,
+          "minimum": 3,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "scene_token",
+        "shape_id"
+      ],
+      "title": "ReduceMeshArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "move_vertices",
     "description": "Translate vertices of one polygon mesh together by delta, in declared scene units along the mesh's own axes (the Move tool's Object axis orientation). Requires node, shape and full root-to-shape path and distinct vertex indices; shared-shape edits affect every instance. One undo step. Authored scenes only: scenes opened from a file refuse until their writer can carry edited points. World-axis moves are unsupported",
     "inputSchema": {

@@ -223,6 +223,19 @@ passed hooked and unhooked Open/Cancel. The source uses nested default-mode
 pumping, but that observation does not establish the cause or a fix. Native
 verification must distinguish this observation from a confirmed diagnosis.
 
+## Mesh > Reduce is a headless slice (#462)
+
+**Severity:** low
+**Area:** modeling, MCP
+
+`reduce_mesh` decimates one whole authored shape by quadric edge collapse. The `polyReduce` 2027
+page states no algorithm, so everything below is PROVISIONAL: every face becomes a triangle; border
+vertices never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of
+least quadric error; the percentage is the share of triangles removed; a count target stops at or
+below it. A target that borders or manifold limits make unreachable is refused, not approximated. UVs
+block it (`uvs_block_topology_edit`), as for Extrude. Missing: the Mesh menu item and option box, a
+face-region reduce, keep-quads, UV and colour weighting, and the native screenshot review. #462 stays open.
+
 ## Core authoring limits
 
 **Severity:** medium
