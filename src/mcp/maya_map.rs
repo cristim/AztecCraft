@@ -14,6 +14,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_tool_space", "`manipRotateContext` / `manipScaleContext -mode`", "Move and Scale: object, world, parent; Rotate: object, world; other orientations not covered (PROVISIONAL)"),
     ("set_tool_handle", "`-currentActiveHandle` on the manip contexts", "none known (PROVISIONAL)"),
     ("set_manipulator_size", "`manipOptions -scale`", "values rounded to three decimals (AztecCraft rule)"),
+    ("set_rotate_step", "`manipRotateContext -snap` / `-snapRelative` / `-snapValue`", "relative step only, in degrees, from 1e-6; no absolute snap (PROVISIONAL)"),
     ("begin_manipulation", "`move` / `rotate` / `scale` inside `undoInfo -openChunk`", "no Maya single-call equivalent of a remote-owned preview (PROVISIONAL)"),
     ("update_manipulation", "`move` / `rotate` / `scale -absolute`", "absolute value only; no one-call relative transform"),
     ("finish_manipulation", "`undoInfo -closeChunk` (commit); `undo` (cancel)", "cancel restores the begin state exactly (PROVISIONAL)"),
