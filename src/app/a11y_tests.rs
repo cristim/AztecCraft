@@ -179,6 +179,12 @@ fn stable_name(name: &str) -> &str {
         .unwrap_or(name)
 }
 
+/// Area id of `egui::Window::new(title)` without an explicit id (egui hashes the title text as an
+/// `Option<Cow<str>>`).
+pub(super) fn titled_window_id(title: &str) -> egui::Id {
+    egui::Id::unique(Some(std::borrow::Cow::Borrowed(title)))
+}
+
 /// Id of the unnamed title-bar click area egui adds to a window of area id `area`. egui 0.37 forces
 /// `resizable(false)` on `Window` (window.rs:657), so there is no resize corner.
 fn chrome_ids(windows: &[egui::Id]) -> HashSet<NodeId> {
