@@ -72,7 +72,7 @@ enum Kind {
     Transform(usize),
     Curve(usize),
     Mesh(usize),
-    Camera,
+    Camera(super::camera::SceneCamera),
     LightLinker,
     LayerManager,
     DisplayLayer,
@@ -532,7 +532,11 @@ impl Builder<'_, '_> {
                 {
                     return Err(error(ErrorKind::Unsupported, c.offset));
                 }
-                Kind::Camera
+                let camera = super::camera::SceneCamera::from_shape_name(name)
+                    .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                self.scene.cameras[camera.index()] =
+                    Some(crate::camera_optics::CameraOptics::node_default());
+                Kind::Camera(camera)
             }
             ("lightLinker", "lightLinker1") if shared && parent.is_none() => Kind::LightLinker,
             ("displayLayerManager", "layerManager") if !shared && parent.is_none() => {
@@ -589,7 +593,10 @@ impl Builder<'_, '_> {
         c.work.charge(mul(BUILTINS.len(), add(1, raw.len())?)?)?;
         let name = raw
             .strip_prefix(':')
-            .filter(|name| BUILTINS[..13].contains(name))
+            .filter(|name| {
+                BUILTINS[..13].contains(name)
+                    || super::camera::SceneCamera::from_shape_name(name).is_some()
+            })
             .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
         c.done()?;
         if let Some(index) = self.find(name, c.work)? {
@@ -602,7 +609,13 @@ impl Builder<'_, '_> {
         self.selected = Some(self.owners.len());
         self.owners.push(Owner {
             name: add(token.span.start, 1)?..token.span.end,
-            kind: Kind::Builtin,
+            kind: if let Some(camera) = super::camera::SceneCamera::from_shape_name(name) {
+                self.scene.cameras[camera.index()] =
+                    Some(crate::camera_optics::CameraOptics::node_default());
+                Kind::Camera(camera)
+            } else {
+                Kind::Builtin
+            },
             attributes: 0,
             uuid: None,
             keyability: false,
@@ -819,7 +832,60 @@ impl Builder<'_, '_> {
                     _ => return Err(error(ErrorKind::Unsupported, c.offset)),
                 }
             }
-            Kind::Camera => {
+            Kind::Camera(camera) => {
+                let key = attribute
+                    .strip_prefix('.')
+                    .ok_or_else(|| error(ErrorKind::Unsupported, c.offset))?;
+                if let Some(index) = super::camera::OPTICAL_ATTRS.iter().position(|v| *v == key) {
+                    flags.plain(c)?;
+                    let value = if index == 13 {
+                        let word = c.word()?;
+                        c.work.charge(word.len())?;
+                        let (number, radians) = if let Some(v) = word.strip_suffix("rad") {
+                            (v, true)
+                        } else if let Some(v) = word.strip_suffix("deg") {
+                            (v, false)
+                        } else {
+                            (
+                                word,
+                                matches!(self.scene.units.angular, AngularUnit::Radian),
+                            )
+                        };
+                        let v = number
+                            .parse::<f64>()
+                            .map_err(|_| error(ErrorKind::Malformed, c.offset))?;
+                        if !v.is_finite() {
+                            return Err(error(ErrorKind::Malformed, c.offset));
+                        }
+                        if radians { v } else { v.to_radians() }
+                    } else {
+                        c.number()?
+                    };
+                    c.done()?;
+                    self.mark(owner, 1u32 << (index + 10), c)?;
+                    self.scene.cameras[camera.index()]
+                        .as_mut()
+                        .ok_or_else(|| error(ErrorKind::Malformed, c.offset))?
+                        .set_scalar(index, value)
+                        .map_err(|_| error(ErrorKind::Unsupported, c.offset))?;
+                    return Ok(());
+                }
+                if matches!(key, "ff" | "fro") {
+                    flags.plain(c)?;
+                    let value = c.integer()?;
+                    c.done()?;
+                    self.mark(owner, if key == "ff" { 1 << 26 } else { 1 << 27 }, c)?;
+                    let optics = self.scene.cameras[camera.index()]
+                        .as_mut()
+                        .ok_or_else(|| error(ErrorKind::Malformed, c.offset))?;
+                    if key == "ff" {
+                        optics.set_fit(value)
+                    } else {
+                        optics.set_roll_order(value)
+                    }
+                    .map_err(|_| error(ErrorKind::Unsupported, c.offset))?;
+                    return Ok(());
+                }
                 let bit = match attribute {
                     ".v" => {
                         if flags.size.is_some()
@@ -837,11 +903,10 @@ impl Builder<'_, '_> {
                         c.boolean()?;
                         if attribute == ".rnd" { 2 } else { 4 }
                     }
-                    ".fl" | ".coi" | ".ow" => {
+                    ".coi" | ".ow" => {
                         flags.plain(c)?;
                         c.number()?;
                         match attribute {
-                            ".fl" => 8,
                             ".coi" => 16,
                             _ => 32,
                         }
@@ -1289,7 +1354,7 @@ fn decode_with_uvs(source: Arc<[u8]>, meshes: bool) -> Result<Decoded, AsciiErro
         ..NativeScene::default()
     };
     let owner_table = budget
-        .vector(add(owners, BUILTINS.len())?)
+        .vector(add(owners, add(BUILTINS.len(), 4)?)?)
         .map_err(|_| resource())?;
     let info_table = budget.vector(file_info).map_err(|_| resource())?;
     let mesh_parts = budget.vector(shapes).map_err(|_| resource())?;

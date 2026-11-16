@@ -18,6 +18,10 @@ use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
 pub enum Command {
+    SetCameraOptics {
+        camera: crate::native_scene::SceneCamera,
+        optics: crate::camera_optics::CameraOptics,
+    },
     Create {
         primitive: Primitive,
         options: Option<PrimitiveOptions>,
@@ -143,6 +147,7 @@ impl Command {
     /// The name an Undo or Redo entry shows for this command.
     fn label(&self) -> String {
         match self {
+            Self::SetCameraOptics { .. } => "Camera Optics".to_string(),
             // PROVISIONAL for a joint: Maya's docs name no undo entries.
             Self::Create { .. } | Self::CreateDefaultNamed { .. } | Self::CreateJoint(_) => {
                 "Create".to_string()
@@ -555,6 +560,10 @@ impl History {
             _ => None,
         };
         let outcome = match command {
+            Command::SetCameraOptics { camera, optics } => {
+                candidate.set_camera_optics(camera, optics)?;
+                EditOutcome::Changed
+            }
             Command::Create {
                 primitive,
                 options,

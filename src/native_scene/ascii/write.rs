@@ -287,6 +287,7 @@ fn check(scene: &NativeScene) -> Result<(), AsciiWriteRefusal> {
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and `check_scene` above.
+        cameras: _, // Emitted as native select/setAttr on built-in camera shapes below.
         nodes: _,
         shapes: _,
         curves: _,
@@ -685,11 +686,18 @@ pub(crate) fn emit_with_links(
     links: DefaultLinks,
 ) -> Result<Vec<u8>, AsciiWriteRefusal> {
     check(scene)?;
-    let length = prefix_bytes(scene, links)?;
+    let camera_bytes = scene
+        .camera_ascii()
+        .map_err(AsciiWriteRefusal::InvalidScene)?;
+    let length = prefix_bytes(scene, links)?
+        .checked_add(camera_bytes.len())
+        .filter(|n| *n <= MAX_BYTES)
+        .ok_or(AsciiWriteRefusal::TooLarge)?;
     let mut out = Budget::new(0)
         .and_then(|mut b| b.vector::<u8>(length))
         .map_err(|_| AsciiWriteRefusal::ResourceLimit)?;
     append(&mut out, length, HEADER.as_bytes())?;
+    append(&mut out, length, &camera_bytes)?;
     for node in &scene.nodes {
         append(&mut out, length, OPENER.as_bytes())?;
         append(&mut out, length, node.name().as_bytes())?;

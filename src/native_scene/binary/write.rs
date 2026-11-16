@@ -113,6 +113,7 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
     // Every field is decided here, so a new `NativeScene` field breaks this build until it is.
     let NativeScene {
         // Covered by `check_content_kind` and the structure checks above.
+        cameras,
         nodes: _,
         shapes: _,
         curves: _,
@@ -144,6 +145,11 @@ pub(crate) fn encode_authored(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBi
         session_joints: _,
         session_keys: _,
     } = scene;
+    if cameras.iter().any(Option::is_some) {
+        return Err(AuthoredBinaryRefusal::Ineligible(
+            AuthoredIneligible::InvalidScene(crate::native_scene::NativeError::UnsupportedEdit),
+        ));
+    }
     if *session_materials != SessionMaterials::default() {
         return Err(AuthoredBinaryRefusal::SessionMaterials);
     }

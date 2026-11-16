@@ -45,7 +45,8 @@ pub(super) fn verify(scene: &NativeScene, bytes: &[u8]) -> Result<(), AuthoredBi
         }
         Err(_) => return mismatch(),
     };
-    if decoded.units() != scene.units()
+    if decoded.cameras != scene.cameras
+        || decoded.units() != scene.units()
         || decoded.nodes().len() != scene.nodes().len()
         || decoded.shapes().len() != scene.shapes().len()
         || decoded.dag_edges().len() != scene.dag_edges().len()

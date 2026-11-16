@@ -39,7 +39,8 @@ fn same_node_structure(a: &NativeTransformNode, b: &NativeTransformNode) -> bool
 }
 
 fn same_structure(a: &NativeScene, b: &NativeScene) -> bool {
-    a.units == b.units
+    a.cameras == b.cameras
+        && a.units == b.units
         && a.dag == b.dag
         && a.shapes == b.shapes
         && a.curves == b.curves

@@ -3,6 +3,8 @@ mod appearance;
 pub mod ascii;
 mod authored;
 pub mod binary;
+mod camera;
+pub use camera::SceneCamera;
 mod curve;
 mod group;
 mod import;
@@ -597,6 +599,7 @@ impl AuthoredDocumentId {
 
 #[derive(Clone)]
 pub struct NativeScene {
+    cameras: [Option<crate::camera_optics::CameraOptics>; 4],
     nodes: Vec<NativeTransformNode>,
     shapes: Vec<NativeMeshShape>,
     curves: Vec<NativeCurveShape>,
@@ -762,7 +765,8 @@ impl InternalTransform {
 // Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
-        self.nodes == other.nodes
+        self.cameras == other.cameras
+            && self.nodes == other.nodes
             && self.shapes == other.shapes
             && self.curves == other.curves
             && self.dag == other.dag
@@ -780,6 +784,7 @@ impl PartialEq for NativeScene {
 impl Default for NativeScene {
     fn default() -> Self {
         Self {
+            cameras: [None; 4],
             nodes: Vec::new(),
             shapes: Vec::new(),
             curves: Vec::new(),
@@ -1970,6 +1975,7 @@ impl NativeScene {
             .map_err(|_| NativeError::UnsupportedView("f32 world coordinates"))
     }
     pub fn validate(&self) -> Result<(), NativeError> {
+        self.validate_cameras()?;
         self.validate_materials()?;
         self.session_materials
             .validate(&self.shapes, self.source.is_some())?;
