@@ -404,10 +404,10 @@ impl Editor {
         expected: Option<u64>,
     ) -> Result<(), OperationError> {
         match expected {
-            Some(expected) if expected != self.selection.generation() => {
+            Some(expected) if expected != self.selection_generation() => {
                 Err(OperationError::StaleSelection {
                     expected,
-                    current: self.selection.generation(),
+                    current: self.selection_generation(),
                 })
             }
             _ => Ok(()),
