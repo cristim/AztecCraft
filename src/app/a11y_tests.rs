@@ -363,4 +363,7 @@ pub(super) fn violations(
     found
 }
 
+mod gaps;
+mod rig;
+mod scenarios;
 mod self_tests;
