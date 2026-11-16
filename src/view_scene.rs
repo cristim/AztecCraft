@@ -162,6 +162,16 @@ pub struct ViewFace {
 pub const VIEW_BUDGET: usize = 256 * 1024 * 1024;
 
 impl ViewScene {
+    /// The bytes `from_native` preflights for `scene` (the larger of its graph preflight and its
+    /// output estimate), without building the view or applying a budget. `ResourceLimit` means the
+    /// figure overflowed; any other error is the one the build would return.
+    pub fn required_bytes(scene: &NativeScene) -> Result<usize, ViewError> {
+        let graph = Graph::prepare(scene, usize::MAX)?;
+        graph
+            .requirements(scene, usize::MAX)
+            .map(|requirements| requirements.bytes)
+    }
+
     /// Applies the caller's derived-view byte budget before expanding instance paths.
     pub fn from_native(scene: &NativeScene, byte_budget: usize) -> Result<Self, ViewError> {
         let graph = Graph::prepare(scene, byte_budget)?;

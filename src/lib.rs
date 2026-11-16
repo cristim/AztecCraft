@@ -17,6 +17,7 @@ pub mod recovery;
 pub mod render;
 pub mod scene;
 pub mod scene_limits;
+pub mod scene_statistics;
 pub mod selection;
 pub mod shading;
 pub mod snap;
