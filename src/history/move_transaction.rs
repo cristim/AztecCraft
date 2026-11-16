@@ -1007,6 +1007,8 @@ impl History {
 }
 
 #[cfg(test)]
+mod component_direction_tests;
+#[cfg(test)]
 mod component_tests;
 #[cfg(test)]
 mod multi_tests;
