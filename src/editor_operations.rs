@@ -10,7 +10,7 @@ use azteccraft::{
         VertexTarget, WorldAxis,
     },
     scene::{NodeId, Primitive},
-    viewport::{InvalidCameraInput, InvalidCameraPose, NdcRect},
+    viewport::{FilmBackEdit, InvalidCameraInput, InvalidCameraPose, InvalidFilmBack, NdcRect},
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -855,6 +855,18 @@ pub enum Operation {
         yaw: f32,
         pitch: f32,
     },
+    /// Edits the viewport lens film back (view state, like the pose: no undo, not saved). Only the
+    /// named fields change, all or nothing. A `VerticalFov` lens becomes a film back with the
+    /// defaults for unnamed fields. Allowed in every projection; the view follows once perspective.
+    /// Unchanged is judged numerically; an empty edit is refused.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the MCP tool and Attribute Editor construct it next (#458)"
+        )
+    )]
+    SetCameraFilmBack(FilmBackEdit),
 }
 
 #[derive(Debug, Serialize)]
@@ -1615,6 +1627,8 @@ pub enum OperationError {
     Camera(InvalidCameraInput),
     /// A refused absolute pose; names the field.
     CameraPose(InvalidCameraPose),
+    /// A refused film back edit; names the field.
+    FilmBack(InvalidFilmBack),
     CameraBookmark(BookmarkError),
     #[cfg(any(test, feature = "mcp"))]
     Recovery(RecoveryFailure),
@@ -1756,6 +1770,7 @@ impl fmt::Display for OperationError {
             }
             Self::Camera(error) => error.fmt(f),
             Self::CameraPose(error) => error.fmt(f),
+            Self::FilmBack(error) => error.fmt(f),
             Self::CameraBookmark(error) => error.fmt(f),
 #[cfg(any(test, feature = "mcp"))]
             Self::Recovery(error) => error.fmt(f),

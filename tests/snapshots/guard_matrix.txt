@@ -205,6 +205,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## idle / remote
   baseline:
@@ -408,6 +409,7 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## closing / native
   baseline:
@@ -599,6 +601,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## closing / remote
   baseline:
@@ -790,6 +793,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## modal / native
   baseline:
@@ -981,6 +985,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## modal / remote
   baseline:
@@ -1172,6 +1177,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## playing / native
   baseline:
@@ -1363,6 +1369,7 @@
   reset_pivots(zero) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## playing / remote
   baseline:
@@ -1554,6 +1561,7 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## local_move / native
   baseline:
@@ -1745,6 +1753,7 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## local_move / remote
   baseline:
@@ -1936,6 +1945,7 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / native
   baseline:
@@ -2127,6 +2137,7 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## remote_move / remote
   baseline:
@@ -2318,6 +2329,7 @@
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_film_back => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
 
 ## name_draft / native
   baseline:
@@ -2509,6 +2521,7 @@
   reset_pivots(zero) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  set_camera_film_back => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
 
 ## name_draft / remote
   baseline:
@@ -2700,6 +2713,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## material_draft / native
   baseline:
@@ -2892,6 +2906,7 @@
   reset_pivots(zero) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  set_camera_film_back => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
 
 ## material_draft / remote
   baseline:
@@ -3084,6 +3099,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## channel_draft / native
   baseline:
@@ -3275,6 +3291,7 @@
   reset_pivots(zero) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
 
 ## channel_draft / remote
   baseline:
@@ -3466,6 +3483,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## pivot_draft / native
   baseline:
@@ -3657,6 +3675,7 @@
   reset_pivots(zero) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  set_camera_film_back => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
 
 ## pivot_draft / remote
   baseline:
@@ -3848,6 +3867,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## text_focus / native
   baseline:
@@ -4039,6 +4059,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## text_focus / remote
   baseline:
@@ -4230,6 +4251,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## native_input_pending / native
   baseline:
@@ -4421,6 +4443,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## native_input_pending / remote
   baseline:
@@ -4612,6 +4635,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
 ## stale_token / remote
   baseline:
@@ -4805,6 +4829,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+local_move / remote
   baseline:
@@ -4996,6 +5021,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+remote_move / remote
   baseline:
@@ -5187,6 +5213,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+closing / remote
   baseline:
@@ -5378,6 +5405,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+modal / remote
   baseline:
@@ -5569,6 +5597,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+name_draft / remote
   baseline:
@@ -5760,6 +5789,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## stale_token+native_input_pending / remote
   baseline:
@@ -5951,6 +5981,7 @@
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_film_back => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
 
 ## read_only_ascii / native
   baseline:
@@ -6142,6 +6173,7 @@
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## read_only_ascii / remote
   baseline:
@@ -6333,6 +6365,7 @@
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## binary_dirty / native
   baseline:
@@ -6525,6 +6558,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## binary_dirty / remote
   baseline:
@@ -6717,6 +6751,7 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## sited_binary_dirty / native
   baseline:
@@ -6909,6 +6944,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## sited_binary_dirty / remote
   baseline:
@@ -7101,6 +7137,7 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## pivoted / native
   baseline:
@@ -7389,6 +7426,7 @@
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## no_install / remote
   baseline:
@@ -7581,6 +7619,7 @@
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## no_install_modal / native
   baseline:
@@ -7773,6 +7812,7 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
   set_camera_pose => Ok(changed) | camera changed
+  set_camera_film_back => Ok(changed) | camera changed
 
 ## no_install_modal / remote
   baseline:
@@ -7965,5 +8005,6 @@
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_film_back => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7366
+cells: 7407

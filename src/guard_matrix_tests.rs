@@ -24,6 +24,7 @@ use azteccraft::native_scene::{
     VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
+use azteccraft::viewport::FilmBackEdit;
 use std::fmt::Write as _;
 
 #[allow(dead_code)]
@@ -1014,7 +1015,16 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             yaw: 0.3,
             pitch: 0.2,
         },
+        // Differs from the default film back so a Changed outcome is observable.
+        film_back_edit(),
     ]
+}
+
+fn film_back_edit() -> Operation {
+    Operation::SetCameraFilmBack(FilmBackEdit {
+        focal_mm: Some(50.0),
+        ..FilmBackEdit::default()
+    })
 }
 
 fn group_operation(under: GroupUnder, pivot: GroupPivot, preserve_position: bool) -> Operation {
@@ -2434,6 +2444,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                 pitch: 0.2,
             },
         )],
+        Operation::SetCameraFilmBack(_) => vec![sample("set_camera_film_back", film_back_edit())],
     }
 }
 
