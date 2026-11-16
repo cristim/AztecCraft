@@ -2606,6 +2606,10 @@ fn observe(editor: &Editor, roots: &[&std::path::Path]) -> Observed {
             editor.manipulation.manipulator_size().get().to_string(),
         ),
         (
+            "rotate_step",
+            format!("{:?}", editor.manipulation.rotate_step()),
+        ),
+        (
             "bookmarks",
             editor
                 .bookmarks

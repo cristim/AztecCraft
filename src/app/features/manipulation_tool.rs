@@ -99,6 +99,11 @@ impl ManipulationOptions {
         self.scale_handle
     }
 
+    #[cfg(test)]
+    pub(in crate::app) fn rotate_step(&self) -> Option<f64> {
+        self.rotate_step
+    }
+
     pub(in crate::app) fn manipulator_size(&self) -> ManipulatorSize {
         self.manipulator_size
     }
