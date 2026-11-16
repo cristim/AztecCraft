@@ -87,8 +87,12 @@ async fn sdk_rotate_step_snaps_the_remote_rotate_and_honours_validation_and_guar
     )
     .await;
     assert!(!updated.is_error.unwrap_or(false));
-    let turned = editor.history.scene().nodes()[0]
-        .transform()
+    let node = editor.history.scene().nodes()[0].id();
+    let turned = editor
+        .history
+        .scene()
+        .internal_transform(node)
+        .unwrap()
         .rotation_radians[2];
     assert!((turned - 30f64.to_radians()).abs() < 1e-9, "{turned}");
     call(
