@@ -352,13 +352,7 @@ async fn reduce_mesh_region_refusals_keep_the_scene_and_history() {
         assert!(*editor.history.scene() == before, "{args}");
     }
 
-    for faces in [
-        json!("all"),
-        json!([-1]),
-        json!([1.5]),
-        json!([null]),
-        json!(vec![0; 200_001]),
-    ] {
+    for faces in [json!("all"), json!([-1]), json!([1.5]), json!([null])] {
         let mut args = json!({"shape_id": id, "percent": 30, "faces": faces});
         args["scene_token"] = json!(editor.scene_token.to_string());
         let malformed =
@@ -366,6 +360,25 @@ async fn reduce_mesh_region_refusals_keep_the_scene_and_history() {
         assert!(malformed.is_err());
         assert!(*editor.history.scene() == before);
     }
+
+    // At the cap the list reaches the core (a repeated index: reduce_duplicate_face); one more is
+    // refused by the schema or the tool before the core sees it. Both fit the ingress line. The
+    // cap is the tool's MAX_REDUCE_FACES, pinned against the schema by a registry unit test.
+    let cap = 8192;
+    let at_cap = tool(
+        &mut editor,
+        &context,
+        &client,
+        "reduce_mesh",
+        json!({"shape_id": id, "percent": 30, "faces": vec![0; cap]}),
+    )
+    .await;
+    assert_eq!(error_code(&at_cap), "reduce_duplicate_face");
+    let mut args = json!({"shape_id": id, "percent": 30, "faces": vec![0; cap + 1]});
+    args["scene_token"] = json!(editor.scene_token.to_string());
+    let over = call_response(&mut editor, &context, client.peer(), "reduce_mesh", args).await;
+    assert!(over.is_err());
+    assert!(*editor.history.scene() == before);
 
     client.cancel().await.unwrap();
     server.await.unwrap();

@@ -240,8 +240,10 @@ close to 90 degrees can pass (a design choice, not a Maya rule). An optional fac
 the reduce to a region (PROVISIONAL, the page has no region flag): vertices on the region boundary
 are pinned like borders, faces outside keep their polygons and positions, percent and counts refer
 to the region's own vertices and triangles, and every face, edge and vertex pick is cleared after
-the op because face indices are renumbered. The list is explicit, not the Editor's face selection
-set. A target that borders or manifold
+the op because face indices are renumbered. Every face is still triangulated for the engine, so an outside face no fan can split, the
+triangle cap and the manifold and loose-geometry checks apply to the whole mesh. The list is
+explicit (at most 8192 indices, what the 64 KiB request line holds), not the Editor's face
+selection set. A target that borders or manifold
 limits make unreachable is refused, not approximated. UVs block it (`uvs_block_topology_edit`), as
 for Extrude. Meshes over 200000 triangles are refused (`reduce_too_large`, PROVISIONAL): every
 collapse rescans vertex stars and queues duplicate candidates, so the cost grows with the mesh.

@@ -1420,6 +1420,14 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
                     faces: Some(vec![0, 1, 2, 3]),
                 },
             ),
+            sample(
+                "reduce_mesh(all faces)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some((0..6).collect()),
+                },
+            ),
         ],
         Operation::Create { .. } => vec![
             sample(

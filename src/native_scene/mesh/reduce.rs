@@ -14,8 +14,10 @@
 //! A target the collapses cannot reach is refused, not approximated.
 //!
 //! A region reduce (a face set) runs the same engine on the whole mesh with every vertex that
-//! touches a face outside the region pinned like a border: the region boundary is a border. Faces
-//! outside the region are copied as they are (polygons, not triangles); the percentage or count
+//! touches a face outside the region pinned like a border: the region boundary is a border. Every
+//! face is still triangulated for the engine (so a face outside the region that no fan can split,
+//! the triangle cap and the manifold and loose-geometry checks apply to the whole mesh), but faces
+//! outside the region are copied out as they were (polygons, not triangles); the percentage or count
 //! target counts the region's own vertices and triangles (PROVISIONAL: the Maya page has no face
 //! region flag, only a selection).
 
@@ -124,7 +126,7 @@ pub(in crate::native_scene::mesh) fn check_size(triangles: usize) -> Result<(), 
 impl NativeMesh {
     /// Edge-collapse decimation to `target`; the mesh is unchanged on error. The result is all
     /// triangles with hard edges, and the vertex order of the survivors is kept. With a `region`
-    /// of face indices only those faces are triangulated and collapsed (see the module doc).
+    /// of face indices only those faces collapse; the rest of the mesh is pinned (see the module doc).
     pub(in crate::native_scene) fn reduced(
         &self,
         target: ReduceTarget,
