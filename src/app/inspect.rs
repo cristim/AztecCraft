@@ -655,6 +655,20 @@ impl Editor {
                 }
             }),
             camera: CameraInspection {
+                active_camera: self.active_camera,
+                attributes_visible: self.camera_attributes_open,
+                optics: azteccraft::native_scene::SceneCamera::ALL
+                    .into_iter()
+                    .map(|camera| crate::editor_operations::CameraOpticsInspection {
+                        camera,
+                        optics: self.history.scene().camera_optics(camera),
+                        writable_fields: self.history.scene().camera_writable_fields(camera),
+                        projection_available: self
+                            .history
+                            .scene()
+                            .camera_projection_available(camera),
+                    })
+                    .collect(),
                 target: self.camera.target().to_array(),
                 eye: self.camera.eye().to_array(),
                 distance: self.camera.distance(),

@@ -1,6 +1,8 @@
 //! Built-in Maya camera shapes. Optical state belongs to the scene, never to a bookmark.
 use super::{NativeError, NativeScene};
 use crate::camera_optics::{CameraOptics, FilmFit, FilmRollOrder, OpticalProjection};
+#[cfg(feature = "mcp")]
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -19,6 +21,7 @@ impl Default for CameraBinding {
     }
 }
 
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SceneCamera {
@@ -95,6 +98,33 @@ impl CameraOptics {
     }
 }
 impl NativeScene {
+    /// Field order: values(), film fit, film roll order. Source edits require proven spans.
+    pub fn camera_writable_fields(&self, camera: SceneCamera) -> [bool; 18] {
+        if self.source.is_none() {
+            return [true; 18];
+        }
+        if self
+            .source
+            .as_ref()
+            .is_some_and(|s| s.format != super::source::SourceFormat::Binary)
+            || !self.removed.is_empty()
+        {
+            return [false; 18];
+        }
+        self.camera_bindings[camera.index()]
+            .as_ref()
+            .filter(|b| !b.blocked)
+            .map(|b| std::array::from_fn(|i| b.words[i].is_some()))
+            .unwrap_or([false; 18])
+    }
+    /// Unsupported source contributors must not silently produce a guessed viewport.
+    pub fn camera_projection_available(&self, camera: SceneCamera) -> bool {
+        // The ASCII reader admits only known camera contributors. Absent shapes use
+        // Maya's built-in node defaults, including in retained curve-only scenes.
+        self.camera_bindings[camera.index()]
+            .as_ref()
+            .is_none_or(|b| !b.blocked)
+    }
     pub fn camera_optics(&self, camera: SceneCamera) -> CameraOptics {
         self.cameras[camera.index()].unwrap_or_else(CameraOptics::node_default)
     }
@@ -104,6 +134,13 @@ impl NativeScene {
         optics: CameraOptics,
     ) -> Result<(), NativeError> {
         validate_optics(optics)?;
+        if optics.focal_length_mm.to_bits() != self.camera_optics(camera).focal_length_mm.to_bits()
+            && !(2.5..=100000.0).contains(&optics.focal_length_mm)
+        {
+            return Err(NativeError::UnsupportedView(
+                "focal length edits require 2.5 to 100000 mm",
+            ));
+        }
         if let Some(source) = &self.source {
             if source.format != super::source::SourceFormat::Binary {
                 return Err(NativeError::UnsupportedEdit);

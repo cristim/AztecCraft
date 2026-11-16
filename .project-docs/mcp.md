@@ -603,6 +603,8 @@ Status values: `supported` means a registered tool or an `inspect_scene` field e
 | Selection | Lasso, Paint Selection, UV mask | unsupported | | | |
 | Selection | Select > Components > UVs (menu item) | unsupported | | | |
 | Selection | Hierarchy Leaf and Template submasks (Status Line hover) | unsupported | | | |
+| Camera | Camera Attribute Editor visibility | supported | `set_camera_attributes_visible` | `camera.attributes_visible` | #458 |
+| Camera | Built-in optical fields | supported | `set_camera_optics` | `camera.optics` | #458: source binary proven fields, custom cameras unsupported |
 | Camera | Orbit, pan, dolly, absolute pose | supported | `orbit_camera`, `pan_camera`, `dolly_camera`, `set_camera_pose` | `camera` | Shift+Alt tumble and track constrain to one screen axis (native input filter, policy row 39); MCP zeroes an axis instead |
 | Camera | Camera bookmarks (in-session pose bookmarks: list, create, rename, delete, apply). Native View > Bookmarks menu and Edit Bookmarks window are not built yet (#292); bookmarks are not saved in .ma/.mb, are cleared by New and Open and lost on close; not undoable and apply is instant (PROVISIONAL, see the #292 decisions) | supported | `list_camera_bookmarks`, `create_camera_bookmark`, `rename_camera_bookmark`, `delete_camera_bookmark`, `apply_camera_bookmark` | | |
 | Camera | Frame selected (F) | supported | `frame_selected` | `camera` | |
@@ -768,3 +770,32 @@ This source candidate includes native-event and official-SDK regression tests.
 Their execution, native framebuffer/desktop proof and current-parent publication
 remain separate completion gates until recorded below; source wiring alone is
 not verification.
+
+### Camera film back (#458)
+
+`set_camera_optics` uses the same typed, undoable scene operation as native
+View > Camera Attribute Editor. All fields are full f64 values; focal length is
+mm, film aperture and offsets inches, roll radians, translations/pivots
+normalized. Native film roll displays degrees; the film units switch only changes presentation. The four
+built-in shapes are supported; custom cameras remain unsupported. Values feed
+the shared checked projection, GPU/CPU drawing, inverse-projection picking and
+sphere framing. Projection/squeeze/roll policy remains PROVISIONAL, with no
+pinned Maya runtime comparison. Ortho width retains the existing session zoom
+mapping, not imported orthographicWidth.
+
+`inspect_scene.camera.optics` lists each built-in's authoritative values,
+`projection_available`, and `writable_fields`: focal length, horizontal/vertical
+aperture, horizontal/vertical offset, fit offset, squeeze, overscan, camera scale,
+pre/post scale, horizontal/vertical translate, roll, horizontal/vertical pivot,
+film fit, roll order. Authored fields are editable. Source binary edits require
+proven original scalar spans; unknown contributors or drivers refuse edits and
+disable projection/picking. Retained ASCII remains read-only. Authored ASCII
+and binary scalar codecs preserve exact values; Maya binary enum acceptance
+remains unverified. Camera text drafts bind document token, shape and baseline;
+remote differing drafts, focus/input, modal, close and manipulation guards apply.
+
+| Area | Capability | Coverage | Operation/tool | State | Limit |
+|---|---|---|---|---|---|
+| Camera | Built-in film back and optical scalars | supported | `set_camera_optics` | `camera.optics` | custom shapes/source ASCII unsupported; source binary proven spans only |
+| Camera | Imported projection contributors | unsupported | explicit refusal | `projection_available` | unknown source dependencies disable viewport/picking |
+| Camera | Focal animation | unsupported in this slice | no dummy tool | static optical state | subsequent key-operation integration |

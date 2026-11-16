@@ -96,6 +96,7 @@ impl Editor {
         } else {
             None
         };
+        self.camera_attributes(ui.ctx());
         let mut delete_intent = keyboard_admitted && delete;
         self.move_consumed_frame = false;
         self.handle_close(ui.ctx());
@@ -279,6 +280,7 @@ impl Editor {
                 // Alt+Home are from the Maya 2027 "Return to the default view" page; the
                 // default pose itself is an AztecCraft choice (Maya's persp pose is undocumented).
                 ui.menu_button("View", |ui| {
+                    if ui.button("Camera Attribute Editor").clicked() { self.native_operation(Operation::SetCameraAttributesVisible { visible: true }); ui.close(); }
                     if ui.button("Default View (Alt+Home)").clicked() {
                         default_view_requested = true;
                         ui.close();

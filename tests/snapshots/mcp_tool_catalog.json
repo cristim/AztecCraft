@@ -3149,6 +3149,189 @@
     }
   },
   {
+    "name": "set_camera_attributes_visible",
+    "description": "Show or hide the native Camera Attribute Editor. Session-only; same guarded operation as the View menu. inspect_scene camera.attributes_visible reports visibility",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "scene_token": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "scene_token",
+        "visible"
+      ],
+      "title": "CameraAttributesVisibleArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "set_camera_optics",
+    "description": "Edit a built-in camera shape's full-precision optical attributes as one undo step. Full snapshot, units mm focal length, inches film aperture/offsets, radians film roll, normalized film translation/pivot. Scene-owned optics drive viewport and picking; navigation/bookmarks preserve optics. inspect_scene camera.optics reports values, writable_fields (focal length, H/V aperture, H/V offset, fit offset, squeeze, overscan, camera scale, pre/post scale, H/V translate, roll, H/V pivot, fit, roll order), and projection_available. Source edits require proven binary spans and no unknown contributors; retained ASCII/custom camera edits unsupported. Invalid or unrepresentable projection refuses without mutation. Projection policy provisional, no Maya parity claim",
+    "inputSchema": {
+      "$defs": {
+        "CameraOptics": {
+          "additionalProperties": false,
+          "description": "Source units are independent of scene units: mm focal length, inches aperture/offset,\nradians film roll, normalized post-projection translations and pivots.",
+          "properties": {
+            "aperture_in": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "camera_scale": {
+              "format": "double",
+              "type": "number"
+            },
+            "film_fit": {
+              "$ref": "#/$defs/FilmFit"
+            },
+            "film_fit_offset_in": {
+              "format": "double",
+              "type": "number"
+            },
+            "film_offset_in": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "film_roll_order": {
+              "$ref": "#/$defs/FilmRollOrder"
+            },
+            "film_roll_pivot": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "film_roll_radians": {
+              "format": "double",
+              "type": "number"
+            },
+            "film_translate": {
+              "items": {
+                "format": "double",
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "focal_length_mm": {
+              "format": "double",
+              "type": "number"
+            },
+            "lens_squeeze_ratio": {
+              "format": "double",
+              "type": "number"
+            },
+            "overscan": {
+              "format": "double",
+              "type": "number"
+            },
+            "post_scale": {
+              "format": "double",
+              "type": "number"
+            },
+            "pre_scale": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "focal_length_mm",
+            "aperture_in",
+            "film_fit",
+            "film_offset_in",
+            "film_fit_offset_in",
+            "lens_squeeze_ratio",
+            "overscan",
+            "camera_scale",
+            "pre_scale",
+            "post_scale",
+            "film_translate",
+            "film_roll_radians",
+            "film_roll_pivot",
+            "film_roll_order"
+          ],
+          "type": "object"
+        },
+        "FilmFit": {
+          "description": "Maya camera `filmFit` values, in the node reference's numeric order.",
+          "enum": [
+            "fill",
+            "horizontal",
+            "vertical",
+            "overscan"
+          ],
+          "type": "string"
+        },
+        "FilmRollOrder": {
+          "enum": [
+            "rotate_translate",
+            "translate_rotate"
+          ],
+          "type": "string"
+        },
+        "SceneCamera": {
+          "enum": [
+            "persp",
+            "top",
+            "front",
+            "side"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "camera": {
+          "$ref": "#/$defs/SceneCamera"
+        },
+        "optics": {
+          "$ref": "#/$defs/CameraOptics"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "camera",
+        "optics"
+      ],
+      "title": "CameraOpticsArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "frame_selected",
     "description": "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry (meshes, curves and joints) without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection. Optional fit_factor (Maya viewFit -fitFactor) is the fraction of the view (limiting axis) the framed geometry fills, from 0.01 to 1 (the default margin is about 0.95); a value outside that range returns invalid_input and keeps the camera",
     "inputSchema": {

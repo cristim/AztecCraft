@@ -9326,6 +9326,7 @@ fn a_key_frames_all_and_shift_a_is_ignored() {
     let ctx = egui::Context::default();
     frame(&mut editor, &ctx, vec![]);
     editor.create(Primitive::Cube);
+    frame(&mut editor, &ctx, vec![]);
     let start = editor.camera.clone();
     let expected = camera_after_frame_all(&editor);
     let shifted = egui::Event::Key {
@@ -9983,11 +9984,8 @@ fn inspect_fov_tracks_the_viewport_aspect() {
     let mut editor = Editor::default();
     for aspect in [1.0_f32, 2.0] {
         editor.aspect = aspect;
-        let tan_y = if aspect >= 1.4173 / 0.9449 {
-            1.4173_f32 * 25.4 / 70.0 / aspect
-        } else {
-            0.9449_f32 * 25.4 / 70.0
-        };
+        // The implicit built-in node uses Horizontal fit, distinct from Create Camera Fill.
+        let tan_y = 1.4173_f32 * 25.4 / 70.0 / aspect;
         let expected = f64::from(2.0 * tan_y.atan()).to_degrees();
         let actual = editor.inspect(false).unwrap().camera.fov_y_degrees;
         assert!(
@@ -11762,10 +11760,10 @@ mod frame_members {
             ),
         ] {
             let mut editor = parent_with_far_child();
-            let expected = framed_by(&editor, children);
             let ctx = egui::Context::default();
             ctx.enable_accesskit();
             let output = open_view_menu(&mut editor, &ctx);
+            let expected = framed_by(&editor, children);
             assert!(!button_disabled(&output, label), "{label}");
             let row = face_text_position(&output, label);
             face_pointer_click(&mut editor, &ctx, row, egui::Modifiers::NONE, vec![]);
@@ -11876,10 +11874,10 @@ mod frame_members {
     fn view_menu_rows_frame_all_with_nothing_selected_in_object_mode() {
         let mut editor = parent_with_far_child();
         editor.native_operation(Operation::DeselectAll);
-        let expected = camera_after_frame_all(&editor);
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
         let output = open_view_menu(&mut editor, &ctx);
+        let expected = camera_after_frame_all(&editor);
         let label = "Frame Selection (F)";
         assert!(!button_disabled(&output, label));
         let row = face_text_position(&output, label);

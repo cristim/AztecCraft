@@ -229,6 +229,7 @@ fn native_operation_callers_are_the_known_ui_handlers() {
         &[
             "create",
             "apply_planar",
+            "camera_attributes",
             "uv_menu",
             "create_from_dialog",
             "create_joint_from_dialog",

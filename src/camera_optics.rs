@@ -1,9 +1,12 @@
 //! Full-precision camera-shape optics. No scene, viewport or file ownership lives here.
 use glam::{DMat4, DVec4, Mat4};
+#[cfg(feature = "mcp")]
+use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Maya camera `filmFit` values, in the node reference's numeric order.
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilmFit {
@@ -13,6 +16,7 @@ pub enum FilmFit {
     Overscan,
 }
 
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilmRollOrder {
@@ -22,6 +26,7 @@ pub enum FilmRollOrder {
 
 /// Source units are independent of scene units: mm focal length, inches aperture/offset,
 /// radians film roll, normalized post-projection translations and pivots.
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CameraOptics {

@@ -103,7 +103,7 @@ enum FileAction {
     Open {
         document: Box<NativeDocument>,
         path: PathBuf,
-        camera: Camera,
+        camera: Box<Camera>,
         framed_aspect: f32,
     },
     Close,
@@ -374,7 +374,7 @@ impl Editor {
         self.request_file_action(FileAction::Open {
             document: Box::new(document),
             path: path.into(),
-            camera,
+            camera: Box::new(camera),
             framed_aspect: self.aspect,
         })
     }
@@ -404,7 +404,7 @@ impl Editor {
                 ..
             } => {
                 let NativeDocument { scene, origin } = *document;
-                self.replace_scene(scene, origin, Some(path), camera);
+                self.replace_scene(scene, origin, Some(path), *camera);
                 Ok(OperationReply::DocumentApplied {
                     scene_token: self.scene_token.to_string(),
                 })
@@ -447,6 +447,9 @@ impl Editor {
         self.material_draft = None;
         self.attribute_editor_tab = None;
         self.camera = camera;
+        self.active_camera = azteccraft::native_scene::SceneCamera::Persp;
+        self.camera_draft = None;
+        self.sync_camera_optics();
         self.bookmarks.clear();
         self.status = "Scene ready".into();
         self.error = false;
@@ -558,7 +561,7 @@ impl Editor {
                 Ok(camera) => camera,
                 Err(error) => return saved_reply.map_or_else(|| Err(error), Ok),
             };
-            *camera = reframed;
+            **camera = reframed;
             *framed_aspect = self.aspect;
         }
         if let Some(reply) = saved_reply
@@ -785,6 +788,12 @@ fn camera_for_scene(scene: &NativeScene, aspect: f32) -> Result<Camera, Operatio
     let view = ViewScene::from_native(scene, 256 * 1024 * 1024)
         .map_err(|error| OperationError::View(error.to_string()))?;
     let mut camera = Camera::default();
+    camera.set_lens(azteccraft::viewport::Lens::Optics(
+        scene.camera_optics(azteccraft::native_scene::SceneCamera::Persp),
+    ));
+    camera
+        .projection_matrix(aspect)
+        .map_err(OperationError::Camera)?;
     if view
         .instances()
         .iter()

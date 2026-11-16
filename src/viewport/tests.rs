@@ -775,7 +775,10 @@ fn set_pose_sets_the_pose_and_keeps_lens_and_clip() {
         (camera.lens(), camera.near(), camera.far()),
         (lens.lens(), lens.near(), lens.far())
     );
-    assert_eq!(camera.lens(), Lens::Film);
+    assert_eq!(
+        camera.lens(),
+        Lens::Optics(crate::camera_optics::CameraOptics::node_default())
+    );
 }
 
 #[test]
@@ -1013,9 +1016,12 @@ fn default_camera_is_pinned_bit_for_bit() {
     ];
     let expected = [8.0, 0.6, 0.4, 0.1, 10_000.0];
     assert_eq!(scalars.map(f32::to_bits), expected.map(f32::to_bits));
-    // Create Camera Options: Focal Length "The default value is 35." Film Aperture "The default
-    // values are 1.4173 and 0.9449." Film fit "The default setting is Fill." (PROVISIONAL for persp)
-    assert_eq!(camera.lens(), Lens::Film);
+    // Built-in implicit camera node defaults: 35 mm, 1.4173 x 0.9449 inches,
+    // Horizontal fit. Create Camera Options Fill remains a distinct constructor.
+    assert_eq!(
+        camera.lens(),
+        Lens::Optics(crate::camera_optics::CameraOptics::node_default())
+    );
 }
 
 #[test]
@@ -1117,7 +1123,9 @@ fn film_lens_fill_matches_horizontal_at_or_above_film_aspect_and_vertical_below(
             (actual - expected).abs() <= expected * 1e-6,
             "aspect {aspect}: {actual} vs {expected}"
         );
-        let fov = Camera::default().fov_y_for(aspect);
+        let mut fill = Camera::default();
+        fill.set_lens(Lens::Film);
+        let fov = fill.fov_y_for(aspect);
         assert!(
             (fov - 2.0 * expected.atan()).abs() < 1e-6,
             "aspect {aspect}"
@@ -1147,7 +1155,7 @@ fn fill_is_continuous_at_the_film_aspect() {
 fn default_camera_projection_uses_the_film_fit_at_each_aspect() {
     let camera = Camera::default();
     for aspect in FILM_ASPECTS {
-        let y = 1.0 / expected_film_tan_half_y(aspect);
+        let y = aspect / film_tan_half(1.4173);
         let m = camera.projection_matrix(aspect).unwrap();
         assert!((m.y_axis.y - y).abs() <= y * 1e-6, "aspect {aspect} y");
         assert!(
@@ -1175,7 +1183,7 @@ fn frame_all_distance_follows_the_effective_fov() {
         camera
             .frame_points(&frame_unit_sphere_points(), aspect)
             .unwrap();
-        let tan_y = expected_film_tan_half_y(aspect);
+        let tan_y = film_tan_half(1.4173) / aspect;
         let half = tan_y.atan().min((tan_y * aspect).atan());
         let expected = 1.0 / half.sin() * 1.05;
         assert!(

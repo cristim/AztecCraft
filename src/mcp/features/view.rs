@@ -216,6 +216,22 @@ fn parse_set_camera_pose(arguments: JsonObject) -> Result<RemoteRequest, ErrorDa
 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     ToolSpec {
+        name: "set_camera_attributes_visible",
+        description: "Show or hide the native Camera Attribute Editor. Session-only; same guarded operation as the View menu. inspect_scene camera.attributes_visible reports visibility",
+        schema: schema::<CameraAttributesVisibleArgs>,
+        parse: parse_camera_attributes_visible,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
+        name: "set_camera_optics",
+        description: "Edit a built-in camera shape's full-precision optical attributes as one undo step. Full snapshot, units mm focal length, inches film aperture/offsets, radians film roll, normalized film translation/pivot. Scene-owned optics drive viewport and picking; navigation/bookmarks preserve optics. inspect_scene camera.optics reports values, writable_fields (focal length, H/V aperture, H/V offset, fit offset, squeeze, overscan, camera scale, pre/post scale, H/V translate, roll, H/V pivot, fit, roll order), and projection_available. Source edits require proven binary spans and no unknown contributors; retained ASCII/custom camera edits unsupported. Invalid or unrepresentable projection refuses without mutation. Projection policy provisional, no Maya parity claim",
+        schema: schema::<CameraOpticsArgs>,
+        parse: parse_camera_optics,
+        idempotent: true,
+        read_only: false,
+    },
+    ToolSpec {
         name: "frame_selected",
         description: "Frame the selected objects using the live camera (Maya F): the union of the selected objects' own geometry (meshes, curves and joints) without their descendants, or with them when with_children is true (Ctrl+F; default false). A selection where no object owns visible geometry frames the objects' origins when with_children is false; with_children true on such a selection is refused and the camera is unchanged. In face, vertex and edge modes it frames the selected face corners, the remembered vertex or both endpoints of the remembered edge and ignores with_children. Nothing selected in object or hierarchy mode frames everything like frame_all (an empty scene returns nothing_to_frame); in the component modes it returns no_selection. Optional fit_factor (Maya viewFit -fitFactor) is the fraction of the view (limiting axis) the framed geometry fills, from 0.01 to 1 (the default margin is about 0.95); a value outside that range returns invalid_input and keeps the camera",
         schema: schema::<FrameSelectedArgs>,
@@ -288,3 +304,40 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
         read_only: false,
     },
 ];
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct CameraOpticsArgs {
+    scene_token: String,
+    camera: azteccraft::native_scene::SceneCamera,
+    optics: azteccraft::camera_optics::CameraOptics,
+}
+fn parse_camera_optics(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: CameraOpticsArgs = decode(arguments)?;
+    args.optics
+        .validate()
+        .map_err(|e| ErrorData::invalid_params(e.to_string(), None))?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetCameraOptics {
+            camera: args.camera,
+            optics: args.optics,
+        },
+    ))
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct CameraAttributesVisibleArgs {
+    scene_token: String,
+    visible: bool,
+}
+fn parse_camera_attributes_visible(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    let args: CameraAttributesVisibleArgs = decode(arguments)?;
+    Ok(scoped(
+        token(&args.scene_token)?,
+        Operation::SetCameraAttributesVisible {
+            visible: args.visible,
+        },
+    ))
+}

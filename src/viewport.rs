@@ -164,7 +164,7 @@ impl Default for Camera {
             yaw: 0.6,
             pitch: 0.4,
             distance: 8.0,
-            lens: Lens::Film,
+            lens: Lens::Optics(crate::camera_optics::CameraOptics::node_default()),
             near: 0.1,
             far: 10_000.0,
             fit_factor: None,
@@ -345,6 +345,10 @@ impl Camera {
     pub fn pitch(&self) -> f32 {
         self.pitch
     }
+    /// Replace the immutable display adapter; scene state remains authoritative.
+    pub fn set_lens(&mut self, lens: Lens) {
+        self.lens = lens;
+    }
     pub fn lens(&self) -> Lens {
         self.lens
     }
@@ -422,6 +426,27 @@ impl Camera {
     }
     pub fn projection_matrix(&self, aspect: f32) -> Result<Mat4, InvalidCameraInput> {
         if !aspect.is_finite() || aspect <= 0.0 {
+            return Err(InvalidCameraInput);
+        }
+        if let Lens::Optics(optics) = self.lens {
+            use crate::camera_optics::OpticalProjection;
+            let projection = match self.projection {
+                Projection::Perspective => OpticalProjection::Perspective,
+                Projection::Orthographic => OpticalProjection::Orthographic {
+                    // ponytail: session ortho zoom; use scene orthographicWidth once modeled.
+                    width: f64::from(self.distance) * 1.4173 * 25.4 / 35.0,
+                },
+            };
+            return optics
+                .projection(
+                    f64::from(aspect),
+                    f64::from(self.near),
+                    f64::from(self.far),
+                    projection,
+                )
+                .map_err(|_| InvalidCameraInput);
+        }
+        if self.lens == Lens::Unsupported {
             return Err(InvalidCameraInput);
         }
         if self.projection == Projection::Orthographic {
@@ -784,6 +809,56 @@ impl Camera {
         }
         let target = min * 0.5 + max * 0.5;
         let radius = vertices.map(|v| v.distance(target)).fold(0.0_f32, f32::max);
+        if matches!(self.lens, Lens::Optics(_)) {
+            let mut next = self.clone();
+            next.target = target;
+            let fit = self.fit_factor.unwrap_or(1.0);
+            let margin = if self.fit_factor.is_none() {
+                DEFAULT_FRAME_MARGIN
+            } else {
+                1.0
+            };
+            // Perspective side planes pass through the eye. A sphere's signed distance
+            // to each plane must exceed its radius; roll/shift need no special cases.
+            if self.projection == Projection::Perspective {
+                let p = self.projection_matrix(aspect)?;
+                let w = p.row(3);
+                let mut distance = (self.near + radius) * DEFAULT_FRAME_MARGIN;
+                for row in [p.row(0), p.row(1)] {
+                    for sign in [-1.0, 1.0] {
+                        let plane = w * fit + row * sign;
+                        let forward = -plane.z;
+                        if !forward.is_finite() || forward <= 0.0 {
+                            return Err(InvalidCameraInput);
+                        }
+                        distance =
+                            distance.max(radius * plane.truncate().length() / forward * margin);
+                    }
+                }
+                next.distance = distance.max(self.near * 2.0 * DEFAULT_FRAME_MARGIN);
+            } else {
+                // Ortho extents scale with distance. Solve each affine side-plane
+                // inequality from the unit-distance projection.
+                next.distance = 1.0;
+                let p = next.projection_matrix(aspect)?;
+                let mut distance = self.near + radius;
+                for row in [p.row(0), p.row(1)] {
+                    for sign in [-1.0, 1.0] {
+                        let room = fit + sign * row.w;
+                        if !room.is_finite() || room <= 0.0 {
+                            return Err(InvalidCameraInput);
+                        }
+                        distance = distance.max(radius * row.truncate().length() / room * margin);
+                    }
+                }
+                next.distance = distance.max(self.near * 2.0 * DEFAULT_FRAME_MARGIN);
+            }
+            next.far = self.far.max(next.distance + radius + self.near);
+            next.validate()?;
+            next.projection_matrix(aspect)?;
+            *self = next;
+            return Ok(());
+        }
         let half_angle = self
             .lens
             .half_angle_y(aspect)
@@ -841,51 +916,25 @@ impl Camera {
     }
 
     fn ray_from_projection(&self, ndc: Vec2, projection: Mat4) -> Result<Ray, InvalidCameraInput> {
-        if self.projection == Projection::Orthographic {
-            let inverse_view = self.view_matrix().inverse();
-            let origin = inverse_view.transform_point3(Vec3::new(
-                ndc.x / projection.x_axis.x,
-                ndc.y / projection.y_axis.y,
-                0.0,
-            ));
-            let direction = self.view_direction_at(origin);
-            if !origin.is_finite() || direction == Vec3::ZERO {
-                return Err(InvalidCameraInput);
-            }
-            return Ok(Ray { origin, direction });
-        }
-        let view_direction = Vec3::new(
-            ndc.x / projection.x_axis.x,
-            ndc.y / projection.y_axis.y,
-            -1.0,
-        );
-        let view_length_squared = view_direction.length_squared();
-        if !view_direction.is_finite()
-            || !view_length_squared.is_finite()
-            || view_length_squared <= 0.0
-        {
+        let inverse = projection.inverse();
+        let point = inverse * Vec4::new(ndc.x, ndc.y, 0.0, 1.0);
+        if !point.is_finite() || point.w == 0.0 {
             return Err(InvalidCameraInput);
         }
-        let view_direction = view_direction.normalize();
-        let direction = self
-            .view_matrix()
-            .inverse()
-            .transform_vector3(view_direction);
-        let direction_length_squared = direction.length_squared();
-        if !direction.is_finite()
-            || !direction_length_squared.is_finite()
-            || direction_length_squared <= 0.0
-        {
+        let point = point.truncate() / point.w;
+        let view = self.view_matrix().inverse();
+        let (origin, direction) = match self.projection {
+            Projection::Orthographic => (
+                view.transform_point3(Vec3::new(point.x, point.y, 0.0)),
+                view.transform_vector3(-Vec3::Z),
+            ),
+            Projection::Perspective => (self.eye(), view.transform_vector3(point)),
+        };
+        let direction = direction.normalize_or_zero();
+        if !origin.is_finite() || !direction.is_finite() || direction == Vec3::ZERO {
             return Err(InvalidCameraInput);
         }
-        let direction = direction.normalize();
-        if !direction.is_finite() {
-            return Err(InvalidCameraInput);
-        }
-        Ok(Ray {
-            origin: self.eye(),
-            direction,
-        })
+        Ok(Ray { origin, direction })
     }
 
     pub fn pick(

@@ -991,6 +991,11 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
+        Operation::SetCameraAttributesVisible { visible: true },
+        Operation::SetCameraOptics {
+            camera: azteccraft::native_scene::SceneCamera::Persp,
+            optics: Default::default(),
+        },
         Operation::SetCameraPose {
             target: [1.0, 0.5, -2.0],
             distance: 5.0,
@@ -1024,6 +1029,20 @@ fn ungroup_operation() -> Operation {
 /// Samples for one operation kind. No wildcard arm: a new `Operation` variant must be added here.
 fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
     match seed {
+        Operation::SetCameraAttributesVisible { .. } => vec![sample(
+            "set_camera_attributes_visible",
+            Operation::SetCameraAttributesVisible { visible: true },
+        )],
+        Operation::SetCameraOptics { .. } => vec![sample(
+            "set_camera_optics",
+            Operation::SetCameraOptics {
+                camera: azteccraft::native_scene::SceneCamera::Persp,
+                optics: azteccraft::camera_optics::CameraOptics {
+                    focal_length_mm: 55.0,
+                    ..Default::default()
+                },
+            },
+        )],
         Operation::SetActiveTool(_) => vec![
             sample(
                 "set_active_tool(move)",

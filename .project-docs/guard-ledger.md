@@ -214,3 +214,11 @@ The matrix records these asymmetries; treat a change as a behavior change that n
 
 Snapshots are public: they hold no scene
 tokens, UUIDs, absolute paths or home directories (`src/snapshots.rs` rejects those).
+
+`SetCameraOptics` is an undoable scene mutation. Native callers commit a valid
+pending human draft first; invalid/stale drafts refuse. Remote callers preserve
+differing drafts and reject stale scene tokens, focus, queued input, modal/close
+and active manipulations through the shared mutation gates. Native modal/close
+and manipulation states refuse. The current active projection must be
+representable at the painted aspect/clip planes before mutation. Exact source
+spans and baseline metadata are independently checked by the core writer.

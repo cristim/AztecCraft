@@ -886,6 +886,11 @@ impl Builder<'_, '_> {
                     .map_err(|_| error(ErrorKind::Unsupported, c.offset))?;
                     return Ok(());
                 }
+                if matches!(attribute, ".o" | ".ow") {
+                    self.scene.camera_bindings[camera.index()]
+                        .get_or_insert_with(Default::default)
+                        .blocked = true;
+                }
                 let bit = match attribute {
                     ".v" => {
                         if flags.size.is_some()

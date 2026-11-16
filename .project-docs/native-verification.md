@@ -375,3 +375,24 @@ in a native window: no native window was launched, the file panel was not opened
 imported object was seen on screen. A native check would open the File menu, hover the
 disabled option box, choose an `.obj` file in the panel, look at the selected imported
 objects and undo them. This is not a Maya comparison.
+
+## Camera film back (#458, static optics slice)
+
+2026-11-15: Linux debug MCP build in an isolated Xvfb display (1440 x 1000),
+not the user's desktop. Original synthetic cube; no private scenes. Reviewed
+native screenshots before/after optical entry and after save/reopen. XTest
+mouse/key input entered `60.123456789012345` in Focal Length and pressed Enter;
+the actual Editor reported f64 `60.123456789012344`, FOV changed from about
+37.733 to 22.502 degrees, and the cube grew. MCP Undo/Redo restored/reapplied
+the optical edit. Native `.ma` Save As succeeded; independent file text showed
+exact `.fl 60.123456789012344`. Actual protocol Open read that value back.
+
+Screenshot findings fixed: the initial window covered the Outliner, numeric
+fields shrank too far, and roll-order captions used implementation names. The
+window now opens over the viewport with minimum numeric widths, scrolling and
+human roll-order captions; native film roll displays degrees while unchanged
+stored radians retain their exact bits. A saved long lens was initially applied
+after Open framing and clipped the cube: an SDK regression failed on projected
+Y=1.1451302 before deriving framing from the saved optics. No Maya runtime
+comparison, platform-wide UI result or animated-camera persistence claim.
+Screenshots stay local and are not distributed.

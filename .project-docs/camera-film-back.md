@@ -187,3 +187,57 @@ operations. This supports the scalar interpretation, not the exact camera enum
 encoding or acceptance by Maya. No source implementation was copied.
 
 [msk-values]: https://github.com/yamahigashi/MayaSceneKit/blob/95a11db062689285604b3a647385dc9388402865/crates/maya-scene-kit-observe/src/scene/decode/attr/values.rs
+
+## Projection and editor adapter plan
+
+The viewport receives a derived immutable `Lens::Optics` snapshot from the
+active built-in scene camera. Refresh on History sync, New/Open, time evaluation
+and view change. Preserve scene optics across pose navigation and bookmarks.
+Orthographic width remains the existing session zoom mapping (distance times
+unscaled aperture/focal angle); focal editing must not claim Maya ortho width
+parity. All rendering and rays use the checked optical matrix; off-axis rays
+invert that matrix. Sphere framing uses its four side planes plus depth limits;
+refuse before mutation if the optical axis is outside the gate. Imported blocked
+camera contributors disable projection/picking with a visible unsupported reason.
+
+A full-snapshot typed SetCameraOptics operation validates the current aspect and
+clip planes before History mutation. Native precise text drafts retain token,
+explicit camera and original optics, refuse stale baselines, participate in
+has_draft/commit_pending and file/selection/undo barriers, and support Enter and
+Escape. Film aperture/offset presentation can switch inches/mm without changing
+stored inches. MCP receives the same operation and inspects each camera's
+full-precision state plus per-field writable spans and unsupported projection
+reason. SDK tests exercise real guards, History, saved/reopened state and derived
+projection; numerical tests cover shifted/rolled rays and sphere frame bounds.
+The camera navigation PR remains separate; any merged box-dolly/history code
+must be re-read and checked against off-axis/roll before integration.
+
+## Focal-length animation plan
+
+Extend the existing key tools with an explicit camera focal-length target,
+mutually exclusive with transform targets/channels; preserve old clients and
+all nine transform channel names. Bound camera curves and transform curves by
+one shared MAX_SESSION_KEYS limit. Whole-frame/time-unit admission, linear
+interpolation and held ends follow the existing timeline policy (PROVISIONAL
+against Maya Auto tangents). Source key creation stays refused until source
+curve provenance is implemented. Static focal edits while a curve exists refuse
+rather than be silently overwritten; key commands accept the intended key value.
+
+Compute transform and camera evaluation candidates before any writes. Validate
+optical representability at the current viewport aspect/clip planes before
+installing either time or keys. Undo/redo preserves curves and evaluated optics;
+failed time/key operations preserve scene, time, curves and history. Explicit
+camera key reads carry shape identity and focal attribute, with bounded paging.
+Native focal key/delete controls and MCP use the same typed commands. Key
+navigation includes the active camera in addition to selected transforms
+(PROVISIONAL UI policy), with tests. Existing native writers must continue to
+refuse any not-yet-represented key data; the UI explains that persistence limit.
+
+Native curve persistence needs actual animCurveTU/connection evidence. The
+pinned gt-tools `cube_animated.ma` (same MIT source/commit as the existing fixture)
+contains native animCurveTU, `.tan`, `.wgt`, indexed `.ktv` pairs and ordinary
+connections. These are inert data for the reader, not executable scripts.
+Investigate the public binary animated fixture before selecting its profile.
+Do not substitute metadata, JSON or scripts for real curves. Session keying is
+an internal milestone; #458 remains draft until required persistence and native
+window verification are satisfied, or a concrete external blocker is reported.

@@ -529,6 +529,7 @@ impl Editor {
                 | Operation::SetSnapToGrid { .. }
                 | Operation::SetShadingMode(_)
                 | Operation::SetView(_)
+                | Operation::SetCameraAttributesVisible { .. }
                 | Operation::SetMenuSet { .. }
                 | Operation::SetSidebarPanelVisible { .. }
                 | Operation::SelectAttributeEditorTab { .. }
@@ -628,6 +629,7 @@ impl Editor {
                     | Operation::SelectEdge { .. }
                     | Operation::ModifyComponentSelection { .. }
                     | Operation::SetCurrentTime { .. }
+                    | Operation::SetCameraOptics { .. }
                     | Operation::SetPlaybackRange { .. }
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
@@ -784,10 +786,35 @@ impl Editor {
         {
             return Err(OperationError::InvalidInput(self.status.clone()));
         }
+        if let Operation::SetCameraOptics { camera, optics } = &operation {
+            // Validate the exact active adapter before scene mutation.
+            if *camera == self.active_scene_camera() {
+                let mut candidate = self.camera.clone();
+                candidate.set_lens(azteccraft::viewport::Lens::Optics(*optics));
+                candidate
+                    .projection_matrix(self.aspect)
+                    .map_err(OperationError::Camera)?;
+            }
+        }
         let mut import_totals = features::obj_import::ImportTotals::default();
         #[cfg_attr(not(any(test, feature = "mcp")), allow(unused_mut))]
         let mut from_maya = false;
         let command = match operation {
+            Operation::SetCameraAttributesVisible { visible } => {
+                let changed = self.camera_attributes_open != visible;
+                self.camera_attributes_open = visible;
+                if !visible {
+                    self.camera_draft = None;
+                }
+                return Ok(if changed {
+                    OperationReply::Changed
+                } else {
+                    OperationReply::Unchanged
+                });
+            }
+            Operation::SetCameraOptics { camera, optics } => {
+                Command::SetCameraOptics { camera, optics }
+            }
             #[cfg(any(test, feature = "mcp"))]
             Operation::ImportMaya { path, prefix } => {
                 let (command, totals) = self.plan_maya_file_import(&path, prefix)?;
@@ -933,17 +960,47 @@ impl Editor {
             }
             Operation::SetView(preset) => {
                 let before = self.camera.clone();
+                let previous_identity = self.active_camera;
+                let camera = match preset {
+                    ViewPreset::Persp => azteccraft::native_scene::SceneCamera::Persp,
+                    ViewPreset::Top => azteccraft::native_scene::SceneCamera::Top,
+                    ViewPreset::Front => azteccraft::native_scene::SceneCamera::Front,
+                    ViewPreset::Side => azteccraft::native_scene::SceneCamera::Side,
+                };
+                let mut next = before.clone();
+                // Stage a valid destination lens before validating a view switch. An
+                // unsupported source view must not trap the user in that view.
+                next.set_lens(azteccraft::viewport::Lens::Optics(
+                    self.history.scene().camera_optics(camera),
+                ));
                 match preset {
-                    ViewPreset::Persp => self.camera.show_perspective(),
-                    ViewPreset::Top => self.show_view(OrthographicView::Top)?,
-                    ViewPreset::Front => self.show_view(OrthographicView::Front)?,
-                    ViewPreset::Side => self.show_view(OrthographicView::Side)?,
+                    ViewPreset::Persp => next.show_perspective(),
+                    ViewPreset::Top => next
+                        .show_orthographic(OrthographicView::Top)
+                        .map_err(OperationError::Camera)?,
+                    ViewPreset::Front => next
+                        .show_orthographic(OrthographicView::Front)
+                        .map_err(OperationError::Camera)?,
+                    ViewPreset::Side => next
+                        .show_orthographic(OrthographicView::Side)
+                        .map_err(OperationError::Camera)?,
                 }
-                return Ok(if self.camera == before {
-                    OperationReply::Unchanged
+                if !self.history.scene().camera_projection_available(camera) {
+                    next.set_lens(azteccraft::viewport::Lens::Unsupported);
                 } else {
-                    OperationReply::Changed
-                });
+                    next.projection_matrix(self.aspect)
+                        .map_err(OperationError::Camera)?;
+                }
+                self.camera = next;
+                self.active_camera = camera;
+                self.camera_draft = None;
+                return Ok(
+                    if self.camera == before && self.active_camera == previous_identity {
+                        OperationReply::Unchanged
+                    } else {
+                        OperationReply::Changed
+                    },
+                );
             }
             Operation::SetMenuSet { set } => {
                 let changed = self.menu_set != set;
@@ -1651,9 +1708,11 @@ impl Editor {
         Ok(())
     }
     pub(super) fn has_draft(&self) -> bool {
-        self.material_draft
-            .as_ref()
-            .is_some_and(MaterialDraft::changed)
+        self.camera_draft.as_ref().is_some_and(|d| d.changed())
+            || self
+                .material_draft
+                .as_ref()
+                .is_some_and(MaterialDraft::changed)
             || self.has_channel_draft()
     }
     /// A name, channel or pivot draft. Pivot drafts share the channel guards, so the remote
@@ -1753,6 +1812,24 @@ impl Editor {
             self.status = OperationError::BusyManipulation.to_string();
             self.error = true;
             return false;
+        }
+        if self.camera_draft.as_ref().is_some_and(|d| d.changed()) {
+            let result = self
+                .camera_draft_command()
+                .and_then(|command| self.history.execute(command).map_err(|e| e.to_string()));
+            return match result {
+                Ok(_) => {
+                    self.sync_fields();
+                    self.status = "Camera attributes edited".into();
+                    self.error = false;
+                    true
+                }
+                Err(error) => {
+                    self.status = error;
+                    self.error = true;
+                    false
+                }
+            };
         }
         if self
             .material_draft

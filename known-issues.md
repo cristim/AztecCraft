@@ -1639,3 +1639,15 @@ joints cannot be grouped or ungrouped (Maya allows it; unsupported here, `invali
 ## Status feedback overwrites a showing hover refusal
 
 Any operation that sets status feedback, for example Undo, overwrites a hover refusal that is showing. The refusal returns only when the hover changes. Pre-existing; noted while fixing the Scale Parent status refresh (#38).
+
+## Camera film back projection remains provisional (#458)
+
+The four built-in camera shapes store full-precision optical scalars, with native
+Film Back editing, MCP inspection/editing and authored ASCII/binary scalar
+roundtrips. Source binary changes require proven original words; retained ASCII
+edits and custom camera shapes remain unsupported. Unknown source projection
+contributors disable that view instead of guessing. Squeeze application,
+post-projection order and orthographic session-width mapping have numerical
+coverage but no comparison with pinned Maya. Newly authored binary enum values
+have not been opened by Maya. Focal-length animation is not complete in this
+static slice; the issue and draft PR remain open.

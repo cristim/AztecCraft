@@ -257,3 +257,71 @@ fn empty_mesh_is_unpickable_and_framing_returns_error_without_camera_mutation() 
     assert!(camera.frame(scene.node(id).unwrap(), 1.0).is_err());
     assert_eq!(camera, before);
 }
+
+#[test]
+fn optical_shift_roll_rays_and_framing_share_the_display_matrix() {
+    use azteccraft::{
+        camera_optics::{CameraOptics, FilmFit},
+        viewport::{Lens, OrthographicView},
+    };
+    let points: Vec<Vec3> = [-1.0, 1.0]
+        .into_iter()
+        .flat_map(|x| {
+            [-1.0, 1.0]
+                .into_iter()
+                .flat_map(move |y| [-1.0, 1.0].into_iter().map(move |z| Vec3::new(x, y, z)))
+        })
+        .collect();
+    for fit in [
+        FilmFit::Fill,
+        FilmFit::Horizontal,
+        FilmFit::Vertical,
+        FilmFit::Overscan,
+    ] {
+        for aspect in [0.6, 1.5, 2.4] {
+            for ortho in [false, true] {
+                let mut camera = front_camera();
+                camera.set_lens(Lens::Optics(CameraOptics {
+                    film_fit: fit,
+                    film_roll_radians: 0.4,
+                    film_offset_in: [0.12, -0.08],
+                    pre_scale: 1.1,
+                    post_scale: 0.9,
+                    overscan: 1.2,
+                    ..Default::default()
+                }));
+                if ortho {
+                    camera.show_orthographic(OrthographicView::Front).unwrap();
+                }
+                camera.frame_points(&points, aspect).unwrap();
+                for point in &points {
+                    let projected = camera.project(*point, aspect).unwrap().unwrap();
+                    assert!(
+                        projected.truncate().abs().max_element() <= 1.00001,
+                        "{fit:?} {aspect} {ortho} {projected}"
+                    );
+                    let ray = camera.ray(projected.truncate(), aspect).unwrap();
+                    assert!((*point - ray.origin).cross(ray.direction).length() < 0.0001);
+                }
+                let mut changed = camera.clone();
+                let Lens::Optics(mut optics) = changed.lens() else {
+                    panic!()
+                };
+                optics.film_roll_pivot[0] = -0.0;
+                changed.set_lens(Lens::Optics(optics));
+                assert!(!changed.same_capture(&camera));
+            }
+        }
+    }
+    let mut camera = front_camera();
+    camera.set_lens(Lens::Optics(CameraOptics {
+        film_offset_in: [20.0, 0.0],
+        ..Default::default()
+    }));
+    let baseline = camera.clone();
+    assert!(camera.frame_points(&points, 1.0).is_err());
+    assert_eq!(camera, baseline);
+    camera.set_lens(Lens::Unsupported);
+    assert!(camera.projection_matrix(1.0).is_err());
+    assert!(camera.ray(Vec2::ZERO, 1.0).is_err());
+}

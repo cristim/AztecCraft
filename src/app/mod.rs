@@ -73,6 +73,9 @@ pub struct Editor {
     selection_mode: SelectionMode,
     picks: component_picks::ComponentPicks,
     camera: Camera,
+    active_camera: azteccraft::native_scene::SceneCamera,
+    camera_attributes_open: bool,
+    camera_draft: Option<features::camera_optics::CameraDraft>,
     /// Session-only; cleared when a document replaces the scene (New, Open).
     bookmarks: azteccraft::camera_bookmarks::CameraBookmarks,
     /// Off unless the host enables it; recovery files never replace the scene file.
@@ -140,7 +143,16 @@ impl Default for Editor {
             selection: ObjectSelection::default(),
             selection_mode: SelectionMode::default(),
             picks: component_picks::ComponentPicks::default(),
-            camera: Camera::default(),
+            camera: {
+                let mut camera = Camera::default();
+                camera.set_lens(azteccraft::viewport::Lens::Optics(
+                    azteccraft::camera_optics::CameraOptics::node_default(),
+                ));
+                camera
+            },
+            active_camera: azteccraft::native_scene::SceneCamera::Persp,
+            camera_attributes_open: false,
+            camera_draft: None,
             bookmarks: Default::default(),
             #[cfg(any(test, feature = "mcp"))]
             recovery: None,
@@ -353,6 +365,7 @@ fn text_field_ids() -> impl Iterator<Item = egui::Id> {
         features::manipulation_tool::manipulation_value_id(),
     ]
     .into_iter()
+    .chain((0..16).map(features::camera_optics::field_id))
     .chain((0..9).map(channel_edit_id))
     .chain((0..6).map(pivot_edit_id))
     .chain(features::primitive_options::option_field_ids())

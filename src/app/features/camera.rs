@@ -55,15 +55,6 @@ impl Editor {
         }
     }
 
-    pub(in crate::app) fn show_view(
-        &mut self,
-        view: OrthographicView,
-    ) -> Result<(), OperationError> {
-        self.camera
-            .show_orthographic(view)
-            .map_err(OperationError::Camera)
-    }
-
     pub(in crate::app) fn default_view(&mut self) {
         let default = Camera::default();
         if self.camera.projection() == Projection::Orthographic {

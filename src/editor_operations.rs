@@ -467,6 +467,15 @@ pub enum Operation {
     },
     /// Moves the current time to a whole frame and writes every keyed channel there. Not an undo
     /// step. A draft refuses it, because the write refreshes the fields.
+    SetCameraAttributesVisible {
+        visible: bool,
+    },
+    // Native text commits dispatch the same History command through commit_pending.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetCameraOptics {
+        camera: azteccraft::native_scene::SceneCamera,
+        optics: azteccraft::camera_optics::CameraOptics,
+    },
     SetCurrentTime {
         time: f64,
     },
@@ -1434,6 +1443,9 @@ pub struct PendingInspection {
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct CameraInspection {
+    pub active_camera: azteccraft::native_scene::SceneCamera,
+    pub attributes_visible: bool,
+    pub optics: Vec<CameraOpticsInspection>,
     pub target: [f32; 3],
     pub eye: [f32; 3],
     pub distance: f32,
@@ -1447,6 +1459,15 @@ pub struct CameraInspection {
     /// `perspective` or `orthographic`. An orthographic view shows `distance * tan(fov_y / 2)`
     /// as its half height (PROVISIONAL).
     pub projection: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct CameraOpticsInspection {
+    pub camera: azteccraft::native_scene::SceneCamera,
+    pub optics: azteccraft::camera_optics::CameraOptics,
+    pub writable_fields: [bool; 18],
+    pub projection_available: bool,
 }
 
 /// The only native refusals a key command can report; any other failure has its own `OperationError`
@@ -1822,6 +1843,12 @@ pub(crate) const MIN_COMPONENT_SET: &str = concat!(
     r#"{"node_id":"1","shape_id":"1","instance_path":[],"count":0,"lead":0,"indices":[],"#,
     r#""truncated":true}"#
 );
+#[cfg(any(test, feature = "mcp"))]
+macro_rules! min_camera_optics {
+    () => { concat!(
+        r#"{"camera":"top","projection_available":true,"writable_fields":[true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true,true],"optics":{"focal_length_mm":0.0,"aperture_in":[0.0,0.0],"film_fit":"fill","film_offset_in":[0.0,0.0],"film_fit_offset_in":0.0,"lens_squeeze_ratio":0.0,"overscan":0.0,"camera_scale":0.0,"pre_scale":0.0,"post_scale":0.0,"film_translate":[0.0,0.0],"film_roll_radians":0.0,"film_roll_pivot":[0.0,0.0],"film_roll_order":"rotate_translate"}}"#
+    ) };
+}
 /// Everything in `SceneInspection` except the four lists; nested fixed objects at their minimum.
 #[cfg(any(test, feature = "mcp"))]
 pub(crate) const MIN_FIXED: &str = concat!(
@@ -1846,7 +1873,15 @@ pub(crate) const MIN_FIXED: &str = concat!(
     r#""face_selection_policy":"","can_undo":true,"can_redo":true,"#,
     r#""undo_label":"","redo_label":"","undo_state":{"enabled":true,"infinite":true,"queue_size":1000,"undo_length":1000,"redo_length":1000,"open_chunk":""},"dirty":true,"has_draft":true,"native_input_pending":true,"#,
     r#""text_focused":true,"modal":true,"status_message":"","#,
-    r#""camera":{"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
+    r#""camera":{"active_camera":"top","attributes_visible":true,"optics":["#,
+    min_camera_optics!(),
+    ",",
+    min_camera_optics!(),
+    ",",
+    min_camera_optics!(),
+    ",",
+    min_camera_optics!(),
+    r#"],"target":[0.0,0.0,0.0],"eye":[0.0,0.0,0.0],"distance":0.0,"yaw_degrees":0.0,"#,
     r#""pitch_degrees":0.0,"fov_y_degrees":0.0,"near_clip":0.0,"far_clip":0.0,"view":"","projection":""},"#,
     r#""timeline":{"current_time":0,"playback_start":0,"playback_end":0,"playing":true,"#,
     r#""frames_per_second":0.0,"loop":"","key_count":0}}"#

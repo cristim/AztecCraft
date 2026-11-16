@@ -2,6 +2,8 @@ use crate::app::*;
 
 impl Editor {
     pub(in crate::app) fn sync_fields(&mut self) {
+        self.camera_draft = None;
+        self.sync_camera_optics();
         self.material_draft = None;
         self.channel_intents = [false; 9];
         self.pivot_intents = [false; 6];

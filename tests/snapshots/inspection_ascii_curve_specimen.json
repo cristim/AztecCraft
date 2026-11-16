@@ -3,15 +3,227 @@
     "appearance_incomplete": true,
     "attribute_editor_tab": null,
     "camera": {
-      "distance": 10.858717918395996,
+      "active_camera": "persp",
+      "attributes_visible": false,
+      "distance": 7.700594425201416,
       "eye": [
-        19.147294998168945,
-        4.228583812713623,
-        8.25462818145752
+        17.50484848022461,
+        2.9987525939941406,
+        5.853871822357178
       ],
       "far_clip": 10000.0,
-      "fov_y_degrees": 37.849961153583806,
+      "fov_y_degrees": 45.02478800873706,
       "near_clip": 0.10000000149011612,
+      "optics": [
+        {
+          "camera": "persp",
+          "optics": {
+            "aperture_in": [
+              1.4173,
+              0.9449
+            ],
+            "camera_scale": 1.0,
+            "film_fit": "horizontal",
+            "film_fit_offset_in": 0.0,
+            "film_offset_in": [
+              0.0,
+              0.0
+            ],
+            "film_roll_order": "rotate_translate",
+            "film_roll_pivot": [
+              0.0,
+              0.0
+            ],
+            "film_roll_radians": 0.0,
+            "film_translate": [
+              0.0,
+              0.0
+            ],
+            "focal_length_mm": 35.0,
+            "lens_squeeze_ratio": 1.0,
+            "overscan": 1.0,
+            "post_scale": 1.0,
+            "pre_scale": 1.0
+          },
+          "projection_available": true,
+          "writable_fields": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "camera": "top",
+          "optics": {
+            "aperture_in": [
+              1.4173,
+              0.9449
+            ],
+            "camera_scale": 1.0,
+            "film_fit": "horizontal",
+            "film_fit_offset_in": 0.0,
+            "film_offset_in": [
+              0.0,
+              0.0
+            ],
+            "film_roll_order": "rotate_translate",
+            "film_roll_pivot": [
+              0.0,
+              0.0
+            ],
+            "film_roll_radians": 0.0,
+            "film_translate": [
+              0.0,
+              0.0
+            ],
+            "focal_length_mm": 35.0,
+            "lens_squeeze_ratio": 1.0,
+            "overscan": 1.0,
+            "post_scale": 1.0,
+            "pre_scale": 1.0
+          },
+          "projection_available": true,
+          "writable_fields": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "camera": "front",
+          "optics": {
+            "aperture_in": [
+              1.4173,
+              0.9449
+            ],
+            "camera_scale": 1.0,
+            "film_fit": "horizontal",
+            "film_fit_offset_in": 0.0,
+            "film_offset_in": [
+              0.0,
+              0.0
+            ],
+            "film_roll_order": "rotate_translate",
+            "film_roll_pivot": [
+              0.0,
+              0.0
+            ],
+            "film_roll_radians": 0.0,
+            "film_translate": [
+              0.0,
+              0.0
+            ],
+            "focal_length_mm": 35.0,
+            "lens_squeeze_ratio": 1.0,
+            "overscan": 1.0,
+            "post_scale": 1.0,
+            "pre_scale": 1.0
+          },
+          "projection_available": true,
+          "writable_fields": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        {
+          "camera": "side",
+          "optics": {
+            "aperture_in": [
+              1.4173,
+              0.9449
+            ],
+            "camera_scale": 1.0,
+            "film_fit": "horizontal",
+            "film_fit_offset_in": 0.0,
+            "film_offset_in": [
+              0.0,
+              0.0
+            ],
+            "film_roll_order": "rotate_translate",
+            "film_roll_pivot": [
+              0.0,
+              0.0
+            ],
+            "film_roll_radians": 0.0,
+            "film_translate": [
+              0.0,
+              0.0
+            ],
+            "focal_length_mm": 35.0,
+            "lens_squeeze_ratio": 1.0,
+            "overscan": 1.0,
+            "post_scale": 1.0,
+            "pre_scale": 1.0
+          },
+          "projection_available": true,
+          "writable_fields": [
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            false
+          ]
+        }
+      ],
       "pitch_degrees": 22.918312146742387,
       "projection": "perspective",
       "target": [
