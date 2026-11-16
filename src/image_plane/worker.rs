@@ -239,6 +239,13 @@ impl PlateStream {
         }
         let generation = self.generation;
         let wanted = &wanted[..wanted.len().min(self.cache.capacity())];
+        // Until a frame fixes the size the capacity is only an upper bound, so ask for one frame
+        // at a time; otherwise a slow first result lets the worker decode the whole window.
+        let limit = if self.cache.knows_frame_size() {
+            usize::MAX
+        } else {
+            1
+        };
         let pending: Vec<i64> = wanted
             .iter()
             .copied()
@@ -246,6 +253,7 @@ impl PlateStream {
                 let key = FrameKey { generation, frame };
                 !self.cache.contains(key) && !self.failed.contains_key(&key)
             })
+            .take(limit)
             .collect();
         if !pending.is_empty() && !self.worker_alive() {
             for frame in pending {

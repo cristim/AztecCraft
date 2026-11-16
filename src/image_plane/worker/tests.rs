@@ -455,9 +455,10 @@ fn an_oversized_window_is_clipped_to_the_capacity_and_then_goes_quiet() {
         std::thread::sleep(Duration::from_millis(1));
     }
     assert!(!stream.tick(&window), "nothing is outstanding once settled");
-    // Capacity 4, plus at most the frames already in flight when the first result fixed it.
+    // Only the frame on screen is requested until its result fixes the capacity at 4, so the
+    // count does not depend on how the scheduler interleaves the threads.
     let decoded = calls.lock().unwrap().len();
-    assert!((4..=6).contains(&decoded), "decoded {decoded} of 20");
+    assert_eq!(decoded, 4, "decoded {decoded} of 20");
 }
 
 #[test]

@@ -63,6 +63,11 @@ impl FrameCache {
         }
     }
 
+    /// Whether a stored frame has fixed the frame size, and with it [`Self::capacity`].
+    pub fn knows_frame_size(&self) -> bool {
+        self.frame_bytes != 0
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
