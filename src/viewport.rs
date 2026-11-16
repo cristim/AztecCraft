@@ -351,7 +351,19 @@ impl Camera {
     /// Vertical field of view in radians at the viewport `aspect`; the film lens narrows it as
     /// the viewport widens beyond the film aspect.
     pub fn fov_y_for(&self, aspect: f32) -> f32 {
-        self.lens.half_angle_y(aspect) * 2.0
+        let lens = if self.projection == Projection::Orthographic {
+            self.lens.for_orthographic()
+        } else {
+            self.lens
+        };
+        match lens {
+            // Overscan and the 2D scales change the drawn extent, so they count here.
+            Lens::Film(film) => {
+                let tan = film.window(f64::from(aspect)).visible_tan_half_y();
+                (tan.atan() * 2.0) as f32
+            }
+            Lens::VerticalFov(_) => lens.half_angle_y(aspect) * 2.0,
+        }
     }
     pub fn near(&self) -> f32 {
         self.near
@@ -1612,6 +1624,8 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
     (distance.is_finite() && distance >= 0.0).then_some(distance)
 }
 
+#[cfg(test)]
+mod film_tests;
 #[cfg(test)]
 mod ortho_tests;
 #[cfg(test)]

@@ -83,10 +83,17 @@ impl FilmBack {
             ("vertical_film_offset", self.film_offset_in[1]),
             ("film_roll", self.film_roll_degrees),
         ];
-        match finite.iter().find(|(_, v)| !v.is_finite()) {
-            Some((name, _)) => Err(InvalidFilmBack(name)),
-            None => Ok(()),
+        if let Some((name, _)) = finite.iter().find(|(_, v)| !v.is_finite()) {
+            return Err(InvalidFilmBack(name));
         }
+        // The f32 projection must stay usable: finite entries and a nonzero xy determinant
+        // (a focal length of 1e-300 or pre * post of 1e-200 underflows or overflows f32).
+        let [x, y, z] = self.window(1.0).columns().map(|c| c.as_vec2());
+        let det = x.x * y.y - y.x * x.y;
+        if ![x, y, z].iter().all(|c| c.is_finite()) || !det.is_finite() || det == 0.0 {
+            return Err(InvalidFilmBack("projection"));
+        }
+        Ok(())
     }
 
     fn bits(&self) -> [u64; 13] {
@@ -187,6 +194,12 @@ impl FilmWindow {
             [s * cos, -s * sin / self.aspect],
             [s * sin * self.aspect, s * cos],
         ]
+    }
+
+    /// Vertical half extent in tangent space as drawn: overscan and the 2D scales included, a
+    /// roll ignored.
+    pub(super) fn visible_tan_half_y(&self) -> f64 {
+        self.half.y / self.scale
     }
 
     /// The tangent-space window centre: the offset, plus Film Fit Offset for an explicit fit.
