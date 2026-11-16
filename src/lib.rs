@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod camera_bookmarks;
+pub mod camera_optics;
 pub mod document;
 pub(crate) mod export_write;
 pub mod gltf;
