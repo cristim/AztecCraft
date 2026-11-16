@@ -63,6 +63,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -266,6 +267,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | status: "Scene edited" -> "No change"
+  reduce_mesh(percent) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -467,6 +469,7 @@
   inspect_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -658,6 +661,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -849,6 +853,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1040,6 +1045,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1231,6 +1237,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   delete_uvs => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(percent) => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1422,6 +1429,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   delete_uvs => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  reduce_mesh(percent) => Ok(changed) | scene changed; status: "Scene edited" -> "Mesh reduced"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
@@ -1613,6 +1621,7 @@
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1804,6 +1813,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1995,6 +2005,7 @@
   inspect_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2186,6 +2197,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   delete_uvs => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  reduce_mesh(percent) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2377,6 +2389,7 @@
   inspect_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   project_uv_planar => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   delete_uvs => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  reduce_mesh(percent) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_vertices => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   inspect_uvs => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   create(plane) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2568,6 +2581,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2760,6 +2774,7 @@
   inspect_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_vertices => Ok(vertices) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   inspect_uvs => Ok(uvs) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -2952,6 +2967,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3143,6 +3159,7 @@
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   delete_uvs => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(percent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_vertices => Ok(vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_uvs => Ok(uvs) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; channel_fields: 5,0,0,0,0,0,1,1,1 -> 0,0,0,0,0,0,1,1,1; can_redo: true -> false
@@ -3334,6 +3351,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3525,6 +3543,7 @@
   inspect_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   project_uv_planar => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   delete_uvs => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  reduce_mesh(percent) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_vertices => Ok(vertices) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   inspect_uvs => Ok(uvs) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; has_draft: true -> false; has_channel_draft: true -> false; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -3716,6 +3735,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3907,6 +3927,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -4098,6 +4119,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4289,6 +4311,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Ok(changed) | scene changed; can_redo: true -> false
   delete_uvs => Ok(unchanged) | no state change
+  reduce_mesh(percent) => Ok(changed) | scene changed; can_redo: true -> false
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Ok(created) | scene changed; nodes: 1 -> 2; selected: pCube1 -> pPlane1; name_field: "pCube1" -> "pPlane1"; can_redo: true -> false
@@ -4480,6 +4503,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4673,6 +4697,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4864,6 +4889,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5055,6 +5081,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5246,6 +5273,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5437,6 +5465,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5628,6 +5657,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5819,6 +5849,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   delete_uvs => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  reduce_mesh(percent) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6010,6 +6041,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete_uvs => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(percent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   inspect_uvs => Err(Scene: native mesh shape 2 does not exist) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6201,6 +6233,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   delete_uvs => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  reduce_mesh(percent) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
   inspect_vertices => Err(Scene: native mesh shape 2 does not exist) | no state change
   inspect_uvs => Err(Scene: native mesh shape 2 does not exist) | no state change
   create(plane) => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
@@ -6393,6 +6426,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6585,6 +6619,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6777,6 +6812,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -6969,6 +7005,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7257,6 +7294,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7449,6 +7487,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(Scene: native ownership or edit effects are unsupported) | no state change
   delete_uvs => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  reduce_mesh(percent) => Err(Scene: native ownership or edit effects are unsupported) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(Scene: native ownership or edit effects are unsupported) | no state change
@@ -7641,6 +7680,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7833,6 +7873,7 @@
   inspect_keys => Ok(keys) | no state change
   project_uv_planar => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   delete_uvs => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  reduce_mesh(percent) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   inspect_vertices => Ok(vertices) | no state change
   inspect_uvs => Ok(uvs) | no state change
   create(plane) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -7966,4 +8007,4 @@
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7366
+cells: 7407

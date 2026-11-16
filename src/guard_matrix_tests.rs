@@ -19,8 +19,9 @@ use azteccraft::history::{ManipulationFinish, ManipulationId};
 use azteccraft::move_handles::ManipulatorSize;
 use azteccraft::native_scene::{
     ALL_CHANNELS, EdgeTarget, GroupOptions, GroupPivot, GroupUnder, Infinity, MaterialChoice,
-    MoveSpace, NativeScene, PivotReset, ReparentKeep, RotateAxis, ScaleHandle, SessionMaterialId,
-    TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget, VertexTarget, WorldAxis,
+    MoveSpace, NativeScene, PivotReset, ReduceTarget, ReparentKeep, RotateAxis, ScaleHandle,
+    SessionMaterialId, TransformTarget, UngroupOptions, UvProjectAxis, VertexSetTarget,
+    VertexTarget, WorldAxis,
 };
 use azteccraft::primitive_options::{Axis, PrimitiveOptions};
 use std::fmt::Write as _;
@@ -826,6 +827,10 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             axis: UvProjectAxis::Y,
         },
         Operation::DeleteUvs { shape: t.shape },
+        Operation::ReduceMesh {
+            shape: t.shape,
+            target: ReduceTarget::Percent(50.0),
+        },
         Operation::InspectVertices {
             shape: t.shape,
             cursor: None,
@@ -1450,6 +1455,13 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
         Operation::DeleteUvs { .. } => vec![sample(
             "delete_uvs",
             Operation::DeleteUvs { shape: t.shape },
+        )],
+        Operation::ReduceMesh { .. } => vec![sample(
+            "reduce_mesh(percent)",
+            Operation::ReduceMesh {
+                shape: t.shape,
+                target: ReduceTarget::Percent(50.0),
+            },
         )],
         Operation::Create { .. } => vec![
             sample(

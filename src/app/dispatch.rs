@@ -200,6 +200,7 @@ impl Editor {
             Operation::DeleteKeys { .. } => Some("Keys deleted"),
             Operation::EulerFilter { .. } => Some("Euler filter applied"),
             Operation::SetInfinity { .. } => Some("Infinity set"),
+            Operation::ReduceMesh { .. } => Some("Mesh reduced"),
             Operation::Orbit { .. }
             | Operation::Pan { .. }
             | Operation::Dolly { .. }
@@ -651,6 +652,7 @@ impl Editor {
                     | Operation::MoveVertices { .. }
                     | Operation::ProjectUvPlanar { .. }
                     | Operation::DeleteUvs { .. }
+                    | Operation::ReduceMesh { .. }
                     | Operation::CreateJoint { .. }
                     | Operation::Undo
                     | Operation::Redo
@@ -945,6 +947,7 @@ impl Editor {
             } => self.set_infinity_command(nodes, channels, pre, post),
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
+            Operation::ReduceMesh { shape, target } => Command::ReduceMesh { shape, target },
             Operation::CreateCameraBookmark { name } => {
                 return self.create_camera_bookmark(&name);
             }
@@ -1660,6 +1663,7 @@ impl Editor {
                 | Command::EulerFilter { .. }
                 | Command::SetInfinity { .. }
         );
+        let reduce_command = matches!(command, Command::ReduceMesh { .. });
         let pivot_command = matches!(
             command,
             Command::SetPivots { .. } | Command::ResetPivots { .. }
@@ -1707,6 +1711,7 @@ impl Editor {
                 self.clear_remembered_components();
                 self.selection.replace(target.clone());
             }
+            _ if reduce_command => self.clear_remembered_components(),
             _ => {}
         }
         self.sync_fields();

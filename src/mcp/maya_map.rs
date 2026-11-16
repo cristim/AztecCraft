@@ -37,6 +37,7 @@ pub(crate) const MAYA_MAP: &[(&str, &str, &str)] = &[
     ("set_pivots", "`xform -rotatePivot -scalePivot -preserve`", "Object (local) space only; the preserve placement through the pivot translates is PROVISIONAL"),
     ("reset_pivots", "Modify > Center Pivot (`xform -centerPivots`) and Zero Pivot (`xform -zeroTransformPivots`)", "box space and Zero Pivot channel placement are PROVISIONAL; refused on a keyed node"),
     ("extrude_face", "`polyExtrudeFacet -localTranslateZ`", "one quad, no history node"),
+    ("reduce_mesh", "`polyReduce -percentage` / `-triangleCount` / `-vertexCount`", "quadric edge collapse to an all-triangle mesh; borders always kept, no UV, quad or other keep options; refuses UVs, holes and non-manifold meshes; `-percentage` is a share of the original vertices, as the page says; collapse order, cost and ties PROVISIONAL (the page states none)"),
     ("move_vertices", "`move -relative -objectSpace` on `vtx[n]` components", "translate only, Object axis orientation only (Maya defaults to World); no soft select, no Preserve UVs, authored scenes only"),
     ("inspect_vertices", "`xform -q -translation` on `vtx[n]`, `pointPosition`", "paged by offset and count, Object space only"),
     ("create_joint", "`joint -position -relative -radius -name`", "session-only, not saved; joint chains only, no orientation, rotation 0 and scale 1 (PROVISIONAL)"),
