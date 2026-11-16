@@ -146,6 +146,8 @@ pub enum Command {
     ReduceMesh {
         shape: NativeId,
         target: ReduceTarget,
+        /// Reduce only these faces (face indices in the current numbering); `None` is the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     /// Adds parsed OBJ objects as one undo step. The candidate scene must also pass view
     /// admission, so an import can never make the viewport refuse the scene.
@@ -730,8 +732,12 @@ impl History {
                 candidate.delete_uvs(shape)?;
                 EditOutcome::Changed
             }
-            Command::ReduceMesh { shape, target } => {
-                candidate.reduce_mesh(shape, target)?;
+            Command::ReduceMesh {
+                shape,
+                target,
+                faces,
+            } => {
+                candidate.reduce_mesh(shape, target, faces.as_deref())?;
                 ViewScene::from_native(&candidate, VIEW_BUDGET).map_err(view_refusal)?;
                 EditOutcome::Changed
             }

@@ -906,7 +906,15 @@ impl Editor {
             } => self.set_infinity_command(nodes, channels, pre, post),
             Operation::ProjectUvPlanar { shape, axis } => Command::ProjectUvPlanar { shape, axis },
             Operation::DeleteUvs { shape } => Command::DeleteUvs { shape },
-            Operation::ReduceMesh { shape, target } => Command::ReduceMesh { shape, target },
+            Operation::ReduceMesh {
+                shape,
+                target,
+                faces,
+            } => Command::ReduceMesh {
+                shape,
+                target,
+                faces,
+            },
             Operation::CreateCameraBookmark { name } => {
                 return self.create_camera_bookmark(&name);
             }

@@ -108,7 +108,13 @@ pub(super) struct Reducer {
 type Candidate = Reverse<(u64, usize, usize, u32, u32)>;
 
 impl Reducer {
-    pub(super) fn new(tris: Vec<[usize; 3]>, pos: Vec<DVec3>) -> Result<Self, ReduceRefusal> {
+    /// `pinned` marks vertices that must keep their place and never collapse, besides mesh borders
+    /// (the vertices on a reduce region's boundary).
+    pub(super) fn new(
+        tris: Vec<[usize; 3]>,
+        pos: Vec<DVec3>,
+        pinned: &[bool],
+    ) -> Result<Self, ReduceRefusal> {
         let mut star = vec![BTreeSet::new(); pos.len()];
         let mut halves: HashMap<[usize; 2], usize> = HashMap::new();
         for (t, tri) in tris.iter().enumerate() {
@@ -120,7 +126,7 @@ impl Reducer {
                 star[a].insert(t);
             }
         }
-        let mut border = vec![false; pos.len()];
+        let mut border = pinned.to_vec();
         let mut closed = true;
         for &[a, b] in halves.keys() {
             if !halves.contains_key(&[b, a]) {
@@ -378,7 +384,7 @@ mod tests {
             [2, 1, 3],
             [1, 0, 3],
         ];
-        Reducer::new(tris, pos).unwrap()
+        Reducer::new(tris, pos, &[false; 5]).unwrap()
     }
 
     #[test]

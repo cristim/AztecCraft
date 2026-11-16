@@ -521,6 +521,8 @@ pub enum Operation {
     ReduceMesh {
         shape: NativeId,
         target: azteccraft::native_scene::ReduceTarget,
+        /// Face indices of the region to reduce; `None` reduces the whole mesh.
+        faces: Option<Vec<usize>>,
     },
     #[cfg(any(test, feature = "mcp"))]
     Inspect {

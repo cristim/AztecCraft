@@ -830,6 +830,7 @@ fn seeds(t: &Targets) -> Vec<Operation> {
         Operation::ReduceMesh {
             shape: t.shape,
             target: ReduceTarget::Percent(50.0),
+            faces: None,
         },
         Operation::InspectVertices {
             shape: t.shape,
@@ -1407,6 +1408,7 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             Operation::ReduceMesh {
                 shape: t.shape,
                 target: ReduceTarget::Percent(50.0),
+                faces: None,
             },
         )],
         Operation::Create { .. } => vec![

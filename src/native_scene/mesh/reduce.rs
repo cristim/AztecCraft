@@ -12,6 +12,12 @@
 //!   collapses a surviving triangle, or would leave fewer triangles than a closed mesh needs.
 //!
 //! A target the collapses cannot reach is refused, not approximated.
+//!
+//! A region reduce (a face set) runs the same engine on the whole mesh with every vertex that
+//! touches a face outside the region pinned like a border: the region boundary is a border. Faces
+//! outside the region are copied as they are (polygons, not triangles); the percentage or count
+//! target counts the region's own vertices and triangles (PROVISIONAL: the Maya page has no face
+//! region flag, only a selection).
 
 mod engine;
 use super::{NativeMesh, Points};
@@ -56,7 +62,14 @@ pub enum ReduceRefusal {
     NotTriangulable,
     /// The mesh has more than `MAX_REDUCE_TRIANGLES` triangles once triangulated.
     TooLarge,
-    /// The collapses ran out before the target; `triangles` and `vertices` are the best reachable.
+    /// A face region was given but holds no face.
+    EmptyRegion,
+    /// A region face index is not a face of the mesh.
+    FaceOutOfRange { face: usize },
+    /// A region face index appears twice.
+    DuplicateFace { face: usize },
+    /// The collapses ran out before the target; `triangles` and `vertices` are the best reachable (the
+    /// region's own when a region was given).
     Unreachable { triangles: usize, vertices: usize },
 }
 
@@ -78,6 +91,11 @@ impl fmt::Display for ReduceRefusal {
                 f,
                 "reduce accepts at most {MAX_REDUCE_TRIANGLES} triangles"
             ),
+            Self::EmptyRegion => f.write_str("the face region holds no face"),
+            Self::FaceOutOfRange { face } => {
+                write!(f, "region face {face} is not a face of the mesh")
+            }
+            Self::DuplicateFace { face } => write!(f, "region face {face} is listed twice"),
             Self::Unreachable {
                 triangles,
                 vertices,
@@ -105,10 +123,12 @@ pub(in crate::native_scene::mesh) fn check_size(triangles: usize) -> Result<(), 
 
 impl NativeMesh {
     /// Edge-collapse decimation to `target`; the mesh is unchanged on error. The result is all
-    /// triangles with hard edges, and the vertex order of the survivors is kept.
+    /// triangles with hard edges, and the vertex order of the survivors is kept. With a `region`
+    /// of face indices only those faces are triangulated and collapsed (see the module doc).
     pub(in crate::native_scene) fn reduced(
         &self,
         target: ReduceTarget,
+        region: Option<&[usize]>,
     ) -> Result<Self, NativeError> {
         if !self.unsupported_channels.is_empty()
             || !self.point_offsets.is_empty()
@@ -116,6 +136,19 @@ impl NativeMesh {
             || self.edges.iter().any(|e| e.smooth != Some(false))
         {
             return Err(NativeError::UnsupportedEdit);
+        }
+        let mut in_region = vec![region.is_none(); self.faces.len()];
+        if let Some(faces) = region {
+            if faces.is_empty() {
+                return Err(ReduceRefusal::EmptyRegion.into());
+            }
+            for &face in faces {
+                match in_region.get_mut(face) {
+                    None => return Err(ReduceRefusal::FaceOutOfRange { face }.into()),
+                    Some(seen) if *seen => return Err(ReduceRefusal::DuplicateFace { face }.into()),
+                    Some(seen) => *seen = true,
+                }
+            }
         }
         let used: BTreeSet<usize> = self
             .faces
@@ -134,55 +167,88 @@ impl NativeMesh {
         check_size(triangles)?;
         let positions = self.points.values();
         let mut tris = Vec::new();
-        for face in &self.faces {
+        let mut face_of = Vec::new();
+        let mut pinned = vec![false; positions.len()];
+        let mut region_vertices = BTreeSet::new();
+        for (index, face) in self.faces.iter().enumerate() {
             let corners = self.loop_vertices(&face.outer)?;
-            tris.extend(split_faces(&corners, &positions).ok_or(ReduceRefusal::NotTriangulable)?);
+            let split = split_faces(&corners, &positions).ok_or(ReduceRefusal::NotTriangulable)?;
+            face_of.extend(split.iter().map(|_| index));
+            tris.extend(split);
+            if in_region[index] {
+                region_vertices.extend(corners);
+            } else {
+                for v in corners {
+                    pinned[v] = true;
+                }
+            }
         }
-        let mut reducer = Reducer::new(tris, positions)?;
-        let vertices = reducer.live_verts;
+        let mut reducer = Reducer::new(tris, positions, &pinned)?;
+        let start_verts = reducer.live_verts;
+        let outside_tris = face_of.iter().filter(|f| !in_region[**f]).count();
+        let region_start_verts = region_vertices.len();
+        let region_tris_now = |r: &Reducer| r.live_tris - outside_tris;
+        let region_verts_now = |r: &Reducer| region_start_verts - (start_verts - r.live_verts);
         let (max_triangles, max_vertices) = match target {
             ReduceTarget::Percent(p) if p > 0.0 && p < 100.0 => (
                 usize::MAX,
-                vertices - (vertices as f64 * p / 100.0).floor() as usize,
+                region_start_verts - (region_start_verts as f64 * p / 100.0).floor() as usize,
             ),
             ReduceTarget::Triangles(n) if n >= 1 => (n, usize::MAX),
             ReduceTarget::Vertices(n) if n >= 3 => (usize::MAX, n),
             _ => return Err(ReduceRefusal::InvalidTarget.into()),
         };
-        let reached = |r: &Reducer| r.live_tris <= max_triangles && r.live_verts <= max_vertices;
+        let reached = |r: &Reducer| {
+            region_tris_now(r) <= max_triangles && region_verts_now(r) <= max_vertices
+        };
         if reached(&reducer) {
             return Err(ReduceRefusal::NothingToReduce.into());
         }
         if !reducer.run(reached) {
             return Err(ReduceRefusal::Unreachable {
-                triangles: reducer.live_tris,
-                vertices: reducer.live_verts,
+                triangles: region_tris_now(&reducer),
+                vertices: region_verts_now(&reducer),
             }
             .into());
         }
-        self.rebuilt(&reducer)
+        self.rebuilt(&reducer, &face_of, &in_region)
     }
 
-    fn rebuilt(&self, reducer: &Reducer) -> Result<Self, NativeError> {
+    /// The reduced mesh: faces keep their order, a region face becomes its surviving triangles and
+    /// a face outside the region is copied with its corners renumbered past the removed vertices.
+    fn rebuilt(
+        &self,
+        reducer: &Reducer,
+        face_of: &[usize],
+        in_region: &[bool],
+    ) -> Result<Self, NativeError> {
         let mut renumber = BTreeMap::new();
-        let live: Vec<[usize; 3]> = reducer
-            .tris
-            .iter()
-            .zip(&reducer.tri_alive)
-            .filter(|(_, alive)| **alive)
-            .map(|(t, _)| *t)
-            .collect();
-        for v in live.iter().flatten() {
-            renumber.entry(*v).or_insert(0);
+        let mut triangles_of: Vec<Vec<[usize; 3]>> = vec![Vec::new(); self.faces.len()];
+        for (t, tri) in reducer.tris.iter().enumerate() {
+            if reducer.tri_alive[t] {
+                renumber.extend(tri.iter().map(|v| (*v, 0)));
+                if in_region[face_of[t]] {
+                    triangles_of[face_of[t]].push(*tri);
+                }
+            }
         }
         for (new, slot) in renumber.values_mut().enumerate() {
             *slot = new;
         }
         let points: Vec<DVec3> = renumber.keys().map(|v| reducer.pos[*v]).collect();
-        let loops = live
-            .iter()
-            .map(|t| t.iter().map(|v| renumber[v]).collect())
-            .collect();
+        let mut loops: Vec<Vec<usize>> = Vec::new();
+        for (index, face) in self.faces.iter().enumerate() {
+            if in_region[index] {
+                loops.extend(
+                    triangles_of[index]
+                        .iter()
+                        .map(|t| t.iter().map(|v| renumber[v]).collect::<Vec<_>>()),
+                );
+            } else {
+                let corners = self.loop_vertices(&face.outer)?;
+                loops.push(corners.iter().map(|v| renumber[v]).collect());
+            }
+        }
         let mut mesh = Self::from_loops(vec![[0.0; 3]; points.len()], loops);
         mesh.points = match self.points {
             Points::Float3(_) => {
@@ -201,9 +267,15 @@ impl NativeMesh {
 }
 
 impl NativeScene {
-    /// Reduces the shape's mesh to `target` as one edit; every instance shares it. Authored scenes
+    /// Reduces the shape's mesh (only the `faces` region when given) to `target` as one edit; every
+    /// instance shares it. Authored scenes
     /// only, and a shape with UVs refuses because UVs do not follow topology edits yet.
-    pub fn reduce_mesh(&mut self, id: NativeId, target: ReduceTarget) -> Result<(), NativeError> {
+    pub fn reduce_mesh(
+        &mut self,
+        id: NativeId,
+        target: ReduceTarget,
+        faces: Option<&[usize]>,
+    ) -> Result<(), NativeError> {
         self.structural_edit()?;
         let index = self
             .shapes
@@ -214,7 +286,7 @@ impl NativeScene {
         if self.uv_set(id).is_some() {
             return Err(NativeError::UvsBlockTopologyEdit);
         }
-        let mesh = self.shapes[index].mesh.reduced(target)?;
+        let mesh = self.shapes[index].mesh.reduced(target, faces)?;
         self.shapes[index].mesh = mesh;
         Ok(())
     }

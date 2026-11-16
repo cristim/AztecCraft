@@ -53,7 +53,7 @@ fn assert_valid_triangles(mesh: &NativeMesh) {
 #[test]
 fn percent_reduces_a_sphere_and_keeps_its_topology() {
     let before = sphere();
-    let after = before.reduced(ReduceTarget::Percent(50.0)).unwrap();
+    let after = before.reduced(ReduceTarget::Percent(50.0), None).unwrap();
     assert_eq!(
         after.point_count(),
         before.point_count() - before.point_count() / 2
@@ -64,16 +64,16 @@ fn percent_reduces_a_sphere_and_keeps_its_topology() {
 
 #[test]
 fn the_same_input_gives_the_same_bits() {
-    let [a, b] = [(); 2].map(|_| sphere().reduced(ReduceTarget::Percent(60.0)).unwrap());
+    let [a, b] = [(); 2].map(|_| sphere().reduced(ReduceTarget::Percent(60.0), None).unwrap());
     assert_eq!(bits(&a), bits(&b));
     assert_eq!(loops(&a), loops(&b));
 }
 
 #[test]
 fn counts_stop_at_the_target() {
-    let by_vertices = sphere().reduced(ReduceTarget::Vertices(40)).unwrap();
+    let by_vertices = sphere().reduced(ReduceTarget::Vertices(40), None).unwrap();
     assert_eq!(by_vertices.point_count(), 40);
-    let by_triangles = sphere().reduced(ReduceTarget::Triangles(80)).unwrap();
+    let by_triangles = sphere().reduced(ReduceTarget::Triangles(80), None).unwrap();
     assert!((79..=80).contains(&by_triangles.faces.len()));
     assert_valid_triangles(&by_vertices);
     assert_valid_triangles(&by_triangles);
@@ -89,7 +89,7 @@ fn borders_keep_their_vertices_and_no_triangle_flips() {
         .map(|v| v.map(f32::to_bits))
         .collect();
     let reference = normal(&q, &loops(&before)[0]);
-    let after = before.reduced(ReduceTarget::Percent(50.0)).unwrap();
+    let after = before.reduced(ReduceTarget::Percent(50.0), None).unwrap();
     let now: HashSet<[u32; 3]> = bits(&after).into_iter().collect();
     assert!(kept.is_subset(&now), "a border vertex moved or vanished");
     assert_valid_triangles(&after);
@@ -101,7 +101,11 @@ fn borders_keep_their_vertices_and_no_triangle_flips() {
 
 #[test]
 fn a_target_the_collapses_cannot_reach_is_refused() {
-    let error = refusal(plane(1).reduced(ReduceTarget::Triangles(1)).unwrap_err());
+    let error = refusal(
+        plane(1)
+            .reduced(ReduceTarget::Triangles(1), None)
+            .unwrap_err(),
+    );
     assert_eq!(
         error,
         ReduceRefusal::Unreachable {
@@ -111,7 +115,7 @@ fn a_target_the_collapses_cannot_reach_is_refused() {
     );
     let cube = NativeMesh::primitive(Primitive::Cube).unwrap();
     let ReduceRefusal::Unreachable { triangles, .. } =
-        refusal(cube.reduced(ReduceTarget::Triangles(1)).unwrap_err())
+        refusal(cube.reduced(ReduceTarget::Triangles(1), None).unwrap_err())
     else {
         panic!("expected unreachable");
     };
@@ -129,7 +133,7 @@ fn invalid_and_empty_targets_are_refused() {
         ReduceTarget::Vertices(2),
     ] {
         assert_eq!(
-            refusal(mesh.reduced(target).unwrap_err()),
+            refusal(mesh.reduced(target, None).unwrap_err()),
             ReduceRefusal::InvalidTarget,
             "{target:?}"
         );
@@ -139,7 +143,7 @@ fn invalid_and_empty_targets_are_refused() {
         ReduceTarget::Percent(0.0001),
     ] {
         assert_eq!(
-            refusal(mesh.reduced(target).unwrap_err()),
+            refusal(mesh.reduced(target, None).unwrap_err()),
             ReduceRefusal::NothingToReduce,
             "{target:?}"
         );
@@ -160,14 +164,14 @@ fn non_manifold_loose_and_holed_meshes_are_refused() {
     );
     let target = ReduceTarget::Triangles(1);
     assert_eq!(
-        refusal(fin.reduced(target).unwrap_err()),
+        refusal(fin.reduced(target, None).unwrap_err()),
         ReduceRefusal::NotManifold
     );
 
     let mut loose_edge = plane(2);
     loose_edge.add_loose_edge_fixture([0, 1]);
     assert_eq!(
-        refusal(loose_edge.reduced(target).unwrap_err()),
+        refusal(loose_edge.reduced(target, None).unwrap_err()),
         ReduceRefusal::LooseGeometry
     );
 
@@ -176,7 +180,7 @@ fn non_manifold_loose_and_holed_meshes_are_refused() {
         p.push([9.0, 9.0, 9.0]);
     }
     assert_eq!(
-        refusal(loose_vertex.reduced(target).unwrap_err()),
+        refusal(loose_vertex.reduced(target, None).unwrap_err()),
         ReduceRefusal::LooseGeometry
     );
 
@@ -194,7 +198,7 @@ fn non_manifold_loose_and_holed_meshes_are_refused() {
     );
     holed.add_hole_fixture(&[4, 6, 5]);
     assert!(matches!(
-        holed.reduced(target),
+        holed.reduced(target, None),
         Err(NativeError::UnsupportedEdit)
     ));
 }
@@ -212,7 +216,11 @@ fn a_pinched_vertex_is_not_manifold() {
         &[vec![0, 2, 1], vec![0, 3, 4]],
     );
     assert_eq!(
-        refusal(bowtie.reduced(ReduceTarget::Triangles(1)).unwrap_err()),
+        refusal(
+            bowtie
+                .reduced(ReduceTarget::Triangles(1), None)
+                .unwrap_err()
+        ),
         ReduceRefusal::NotManifold
     );
 }
@@ -233,7 +241,7 @@ fn a_concave_quad_splits_along_the_diagonal_that_keeps_both_triangles_facing_up(
 fn percent_rounds_the_removed_vertices_down() {
     // 81 vertices: 30% is 24.3, so 24 go and 57 stay; 100 vertices: 30% is exactly 30.
     let kept = |mesh: NativeMesh, p: f64| {
-        mesh.reduced(ReduceTarget::Percent(p))
+        mesh.reduced(ReduceTarget::Percent(p), None)
             .unwrap()
             .point_count()
     };
@@ -242,7 +250,11 @@ fn percent_rounds_the_removed_vertices_down() {
     assert_eq!(kept(plane(9), 30.0), 70);
     assert_eq!(kept(plane(9), 25.5), 75);
     assert_eq!(
-        refusal(plane(8).reduced(ReduceTarget::Percent(1.2)).unwrap_err()),
+        refusal(
+            plane(8)
+                .reduced(ReduceTarget::Percent(1.2), None)
+                .unwrap_err()
+        ),
         ReduceRefusal::NothingToReduce
     );
 }
@@ -258,7 +270,7 @@ fn a_torus_keeps_its_genus() {
         axis: Axis::Y,
     })
     .unwrap();
-    let after = torus.reduced(ReduceTarget::Percent(50.0)).unwrap();
+    let after = torus.reduced(ReduceTarget::Percent(50.0), None).unwrap();
     assert_valid_triangles(&after);
     assert_eq!(euler(&after), 0);
 }
@@ -279,7 +291,7 @@ fn a_noisy_open_surface_keeps_borders_and_stays_valid() {
             }
         }
     }
-    let after = mesh.reduced(ReduceTarget::Percent(60.0)).unwrap();
+    let after = mesh.reduced(ReduceTarget::Percent(60.0), None).unwrap();
     assert_valid_triangles(&after);
     let now: HashSet<[u32; 3]> = bits(&after).into_iter().collect();
     assert!(border.is_subset(&now));
@@ -297,13 +309,17 @@ fn a_closed_mesh_stops_at_the_four_triangle_floor() {
         &[vec![0, 2, 1], vec![0, 1, 3], vec![1, 2, 3], vec![0, 3, 2]],
     );
     assert_eq!(
-        refusal(tetrahedron.reduced(ReduceTarget::Triangles(3)).unwrap_err()),
+        refusal(
+            tetrahedron
+                .reduced(ReduceTarget::Triangles(3), None)
+                .unwrap_err()
+        ),
         ReduceRefusal::Unreachable {
             triangles: 4,
             vertices: 4
         }
     );
-    match sphere().reduced(ReduceTarget::Vertices(4)) {
+    match sphere().reduced(ReduceTarget::Vertices(4), None) {
         Ok(mesh) => {
             assert_eq!(mesh.faces.len(), 4);
             assert_valid_triangles(&mesh);
@@ -333,7 +349,7 @@ fn a_polygon_no_fan_can_split_is_refused() {
     assert!(triangulate(&corners, &p).is_none());
     let mesh = NativeMesh::polygon_fixture(points, &[corners]);
     assert_eq!(
-        refusal(mesh.reduced(ReduceTarget::Triangles(1)).unwrap_err()),
+        refusal(mesh.reduced(ReduceTarget::Triangles(1), None).unwrap_err()),
         ReduceRefusal::NotTriangulable
     );
 }
@@ -356,7 +372,7 @@ fn coincident_vertices_of_separate_borders_are_not_merged() {
         &[vec![0, 3, 2, 1], vec![4, 7, 6, 5]],
     );
     assert_eq!(
-        refusal(mesh.reduced(ReduceTarget::Vertices(6)).unwrap_err()),
+        refusal(mesh.reduced(ReduceTarget::Vertices(6), None).unwrap_err()),
         ReduceRefusal::Unreachable {
             triangles: 4,
             vertices: 8
@@ -389,7 +405,11 @@ fn a_non_finite_cost_is_never_collapsed() {
         ],
     );
     assert!(matches!(
-        refusal(octahedron.reduced(ReduceTarget::Vertices(5)).unwrap_err()),
+        refusal(
+            octahedron
+                .reduced(ReduceTarget::Vertices(5), None)
+                .unwrap_err()
+        ),
         ReduceRefusal::Unreachable { .. }
     ));
 }

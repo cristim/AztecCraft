@@ -46,6 +46,7 @@ fn parse_reduce_mesh(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
         Operation::ReduceMesh {
             shape: native_id(&args.shape_id)?,
             target,
+            faces: None,
         },
     ))
 }
