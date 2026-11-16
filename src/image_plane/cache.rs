@@ -147,7 +147,8 @@ impl FrameCache {
         Ok(())
     }
 
-    /// Drops every entry that does not belong to `generation`.
+    /// Drops every entry that does not belong to `generation`. Once nothing is left the frame
+    /// size is unknown again, so a new source with other frames is not sized by the old ones.
     pub fn retain_generation(&mut self, generation: u64) {
         self.entries.retain(|key, entry| {
             let keep = key.generation == generation;
@@ -156,6 +157,9 @@ impl FrameCache {
             }
             keep
         });
+        if self.entries.is_empty() {
+            self.frame_bytes = 0;
+        }
     }
 
     /// Changes the frame-count cap; the next insert evicts down to it.

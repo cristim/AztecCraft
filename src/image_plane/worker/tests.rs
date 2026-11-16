@@ -462,6 +462,50 @@ fn an_oversized_window_is_clipped_to_the_capacity_and_then_goes_quiet() {
 }
 
 #[test]
+fn a_new_source_is_sized_by_its_own_first_frame_not_the_old_one() {
+    let calls: Arc<Mutex<Vec<(PathBuf, i64)>>> = Arc::default();
+    let recorded = Arc::clone(&calls);
+    let decode: DecodeFn = Arc::new(move |source, frame| {
+        recorded
+            .lock()
+            .unwrap()
+            .push((source.template.clone(), frame));
+        let height = if source.template.as_os_str() == "a" {
+            2
+        } else {
+            25
+        };
+        Ok(PlateFrame {
+            width: 1,
+            height,
+            rgba: vec![0; height as usize * 4],
+        })
+    });
+    let wakes = Arc::new(AtomicUsize::new(0));
+    let mut stream = PlateStream::with_budget(decode, counting_wake(&wakes), 24, 400);
+    let window: Vec<i64> = (0..20).collect();
+    stream.set_source(source("a"));
+    until(|| !stream.tick(&window));
+    stream.set_source(source("b"));
+    until(|| {
+        stream.tick(&window);
+        (0..4).all(|frame| matches!(stream.state(frame), FrameState::Ready(_)))
+    });
+    for _ in 0..200 {
+        stream.tick(&window);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    assert!(!stream.tick(&window), "nothing is outstanding once settled");
+    let decoded_b = calls
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|(template, _)| template.as_os_str() == "b")
+        .count();
+    assert_eq!(decoded_b, 4, "source b decoded {decoded_b} of 20");
+}
+
+#[test]
 fn a_frame_of_another_size_fails_as_a_dimension_mismatch() {
     let decode: DecodeFn = Arc::new(|_, frame| {
         let height = if frame == 1 { 50 } else { 25 };
