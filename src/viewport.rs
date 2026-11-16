@@ -11,7 +11,10 @@ use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
 
 mod lens;
-pub use lens::{FilmBack, FilmFit, InvalidFilmBack, Lens, film_gate_ndc};
+pub use lens::{
+    FilmBack, FilmFit, InvalidFilmBack, Lens, MAX_FILM_SCALE, MAX_OFFSET_TAN, MAX_OVERSCAN,
+    MAX_TAN_HALF, MIN_FILM_SCALE, MIN_TAN_HALF, film_gate_ndc,
+};
 mod rect_pick;
 pub use rect_pick::{InvalidRect, NdcRect};
 
@@ -1624,6 +1627,8 @@ fn intersect(ray: Ray, a: Vec3, b: Vec3, c: Vec3) -> Option<f32> {
     (distance.is_finite() && distance >= 0.0).then_some(distance)
 }
 
+#[cfg(test)]
+mod film_range_tests;
 #[cfg(test)]
 mod film_tests;
 #[cfg(test)]

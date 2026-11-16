@@ -5,6 +5,19 @@ use glam::{DVec2, Vec2};
 
 const MM_PER_INCH: f64 = 25.4;
 
+/// Largest Overscan and 2D scale (PROVISIONAL: the docs state no range; development.md row 56).
+pub const MAX_OVERSCAN: f64 = 1e3;
+pub const MAX_FILM_SCALE: f64 = 1e6;
+pub const MIN_FILM_SCALE: f64 = 1e-6;
+/// Largest film or fit offset in tangent space (offset * 25.4 / focal length), ten times the
+/// largest half extent (PROVISIONAL, row 56): the z column of the projection stays finite at
+/// aspects from 1e-3 to 1e3.
+pub const MAX_OFFSET_TAN: f64 = 1e5;
+/// Bounds of the symmetric half extent in tangent space at aspect 1, overscan excluded
+/// (PROVISIONAL, row 56): about 0.006 degrees to 89.994 degrees of half angle.
+pub const MIN_TAN_HALF: f64 = 1e-4;
+pub const MAX_TAN_HALF: f64 = 1e4;
+
 /// Maya's Film Fit attribute. Fill fits the resolution gate within the film gate, Overscan the
 /// film gate within the resolution gate; the viewport aspect stands in for the resolution gate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -77,6 +90,22 @@ impl FilmBack {
         if let Some((name, _)) = positive.iter().find(|(_, v)| !(v.is_finite() && *v > 0.0)) {
             return Err(InvalidFilmBack(name));
         }
+        let ranged = [
+            ("overscan", self.overscan, 0.0, MAX_OVERSCAN),
+            ("pre_scale", self.pre_scale, MIN_FILM_SCALE, MAX_FILM_SCALE),
+            (
+                "post_scale",
+                self.post_scale,
+                MIN_FILM_SCALE,
+                MAX_FILM_SCALE,
+            ),
+        ];
+        if let Some((name, ..)) = ranged
+            .iter()
+            .find(|(_, v, min, max)| !(*min..=*max).contains(v))
+        {
+            return Err(InvalidFilmBack(name));
+        }
         let finite = [
             ("film_fit_offset", self.film_fit_offset_in),
             ("horizontal_film_offset", self.film_offset_in[0]),
@@ -84,6 +113,28 @@ impl FilmBack {
             ("film_roll", self.film_roll_degrees),
         ];
         if let Some((name, _)) = finite.iter().find(|(_, v)| !v.is_finite()) {
+            return Err(InvalidFilmBack(name));
+        }
+        let half = self.tan_half(1.0);
+        if !(MIN_TAN_HALF..=MAX_TAN_HALF).contains(&half.x) {
+            return Err(InvalidFilmBack("angle_of_view"));
+        }
+        let to_tan = MM_PER_INCH / self.focal_mm;
+        let offsets = [
+            (
+                "film_fit_offset",
+                self.film_fit_offset_in * self.lens_squeeze.max(1.0),
+            ),
+            (
+                "horizontal_film_offset",
+                self.film_offset_in[0] * self.lens_squeeze,
+            ),
+            ("vertical_film_offset", self.film_offset_in[1]),
+        ];
+        if let Some((name, _)) = offsets
+            .iter()
+            .find(|(_, v)| !(0.0..=MAX_OFFSET_TAN).contains(&(v.abs() * to_tan)))
+        {
             return Err(InvalidFilmBack(name));
         }
         // The f32 projection must stay usable: finite entries and a nonzero xy determinant
