@@ -19,6 +19,7 @@ impl Rig {
     pub(super) fn new(cube: bool) -> Self {
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
+        ctx.all_styles_mut(|style| style.interaction.selectable_labels = false);
         let mut editor = Editor {
             renderer: Some(crate::viewport_renderer::tests::renderer_handle()),
             ..Editor::default()

@@ -21,6 +21,10 @@ pub(super) struct Captured {
     pub(super) windows: Vec<egui::Id>,
     /// Title of the window the scenario must have opened.
     pub(super) window_title: Option<&'static str>,
+    /// Label of a node (the expected menu row) that must be new over the base frame.
+    pub(super) new_row: Option<&'static str>,
+    /// Report only nodes inside a dialog and check what the dialog disables.
+    pub(super) modal: bool,
 }
 
 /// What a scenario found: violations not in its base frame, and reasons it proves nothing.
@@ -47,7 +51,10 @@ impl Scenario {
     pub(super) fn run(&self) -> Run {
         let captured = (self.capture)();
         let name = &self.name;
-        let all = violations(name, &captured.update, &captured.windows);
+        let mut all = violations(name, &captured.update, &captured.windows);
+        if captured.modal {
+            all.retain(|v| v.in_dialog);
+        }
         let base_keys: HashSet<String> = captured
             .base
             .iter()
@@ -60,6 +67,9 @@ impl Scenario {
             .flat_map(|base| base.nodes.iter().map(|(id, _)| *id))
             .collect();
         let mut problems = Vec::new();
+        if captured.modal {
+            all.extend(modal_background(name, &captured));
+        }
         let mut keys = HashSet::new();
         for violation in &all {
             if !keys.insert(violation.key()) {
@@ -74,6 +84,21 @@ impl Scenario {
                 .any(|(_, n)| n.role() == Role::Window && n.label() == Some(title))
         {
             problems.push(format!("the window {title:?} did not open"));
+        }
+        let new_labels: Vec<&str> = captured
+            .update
+            .nodes
+            .iter()
+            .filter(|(id, _)| !base_ids.contains(id))
+            .filter_map(|(_, n)| n.label().or(n.value()))
+            .collect();
+        if let Some(row) = captured.new_row
+            && !new_labels.contains(&row)
+        {
+            problems.push(format!(
+                "no new node named {row:?}; new names: {:?}",
+                &new_labels[..new_labels.len().min(8)]
+            ));
         }
         let added = captured
             .update
@@ -96,6 +121,37 @@ impl Scenario {
     }
 }
 
+/// A violation (at most one per scenario) when a control the dialog newly disabled does not carry
+/// the reason `Unavailable: a dialog is open`.
+fn modal_background(name: &str, captured: &Captured) -> Option<Violation> {
+    let reason = format!("{}a dialog is open", super::DISABLED_PREFIX);
+    let base = captured.base.as_ref()?;
+    let was_disabled: HashSet<NodeId> = base
+        .nodes
+        .iter()
+        .filter(|(_, n)| n.is_disabled())
+        .map(|(id, _)| *id)
+        .collect();
+    let silent = captured
+        .update
+        .nodes
+        .iter()
+        .filter(|(id, n)| n.is_disabled() && !was_disabled.contains(id))
+        .filter(|(_, n)| n.description() != Some(reason.as_str()))
+        .count();
+    (silent > 0).then(|| Violation {
+        scenario: name.to_owned(),
+        rule: super::Rule::ModalBackground,
+        role: Role::Dialog,
+        name: format!("{silent} controls"),
+        bounds: None,
+        ancestor: "root".to_owned(),
+        anchor: String::new(),
+        in_window: false,
+        in_dialog: false,
+    })
+}
+
 /// A scenario with a base frame must add at least this many nodes to it (the Help menu adds two
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
@@ -108,6 +164,8 @@ fn plain(rig: &Rig, base: Option<TreeUpdate>) -> Captured {
         update: rig.update(),
         windows: Vec::new(),
         window_title: None,
+        new_row: None,
+        modal: false,
     }
 }
 
@@ -124,7 +182,12 @@ fn tool_scenario(name: &str, tool: ActiveTool) -> Scenario {
 }
 
 /// Opens `path` (menu button, then submenus by hover) on a cube scene and reports the new nodes.
-fn menu_scenario(name: &str, set: MenuSet, path: &'static [&'static str]) -> Scenario {
+fn menu_scenario(
+    name: &str,
+    set: MenuSet,
+    path: &'static [&'static str],
+    row: &'static str,
+) -> Scenario {
     Scenario::new(name, "menus", move || {
         let mut rig = Rig::new(true);
         if set != MenuSet::Modeling {
@@ -137,7 +200,10 @@ fn menu_scenario(name: &str, set: MenuSet, path: &'static [&'static str]) -> Sce
             rig.hover(label);
         }
         rig.settle();
-        plain(&rig, Some(base))
+        Captured {
+            new_row: Some(row),
+            ..plain(&rig, Some(base))
+        }
     })
 }
 
@@ -149,28 +215,40 @@ pub(super) fn all() -> Vec<Scenario> {
         tool_scenario("tool-scale", ActiveTool::Scale),
     ];
     let modeling = MenuSet::Modeling;
-    for (name, set, path) in [
-        ("menu-file", modeling, &["File"][..]),
-        ("menu-edit", modeling, &["Edit"]),
+    for (name, set, path, row) in [
+        ("menu-file", modeling, &["File"][..], "Close"),
+        ("menu-edit", modeling, &["Edit"], "Delete"),
         (
             "menu-create-polygon",
             modeling,
             &["Create", "Polygon Primitives"],
+            "Polygon Primitives",
         ),
         (
             "menu-select-components",
             modeling,
             &["Select", "Components"],
+            "Components",
         ),
-        ("menu-view", modeling, &["View"]),
-        ("menu-shading", modeling, &["Shading"]),
-        ("menu-modify", modeling, &["Modify"]),
-        ("menu-display", modeling, &["Display"]),
-        ("menu-uv", modeling, &["UV"]),
-        ("menu-skeleton", MenuSet::Rigging, &["Skeleton"]),
-        ("menu-help", modeling, &["Help"]),
+        ("menu-view", modeling, &["View"], "Frame All (A)"),
+        (
+            "menu-shading",
+            modeling,
+            &["Shading"],
+            "Smooth Shade All (5)",
+        ),
+        ("menu-modify", modeling, &["Modify"], "Not implemented yet"),
+        ("menu-display", modeling, &["Display"], "Grid Options"),
+        ("menu-uv", modeling, &["UV"], "UV Editor"),
+        (
+            "menu-skeleton",
+            MenuSet::Rigging,
+            &["Skeleton"],
+            "Remove Joints",
+        ),
+        ("menu-help", modeling, &["Help"], "Local editor prototype"),
     ] {
-        all.push(menu_scenario(name, set, path));
+        all.push(menu_scenario(name, set, path, row));
     }
     all.extend(panels::scenarios());
     all.extend(dialogs::scenarios());
