@@ -325,3 +325,145 @@ fn pre_and_post_scale_multiply_around_a_thirty_degree_roll() {
     let at = ndc(&scaled, 1.5, [(0.5 * tx * 10.0) as f32, 0.0, -10.0]);
     assert_close(at[0], 1.0, 1e-6, "pre scale doubles");
 }
+
+// T1c: rays, framing, ortho
+
+fn world_point_at_depth(camera: &Camera, aspect: f32, ndc: Vec2, depth: f32) -> Vec3 {
+    let view_projection = camera.projection_matrix(aspect).unwrap() * camera.view_matrix();
+    let clip_z = camera.projection_matrix(aspect).unwrap() * Vec4::new(0.0, 0.0, -depth, 1.0);
+    let w = depth;
+    let world = view_projection.inverse() * Vec4::new(ndc.x * w, ndc.y * w, clip_z.z, w);
+    world.truncate() / world.w
+}
+
+fn distance_to_ray(point: Vec3, ray: Ray) -> f32 {
+    (point - ray.origin).cross(ray.direction).length()
+}
+
+#[test]
+fn rays_invert_the_projection_under_offset_roll_and_squeeze() {
+    let camera = film_camera(|f| {
+        f.film_offset_in = [0.3, 0.0];
+        f.film_roll_degrees = 10.0;
+        f.lens_squeeze = 1.5;
+    });
+    let aspect = 1.6;
+    for (x, y) in [
+        (1.0, 1.0),
+        (-1.0, 1.0),
+        (1.0, -1.0),
+        (-1.0, -1.0),
+        (0.0, 0.0),
+    ] {
+        let target = Vec2::new(x, y);
+        let point = world_point_at_depth(&camera, aspect, target, 10.0);
+        let projected = camera.project(point, aspect).unwrap().unwrap();
+        assert!(
+            (projected.truncate() - target).length() < 1e-4,
+            "{target:?} {projected:?}"
+        );
+        let ray = camera.captured_ray(target, aspect).unwrap();
+        let error = distance_to_ray(point, ray) / 10.0;
+        assert!(error < 1e-4, "{target:?}: ray misses the point by {error}");
+    }
+}
+
+/// The pre-#458 formula, restated: ndc divided by the matrix diagonal.
+fn old_default_ray_direction(camera: &Camera, ndc: Vec2, aspect: f32) -> Vec3 {
+    let m = camera.projection_matrix(aspect).unwrap();
+    let view = Vec3::new(ndc.x / m.x_axis.x, ndc.y / m.y_axis.y, -1.0).normalize();
+    camera
+        .view_matrix()
+        .inverse()
+        .transform_vector3(view)
+        .normalize()
+}
+
+#[test]
+fn the_default_camera_ray_stays_within_a_millionth_of_the_old_formula() {
+    let camera = Camera::default();
+    for aspect in [0.5, 1.0, 1.5, 16.0 / 9.0] {
+        for ndc in [
+            Vec2::ZERO,
+            Vec2::new(0.9, -0.3),
+            Vec2::new(-1.0, 1.0),
+            Vec2::new(0.2, 0.77),
+        ] {
+            let new = camera.ray(ndc, aspect).unwrap().direction;
+            let old = old_default_ray_direction(&camera, ndc, aspect);
+            assert!(
+                (new - old).abs().max_element() < 1e-6,
+                "{aspect} {ndc:?}: {new:?} {old:?}"
+            );
+        }
+    }
+}
+
+fn centre_ndc(camera: &Camera, aspect: f32, centre: Vec3) -> Vec2 {
+    camera.project(centre, aspect).unwrap().unwrap().truncate()
+}
+
+#[test]
+fn framing_centres_the_object_in_the_shifted_window() {
+    let points = [Vec3::new(2.0, 1.0, 0.5), Vec3::new(4.0, 3.0, 1.5)];
+    let centre = Vec3::new(3.0, 2.0, 1.0);
+    for edit in [
+        (|f: &mut FilmBack| f.film_offset_in = [0.3, 0.0]) as fn(&mut FilmBack),
+        |f| {
+            f.film_offset_in = [0.3, 0.1];
+            f.film_fit = FilmFit::Horizontal;
+            f.film_fit_offset_in = 0.2;
+            f.lens_squeeze = 1.5;
+        },
+    ] {
+        let mut camera = film_camera(edit);
+        camera.frame_points(&points, 1.5).unwrap();
+        let ndc = centre_ndc(&camera, 1.5, centre);
+        assert!(ndc.abs().max_element() < 1e-3, "{ndc:?}");
+    }
+    let mut unshifted = Camera::default();
+    unshifted.frame_points(&points, 1.5).unwrap();
+    assert!((unshifted.target() - centre).length() < 1e-6);
+}
+
+#[test]
+fn orthographic_ignores_the_film_back() {
+    let mut plain = Camera::default();
+    plain.show_orthographic(OrthographicView::Front).unwrap();
+    let mut odd = film_camera(|f| {
+        f.focal_mm = 80.0;
+        f.film_offset_in = [0.4, 0.4];
+        f.film_roll_degrees = 33.0;
+        f.overscan = 2.0;
+    });
+    odd.show_orthographic(OrthographicView::Front).unwrap();
+    for aspect in [0.7, 1.5, 2.4] {
+        assert_eq!(
+            plain.projection_matrix(aspect).unwrap(),
+            odd.projection_matrix(aspect).unwrap()
+        );
+    }
+    let points = [Vec3::new(-1.0, -1.0, -1.0), Vec3::new(2.0, 2.0, 2.0)];
+    let mut a = plain.clone();
+    let mut b = odd.clone();
+    a.frame_points(&points, 1.5).unwrap();
+    b.frame_points(&points, 1.5).unwrap();
+    assert_eq!(a.target(), b.target());
+    assert_eq!(a.distance(), b.distance());
+}
+
+#[test]
+fn handle_pixel_scale_is_unchanged_by_offset_and_roll() {
+    use crate::move_handles::ViewportCapture;
+    let plain = ViewportCapture::new(&Camera::default(), [0, 0], [800, 600], 1.0).unwrap();
+    let moved = film_camera(|f| {
+        f.film_offset_in = [0.3, 0.1];
+        f.film_roll_degrees = 30.0;
+    });
+    let moved = ViewportCapture::new(&moved, [0, 0], [800, 600], 1.0).unwrap();
+    let (a, b) = (
+        plain.world_length(72.0, 10.0),
+        moved.world_length(72.0, 10.0),
+    );
+    assert!((a - b).abs() <= a * 1e-6, "{a} vs {b}");
+}
