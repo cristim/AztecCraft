@@ -82,4 +82,8 @@ impl Rig {
         self.frame(vec![egui::Event::PointerMoved(at)]);
         self.settle();
     }
+
+    pub(super) fn key(&mut self, key: egui::Key) {
+        self.frame(vec![crate::app::tests::key(key)]);
+    }
 }
