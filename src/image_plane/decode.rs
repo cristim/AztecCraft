@@ -12,6 +12,12 @@ use std::io::{self, Cursor, Read};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 
+use zune_jpeg::JpegDecoder;
+use zune_jpeg::errors::DecodeErrors;
+use zune_jpeg::zune_core::bytestream::ZCursor;
+use zune_jpeg::zune_core::colorspace::ColorSpace;
+use zune_jpeg::zune_core::options::DecoderOptions;
+
 use crate::document::open_regular_file;
 
 /// Largest plate file read for a decode.
@@ -22,6 +28,9 @@ pub const PROBE_BYTES: usize = 1024 * 1024;
 pub const MAX_PLATE_DIMENSION: u32 = 8192;
 /// Largest pixel count (128 MiB of RGBA8).
 pub const MAX_PLATE_PIXELS: u64 = 33_554_432;
+/// Largest pixel count of a progressive JPEG (4096 x 4096): zune holds the coefficients of the
+/// whole image, about 6 bytes per pixel, on top of the RGBA output.
+pub const MAX_PROGRESSIVE_JPEG_PIXELS: u64 = 4096 * 4096;
 /// Bytes the PNG decoder may allocate for its own intermediate buffers.
 const PNG_DECODER_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 
@@ -33,6 +42,8 @@ pub enum PlateFormat {
     Exr,
     Dpx,
     Tiff,
+    /// A CMYK or YCCK JPEG, which has no plate colour path.
+    JpegCmyk,
     Unknown,
 }
 
@@ -44,6 +55,7 @@ impl PlateFormat {
             Self::Exr => "EXR",
             Self::Dpx => "DPX",
             Self::Tiff => "TIFF",
+            Self::JpegCmyk => "CMYK JPEG",
             Self::Unknown => "unrecognised",
         }
     }
@@ -162,6 +174,7 @@ fn guarded<T>(work: impl FnOnce() -> Result<T, PlateError>) -> Result<T, PlateEr
 pub fn probe_bytes(prefix: &[u8]) -> Result<PlateInfo, PlateError> {
     let result = guarded(|| match sniff(prefix) {
         Some(PlateFormat::Png) => probe_png(prefix),
+        Some(PlateFormat::Jpeg) => probe_jpeg(prefix),
         _ => Err(unsupported(prefix)),
     });
     match result {
@@ -195,6 +208,7 @@ pub fn decode_plate(bytes: &[u8]) -> Result<PlateFrame, PlateError> {
     }
     guarded(|| match sniff(bytes) {
         Some(PlateFormat::Png) => decode_png(bytes),
+        Some(PlateFormat::Jpeg) => decode_jpeg(bytes),
         _ => Err(unsupported(bytes)),
     })
 }
@@ -281,4 +295,71 @@ fn expand_to_rgba(buf: &mut [u8], channels: usize) {
             dst.copy_from_slice(&rgba);
         }
     }
+}
+
+fn jpeg_error(error: DecodeErrors) -> PlateError {
+    match error {
+        DecodeErrors::ExhaustedData | DecodeErrors::IoErrors(_) => PlateError::Truncated,
+        DecodeErrors::LargeDimensions(_) => PlateError::TooLarge,
+        DecodeErrors::Unsupported(_) => PlateError::UnsupportedFormat {
+            format: PlateFormat::Jpeg,
+        },
+        _ => PlateError::Corrupt,
+    }
+}
+
+/// Strict so truncated or damaged scans fail instead of returning a part-grey frame. zune's own
+/// size limit (16384) stays at its default: it is only a second line behind
+/// [`check_dimensions`], which is what refuses anything over the plate limits.
+fn jpeg_decoder(bytes: &[u8]) -> JpegDecoder<ZCursor<&[u8]>> {
+    let options = DecoderOptions::default()
+        .set_strict_mode(true)
+        .jpeg_set_out_colorspace(ColorSpace::RGBA);
+    JpegDecoder::new_with_options(ZCursor::new(bytes), options)
+}
+
+/// Parses the headers and returns the checked size and RGBA byte length.
+fn jpeg_header(decoder: &mut JpegDecoder<ZCursor<&[u8]>>) -> Result<(u32, u32, usize), PlateError> {
+    decoder.decode_headers().map_err(jpeg_error)?;
+    if matches!(
+        decoder.input_colorspace(),
+        Some(ColorSpace::CMYK | ColorSpace::YCCK)
+    ) {
+        return Err(PlateError::UnsupportedFormat {
+            format: PlateFormat::JpegCmyk,
+        });
+    }
+    let info = decoder.info().ok_or(PlateError::Internal)?;
+    let (width, height) = (u32::from(info.width), u32::from(info.height));
+    let total = check_dimensions(width, height)?;
+    if info.sof.is_progressive()
+        && u64::from(width) * u64::from(height) > MAX_PROGRESSIVE_JPEG_PIXELS
+    {
+        return Err(PlateError::TooLarge);
+    }
+    Ok((width, height, total))
+}
+
+fn probe_jpeg(prefix: &[u8]) -> Result<PlateInfo, PlateError> {
+    let (width, height, _) = jpeg_header(&mut jpeg_decoder(prefix))?;
+    Ok(PlateInfo {
+        width,
+        height,
+        format: PlateFormat::Jpeg,
+    })
+}
+
+fn decode_jpeg(bytes: &[u8]) -> Result<PlateFrame, PlateError> {
+    let mut decoder = jpeg_decoder(bytes);
+    let (width, height, total) = jpeg_header(&mut decoder)?;
+    if decoder.output_buffer_size() != Some(total) {
+        return Err(PlateError::Internal);
+    }
+    let mut rgba = vec![0u8; total];
+    decoder.decode_into(&mut rgba).map_err(jpeg_error)?;
+    Ok(PlateFrame {
+        width,
+        height,
+        rgba,
+    })
 }

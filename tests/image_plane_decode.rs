@@ -331,3 +331,167 @@ fn a_file_over_the_byte_limit_is_refused_before_parsing() {
     oversize.resize(MAX_PLATE_FILE_BYTES + 1, 0);
     assert_eq!(decode_plate(&oversize), Err(PlateError::TooLarge));
 }
+
+fn fixture(name: &str) -> Vec<u8> {
+    std::fs::read(format!("tests/fixtures/image_plane/{name}")).unwrap()
+}
+
+/// The 16x8 synthetic source of the colour fixtures: pixel (x, y) is (16x, 32y, 128).
+fn within(
+    frame: &azteccraft::image_plane::decode::PlateFrame,
+    expected: impl Fn(u32, u32) -> [u8; 3],
+) {
+    const TOLERANCE: i32 = 6;
+    for y in 0..8 {
+        for x in 0..16 {
+            let at = ((y * 16 + x) * 4) as usize;
+            let want = expected(x, y);
+            for (channel, &wanted) in want.iter().enumerate() {
+                let got = i32::from(frame.rgba[at + channel]);
+                assert!(
+                    (got - i32::from(wanted)).abs() <= TOLERANCE,
+                    "({x},{y}) channel {channel}: {got} vs {wanted}"
+                );
+            }
+            assert_eq!(frame.rgba[at + 3], 255);
+        }
+    }
+}
+
+#[test]
+fn baseline_and_progressive_jpegs_match_the_generating_gradient() {
+    for name in ["gradient.jpg", "gradient_progressive.jpg"] {
+        let frame = decode_plate(&fixture(name)).unwrap();
+        assert_eq!((frame.width, frame.height), (16, 8), "{name}");
+        within(&frame, |x, y| [(16 * x) as u8, (32 * y) as u8, 128]);
+    }
+}
+
+#[test]
+fn a_gray_jpeg_replicates_luma_into_rgb() {
+    let frame = decode_plate(&fixture("gradient_gray.jpg")).unwrap();
+    within(&frame, |x, y| {
+        let v = (12 * x + 8 * y) as u8;
+        [v, v, v]
+    });
+}
+
+#[test]
+fn jpeg_probe_reports_size_and_format() {
+    let info = probe_bytes(&fixture("gradient.jpg")).unwrap();
+    assert_eq!(
+        (info.width, info.height, info.format),
+        (16, 8, PlateFormat::Jpeg)
+    );
+}
+
+#[test]
+fn a_cmyk_jpeg_is_refused_by_name() {
+    let refused = PlateError::UnsupportedFormat {
+        format: PlateFormat::JpegCmyk,
+    };
+    assert_eq!(decode_plate(&fixture("cmyk.jpg")).unwrap_err(), refused);
+    assert_eq!(probe_bytes(&fixture("cmyk.jpg")).unwrap_err(), refused);
+}
+
+#[test]
+fn a_valid_9000_by_16_jpeg_is_refused_by_the_plate_limits_alone() {
+    // 9000 is inside zune's own 16384 default, so only our dimension check can refuse it.
+    let file = fixture("wide_9000x16.jpg");
+    assert_eq!(probe_bytes(&file), Err(PlateError::TooLarge));
+    assert_eq!(decode_plate(&file), Err(PlateError::TooLarge));
+}
+
+#[test]
+fn a_huge_app_segment_before_the_frame_header_is_header_too_large() {
+    let file = fixture("gradient.jpg");
+    let mut padded = file[..2].to_vec();
+    for _ in 0..17 {
+        padded.extend_from_slice(&[0xFF, 0xE2, 0xFF, 0xFF]);
+        padded.extend(vec![0u8; 0xFFFF - 2]);
+    }
+    padded.extend_from_slice(&file[2..]);
+    assert!(padded.len() > PROBE_BYTES);
+    assert_eq!(
+        probe_reader(padded.as_slice()),
+        Err(PlateError::HeaderTooLarge)
+    );
+    assert_eq!(decode_plate(&padded).unwrap().width, 16);
+}
+
+#[test]
+fn truncated_and_corrupt_jpegs_never_yield_a_frame() {
+    let file = fixture("gradient.jpg");
+    assert!(matches!(
+        decode_plate(&file[..file.len() - 40]),
+        Err(PlateError::Truncated | PlateError::Corrupt)
+    ));
+    assert!(matches!(
+        decode_plate(&file[..30]),
+        Err(PlateError::Truncated | PlateError::Corrupt)
+    ));
+    assert_eq!(
+        decode_plate(&[0xFF, 0xD8, 0xFF]),
+        Err(PlateError::Truncated)
+    );
+}
+
+/// Rewrites the size in the first SOF segment of a JPEG.
+fn patch_jpeg_size(mut file: Vec<u8>, width: u16, height: u16) -> Vec<u8> {
+    let at = file
+        .windows(2)
+        .position(|pair| matches!(pair, [0xFF, 0xC0 | 0xC2]))
+        .unwrap();
+    file[at + 5..at + 7].copy_from_slice(&height.to_be_bytes());
+    file[at + 7..at + 9].copy_from_slice(&width.to_be_bytes());
+    file
+}
+
+#[test]
+fn progressive_jpegs_are_capped_at_4096_by_4096_pixels() {
+    let progressive = fixture("gradient_progressive.jpg");
+    let at_cap = patch_jpeg_size(progressive.clone(), 4096, 4096);
+    let info = probe_bytes(&at_cap).unwrap();
+    assert_eq!((info.width, info.height), (4096, 4096));
+    for (width, height) in [(4097, 4096), (4096, 4097)] {
+        let over = patch_jpeg_size(progressive.clone(), width, height);
+        assert_eq!(
+            probe_bytes(&over),
+            Err(PlateError::TooLarge),
+            "{width}x{height}"
+        );
+        assert_eq!(
+            decode_plate(&over),
+            Err(PlateError::TooLarge),
+            "{width}x{height}"
+        );
+    }
+}
+
+#[test]
+fn the_progressive_cap_does_not_apply_to_baseline_jpegs() {
+    let baseline = patch_jpeg_size(fixture("gradient.jpg"), 8192, 4096);
+    let info = probe_bytes(&baseline).unwrap();
+    assert_eq!((info.width, info.height), (8192, 4096));
+}
+
+/// Inserts one junk byte before the first frame header, which zune's strict mode tolerates.
+fn with_junk_before_sof(mut file: Vec<u8>) -> Vec<u8> {
+    let at = file
+        .windows(2)
+        .position(|pair| matches!(pair, [0xFF, 0xC0 | 0xC2]))
+        .unwrap();
+    file.insert(at, 0x00);
+    file
+}
+
+#[test]
+fn a_junk_byte_before_the_frame_header_does_not_bypass_the_progressive_cap() {
+    let junk = with_junk_before_sof(patch_jpeg_size(
+        fixture("gradient_progressive.jpg"),
+        8192,
+        4096,
+    ));
+    assert_eq!(probe_bytes(&junk), Err(PlateError::TooLarge));
+    assert_eq!(decode_plate(&junk), Err(PlateError::TooLarge));
+}
