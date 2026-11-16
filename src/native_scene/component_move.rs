@@ -72,6 +72,13 @@ impl ComponentMoveFrame {
 }
 
 impl NativeScene {
+    /// A vector in the scene's declared linear unit as centimetres, the one conversion every
+    /// declared-unit caller of a component move shares. The result is not checked for finiteness.
+    pub fn declared_vector_to_cm(&self, declared: [f64; 3]) -> Result<[f64; 3], NativeError> {
+        let factor = self.units.linear_factor()?;
+        Ok(declared.map(|v| v * factor))
+    }
+
     /// The frame of the instance at `target`. Refuses a singular, non-finite or ill-conditioned
     /// world matrix with the parent-transform reason the Move handles use.
     pub fn component_move_frame(

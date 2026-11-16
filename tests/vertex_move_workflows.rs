@@ -28,7 +28,7 @@ fn moves_the_listed_vertices_together_and_undo_redo_restore_the_scene() {
         .execute(Command::MoveVertices {
             shape,
             vertices: vec![0, 3, 7],
-            delta: [1.0, 2.0, 3.0],
+            delta_cm: [1.0, 2.0, 3.0],
         })
         .unwrap();
     assert_eq!(outcome, EditOutcome::Changed);
@@ -55,7 +55,7 @@ fn a_zero_delta_changes_nothing_and_adds_no_undo_step() {
         .execute(Command::MoveVertices {
             shape,
             vertices: vec![1],
-            delta: [0.0; 3],
+            delta_cm: [0.0; 3],
         })
         .unwrap();
     assert_eq!(outcome, EditOutcome::Unchanged);
@@ -96,7 +96,7 @@ fn invalid_requests_are_refused_and_leave_scene_and_history_untouched() {
             .execute(Command::MoveVertices {
                 shape,
                 vertices,
-                delta,
+                delta_cm: delta,
             })
             .unwrap_err();
         assert_eq!(error, expected);
@@ -115,7 +115,7 @@ fn a_move_applies_to_every_vertex_or_none() {
             .execute(Command::MoveVertices {
                 shape,
                 vertices: vec![0, 99],
-                delta: [1.0; 3],
+                delta_cm: [1.0; 3],
             })
             .is_err()
     );
