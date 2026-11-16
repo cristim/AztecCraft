@@ -44,6 +44,12 @@ pub(super) enum Rule {
     StaleReason,
     State,
     NameQuality,
+    /// Keyboard walk: Tab focused a disabled control.
+    FocusDisabled,
+    /// Keyboard walk: Tab focused a control with no name.
+    FocusUnnamed,
+    /// Keyboard walk: an enabled control that no Tab press reaches.
+    Unreachable,
 }
 
 impl Rule {
@@ -55,6 +61,9 @@ impl Rule {
             Rule::StaleReason => "R3b",
             Rule::State => "R4",
             Rule::NameQuality => "R5",
+            Rule::FocusDisabled => "K1",
+            Rule::FocusUnnamed => "K2",
+            Rule::Unreachable => "K3",
         }
     }
 
@@ -72,6 +81,9 @@ impl Rule {
             Rule::StaleReason => "enabled but the description still starts with `Unavailable: `",
             Rule::State => "no checked state: use `WidgetInfo::selected` or set `toggled`",
             Rule::NameQuality => "the name is a glyph or too short to be spoken: name it in words",
+            Rule::FocusDisabled => "Tab focused a disabled control",
+            Rule::FocusUnnamed => "Tab focused a control with no name: fix R1 on it",
+            Rule::Unreachable => "no Tab press reaches this enabled control within the walk",
         }
     }
 }
@@ -223,6 +235,7 @@ fn name_of(nodes: &HashMap<NodeId, &Node>, node: &Node) -> Option<String> {
 
 /// One node with everything the rules and the keys need, so the rules read plain fields.
 pub(super) struct Entry {
+    pub(super) id: NodeId,
     pub(super) role: Role,
     pub(super) name: Option<String>,
     bounds: Option<(f64, f64, f64, f64)>,
@@ -297,6 +310,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             false => format!("{base}/{}", own.unwrap_or_default()),
         };
         order.push(Entry {
+            id,
             role,
             name: name.clone(),
             bounds: node.bounds().map(|b| (b.x0, b.y0, b.x1, b.y1)),
@@ -370,6 +384,7 @@ pub(super) fn violations(
 }
 
 mod gaps;
+mod keyboard;
 mod rig;
 mod scenarios;
 mod self_tests;
