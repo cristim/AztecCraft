@@ -117,10 +117,10 @@ fn same_capture_compares_every_film_back_field_by_bits() {
 fn values_that_degenerate_the_f32_projection_are_refused() {
     let mut tiny_focal = FilmBack::DEFAULT;
     tiny_focal.focal_mm = 1e-300;
-    assert_eq!(tiny_focal.validate(), Err(InvalidFilmBack("projection")));
+    assert_eq!(tiny_focal.validate(), Err(InvalidFilmBack("angle_of_view")));
     let mut tiny_scales = FilmBack::DEFAULT;
     (tiny_scales.pre_scale, tiny_scales.post_scale) = (1e-100, 1e-100);
-    assert_eq!(tiny_scales.validate(), Err(InvalidFilmBack("projection")));
+    assert_eq!(tiny_scales.validate(), Err(InvalidFilmBack("pre_scale")));
     assert_eq!(FilmBack::DEFAULT.validate(), Ok(()));
 }
 
