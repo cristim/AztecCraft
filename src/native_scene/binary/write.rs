@@ -67,9 +67,9 @@ impl From<TooLarge> for AuthoredBinaryRefusal {
 }
 
 /// The file for a scene of bare transforms or of transforms over one mesh each, whose
-/// eligibility the caller has checked. The bytes are decoded and compared with the scene
-/// before they are returned.
-fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
+/// eligibility the caller has checked. Canonical curve adoption uses this raw emitter
+/// solely to compare all bytes; normal writes go through the checked wrapper.
+pub(super) fn scene_file_unchecked(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
     let mut children = Vec::new();
     children
         .try_reserve_exact(scene.nodes().len() + scene.shapes().len() + 1)
@@ -95,7 +95,14 @@ fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
         }
     }
     children.extend(super::camera::authored(scene)?);
+    children.extend(super::focal::authored(scene)?);
     let bytes = chunk::group(*b"Maya", profile::ROOT_AUX, &children, chunk::Align::One)?;
+    Ok(bytes)
+}
+
+/// Decode and compare before returning any bytes to a writer.
+fn scene_file(scene: &NativeScene) -> Result<Vec<u8>, AuthoredBinaryRefusal> {
+    let bytes = scene_file_unchecked(scene)?;
     check::verify(scene, &bytes)?;
     Ok(bytes)
 }

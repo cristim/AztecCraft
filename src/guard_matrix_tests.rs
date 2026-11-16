@@ -991,6 +991,19 @@ fn seeds(t: &Targets) -> Vec<Operation> {
             expected_selection_generation: None,
         },
         // Differs from the rig's default camera so a Changed outcome is observable.
+        Operation::SetCameraFocalKey {
+            camera: azteccraft::native_scene::SceneCamera::Persp,
+            time: Some(1.0),
+            value: Some(50.0),
+        },
+        Operation::DeleteCameraFocalKeys {
+            camera: azteccraft::native_scene::SceneCamera::Persp,
+            time: None,
+        },
+        Operation::InspectCameraFocalKeys {
+            camera: azteccraft::native_scene::SceneCamera::Persp,
+            cursor: None,
+        },
         Operation::SetCameraAttributesVisible { visible: true },
         Operation::SetCameraOptics {
             camera: azteccraft::native_scene::SceneCamera::Persp,
@@ -1029,6 +1042,28 @@ fn ungroup_operation() -> Operation {
 /// Samples for one operation kind. No wildcard arm: a new `Operation` variant must be added here.
 fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
     match seed {
+        Operation::SetCameraFocalKey { .. } => vec![sample(
+            "set_camera_focal_key",
+            Operation::SetCameraFocalKey {
+                camera: azteccraft::native_scene::SceneCamera::Persp,
+                time: None,
+                value: Some(50.0),
+            },
+        )],
+        Operation::DeleteCameraFocalKeys { .. } => vec![sample(
+            "delete_camera_focal_keys",
+            Operation::DeleteCameraFocalKeys {
+                camera: azteccraft::native_scene::SceneCamera::Persp,
+                time: None,
+            },
+        )],
+        Operation::InspectCameraFocalKeys { .. } => vec![sample(
+            "inspect_camera_focal_keys",
+            Operation::InspectCameraFocalKeys {
+                camera: azteccraft::native_scene::SceneCamera::Persp,
+                cursor: None,
+            },
+        )],
         Operation::SetCameraAttributesVisible { .. } => vec![sample(
             "set_camera_attributes_visible",
             Operation::SetCameraAttributesVisible { visible: true },

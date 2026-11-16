@@ -766,8 +766,12 @@ impl InternalTransform {
 // Document identity is save authority, not editable scene content or dirty state.
 impl PartialEq for NativeScene {
     fn eq(&self, other: &Self) -> bool {
+        self.same_non_camera_content(other) && self.cameras == other.cameras
+    }
+}
+impl NativeScene {
+    fn same_non_camera_content(&self, other: &Self) -> bool {
         self.camera_bindings == other.camera_bindings
-            && self.cameras == other.cameras
             && self.nodes == other.nodes
             && self.shapes == other.shapes
             && self.curves == other.curves
@@ -780,6 +784,21 @@ impl PartialEq for NativeScene {
             && self.session_keys == other.session_keys
             && self.session_uvs == other.session_uvs
             && self.removed == other.removed
+    }
+    /// Dirty-state comparison: an unchanged focal curve owns its evaluated focal value.
+    /// History, remote baselines and source guards continue to use exact PartialEq.
+    pub fn same_document_content(&self, other: &Self) -> bool {
+        self.same_non_camera_content(other)
+            && SceneCamera::ALL.into_iter().all(|camera| {
+                if self.camera_focal_keys(camera).next().is_none() {
+                    return self.cameras[camera.index()] == other.cameras[camera.index()];
+                }
+                let mut a = self.camera_optics(camera);
+                let mut b = other.camera_optics(camera);
+                a.focal_length_mm = 35.;
+                b.focal_length_mm = 35.;
+                a == b
+            })
     }
 }
 
@@ -2360,6 +2379,7 @@ pub enum NativeError {
     /// An edit that leaves a node's world geometry outside the range the view draws in (f32).
     WorldOutOfRange,
     InvalidSessionKeys,
+    FocalLengthRange,
     InvalidFrame,
     InvalidPlaybackRange,
     KeyLimit,
@@ -2459,6 +2479,7 @@ impl fmt::Display for NativeError {
                 "the edit would move geometry outside the range the view can draw; \
                  use smaller translation, scale or pivot values",
             ),
+            Self::FocalLengthRange => f.write_str("focal length must be between 2.5 and 100000 mm"),
             Self::InvalidSessionKeys => f.write_str("invalid session key table"),
             Self::InvalidFrame => write!(
                 f,

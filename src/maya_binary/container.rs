@@ -264,9 +264,9 @@ pub(crate) fn group_alignment(tag: [u8; 4], form: [u8; 4]) -> Option<usize> {
         (
             b"FOR8",
             b"AMBL" | b"CONN" | b"DCAM" | b"DMSH" | b"DMTI" | b"DPLM" | b"DSPL" | b"GPID" | b"HEAD"
-            | b"NCRV" | b"NGEI" | b"OBST" | b"PCUU" | b"PSDM" | b"RBUM" | b"RCL3" | b"RLLK"
-            | b"RLUM" | b"RNDL" | b"RNLM" | b"RPHO" | b"RPL2" | b"RTFT" | b"SCRP" | b"SDML"
-            | b"SHAD" | b"SLCT" | b"SPTL" | b"STDS" | b"XFRM",
+            | b"NCRV" | b"NGEI" | b"OBST" | b"PCTU" | b"PCUU" | b"PSDM" | b"RBUM" | b"RCL3"
+            | b"RLLK" | b"RLUM" | b"RNDL" | b"RNLM" | b"RPHO" | b"RPL2" | b"RTFT" | b"SCRP"
+            | b"SDML" | b"SHAD" | b"SLCT" | b"SPTL" | b"STDS" | b"XFRM",
         ) => Some(8),
         (
             b"FOR8",

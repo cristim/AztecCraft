@@ -215,6 +215,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::RecoveryStatus
         | Operation::InspectLimits
         | Operation::Inspect { .. }
+        | Operation::InspectCameraFocalKeys { .. }
         | Operation::InspectKeys { .. }
         | Operation::InspectUvs { .. }
         | Operation::InspectVertices { .. } => false,
@@ -226,6 +227,14 @@ impl Editor {
     /// Writes `frame`'s pose, then moves the time and refreshes the fields. Callers check for a
     /// draft first: a stale field would read as a draft, and a draft would be lost to the refresh.
     fn write_time(&mut self, frame: i32) -> Result<(), OperationError> {
+        let camera = self.active_scene_camera();
+        let mut optics = self.history.scene().camera_optics(camera);
+        optics.focal_length_mm = self
+            .history
+            .scene()
+            .camera_focal_at(camera, frame)
+            .map_err(OperationError::Scene)?;
+        self.check_camera_projection(optics)?;
         let wrote = self
             .history
             .apply_evaluated(frame)
@@ -385,7 +394,14 @@ impl Editor {
     /// The nodes the Time Slider shows keys for: the selected objects.
     fn selected_key_frames(&self) -> std::collections::BTreeSet<i32> {
         let nodes: Vec<NodeId> = self.selection.members().iter().map(|t| t.node).collect();
-        self.history.scene().key_frames(&nodes)
+        let mut frames = self.history.scene().key_frames(&nodes);
+        frames.extend(
+            self.history
+                .scene()
+                .camera_focal_keys(self.active_scene_camera())
+                .map(|(frame, _)| frame),
+        );
+        frames
     }
 
     /// The nearest selected key after or before the current time. It does not wrap (PROVISIONAL).
@@ -585,7 +601,7 @@ impl Editor {
                 {
                     action = Some(TimelineAction::DeleteKey);
                 }
-                ui.weak("Keys are session-only and block Save");
+                ui.weak("Transform keys are session-only and block Save");
             });
         });
         if let Some((start, end)) = typed_range {
@@ -767,6 +783,7 @@ impl Editor {
             .collect();
         let end = key_offset + keys.len();
         Ok(KeysInspection {
+            camera_keys: Vec::new(),
             scene_token: self.scene_token.to_string(),
             revision: self.history.revision(),
             unavailable_reason: scene.has_source().then_some(

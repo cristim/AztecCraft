@@ -409,9 +409,8 @@ Frame All and Frame Selected floor the distance at twice the near clip plus 5% (
 default near), so an object with a radius under 2·near·sin(limiting half angle), about 0.065 at aspect up to 1.5 and less in wider viewports, frames smaller than the screen
 fraction other objects get. There is no per-camera near clip control (Maya exposes Near Clip
 Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
-The default lens is film-fit (development.md row 25). Only the Fill film fit is built;
-Horizontal, Vertical and Overscan fits, film offset, camera scale and lens squeeze are
-unsupported, and the focal length and aperture cannot be changed. The Fill threshold, the Fill
+The default lens is film-fit (development.md row 25). Built-in camera optics now support all four fits, film offset, camera scale,
+lens squeeze, focal length and aperture edits (#458). The Fill threshold, the Fill
 default and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
@@ -1649,5 +1648,7 @@ edits and custom camera shapes remain unsupported. Unknown source projection
 contributors disable that view instead of guessing. Squeeze application,
 post-projection order and orthographic session-width mapping have numerical
 coverage but no comparison with pinned Maya. Newly authored binary enum values
-have not been opened by Maya. Focal-length animation is not complete in this
-static slice; the issue and draft PR remain open.
+have not been opened by Maya. Focal-length keys use native linear animCurveTU records in a bounded authored
+ASCII/binary profile, with exact re-emission adoption. Custom camera shapes,
+arbitrary sourced camera curves and Maya runtime acceptance remain unsupported.
+The binary film24 tick mapping and combined authored profile remain PROVISIONAL.

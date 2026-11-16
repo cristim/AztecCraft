@@ -67,6 +67,46 @@ pub fn decode_document(
     source: Arc<[u8]>,
     adoption_supported: bool,
 ) -> Result<AsciiDecoded, AsciiDocumentError> {
+    const CURVE: &[u8] = b"createNode animCurveTU -n ";
+    let curve_offset = if source.windows(CURVE.len()).any(|v| v == CURVE) {
+        let records =
+            crate::maya_ascii::lex::inspect(source.clone()).map_err(AsciiDocumentError::Ascii)?;
+        records.statements.iter().find_map(|statement| {
+            let tokens = records.tokens.get(statement.tokens.clone())?;
+            let first = tokens.first()?;
+            let second = tokens.get(1)?;
+            (source.get(first.span.clone()) == Some(b"createNode")
+                && source.get(second.span.clone()) == Some(b"animCurveTU"))
+            .then_some(statement.command.start)
+        })
+    } else {
+        None
+    };
+    if let Some(offset) = curve_offset {
+        let scratch = source
+            .len()
+            .checked_add(offset.checked_mul(3).ok_or_else(unsupported)?)
+            .and_then(|n| n.checked_add(crate::native_scene::MAX_SESSION_KEYS * 128))
+            .ok_or_else(unsupported)?;
+        crate::native_scene::admission::Budget::new(scratch).map_err(|_| unsupported())?;
+        if source.len() > crate::maya_ascii::MAX_BYTES {
+            return Err(unsupported());
+        }
+        let AsciiDecoded::Authored(base) =
+            decode_document(Arc::from(&source[..offset]), adoption_supported)?
+        else {
+            return Err(unsupported());
+        };
+        let mut candidate = base.into_scene();
+        candidate
+            .parse_focal_ascii(&source[offset..])
+            .map_err(|_| unsupported())?;
+        if !emit_with_links(&candidate, DefaultLinks::Emit).is_ok_and(|v| v.as_slice() == &*source)
+        {
+            return Err(unsupported());
+        }
+        return Ok(AsciiDecoded::Authored(AuthoredProjection(candidate)));
+    }
     let Decoded {
         scene: sourced,
         uvs,

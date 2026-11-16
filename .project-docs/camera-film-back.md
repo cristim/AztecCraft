@@ -1,8 +1,8 @@
 # Camera optics and film back (#458)
 
 Status: optical core, built-in scene state, authored ASCII persistence and binary
-scalar read/write foundations implemented. Native/MCP adapters, projection wiring
-and focal-length animation remain in progress; #458 is not complete.
+scalar read/write foundations implemented. Native/MCP editing, projection and focal-length curves are implemented for the
+four built-in cameras. Native verification and reference limitations are recorded below.
 Owner: `codex-458-film-back`. Independent reviewer: `codex-458-film-back-reviewer`.
 Baseline: `308e2939`; #452 / PR #468 is a separate, unmerged camera-navigation change.
 
@@ -230,8 +230,7 @@ failed time/key operations preserve scene, time, curves and history. Explicit
 camera key reads carry shape identity and focal attribute, with bounded paging.
 Native focal key/delete controls and MCP use the same typed commands. Key
 navigation includes the active camera in addition to selected transforms
-(PROVISIONAL UI policy), with tests. Existing native writers must continue to
-refuse any not-yet-represented key data; the UI explains that persistence limit.
+(PROVISIONAL UI policy), with tests. Writers refuse transform keys and any unrepresented curve data. Camera focal curves use the bounded native profile below.
 
 Native curve persistence needs actual animCurveTU/connection evidence. The
 pinned gt-tools `cube_animated.ma` (same MIT source/commit as the existing fixture)
@@ -241,3 +240,67 @@ Investigate the public binary animated fixture before selecting its profile.
 Do not substitute metadata, JSON or scripts for real curves. Session keying is
 an internal milestone; #458 remains draft until required persistence and native
 window verification are satisfied, or a concrete external blocker is reported.
+
+## Native focal curve persistence (#458)
+
+The authored `.ma` profile appends ordinary `animCurveTU` nodes, linear `.tan` 2,
+unweighted `.wgt` false, indexed `.ktv` frame/value pairs and one `.o` connection
+to each keyed built-in camera shape's `.fl`. Generated names are checked against
+all emitted transform, shape, material and shading-group names. Parsing accepts
+only the canonical native tail after an already proved authored static prefix;
+whole-file exact re-emission is required before source-free adoption. Text inside
+comments or quoted metadata does not count as a curve declaration.
+
+The authored `.mb` profile appends `FOR8 PCTU` groups (CREA, DBLE tan/wgt,
+FLGS ktv count, CMPD indexed ktv signed-i64 tick/f64 pairs), followed by ordinary
+LIS8 CONS/FOR8 CONN/CWFL output connections. Public source audit: gt-tools pinned
+commit `05837d6621b2256138c1fdf7e7a4546945dd935d`, MIT by Guilherme Trevisan,
+`gt/tests/test_core/data/cube_animated.ma` and
+`gt/tests/test_retargeter/data/cylinder_anim_a.mb` (consulted locally; not added).
+The binary fixture stores TDUR 141120000, ntsc time, and observed 4704000 ticks
+per frame. This profile chooses 5880000 ticks per film24 frame, PROVISIONAL:
+these are distinct fixtures, not an independently matched MA/MB pair. Curve aux
+0xe3010000, group/CREA/connection aux 0, and omitted extra tangent arrays are a
+PROVISIONAL authored extension to the existing Maya2025 static writer profile.
+No claim that Maya accepted this combined output.
+
+Counts, strict frame order, tick divisibility/arithmetic, values and shared key
+capacity are checked before curve insertion. Incoming source/scratch budgets
+are retained, prefix allocation and re-emission scratch are admitted first.
+Binary decoding reconstructs only canonical authored static facts and UUIDs,
+then requires exact full-file re-emission including every connection and byte.
+Nondefault unknown data, tangent changes, missing/duplicate drivers and altered
+profiles fail this gate; arbitrary sourced curves are not silently adopted.
+Original scalar precision that cannot survive source-free reconstruction refuses.
+
+Open evaluates the proved authored curves at frame1 before installing the clean
+Editor baseline. Repeated Save uses the existing authored document identity and
+exact file baseline; changed-source and occupied-destination protections remain.
+Focal keying is a shared typed History command; active-camera keys participate in
+native time navigation. MCP `set_keyframe`, `delete_keys`, `inspect_keys` accept
+`camera` plus `attribute: focal_length`, mutually exclusive with transform
+arguments; explicit null target/value fields refuse. `value` is optional only
+for Set. Transform channel names and old clients remain unchanged. Linear
+interpolation/held ends remain provisional versus Maya tangent behavior.
+
+## Completed local verification
+
+`cargo test --locked --features mcp-test-client`: 1622 library and 1442 Editor
+unit tests passed, plus all workflow suites (explicit ignored reference/GPU tests
+remain ignored). A subsequently added actual SDK camera cursor test passed:
+1025 rows, page boundary, wrong-camera/transform cursor refusal, stale cursor,
+null/mixed target refusals. Formatting and strict default, production MCP and
+MCP-client Clippy passed; headless tests and production MCP desktop build passed.
+Two independent focal diff passes and two focused dirty-fix passes approved;
+a separate cold reviewer found the dirty-state regression, now proved failing
+before its fix and passing afterwards. Scrub stays clean, key/other optical edits
+get dirty, Undo restores clean in both native formats.
+
+Linux X11/Xvfb native-window check: typed `48.123456789012345` in the camera
+field and clicked Set Focal Key; saved ASCII contained its exact f64 value
+`48.123456789012344`. Added frame11 `75.12345678901235`, scrubbed frame6 to
+`61.62345678901235`, observed the zoom, saved/reopened ASCII and binary and
+read both exact keys through actual MCP. Open and scrub stayed clean on the
+final build. Independent final screenshot review confirmed readable Film Back
+fields/key buttons and the corrected transform-only Save warning. This is
+Linux native-window evidence; other platforms and Maya acceptance are unproved.

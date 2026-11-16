@@ -112,9 +112,19 @@ fn parse_stop(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum CameraAttribute {
+    FocalLength,
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct KeyArgs {
     scene_token: String,
+    camera: Option<azteccraft::native_scene::SceneCamera>,
+    attribute: Option<CameraAttribute>,
+    /// Camera focal key value in mm. Omit to key its current value.
+    value: Option<f64>,
     /// The objects to act on. Omit it for the object selection.
     #[schemars(length(min = 1, max = 4096))]
     node_ids: Option<Vec<String>>,
@@ -125,8 +135,54 @@ struct KeyArgs {
     channels: Option<Vec<KeyChannel>>,
 }
 
+fn reject_null_camera_args(arguments: &JsonObject) -> Result<(), ErrorData> {
+    if arguments.contains_key("camera")
+        && ["node_ids", "node_id", "channels"]
+            .iter()
+            .any(|key| arguments.contains_key(*key))
+    {
+        return Err(ErrorData::invalid_params(
+            "camera keys cannot include transform targets or channels",
+            None,
+        ));
+    }
+    if ["camera", "attribute", "value"]
+        .iter()
+        .any(|key| arguments.get(*key).is_some_and(serde_json::Value::is_null))
+    {
+        return Err(ErrorData::invalid_params(
+            "camera, attribute and value cannot be null",
+            None,
+        ));
+    }
+    Ok(())
+}
+
 fn parse_set_keyframe(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    reject_null_camera_args(&arguments)?;
     let args: KeyArgs = decode(arguments)?;
+    if let Some(camera) = args.camera {
+        if args.attribute.is_none() || args.node_ids.is_some() || args.channels.is_some() {
+            return Err(ErrorData::invalid_params(
+                "Camera focal keys require attribute=focal_length and no transform targets/channels",
+                None,
+            ));
+        }
+        return Ok(scoped(
+            token(&args.scene_token)?,
+            Operation::SetCameraFocalKey {
+                camera,
+                time: args.time,
+                value: args.value,
+            },
+        ));
+    }
+    if args.attribute.is_some() || args.value.is_some() {
+        return Err(ErrorData::invalid_params(
+            "attribute/value require camera",
+            None,
+        ));
+    }
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::SetKeyframe {
@@ -138,7 +194,32 @@ fn parse_set_keyframe(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
 }
 
 fn parse_delete_keys(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    reject_null_camera_args(&arguments)?;
     let args: KeyArgs = decode(arguments)?;
+    if args.value.is_some() {
+        return Err(ErrorData::invalid_params(
+            "delete_keys accepts no key value",
+            None,
+        ));
+    }
+    if let Some(camera) = args.camera {
+        if args.attribute.is_none() || args.node_ids.is_some() || args.channels.is_some() {
+            return Err(ErrorData::invalid_params(
+                "Camera focal keys require attribute=focal_length and no transform targets/channels",
+                None,
+            ));
+        }
+        return Ok(scoped(
+            token(&args.scene_token)?,
+            Operation::DeleteCameraFocalKeys {
+                camera,
+                time: args.time,
+            },
+        ));
+    }
+    if args.attribute.is_some() {
+        return Err(ErrorData::invalid_params("attribute requires camera", None));
+    }
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::DeleteKeys {
@@ -179,6 +260,8 @@ fn parse_euler_filter(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct InspectKeysArgs {
+    camera: Option<azteccraft::native_scene::SceneCamera>,
+    attribute: Option<CameraAttribute>,
     /// Read only this object's keys.
     node_id: Option<String>,
     /// The `next_cursor` of the previous reply, for the same `node_id`. It is opaque and valid
@@ -187,6 +270,7 @@ struct InspectKeysArgs {
 }
 
 fn parse_inspect_keys(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
+    reject_null_camera_args(&arguments)?;
     let args: InspectKeysArgs = decode(arguments)?;
     let cursor = args
         .cursor
@@ -195,6 +279,21 @@ fn parse_inspect_keys(arguments: JsonObject) -> Result<RemoteRequest, ErrorData>
                 .map_err(|_| ErrorData::invalid_params("cursor is malformed", None))
         })
         .transpose()?;
+    if let Some(camera) = args.camera {
+        if args.attribute.is_none() || args.node_id.is_some() {
+            return Err(ErrorData::invalid_params(
+                "Camera inspection requires attribute=focal_length and no node_id",
+                None,
+            ));
+        }
+        return Ok(RemoteRequest {
+            expected_scene_token: None,
+            operation: Operation::InspectCameraFocalKeys { camera, cursor },
+        });
+    }
+    if args.attribute.is_some() {
+        return Err(ErrorData::invalid_params("attribute requires camera", None));
+    }
     Ok(RemoteRequest {
         expected_scene_token: None,
         operation: Operation::InspectKeys {
@@ -215,16 +314,16 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "set_keyframe",
-        description: "Key transform channels with their current value, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are session-only whole-frame values, interpolated linearly and held outside them (PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse keys, and a scene holding keys cannot be saved. Bounded by key_limit. Stops playback",
-        schema: schema::<KeyArgs>,
+        description: "Key transform channels with their current value, or camera=four built-in names plus attribute=focal_length (optional value in mm) for a camera focal key, as one undo step. No time means the current time, no node_ids means the object selection (Object or Hierarchy mode), and no channels means all nine transform channels. Keys are whole-frame values, interpolated linearly and held outside them (PROVISIONAL: tangents are not implemented). Rotation values are in the scene's declared angular unit. Sourced scenes refuse new keys. Camera focal curves save in the bounded authored .ma/.mb profile; transform keys still prevent Save. Bounded by key_limit. Stops playback",
+        schema: key_schema,
         parse: parse_set_keyframe,
         idempotent: false,
         read_only: false,
     },
     ToolSpec {
         name: "delete_keys",
-        description: "Delete keys as one undo step: at `time`, or at every frame when it is omitted. No node_ids means the object selection, and no channels means all nine. Remaining keys are evaluated at the current time; a channel left with no key keeps its pose. Stops playback",
-        schema: schema::<KeyArgs>,
+        description: "Delete transform keys or camera plus attribute=focal_length keys as one undo step: at `time`, or at every frame when it is omitted. No node_ids means the object selection, and no channels means all nine. Remaining keys are evaluated at the current time; a channel left with no key keeps its pose. Stops playback",
+        schema: delete_key_schema,
         parse: parse_delete_keys,
         idempotent: true,
         read_only: false,
@@ -263,10 +362,49 @@ pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[
     },
     ToolSpec {
         name: "inspect_keys",
-        description: "Read stored keys in node, channel and frame order, optionally for one object. On a sourced scene `unavailable_reason` says source animation curves are not exposed or evaluated, which does not mean there are none. A large table is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes, including on playback ticks",
-        schema: schema::<InspectKeysArgs>,
+        description: "Read transform keys in node, channel and frame order, optionally for one object; camera plus attribute=focal_length reads camera_keys in frame order. On a sourced scene `unavailable_reason` says source animation curves are not exposed or evaluated, which does not mean there are none. A large table is read in pages: follow `next_cursor` until it is null; it goes stale (`stale_scene`) as soon as the scene changes, including on playback ticks",
+        schema: inspect_key_schema,
         parse: parse_inspect_keys,
         idempotent: false,
         read_only: true,
     },
 ];
+
+fn nonnull_targets(result: &mut JsonObject) {
+    if let Some(serde_json::Value::Object(properties)) = result.get_mut("properties") {
+        for key in ["camera", "attribute", "value"] {
+            if let Some(schema) = properties.get_mut(key) {
+                let old = std::mem::take(schema);
+                *schema = serde_json::json!({"allOf":[old,{"not":{"type":"null"}}]});
+            }
+        }
+    }
+}
+fn key_schema() -> JsonObject {
+    let mut result = schema::<KeyArgs>();
+    nonnull_targets(&mut result);
+    result.insert("allOf".into(),serde_json::json!([{"oneOf":[
+        {"required":["camera","attribute"],"not":{"anyOf":[{"required":["node_ids"]},{"required":["channels"]}]}},
+        {"not":{"anyOf":[{"required":["camera"]},{"required":["attribute"]},{"required":["value"]}]}}
+    ]}]));
+    result
+}
+fn delete_key_schema() -> JsonObject {
+    let mut result = key_schema();
+    if let Some(serde_json::Value::Object(properties)) = result.get_mut("properties") {
+        properties.remove("value");
+    }
+    result
+}
+fn inspect_key_schema() -> JsonObject {
+    let mut result = schema::<InspectKeysArgs>();
+    nonnull_targets(&mut result);
+    result.insert(
+        "allOf".into(),
+        serde_json::json!([{"oneOf":[
+            {"required":["camera","attribute"],"not":{"required":["node_id"]}},
+            {"not":{"anyOf":[{"required":["camera"]},{"required":["attribute"]}]}}
+        ]}]),
+    );
+    result
+}

@@ -109,6 +109,17 @@ pub enum Command {
         delta: [f64; 3],
     },
     CreateJoint(JointRequest),
+    SetCameraFocalKey {
+        camera: crate::native_scene::SceneCamera,
+        frame: i32,
+        value: f64,
+        current_frame: i32,
+    },
+    DeleteCameraFocalKeys {
+        camera: crate::native_scene::SceneCamera,
+        frame: Option<i32>,
+        current_frame: i32,
+    },
     /// Keys every node at `frame`, as one undo step, then evaluates at `current_frame`.
     SetKeys {
         nodes: Vec<NodeId>,
@@ -147,6 +158,8 @@ impl Command {
     /// The name an Undo or Redo entry shows for this command.
     fn label(&self) -> String {
         match self {
+            Self::SetCameraFocalKey { .. } => "Set Focal Key".to_string(),
+            Self::DeleteCameraFocalKeys { .. } => "Delete Focal Keys".to_string(),
             Self::SetCameraOptics { .. } => "Camera Optics".to_string(),
             // PROVISIONAL for a joint: Maya's docs name no undo entries.
             Self::Create { .. } | Self::CreateDefaultNamed { .. } | Self::CreateJoint(_) => {
@@ -554,12 +567,31 @@ impl History {
             _ => None,
         };
         let evaluated_at = match &command {
-            Command::SetKeys { current_frame, .. }
+            Command::SetCameraFocalKey { current_frame, .. }
+            | Command::DeleteCameraFocalKeys { current_frame, .. }
+            | Command::SetKeys { current_frame, .. }
             | Command::DeleteKeys { current_frame, .. }
             | Command::EulerFilter { current_frame, .. } => Some(*current_frame),
             _ => None,
         };
         let outcome = match command {
+            Command::SetCameraFocalKey {
+                camera,
+                frame,
+                value,
+                current_frame,
+            } => {
+                candidate.set_camera_focal_key(camera, frame, value, current_frame)?;
+                EditOutcome::Changed
+            }
+            Command::DeleteCameraFocalKeys {
+                camera,
+                frame,
+                current_frame,
+            } => {
+                candidate.delete_camera_focal_keys(camera, frame, current_frame)?;
+                EditOutcome::Changed
+            }
             Command::SetCameraOptics { camera, optics } => {
                 candidate.set_camera_optics(camera, optics)?;
                 EditOutcome::Changed

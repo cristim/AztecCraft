@@ -317,6 +317,7 @@ pub enum CursorScope {
     Page,
     /// Stored keys, of this node only when given.
     Keys(Option<NodeId>),
+    CameraKeys(azteccraft::native_scene::SceneCamera),
     /// The UVs of this shape only.
     Uvs(NativeId),
     /// The vertex positions of this shape only.
@@ -344,6 +345,7 @@ impl fmt::Display for PageCursor {
         )?;
         match self.scope {
             CursorScope::Page => Ok(()),
+            CursorScope::CameraKeys(camera) => write!(f, ".camera_keys.{}", camera.shape_name()),
             CursorScope::Keys(None) => f.write_str(".keys"),
             CursorScope::Keys(Some(node)) => write!(f, ".keys.{}", node.to_decimal()),
             CursorScope::Uvs(shape) => write!(f, ".uvs.{}", shape.to_decimal()),
@@ -376,6 +378,10 @@ impl std::str::FromStr for PageCursor {
                     Some(("keys", node)) => CursorScope::Keys(Some(
                         NodeId::from_decimal(node).map_err(|_| PageCursorError)?,
                     )),
+                    Some(("camera_keys", camera)) => CursorScope::CameraKeys(
+                        azteccraft::native_scene::SceneCamera::from_shape_name(camera)
+                            .ok_or(PageCursorError)?,
+                    ),
                     Some(("uvs", shape)) => CursorScope::Uvs(
                         NativeId::from_decimal(shape).map_err(|_| PageCursorError)?,
                     ),
@@ -471,6 +477,21 @@ pub enum Operation {
         visible: bool,
     },
     // Native text commits dispatch the same History command through commit_pending.
+    #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
+    SetCameraFocalKey {
+        camera: azteccraft::native_scene::SceneCamera,
+        time: Option<f64>,
+        value: Option<f64>,
+    },
+    DeleteCameraFocalKeys {
+        camera: azteccraft::native_scene::SceneCamera,
+        time: Option<f64>,
+    },
+    #[cfg(any(test, feature = "mcp"))]
+    InspectCameraFocalKeys {
+        camera: azteccraft::native_scene::SceneCamera,
+        cursor: Option<PageCursor>,
+    },
     #[cfg_attr(not(any(test, feature = "mcp")), allow(dead_code))]
     SetCameraOptics {
         camera: azteccraft::native_scene::SceneCamera,
@@ -1060,6 +1081,15 @@ pub struct TimelineInspection {
     pub key_count: usize,
 }
 
+#[derive(Debug, Serialize)]
+#[cfg(any(test, feature = "mcp"))]
+pub struct CameraKeyInspection {
+    pub camera: azteccraft::native_scene::SceneCamera,
+    pub attribute: &'static str,
+    pub frame: i32,
+    pub value: f64,
+}
+
 /// Most keys in one `inspect_keys` reply. A key takes at most about 110 bytes of JSON, so a page
 /// and its escaped text copy stay inside the tool limits;
 /// `a_full_page_of_the_longest_keys_fits_the_reply_limits` pins it.
@@ -1078,6 +1108,8 @@ pub struct KeyInspection {
 #[derive(Debug, Serialize)]
 #[cfg(any(test, feature = "mcp"))]
 pub struct KeysInspection {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub camera_keys: Vec<CameraKeyInspection>,
     /// With `revision`, tells a client which document state this read belongs to: the read passes
     /// no token guard, and ids can recur after New.
     pub scene_token: String,

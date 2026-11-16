@@ -425,6 +425,7 @@ async fn animation_sdk_a_sourced_scene_refuses_keys_and_says_curves_are_not_read
 fn a_full_page_of_the_longest_keys_fits_the_reply_limits() {
     let page = OperationReply::Keys {
         inspection: Box::new(KeysInspection {
+            camera_keys: Vec::new(),
             scene_token: Uuid::new_v4().to_string(),
             revision: u64::MAX,
             unavailable_reason: None,
@@ -691,6 +692,356 @@ async fn animation_sdk_euler_filter_is_one_undo_step_and_refuses_bad_input() {
     tool(&mut editor, &context, &client, "redo", json!({})).await;
     let redone = keys(&mut editor, &context, &client, json!({})).await;
     assert_eq!(rotate_y(&redone), vec![10.0, -10.0]);
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn camera_focal_sdk_keys_interpolates_reads_history_and_rejects_mixed_targets() {
+    use azteccraft::native_scene::SceneCamera;
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    for (time, value) in [(1, 35.123456789012345), (11, 75.123_456_789_012_35)] {
+        let result = tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_keyframe",
+            json!({"camera":"persp","attribute":"focal_length","time":time,"value":value}),
+        )
+        .await;
+        assert_eq!(outcome(result), "changed");
+    }
+    let read = keys(
+        &mut editor,
+        &context,
+        &client,
+        json!({"camera":"persp","attribute":"focal_length"}),
+    )
+    .await;
+    assert_eq!(read["keys_total"], 2);
+    assert_eq!(
+        read["camera_keys"][0],
+        json!({"camera":"persp","attribute":"focal_length","frame":1,"value":35.123456789012345})
+    );
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_current_time",
+        json!({"time":6}),
+    )
+    .await;
+    assert!(
+        (editor
+            .history
+            .scene()
+            .camera_optics(SceneCamera::Persp)
+            .focal_length_mm
+            - 55.123456789012345)
+            .abs()
+            < 1e-12
+    );
+    let before = editor.history.scene().clone();
+    for args in [
+        json!({"camera":"persp","attribute":"focal_length","value":0}),
+        json!({"camera":"persp","attribute":"focal_length","time":1.5}),
+    ] {
+        let refused = tool(&mut editor, &context, &client, "set_keyframe", args).await;
+        assert_eq!(refused.is_error, Some(true));
+        assert_eq!(editor.history.scene(), &before);
+        assert_eq!(editor.timeline.current, 6);
+    }
+    for args in [
+        json!({"camera":"persp","attribute":"focal_length","channels":["translate_x"]}),
+        json!({"camera":"persp"}),
+        json!({"attribute":"focal_length"}),
+        json!({"value":50}),
+        json!({"camera":null,"attribute":null}),
+        json!({"camera":"persp","attribute":"focal_length","node_ids":null}),
+        json!({"camera":"persp","attribute":"focal_length","channels":null}),
+        json!({"camera":"persp","attribute":"focal_length","value":null}),
+    ] {
+        let token = editor.scene_token.to_string();
+        let mut args = args;
+        args["scene_token"] = json!(token);
+        let refused =
+            call_response(&mut editor, &context, client.peer(), "set_keyframe", args).await;
+        assert!(refused.is_err());
+        assert_eq!(editor.history.scene(), &before);
+    }
+    let result = tool(
+        &mut editor,
+        &context,
+        &client,
+        "delete_keys",
+        json!({"camera":"persp","attribute":"focal_length","time":11}),
+    )
+    .await;
+    assert_eq!(outcome(result), "changed");
+    assert_eq!(
+        editor
+            .history
+            .scene()
+            .camera_optics(SceneCamera::Persp)
+            .focal_length_mm
+            .to_bits(),
+        35.123456789012345_f64.to_bits()
+    );
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert_eq!(editor.history.scene(), &before);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    assert_eq!(
+        keys(
+            &mut editor,
+            &context,
+            &client,
+            json!({"camera":"persp","attribute":"focal_length"})
+        )
+        .await["keys_total"],
+        1
+    );
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn camera_focal_sdk_save_open_both_formats_repeated_save_and_source_guards() {
+    use azteccraft::native_scene::SceneCamera;
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Cube);
+    for (time, value) in [(1, 35.123456789012345), (11, 75.123_456_789_012_35)] {
+        assert_eq!(
+            outcome(
+                tool(
+                    &mut editor,
+                    &context,
+                    &client,
+                    "set_keyframe",
+                    json!({"camera":"persp","attribute":"focal_length","time":time,"value":value})
+                )
+                .await
+            ),
+            "changed"
+        );
+    }
+    let dir = tempfile::tempdir().unwrap();
+    for extension in ["ma", "mb"] {
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_current_time",
+            json!({"time":6}),
+        )
+        .await;
+        let path = dir.path().join(format!("animated.{extension}"));
+        assert_eq!(
+            outcome(
+                tool(
+                    &mut editor,
+                    &context,
+                    &client,
+                    "save_scene_as",
+                    json!({"path":path})
+                )
+                .await
+            ),
+            "saved"
+        );
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(
+            outcome(tool(&mut editor, &context, &client, "save_scene", json!({})).await),
+            "saved"
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(
+            outcome(
+                tool(
+                    &mut editor,
+                    &context,
+                    &client,
+                    "open_scene",
+                    json!({"path":path})
+                )
+                .await
+            ),
+            "document_applied"
+        );
+        assert_eq!(editor.timeline.current, 1);
+        assert!(!editor.is_dirty());
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .camera_optics(SceneCamera::Persp)
+                .focal_length_mm
+                .to_bits(),
+            35.123456789012345_f64.to_bits()
+        );
+        assert_eq!(
+            keys(
+                &mut editor,
+                &context,
+                &client,
+                json!({"camera":"persp","attribute":"focal_length"})
+            )
+            .await["keys_total"],
+            2
+        );
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_current_time",
+            json!({"time":6}),
+        )
+        .await;
+        assert!(
+            (editor
+                .history
+                .scene()
+                .camera_optics(SceneCamera::Persp)
+                .focal_length_mm
+                - 55.123456789012345)
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            !editor.is_dirty(),
+            "scrubbing persisted focal curves must stay clean"
+        );
+        assert_eq!(
+            outcome(
+                tool(
+                    &mut editor,
+                    &context,
+                    &client,
+                    "set_keyframe",
+                    json!({"camera":"persp","attribute":"focal_length","time":11,"value":90})
+                )
+                .await
+            ),
+            "changed"
+        );
+        assert!(editor.is_dirty());
+        tool(&mut editor, &context, &client, "undo", json!({})).await;
+        assert!(!editor.is_dirty());
+        let mut optics = editor.history.scene().camera_optics(SceneCamera::Persp);
+        optics.overscan = 1.2;
+        tool(
+            &mut editor,
+            &context,
+            &client,
+            "set_camera_optics",
+            json!({"camera":"persp","optics":optics}),
+        )
+        .await;
+        assert!(editor.is_dirty());
+        tool(&mut editor, &context, &client, "undo", json!({})).await;
+        assert!(!editor.is_dirty());
+        let occupied = dir.path().join(format!("occupied.{extension}"));
+        std::fs::write(&occupied, b"keep").unwrap();
+        let refused = tool(
+            &mut editor,
+            &context,
+            &client,
+            "save_scene_as",
+            json!({"path":occupied}),
+        )
+        .await;
+        assert_eq!(refused.is_error, Some(true));
+        assert_eq!(std::fs::read(&occupied).unwrap(), b"keep");
+    }
+    let path = dir.path().join("animated.mb");
+    std::fs::write(&path, b"changed externally").unwrap();
+    let refused = tool(&mut editor, &context, &client, "save_scene", json!({})).await;
+    assert_eq!(refused.is_error, Some(true));
+    assert_eq!(std::fs::read(path).unwrap(), b"changed externally");
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn camera_focal_sdk_paging_scopes_and_stale_cursor_preserve_state() {
+    use azteccraft::native_scene::{NativeScene, SceneCamera};
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    let mut scene = NativeScene::default();
+    for frame in 1..=1025 {
+        scene
+            .set_camera_focal_key(SceneCamera::Persp, frame, 35., 1)
+            .unwrap();
+    }
+    editor.history = History::new(scene);
+    let page = keys(
+        &mut editor,
+        &context,
+        &client,
+        json!({"camera":"persp","attribute":"focal_length"}),
+    )
+    .await;
+    assert_eq!(page["keys_total"], 1025);
+    assert_eq!(page["camera_keys"].as_array().unwrap().len(), 1024);
+    let cursor = page["next_cursor"].as_str().unwrap();
+    let last = keys(
+        &mut editor,
+        &context,
+        &client,
+        json!({"camera":"persp","attribute":"focal_length","cursor":cursor}),
+    )
+    .await;
+    assert_eq!(last["key_offset"], 1024);
+    assert_eq!(last["camera_keys"].as_array().unwrap().len(), 1);
+    assert_eq!(last["next_cursor"], Value::Null);
+    let before = editor.history.scene().clone();
+    for args in [
+        json!({"camera":"top","attribute":"focal_length","cursor":cursor}),
+        json!({"cursor":cursor}),
+    ] {
+        let refused = call(&mut editor, &context, client.peer(), "inspect_keys", args).await;
+        assert_eq!(refused.is_error, Some(true));
+        assert_eq!(editor.history.scene(), &before);
+    }
+    tool(
+        &mut editor,
+        &context,
+        &client,
+        "set_keyframe",
+        json!({"camera":"persp","attribute":"focal_length","time":1,"value":40}),
+    )
+    .await;
+    let refused = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "inspect_keys",
+        json!({"camera":"persp","attribute":"focal_length","cursor":cursor}),
+    )
+    .await;
+    assert_eq!(error_code(&refused), "stale_scene");
+    for (name, args) in [
+        (
+            "delete_keys",
+            json!({"camera":"persp","attribute":"focal_length","value":null}),
+        ),
+        (
+            "inspect_keys",
+            json!({"camera":"persp","attribute":"focal_length","node_id":null}),
+        ),
+    ] {
+        let mut args = args;
+        if name == "delete_keys" {
+            args["scene_token"] = json!(editor.scene_token.to_string());
+        }
+        assert!(
+            call_response(&mut editor, &context, client.peer(), name, args)
+                .await
+                .is_err()
+        );
+    }
     client.cancel().await.unwrap();
     server.await.unwrap();
 }

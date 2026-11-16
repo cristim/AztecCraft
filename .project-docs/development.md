@@ -853,3 +853,21 @@ and 4096 nodes (default cubes and bare transforms). Expected order of magnitude 
 Silicon: checks under 1 ms at 512 nodes and under 10 ms at 4096; whole encode about 7 ms
 at 512 and about 50 ms at 4096 cubes (4096 nodes are refused as too large by the decoder
 budget). Tens of milliseconds for the checks at 4096 nodes mean a quadratic scan came back.
+
+## Camera optics and focal keys (#458)
+
+The built-in camera Film Back window and MCP share authoritative f64 optics and
+History operations. All four film fits, aperture/offset, squeeze, overscan,
+pre/post scale and roll feed the same checked projection/ray/framing path.
+Focal key controls share the existing key tools using explicit camera targets;
+canonical authored `.ma`/`.mb` native animation curves save/reopen with whole-file
+readback gates. Transform keys still prevent Save. Scrubbing an unchanged saved
+focal curve does not dirty the document; keys and other optical edits do.
+
+Local full MCP-client/headless suites, strict default/MCP/client Clippy and native
+build passed. Actual native Linux X11 text/key/zoom/Save/Open and precise MCP
+readback were reviewed; other platforms and Maya acceptance remain unverified.
+Boundaries and provisional binary tick/profile choices:
+[camera-film-back.md](camera-film-back.md). Focused checks:
+`cargo test --locked --features mcp-test-client focal` and
+`cargo test --locked --no-default-features --lib native_focal_curves`.

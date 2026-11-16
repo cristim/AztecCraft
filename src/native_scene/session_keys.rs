@@ -6,7 +6,9 @@
 //! exact stored value. Sourced scenes refuse keys like every other structural edit, and their own
 //! animation curves are not evaluated.
 
+mod camera;
 mod euler;
+pub(in crate::native_scene) mod persistence;
 pub use euler::check_euler_channels;
 
 use super::{NativeError, NativeScene, NativeTransformNode, Scalar, TransformField};
@@ -84,6 +86,7 @@ fn evaluate(curve: &Curve, frame: i32) -> Option<f64> {
 pub(super) struct SessionKeys {
     /// A node appears only while at least one of its channels holds a key.
     curves: BTreeMap<NodeId, [Curve; 9]>,
+    camera_curves: [Curve; 4],
 }
 
 /// Bitwise, like `NativeTransform` equality, so a key that changes only a zero's sign is an edit.
@@ -101,17 +104,33 @@ impl PartialEq for SessionKeys {
                 })
                 .collect::<Vec<_>>()
         };
-        self.len() == other.len() && bits(self) == bits(other)
+        self.len() == other.len()
+            && bits(self) == bits(other)
+            && self
+                .camera_curves
+                .iter()
+                .zip(&other.camera_curves)
+                .all(|(a, b)| {
+                    a.len() == b.len()
+                        && a.iter()
+                            .zip(b)
+                            .all(|((af, av), (bf, bv))| af == bf && av.to_bits() == bv.to_bits())
+                })
     }
 }
 
 impl SessionKeys {
     pub(super) fn is_empty(&self) -> bool {
-        self.curves.is_empty()
+        self.curves.is_empty() && self.camera_curves.iter().all(BTreeMap::is_empty)
     }
 
     fn len(&self) -> usize {
-        self.curves.values().flatten().map(BTreeMap::len).sum()
+        self.curves
+            .values()
+            .flatten()
+            .map(BTreeMap::len)
+            .sum::<usize>()
+            + self.camera_curves.iter().map(BTreeMap::len).sum::<usize>()
     }
 
     pub(super) fn validate(
@@ -119,10 +138,15 @@ impl SessionKeys {
         nodes: &[NativeTransformNode],
         sourced: bool,
     ) -> Result<(), NativeError> {
-        if self.curves.is_empty() {
+        if self.is_empty() {
             return Ok(());
         }
         if sourced || self.len() > MAX_SESSION_KEYS {
+            return Err(NativeError::InvalidSessionKeys);
+        }
+        if self.camera_curves.iter().flatten().any(|(frame, value)| {
+            check_frame(*frame).is_err() || !value.is_finite() || !(2.5..=100000.0).contains(value)
+        }) {
             return Err(NativeError::InvalidSessionKeys);
         }
         let known: HashSet<NodeId> = nodes.iter().map(|node| node.id).collect();
@@ -147,11 +171,14 @@ impl SessionKeys {
 }
 
 /// Channel writes computed before any is applied, so a refused evaluation writes nothing.
-pub struct EvaluatedWrites(Vec<(usize, [Scalar; 9])>);
+pub struct EvaluatedWrites {
+    transforms: Vec<(usize, [Scalar; 9])>,
+    cameras: Vec<(super::SceneCamera, crate::camera_optics::CameraOptics)>,
+}
 
 impl EvaluatedWrites {
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.transforms.is_empty() && self.cameras.is_empty()
     }
 }
 
@@ -326,7 +353,10 @@ impl NativeScene {
         check_frame(frame)?;
         let mut writes = Vec::new();
         if keys.is_empty() {
-            return Ok(EvaluatedWrites(writes));
+            return Ok(EvaluatedWrites {
+                transforms: writes,
+                cameras: Vec::new(),
+            });
         }
         let only = only.map(|(nodes, mask)| (nodes.iter().copied().collect::<HashSet<_>>(), mask));
         let indices: HashMap<NodeId, usize> = self
@@ -373,15 +403,34 @@ impl NativeScene {
                 writes.push((index, replacement));
             }
         }
-        Ok(EvaluatedWrites(writes))
+        let mut cameras = Vec::new();
+        for camera in super::SceneCamera::ALL {
+            let Some(value) = evaluate(&keys.camera_curves[camera.index()], frame) else {
+                continue;
+            };
+            let mut optics = self.camera_optics(camera);
+            if optics.focal_length_mm.to_bits() != value.to_bits() {
+                optics.focal_length_mm = value;
+                super::camera::validate_optics(optics)?;
+                cameras.push((camera, optics));
+            }
+        }
+        Ok(EvaluatedWrites {
+            transforms: writes,
+            cameras,
+        })
     }
 
     /// Applies writes computed from this scene. It cannot fail, so all of them land or none does.
     pub fn apply_evaluated(&mut self, writes: EvaluatedWrites) {
-        for (index, channels) in writes.0 {
+        for (index, channels) in writes.transforms {
             if let Some(node) = self.nodes.get_mut(index) {
                 node.channels = channels;
             }
+        }
+        for (camera, optics) in writes.cameras {
+            self.cameras[camera.index()] =
+                (optics != crate::camera_optics::CameraOptics::node_default()).then_some(optics);
         }
     }
 }

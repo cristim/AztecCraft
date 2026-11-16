@@ -173,6 +173,11 @@ impl fmt::Debug for NativeMesh {
     }
 }
 impl NativeMesh {
+    pub(in crate::native_scene) fn set_authored_smoothing(&mut self) {
+        for edge in &mut self.edges {
+            edge.smooth = Some(false);
+        }
+    }
     pub(super) fn has_point_offsets(&self) -> bool {
         !self.point_offsets.is_empty()
     }

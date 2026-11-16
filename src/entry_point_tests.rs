@@ -221,7 +221,11 @@ fn native_operation_callers_are_the_known_ui_handlers() {
     expect(
         "native result wrapper",
         "native_operation_result(",
-        &["native_operation", "extrude_selected_face"],
+        &[
+            "native_operation",
+            "extrude_selected_face",
+            "key_camera_from_draft",
+        ],
     );
     expect(
         "native UI wrapper",
@@ -329,5 +333,10 @@ fn history_mutators_live_only_in_the_dispatch_and_move_handlers() {
     expect("move finish", ".finish_move(", &["finish_editor_move"]);
     expect("move cancel", ".cancel_active_move(", &["cancel_move"]);
     expect("history replace", "self.history =", &["replace_scene"]);
-    expect("history new", "History::new(", &["replace_scene"]);
+    // Guarded focal commands validate an isolated History candidate before authoritative mutation.
+    expect(
+        "history new",
+        "History::new(",
+        &["replace_scene", "apply_operation_guarded"],
+    );
 }

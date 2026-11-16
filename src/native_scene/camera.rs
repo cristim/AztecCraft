@@ -134,6 +134,12 @@ impl NativeScene {
         optics: CameraOptics,
     ) -> Result<(), NativeError> {
         validate_optics(optics)?;
+        if self.camera_focal_keys(camera).next().is_some()
+            && optics.focal_length_mm.to_bits()
+                != self.camera_optics(camera).focal_length_mm.to_bits()
+        {
+            return Err(NativeError::UnsupportedEdit);
+        }
         if optics.focal_length_mm.to_bits() != self.camera_optics(camera).focal_length_mm.to_bits()
             && !(2.5..=100000.0).contains(&optics.focal_length_mm)
         {
@@ -204,7 +210,7 @@ impl NativeScene {
         Ok(text.into_bytes())
     }
 }
-fn validate_optics(optics: CameraOptics) -> Result<(), NativeError> {
+pub(super) fn validate_optics(optics: CameraOptics) -> Result<(), NativeError> {
     optics
         .validate()
         .and_then(|()| {

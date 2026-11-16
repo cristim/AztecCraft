@@ -303,8 +303,13 @@ fn load_native_with(
     let bytes: Arc<[u8]> = bytes.into();
     #[cfg(unix)]
     let mut adopted = None;
-    let scene = if binary_format {
-        binary::decode(bytes.clone()).map_err(NativeLoadError::Binary)?
+    let mut scene = if binary_format {
+        let scene = binary::decode(bytes.clone()).map_err(NativeLoadError::Binary)?;
+        #[cfg(unix)]
+        {
+            adopted = scene.authored_document_id();
+        }
+        scene
     } else if ascii_format {
         match ascii::decode_document(bytes.clone(), adoption_supported) {
             Ok(ascii::AsciiDecoded::Retained(scene)) => scene,
@@ -334,6 +339,12 @@ fn load_native_with(
         NativeScene::from_legacy(decode_legacy(&bytes).map_err(|_| NativeLoadError::Legacy)?)
             .map_err(NativeLoadError::Native)?
     };
+    if !scene.has_source() && scene.session_key_count() > 0 {
+        let writes = scene
+            .evaluated_writes(crate::native_scene::DEFAULT_FRAME)
+            .map_err(NativeLoadError::Native)?;
+        scene.apply_evaluated(writes);
+    }
     #[cfg(unix)]
     let destination = if matches!(link, LinkStatus::Direct) {
         native_save::Destination::capture(path)

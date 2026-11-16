@@ -197,6 +197,9 @@
   reset_pivots(center) => Ok(unchanged) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Ok(changed) | scene changed; camera changed; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -395,6 +398,9 @@
   reset_pivots(center) => Ok(unchanged) | status: "Scene edited" -> "No change"
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | status: "Scene edited" -> "No change"
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Ok(changed) | scene changed; camera changed; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -582,6 +588,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -769,6 +778,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -956,6 +968,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -1143,6 +1158,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -1330,6 +1348,9 @@
   reset_pivots(center) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(zero) => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_optics => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -1517,6 +1538,9 @@
   reset_pivots(center) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(zero) => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | status: "Scene edited" -> "No change"; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0
   set_camera_optics => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=true keys=0 -> time=1 range=1..48 playing=false keys=0; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -1704,6 +1728,9 @@
   reset_pivots(center) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_attributes_visible => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_optics => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -1891,6 +1918,9 @@
   reset_pivots(center) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_focal_key => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_optics => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2078,6 +2108,9 @@
   reset_pivots(center) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_attributes_visible => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_optics => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2265,6 +2298,9 @@
   reset_pivots(center) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(zero) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   reset_pivots(face_mode) => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  set_camera_focal_key => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  delete_camera_focal_keys => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_optics => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
   set_camera_pose => Err(BusyManipulation: Finish or cancel the active manipulation) | no state change
@@ -2452,6 +2488,9 @@
   reset_pivots(center) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   reset_pivots(zero) => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  delete_camera_focal_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
+  inspect_camera_focal_keys => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_camera_attributes_visible => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_camera_optics => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
   set_camera_pose => Err(InvalidInput: new names require the supported ASCII identifier subset) | status: "Scene edited" -> "new names require the supported ASCII identifier subset"; status_is_error: false -> true
@@ -2639,6 +2678,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -2827,6 +2869,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   reset_pivots(zero) => Ok(unchanged) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
+  inspect_camera_focal_keys => Ok(keys) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_camera_attributes_visible => Ok(changed) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | scene changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
   set_camera_pose => Ok(changed) | scene changed; camera changed; status: "Ready | Create a cube, plane, sphere, cylinder or cone to start" -> "Material data edited"; has_draft: true -> false; can_undo: false -> true
@@ -3015,6 +3060,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3202,6 +3250,9 @@
   reset_pivots(center) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(zero) => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_camera_focal_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_attributes_visible => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_optics => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3389,6 +3440,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3576,6 +3630,9 @@
   reset_pivots(center) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(zero) => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
+  inspect_camera_focal_keys => Ok(keys) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_attributes_visible => Ok(changed) | scene changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_optics => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
   set_camera_pose => Ok(changed) | scene changed; camera changed; has_draft: true -> false; has_channel_draft: true -> false; can_redo: true -> false
@@ -3763,6 +3820,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -3950,6 +4010,9 @@
   reset_pivots(center) => Ok(unchanged) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Ok(changed) | scene changed; camera changed; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -4137,6 +4200,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4324,6 +4390,9 @@
   reset_pivots(center) => Ok(unchanged) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Ok(changed) | scene changed; camera changed; timeline: time=1 range=1..48 playing=false keys=0 -> time=1 range=1..48 playing=false keys=1; can_redo: true -> false
+  delete_camera_focal_keys => Ok(unchanged) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Ok(changed) | scene changed; camera changed; can_redo: true -> false
   set_camera_pose => Ok(changed) | camera changed
@@ -4511,6 +4580,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
@@ -4700,6 +4772,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -4887,6 +4962,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5074,6 +5152,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5261,6 +5342,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5448,6 +5532,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5635,6 +5722,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -5822,6 +5912,9 @@
   reset_pivots(center) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(zero) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   reset_pivots(face_mode) => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  set_camera_focal_key => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  delete_camera_focal_keys => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_optics => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
   set_camera_pose => Err(StaleScene: Scene token is stale; inspect the current document) | no state change
@@ -6009,6 +6102,9 @@
   reset_pivots(center) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  delete_camera_focal_keys => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -6196,6 +6292,9 @@
   reset_pivots(center) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(zero) => Err(Pivot: Maya ASCII scenes are read-only in this version) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  delete_camera_focal_keys => Err(Scene: Maya ASCII scenes are read-only in this version) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | status: "Scene ready" -> "Scene edited"
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -6384,6 +6483,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -6572,6 +6674,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | status: "Scene ready" -> "Scene edited"
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -6760,6 +6865,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -6948,6 +7056,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | status: "Scene ready" -> "Scene edited"
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -7232,6 +7343,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | no state change
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -7420,6 +7534,9 @@
   reset_pivots(center) => Err(Pivot: This object stores no rotate pivot in the opened Maya binary file, so a nonzero pivot cannot be written yet) | no state change
   reset_pivots(zero) => Ok(unchanged) | status: "Scene ready" -> "No change"
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  delete_camera_focal_keys => Err(Scene: native ownership or edit effects are unsupported) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Ok(changed) | status: "Scene ready" -> "Scene edited"
   set_camera_optics => Err(Scene: native ownership or edit effects are unsupported) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -7608,6 +7725,9 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(InvalidInput: Pivot reset on Face selection is unsupported; switch to Object or Hierarchy selection) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Ok(changed) | camera changed
@@ -7796,8 +7916,11 @@
   reset_pivots(center) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(zero) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   reset_pivots(face_mode) => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  set_camera_focal_key => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  delete_camera_focal_keys => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
+  inspect_camera_focal_keys => Ok(keys) | no state change
   set_camera_attributes_visible => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_optics => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
   set_camera_pose => Err(BusyEditing: The editor is busy with a text edit, dialog, close or pending input; try again when it finishes) | no state change
 
-cells: 7200
+cells: 7323

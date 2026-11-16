@@ -4,13 +4,14 @@ mod appearance;
 mod binding;
 mod camera;
 mod encode;
+mod focal;
 mod removal;
 mod write;
 pub use encode::encode;
 pub use removal::RemovalRefusal;
 pub(super) use removal::{check_materials, with_removal_checker};
 pub use write::AuthoredRefusalCode;
-#[cfg(unix)]
+#[cfg(any(test, unix))]
 pub(crate) use write::encode_authored;
 #[cfg(test)]
 mod tests;
@@ -127,6 +128,9 @@ fn decode_with_retained_bytes(
             .ok_or_else(resource)?,
     )?;
     let container = container::inspect(source)?;
+    if let Some(scene) = focal::decode(&container, retained_bytes, retained_appearance_bytes)? {
+        return Ok(scene);
+    }
     let facts = semantic::decode_records(&container)?;
     let camera_scratch = container
         .chunks()

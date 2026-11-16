@@ -690,8 +690,12 @@ pub(crate) fn emit_with_links(
     let camera_bytes = scene
         .camera_ascii()
         .map_err(AsciiWriteRefusal::InvalidScene)?;
+    let key_bytes = scene
+        .focal_ascii()
+        .map_err(AsciiWriteRefusal::InvalidScene)?;
     let length = prefix_bytes(scene, links)?
         .checked_add(camera_bytes.len())
+        .and_then(|n| n.checked_add(key_bytes.len()))
         .filter(|n| *n <= MAX_BYTES)
         .ok_or(AsciiWriteRefusal::TooLarge)?;
     let mut out = Budget::new(0)
@@ -718,6 +722,7 @@ pub(crate) fn emit_with_links(
         })?;
     }
     session_block(scene, links, |bytes| append(&mut out, length, bytes))?;
+    append(&mut out, length, &key_bytes)?;
     Ok(out)
 }
 

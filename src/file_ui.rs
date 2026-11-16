@@ -182,7 +182,10 @@ impl Editor {
     }
     pub(super) fn is_dirty(&self) -> bool {
         self.files.uncertain.is_some()
-            || self.history.scene() != &self.files.saved
+            || !self
+                .history
+                .scene()
+                .same_document_content(&self.files.saved)
             || self.has_draft()
     }
     pub(super) fn save_document(

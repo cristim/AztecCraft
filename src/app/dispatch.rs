@@ -380,6 +380,11 @@ impl Editor {
                 inspection: Box::new(self.inspect_page(focused, page.as_ref())?),
             });
         }
+        if let Operation::InspectCameraFocalKeys { camera, cursor } = &request.operation {
+            return Ok(OperationReply::Keys {
+                inspection: Box::new(self.inspect_camera_focal_keys(*camera, cursor.as_ref())?),
+            });
+        }
         if let Operation::InspectKeys { node, cursor } = &request.operation {
             return Ok(OperationReply::Keys {
                 inspection: Box::new(self.inspect_keys(*node, cursor.as_ref())?),
@@ -630,6 +635,8 @@ impl Editor {
                     | Operation::ModifyComponentSelection { .. }
                     | Operation::SetCurrentTime { .. }
                     | Operation::SetCameraOptics { .. }
+                    | Operation::SetCameraFocalKey { .. }
+                    | Operation::DeleteCameraFocalKeys { .. }
                     | Operation::SetPlaybackRange { .. }
                     | Operation::Play
                     | Operation::SetKeyframe { .. }
@@ -887,6 +894,14 @@ impl Editor {
             #[cfg(any(test, feature = "mcp"))]
             Operation::SetSessionMaterialColor { material, color } => {
                 Command::SetSessionMaterialColor { material, color }
+            }
+            Operation::SetCameraFocalKey {
+                camera,
+                time,
+                value,
+            } => self.camera_key_command(camera, time, value, false)?,
+            Operation::DeleteCameraFocalKeys { camera, time } => {
+                self.camera_key_command(camera, time, None, true)?
             }
             Operation::SetCurrentTime { time } => return self.set_current_time(time),
             Operation::SetPlaybackRange { start, end } => {
@@ -1565,6 +1580,12 @@ impl Editor {
                 });
             }
             #[cfg(any(test, feature = "mcp"))]
+            Operation::InspectCameraFocalKeys { camera, cursor } => {
+                return Ok(OperationReply::Keys {
+                    inspection: Box::new(self.inspect_camera_focal_keys(camera, cursor.as_ref())?),
+                });
+            }
+            #[cfg(any(test, feature = "mcp"))]
             Operation::InspectKeys { node, cursor } => {
                 return Ok(OperationReply::Keys {
                     inspection: Box::new(self.inspect_keys(node, cursor.as_ref())?),
@@ -1611,12 +1632,28 @@ impl Editor {
         );
         let key_command = matches!(
             command,
-            Command::SetKeys { .. } | Command::DeleteKeys { .. } | Command::EulerFilter { .. }
+            Command::SetCameraFocalKey { .. }
+                | Command::DeleteCameraFocalKeys { .. }
+                | Command::SetKeys { .. }
+                | Command::DeleteKeys { .. }
+                | Command::EulerFilter { .. }
         );
         let pivot_command = matches!(
             command,
             Command::SetPivots { .. } | Command::ResetPivots { .. }
         );
+        if matches!(
+            command,
+            Command::SetCameraFocalKey { .. } | Command::DeleteCameraFocalKeys { .. }
+        ) {
+            let mut candidate = History::new(self.history.scene().clone());
+            candidate
+                .execute(command.clone())
+                .map_err(OperationError::from_history)?;
+            self.check_camera_projection(
+                candidate.scene().camera_optics(self.active_scene_camera()),
+            )?;
+        }
         let outcome = self.history.execute(command).map_err(|error| {
             if pivot_command && is_pivot_refusal(&error) {
                 return OperationError::Pivot(error);

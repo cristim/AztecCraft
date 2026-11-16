@@ -111,6 +111,6 @@ Retain isolated worktrees for active changes, record ownership and reviewed hash
 Claimed by `codex-458-film-back`. [Research and slice plan](camera-film-back.md)
 records the Maya 2027.2 documentation, UI placement, conflicting defaults and
 projection policy, native camera/source-binding gaps and the implementation gates.
-Status: optical core, built-in scene state and bounded ASCII/binary codecs are
-implemented internally. Native/MCP editing, projection integration, keying and
-full persistence acceptance remain open.
+Status: built-in optical state, projection, native/MCP editing and focal-length
+keying with canonical authored ASCII/binary curves implemented. Reference Maya
+acceptance, custom cameras and arbitrary sourced animation remain unsupported.

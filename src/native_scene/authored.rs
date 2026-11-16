@@ -111,7 +111,10 @@ pub(super) fn check_content_kind(
     if scene.has_joints() {
         return Err(AuthoredIneligible::Joints);
     }
-    if !scene.session_keys.is_empty() {
+    scene
+        .check_focal_curve_names()
+        .map_err(AuthoredIneligible::InvalidScene)?;
+    if scene.has_transform_keys() {
         return Err(AuthoredIneligible::Keys);
     }
     if uvs == UvPolicy::Refuse && !scene.session_uvs.is_empty() {

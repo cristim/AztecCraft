@@ -128,6 +128,82 @@ impl Editor {
             },
         );
     }
+    pub(in crate::app) fn check_camera_projection(
+        &self,
+        optics: CameraOptics,
+    ) -> Result<(), OperationError> {
+        let mut candidate = self.camera.clone();
+        candidate.set_lens(Lens::Optics(optics));
+        candidate
+            .projection_matrix(self.aspect)
+            .map(|_| ())
+            .map_err(OperationError::Camera)
+    }
+    pub(in crate::app) fn camera_key_command(
+        &self,
+        camera: SceneCamera,
+        time: Option<f64>,
+        value: Option<f64>,
+        delete: bool,
+    ) -> Result<Command, OperationError> {
+        let frame = time
+            .map(azteccraft::native_scene::whole_frame)
+            .transpose()
+            .map_err(OperationError::Scene)?;
+        let current_frame = self.timeline.current;
+        Ok(if delete {
+            Command::DeleteCameraFocalKeys {
+                camera,
+                frame,
+                current_frame,
+            }
+        } else {
+            Command::SetCameraFocalKey {
+                camera,
+                frame: frame.unwrap_or(current_frame),
+                value: value.unwrap_or(self.history.scene().camera_optics(camera).focal_length_mm),
+                current_frame,
+            }
+        })
+    }
+    fn key_camera_from_draft(&mut self) {
+        let result = (|| {
+            let Some(draft) = self.camera_draft.as_ref() else {
+                return Err("Camera draft unavailable".to_string());
+            };
+            if draft.token != self.scene_token
+                || self.history.scene().camera_optics(draft.camera) != draft.original
+            {
+                return Err("Camera changed while entering its focal key".into());
+            }
+            let optics = draft.parse()?;
+            let mut other = optics;
+            other.focal_length_mm = draft.original.focal_length_mm;
+            if other != draft.original {
+                return Err("Apply other camera attributes before setting a focal key".into());
+            }
+            Ok((draft.camera, optics.focal_length_mm))
+        })();
+        let (camera, value) = match result {
+            Ok(value) => value,
+            Err(error) => {
+                self.status = error;
+                self.error = true;
+                return;
+            }
+        };
+        let draft = self.camera_draft.take();
+        if self
+            .native_operation_result(Operation::SetCameraFocalKey {
+                camera,
+                time: None,
+                value: Some(value),
+            })
+            .is_err()
+        {
+            self.camera_draft = draft;
+        }
+    }
     pub(in crate::app) fn camera_draft_command(&self) -> Result<Command, String> {
         let draft = self
             .camera_draft
@@ -183,6 +259,8 @@ impl Editor {
         let mut open = true;
         let mut apply = false;
         let mut cancel = false;
+        let mut key = false;
+        let mut delete_key = false;
         egui::Window::new("Camera Attribute Editor")
             .default_pos(egui::pos2(300.0, 180.0))
             .default_width(520.0)
@@ -269,6 +347,11 @@ impl Editor {
                     apply = ui.button("Apply").clicked();
                     cancel = ui.button("Revert").clicked();
                 });
+                ui.horizontal(|ui| {
+                    key = ui.button("Set Focal Key").clicked();
+                    delete_key = ui.button("Delete Focal Key").clicked();
+                });
+                ui.weak("Focal keys save as native linear curves in authored .ma/.mb");
                 if admitted && owns_input {
                     apply |= ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Enter));
                     cancel |= ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape));
@@ -277,7 +360,14 @@ impl Editor {
         if !admitted {
             return;
         }
-        if cancel {
+        if key {
+            self.key_camera_from_draft();
+        } else if delete_key {
+            self.native_operation(Operation::DeleteCameraFocalKeys {
+                camera,
+                time: Some(f64::from(self.timeline.current)),
+            });
+        } else if cancel {
             self.camera_draft = None;
         } else if apply {
             self.commit_pending();
@@ -291,10 +381,75 @@ impl Editor {
     }
 }
 
+#[cfg(any(test, feature = "mcp"))]
+impl Editor {
+    pub(in crate::app) fn inspect_camera_focal_keys(
+        &self,
+        camera: SceneCamera,
+        cursor: Option<&crate::editor_operations::PageCursor>,
+    ) -> Result<crate::editor_operations::KeysInspection, OperationError> {
+        use crate::editor_operations::{
+            CameraKeyInspection, CursorScope, KeysInspection, MAX_KEYS_PER_PAGE, PageCursor,
+        };
+        let scene = self.history.scene();
+        let keys_total = scene.camera_focal_keys(camera).count();
+        let offset = if let Some(cursor) = cursor {
+            if cursor.scene_token != self.scene_token || cursor.revision != self.history.revision()
+            {
+                return Err(OperationError::StaleScene);
+            }
+            if cursor.scope != CursorScope::CameraKeys(camera) || cursor.offset > keys_total {
+                return Err(OperationError::InvalidInput(
+                    "Cursor does not belong to this camera key page".into(),
+                ));
+            }
+            cursor.offset
+        } else {
+            0
+        };
+        let camera_keys: Vec<_> = scene
+            .camera_focal_keys(camera)
+            .skip(offset)
+            .take(MAX_KEYS_PER_PAGE)
+            .map(|(frame, value)| CameraKeyInspection {
+                camera,
+                attribute: "focal_length",
+                frame,
+                value,
+            })
+            .collect();
+        let end = offset + camera_keys.len();
+        Ok(KeysInspection {
+            camera_keys,
+            scene_token: self.scene_token.to_string(),
+            revision: self.history.revision(),
+            unavailable_reason: scene
+                .has_source()
+                .then_some("Source camera curves are not interpreted"),
+            keys_total,
+            key_offset: offset,
+            keys: Vec::new(),
+            next_cursor: (end < keys_total).then(|| {
+                PageCursor {
+                    scene_token: self.scene_token,
+                    revision: self.history.revision(),
+                    offset: end,
+                    scope: CursorScope::CameraKeys(camera),
+                }
+                .to_string()
+            }),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn frame(editor: &mut Editor, ctx: &egui::Context, events: Vec<egui::Event>) {
+    fn frame(
+        editor: &mut Editor,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> egui::FullOutput {
         let input = egui::RawInput {
             screen_rect: Some(egui::Rect::from_min_size(
                 egui::Pos2::ZERO,
@@ -305,6 +460,7 @@ mod tests {
         };
         let mut output = ctx.run_ui(input, |ui| editor.render(ui));
         output.textures_delta.clear();
+        output
     }
     fn key(key: Key, modifiers: egui::Modifiers) -> egui::Event {
         egui::Event::Key {
@@ -462,5 +618,68 @@ mod tests {
                 .focal_length_mm,
             35.0
         );
+    }
+    #[test]
+    fn native_focal_button_keys_precise_draft_and_preserves_refused_draft() {
+        fn text_center(shapes: &[egui::epaint::ClippedShape], label: &str) -> egui::Pos2 {
+            for shape in shapes {
+                if let egui::epaint::Shape::Text(text) = &shape.shape
+                    && text.galley.job.text == label
+                {
+                    return text.pos + text.galley.size() * 0.5;
+                }
+            }
+            panic!("button text absent: {label}");
+        }
+        let mut editor = Editor::default();
+        let ctx = egui::Context::default();
+        editor.native_operation(Operation::SetCameraAttributesVisible { visible: true });
+        frame(&mut editor, &ctx, vec![]);
+        editor.camera_draft.as_mut().unwrap().text[0] = "48.123456789012345".into();
+        let out = frame(&mut editor, &ctx, vec![]);
+        let pos = text_center(&out.shapes, "Set Focal Key");
+        frame(
+            &mut editor,
+            &ctx,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        frame(
+            &mut editor,
+            &ctx,
+            vec![egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        assert_eq!(
+            editor
+                .history
+                .scene()
+                .camera_focal_keys(SceneCamera::Persp)
+                .collect::<Vec<_>>(),
+            vec![(1, 48.123456789012345)]
+        );
+        assert_eq!(
+            editor.camera.lens(),
+            Lens::Optics(editor.history.scene().camera_optics(SceneCamera::Persp))
+        );
+        editor.native_operation(Operation::Undo);
+        assert_eq!(editor.history.scene().session_key_count(), 0);
+        frame(&mut editor, &ctx, vec![]);
+        editor.camera_draft.as_mut().unwrap().text[0] = "invalid".into();
+        let baseline = editor.history.scene().clone();
+        editor.key_camera_from_draft();
+        assert_eq!(editor.history.scene(), &baseline);
+        assert_eq!(editor.camera_draft.as_ref().unwrap().text[0], "invalid");
     }
 }
