@@ -359,3 +359,6 @@ impl Drop for PlateStream {
         self.results = None;
     }
 }
+
+#[cfg(test)]
+mod tests;
