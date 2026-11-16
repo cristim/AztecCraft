@@ -305,6 +305,37 @@
     }
   },
   {
+    "name": "set_rotate_step",
+    "description": "Set the Rotate tool's relative Step Snap in degrees (at least 1e-6) or turn it off with null (the default); `degrees` is required. While set, every update_manipulation angle of a rotate, and the native numeric entry, is rounded to the nearest multiple of the step (a half-way turn rounds away from zero) before it is applied; the step snaps the turn, not the object's resulting angle, and the result is not read back as the requested angle. Move, Scale and the Snap to grids setting are unaffected. A step that is not finite or is below 1e-6 is invalid_params. Session-only and idempotent: it never dirties the scene or enters undo history, and there is no inspect_scene field for it yet. Refused with busy_manipulation during any manipulation and busy_editing during a draft, modal or close. Does not change the active tool",
+    "inputSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "description": "Sets the Rotate tool's relative Step Snap.",
+      "properties": {
+        "degrees": {
+          "description": "The step in degrees, at least 1e-6; null turns the step off. Required: an omitted field is\na protocol error, not \"off\".",
+          "format": "double",
+          "minimum": 1e-6,
+          "type": "number"
+        },
+        "scene_token": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_token",
+        "degrees"
+      ],
+      "title": "RotateStepArgs",
+      "type": "object"
+    },
+    "annotations": {
+      "readOnlyHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "begin_manipulation",
     "description": "Begin one remote-owned Move (World axis), Rotate (Object or World space) or Scale (Object, World or Parent space) of the exact selected transform instance. Numeric manipulation may begin while any tool is active; this does not change tools. A Move or a Scale acts on the whole current selection with the named node as its lead (the last selected object), each object scaling about its own pivot by the same factor; with several objects selected pass expected_selection_generation from inspect_scene selection_generation, otherwise the call returns multiple_selection, and a value that no longer matches the selection is stale_selection, checked before the target and selection refusals, and changes nothing. Rotate still needs exactly one selected object",
     "inputSchema": {
