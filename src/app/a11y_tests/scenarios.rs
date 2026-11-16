@@ -2,6 +2,7 @@
 //! A scenario other than the default only reports nodes that its base frame does not contain.
 //! Add a scenario by adding a line to `all`.
 
+mod dialogs;
 pub(super) mod panels;
 
 use super::{Violation, gaps, rig::Rig, violations};
@@ -99,7 +100,7 @@ impl Scenario {
 /// labels and its popup).
 const MIN_NEW_NODES: usize = 2;
 /// Scenarios in `all`; adding one means raising this, so a dropped line is noticed.
-const SCENARIOS: usize = 19;
+const SCENARIOS: usize = 25;
 
 fn plain(rig: &Rig, base: Option<TreeUpdate>) -> Captured {
     Captured {
@@ -172,6 +173,7 @@ pub(super) fn all() -> Vec<Scenario> {
         all.push(menu_scenario(name, set, path));
     }
     all.extend(panels::scenarios());
+    all.extend(dialogs::scenarios());
     all
 }
 
