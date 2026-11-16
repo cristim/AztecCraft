@@ -2,3 +2,4 @@
 //! state lives here, so the library tests reach it directly.
 
 pub mod decode;
+pub mod sequence;

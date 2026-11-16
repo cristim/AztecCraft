@@ -77,6 +77,8 @@ pub enum PlateError {
     DimensionMismatch,
     Internal,
     WorkerGone,
+    /// The frame has no file: a gap, a negative frame or a name with no digits.
+    Missing,
 }
 
 impl std::fmt::Display for PlateError {
@@ -95,6 +97,7 @@ impl std::fmt::Display for PlateError {
             }
             Self::Internal => f.write_str("image decoder failed internally"),
             Self::WorkerGone => f.write_str("plate decoder is not running"),
+            Self::Missing => f.write_str("no image for this frame"),
         }
     }
 }
