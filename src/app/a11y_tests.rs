@@ -342,7 +342,8 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             toggled: node.toggled(),
         });
         let named = name.is_some() || known.contains_key(&id);
-        let next = if named && !is_root {
+        let unnamed_window = name.is_none() && role == Role::Window && !is_root;
+        let next = if (named && !is_root) || unnamed_window {
             (
                 anchor.clone(),
                 name.clone().unwrap_or_else(|| anchor.clone()),
