@@ -255,6 +255,8 @@ pub(super) struct Entry {
     pub(super) anchor: String,
     in_window: bool,
     in_dialog: bool,
+    /// An unnamed, unregistered non-root Window: its keys would depend on position.
+    pub(super) unnamed_window: bool,
     /// Egui window chrome of a registered window: the rules skip it, and so does the keyboard walk.
     pub(super) exempt: bool,
     pub(super) actionable: bool,
@@ -285,12 +287,22 @@ impl Entry {
 /// nearest named ancestor; with none (or only the root) it is the parent's anchor, so an inserted
 /// widget only shifts later unnamed same-role siblings under one base.
 pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
+    entries_with(update, windows, &HashMap::new())
+}
+
+/// `entries` with more id-to-name registrations than `known_ids` (a fixture's hand-made windows).
+pub(super) fn entries_with(
+    update: &TreeUpdate,
+    windows: &[egui::Id],
+    extra: &HashMap<NodeId, String>,
+) -> Vec<Entry> {
     let Some(tree) = update.tree.as_ref() else {
         return Vec::new();
     };
     let nodes: HashMap<NodeId, &Node> = update.nodes.iter().map(|(id, n)| (*id, n)).collect();
     let chrome = chrome_ids(windows);
-    let known = known_ids();
+    let mut known = known_ids();
+    known.extend(extra.iter().map(|(id, name)| (*id, name.clone())));
     let mut order = Vec::new();
     let mut seen = HashSet::new();
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
@@ -306,9 +318,6 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
         let role = node.role();
         let name = name_of(&nodes, node);
         let own = known.get(&id).cloned().or_else(|| {
-            if name.is_none() && role == Role::Window && !is_root {
-                return Some(format!("<Window@{:x}>", u64::from(id)));
-            }
             let key = match &name {
                 Some(name) => stable_name(name).to_owned(),
                 None => format!("<{role:?}>"),
@@ -322,6 +331,8 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             *index += 1;
             Some(own)
         });
+        let unnamed_window =
+            name.is_none() && role == Role::Window && !is_root && !known.contains_key(&id);
         let anchor = match known.contains_key(&id) {
             true => own.clone().unwrap_or_default(),
             false => format!("{base}/{}", own.unwrap_or_default()),
@@ -335,6 +346,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             anchor: anchor.clone(),
             in_window,
             in_dialog,
+            unnamed_window,
             exempt: role == Role::Unknown && in_window && chrome.contains(&id),
             actionable: is_actionable(node),
             disabled: node.is_disabled(),
@@ -342,8 +354,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             toggled: node.toggled(),
         });
         let named = name.is_some() || known.contains_key(&id);
-        let unnamed_window = name.is_none() && role == Role::Window && !is_root;
-        let next = if (named && !is_root) || unnamed_window {
+        let next = if named && !is_root {
             (
                 anchor.clone(),
                 name.clone().unwrap_or_else(|| anchor.clone()),
@@ -360,6 +371,21 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
         }
     }
     order
+}
+
+/// One message per unnamed Window node that is not registered: its keys would follow position, so
+/// the gate refuses it instead of recording gaps under an unstable anchor.
+pub(super) fn unnamed_windows(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<String> {
+    entries(update, windows)
+        .iter()
+        .filter(|e| e.unnamed_window)
+        .map(|e| {
+            format!(
+                "unnamed window under {}: name it or register it",
+                e.ancestor
+            )
+        })
+        .collect()
 }
 
 /// Violations in `update`. `windows` are the area ids of the windows the scenario opens.

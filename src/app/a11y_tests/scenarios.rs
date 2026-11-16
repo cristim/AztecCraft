@@ -5,7 +5,7 @@
 mod dialogs;
 pub(super) mod panels;
 
-use super::{Violation, gaps, rig::Rig, violations};
+use super::{Violation, entries, gaps, rig::Rig, unnamed_windows, violations};
 use crate::editor_operations::{ActiveTool, MenuSet, Operation};
 use eframe::egui::{
     self,
@@ -69,7 +69,16 @@ impl Scenario {
         let mut problems = Vec::new();
         if captured.modal {
             all.extend(modal_background(name, &captured));
+            let dialog_opened = captured
+                .update
+                .nodes
+                .iter()
+                .any(|(id, n)| n.role() == Role::Dialog && !base_ids.contains(id));
+            if !dialog_opened || newly_disabled_controls(&captured).next().is_none() {
+                problems.push("no new dialog, or it disabled no control outside itself".to_owned());
+            }
         }
+        problems.extend(unnamed_windows(&captured.update, &captured.windows));
         let mut keys = HashSet::new();
         for violation in &all {
             if !keys.insert(violation.key()) {
@@ -125,19 +134,8 @@ impl Scenario {
 /// the reason `Unavailable: a dialog is open`.
 fn modal_background(name: &str, captured: &Captured) -> Option<Violation> {
     let reason = format!("{}a dialog is open", super::DISABLED_PREFIX);
-    let base = captured.base.as_ref()?;
-    let was_disabled: HashSet<NodeId> = base
-        .nodes
-        .iter()
-        .filter(|(_, n)| n.is_disabled())
-        .map(|(id, _)| *id)
-        .collect();
-    let silent = captured
-        .update
-        .nodes
-        .iter()
-        .filter(|(id, n)| n.is_disabled() && !was_disabled.contains(id))
-        .filter(|(_, n)| n.description() != Some(reason.as_str()))
+    let silent = newly_disabled_controls(captured)
+        .filter(|e| e.description != reason)
         .count();
     (silent > 0).then(|| Violation {
         scenario: name.to_owned(),
@@ -150,6 +148,31 @@ fn modal_background(name: &str, captured: &Captured) -> Option<Violation> {
         in_window: false,
         in_dialog: false,
     })
+}
+
+/// Actionable controls outside the dialog that the dialog disabled (enabled in the base frame).
+fn newly_disabled_controls(captured: &Captured) -> impl Iterator<Item = super::Entry> {
+    let was_disabled: HashSet<NodeId> = captured
+        .base
+        .iter()
+        .flat_map(|base| base.nodes.iter())
+        .filter(|(_, n)| n.is_disabled())
+        .map(|(id, _)| *id)
+        .collect();
+    let base_ids: HashSet<NodeId> = captured
+        .base
+        .iter()
+        .flat_map(|base| base.nodes.iter().map(|(id, _)| *id))
+        .collect();
+    entries(&captured.update, &captured.windows)
+        .into_iter()
+        .filter(move |e| {
+            e.actionable
+                && e.disabled
+                && !e.in_dialog
+                && base_ids.contains(&e.id)
+                && !was_disabled.contains(&e.id)
+        })
 }
 
 /// A scenario with a base frame must add at least this many nodes to it (the Help menu adds two
