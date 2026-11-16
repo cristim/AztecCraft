@@ -2145,4 +2145,5 @@ fn statistics_count_a_shared_node_once_but_its_paths_each() {
     let row = |name: &str| usage.caps.iter().find(|c| c.name == name).unwrap().used;
     assert_eq!(row("instance_paths"), Some(3));
     assert_eq!(row("instance_depth"), Some(2));
+    assert_eq!(row("instance_path_identities"), Some(4));
 }
