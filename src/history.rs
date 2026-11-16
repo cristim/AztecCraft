@@ -13,7 +13,7 @@ mod move_transaction;
 use move_transaction::MoveTransaction;
 pub use move_transaction::{
     ManipulationError, ManipulationFinish, ManipulationId, ManipulationKindState,
-    ManipulationProvenance, ManipulationState, is_covered, selected_transform_ids,
+    ManipulationProvenance, ManipulationState, MoveDirection, is_covered, selected_transform_ids,
 };
 use std::collections::VecDeque;
 
