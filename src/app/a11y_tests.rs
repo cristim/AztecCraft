@@ -42,6 +42,8 @@ pub(super) enum Rule {
     Role,
     Reason,
     StaleReason,
+    /// Scenario check: a control a dialog disables does not say why.
+    ModalBackground,
     State,
     NameQuality,
     /// Keyboard walk: Tab focused a disabled control.
@@ -59,6 +61,7 @@ impl Rule {
             Rule::Role => "R2",
             Rule::Reason => "R3",
             Rule::StaleReason => "R3b",
+            Rule::ModalBackground => "R3-modal-background",
             Rule::State => "R4",
             Rule::NameQuality => "R5",
             Rule::FocusDisabled => "K1",
@@ -79,6 +82,9 @@ impl Rule {
                 "disabled without a reason: the description must start with `Unavailable: `"
             }
             Rule::StaleReason => "enabled but the description still starts with `Unavailable: `",
+            Rule::ModalBackground => {
+                "controls disabled by a dialog must say `Unavailable: a dialog is open`"
+            }
             Rule::State => "no checked state: use `WidgetInfo::selected` or set `toggled`",
             Rule::NameQuality => "the name is a glyph or too short to be spoken: name it in words",
             Rule::FocusDisabled => "Tab focused a disabled control",
@@ -98,12 +104,16 @@ pub(super) struct Violation {
     pub(super) ancestor: String,
     pub(super) anchor: String,
     pub(super) in_window: bool,
+    pub(super) in_dialog: bool,
 }
 
 impl Violation {
     /// `scenario|rule|role|anchor`: ids when the widget has a known one, else its nearest named
     /// ancestor plus the index among same-role nodes under it, so a fix never shifts other keys.
     pub(super) fn key(&self) -> String {
+        if self.rule == Rule::ModalBackground {
+            return format!("{}|{}", self.scenario, self.rule.code());
+        }
         format!(
             "{}|{}|{:?}|{}",
             self.scenario,
@@ -206,12 +216,14 @@ fn chrome_ids(windows: &[egui::Id]) -> HashSet<NodeId> {
         .collect()
 }
 
-/// Text labels are not controls: egui 0.37 makes every selectable label support Click and Focus
-/// (counting them as clickable would flag all of them, 227 in the current scenarios).
+/// A label is a control only when it has an explicit click sense. The scenarios turn off
+/// `selectable_labels`, which is what gives every egui label Click and Focus.
 fn is_actionable(node: &Node) -> bool {
-    node.role() != Role::Label
-        && (ACTIONS.iter().any(|action| node.supports_action(*action))
-            || ACTIONABLE_ROLES.contains(&node.role()))
+    if node.role() == Role::Label {
+        return node.supports_action(Action::Click);
+    }
+    ACTIONS.iter().any(|action| node.supports_action(*action))
+        || ACTIONABLE_ROLES.contains(&node.role())
 }
 
 /// The label (a Label node carries its text in the value), else what the first `labelled_by`
@@ -242,6 +254,7 @@ pub(super) struct Entry {
     ancestor: String,
     pub(super) anchor: String,
     in_window: bool,
+    in_dialog: bool,
     /// Egui window chrome of a registered window: the rules skip it, and so does the keyboard walk.
     pub(super) exempt: bool,
     pub(super) actionable: bool,
@@ -261,6 +274,7 @@ impl Entry {
             ancestor: self.ancestor.clone(),
             anchor: self.anchor.clone(),
             in_window: self.in_window,
+            in_dialog: self.in_dialog,
         }
     }
 }
@@ -281,8 +295,8 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
     let mut seen = HashSet::new();
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
     let root = (String::from("root"), String::from("root"));
-    let mut stack = vec![(tree.root, root.clone(), false, true)];
-    while let Some((id, (base, ancestor), in_window, is_root)) = stack.pop() {
+    let mut stack = vec![(tree.root, root.clone(), (false, false), true)];
+    while let Some((id, (base, ancestor), (in_window, in_dialog), is_root)) = stack.pop() {
         let Some(node) = nodes.get(&id).copied() else {
             continue;
         };
@@ -292,6 +306,9 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
         let role = node.role();
         let name = name_of(&nodes, node);
         let own = known.get(&id).cloned().or_else(|| {
+            if name.is_none() && role == Role::Window && !is_root {
+                return Some(format!("<Window@{:x}>", u64::from(id)));
+            }
             let key = match &name {
                 Some(name) => stable_name(name).to_owned(),
                 None => format!("<{role:?}>"),
@@ -317,6 +334,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             ancestor: ancestor.clone(),
             anchor: anchor.clone(),
             in_window,
+            in_dialog,
             exempt: role == Role::Unknown && in_window && chrome.contains(&id),
             actionable: is_actionable(node),
             disabled: node.is_disabled(),
@@ -335,8 +353,9 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
             (base.clone(), ancestor.clone())
         };
         let next_window = in_window || (role == Role::Window && !is_root);
+        let next_dialog = in_dialog || role == Role::Dialog;
         for child in node.children().iter().rev() {
-            stack.push((*child, next.clone(), next_window, false));
+            stack.push((*child, next.clone(), (next_window, next_dialog), false));
         }
     }
     order
@@ -361,7 +380,10 @@ pub(super) fn violations(
         if entry.name.is_none() {
             fail(Rule::Name);
         }
-        if matches!(entry.role, Role::Unknown | Role::GenericContainer) {
+        if matches!(
+            entry.role,
+            Role::Unknown | Role::GenericContainer | Role::Label
+        ) {
             fail(Rule::Role);
         }
         if entry.disabled && !reason {

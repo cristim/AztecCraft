@@ -17,6 +17,7 @@ fn input() -> egui::RawInput {
 fn tree_of<R>(mut add: impl FnMut(&mut egui::Ui) -> R) -> TreeUpdate {
     let context = egui::Context::default();
     context.enable_accesskit();
+    context.all_styles_mut(|style| style.interaction.selectable_labels = false);
     context
         .run_ui(input(), |ui| {
             add(ui);
@@ -138,8 +139,10 @@ fn adding_a_widget_or_a_window_leaves_every_other_key_alone() {
 }
 
 #[test]
-fn a_plain_label_is_not_a_control() {
+fn a_plain_label_is_not_a_control_but_a_clickable_one_fails_role() {
     assert!(codes(&tree_of(|ui| ui.label("Plain text"))).is_empty());
+    let clickable = tree_of(|ui| ui.add(egui::Label::new("Go").sense(Sense::click())));
+    assert_eq!(codes(&clickable), ["R2"]);
 }
 #[test]
 fn disabled_control_needs_the_reason_description() {
@@ -237,5 +240,39 @@ fn key_names_scenario_rule_role_and_anchor() {
         violations("menus", &update, &[])[0]
             .message()
             .contains("R1")
+    );
+}
+
+#[test]
+fn an_unnamed_window_inserted_ahead_does_not_rebase_the_keys_after_it() {
+    let icon = || Atom::custom(IdSalt::new("icon"), vec2(12.0, 12.0));
+    let panel = |ui: &mut egui::Ui, salt: &str, buttons: usize| {
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .id_salt(salt)
+                .accessibility_role(accesskit::Role::Window),
+            |ui| {
+                for _ in 0..buttons {
+                    ui.add(Button::new(icon()));
+                }
+            },
+        );
+    };
+    let keys = |update: &TreeUpdate| -> std::collections::BTreeSet<String> {
+        violations("fixture", update, &[])
+            .iter()
+            .map(|v| v.key())
+            .collect()
+    };
+    let before = keys(&tree_of(|ui| panel(ui, "main", 2)));
+    let after = keys(&tree_of(|ui| {
+        panel(ui, "extra", 1);
+        panel(ui, "main", 2);
+    }));
+    assert!(before.len() >= 2, "{before:?}");
+    assert!(
+        before.is_subset(&after),
+        "keys moved: {:?}",
+        before.difference(&after)
     );
 }

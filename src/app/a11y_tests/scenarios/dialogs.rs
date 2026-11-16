@@ -69,7 +69,10 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             let base = rig.update();
             rig.editor.new_document().unwrap();
             rig.settle();
-            super::plain(&rig, Some(base))
+            Captured {
+                modal: true,
+                ..super::plain(&rig, Some(base))
+            }
         }),
     ]
 }
