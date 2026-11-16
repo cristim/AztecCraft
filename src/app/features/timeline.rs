@@ -204,6 +204,7 @@ pub(in crate::app) fn stops_playback(operation: &Operation) -> bool {
         | Operation::Pan { .. }
         | Operation::Dolly { .. }
         | Operation::SetCameraPose { .. }
+        | Operation::SetCameraFilmBack(_)
         | Operation::CreateCameraBookmark { .. }
         | Operation::RenameCameraBookmark { .. }
         | Operation::DeleteCameraBookmark { .. }
