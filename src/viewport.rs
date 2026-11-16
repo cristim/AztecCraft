@@ -11,7 +11,7 @@ use glam::{DVec2, DVec4, Mat4, Vec2, Vec3, Vec4};
 use std::fmt;
 
 mod lens;
-pub use lens::{FilmBack, FilmFit, InvalidFilmBack, Lens};
+pub use lens::{FilmBack, FilmFit, InvalidFilmBack, Lens, film_gate_ndc};
 mod rect_pick;
 pub use rect_pick::{InvalidRect, NdcRect};
 

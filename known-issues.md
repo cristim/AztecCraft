@@ -430,10 +430,13 @@ Frame All and Frame Selected floor the distance at twice the near clip plus 5% (
 default near), so an object with a radius under 2·near·sin(limiting half angle), about 0.065 at aspect up to 1.5 and less in wider viewports, frames smaller than the screen
 fraction other objects get. There is no per-camera near clip control (Maya exposes Near Clip
 Plane on the camera); a Camera Attributes near-clip setting is the candidate, not built.
-The default lens is film-fit (development.md row 25). Only the Fill film fit is built;
-Horizontal, Vertical and Overscan fits, film offset, camera scale and lens squeeze are
-unsupported, and the focal length and aperture cannot be changed. The Fill threshold, the Fill
-default and treating the viewport aspect as the resolution gate are PROVISIONAL. Pan moves
+The default lens is film-fit (development.md row 25). The viewport models the four film fits,
+lens squeeze (as an effective horizontal aperture), overscan, film offset, Film Fit Offset, pre
+and post scale and film roll through `FilmBack`; camera scale, roll pivot and roll order are not
+modelled. Until the operation, Attribute Editor and MCP tasks (#458 T2 onward) land, nothing can
+change the film back, so the focal length, aperture and every other field stay at their
+defaults. Every film formula, the Fill threshold, the Fill default and treating the viewport
+aspect as the resolution gate are PROVISIONAL. Pan moves
 `pixels * distance * 0.002` world units whatever the field of view, so on screen it runs about
 1.21x (aspect <= 1.5) to 1.43x (16:9) faster than under the old 45 degrees; it is not
 cursor-locked (pre-existing). MCP-only sessions that never painted frame at viewport aspect 1.0
