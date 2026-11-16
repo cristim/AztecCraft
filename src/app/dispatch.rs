@@ -397,6 +397,7 @@ impl Editor {
         if matches!(request.operation, Operation::InspectLimits) {
             return Ok(OperationReply::SceneLimits {
                 limits: azteccraft::scene_limits::scene_limits(),
+                usage: self.history.scene().usage(),
             });
         }
         if let Operation::InspectUvs { shape, cursor } = &request.operation {
@@ -926,6 +927,7 @@ impl Editor {
             Operation::InspectLimits => {
                 return Ok(OperationReply::SceneLimits {
                     limits: azteccraft::scene_limits::scene_limits(),
+                    usage: self.history.scene().usage(),
                 });
             }
             Operation::SetGridVisible { visible } => {

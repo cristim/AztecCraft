@@ -445,6 +445,13 @@ steps and refuses nothing) stay with their owners. Not in the table: the rendere
 | `view_bytes` | 256 MiB | bytes | `view_scene::VIEW_BUDGET` | `ViewError::ResourceLimit` |
 | `recovery_payload_bytes` | 512 MiB | bytes | `recovery::MAX_RECOVERY_BYTES` | `RecoveryError::TooLarge` |
 
+`inspect_limits` also reports `usage`: the live scene's counts (`NativeScene::statistics()`) and, for
+the four caps that bound a live scene (`instance_paths`, `instance_depth`, `instance_path_identities`,
+`view_bytes`), `used` and `headroom`. The view figure is the view builder's preflight estimate
+(`ViewScene::required_bytes`), not measured process memory; sums saturate with a flag and headroom
+never goes below zero. The statistics definitions (for example `triangles` as the fan triangulation
+of each face and its holes) are PROVISIONAL (#441).
+
 Boundary tests live with each owner (the binary admission work meter is pinned at exactly the cap and with one more count of each term (the smallest overshoot is 32 work units); instance depth, path identities and document bytes are pinned at N and N+1 (`native_scene::tests`, `document::native_open_tests`); the ASCII one is charged to its cap directly, and the view budget is exercised with a small byte budget); a generated flat scene proves the
 instance cap from the table (`scene_limits::tests`). Counts and bytes are asserted, never wall time.
 

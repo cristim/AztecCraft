@@ -887,6 +887,8 @@ pub enum OperationReply {
     #[cfg(any(test, feature = "mcp"))]
     SceneLimits {
         limits: &'static [azteccraft::scene_limits::SceneLimit],
+        /// Statistics and cap headroom of the live scene.
+        usage: azteccraft::scene_statistics::SceneUsage,
     },
     Created {
         node_id: String,
