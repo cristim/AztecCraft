@@ -218,3 +218,193 @@ async fn reduce_mesh_respects_drafts_and_modals() {
     client.cancel().await.unwrap();
     server.await.unwrap();
 }
+
+/// Face indices of the central part of the default plane (centroid within half the extent), and the
+/// number of vertices the region touches.
+fn middle_faces(editor: &Editor, shape: NativeId) -> (Vec<usize>, usize) {
+    let scene = editor.history.scene();
+    let mesh = scene.shape(shape).unwrap().mesh();
+    let corners = |face: &azteccraft::native_scene::NativeFace| -> Vec<usize> {
+        face.outer()
+            .iter()
+            .map(|d| mesh.edges()[d.edge].endpoints()[usize::from(d.reversed)])
+            .collect()
+    };
+    let at = |v: usize| mesh.effective_point_cm(v).unwrap();
+    let half = (0..mesh.point_count())
+        .map(|v| at(v)[0].abs().max(at(v)[2].abs()))
+        .fold(0.0, f64::max);
+    let mut region = Vec::new();
+    let mut vertices = std::collections::BTreeSet::new();
+    for (index, face) in mesh.faces().iter().enumerate() {
+        let c = corners(face);
+        let n = c.len() as f64;
+        let (x, z) = c.iter().fold((0.0, 0.0), |s, v| {
+            (s.0 + at(*v)[0] / n, s.1 + at(*v)[2] / n)
+        });
+        if x.abs() <= half / 2.0 && z.abs() <= half / 2.0 {
+            region.push(index);
+            vertices.extend(c);
+        }
+    }
+    (region, vertices.len())
+}
+
+#[tokio::test]
+async fn reduce_mesh_region_reduces_only_the_faces_and_undoes() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Plane);
+    let shape = editor.history.scene().shapes()[0].id();
+    let id = shape.to_decimal();
+    let (region, region_vertices) = middle_faces(&editor, shape);
+    assert!(region.len() >= 4);
+    let before = editor.history.scene().clone();
+    let outside = face_count(&editor, shape) - region.len();
+
+    // A remembered face pick must not survive the renumbering.
+    let mut path = editor.selected_path().to_vec();
+    path.push(shape);
+    editor.set_remembered_face(Some(azteccraft::native_scene::FaceTarget {
+        transform: editor.selected().unwrap(),
+        shape,
+        path,
+        face_index: region[0],
+    }));
+    assert!(
+        !editor
+            .component_set(crate::editor_operations::ComponentKind::Face)
+            .is_empty()
+    );
+    let reduced = tool(
+        &mut editor,
+        &context,
+        &client,
+        "reduce_mesh",
+        json!({"shape_id": id, "percent": 30, "faces": region}),
+    )
+    .await;
+    assert_eq!(reduced.structured_content.unwrap()["outcome"], "changed");
+    let after = editor.history.scene().clone();
+    let mesh = after.shape(shape).unwrap().mesh();
+    let quads = mesh.faces().iter().filter(|f| f.outer().len() == 4).count();
+    assert_eq!(
+        quads, outside,
+        "faces outside the region keep their polygons"
+    );
+    let removed = before.shape(shape).unwrap().mesh().point_count() - mesh.point_count();
+    assert_eq!(removed, region_vertices * 30 / 100);
+    assert!(
+        editor
+            .component_set(crate::editor_operations::ComponentKind::Face)
+            .is_empty()
+    );
+
+    tool(&mut editor, &context, &client, "undo", json!({})).await;
+    assert!(*editor.history.scene() == before);
+    tool(&mut editor, &context, &client, "redo", json!({})).await;
+    assert!(*editor.history.scene() == after);
+
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn reduce_mesh_region_refusals_keep_the_scene_and_history() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Plane);
+    let shape = editor.history.scene().shapes()[0].id();
+    let id = shape.to_decimal();
+    let total = face_count(&editor, shape);
+    let before = editor.history.scene().clone();
+
+    for (args, code) in [
+        (
+            json!({"shape_id": id, "percent": 30, "faces": []}),
+            "reduce_region_empty",
+        ),
+        (
+            json!({"shape_id": id, "percent": 30, "faces": [0, total]}),
+            "reduce_face_out_of_range",
+        ),
+        (
+            json!({"shape_id": id, "percent": 30, "faces": [2, 5, 2]}),
+            "reduce_duplicate_face",
+        ),
+        // One quad touches nothing it may collapse.
+        (
+            json!({"shape_id": id, "percent": 30, "faces": [0]}),
+            "reduce_target_unreachable",
+        ),
+        (
+            json!({"shape_id": id, "target_triangles": 1, "faces": [0, 1]}),
+            "reduce_target_unreachable",
+        ),
+        (
+            json!({"shape_id": id, "percent": 0, "faces": [0, 1]}),
+            "invalid_reduce_target",
+        ),
+    ] {
+        let refused = tool(&mut editor, &context, &client, "reduce_mesh", args.clone()).await;
+        assert_eq!(refused.is_error, Some(true), "{args}");
+        assert_eq!(error_code(&refused), code, "{args}");
+        assert!(*editor.history.scene() == before, "{args}");
+    }
+
+    for faces in [
+        json!("all"),
+        json!([-1]),
+        json!([1.5]),
+        json!([null]),
+        json!(vec![0; 200_001]),
+    ] {
+        let mut args = json!({"shape_id": id, "percent": 30, "faces": faces});
+        args["scene_token"] = json!(editor.scene_token.to_string());
+        let malformed =
+            call_response(&mut editor, &context, client.peer(), "reduce_mesh", args).await;
+        assert!(malformed.is_err());
+        assert!(*editor.history.scene() == before);
+    }
+
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}
+
+#[tokio::test]
+async fn reduce_mesh_region_respects_drafts_and_modals() {
+    let context = egui::Context::default();
+    let (mut editor, client, server) = start(&context).await;
+    editor.create(Primitive::Plane);
+    let shape = editor.history.scene().shapes()[0].id();
+    let (region, _) = middle_faces(&editor, shape);
+    let args = json!({"shape_id": shape.to_decimal(), "percent": 30, "faces": region});
+    let before = editor.history.scene().clone();
+
+    editor.channels[0] = "7".into();
+    let busy = tool(&mut editor, &context, &client, "reduce_mesh", args.clone()).await;
+    assert_eq!(error_code(&busy), "busy_editing");
+    assert_eq!(editor.channels[0], "7");
+    assert!(*editor.history.scene() == before);
+    editor.sync_fields();
+
+    editor
+        .apply_operation(Operation::NewScene)
+        .expect("dirty scene asks first");
+    let busy = tool(&mut editor, &context, &client, "reduce_mesh", args.clone()).await;
+    assert_eq!(error_code(&busy), "busy_editing");
+    assert!(*editor.history.scene() == before);
+
+    let stale = call(
+        &mut editor,
+        &context,
+        client.peer(),
+        "reduce_mesh",
+        json!({"scene_token": Uuid::new_v4().to_string(), "shape_id": shape.to_decimal(), "percent": 30, "faces": [0, 1]}),
+    )
+    .await;
+    assert_eq!(error_code(&stale), "stale_scene");
+
+    client.cancel().await.unwrap();
+    server.await.unwrap();
+}

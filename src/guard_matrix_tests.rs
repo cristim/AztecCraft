@@ -1403,14 +1403,24 @@ fn expand(seed: Operation, t: &Targets) -> Vec<Sample> {
             "delete_uvs",
             Operation::DeleteUvs { shape: t.shape },
         )],
-        Operation::ReduceMesh { .. } => vec![sample(
-            "reduce_mesh(percent)",
-            Operation::ReduceMesh {
-                shape: t.shape,
-                target: ReduceTarget::Percent(50.0),
-                faces: None,
-            },
-        )],
+        Operation::ReduceMesh { .. } => vec![
+            sample(
+                "reduce_mesh(percent)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: None,
+                },
+            ),
+            sample(
+                "reduce_mesh(region)",
+                Operation::ReduceMesh {
+                    shape: t.shape,
+                    target: ReduceTarget::Percent(50.0),
+                    faces: Some(vec![0, 1, 2, 3]),
+                },
+            ),
+        ],
         Operation::Create { .. } => vec![
             sample(
                 "create(plane)",

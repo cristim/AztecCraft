@@ -26,6 +26,10 @@ struct ReduceMeshArgs {
     /// Stop at this many vertices.
     #[schemars(range(min = 3, max = 4294967295u32))]
     target_vertices: Option<u32>,
+    /// Reduce only these faces (indices as inspect_scene lists them), at most 200000, no duplicates.
+    /// Percent and counts then refer to the region's own vertices and triangles.
+    #[schemars(length(max = 200000))]
+    faces: Option<Vec<usize>>,
 }
 
 fn parse_reduce_mesh(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> {
@@ -41,19 +45,25 @@ fn parse_reduce_mesh(arguments: JsonObject) -> Result<RemoteRequest, ErrorData> 
             ));
         }
     };
+    if args.faces.as_ref().is_some_and(|f| f.len() > 200_000) {
+        return Err(ErrorData::invalid_params(
+            "reduce_mesh faces lists at most 200000 indices",
+            None,
+        ));
+    }
     Ok(scoped(
         token(&args.scene_token)?,
         Operation::ReduceMesh {
             shape: native_id(&args.shape_id)?,
             target,
-            faces: None,
+            faces: args.faces,
         },
     ))
 }
 
 pub(in crate::mcp) const TOOLS: &[ToolSpec] = &[ToolSpec {
     name: "reduce_mesh",
-    description: "Reduce one shape's polygon mesh as one undo step by edge-collapse decimation (PROVISIONAL: the polyReduce page states no collapse order, cost or tie-break): give exactly one of percent (share of the original vertices removed as polyReduce -percentage says, above 0 and below 100, rounded down so never more: 30 percent of 81 vertices keeps 57), target_triangles (stop at or below) or target_vertices (stop at). Every face is triangulated; border vertices never move, no triangle flips (its new normal must keep a positive dot with the old one, so a fold near 90 degrees can pass) or degenerates and the mesh stays manifold. A target the collapses cannot reach is refused with reduce_target_unreachable, a target that removes nothing with nothing_to_reduce, a bad value with invalid_reduce_target, a non-manifold mesh with reduce_not_manifold, vertices or edges no face uses with reduce_loose_geometry and a polygon that cannot be split with reduce_not_triangulable and more than 200000 triangles with reduce_too_large. A shape with UVs is refused with uvs_block_topology_edit (delete the UVs first); sourced scenes and holes are refused with unsupported_edit. A refusal changes nothing. Face, edge and vertex picks are cleared. Shared-shape edits affect every instance",
+    description: "Reduce one shape's polygon mesh as one undo step by edge-collapse decimation (PROVISIONAL: the polyReduce page states no collapse order, cost or tie-break): give exactly one of percent (share of the original vertices removed as polyReduce -percentage says, above 0 and below 100, rounded down so never more: 30 percent of 81 vertices keeps 57), target_triangles (stop at or below) or target_vertices (stop at). Every face is triangulated; border vertices never move, no triangle flips (its new normal must keep a positive dot with the old one, so a fold near 90 degrees can pass) or degenerates and the mesh stays manifold. A target the collapses cannot reach is refused with reduce_target_unreachable, a target that removes nothing with nothing_to_reduce, a bad value with invalid_reduce_target, a non-manifold mesh with reduce_not_manifold, vertices or edges no face uses with reduce_loose_geometry and a polygon that cannot be split with reduce_not_triangulable and more than 200000 triangles with reduce_too_large. With faces, only those faces are triangulated and collapsed: vertices on the region boundary stay put like mesh borders, faces outside the region keep their polygons and vertex positions (vertex indices shift past removed vertices) and percent, target_triangles and target_vertices count the region's own vertices (every vertex of a region face) and triangles. An empty faces list is refused with reduce_region_empty, an index past the last face with reduce_face_out_of_range, a repeated index with reduce_duplicate_face; a region that cannot reach the target is reduce_target_unreachable, reporting the region's best counts. Face, edge and vertex picks are cleared whatever the region, because face indices are renumbered. A shape with UVs is refused with uvs_block_topology_edit (delete the UVs first); sourced scenes and holes are refused with unsupported_edit. A refusal changes nothing. Face, edge and vertex picks are cleared. Shared-shape edits affect every instance",
     schema: schema::<ReduceMeshArgs>,
     parse: parse_reduce_mesh,
     idempotent: false,

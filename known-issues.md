@@ -236,11 +236,16 @@ order, cost or tie-break, so these are PROVISIONAL: every face becomes a triangl
 never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of least
 quadric error, cheapest first, ties by vertex index. A collapse is accepted when each surviving
 triangle's new normal has a positive dot with its old one and a non-degenerate area, so a fold
-close to 90 degrees can pass (a design choice, not a Maya rule). A target that borders or manifold
+close to 90 degrees can pass (a design choice, not a Maya rule). An optional face list restricts
+the reduce to a region (PROVISIONAL, the page has no region flag): vertices on the region boundary
+are pinned like borders, faces outside keep their polygons and positions, percent and counts refer
+to the region's own vertices and triangles, and every face, edge and vertex pick is cleared after
+the op because face indices are renumbered. The list is explicit, not the Editor's face selection
+set. A target that borders or manifold
 limits make unreachable is refused, not approximated. UVs block it (`uvs_block_topology_edit`), as
 for Extrude. Meshes over 200000 triangles are refused (`reduce_too_large`, PROVISIONAL): every
 collapse rescans vertex stars and queues duplicate candidates, so the cost grows with the mesh.
-Missing: the Mesh menu item and option box, a face-region reduce, keep-quads, UV and colour
+Missing: the Mesh menu item and option box (and a selection-driven region), keep-quads, UV and colour
 weighting, and the native screenshot review. #462 stays open.
 
 ## Core authoring limits
