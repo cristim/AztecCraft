@@ -204,6 +204,24 @@ pub fn probe_file(path: &Path) -> Result<PlateInfo, PlateError> {
     probe_reader(file)
 }
 
+/// Reads a whole plate file through the regular-file open, never more than
+/// [`MAX_PLATE_FILE_BYTES`]; a file over the limit is refused before and while reading.
+pub fn read_plate_file(path: &Path) -> Result<Vec<u8>, PlateError> {
+    let (file, metadata) = open_regular_file(path).map_err(|error| PlateError::Io(error.kind()))?;
+    if metadata.len() > MAX_PLATE_FILE_BYTES as u64 {
+        return Err(PlateError::TooLarge);
+    }
+    let wanted = metadata.len().min(MAX_PLATE_FILE_BYTES as u64 + 1);
+    let mut bytes = Vec::with_capacity(usize::try_from(wanted).unwrap_or(0));
+    file.take(MAX_PLATE_FILE_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| PlateError::Io(error.kind()))?;
+    if bytes.len() > MAX_PLATE_FILE_BYTES {
+        return Err(PlateError::TooLarge);
+    }
+    Ok(bytes)
+}
+
 /// Decodes a whole plate file image to RGBA8 within the limits.
 pub fn decode_plate(bytes: &[u8]) -> Result<PlateFrame, PlateError> {
     if bytes.len() > MAX_PLATE_FILE_BYTES {

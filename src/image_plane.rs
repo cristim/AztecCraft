@@ -4,3 +4,4 @@
 pub mod cache;
 pub mod decode;
 pub mod sequence;
+pub mod worker;
