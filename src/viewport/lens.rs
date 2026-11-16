@@ -1,7 +1,7 @@
 //! The camera lens: an explicit vertical field of view, or a film back after Maya's camera node.
 //! Every film formula here is PROVISIONAL (the docs state none; see row 25 of
 //! `.project-docs/development.md`) and pinned by `film_tests.rs`.
-use glam::DVec2;
+use glam::{DVec2, Vec2};
 
 const MM_PER_INCH: f64 = 25.4;
 
@@ -145,13 +145,18 @@ impl FilmBack {
         }
     }
 
+    /// Film Offset in tangent space, squeeze on the horizontal part (PROVISIONAL).
+    fn offset_tan(&self) -> DVec2 {
+        DVec2::new(
+            self.film_offset_in[0] * self.lens_squeeze,
+            self.film_offset_in[1],
+        ) * (MM_PER_INCH / self.focal_mm)
+    }
+
     /// The pinhole view at a viewport aspect.
     pub(super) fn window(&self, aspect: f64) -> FilmWindow {
         let mm = MM_PER_INCH / self.focal_mm;
-        let mut centre = DVec2::new(
-            self.film_offset_in[0] * self.lens_squeeze,
-            self.film_offset_in[1],
-        ) * mm;
+        let mut centre = self.offset_tan();
         // Film Fit Offset acts on the axis the explicit fit leaves free.
         match self.film_fit {
             FilmFit::Horizontal => centre.y += self.film_fit_offset_in * mm,
@@ -219,6 +224,16 @@ impl FilmWindow {
         ]
     }
 
+    /// NDC of a point in tangent space (x/-z, y/-z).
+    fn ndc_of_tan(&self, tan: DVec2) -> DVec2 {
+        let m = self.linear();
+        let uv = (tan - self.centre) / self.half;
+        DVec2::new(
+            m[0][0] * uv.x + m[0][1] * uv.y,
+            m[1][0] * uv.x + m[1][1] * uv.y,
+        )
+    }
+
     /// Analytic inverse of `ndc_of_tan`: the tangent-space point a pixel looks at.
     pub(super) fn tan_of_ndc(&self, ndc: DVec2) -> DVec2 {
         let m = self.linear();
@@ -229,6 +244,22 @@ impl FilmWindow {
         );
         uv * self.half + self.centre
     }
+}
+
+/// The film gate corners in NDC at the given viewport aspect, lower-left, lower-right,
+/// upper-right, upper-left in film space (before the roll). The gate is centred on the squeezed
+/// Film Offset, so it moves with the scene and only Film Fit Offset shifts it in the view
+/// (the Film Back page: Film Offset offsets the gates relative to the scene). Overscan, scales,
+/// roll (PROVISIONAL for the gate) and the fit rules apply; the width uses the squeezed
+/// aperture. Computed in f64, cast once.
+pub fn film_gate_ndc(film: &FilmBack, viewport_aspect: f32) -> [Vec2; 4] {
+    let window = film.window(f64::from(viewport_aspect));
+    let half = film.gate_mm() / (2.0 * film.focal_mm);
+    let centre = film.offset_tan();
+    [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)].map(|(sx, sy)| {
+        let ndc = window.ndc_of_tan(centre + DVec2::new(sx * half.x, sy * half.y));
+        Vec2::new(ndc.x as f32, ndc.y as f32)
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

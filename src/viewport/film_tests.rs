@@ -467,3 +467,125 @@ fn handle_pixel_scale_is_unchanged_by_offset_and_roll() {
     );
     assert!((a - b).abs() <= a * 1e-6, "{a} vs {b}");
 }
+
+// film_gate_ndc
+
+/// The aspect at which Fill switches axis and the gate matches the view exactly.
+const FILM_ASPECT: f32 = 1.4173 / 0.9449;
+
+fn corners_close(actual: [Vec2; 4], expected: [[f64; 2]; 4], what: &str) {
+    for (a, e) in actual.iter().zip(expected) {
+        assert_close(f64::from(a.x), e[0], 2e-6, what);
+        assert_close(f64::from(a.y), e[1], 2e-6, what);
+    }
+}
+
+#[test]
+fn the_default_gate_covers_the_view_under_fill() {
+    let film = FilmBack::DEFAULT;
+    // Order: lower-left, lower-right, upper-right, upper-left.
+    corners_close(
+        film_gate_ndc(&film, FILM_ASPECT),
+        [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+        "film aspect",
+    );
+    // A = 1, Fill is vertical: the gate sticks out horizontally by hfa / vfa = 1.4173 / 0.9449.
+    let wide = 1.4173 / 0.9449;
+    corners_close(
+        film_gate_ndc(&film, 1.0),
+        [[-wide, -1.0], [wide, -1.0], [wide, 1.0], [-wide, 1.0]],
+        "A=1",
+    );
+    // A = 3, Fill is horizontal: the gate sticks out vertically by A * vfa / hfa.
+    let tall = 3.0 * 0.9449 / 1.4173;
+    corners_close(
+        film_gate_ndc(&film, 3.0),
+        [[-1.0, -tall], [1.0, -tall], [1.0, tall], [-1.0, tall]],
+        "A=3",
+    );
+}
+
+#[test]
+fn gate_overscan_squeeze_offset_and_roll_move_the_corners() {
+    let mut film = FilmBack::DEFAULT;
+    film.overscan = 1.5;
+    let s = 1.0 / 1.5;
+    corners_close(
+        film_gate_ndc(&film, FILM_ASPECT),
+        [[-s, -s], [s, -s], [s, s], [-s, s]],
+        "overscan",
+    );
+    // Squeeze 2 at A = 3: Fill is horizontal and the gate is as wide as the view.
+    let mut film = FilmBack::DEFAULT;
+    film.lens_squeeze = 2.0;
+    corners_close(
+        film_gate_ndc(&film, 2.0 * FILM_ASPECT),
+        [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+        "squeeze",
+    );
+    // Film Offset moves the gate with the scene, so under Fill it stays on the view; only Film
+    // Fit Offset shifts it: Horizontal fit, ffo 0.2 moves it by -ffo * 25.4 / 35 / ty in y.
+    let mut film = FilmBack::DEFAULT;
+    film.film_offset_in = [0.1, 0.05];
+    film.film_fit = FilmFit::Horizontal;
+    film.film_fit_offset_in = 0.2;
+    let shift = 0.2 * 25.4 / 35.0 / (TX_DEFAULT / f64::from(FILM_ASPECT));
+    corners_close(
+        film_gate_ndc(&film, FILM_ASPECT),
+        [
+            [-1.0, -1.0 - shift],
+            [1.0, -1.0 - shift],
+            [1.0, 1.0 - shift],
+            [-1.0, 1.0 - shift],
+        ],
+        "offset",
+    );
+    // Roll 90 at A = 1 with Horizontal fit: the lower-left corner (-1, -ty) goes to (ty, -1).
+    let mut film = FilmBack::DEFAULT;
+    film.film_fit = FilmFit::Horizontal;
+    film.film_roll_degrees = 90.0;
+    let corners = film_gate_ndc(&film, 1.0);
+    let k = 0.9449 / 1.4173; // gate height over width in tangent units, equals ty / tx
+    corners_close(
+        corners,
+        [[k, -1.0], [k, 1.0], [-k, 1.0], [-k, -1.0]],
+        "roll",
+    );
+}
+
+#[test]
+fn squeezed_offset_agrees_between_the_gate_corners_and_the_projection() {
+    let film = {
+        let mut film = FilmBack::DEFAULT;
+        film.lens_squeeze = 2.0;
+        film.film_offset_in = [0.1, 0.0];
+        film
+    };
+    let camera = film_camera(|f| *f = film);
+    let aspect = 3.0;
+    let corners = film_gate_ndc(&film, aspect);
+    // The gate is the film back moved with the scene: tangent corners c + (+-gx, +-gy), the
+    // offset squeezed, c = (0.1 * 2, 0) * 25.4 / 35.
+    let cx = 0.1 * 2.0 * 25.4 / 35.0;
+    let gx = 1.4173 * 2.0 * 25.4 / 70.0;
+    let gy = 0.9449 * 25.4 / 70.0;
+    for (corner, (sx, sy)) in
+        corners
+            .iter()
+            .zip([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)])
+    {
+        let projected = ndc(
+            &camera,
+            aspect,
+            [
+                ((cx + sx * gx) * 10.0) as f32,
+                (sy * gy * 10.0) as f32,
+                -10.0,
+            ],
+        );
+        assert_close(f64::from(corner.x), projected[0], 2e-6, "x");
+        assert_close(f64::from(corner.y), projected[1], 2e-6, "y");
+    }
+    // Fill at A = 3 with squeeze 2 is horizontal: the gate spans the view, offset or not.
+    assert_close(f64::from(corners[0].x), -1.0, 2e-6, "hand x");
+}
