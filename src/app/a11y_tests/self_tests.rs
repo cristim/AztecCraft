@@ -243,33 +243,46 @@ fn key_names_scenario_rule_role_and_anchor() {
     );
 }
 
+/// `update` plus one unnamed Window node per id, in order, each holding one unnamed button.
+fn with_unnamed_windows(mut update: TreeUpdate, windows: &[u64]) -> TreeUpdate {
+    let root = update.tree.as_ref().expect("full tree").root;
+    let mut added = Vec::new();
+    for id in windows {
+        let (window, button) = (NodeId(*id), NodeId(id + 1000));
+        let mut node = Node::new(Role::Window);
+        node.set_children(vec![button]);
+        let mut icon = Node::new(Role::Button);
+        icon.add_action(Action::Click);
+        update.nodes.extend([(window, node), (button, icon)]);
+        added.push(window);
+    }
+    let root_node = &mut update
+        .nodes
+        .iter_mut()
+        .find(|(id, _)| *id == root)
+        .unwrap()
+        .1;
+    let mut children = root_node.children().to_vec();
+    children.extend(added);
+    root_node.set_children(children);
+    update
+}
+
 #[test]
 fn an_unnamed_window_inserted_ahead_does_not_rebase_the_keys_after_it() {
-    let icon = || Atom::custom(IdSalt::new("icon"), vec2(12.0, 12.0));
-    let panel = |ui: &mut egui::Ui, salt: &str, buttons: usize| {
-        ui.scope_builder(
-            egui::UiBuilder::new()
-                .id_salt(salt)
-                .accessibility_role(accesskit::Role::Window),
-            |ui| {
-                for _ in 0..buttons {
-                    ui.add(Button::new(icon()));
-                }
-            },
-        );
-    };
-    let keys = |update: &TreeUpdate| -> std::collections::BTreeSet<String> {
-        violations("fixture", update, &[])
+    let keys = |windows: &[u64]| -> std::collections::BTreeSet<String> {
+        let update = with_unnamed_windows(tree_of(|ui| ui.label("x")), windows);
+        violations("fixture", &update, &[])
             .iter()
             .map(|v| v.key())
             .collect()
     };
-    let before = keys(&tree_of(|ui| panel(ui, "main", 2)));
-    let after = keys(&tree_of(|ui| {
-        panel(ui, "extra", 1);
-        panel(ui, "main", 2);
-    }));
-    assert!(before.len() >= 2, "{before:?}");
+    let before = keys(&[7]);
+    let after = keys(&[3, 7]);
+    assert!(
+        before.iter().any(|key| key.contains("<Window@7>")),
+        "{before:?}"
+    );
     assert!(
         before.is_subset(&after),
         "keys moved: {:?}",
