@@ -1,7 +1,7 @@
 //! Detection proofs: each rule fails on a synthetic control and passes on the fixed one.
 
 use super::*;
-use eframe::egui::{Atom, Button, IdSalt, Sense, WidgetInfo, accesskit, vec2};
+use eframe::egui::{Atom, Button, IdSalt, Sense, TextEdit, WidgetInfo, accesskit, vec2};
 
 fn input() -> egui::RawInput {
     egui::RawInput {
@@ -42,6 +42,16 @@ fn codes(update: &TreeUpdate) -> Vec<&'static str> {
     codes
 }
 
+/// Test-local stand-in for the production helper: the reason replaces any hover description.
+fn describe_disabled(response: egui::Response, reason: &str) -> egui::Response {
+    if !response.enabled() {
+        response.ctx.accesskit_node_builder(response.id, |node| {
+            node.set_description(format!("{DISABLED_PREFIX}{reason}"));
+        });
+    }
+    response
+}
+
 fn custom_region(ui: &mut egui::Ui, named: bool) {
     let response = ui.allocate_response(vec2(20.0, 20.0), Sense::click());
     if named {
@@ -64,6 +74,114 @@ fn icon_only_button_fails_name_until_named() {
             .widget_info(|| WidgetInfo::labeled(accesskit::Role::Button, true, "Cube"))
     });
     assert!(codes(&named).is_empty());
+}
+
+#[test]
+fn text_edit_fails_name_until_labelled() {
+    let mut text = String::new();
+    assert_eq!(
+        codes(&tree_of(|ui| ui.add(TextEdit::singleline(&mut text)))),
+        ["R1"]
+    );
+    let by_name = tree_of(|ui| {
+        ui.add(TextEdit::singleline(&mut text))
+            .accessible_name("Object name");
+    });
+    assert!(codes(&by_name).is_empty());
+    let by_label = tree_of(|ui| {
+        let label = ui.label("Translate X");
+        ui.add(TextEdit::singleline(&mut text))
+            .labelled_by(label.id);
+    });
+    assert!(codes(&by_label).is_empty());
+}
+
+#[test]
+fn glyph_name_fails_quality() {
+    assert_eq!(codes(&tree_of(|ui| ui.button("\u{2610}"))), ["R5"]);
+    assert_eq!(codes(&tree_of(|ui| ui.button("<k"))), ["R5"]);
+    assert!(codes(&tree_of(|ui| ui.button("Options"))).is_empty());
+}
+
+#[test]
+fn adding_a_widget_or_a_window_leaves_every_other_key_alone() {
+    let keys_of = |update: &TreeUpdate| -> std::collections::BTreeSet<String> {
+        violations("fixture", update, &[])
+            .iter()
+            .map(|v| v.key())
+            .collect()
+    };
+    let icon = || Atom::custom(IdSalt::new("icon"), vec2(12.0, 12.0));
+    let before = |ui: &mut egui::Ui| {
+        egui::Window::new("A").show(ui.ctx(), |ui| {
+            ui.add(Button::new(icon()));
+            ui.add(Button::new(icon()));
+        });
+    };
+    let after = |ui: &mut egui::Ui| {
+        egui::Window::new("B").show(ui.ctx(), |ui| {
+            ui.add(Button::new(icon()));
+        });
+        egui::Window::new("A").show(ui.ctx(), |ui| {
+            let _ = ui.button("New row");
+            ui.add(Button::new(icon()));
+            ui.add(Button::new(icon()));
+        });
+    };
+    let (old, new) = (keys_of(&tree_of(before)), keys_of(&tree_of(after)));
+    assert!(old.len() >= 2, "{old:?}");
+    assert!(
+        old.is_subset(&new),
+        "keys moved: {:?}",
+        old.difference(&new)
+    );
+}
+
+#[test]
+fn a_plain_label_is_not_a_control() {
+    assert!(codes(&tree_of(|ui| ui.label("Plain text"))).is_empty());
+}
+#[test]
+fn disabled_control_needs_the_reason_description() {
+    let hover_only = tree_of(|ui| {
+        ui.add_enabled(false, Button::new("Undo"))
+            .on_hover_text("Nothing to undo");
+    });
+    assert_eq!(codes(&hover_only), ["R3"]);
+    let described = tree_of(|ui| {
+        describe_disabled(
+            ui.add_enabled(false, Button::new("Undo"))
+                .on_hover_text("Nothing to undo"),
+            "Nothing to undo",
+        );
+    });
+    assert!(codes(&described).is_empty());
+}
+
+#[test]
+fn enabled_control_with_the_reason_prefix_fails() {
+    let stale = tree_of(|ui| {
+        let response = ui.button("Undo");
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_description(format!("{DISABLED_PREFIX}old reason"));
+        });
+    });
+    assert_eq!(codes(&stale), ["R3b"]);
+    let enabled = tree_of(|ui| describe_disabled(ui.button("Undo"), "never written"));
+    assert!(codes(&enabled).is_empty());
+}
+
+#[test]
+fn checkbox_without_state_fails() {
+    let stateless = tree_of(|ui| {
+        let response = ui.allocate_response(vec2(20.0, 20.0), Sense::click());
+        response.widget_info(|| WidgetInfo::labeled(accesskit::Role::CheckBox, true, "Flag"));
+        ui.ctx()
+            .accesskit_node_builder(response.id, |node| node.clear_toggled());
+    });
+    assert_eq!(codes(&stateless), ["R4"]);
+    let mut flag = false;
+    assert!(codes(&tree_of(|ui| ui.checkbox(&mut flag, "Flag"))).is_empty());
 }
 
 #[test]

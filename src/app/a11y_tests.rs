@@ -121,6 +121,64 @@ impl Violation {
     }
 }
 
+/// Stable names for widgets that have an explicit egui id; their keys never shift.
+pub(super) fn known_ids() -> HashMap<NodeId, String> {
+    let indexed = |name: &str, ids: Vec<egui::Id>| -> Vec<(egui::Id, String)> {
+        ids.into_iter()
+            .enumerate()
+            .map(|(index, id)| (id, format!("{name}[{index}]")))
+            .collect()
+    };
+    let [time, start, end] = super::features::timeline::field_ids();
+    let mut table = vec![
+        (super::name_edit_id(), "name_edit".to_owned()),
+        (super::material_edit_id(), "material_edit".to_owned()),
+        (
+            super::features::manipulation_tool::manipulation_value_id(),
+            "manipulation_value".to_owned(),
+        ),
+        (
+            super::features::extrude_options::thickness_field_id(),
+            "extrude_thickness".to_owned(),
+        ),
+        (time, "timeline_time".to_owned()),
+        (start, "timeline_start".to_owned()),
+        (end, "timeline_end".to_owned()),
+    ];
+    table.extend(indexed(
+        "channel_edit",
+        (0..9).map(super::channel_edit_id).collect(),
+    ));
+    table.extend(indexed(
+        "pivot_edit",
+        (0..6).map(super::pivot_edit_id).collect(),
+    ));
+    table.extend(indexed(
+        "primitive_option",
+        super::features::primitive_options::option_field_ids().collect(),
+    ));
+    table.extend(indexed(
+        "joint_option",
+        super::features::rigging::joint_field_ids().collect(),
+    ));
+    table
+        .into_iter()
+        .map(|(id, name)| (id.accesskit_id(), name))
+        .collect()
+}
+
+/// History rows carry the entry they undo in their name ("Undo Create Cube   Ctrl/Cmd Z"); keys use
+/// the bare verb so they do not follow the history.
+fn stable_name(name: &str) -> &str {
+    ["Undo", "Redo"]
+        .into_iter()
+        .find(|verb| {
+            name.strip_prefix(verb)
+                .is_some_and(|rest| rest.starts_with(' '))
+        })
+        .unwrap_or(name)
+}
+
 /// Id of the unnamed title-bar click area egui adds to a window of area id `area`. egui 0.37 forces
 /// `resizable(false)` on `Window` (window.rs:657), so there is no resize corner.
 fn chrome_ids(windows: &[egui::Id]) -> HashSet<NodeId> {
@@ -199,7 +257,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
     };
     let nodes: HashMap<NodeId, &Node> = update.nodes.iter().map(|(id, n)| (*id, n)).collect();
     let chrome = chrome_ids(windows);
-    let known: HashMap<NodeId, String> = HashMap::new();
+    let known = known_ids();
     let mut order = Vec::new();
     let mut seen = HashSet::new();
     let mut counts: HashMap<(String, String), usize> = HashMap::new();
@@ -216,7 +274,7 @@ pub(super) fn entries(update: &TreeUpdate, windows: &[egui::Id]) -> Vec<Entry> {
         let name = name_of(&nodes, node);
         let own = known.get(&id).cloned().or_else(|| {
             let key = match &name {
-                Some(name) => name.clone(),
+                Some(name) => stable_name(name).to_owned(),
                 None => format!("<{role:?}>"),
             };
             let index = counts.entry((base.clone(), key.clone())).or_default();
