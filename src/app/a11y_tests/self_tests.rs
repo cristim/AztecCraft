@@ -269,18 +269,23 @@ fn with_unnamed_windows(mut update: TreeUpdate, windows: &[u64]) -> TreeUpdate {
 }
 
 #[test]
-fn an_unnamed_window_inserted_ahead_does_not_rebase_the_keys_after_it() {
+fn an_unnamed_window_is_refused_unless_registered_and_a_registered_one_keeps_its_keys() {
+    let registered: HashMap<NodeId, String> = [(7, "window_seven"), (3, "window_three")]
+        .into_iter()
+        .map(|(id, name)| (NodeId(id), name.to_owned()))
+        .collect();
     let keys = |windows: &[u64]| -> std::collections::BTreeSet<String> {
         let update = with_unnamed_windows(tree_of(|ui| ui.label("x")), windows);
-        violations("fixture", &update, &[])
+        entries_with(&update, &[], &registered)
             .iter()
-            .map(|v| v.key())
+            .filter(|e| e.actionable)
+            .map(|e| e.anchor.clone())
             .collect()
     };
     let before = keys(&[7]);
     let after = keys(&[3, 7]);
     assert!(
-        before.iter().any(|key| key.contains("<Window@7>")),
+        before.iter().any(|k| k.starts_with("window_seven/")),
         "{before:?}"
     );
     assert!(
@@ -288,4 +293,9 @@ fn an_unnamed_window_inserted_ahead_does_not_rebase_the_keys_after_it() {
         "keys moved: {:?}",
         before.difference(&after)
     );
+    let unregistered = with_unnamed_windows(tree_of(|ui| ui.label("x")), &[9]);
+    let refused = unnamed_windows(&unregistered, &[]);
+    assert_eq!(refused.len(), 1, "{refused:?}");
+    assert!(refused[0].contains("name it or register it"), "{refused:?}");
+    assert!(unnamed_windows(&tree_of(|ui| ui.label("x")), &[]).is_empty());
 }
