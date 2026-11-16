@@ -3616,7 +3616,7 @@ fn an_invalid_rotate_step_is_refused_and_keeps_the_old_step() {
             degrees: Some(15.0),
         })
         .unwrap();
-    for step in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+    for step in [0.0, -1.0, f64::NAN, f64::INFINITY, 5e-324, 1e-307] {
         assert!(matches!(
             editor.apply_operation(Operation::SetRotateStep {
                 degrees: Some(step)
