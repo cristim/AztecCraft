@@ -230,12 +230,18 @@ verification must distinguish this observation from a confirmed diagnosis.
 **Area:** modeling, MCP
 
 `reduce_mesh` decimates one whole authored shape by quadric edge collapse. The `polyReduce` 2027
-page states no algorithm, so everything below is PROVISIONAL: every face becomes a triangle; border
-vertices never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of
-least quadric error; the percentage is the share of triangles removed; a count target stops at or
-below it. A target that borders or manifold limits make unreachable is refused, not approximated. UVs
-block it (`uvs_block_topology_edit`), as for Extrude. Missing: the Mesh menu item and option box, a
-face-region reduce, keep-quads, UV and colour weighting, and the native screenshot review. #462 stays open.
+page defines `-percentage` as the share of the original vertices removed, which `percent` follows
+(the count removed is rounded down, so never more than the percentage). It states no collapse
+order, cost or tie-break, so these are PROVISIONAL: every face becomes a triangle; border vertices
+never move (Maya's keep-borders, always on); collapses go to an endpoint or the midpoint of least
+quadric error, cheapest first, ties by vertex index. A collapse is accepted when each surviving
+triangle's new normal has a positive dot with its old one and a non-degenerate area, so a fold
+close to 90 degrees can pass (a design choice, not a Maya rule). A target that borders or manifold
+limits make unreachable is refused, not approximated. UVs block it (`uvs_block_topology_edit`), as
+for Extrude. Meshes over 200000 triangles are refused (`reduce_too_large`, PROVISIONAL): every
+collapse rescans vertex stars and queues duplicate candidates, so the cost grows with the mesh.
+Missing: the Mesh menu item and option box, a face-region reduce, keep-quads, UV and colour
+weighting, and the native screenshot review. #462 stays open.
 
 ## Core authoring limits
 

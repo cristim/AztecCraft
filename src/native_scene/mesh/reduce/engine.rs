@@ -5,6 +5,7 @@ use glam::DVec3;
 use std::cmp::Reverse;
 use std::collections::{BTreeSet, BinaryHeap, HashMap};
 
+/// Symmetric quadric `v^T A v + 2 b.v + c` of squared distances to planes.
 #[derive(Clone, Copy, Default)]
 struct Quadric {
     a: [f64; 6],
@@ -42,7 +43,13 @@ impl Quadric {
             a[1] * v.x + a[3] * v.y + a[4] * v.z,
             a[2] * v.x + a[4] * v.y + a[5] * v.z,
         );
-        (v.dot(av) + 2.0 * self.b.dot(v) + self.c).max(0.0)
+        let error = v.dot(av) + 2.0 * self.b.dot(v) + self.c;
+        // Rounding can leave a tiny negative; a NaN must stay NaN so the edge is not collapsible.
+        if error.is_nan() {
+            error
+        } else {
+            error.max(0.0)
+        }
     }
 }
 
@@ -223,8 +230,12 @@ impl Reducer {
     fn candidate(&self, a: usize, b: usize) -> Option<Candidate> {
         let (u, v) = (a.min(b), a.max(b));
         let (kept, removed, at) = self.plan(u, v)?;
+        let cost = self.cost(kept, removed, at);
+        if !cost.is_finite() {
+            return None;
+        }
         Some(Reverse((
-            self.cost(kept, removed, at).to_bits(),
+            cost.to_bits(),
             u,
             v,
             self.version[u],

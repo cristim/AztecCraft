@@ -23,11 +23,17 @@ use glam::DVec3;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-/// How far to reduce: by a share of the triangles, or to a triangle or vertex count.
+/// Most triangles one reduce accepts (PROVISIONAL). Each collapse rescans vertex stars and sets, so
+/// the cost grows with the mesh; a larger one is refused with `ReduceRefusal::TooLarge`.
+pub const MAX_REDUCE_TRIANGLES: usize = 200_000;
+
+/// How far to reduce: by a share of the vertices, or to a triangle or vertex count.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ReduceTarget {
-    /// Remove this percentage (above 0, below 100) of the triangles, rounded to leave at least
-    /// that many removed.
+    /// Remove this percentage (above 0, below 100) of the original vertices, as the `polyReduce`
+    /// `-percentage` flag says. The count removed is rounded down, so never more than the
+    /// percentage: 30% of 81 vertices removes 24 and keeps 57. A percentage that removes no
+    /// whole vertex is `NothingToReduce`.
     Percent(f64),
     /// Stop at or below this many triangles (a collapse removes one or two).
     Triangles(usize),
@@ -48,6 +54,8 @@ pub enum ReduceRefusal {
     LooseGeometry,
     /// A polygon cannot be split into triangles that all face its own way.
     NotTriangulable,
+    /// The mesh has more than `MAX_REDUCE_TRIANGLES` triangles once triangulated.
+    TooLarge,
     /// The collapses ran out before the target; `triangles` and `vertices` are the best reachable.
     Unreachable { triangles: usize, vertices: usize },
 }
@@ -66,6 +74,10 @@ impl fmt::Display for ReduceRefusal {
             Self::NotTriangulable => {
                 f.write_str("a polygon cannot be triangulated without flipping a triangle")
             }
+            Self::TooLarge => write!(
+                f,
+                "reduce accepts at most {MAX_REDUCE_TRIANGLES} triangles"
+            ),
             Self::Unreachable {
                 triangles,
                 vertices,
@@ -83,7 +95,6 @@ impl From<ReduceRefusal> for NativeError {
     }
 }
 
-/// Symmetric quadric `v^T A v + 2 b.v + c` of squared distances to planes.
 impl NativeMesh {
     /// Edge-collapse decimation to `target`; the mesh is unchanged on error. The result is all
     /// triangles with hard edges, and the vertex order of the survivors is kept.
@@ -107,6 +118,14 @@ impl NativeMesh {
         if used.len() != self.edges.len() {
             return Err(ReduceRefusal::LooseGeometry.into());
         }
+        let triangles: usize = self
+            .faces
+            .iter()
+            .map(|f| f.outer.len().saturating_sub(2))
+            .sum();
+        if triangles > MAX_REDUCE_TRIANGLES {
+            return Err(ReduceRefusal::TooLarge.into());
+        }
         let positions = self.points.values();
         let mut tris = Vec::new();
         for face in &self.faces {
@@ -114,20 +133,17 @@ impl NativeMesh {
             tris.extend(split_faces(&corners, &positions).ok_or(ReduceRefusal::NotTriangulable)?);
         }
         let mut reducer = Reducer::new(tris, positions)?;
-        let triangles = reducer.live_tris;
-        let goal = match target {
-            ReduceTarget::Percent(p) if p > 0.0 && p < 100.0 => {
-                ReduceTarget::Triangles(((triangles as f64) * (1.0 - p / 100.0)).ceil() as usize)
-            }
-            ReduceTarget::Triangles(n) if n >= 1 => target,
-            ReduceTarget::Vertices(n) if n >= 3 => target,
+        let vertices = reducer.live_verts;
+        let (max_triangles, max_vertices) = match target {
+            ReduceTarget::Percent(p) if p > 0.0 && p < 100.0 => (
+                usize::MAX,
+                vertices - (vertices as f64 * p / 100.0).floor() as usize,
+            ),
+            ReduceTarget::Triangles(n) if n >= 1 => (n, usize::MAX),
+            ReduceTarget::Vertices(n) if n >= 3 => (usize::MAX, n),
             _ => return Err(ReduceRefusal::InvalidTarget.into()),
         };
-        let reached = |r: &Reducer| match goal {
-            ReduceTarget::Triangles(n) => r.live_tris <= n,
-            ReduceTarget::Vertices(n) => r.live_verts <= n,
-            ReduceTarget::Percent(_) => true,
-        };
+        let reached = |r: &Reducer| r.live_tris <= max_triangles && r.live_verts <= max_vertices;
         if reached(&reducer) {
             return Err(ReduceRefusal::NothingToReduce.into());
         }

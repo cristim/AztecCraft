@@ -177,6 +177,7 @@ fn tool_reply(reply: Result<OperationReply, OperationError>) -> CallToolResult {
                     ReduceRefusal::NotManifold => "reduce_not_manifold",
                     ReduceRefusal::LooseGeometry => "reduce_loose_geometry",
                     ReduceRefusal::NotTriangulable => "reduce_not_triangulable",
+                    ReduceRefusal::TooLarge => "reduce_too_large",
                     ReduceRefusal::Unreachable { .. } => "reduce_target_unreachable",
                 },
                 OperationError::Scene(NativeError::UndoState(_)) => "undo_state",
