@@ -356,3 +356,39 @@ impl Reducer {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A tetrahedron A,B,C,D with E dividing the top face: A,B,C is a 3-cycle that is not a face.
+    fn subdivided_tetrahedron() -> Reducer {
+        let pos = vec![
+            DVec3::new(0.0, 0.3, 0.0),
+            DVec3::new(0.0, -0.3, 0.0),
+            DVec3::new(2.0, 0.0, 0.0),
+            DVec3::new(0.7, 0.0, -1.5),
+            DVec3::new(0.7, 0.0, 0.2),
+        ];
+        let tris = vec![
+            [0, 1, 4],
+            [1, 2, 4],
+            [2, 0, 4],
+            [0, 2, 3],
+            [2, 1, 3],
+            [1, 0, 3],
+        ];
+        Reducer::new(tris, pos).unwrap()
+    }
+
+    #[test]
+    fn the_link_condition_refuses_a_collapse_that_pinches_a_separating_cycle() {
+        let r = subdivided_tetrahedron();
+        // A and B share C as a third common neighbour besides the apexes E and D: collapsing
+        // would fold B,C,E onto the existing C,A,E and B,C,D onto C,A,D. Every surviving normal
+        // keeps its direction, so only the link condition can refuse it.
+        assert!(!r.legal(0, 1, r.pos[0]));
+        // E-A has exactly the two apexes as common neighbours.
+        assert!(r.legal(4, 0, r.pos[4]));
+    }
+}

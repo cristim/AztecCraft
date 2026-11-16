@@ -95,6 +95,14 @@ impl From<ReduceRefusal> for NativeError {
     }
 }
 
+/// Refuses a triangle count above `MAX_REDUCE_TRIANGLES`.
+pub(in crate::native_scene::mesh) fn check_size(triangles: usize) -> Result<(), ReduceRefusal> {
+    if triangles > MAX_REDUCE_TRIANGLES {
+        return Err(ReduceRefusal::TooLarge);
+    }
+    Ok(())
+}
+
 impl NativeMesh {
     /// Edge-collapse decimation to `target`; the mesh is unchanged on error. The result is all
     /// triangles with hard edges, and the vertex order of the survivors is kept.
@@ -123,9 +131,7 @@ impl NativeMesh {
             .iter()
             .map(|f| f.outer.len().saturating_sub(2))
             .sum();
-        if triangles > MAX_REDUCE_TRIANGLES {
-            return Err(ReduceRefusal::TooLarge.into());
-        }
+        check_size(triangles)?;
         let positions = self.points.values();
         let mut tris = Vec::new();
         for face in &self.faces {

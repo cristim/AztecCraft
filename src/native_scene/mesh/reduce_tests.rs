@@ -395,10 +395,11 @@ fn a_non_finite_cost_is_never_collapsed() {
 }
 
 #[test]
-fn a_mesh_over_the_triangle_cap_is_refused() {
-    let big = NativeMesh::plane_grid([8.0, 8.0], [450, 450], Axis::Y);
+fn the_triangle_cap_accepts_its_limit_and_refuses_one_more() {
+    use super::reduce::{MAX_REDUCE_TRIANGLES, check_size};
+    assert_eq!(check_size(MAX_REDUCE_TRIANGLES), Ok(()));
     assert_eq!(
-        refusal(big.reduced(ReduceTarget::Percent(50.0)).unwrap_err()),
-        ReduceRefusal::TooLarge
+        check_size(MAX_REDUCE_TRIANGLES + 1),
+        Err(ReduceRefusal::TooLarge)
     );
 }
